@@ -18,7 +18,7 @@ tracker-id: daily-workflow-updater
 engine:
   id: copilot
   copilot-sdk: true
-  copilot-sdk-driver: copilot_sdk_driver_sample_ruby.rb
+  copilot-sdk-driver: .github/drivers/copilot_sdk_driver_sample_ruby.rb
 strict: true
 
 network:

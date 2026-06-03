@@ -10702,7 +10702,7 @@
         },
         {
           "id": "copilot",
-          "copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+          "copilot-sdk-driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
           "copilot-sdk": true,
           "version": "latest"
         }
@@ -10950,8 +10950,8 @@
             },
             "copilot-sdk-driver": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*(?:\\.(?:js|cjs|mjs|py|ts|mts|rb))?$",
-              "description": "Custom Copilot SDK driver script filename or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a safe basename with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb) for scripts in the setup action directory, or a bare command name without an extension for an arbitrary executable in PATH."
+              "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
+              "description": "Custom Copilot SDK driver script or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
             }
           },
           "required": ["id"],

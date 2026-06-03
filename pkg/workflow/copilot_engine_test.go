@@ -329,7 +329,7 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
 			CopilotSDK:       true,
-			CopilotSDKDriver: "custom_copilot_sdk_driver.cjs",
+			CopilotSDKDriver: ".github/drivers/custom_copilot_sdk_driver.cjs",
 		},
 	}
 
@@ -342,8 +342,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	if !strings.Contains(stepContent, "custom_copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected SDK driver mode command to include custom_copilot_sdk_driver.cjs, got:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, `${GITHUB_WORKSPACE}/.github/drivers`) {
-		t.Fatalf("Expected custom SDK driver to resolve from ${GITHUB_WORKSPACE}/.github/drivers, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, `${GITHUB_WORKSPACE}/.github/drivers/custom_copilot_sdk_driver.cjs`) {
+		t.Fatalf("Expected custom SDK driver to resolve as ${GITHUB_WORKSPACE}/<path>, got:\n%s", stepContent)
 	}
 	if strings.Contains(stepContent, "/actions/copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected built-in SDK driver to be replaced, got:\n%s", stepContent)

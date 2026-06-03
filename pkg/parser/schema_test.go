@@ -339,7 +339,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineCopilotSDKDr
 		"on": "push",
 		"engine": map[string]any{
 			"id":                 "copilot",
-			"copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+			"copilot-sdk-driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
 		},
 	}
 
@@ -348,12 +348,26 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineCopilotSDKDr
 		t.Fatalf("expected valid engine.copilot-sdk-driver pattern to pass schema validation, got: %v", err)
 	}
 
+	// Bare basename (no path) should still be valid.
+	basenameDriverFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":                 "copilot",
+			"copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(basenameDriverFrontmatter, "/tmp/gh-aw/engine-copilot-sdk-driver-basename-test.md")
+	if err != nil {
+		t.Fatalf("expected bare-basename engine.copilot-sdk-driver to pass schema validation, got: %v", err)
+	}
+
 	// Python driver should be valid.
 	pythonDriverFrontmatter := map[string]any{
 		"on": "push",
 		"engine": map[string]any{
 			"id":                 "copilot",
-			"copilot-sdk-driver": "my_driver.py",
+			"copilot-sdk-driver": ".github/drivers/my_driver.py",
 		},
 	}
 
@@ -367,7 +381,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineCopilotSDKDr
 		"on": "push",
 		"engine": map[string]any{
 			"id":                 "copilot",
-			"copilot-sdk-driver": "my_driver.ts",
+			"copilot-sdk-driver": ".github/drivers/my_driver.ts",
 		},
 	}
 
@@ -381,7 +395,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineCopilotSDKDr
 		"on": "push",
 		"engine": map[string]any{
 			"id":                 "copilot",
-			"copilot-sdk-driver": "my_driver.rb",
+			"copilot-sdk-driver": ".github/drivers/my_driver.rb",
 		},
 	}
 
