@@ -567,8 +567,6 @@ async function main(config = {}) {
             serverUrl: context.serverUrl,
           })
         : undefined,
-      workflowId,
-      markerWhenFooterDisabled: "workflow-id",
     });
 
     // Inject CAUTION at top of body if threat detection warning was raised
