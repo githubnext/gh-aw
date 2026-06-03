@@ -41,6 +41,7 @@ const {
   runWithCopilotSDK,
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
+  parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -215,6 +216,31 @@ describe("copilot_harness.cjs", () => {
           COPILOT_SDK_URI: "http://127.0.0.1:3002",
         })
       ).toBe("3002");
+    });
+
+    describe("parseCopilotSDKServerArgsFromEnv", () => {
+      it("returns parsed server args and logs count", () => {
+        const logger = vi.fn();
+        const result = parseCopilotSDKServerArgsFromEnv('["--headless","--port","3002"]', { logger });
+        expect(result).toEqual(["--headless", "--port", "3002"]);
+        expect(logger).toHaveBeenCalledWith("copilot-sdk driver mode: parsed 3 sidecar args from GH_AW_COPILOT_SDK_SERVER_ARGS");
+      });
+
+      it("falls back to empty args when value is not a string array", () => {
+        const logger = vi.fn();
+        const result = parseCopilotSDKServerArgsFromEnv('{"port":3002}', { logger });
+        expect(result).toEqual([]);
+        expect(logger).toHaveBeenCalledWith(
+          "copilot-sdk driver mode: GH_AW_COPILOT_SDK_SERVER_ARGS must be a JSON string array; using sidecar default args"
+        );
+      });
+
+      it("falls back to empty args when json is invalid", () => {
+        const logger = vi.fn();
+        const result = parseCopilotSDKServerArgsFromEnv("not-json", { logger });
+        expect(result).toEqual([]);
+        expect(logger).toHaveBeenCalledWith(expect.stringContaining("failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS"));
+      });
     });
 
     describe("copilot-sdk driver lifecycle", () => {

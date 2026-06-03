@@ -269,6 +269,21 @@ const (
 	// library can locate the running Copilot HTTP server.
 	CopilotSDKURIEnvVar = "COPILOT_SDK_URI"
 
+	// CopilotSDKServerArgsEnvVar is the environment variable that holds the JSON-encoded
+	// CLI argument array for the headless Copilot CLI sidecar started by copilot_harness.cjs
+	// in GH_AW_COPILOT_SDK_DRIVER mode.
+	// The array includes all server control and configuration flags
+	// (--headless, --no-auto-update, --port, --add-dir, --log-level, etc.)
+	// that the engine computes at compile time. The harness reads this variable at
+	// runtime to start the sidecar without any argument parsing.
+	CopilotSDKServerArgsEnvVar = "GH_AW_COPILOT_SDK_SERVER_ARGS"
+
+	// CopilotSDKDriverEnvVar is set to "1" when the copilot_sdk_driver.cjs program
+	// is used as the execution command instead of inline SDK handling inside the harness.
+	// The harness checks this flag to run the driver as a regular subprocess via runProcess
+	// while still managing sidecar start/stop itself.
+	CopilotSDKDriverEnvVar = "GH_AW_COPILOT_SDK_DRIVER"
+
 	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's
 	// runtime BYOK detection for Copilot offline mode. The real credential remains
 	// isolated in the AWF API proxy sidecar.
