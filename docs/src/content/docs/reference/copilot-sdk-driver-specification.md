@@ -155,7 +155,7 @@ try {
     model: "gpt-4o-mini",
   });
   const response = await session.sendAndWait({ prompt: "Summarize this repository." });
-  void response; // Minimal example: response handling is implementation-specific.
+  console.log(response);
   await session.disconnect();
 } finally {
   await client.stop();
