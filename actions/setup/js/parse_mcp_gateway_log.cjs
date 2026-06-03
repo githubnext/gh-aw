@@ -5,7 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
-const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./effective_tokens.cjs");
+const { computeEffectiveTokens, formatET, formatModelEmojiAlias } = require("./effective_tokens.cjs");
 const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
 
 /**
@@ -135,8 +135,7 @@ function parseTokenUsageJsonl(jsonlContent) {
 /**
  * Generates a markdown summary section for token usage data.
  * Renders one row per turn in chronological order with per-turn delta ET (ΔET)
- * and a running compounded ET total (ET), followed by an aggregate totals row
- * and a ● ET footer line.
+ * and a running compounded ET total (ET), followed by an aggregate totals row.
  * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object, entries: Array} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
@@ -144,7 +143,7 @@ function generateTokenUsageSummary(summary) {
   if (!summary || summary.totalRequests === 0) return "";
 
   const lines = [];
-  lines.push("| # | Model | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
+  lines.push("| # | Alias | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
   lines.push("|--:|-------|------:|-------:|-----------:|------------:|----:|---:|---------:|");
 
   const entries = summary.entries || [];
@@ -154,7 +153,7 @@ function generateTokenUsageSummary(summary) {
     const deltaET = Math.round(entry.deltaET || 0);
     compoundedET += deltaET;
     lines.push(
-      `| ${i + 1} | ${entry.model} | ${entry.inputTokens.toLocaleString()} | ${entry.outputTokens.toLocaleString()} | ${entry.cacheReadTokens.toLocaleString()} | ${entry.cacheWriteTokens.toLocaleString()} | ${formatET(deltaET)} | ${formatET(compoundedET)} | ${formatDurationMs(entry.durationMs)} |`
+      `| ${i + 1} | ${formatModelEmojiAlias(entry.model) || entry.model} | ${entry.inputTokens.toLocaleString()} | ${entry.outputTokens.toLocaleString()} | ${entry.cacheReadTokens.toLocaleString()} | ${entry.cacheWriteTokens.toLocaleString()} | ${formatET(deltaET)} | ${formatET(compoundedET)} | ${formatDurationMs(entry.durationMs)} |`
     );
   }
 
@@ -162,18 +161,6 @@ function generateTokenUsageSummary(summary) {
   lines.push(
     `| **Total** | | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | | **${totalET}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
-
-  // Footer line with ET summary using ● symbol
-  const footerParts = [];
-  if (summary.totalEffectiveTokens > 0) {
-    footerParts.push(`● ${formatET(Math.round(summary.totalEffectiveTokens))}`);
-  }
-  if (footerParts.length > 0) {
-    lines.push(`\n_${footerParts.join(" · ")}_`);
-    // Disclose the token class weights used to compute ET (required by the ET spec)
-    const w = getTokenClassWeights();
-    lines.push(`<sub>ET weights: input=${w.input} · cached_input=${w.cached_input} · output=${w.output} · reasoning=${w.reasoning} · cache_write=${w.cache_write}</sub>`);
-  }
 
   lines.push("");
 

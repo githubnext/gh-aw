@@ -154,7 +154,7 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      expect(mockCore.summary.addDetails).toHaveBeenCalledWith("Token Usage", expect.stringContaining("| Model |"));
+      expect(mockCore.summary.addDetails).toHaveBeenCalledWith("Token Usage", expect.stringContaining("| Alias |"));
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
     });
@@ -260,8 +260,8 @@ describe("parse_token_usage", () => {
 
       const detailsCall = mockCore.summary.addDetails.mock.calls[0];
       expect(detailsCall[0]).toBe("Token Usage");
-      expect(detailsCall[1]).toContain("claude-sonnet-4-6");
-      expect(detailsCall[1]).toContain("gpt-4o");
+      expect(detailsCall[1]).toContain("◉ sonnet46");
+      expect(detailsCall[1]).toContain("■ gpt40");
       expect(detailsCall[1]).toContain("**Total**");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
@@ -298,8 +298,8 @@ describe("parse_token_usage", () => {
       await main();
 
       const detailsCall = mockCore.summary.addDetails.mock.calls[0];
-      expect(detailsCall[1]).toContain("claude-sonnet-4-6");
-      expect(detailsCall[1]).toContain("gpt-4o");
+      expect(detailsCall[1]).toContain("◉ sonnet46");
+      expect(detailsCall[1]).toContain("■ gpt40");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(150);
@@ -364,9 +364,9 @@ describe("parse_token_usage", () => {
       await main();
 
       const detailsCall = mockCore.summary.addDetails.mock.calls[0];
-      expect(detailsCall[1]).toContain("claude-sonnet-4-6");
-      expect(detailsCall[1]).toContain("claude-haiku-4-5");
-      expect(detailsCall[1]).toContain("gpt-4o");
+      expect(detailsCall[1]).toContain("◉ sonnet46");
+      expect(detailsCall[1]).toContain("▲ haiku45");
+      expect(detailsCall[1]).toContain("■ gpt40");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(170);

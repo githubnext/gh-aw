@@ -1261,7 +1261,7 @@ function buildEngineRateLimit429Context(engineLabel) {
 /**
  * Read and render token usage from token-usage.jsonl for inclusion in the ET computation table.
  * Returns null gracefully when files are absent, empty, or unparseable.
- * @returns {string | null} Pre-rendered per-model markdown table, or null
+ * @returns {{ markdown: string, modelNames: string[] } | null} Pre-rendered per-model markdown table data, or null
  */
 function readTokenUsageMarkdown() {
   try {
@@ -1277,7 +1277,10 @@ function readTokenUsageMarkdown() {
     if (!content.trim()) return null;
     const tokenSummary = parseTokenUsageJsonl(content);
     if (!tokenSummary) return null;
-    return generateTokenUsageSummary(tokenSummary) || null;
+    const markdown = generateTokenUsageSummary(tokenSummary);
+    if (!markdown) return null;
+    const modelNames = Array.from(new Set((tokenSummary.entries || []).map(entry => entry.model).filter(Boolean)));
+    return { markdown, modelNames };
   } catch {
     return null;
   }

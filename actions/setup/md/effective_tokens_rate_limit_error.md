@@ -1,4 +1,4 @@
-**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.
+**⚠️ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.
 
 <details>
 <summary>Why this happened and how to optimize</summary>

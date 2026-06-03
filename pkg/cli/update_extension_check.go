@@ -15,6 +15,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -129,6 +130,10 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		if pinErr := pinCmd.Run(); pinErr != nil {
 			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", renderReleaseVersion(latestVersion), pinErr)
 		}
+		_, versionErr := verifyInstalledVersion(latestVersion)
+		if versionErr != nil {
+			return false, "", fmt.Errorf("failed to verify gh-aw extension version after upgrade: %w", versionErr)
+		}
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 		return true, "", nil
 	}
@@ -154,8 +159,21 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			// Replay the buffered output that was not shown during the attempt.
 			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
-		return true, "", nil
+		installedVersion, versionErr := installedExtensionVersion()
+		if versionErr != nil {
+			return false, "", fmt.Errorf("failed to verify gh-aw extension version after upgrade: %w", versionErr)
+		}
+		if normalizeVersion(installedVersion) != normalizeVersion(latestVersion) {
+			updateExtensionCheckLog.Printf("First upgrade attempt reported success but installed version is %s (expected %s)", renderReleaseVersion(installedVersion), renderReleaseVersion(latestVersion))
+			mismatchErr := fmt.Errorf("failed to upgrade gh-aw extension: expected %s, got %s", renderReleaseVersion(latestVersion), renderReleaseVersion(installedVersion))
+			if !needsRenameWorkaround() {
+				return false, "", mismatchErr
+			}
+			firstErr = fmt.Errorf("gh extension upgrade reported success without installing target version: %w", mismatchErr)
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
+			return true, "", nil
+		}
 	}
 
 	// First attempt failed.
@@ -280,8 +298,15 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)
 	}
 
-	// Retry succeeded. Clean up the backup if it still exists
-	// (it will be gone when the remove step above succeeded).
+	_, versionErr := verifyInstalledVersion(latestVersion)
+	if versionErr != nil {
+		// Verification failed; leave the backup in place so the user can roll
+		// back manually if needed.
+		return false, "", fmt.Errorf("failed to verify gh-aw extension version after upgrade: %w", versionErr)
+	}
+
+	// Verification passed. Clean up the backup now that it is safe to do so
+	// (it will already be gone when the remove step above succeeded).
 	if backupPath != "" {
 		cleanupExecutableBackup(backupPath)
 	}
@@ -475,6 +500,57 @@ func extensionInstallHelpCommand(targetVersion string) string {
 		return "gh extension install " + extensionRepo + " --force --pin " + targetVersion
 	}
 	return "gh extension install " + extensionRepo
+}
+
+func installedExtensionVersion() (string, error) {
+	var out bytes.Buffer
+	cmd := ghCmdForExtension("aw", "version")
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to query installed gh-aw version: %w (output: %s)", err, summarizeCommandOutput(out.String()))
+	}
+	version, err := parseInstalledVersionOutput(out.String())
+	if err != nil {
+		return "", err
+	}
+	return version, nil
+}
+
+func verifyInstalledVersion(targetVersion string) (string, error) {
+	installedVersion, err := installedExtensionVersion()
+	if err != nil {
+		return "", err
+	}
+	if normalizeVersion(installedVersion) != normalizeVersion(targetVersion) {
+		return installedVersion, fmt.Errorf("failed to upgrade gh-aw extension: expected %s, got %s", renderReleaseVersion(targetVersion), renderReleaseVersion(installedVersion))
+	}
+	return installedVersion, nil
+}
+
+func normalizeVersion(version string) string {
+	return strings.TrimPrefix(version, "v")
+}
+
+// parseInstalledVersionOutput scans the output of `gh aw version` for the
+// first token that is a valid semantic version (with or without a leading "v").
+// It returns the version normalized to include a "v" prefix.
+func parseInstalledVersionOutput(output string) (string, error) {
+	for token := range strings.FieldsSeq(output) {
+		if semverutil.IsValid(token) {
+			return semverutil.EnsureVPrefix(token), nil
+		}
+	}
+	return "", fmt.Errorf("could not parse installed gh-aw version from output: %s", summarizeCommandOutput(output))
+}
+
+func summarizeCommandOutput(output string) string {
+	const maxOutputLen = 300
+	trimmed := strings.TrimSpace(output)
+	if len(trimmed) <= maxOutputLen {
+		return trimmed
+	}
+	return trimmed[:maxOutputLen] + "…"
 }
 
 func isPrereleaseVersion(version string) bool {
