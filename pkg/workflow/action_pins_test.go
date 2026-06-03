@@ -13,6 +13,7 @@ import (
 )
 
 const setupNodeV6ExpectedUsesPlaceholder = "__setup_node_v6__"
+const checkoutV6ExpectedUsesPlaceholder = "__checkout_v6__"
 
 func expectedPinnedUses(t *testing.T, repo, version string) string {
 	t.Helper()
@@ -148,7 +149,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
+			expectedUses: checkoutV6ExpectedUsesPlaceholder,
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -222,6 +223,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 				expectedUses := tt.expectedUses
 				if expectedUses == setupNodeV6ExpectedUsesPlaceholder {
 					expectedUses = expectedPinnedUses(t, "actions/setup-node", "v6")
+				}
+				if expectedUses == checkoutV6ExpectedUsesPlaceholder {
+					expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
 				}
 				if usesStr != expectedUses {
 					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, expectedUses)
@@ -319,7 +323,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				Uses: "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
+			expectedUses: checkoutV6ExpectedUsesPlaceholder,
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -371,7 +375,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
+			expectedUses: checkoutV6ExpectedUsesPlaceholder,
 		},
 	}
 
@@ -397,6 +401,9 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			expectedUses := tt.expectedUses
 			if expectedUses == setupNodeV6ExpectedUsesPlaceholder {
 				expectedUses = expectedPinnedUses(t, "actions/setup-node", "v6")
+			}
+			if expectedUses == checkoutV6ExpectedUsesPlaceholder {
+				expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
 			}
 			if result.Uses != expectedUses {
 				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, expectedUses)
@@ -1170,7 +1177,7 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 				"uses": "actions/checkout@v6",
 			},
 			wantErr:      false,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
+			expectedUses: checkoutV6ExpectedUsesPlaceholder,
 		},
 		{
 			name: "valid step with run - should not pin",
@@ -1222,6 +1229,9 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 			expectedUses := tt.expectedUses
 			if expectedUses == setupNodeV6ExpectedUsesPlaceholder {
 				expectedUses = expectedPinnedUses(t, "actions/setup-node", "v6")
+			}
+			if expectedUses == checkoutV6ExpectedUsesPlaceholder {
+				expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
 			}
 			if expectedUses != "" {
 				if pinnedStep.Uses != expectedUses {
