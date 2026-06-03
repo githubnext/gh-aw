@@ -22,8 +22,9 @@
  *       (without `--continue`) so env-var auth can succeed.  Mid-stream context is lost but the
  *       job has a recovery path.
  *     - On a fresh run (attempt 0 or after a `--continue`-auth fallback): the env-var token is
- *       genuinely absent or invalid.  All further retries will produce the same failure, so the
- *       driver bails immediately.
+ *       usually genuinely absent or invalid. The driver bails immediately except for scheduled
+ *       runs with all auth env vars absent, where it performs one bounded fresh retry to cover
+ *       token-provisioning races.
  *   - Null-type tool_call errors (400 "Invalid type for '...tool_calls[N].type': ... got null")
  *     poison the conversation history.  Retrying with `--continue` re-injects the same broken
  *     state on every subsequent attempt.  The driver restarts fresh to discard the poisoned
@@ -73,6 +74,9 @@ const MAX_DELAY_MS = 60000;
 // Additional startup retry budget for scheduled runs when Copilot exits with code 2
 // before producing any output (typically transient API interruption at startup).
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
+// Additional startup retry budget for scheduled runs when Copilot reports
+// missing authentication info on a fresh run and no auth env vars are present.
+const MAX_SCHEDULED_AUTH_NULL_RETRIES = 1;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
@@ -316,6 +320,32 @@ function isNoAuthInfoError(output) {
  */
 function isAuthenticationFailedError(output) {
   return AUTHENTICATION_FAILED_PATTERN.test(output);
+}
+
+/**
+ * Return true when an environment variable is set to a non-empty string.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isNonEmptyEnvValue(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Build a mask-safe snapshot of Copilot auth token env presence.
+ * @param {NodeJS.ProcessEnv | undefined} env
+ * @returns {{ copilotGitHubTokenPresent: boolean, ghTokenPresent: boolean, githubTokenPresent: boolean, anyTokenPresent: boolean }}
+ */
+function buildCopilotAuthEnvPresence(env = process.env) {
+  const copilotGitHubTokenPresent = isNonEmptyEnvValue(env?.COPILOT_GITHUB_TOKEN);
+  const ghTokenPresent = isNonEmptyEnvValue(env?.GH_TOKEN);
+  const githubTokenPresent = isNonEmptyEnvValue(env?.GITHUB_TOKEN);
+  return {
+    copilotGitHubTokenPresent,
+    ghTokenPresent,
+    githubTokenPresent,
+    anyTokenPresent: copilotGitHubTokenPresent || ghTokenPresent || githubTokenPresent,
+  };
 }
 
 /**
@@ -686,6 +716,7 @@ async function main() {
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
+  let scheduledAuthNullRetries = 0;
   let useContinueOnRetry = false;
   let modelNotSupportedReflectRetryAttempted = false;
   // Once set to true, --continue is never re-enabled for the remainder of this run.
@@ -802,6 +833,13 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
+        const authEnvPresence = buildCopilotAuthEnvPresence(childEnv ?? process.env);
+        log(
+          `attempt ${attempt + 1}: auth preflight` +
+            ` COPILOT_GITHUB_TOKEN=${authEnvPresence.copilotGitHubTokenPresent ? "present" : "absent"}` +
+            ` GH_TOKEN=${authEnvPresence.ghTokenPresent ? "present" : "absent"}` +
+            ` GITHUB_TOKEN=${authEnvPresence.githubTokenPresent ? "present" : "absent"}`
+        );
         let result;
         if (copilotSDKDriverMode) {
           // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
@@ -935,6 +973,16 @@ async function main() {
             log(`attempt ${attempt + 1}: auth error on --continue — retrying as fresh run (session credential may be corrupted; context will be lost)`);
             continue;
           }
+          if (isScheduledRun && !authEnvPresence.anyTokenPresent && scheduledAuthNullRetries < MAX_SCHEDULED_AUTH_NULL_RETRIES && attempt < MAX_RETRIES) {
+            scheduledAuthNullRetries += 1;
+            useContinueOnRetry = false;
+            continueDisabledPermanently = true;
+            log(`attempt ${attempt + 1}: no authentication info on fresh run with all auth env vars absent` + ` — retrying once after delay (authNullRetry=${scheduledAuthNullRetries}/${MAX_SCHEDULED_AUTH_NULL_RETRIES})`);
+            continue;
+          }
+          if (!authEnvPresence.anyTokenPresent) {
+            emitInfrastructureIncomplete("copilot_auth_token_missing: Copilot authentication token was unavailable at runtime (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN were all absent).");
+          }
           log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
           break;
         }
@@ -1047,6 +1095,8 @@ if (typeof module !== "undefined" && module.exports) {
     extractPromptFromArgs,
     readSDKOptionsFromStdin,
     parseCopilotSDKServerArgsFromEnv,
+    buildCopilotAuthEnvPresence,
+    isNonEmptyEnvValue,
     runWithCopilotSDK,
   };
 }

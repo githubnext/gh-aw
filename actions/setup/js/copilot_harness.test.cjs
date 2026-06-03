@@ -16,6 +16,7 @@ const {
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
   buildPromptFileFallbackInstruction,
+  buildCopilotAuthEnvPresence,
   countPermissionDeniedIssues,
   detectCopilotErrors,
   emitInfrastructureIncomplete,
@@ -42,6 +43,7 @@ const {
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
   parseCopilotSDKServerArgsFromEnv,
+  isNonEmptyEnvValue,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -1123,6 +1125,27 @@ describe("copilot_harness.cjs", () => {
       expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
     });
 
+    describe("Copilot auth env presence helpers", () => {
+      it("treats undefined, empty, and whitespace values as absent", () => {
+        expect(isNonEmptyEnvValue(undefined)).toBe(false);
+        expect(isNonEmptyEnvValue("")).toBe(false);
+        expect(isNonEmptyEnvValue("   ")).toBe(false);
+      });
+
+      it("treats non-empty values as present", () => {
+        expect(isNonEmptyEnvValue("token")).toBe(true);
+      });
+
+      it("builds a mask-safe auth env presence snapshot", () => {
+        expect(buildCopilotAuthEnvPresence({ COPILOT_GITHUB_TOKEN: "", GH_TOKEN: "  ", GITHUB_TOKEN: "ghs_x" })).toEqual({
+          copilotGitHubTokenPresent: false,
+          ghTokenPresent: false,
+          githubTokenPresent: true,
+          anyTokenPresent: true,
+        });
+      });
+    });
+
     it("does not match no-auth-info error", () => {
       expect(isAuthenticationFailedError("Error: No authentication information found.")).toBe(false);
     });
@@ -1173,20 +1196,27 @@ describe("copilot_harness.cjs", () => {
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
     const NO_AUTH_INFO_PATTERN = /No authentication information found/;
     const MAX_RETRIES = 3;
+    const MAX_SCHEDULED_AUTH_NULL_RETRIES = 1;
 
     /**
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
      * @param {number} attempt
      * @param {boolean} useContinueOnRetry - whether the current attempt used --continue
+     * @param {boolean} isScheduledRun
+     * @param {boolean} anyTokenPresent
+     * @param {number} scheduledAuthNullRetries
      * @returns {boolean}
      */
-    function shouldRetry(result, attempt, useContinueOnRetry = false) {
+    function shouldRetry(result, attempt, useContinueOnRetry = false, isScheduledRun = false, anyTokenPresent = true, scheduledAuthNullRetries = 0) {
       if (result.exitCode === 0) return false;
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       // Auth error on --continue: fall back to fresh run once; on fresh run: bail
       if (NO_AUTH_INFO_PATTERN.test(result.output)) {
+        if (isScheduledRun && !anyTokenPresent && scheduledAuthNullRetries < MAX_SCHEDULED_AUTH_NULL_RETRIES && attempt < MAX_RETRIES) {
+          return true;
+        }
         return useContinueOnRetry && attempt < MAX_RETRIES;
       }
       return attempt < MAX_RETRIES && result.hasOutput;
@@ -1222,6 +1252,17 @@ describe("copilot_harness.cjs", () => {
     it("does not retry auth error even when output is mixed with other content", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Some output\nError: No authentication information found.\nMore output" };
       expect(shouldRetry(result, 0, false)).toBe(false);
+    });
+
+    it("retries once for scheduled auth-null fresh failures when all auth env vars are absent", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(result, 0, false, true, false, 0)).toBe(true);
+      expect(shouldRetry(result, 1, false, true, false, 1)).toBe(false);
+    });
+
+    it("does not apply scheduled auth-null retry when any auth token env var is present", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(result, 0, false, true, true, 0)).toBe(false);
     });
 
     it("still retries non-auth errors with output (CAPIError 400)", () => {
