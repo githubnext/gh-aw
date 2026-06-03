@@ -134,6 +134,12 @@ const SAMPLE_VALIDATION_CONFIG = {
   },
 };
 
+const ISSUE_CLOSING_KEYWORDS = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
+const ISSUE_CLOSING_KEYWORD_PATTERN = ISSUE_CLOSING_KEYWORDS.join("|");
+const BACKTICKED_CLOSER_WHOLE_RE = new RegExp("`(?:" + ISSUE_CLOSING_KEYWORD_PATTERN + ")\\b[^`]*#\\d+`", "i");
+const BACKTICKED_CLOSER_REFERENCE_RE = new RegExp("(?:" + ISSUE_CLOSING_KEYWORD_PATTERN + ")\\b\\s+`(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+`", "i");
+const BACKTICKED_CLOSER_BOTH_RE = new RegExp("`(?:" + ISSUE_CLOSING_KEYWORD_PATTERN + ")`\\s+`(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+`", "i");
+
 describe("safe_output_type_validator", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -277,9 +283,8 @@ describe("safe_output_type_validator", () => {
 
     it("should normalize all supported closing keywords in whole and split backtick forms", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
-      const keywords = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
 
-      for (const keyword of keywords) {
+      for (const keyword of ISSUE_CLOSING_KEYWORDS) {
         const mixedCase = keyword[0].toUpperCase() + keyword.slice(1);
         const wholeResult = validateItem({ type: "add_comment", body: `\`${mixedCase} #12\`` }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
         expect(wholeResult.isValid).toBe(true);
@@ -313,7 +318,7 @@ describe("safe_output_type_validator", () => {
       }
 
       it("is idempotent and preserves non-closing backticked references for fuzz seed cases", async () => {
-        const keywords = ["fixes", "resolves", "closed", "FIXED"];
+        const keywords = [...ISSUE_CLOSING_KEYWORDS, "FIXED"];
         const references = ["#1", "#42", "Owner/Repo#987", "team.repo/service_name#9001"];
         const prefixes = ["", "Before: ", "  ", "- ", "Start\n", "prefix `code` "];
         const suffixes = ["", ".", " now", "\nTrailing line", " -- done"];
@@ -337,9 +342,9 @@ describe("safe_output_type_validator", () => {
           const twice = await normalizeBody(once);
           expect(twice).toBe(once);
           expect(once).toMatch(/Use `[^`]*#\d+` for docs/);
-          expect(once).not.toMatch(/`(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b[^`]*#\d+`/i);
-          expect(once).not.toMatch(/(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b\s+`(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+`/i);
-          expect(once).not.toMatch(/`(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)`\s+`(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+`/i);
+          expect(once).not.toMatch(BACKTICKED_CLOSER_WHOLE_RE);
+          expect(once).not.toMatch(BACKTICKED_CLOSER_REFERENCE_RE);
+          expect(once).not.toMatch(BACKTICKED_CLOSER_BOTH_RE);
         }
       });
 
