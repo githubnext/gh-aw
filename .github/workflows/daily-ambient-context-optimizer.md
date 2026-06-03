@@ -22,7 +22,6 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  max-bot-mentions: 0
   create-issue:
     title-prefix: "[ambient-context] "
     labels: [automation, report, workflow-optimization, analysis]
