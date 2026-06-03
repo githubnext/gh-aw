@@ -3,7 +3,6 @@
 
 const fs = require("fs");
 const path = require("path");
-const { escape: escapeHtml } = require("html-escaper");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 
 /**
@@ -360,6 +359,16 @@ function formatModelEmojiAlias(modelName) {
   }
 
   return `${emoji} ${identifier}`;
+}
+
+/**
+ * Escapes HTML-sensitive characters for safe embedding in HTML fragments.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch);
 }
 
 /**
