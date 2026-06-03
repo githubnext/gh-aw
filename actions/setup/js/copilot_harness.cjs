@@ -39,6 +39,8 @@
 
 "use strict";
 
+require("./shim.cjs");
+
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -136,8 +138,6 @@ function logCoreLoggerFallback(harnessLogger, reason) {
  */
 function buildCoreLogger(harnessLogger) {
   try {
-    // eslint-disable-next-line global-require
-    require("./shim.cjs");
     const core = global.core;
     if (!core) {
       logCoreLoggerFallback(harnessLogger, "global.core not initialized");
