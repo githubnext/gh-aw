@@ -318,7 +318,11 @@ async function main() {
   }
 
   const model = process.env.COPILOT_MODEL || undefined;
-  const connectionToken = process.env.COPILOT_CONNECTION_TOKEN || undefined;
+  const connectionToken = process.env.COPILOT_CONNECTION_TOKEN;
+  if (!connectionToken) {
+    process.stderr.write("[copilot-sdk-driver] error: COPILOT_CONNECTION_TOKEN is not set\n");
+    process.exit(1);
+  }
 
   // --- Read the prompt -------------------------------------------------
 

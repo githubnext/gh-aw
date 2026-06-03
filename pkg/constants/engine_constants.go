@@ -270,10 +270,11 @@ const (
 	CopilotSDKURIEnvVar = "COPILOT_SDK_URI"
 
 	// CopilotSDKServerArgsEnvVar is the environment variable that holds the JSON-encoded
-	// CLI argument array for the headless Copilot CLI sidecar started by copilot_sdk_driver.cjs.
+	// CLI argument array for the headless Copilot CLI sidecar started by copilot_harness.cjs
+	// in GH_AW_COPILOT_SDK_DRIVER mode.
 	// The array includes all server control and configuration flags
 	// (--headless, --no-auto-update, --port, --add-dir, --log-level, etc.)
-	// that the engine computes at compile time. The driver reads this variable at
+	// that the engine computes at compile time. The harness reads this variable at
 	// runtime to start the sidecar without any argument parsing.
 	CopilotSDKServerArgsEnvVar = "GH_AW_COPILOT_SDK_SERVER_ARGS"
 
