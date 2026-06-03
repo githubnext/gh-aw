@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -28,10 +28,6 @@ const maxBackupCleanupAttempts = 3
 // backupCleanupRetryDelay is the pause between successive cleanup attempts.
 // The delay allows transient locks (e.g. Windows Defender scanning) to clear.
 const backupCleanupRetryDelay = 300 * time.Millisecond
-
-// extensionVersionPattern matches stable and prerelease tags such as
-// v1.2.3 and v1.2.3-beta.1 in `gh aw version` output.
-var extensionVersionPattern = regexp.MustCompile(`v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?`)
 
 // upgradeExtensionIfOutdated checks if a newer version of the gh-aw extension is available
 // and, if so, upgrades it automatically.
@@ -533,12 +529,16 @@ func normalizeVersion(version string) string {
 	return strings.TrimPrefix(version, "v")
 }
 
+// parseInstalledVersionOutput scans the output of `gh aw version` for the
+// first token that is a valid semantic version (with or without a leading "v").
+// It returns the version normalized to include a "v" prefix.
 func parseInstalledVersionOutput(output string) (string, error) {
-	match := extensionVersionPattern.FindString(output)
-	if match == "" {
-		return "", fmt.Errorf("could not parse installed gh-aw version from output: %s", summarizeCommandOutput(output))
+	for _, token := range strings.Fields(output) {
+		if semverutil.IsValid(token) {
+			return semverutil.EnsureVPrefix(token), nil
+		}
 	}
-	return match, nil
+	return "", fmt.Errorf("could not parse installed gh-aw version from output: %s", summarizeCommandOutput(output))
 }
 
 func summarizeCommandOutput(output string) string {

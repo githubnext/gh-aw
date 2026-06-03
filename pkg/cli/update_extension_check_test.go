@@ -344,6 +344,12 @@ func TestRenderReleaseVersion(t *testing.T) {
 }
 
 func TestParseInstalledVersionOutput(t *testing.T) {
+	t.Run("parses version without v prefix", func(t *testing.T) {
+		got, err := parseInstalledVersionOutput("gh-aw version 0.77.5 (2026-06-01)")
+		require.NoError(t, err)
+		assert.Equal(t, "v0.77.5", got)
+	})
+
 	t.Run("parses stable version", func(t *testing.T) {
 		got, err := parseInstalledVersionOutput("gh-aw version v0.77.5 (2026-06-01)")
 		require.NoError(t, err)
@@ -363,7 +369,7 @@ func TestParseInstalledVersionOutput(t *testing.T) {
 	})
 
 	t.Run("uses first version match when multiple exist", func(t *testing.T) {
-		got, err := parseInstalledVersionOutput("current=v0.77.5 latest=v0.77.6")
+		got, err := parseInstalledVersionOutput("gh-aw v0.77.5 (built from v0.77.6)")
 		require.NoError(t, err)
 		assert.Equal(t, "v0.77.5", got)
 	})
