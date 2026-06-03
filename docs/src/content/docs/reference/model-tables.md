@@ -35,6 +35,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
 | `coding` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*`, `gpt-5-codex` |
+| `mai-code` | `copilot/MAI-Code*`, `copilot/mai-code*`, `openai/MAI-Code*` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
@@ -44,12 +45,13 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 | `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
-| `gemini-3-pro` | `copilot/gemini-3*pro*`, `google/gemini-3*pro*`, `gemini/gemini-3*pro*` |
+| `gemini-3-pro` | `copilot/gemini-3*pro*`, `google/gemini-3*pro*`, `google/nano-banana*`, `gemini/gemini-3*pro*` |
 | `gemini-3-flash` | `copilot/gemini-3*flash*`, `google/gemini-3*flash*`, `gemini/gemini-3*flash*` |
 | `gemini-3.1-pro` | `copilot/gemini-3.1*pro*`, `google/gemini-3.1*pro*`, `gemini/gemini-3.1*pro*` |
 | `gemini-3.1-flash` | `copilot/gemini-3.1*flash*`, `google/gemini-3.1*flash*`, `gemini/gemini-3.1*flash*` |
 | `gemini-3.5-flash` | `copilot/gemini-3.5*flash*`, `google/gemini-3.5*flash*`, `gemini/gemini-3.5*flash*` |
 | `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `gemini/antigravity*` |
+| `nano-banana` | `copilot/nano-banana*`, `google/nano-banana*`, `gemini/nano-banana*` |
 | `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |
 | `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
 
@@ -117,8 +119,12 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `claude-opus-4-5-20251101` | 15 |
 | `claude-opus-4-6` | 27 |
 | `claude-opus-4-7` | 27 |
+| `claude-opus-4-8` | 27 |
 | `claude-opus-4.5` | 15 |
 | `claude-opus-4.6` | 27 |
+| `claude-opus-4.6-fast` | 27 |
+| `claude-opus-4.7` | 27 |
+| `claude-opus-4.8` | 27 |
 | `claude-3-5-opus` | 5 |
 | `claude-3-opus` | 5 |
 
@@ -156,7 +162,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.1-chat-latest` | 3 |
 | `gpt-5-codex` | 1 |
 | `gpt-5.1-codex` | 3 |
-| `gpt-5.1-codex-mini` | 3 |
+| `gpt-5.1-codex-mini` | 0.33 |
 | `gpt-5.1-codex-max` | 3 |
 | `gpt-5.1-codex-max-customsummarizer` | 3 |
 | `gpt-5.2` | 3 |
@@ -176,8 +182,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.4-nano-2026-03-17` | 6 |
 | `gpt-5.4-pro` | 6 |
 | `gpt-5.4-pro-2026-03-05` | 6 |
-| `gpt-5.5` | 7.5 |
-| `gpt-5.5-2026-04-23` | 7.5 |
+| `gpt-5.5` | 57 |
+| `gpt-5.5-2026-04-23` | 57 |
 | `gpt-5.5-pro` | 2 |
 | `gpt-5.5-pro-2026-04-23` | 2 |
 
@@ -252,6 +258,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `deep-research-max-preview-04-2026` | 1 |
 | `deep-research-preview-04-2026` | 1 |
 | `deep-research-pro-preview-12-2025` | 1 |
+| `MAI-Code-1-Flash` | 0.33 |
 | `gemma-4-26b-a4b-it` | 0.1 |
 | `gemma-4-31b-it` | 0.2 |
 | `grok-code-fast-1` | 0.33 |
