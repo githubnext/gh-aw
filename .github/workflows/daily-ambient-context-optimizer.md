@@ -58,7 +58,7 @@ Your job is to inspect the **first request sent to the DLLM** for several recent
 
 ### Step 1 — Download recent runs
 
-Use the `agentic-workflows` MCP `logs` tool with:
+Use the `logs` tool from the `agentic-workflows` MCP server with:
 
 - `start_date: "-1d"`
 - `count: 120`
@@ -84,7 +84,7 @@ Prefer higher-cost runs first by using `effective_tokens`, `token_usage`, `turns
 
 ### Step 3 — Enrich a subset with audits
 
-Run the `audit` tool for the **3 most expensive sampled runs** so you have richer token context and references.
+Run the `audit` tool from the `agentic-workflows` MCP server for the **3 most expensive sampled runs** so you have richer token context and references.
 
 ## First-Request Extraction Rules
 
@@ -168,9 +168,9 @@ Assess whether the request size is likely driven by:
 
 ## Sub-Agent Usage
 
-After the deterministic Python script finishes, invoke `request-optimizer` for each sampled run using its compact JSON summary, not the raw full prompt, whenever at least 3 sampled runs exist.
+After the deterministic Python script finishes, invoke `request-optimizer` **once per sampled run** using that run's compact JSON summary, not the raw full prompt, whenever at least 3 sampled runs exist.
 
-Use the sub-agent output as supporting evidence, then do the final prioritization yourself.
+Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those per-run opportunities, then do the final prioritization yourself.
 
 ## Recommendation Rules
 
@@ -261,7 +261,7 @@ In that case:
 - report whatever evidence is available
 - prioritize repository-wide recommendations only when supported by the sampled data
 
-Do not call `noop`. Always create exactly one issue.
+Do not use `noop` merely because the sample is small or imperfect. Create exactly one issue whenever logs are available. Use `noop` only if no run logs can be downloaded at all or the repository context is unavailable.
 
 ## agent: `request-optimizer`
 ---
