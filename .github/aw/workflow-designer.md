@@ -51,7 +51,20 @@ Map to:
 - `tools:`
 - `safe-outputs:`
 
-### Phase 4: Guardrails
+### Phase 4: Data Strategy
+
+Ask: **"What data does the agent need to make decisions? Can we pre-fetch and aggregate it with shell commands so the agent only reads compact JSON?"**
+
+Capture:
+- Whether `steps:` should pre-fetch GitHub data with `gh` + `jq`
+- Output paths under `/tmp/gh-aw/data/`
+- Whether batch work should use sub-agents
+
+Map to:
+- `steps:`
+- Prompt references to pre-computed file paths
+
+### Phase 5: Guardrails
 
 Ask: **"Should it block merging, just advise, or silently log?"**
 
@@ -61,7 +74,7 @@ Capture:
 
 Guide toward safe output behavior and explicit `noop` instructions.
 
-### Phase 5: Context & Network
+### Phase 6: Context & Network
 
 Ask: **"Does it need external APIs, web access, or package installs?"**
 
@@ -71,7 +84,7 @@ Map to:
 - `network.allowed`
 - Optional MCP/GitHub tool usage in `tools:`
 
-### Phase 6: Engine (optional)
+### Phase 7: Engine (optional)
 
 Ask only if ambiguous: **"Any AI engine preference?"**
 
@@ -80,7 +93,7 @@ If no preference, suggest default:
 
 Map to `engine:` only when not default.
 
-### Phase 7: Confirmation
+### Phase 8: Confirmation
 
 Present a structured summary and ask for approval before generation.
 
@@ -133,6 +146,25 @@ Present a structured summary and ask for approval before generation.
 | "browse web pages/docs" | `web-fetch` and/or `web-search` |
 | "test UI flows" | `playwright` |
 
+### Data Strategy Mapping
+
+| User says... | Maps to |
+|---|---|
+| "analyze PRs", "review issues", "check status" | add `steps:` that pre-fetch with `gh` + `jq` |
+| "read the diff", "look at changed files" | add `steps:` using `gh pr diff` or `gh pr view --json files` |
+| "search for patterns across repos" | add `steps:` using `gh search` + `jq` filters |
+| "just respond to a comment" | no pre-fetch needed (event payload is enough) |
+| "process each item individually" | suggest sub-agent pattern with `model: small` |
+
+## Token Optimization Defaults
+
+Apply these defaults unless the user explicitly asks otherwise:
+
+1. Use DataOps by default for GitHub reads: pre-fetch with `gh` + `jq` in `steps:`, store compact JSON in `/tmp/gh-aw/data/`, and point the prompt to those files.
+2. Keep tool surface minimal: default to `tools.github.mode: gh-proxy`, include only required toolsets, and prefer `bash` + `gh` for simple reads.
+3. For batch workloads, split items into compact data and suggest sub-agent processing with `model: small`.
+4. Keep prompts compact: concise imperative instructions, explicit file paths, single-line `noop` guidance, and stable instructions before dynamic content.
+
 ## Progressive Disclosure Rules
 
 1. Never dump all options at once; ask one targeted question at a time.
@@ -176,6 +208,11 @@ tools:
   github:
     mode: gh-proxy
     toolsets: [default]
+steps:
+  - name: <optional data prefetch>
+    run: |
+      mkdir -p /tmp/gh-aw/data
+      <gh + jq commands that produce compact JSON>
 safe-outputs:
   <safe-output-types-if-needed>
 network:
@@ -189,6 +226,7 @@ network:
 ## Task
 
 <clear instructions tied to trigger context>
+Use pre-fetched data files from `/tmp/gh-aw/data/` when available instead of re-fetching broadly.
 
 ## Safe Outputs
 
@@ -206,6 +244,11 @@ Before final output, run this internal self-check:
 - [ ] Trigger matches the user's intended activation event
 - [ ] Prompt instructs agent to call `noop` when no action is needed
 - [ ] Unnecessary defaults are omitted (for example `engine: copilot`)
+- [ ] If reading GitHub data, `steps:` pre-fetches compact JSON (DataOps)
+- [ ] `tools.github.mode` is `gh-proxy` unless broader MCP toolsets are explicitly needed
+- [ ] Only required toolsets are listed (avoid blanket toolset lists)
+- [ ] Prompt references specific pre-computed file paths
+- [ ] For batch processing (>5 items), sub-agent pattern is suggested
 
 ## References (load only when needed)
 
@@ -214,6 +257,8 @@ In-repo references:
 - `.github/aw/safe-outputs.md`
 - `.github/aw/network.md`
 - `.github/aw/patterns.md`
+- `.github/aw/subagents.md`
+- `.github/aw/token-optimization.md`
 - `.github/aw/triggers.md`
 - `.github/aw/create-agentic-workflow.md`
 
