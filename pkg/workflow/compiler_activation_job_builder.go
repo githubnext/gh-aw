@@ -318,7 +318,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 	}
 
-	if !data.UpdateCheckDisabled && IsReleasedVersion(c.version) {
+	if IsReleasedVersion(c.version) {
 		ctx.steps = append(ctx.steps, "      - name: Check compile-agentic version\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		ctx.steps = append(ctx.steps, "        env:\n")

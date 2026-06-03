@@ -9,7 +9,6 @@
 //   - strict_mode_env_validation.go: environment secrets validation
 //   - strict_mode_steps_validation.go: steps and bash tool validation
 //   - strict_mode_sandbox_validation.go: sandbox configuration validation
-//   - strict_mode_update_check_validation.go: check-for-updates flag validation
 //
 // # Integration with Security Scanners
 //

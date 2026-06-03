@@ -2096,12 +2096,6 @@
       "enum": [true, false],
       "leaf": true
     },
-    "check-for-updates": {
-      "type": "boolean",
-      "desc": "Control whether the compile-agentic version update check runs in the activation job.",
-      "enum": [true, false],
-      "leaf": true
-    },
     "mcp-scripts": {
       "type": "object",
       "desc": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."

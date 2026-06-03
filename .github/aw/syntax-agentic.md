@@ -46,11 +46,6 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       ignored-roles: [admin, maintain]
     ```
 
-- **`check-for-updates:`** - Control whether the activation job checks if the compiled `gh-aw` version is still supported (boolean, default: `true`)
-  - When `true` (default): blocked versions fail fast; below-recommended versions emit a warning
-  - When `false`: skips the version check; the compiler emits a warning at compile time
-  - Use `check-for-updates: false` only when deploying in isolated environments where version update checks are not feasible
-
 - **`features:`** - Feature flags for experimental or optional features (object)
   - Each flag is a key-value pair; boolean flags (`true`/`false`) or string values are accepted
   - Known feature flags:

@@ -7768,16 +7768,6 @@ strict: true
 # shared outside its repository.
 # (optional)
 private: true
-
-# Control whether the compile-agentic version update check runs in the activation
-# job. When true (default), the activation job downloads config.json from the
-# gh-aw repository and verifies the compiled version is not blocked and meets the
-# minimum supported version. Set to false to disable the check (not allowed in
-# strict mode). See:
-# https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates
-# (optional)
-check-for-updates: true
-
 # MCP Scripts configuration for defining custom lightweight MCP tools as
 # JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
 # and have access to secrets specified by the user. Only one of 'script'

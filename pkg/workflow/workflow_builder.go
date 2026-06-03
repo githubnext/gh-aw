@@ -115,16 +115,6 @@ func (c *Compiler) buildInitialWorkflowData(
 			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
 		}
 	}
-
-	// Populate check-for-updates flag: disabled when check-for-updates: false is set in frontmatter.
-	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.UpdateCheck != nil {
-		workflowData.UpdateCheckDisabled = !*toolsResult.parsedFrontmatter.UpdateCheck
-	} else if rawVal, ok := result.Frontmatter["check-for-updates"]; ok {
-		if boolVal, ok := rawVal.(bool); ok && !boolVal {
-			workflowData.UpdateCheckDisabled = true
-		}
-	}
-
 	// Populate inline-sub-agents disable flag: explicit false is rejected during validation.
 	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.InlineSubAgents != nil {
 		workflowData.InlineSubAgentsDisabled = !*toolsResult.parsedFrontmatter.InlineSubAgents

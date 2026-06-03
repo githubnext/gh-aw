@@ -115,7 +115,6 @@ func (c *Compiler) runStrictFrontmatterValidations(frontmatter map[string]any, n
 		}{
 			{name: "Env secrets", fn: c.validateEnvSecrets},
 			{name: "Steps secrets", fn: c.validateStepsSecrets},
-			{name: "Update check", fn: c.validateUpdateCheck},
 		}
 		for _, validation := range validations {
 			if err := validation.fn(frontmatter); err != nil {
