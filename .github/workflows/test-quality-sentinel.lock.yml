@@ -693,6 +693,13 @@ jobs:
                       "REQUEST_CHANGES",
                       "COMMENT"
                     ]
+                  },
+                  "pull_request_number": {
+                    "optionalPositiveInteger": true
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
                   }
                 }
               }
