@@ -34,6 +34,19 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
   }
 }
 
+/**
+ * Extracts the slash command name from the start of the given body text.
+ * Returns an empty string if the text does not begin with a valid slash command.
+ * A valid slash command starts with '/' followed by a name of one or more characters
+ * from [a-zA-Z0-9], [-], and [_].
+ * @param {string} text
+ * @returns {string}
+ */
+function parseSlashCommand(text) {
+  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9\-_]*)\b/.exec(String(text).trim());
+  return match ? match[1] : "";
+}
+
 function eventIdentifier() {
   if (context.eventName !== "issue_comment") {
     return context.eventName;
@@ -253,8 +266,7 @@ async function main() {
   core.info(`Configured centralized slash commands: ${Object.keys(slashRouteMap).length}.`);
   core.info(`Configured decentralized label commands: ${Object.keys(labelRouteMap).length}.`);
   const text = resolveBodyText();
-  const firstWord = String(text).trim().split(/\s+/)[0] ?? "";
-  const selectedCommand = firstWord.startsWith("/") ? firstWord.slice(1) : "";
+  const selectedCommand = parseSlashCommand(text);
   await appendRoutingSummary(Object.keys(slashRouteMap), selectedCommand);
 
   const identifier = eventIdentifier();
@@ -302,8 +314,8 @@ async function main() {
   }
 
   core.info(`Resolved payload text length: ${String(text).length}.`);
-  core.info(`First token in payload: '${firstWord || "<empty>"}'.`);
-  if (!firstWord.startsWith("/")) {
+  core.info(`First token in payload: '${selectedCommand ? `/${selectedCommand}` : "<empty>"}'.`);
+  if (!selectedCommand) {
     core.info("No slash command found at start of payload text; skipping dispatch.");
     return;
   }
@@ -341,4 +353,4 @@ async function main() {
   core.info(`Completed centralized routing for '/${commandName}'.`);
 }
 
-module.exports = { main, eventIdentifier, resolveBodyText, resolveDispatchRef, GITHUB_API_VERSION };
+module.exports = { main, parseSlashCommand, eventIdentifier, resolveBodyText, resolveDispatchRef, GITHUB_API_VERSION };

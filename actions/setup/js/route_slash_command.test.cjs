@@ -2,7 +2,61 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const globals = /** @type {any} */ global;
-const { main, GITHUB_API_VERSION } = require("./route_slash_command.cjs");
+const { main, parseSlashCommand, GITHUB_API_VERSION } = require("./route_slash_command.cjs");
+
+describe("parseSlashCommand", () => {
+  it("extracts a simple command name", () => {
+    expect(parseSlashCommand("/archie")).toBe("archie");
+  });
+
+  it("extracts a command name with dashes", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
+  });
+
+  it("extracts only the command name from text with arguments", () => {
+    expect(parseSlashCommand("/archie please do this")).toBe("archie");
+  });
+
+  it("extracts a command with dashes from text with arguments", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk run tests")).toBe("smoke-copilot-sdk");
+  });
+
+  it("returns empty string when text does not start with a slash command", () => {
+    expect(parseSlashCommand("hello /archie")).toBe("");
+  });
+
+  it("returns empty string for text starting with just a slash", () => {
+    expect(parseSlashCommand("/")).toBe("");
+  });
+
+  it("returns empty string for empty string", () => {
+    expect(parseSlashCommand("")).toBe("");
+  });
+
+  it("trims leading whitespace before matching", () => {
+    expect(parseSlashCommand("  /smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
+  });
+
+  it("does not include trailing punctuation in the command name", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk!")).toBe("smoke-copilot-sdk");
+  });
+
+  it("does not match a slash command in the middle of text", () => {
+    expect(parseSlashCommand("some text /archie")).toBe("");
+  });
+
+  it("extracts a command name with underscores", () => {
+    expect(parseSlashCommand("/code_review")).toBe("code_review");
+  });
+
+  it("does not match a command starting with a dash", () => {
+    expect(parseSlashCommand("/-command")).toBe("");
+  });
+
+  it("enforces word boundary: command followed by a colon", () => {
+    expect(parseSlashCommand("/archie:more")).toBe("archie");
+  });
+});
 
 describe("route_slash_command", () => {
   /** @type {{ core: any, github: any, context: any, exec: any, io: any, getOctokit: any }} */
@@ -252,5 +306,34 @@ describe("route_slash_command", () => {
 
     expect(dispatchCalls).toHaveLength(0);
     expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Pull request is closed at workflow start"));
+  });
+
+  it("dispatches only the exact matching command when command name contains dashes", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      smoke: [{ workflow: "smoke", events: ["issue_comment"] }],
+      "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
+      "smoke-copilot-sdk": [{ workflow: "smoke-copilot-sdk", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/smoke-copilot-sdk";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot-sdk.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("smoke-copilot-sdk");
+  });
+
+  it("does not dispatch smoke-copilot-sdk when command is smoke-copilot", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
+      "smoke-copilot-sdk": [{ workflow: "smoke-copilot-sdk", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/smoke-copilot";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot.lock.yml");
   });
 });

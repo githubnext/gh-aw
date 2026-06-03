@@ -499,6 +499,18 @@ Your output MUST include:
    - Clean tool confirmation if no problems found
 3. **Cache Update Confirmation**: Confirm cache was updated with results
 
+## Completion Requirement
+
+You MUST call at least one safe-output tool before finishing:
+- Use `create_issue` (and optionally `create_agent_session`) when you find actionable concurrency issues.
+- If no GitHub write action is needed, you MUST call `noop` with a brief explanation.
+
+If you emitted any actionable safe outputs, do not emit `noop`.
+
+```json
+{"noop": {"message": "No actionable concurrency issues found in <tool_name>; analysis completed and cache state updated."}}
+```
+
 ## Concurrency Analysis Best Practices
 
 **State Isolation**:
