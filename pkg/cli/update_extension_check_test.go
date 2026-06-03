@@ -385,7 +385,7 @@ func TestNormalizeVersion(t *testing.T) {
 	assert.Equal(t, "0.77.5", normalizeVersion("v0.77.5"))
 	assert.Equal(t, "0.77.5", normalizeVersion("0.77.5"))
 	assert.Equal(t, "1.0.0-beta.1", normalizeVersion("v1.0.0-beta.1"))
-	assert.Equal(t, "", normalizeVersion(""))
+	assert.Empty(t, normalizeVersion(""))
 }
 
 // TestGhCmdForExtension verifies that ghCmdForExtension always pins

@@ -298,14 +298,17 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)
 	}
 
-	// Retry succeeded. Clean up the backup if it still exists
-	// (it will be gone when the remove step above succeeded).
-	if backupPath != "" {
-		cleanupExecutableBackup(backupPath)
-	}
 	_, versionErr := verifyInstalledVersion(latestVersion)
 	if versionErr != nil {
+		// Verification failed; leave the backup in place so the user can roll
+		// back manually if needed.
 		return false, "", fmt.Errorf("failed to verify gh-aw extension version after upgrade: %w", versionErr)
+	}
+
+	// Verification passed. Clean up the backup now that it is safe to do so
+	// (it will already be gone when the remove step above succeeded).
+	if backupPath != "" {
+		cleanupExecutableBackup(backupPath)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
@@ -533,7 +536,7 @@ func normalizeVersion(version string) string {
 // first token that is a valid semantic version (with or without a leading "v").
 // It returns the version normalized to include a "v" prefix.
 func parseInstalledVersionOutput(output string) (string, error) {
-	for _, token := range strings.Fields(output) {
+	for token := range strings.FieldsSeq(output) {
 		if semverutil.IsValid(token) {
 			return semverutil.EnsureVPrefix(token), nil
 		}
