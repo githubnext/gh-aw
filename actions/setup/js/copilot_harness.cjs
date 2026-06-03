@@ -516,7 +516,6 @@ async function readSDKOptionsFromStdin() {
         log(`warning: failed to parse SDK options from stdin: ${text.slice(0, 100)}`);
         resolve(null);
       }
-
     });
     process.stdin.on("error", () => resolve(null));
   });
@@ -546,10 +545,7 @@ function parseCopilotSDKServerArgsFromEnv(serverArgsEnv, options) {
     logger(`copilot-sdk driver mode: parsed ${parsed.length} sidecar args from GH_AW_COPILOT_SDK_SERVER_ARGS`);
     return parsed;
   } catch (parseErr) {
-    const preview =
-      serverArgsEnv.length > MAX_ENV_VAR_PREVIEW_LENGTH
-        ? serverArgsEnv.slice(0, MAX_ENV_VAR_PREVIEW_LENGTH) + "…"
-        : serverArgsEnv;
+    const preview = serverArgsEnv.length > MAX_ENV_VAR_PREVIEW_LENGTH ? serverArgsEnv.slice(0, MAX_ENV_VAR_PREVIEW_LENGTH) + "…" : serverArgsEnv;
     logger(`copilot-sdk driver mode: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${parseErr} (value: ${preview})`);
     return [];
   }

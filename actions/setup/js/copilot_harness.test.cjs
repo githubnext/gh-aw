@@ -230,9 +230,7 @@ describe("copilot_harness.cjs", () => {
         const logger = vi.fn();
         const result = parseCopilotSDKServerArgsFromEnv('{"port":3002}', { logger });
         expect(result).toEqual([]);
-        expect(logger).toHaveBeenCalledWith(
-          "copilot-sdk driver mode: GH_AW_COPILOT_SDK_SERVER_ARGS must be a JSON string array; using sidecar default args"
-        );
+        expect(logger).toHaveBeenCalledWith("copilot-sdk driver mode: GH_AW_COPILOT_SDK_SERVER_ARGS must be a JSON string array; using sidecar default args");
       });
 
       it("falls back to empty args when json is invalid", () => {
