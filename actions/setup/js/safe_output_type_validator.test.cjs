@@ -218,14 +218,14 @@ describe("safe_output_type_validator", () => {
     it("should normalize backticked closing references when enabled", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_pull_request", title: "Test", body: "Closes `#123`\n`Resolves github/gh-aw#321`\n`Fixed` `#99`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+      const result = validateItem({ type: "create_pull_request", title: "Test", body: "Closes `#123`\n`Resolves GitHub/Repo#321`\n`Fixed` `#99`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.body).toContain("Closes #123");
-      expect(result.normalizedItem.body).toContain("Resolves github/gh-aw#321");
+      expect(result.normalizedItem.body).toContain("Resolves GitHub/Repo#321");
       expect(result.normalizedItem.body).toContain("Fixed #99");
       expect(result.normalizedItem.body).not.toContain("`#123`");
-      expect(result.normalizedItem.body).not.toContain("`Resolves github/gh-aw#321`");
+      expect(result.normalizedItem.body).not.toContain("`Resolves GitHub/Repo#321`");
       expect(result.normalizedItem.body).not.toContain("`Fixed` `#99`");
     });
 

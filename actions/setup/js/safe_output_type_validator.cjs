@@ -30,9 +30,11 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
  */
 
 const ISSUE_CLOSING_KEYWORDS = "fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved";
-const ISSUE_REFERENCE_PATTERN = "(?:[a-z0-9_.-]+\\/[a-z0-9_.-]+)?#\\d+";
-const ISSUE_CLOSING_KEYWORD_PATTERN = new RegExp(`(\`)?\\b(${ISSUE_CLOSING_KEYWORDS})\\b\\1(\\s+)(\`)?(${ISSUE_REFERENCE_PATTERN})\\4`, "gi");
+const ISSUE_REFERENCE_PATTERN = "(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+";
 const ISSUE_CLOSING_WHOLE_SPAN_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b\\s+${ISSUE_REFERENCE_PATTERN})\``, "gi");
+const ISSUE_CLOSING_BOTH_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
+const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)(${ISSUE_REFERENCE_PATTERN})`, "gi");
+const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 
 /**
@@ -46,13 +48,10 @@ function normalizeIssueClosingKeywordBackticks(content) {
     return content;
   }
 
-  const normalizedWholeSpan = content.replace(ISSUE_CLOSING_WHOLE_SPAN_PATTERN, "$1");
-  return normalizedWholeSpan.replace(ISSUE_CLOSING_KEYWORD_PATTERN, (match, keywordBacktick, keyword, whitespace, issueRefBacktick, issueRef) => {
-    if (!keywordBacktick && !issueRefBacktick) {
-      return match;
-    }
-    return `${keyword}${whitespace}${issueRef}`;
-  });
+  let normalized = content.replace(ISSUE_CLOSING_WHOLE_SPAN_PATTERN, "$1");
+  normalized = normalized.replace(ISSUE_CLOSING_BOTH_BACKTICK_PATTERN, "$1$2$3");
+  normalized = normalized.replace(ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN, "$1$2$3");
+  return normalized.replace(ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN, "$1$2$3");
 }
 
 /**
