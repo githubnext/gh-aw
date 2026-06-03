@@ -80,6 +80,17 @@ The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 
 The `debug.md` file is a self-contained prompt. The agent fetches it and follows the instructions to install the `gh aw` CLI, analyze logs, apply fixes, and open a pull request with the changes.
 
+## Authoring for Self-Hosted Runners
+
+When you ask the authoring agent to target a self-hosted runner, it keeps the generated workflow compatible with self-hosted constraints. It sets `runs-on` to the runner your setup provides and routes the framework jobs there with `runs-on-slim`, declares the outbound domains the workflow needs under `network.allowed`, writes transient state to `$RUNNER_TEMP` instead of hardcoded paths, and avoids assuming root or installing to shared system paths. For GitHub Enterprise Server it enables GHES compatibility so the generated workflow uses artifact action versions that work there.
+
+Example prompt:
+```text wrap
+Create a workflow that triages new issues and have it run on our self-hosted runners (runs-on: self-hosted).
+```
+
+You still own the runner-side setup (Docker, network egress, GHES endpoint). See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) for the full set of requirements.
+
 ## Advanced Techniques
 
 ### Planner
