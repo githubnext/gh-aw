@@ -310,6 +310,7 @@ function reduceModelNameToIdentifier(modelName) {
     { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
     { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "haiku" },
     { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
+    { familyPattern: /^o[0-9](?:$|[-_])/, versionPattern: new RegExp(`o${VERSION_SUFFIX_PATTERN}`), prefix: "o" },
     { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
 
@@ -323,15 +324,84 @@ function reduceModelNameToIdentifier(modelName) {
 }
 
 /**
- * Preserve useful tier qualifiers for families where the compact numeric identifier
- * would otherwise hide an important distinction (for example gpt-5.4-mini vs gpt-5.4).
+ * Returns a compact monochrome Unicode symbol-prefixed alias for a model name.
+ * Uses distinct symbols for each compact model kind so aliases remain scannable.
  *
- * @param {string} normalizedModelName
- * @param {string} familyPrefix
+ * Examples:
+ * - claude-sonnet-4.6 -> ◉ sonnet46
+ * - gpt-5.5 -> ■ gpt55
+ * - gemini-2.5-pro -> ★ gem25pro
+ *
+ * @param {string|undefined|null} modelName
  * @returns {string}
  */
-function extractKnownModelTierSuffix(normalizedModelName, familyPrefix) {
-  if (familyPrefix !== "gpt") return "";
+function formatModelEmojiAlias(modelName) {
+  const identifier = reduceModelNameToIdentifier(modelName);
+  if (!identifier) return "";
+
+  const normalized = String(modelName || "")
+    .trim()
+    .toLowerCase();
+
+  let emoji = "○";
+  if (/sonnet/.test(normalized)) {
+    emoji = "◉";
+  } else if (/opus/.test(normalized)) {
+    emoji = "◆";
+  } else if (/haiku/.test(normalized)) {
+    emoji = "▲";
+  } else if (/^o[0-9](?:$|[-_])/.test(normalized)) {
+    emoji = "●";
+  } else if (/gpt|openai/.test(normalized)) {
+    emoji = "■";
+  } else if (/gemini|gemma|google|^gem[0-9]/.test(normalized)) {
+    emoji = "★";
+  }
+
+  return `${emoji} ${identifier}`;
+}
+
+/**
+ * Escapes HTML-sensitive characters for safe embedding in HTML fragments.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch);
+}
+
+/**
+ * Formats a compact alias legend for the models shown in the ET details table.
+ *
+ * @param {string[]} models
+ * @returns {string}
+ */
+function formatModelEmojiAliasLegend(models) {
+  const seen = new Set();
+  const entries = [];
+
+  for (const model of models || []) {
+    const normalized = String(model || "").trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    const alias = formatModelEmojiAlias(normalized);
+    if (!alias) continue;
+    entries.push(`${alias}=${escapeHtml(normalized)}`);
+  }
+
+  return entries.join(" · ");
+}
+
+/**
+ * Preserve useful tier qualifiers so the compact identifier reflects important
+ * distinctions (for example gpt-5.4-mini vs gpt-5.4, gemini-2.5-pro vs gemini-2.5).
+ *
+ * @param {string} normalizedModelName
+ * @param {string} _familyPrefix
+ * @returns {string}
+ */
+function extractKnownModelTierSuffix(normalizedModelName, _familyPrefix) {
   if (hasDelimitedModelQualifier(normalizedModelName, "mini")) return "mini";
   if (hasDelimitedModelQualifier(normalizedModelName, "nano")) return "nano";
   if (hasDelimitedModelQualifier(normalizedModelName, "codex")) return "codex";
@@ -489,15 +559,18 @@ function readAgentUsage() {
  *  3. Weights-only table — when no token count data is available
  *
  * @param {string} effectiveTokens - Total effective token count (string)
- * @param {string | null} [tokenUsageMarkdown] - Pre-rendered per-model table from generateTokenUsageSummary
+ * @param {{ markdown?: string | null, modelNames?: string[] } | null} [tokenUsageDetails] - Pre-rendered per-model table data
  * @returns {string} Markdown/HTML `<details>` block
  */
-function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
+function buildETComputationTable(effectiveTokens, tokenUsageDetails = null) {
   const w = getTokenClassWeights();
+  const formula = `${w.input}×max(input-cached,0) + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier`;
+  const tokenUsageMarkdown = tokenUsageDetails?.markdown || null;
+  const modelAliasLegend = formatModelEmojiAliasLegend(tokenUsageDetails?.modelNames || []);
 
   const lines = [];
   lines.push("<details>");
-  lines.push(`<summary>ET computation details (formula: ${w.input}×max(input-cached,0) + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier)</summary>`);
+  lines.push("<summary>ET computation details</summary>");
   lines.push("");
 
   if (tokenUsageMarkdown) {
@@ -546,6 +619,11 @@ function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
   }
 
   lines.push("");
+  if (modelAliasLegend) {
+    lines.push(`<sub>Model aliases: ${modelAliasLegend}</sub>`);
+  }
+  lines.push(`<sub>ET formula: ${formula} · ET weights: input=${w.input} · cached_input=${w.cached_input} · output=${w.output} · reasoning=${w.reasoning} · cache_write=${w.cache_write}</sub>`);
+  lines.push("");
   lines.push("</details>");
   lines.push("");
 
@@ -559,6 +637,8 @@ module.exports = {
   computeBaseWeightedTokens,
   computeEffectiveTokens,
   formatET,
+  formatModelEmojiAlias,
+  formatModelEmojiAliasLegend,
   reduceModelNameToIdentifier,
   resolveActualModelName,
   getEffectiveTokensSuffix,

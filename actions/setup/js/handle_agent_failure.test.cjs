@@ -2833,7 +2833,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(
         path.join(promptsDir, "effective_tokens_rate_limit_error.md"),
-        "**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
+        "**Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
           "<details>\n" +
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [effective tokens]({et_spec_link}).\n" +
@@ -2912,6 +2912,8 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
       expect(result).toContain("ET computation details");
+      expect(result).not.toContain("<summary>ET computation details (formula:");
+      expect(result).toContain("<sub>ET formula:");
     });
   });
 
@@ -2937,7 +2939,7 @@ describe("handle_agent_failure", () => {
       expect(result).toBeNull();
     });
 
-    it("returns a markdown table when a valid token-usage.jsonl file is present", () => {
+    it("returns markdown and model aliases when a valid token-usage.jsonl file is present", () => {
       const { TOKEN_USAGE_PATH } = require("./parse_token_usage.cjs");
       fs.mkdirSync(path.dirname(TOKEN_USAGE_PATH), { recursive: true });
       const entry = JSON.stringify({ model: "claude-sonnet-4.5", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
@@ -2948,9 +2950,10 @@ describe("handle_agent_failure", () => {
         ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
         const result = readTokenUsageMarkdown();
         expect(result).not.toBeNull();
-        expect(result).toContain("claude-sonnet-4.5");
-        expect(result).toContain("1,000");
-        expect(result).toContain("Model");
+        expect(result.markdown).toContain("◉ sonnet45");
+        expect(result.markdown).toContain("1,000");
+        expect(result.markdown).toContain("Alias");
+        expect(result.modelNames).toEqual(["claude-sonnet-4.5"]);
       } finally {
         if (origContent !== null) {
           fs.writeFileSync(TOKEN_USAGE_PATH, origContent);
