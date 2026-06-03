@@ -347,6 +347,103 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineExecutionStepsWithCopilotSDKPythonDriver(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:       true,
+			CopilotSDKDriver: "my_driver.py",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "python3") {
+		t.Fatalf("Expected Python SDK driver mode to use python3 runtime, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "my_driver.py") {
+		t.Fatalf("Expected SDK driver mode to include my_driver.py, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:       true,
+			CopilotSDKDriver: "my_driver.ts",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "ts-node") {
+		t.Fatalf("Expected TypeScript SDK driver mode to use ts-node runtime, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "my_driver.ts") {
+		t.Fatalf("Expected SDK driver mode to include my_driver.ts, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKRubyDriver(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:       true,
+			CopilotSDKDriver: "my_driver.rb",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "ruby") {
+		t.Fatalf("Expected Ruby SDK driver mode to use ruby runtime, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "my_driver.rb") {
+		t.Fatalf("Expected SDK driver mode to include my_driver.rb, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKArbitraryDriver(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:       true,
+			CopilotSDKDriver: "my-copilot-driver",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "my-copilot-driver") {
+		t.Fatalf("Expected arbitrary SDK driver mode to include driver name, got:\n%s", stepContent)
+	}
+	// Arbitrary driver should NOT be prefixed with SetupActionDestinationShell path
+	if strings.Contains(stepContent, SetupActionDestinationShell+"/my-copilot-driver") {
+		t.Fatalf("Expected arbitrary SDK driver not to be prefixed with setup action path, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineExecutionStepsWithCopilotSDKPermissionConfig(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
@@ -2030,6 +2127,74 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 				if !strings.Contains(awfStepContent, "Install AWF binary") {
 					t.Fatalf("Expected AWF installation step with firewall enabled, got:\n%s", awfStepContent)
 				}
+			}
+		})
+	}
+}
+
+// TestCopilotEngineInstallationWithCopilotSDKDriver tests that using copilot-sdk-driver
+// with various language extensions triggers the correct SDK install step.
+func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name         string
+		driver       string
+		expectedName string
+		expectedRun  string
+	}{
+		{
+			name:         "js driver uses npm sdk install",
+			driver:       "my_driver.cjs",
+			expectedName: "name: Install GitHub Copilot SDK (Node.js)",
+			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+		},
+		{
+			name:         "python driver uses pip sdk install",
+			driver:       "my_driver.py",
+			expectedName: "name: Install GitHub Copilot SDK (Python)",
+			expectedRun:  "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+		},
+		{
+			name:         "typescript driver uses npm sdk install",
+			driver:       "my_driver.ts",
+			expectedName: "name: Install GitHub Copilot SDK (Node.js)",
+			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+		},
+		{
+			name:         "ruby driver uses npm sdk install fallback",
+			driver:       "my_driver.rb",
+			expectedName: "name: Install GitHub Copilot SDK (Node.js)",
+			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+		},
+		{
+			name:         "arbitrary command driver uses npm sdk install fallback",
+			driver:       "my-copilot-driver",
+			expectedName: "name: Install GitHub Copilot SDK (Node.js)",
+			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				EngineConfig: &EngineConfig{
+					CopilotSDK:       true,
+					CopilotSDKDriver: tt.driver,
+				},
+			}
+
+			steps := engine.GetInstallationSteps(workflowData)
+			if len(steps) != 2 {
+				t.Fatalf("Expected 2 installation steps (Copilot CLI + SDK), got %d", len(steps))
+			}
+
+			sdkStepContent := strings.Join(steps[1], "\n")
+			if !strings.Contains(sdkStepContent, tt.expectedName) {
+				t.Fatalf("Expected SDK install step name %q, got:\n%s", tt.expectedName, sdkStepContent)
+			}
+			if !strings.Contains(sdkStepContent, tt.expectedRun) {
+				t.Fatalf("Expected SDK install command %q, got:\n%s", tt.expectedRun, sdkStepContent)
 			}
 		})
 	}

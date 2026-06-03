@@ -134,6 +134,12 @@ const SAMPLE_VALIDATION_CONFIG = {
   },
 };
 
+const ISSUE_CLOSING_KEYWORDS = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
+const ISSUE_CLOSING_KEYWORD_PATTERN = ISSUE_CLOSING_KEYWORDS.join("|");
+const BACKTICKED_CLOSER_WHOLE_RE = new RegExp("`(?:" + ISSUE_CLOSING_KEYWORD_PATTERN + ")\\b[^`]*#\\d+`", "i");
+const BACKTICKED_CLOSER_REFERENCE_RE = new RegExp("(?:" + ISSUE_CLOSING_KEYWORD_PATTERN + ")\\b\\s+`(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+`", "i");
+const BACKTICKED_CLOSER_BOTH_RE = new RegExp("`(?:" + ISSUE_CLOSING_KEYWORD_PATTERN + ")`\\s+`(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+`", "i");
+
 describe("safe_output_type_validator", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -213,6 +219,150 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
       // The sanitizeContent function converts @mentions to backticked format
       expect(result.normalizedItem.title).toContain("`@mention`");
+    });
+
+    it("should normalize a backticked issue reference when enabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_pull_request", title: "Test", body: "Closes `#123`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Closes #123");
+      expect(result.normalizedItem.body).not.toContain("`#123`");
+    });
+
+    it("should normalize a whole backticked closing phrase when enabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_pull_request", title: "Test", body: "`Resolves GitHub/Repo#321`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Resolves GitHub/Repo#321");
+      expect(result.normalizedItem.body).not.toContain("`Resolves GitHub/Repo#321`");
+    });
+
+    it("should normalize separately backticked keyword and reference when enabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_pull_request", title: "Test", body: "`Fixed` `#99`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Fixed #99");
+      expect(result.normalizedItem.body).not.toContain("`Fixed` `#99`");
+    });
+
+    it("should not normalize backticked closing references when disabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Closes `#123`" }, "create_issue", 1, { normalizeIssueClosingKeywords: false });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("`#123`");
+    });
+
+    it("should not modify unrelated backticked text when normalization is enabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "add_comment", body: "Use `#123` for docs reference.\nThen Closes `#456`." }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Use `#123` for docs reference.");
+      expect(result.normalizedItem.body).toContain("Then Closes #456.");
+      expect(result.normalizedItem.body).toContain("`#123`");
+      expect(result.normalizedItem.body).not.toContain("`#456`");
+    });
+
+    it("should leave malformed backticks unchanged", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "add_comment", body: "Closes` #123" }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Closes` #123");
+    });
+
+    it("should normalize all supported closing keywords in whole and split backtick forms", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      for (const keyword of ISSUE_CLOSING_KEYWORDS) {
+        const mixedCase = keyword[0].toUpperCase() + keyword.slice(1);
+        const wholeResult = validateItem({ type: "add_comment", body: `\`${mixedCase} #12\`` }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+        expect(wholeResult.isValid).toBe(true);
+        expect(wholeResult.normalizedItem.body).toBe(`${mixedCase} #12`);
+
+        const splitResult = validateItem({ type: "add_comment", body: `\`${mixedCase}\` \`owner/repo#12\`` }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+        expect(splitResult.isValid).toBe(true);
+        expect(splitResult.normalizedItem.body).toBe(`${mixedCase} owner/repo#12`);
+      }
+    });
+
+    it("should only normalize body fields of configured tool types", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const updateIssueResult = validateItem({ type: "update_issue", body: "Closes `#321`", issue_number: 7 }, "update_issue", 1, { normalizeIssueClosingKeywords: true });
+      expect(updateIssueResult.isValid).toBe(true);
+      expect(updateIssueResult.normalizedItem.body).toContain("`#321`");
+
+      const prResult = validateItem({ type: "create_pull_request", title: "Closes `#654`", body: "Body text", branch: "feature/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+      expect(prResult.isValid).toBe(true);
+      expect(prResult.normalizedItem.title).toContain("`#654`");
+      expect(prResult.normalizedItem.body).toBe("Body text");
+    });
+
+    describe("fuzz: normalizeIssueClosingKeywords invariants", () => {
+      async function normalizeBody(body, options = { normalizeIssueClosingKeywords: true }) {
+        const { validateItem } = await import("./safe_output_type_validator.cjs");
+        const result = validateItem({ type: "add_comment", body }, "add_comment", 1, options);
+        expect(result.isValid).toBe(true);
+        return result.normalizedItem.body;
+      }
+
+      it("is idempotent and preserves non-closing backticked references for fuzz seed cases", async () => {
+        const keywords = [...ISSUE_CLOSING_KEYWORDS, "FIXED"];
+        const references = ["#1", "#42", "Owner/Repo#987", "team.repo/service_name#9001"];
+        const prefixes = ["", "Before: ", "  ", "- ", "Start\n", "prefix `code` "];
+        const suffixes = ["", ".", " now", "\nTrailing line", " -- done"];
+        const seedBodies = [];
+
+        for (const keyword of keywords) {
+          for (const reference of references) {
+            for (const prefix of prefixes) {
+              for (const suffix of suffixes) {
+                seedBodies.push(`${prefix}\`${keyword} ${reference}\`${suffix}\nUse \`${reference}\` for docs`);
+                seedBodies.push(`${prefix}\`${keyword}\` \`${reference}\`${suffix}\nUse \`${reference}\` for docs`);
+                seedBodies.push(`${prefix}\`${keyword}\` ${reference}${suffix}\nUse \`${reference}\` for docs`);
+                seedBodies.push(`${prefix}${keyword} \`${reference}\`${suffix}\nUse \`${reference}\` for docs`);
+              }
+            }
+          }
+        }
+
+        for (const body of seedBodies) {
+          const once = await normalizeBody(body);
+          const twice = await normalizeBody(once);
+          expect(twice).toBe(once);
+          expect(once).toMatch(/Use `[^`]*#\d+` for docs/);
+          expect(once).not.toMatch(BACKTICKED_CLOSER_WHOLE_RE);
+          expect(once).not.toMatch(BACKTICKED_CLOSER_REFERENCE_RE);
+          expect(once).not.toMatch(BACKTICKED_CLOSER_BOTH_RE);
+        }
+      });
+
+      it("never throws and always returns a string for adversarial backtick-heavy inputs", async () => {
+        const adversarial = [
+          "`".repeat(200),
+          "```Closes `#1`",
+          "`Fixes`" + " `#".repeat(50) + "1" + "`".repeat(50),
+          "\0Closes `#123`\0",
+          "Resolves `owner/repo#1` and `close #2` and ````",
+          "\n".repeat(20) + "`Fixed` `#99999`",
+          "👾 `resolves #42` 👾",
+        ];
+
+        for (const body of adversarial) {
+          await expect(normalizeBody(body)).resolves.toEqual(expect.any(String));
+        }
+      });
     });
 
     it("should validate submit_pull_request_review with pull_request_number and repo", async () => {

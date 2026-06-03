@@ -46,7 +46,6 @@ const path = require("path");
 const crypto = require("crypto");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
-const { extractPromptFromArgs, runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
@@ -489,39 +488,6 @@ async function checkCommandAccessible(command) {
 }
 
 /**
- * Read and parse the JSON options payload piped to stdin by the engine command.
- * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"...","serverArgs":[...],"permissionConfig":{...}}'
- * | node harness`.
- * Returns null when stdin is a TTY, empty, or contains invalid JSON.
- * @returns {Promise<{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean, permissionConfig?: {allowAllTools?: boolean, allowedTools?: string[]}} | null>}
- */
-async function readSDKOptionsFromStdin() {
-  if (process.stdin.isTTY) return null;
-  return new Promise(resolve => {
-    /** @type {Buffer[]} */
-    const chunks = [];
-    process.stdin.on("data", chunk => {
-      chunks.push(Buffer.from(chunk));
-    });
-    process.stdin.on("end", () => {
-      const text = Buffer.concat(chunks).toString("utf8").trim();
-      if (!text) {
-        resolve(null);
-        return;
-      }
-
-      try {
-        resolve(JSON.parse(text));
-      } catch {
-        log(`warning: failed to parse SDK options from stdin: ${text.slice(0, 100)}`);
-        resolve(null);
-      }
-    });
-    process.stdin.on("error", () => resolve(null));
-  });
-}
-
-/**
  * Parse GH_AW_COPILOT_SDK_SERVER_ARGS for SDK driver mode.
  * Returns [] when unset or invalid so sidecar defaults remain available.
  *
@@ -629,18 +595,14 @@ async function main() {
   // correct SDK endpoint URI.
   const sdkEnv = buildCopilotSDKEnv();
   const copilotSDKMode = isCopilotSDKEnabled();
-  // Driver mode: the engine started copilot_sdk_driver.cjs as a standalone command.
-  // The harness starts the sidecar and then runs the driver like any other subprocess;
-  // the driver only opens an SDK client connection to the already-running server.
-  const copilotSDKDriverMode = copilotSDKMode && process.env.GH_AW_COPILOT_SDK_DRIVER === "1";
   let copilotConnectionToken;
   if (copilotSDKMode) {
     // The harness always generates the connection token when SDK mode is active.
-    // In driver mode the token is injected into the driver subprocess env so the
-    // harness-managed sidecar and the driver's SDK client share the same token.
+    // The token is injected into the driver subprocess env so the harness-managed
+    // sidecar and the driver's SDK client share the same token.
     copilotConnectionToken = generateCopilotConnectionToken();
     log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
-    log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"} driverMode=${copilotSDKDriverMode}`);
+    log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }
   // Merge SDK env additions into the child process env only when the SDK helper
   // returned at least one variable; otherwise leave the env undefined so that
@@ -651,24 +613,10 @@ async function main() {
   const sdkChildEnv = copilotSDKMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
-  // In inline SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
-  // path, serverArgs (complete CLI argument list for the headless server), and optionally addWorkspaceDir.
-  // Read it before doing anything else so stdin is consumed before the process runs.
-  // In driver mode and CLI mode, args are resolved normally.
-  /** @type {{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean, permissionConfig?: {allowAllTools?: boolean, allowedTools?: string[]}} | null} */
-  let sdkOptions = null;
+  // In driver mode the args are the driver command + copilot binary path; no stdin payload.
+  // In CLI mode, args are resolved to inline prompt text.
   let resolvedArgs;
-  if (copilotSDKMode && !copilotSDKDriverMode) {
-    sdkOptions = await readSDKOptionsFromStdin();
-    if (sdkOptions) {
-      log(
-        `sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir} permissionRules=${(sdkOptions.permissionConfig?.allowedTools || []).length} allowAllTools=${sdkOptions.permissionConfig?.allowAllTools === true}`
-      );
-    }
-    // Inline SDK mode does not use CLI prompt args; pass args through unmodified.
-    resolvedArgs = args;
-  } else if (copilotSDKMode) {
-    // Driver mode: args are the driver command + copilot binary path; no stdin payload.
+  if (copilotSDKMode) {
     resolvedArgs = args;
   } else {
     resolvedArgs = resolvePromptFileArgs(args);
@@ -698,95 +646,38 @@ async function main() {
     agenticEngineTimeout: false,
     modelNotSupportedError: false,
   };
-  // In inline SDK mode the prompt is required; read it from the promptFile in sdkOptions (piped
-  // via stdin by the engine command).  Fall back to extracting from CLI args for backward compatibility.
-  // In driver mode, the driver reads the prompt directly from GH_AW_PROMPT; no prompt needed here.
-  let sdkPrompt = null;
-  /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
-  let sdkCustomProviderConfig = null;
-  const sdkCoreLogger = copilotSDKMode ? global.core : undefined;
-  if (copilotSDKMode && !copilotSDKDriverMode) {
-    if (sdkOptions && sdkOptions.promptFile) {
-      try {
-        sdkPrompt = fs.readFileSync(sdkOptions.promptFile, "utf8");
-        log(`sdk-mode: read prompt from ${sdkOptions.promptFile} (${sdkPrompt.length} chars)`);
-      } catch (err) {
-        const readErr = /** @type {Error} */ err;
-        log(`sdk-mode: failed to read prompt from ${sdkOptions.promptFile}: ${readErr.message}`);
-      }
-    }
-    if (!sdkPrompt) {
-      // Fallback: try to extract from CLI args (backward compatibility with older engine versions)
-      sdkPrompt = extractPromptFromArgs(resolvedArgs);
-      if (sdkPrompt) {
-        log("sdk-mode: prompt extracted from CLI args (fallback)");
-      } else {
-        log("sdk-mode: no prompt found in stdin JSON payload or CLI args");
-      }
-    }
-    if (process.env.AWF_REFLECT_ENABLED === "1") {
-      sdkCustomProviderConfig = resolveCopilotSDKCustomProviderFromReflect({
-        model: process.env.COPILOT_MODEL,
-        logger: log,
-      });
-    }
-  }
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
   try {
     if (copilotSDKMode) {
-      if (copilotSDKDriverMode) {
-        // Driver mode: the harness starts the sidecar; the driver subprocess only opens a client.
-        // Server args are provided via GH_AW_COPILOT_SDK_SERVER_ARGS (JSON-encoded CLI arg list
-        // generated by the Go engine).  The copilot binary is args[1] in the driver command:
-        //   node copilot_harness.cjs $GH_AW_NODE_EXEC copilot_sdk_driver.cjs <copilot-binary>
-        const copilotBin = args[1];
-        if (!copilotBin) {
-          log("copilot-sdk driver mode: missing copilot binary path in args[1]");
-          lastExitCode = 1;
-        } else {
-          let driverServerArgs = parseCopilotSDKServerArgsFromEnv(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, { logger: log });
-          if (process.env.GITHUB_WORKSPACE) {
-            driverServerArgs = [...driverServerArgs, "--add-dir", process.env.GITHUB_WORKSPACE];
-            log(`copilot-sdk driver mode: appended workspace --add-dir ${process.env.GITHUB_WORKSPACE}`);
-          }
-          log(`copilot-sdk driver mode: starting sidecar command=${copilotBin} args=${driverServerArgs.length}`);
-          copilotSDKServer = await startCopilotSDKServer({
-            command: copilotBin,
-            env: childEnv ?? process.env,
-            serverArgs: driverServerArgs.length > 0 ? driverServerArgs : undefined,
-            logger: log,
-          });
-        }
+      // Driver mode: the harness starts the sidecar; the driver subprocess only opens a client.
+      // Server args are provided via GH_AW_COPILOT_SDK_SERVER_ARGS (JSON-encoded CLI arg list
+      // generated by the Go engine).  The copilot binary is args[1] in the driver command:
+      //   node copilot_harness.cjs $GH_AW_NODE_EXEC copilot_sdk_driver.cjs <copilot-binary>
+      const copilotBin = args[1];
+      if (!copilotBin) {
+        log("copilot-sdk driver mode: missing copilot binary path in args[1]");
+        lastExitCode = 1;
       } else {
-        // Inline SDK mode: harness manages the sidecar and SDK session directly.
-        if (!sdkPrompt) {
-          log("copilot-sdk mode: no prompt found (expected promptFile in stdin JSON payload or -p/--prompt in args)");
-          lastExitCode = 1;
-        } else {
-          // Build the server args from the stdin JSON payload.
-          // serverArgs carries the complete CLI argument list for the headless server (--headless,
-          // --no-auto-update, --port, --add-dir, --log-level, etc.) generated by the Go engine.
-          // addWorkspaceDir signals that the GITHUB_WORKSPACE env var should be appended at runtime.
-          const serverArgs = [...(sdkOptions?.serverArgs ?? [])];
-          if (sdkOptions?.addWorkspaceDir && process.env.GITHUB_WORKSPACE) {
-            serverArgs.push("--add-dir", process.env.GITHUB_WORKSPACE);
-          }
-          copilotSDKServer = await startCopilotSDKServer({
-            command,
-            env: childEnv ?? process.env,
-            serverArgs: serverArgs.length > 0 ? serverArgs : undefined,
-            logger: log,
-          });
+        let driverServerArgs = parseCopilotSDKServerArgsFromEnv(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, { logger: log });
+        if (process.env.GITHUB_WORKSPACE) {
+          driverServerArgs = [...driverServerArgs, "--add-dir", process.env.GITHUB_WORKSPACE];
+          log(`copilot-sdk driver mode: appended workspace --add-dir ${process.env.GITHUB_WORKSPACE}`);
         }
+        log(`copilot-sdk driver mode: starting sidecar command=${copilotBin} args=${driverServerArgs.length}`);
+        copilotSDKServer = await startCopilotSDKServer({
+          command: copilotBin,
+          env: childEnv ?? process.env,
+          serverArgs: driverServerArgs.length > 0 ? driverServerArgs : undefined,
+          logger: log,
+        });
       }
     }
 
     // CLI mode always enters the retry loop.
-    // Inline SDK mode only enters when a prompt was found; the missing-prompt case above sets lastExitCode=1.
     // Driver mode always enters when the sidecar started successfully.
-    if (!copilotSDKMode || (copilotSDKDriverMode && copilotSDKServer) || sdkPrompt) {
-      // Unified retry loop for CLI, driver, and inline-SDK modes.
+    if (!copilotSDKMode || copilotSDKServer) {
+      // Unified retry loop for CLI and driver modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         // Add --continue flag on CLI retries so the copilot session continues from where it left off
@@ -802,29 +693,9 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-        let result;
-        if (copilotSDKDriverMode) {
-          // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
-          // already started the sidecar; the driver only opens an SDK client connection.
-          result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
-        } else if (copilotSDKMode) {
-          if (!sdkPrompt) {
-            throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
-          }
-          result = await runWithCopilotSDK({
-            sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",
-            prompt: sdkPrompt,
-            logger: log,
-            attempt,
-            model: sdkCustomProviderConfig?.model,
-            connectionToken: copilotConnectionToken,
-            provider: sdkCustomProviderConfig?.provider,
-            permissionConfig: sdkOptions?.permissionConfig,
-            coreLogger: sdkCoreLogger,
-          });
-        } else {
-          result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
-        }
+        // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
+        // already started the sidecar; the driver only opens an SDK client connection.
+        const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
@@ -1044,10 +915,7 @@ if (typeof module !== "undefined" && module.exports) {
     waitForCopilotSDKServer,
     writeCopilotOutputs,
     resolvePromptFileArgs,
-    extractPromptFromArgs,
-    readSDKOptionsFromStdin,
     parseCopilotSDKServerArgsFromEnv,
-    runWithCopilotSDK,
   };
 }
 

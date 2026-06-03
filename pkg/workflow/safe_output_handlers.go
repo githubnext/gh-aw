@@ -159,6 +159,10 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if safeOutputs.CreatePullRequests.AllowWorkflows {
 				permissions.Set(PermissionWorkflows, PermissionWrite)
 			}
+			// close-older-pull-requests requires issues: write to add closing comments
+			if isCloseOlderPullRequestsEnabled(safeOutputs.CreatePullRequests) {
+				permissions.Set(PermissionIssues, PermissionWrite)
+			}
 			return permissions
 		},
 	},

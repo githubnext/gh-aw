@@ -39,7 +39,7 @@ type EngineConfig struct {
 	UserAgent          string
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
-	CopilotSDKDriver   string // Custom Node.js Copilot SDK driver script filename (copilot engine only; used when copilot-sdk=true)
+	CopilotSDKDriver   string // Custom Copilot SDK driver script filename or command (copilot engine only; used when copilot-sdk=true). Supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name for an arbitrary executable in PATH.
 	Env                map[string]string
 	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
