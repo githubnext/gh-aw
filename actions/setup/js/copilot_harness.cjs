@@ -110,8 +110,6 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // re-injects the same broken history, producing the same 400 on every subsequent attempt.
 // A fresh restart is required to discard the poisoned history.
 const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
-const REQUIRED_CORE_LOGGER_METHODS = ["info", "warning"];
-
 /**
  * Emit a diagnostic log line to stderr.
  * All driver messages are prefixed with "[copilot-harness]" so they are easy to
@@ -120,43 +118,6 @@ const REQUIRED_CORE_LOGGER_METHODS = ["info", "warning"];
  */
 function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
-}
-
-/**
- * Emit a consistent fallback diagnostic when SDK core logging is unavailable.
- * @param {(message: string) => void} harnessLogger
- * @param {string} reason
- */
-function logCoreLoggerFallback(harnessLogger, reason) {
-  harnessLogger(`sdk-mode: failed to initialize core logger via shim.cjs (${reason}); permission-denied events will be logged to harness output only`);
-}
-
-/**
- * Build a best-effort GitHub Actions core logger adapter for SDK permission warnings.
- * @param {(message: string) => void} harnessLogger
- * @returns {{info?: (message: string) => void, warning?: (message: string) => void} | undefined}
- */
-function buildCoreLogger(harnessLogger) {
-  try {
-    const core = global.core;
-    if (!core) {
-      logCoreLoggerFallback(harnessLogger, "global.core not initialized");
-      return undefined;
-    }
-    const missingMethods = REQUIRED_CORE_LOGGER_METHODS.filter(method => typeof core[method] !== "function");
-    if (missingMethods.length > 0) {
-      logCoreLoggerFallback(harnessLogger, `missing method(s): ${missingMethods.join(", ")}`);
-      return undefined;
-    }
-    return {
-      info: message => core.info(message),
-      warning: message => core.warning(message),
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logCoreLoggerFallback(harnessLogger, errorMessage);
-    return undefined;
-  }
 }
 
 /**
@@ -700,7 +661,7 @@ async function main() {
   let sdkPrompt = null;
   /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
   let sdkCustomProviderConfig = null;
-  const sdkCoreLogger = copilotSDKMode ? buildCoreLogger(log) : undefined;
+  const sdkCoreLogger = copilotSDKMode ? global.core : undefined;
   if (copilotSDKMode) {
     if (sdkOptions && sdkOptions.promptFile) {
       try {
