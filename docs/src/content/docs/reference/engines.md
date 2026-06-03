@@ -300,11 +300,19 @@ In SDK mode, gh-aw injects required runtime values:
 - `COPILOT_CONNECTION_TOKEN`
 
 `COPILOT_MODEL` is optional and follows normal Copilot model
-configuration. You can also set optional SDK tuning variables
-in `engine.env`:
+configuration.
+
+For runtime controls, the driver should consume:
 
 - `COPILOT_SDK_SEND_TIMEOUT_MS`
 - `COPILOT_SDK_LOG_LEVEL`
+
+In gh-aw, `COPILOT_SDK_SEND_TIMEOUT_MS` is usually injected
+automatically from workflow `timeout-minutes` (via
+`GH_AW_TIMEOUT_MINUTES`) with safety headroom. Override it in
+`engine.env` only when you need a custom SDK send timeout.
+`COPILOT_SDK_LOG_LEVEL` is a host-provided driver control and
+should be honored when gh-aw passes it to the driver process.
 
 Do not set `COPILOT_CONNECTION_TOKEN` manually. The harness
 generates it per run and passes the same token to both the
