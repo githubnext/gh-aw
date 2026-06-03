@@ -77,6 +77,8 @@ function summarizePermissionRequest(request) {
       return `url(${request.url || "unknown"})`;
     case "write":
       return `write(${request.fileName || "unknown"})`;
+    case "read":
+      return "read";
     case "custom-tool":
       return `custom-tool(${request.toolName || "unknown"})`;
     default:
@@ -164,8 +166,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
       case "write":
         return allowedToolEntries.has("write");
       case "read":
-        // Read permissions are low-risk and are broadly expected by the agent flow.
-        return true;
+        return allowedToolEntries.has("read");
       case "url":
         return allowedToolEntries.has("web_fetch");
       case "mcp":
