@@ -254,12 +254,12 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		}
 	}
 
-	if license, ok := stringValue(root["license"]); ok {
-		manifest.License = license
-	}
-
 	if emoji, ok := stringValue(root["emoji"]); ok {
 		manifest.Emoji = emoji
+	}
+
+	if license, ok := stringValue(root["license"]); ok {
+		manifest.License = license
 	}
 
 	if includesValue, ok := root["includes"]; ok {
