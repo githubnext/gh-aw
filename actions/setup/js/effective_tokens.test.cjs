@@ -427,21 +427,23 @@ describe("effective_tokens", () => {
     });
 
     describe("formatModelEmojiAlias", () => {
-      test("uses a purple alias for Claude-family models", () => {
-        expect(formatModelEmojiAlias("claude-sonnet-4.6")).toBe("🟣sonnet46");
+      test("uses a distinct monochrome symbol for sonnet models", () => {
+        expect(formatModelEmojiAlias("claude-sonnet-4.6")).toBe("◉sonnet46");
       });
 
-      test("uses a blue alias for OpenAI-family models", () => {
-        expect(formatModelEmojiAlias("gpt-5.5")).toBe("🔵gpt55");
-        expect(formatModelEmojiAlias("o3")).toBe("🔵o30");
+      test("uses distinct monochrome symbols for OpenAI model kinds", () => {
+        expect(formatModelEmojiAlias("gpt-5.5")).toBe("■gpt55");
+        expect(formatModelEmojiAlias("o3")).toBe("●o30");
       });
 
-      test("uses a green alias for Gemini-family models", () => {
-        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("🟢gem25");
+      test("uses distinct monochrome symbols across compact model kinds", () => {
+        expect(formatModelEmojiAlias("claude-opus-4.7")).toBe("◆opus47");
+        expect(formatModelEmojiAlias("claude-haiku-4.5")).toBe("▲haiku45");
+        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("★gem25");
       });
 
-      test("uses an orange alias fallback for unknown models", () => {
-        expect(formatModelEmojiAlias("my-custom-engine-v2")).toBe("🟠myc20");
+      test("uses a monochrome fallback symbol for unknown models", () => {
+        expect(formatModelEmojiAlias("my-custom-engine-v2")).toBe("○myc20");
       });
     });
 
@@ -628,19 +630,19 @@ describe("effective_tokens", () => {
 
     it("uses tokenUsageMarkdown directly when provided, ignoring agent_usage.json", () => {
       const { buildETComputationTable } = require("./effective_tokens.cjs");
-      const mockTable = "| Alias | Input |\n|-------|------:|\n| 🟣sonnet45 | 100,000 |";
+      const mockTable = "| Alias | Input |\n|-------|------:|\n| ◉sonnet45 | 100,000 |";
       const result = buildETComputationTable("200000", {
         markdown: mockTable,
         modelNames: ["claude-sonnet-4.5"],
       });
       expect(result).toContain("<details>");
       expect(result).toContain("ET computation details");
-      expect(result).toContain("🟣sonnet45");
+      expect(result).toContain("◉sonnet45");
       expect(result).toContain("100,000");
       // Should not include the fallback aggregated table headers
       expect(result).not.toContain("Token class");
       expect(result).not.toContain("Weighted tokens");
-      expect(result).toContain("Model aliases: 🟣sonnet45=claude-sonnet-4.5");
+      expect(result).toContain("Model aliases: ◉sonnet45=claude-sonnet-4.5");
     });
   });
 });

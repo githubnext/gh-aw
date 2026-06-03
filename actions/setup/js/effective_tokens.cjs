@@ -324,13 +324,13 @@ function reduceModelNameToIdentifier(modelName) {
 }
 
 /**
- * Returns a compact emoji-prefixed alias for a model name.
- * Uses neutral Unicode colored circles to keep output compact and display-agnostic.
+ * Returns a compact monochrome Unicode symbol-prefixed alias for a model name.
+ * Uses distinct symbols for each compact model kind so aliases remain scannable.
  *
  * Examples:
- * - claude-sonnet-4.6 -> 🟣sonnet46
- * - gpt-5.5 -> 🔵gpt55
- * - gemini-2.5-pro -> 🟢gem25
+ * - claude-sonnet-4.6 -> ◉sonnet46
+ * - gpt-5.5 -> ■gpt55
+ * - gemini-2.5-pro -> ★gem25
  *
  * @param {string|undefined|null} modelName
  * @returns {string}
@@ -343,13 +343,19 @@ function formatModelEmojiAlias(modelName) {
     .trim()
     .toLowerCase();
 
-  let emoji = "🟠";
-  if (/claude|sonnet|opus|haiku/.test(normalized)) {
-    emoji = "🟣";
-  } else if (/^o[0-9](?:$|[-_])|gpt|openai/.test(normalized)) {
-    emoji = "🔵";
-  } else if (/gemini|gemma|google/.test(normalized)) {
-    emoji = "🟢";
+  let emoji = "○";
+  if (/sonnet/.test(normalized) || identifier.startsWith("sonnet")) {
+    emoji = "◉";
+  } else if (/opus/.test(normalized) || identifier.startsWith("opus")) {
+    emoji = "◆";
+  } else if (/haiku/.test(normalized) || identifier.startsWith("haiku")) {
+    emoji = "▲";
+  } else if (/gpt|openai/.test(normalized) || identifier.startsWith("gpt")) {
+    emoji = "■";
+  } else if (/^o[0-9](?:$|[-_])/.test(normalized) || identifier.startsWith("o")) {
+    emoji = "●";
+  } else if (/gemini|gemma|google/.test(normalized) || identifier.startsWith("gem")) {
+    emoji = "★";
   }
 
   return `${emoji}${identifier}`;
