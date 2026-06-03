@@ -19,8 +19,9 @@ def extract_assistant_content(message: object) -> str:
     content = getattr(data, "content", None)
     if isinstance(content, str):
         return content
-    if isinstance(message, str):
-        return message
+    direct_content = getattr(message, "content", None)
+    if isinstance(direct_content, str):
+        return direct_content
     return ""
 
 
@@ -60,5 +61,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(asyncio.run(main()))
     except Exception as error:  # noqa: BLE001
-        sys.stderr.write(f"[copilot-sdk-driver-sample-python] {error}\n")
+        sys.stderr.write(f"[copilot-sdk-driver-sample-python] {type(error).__name__}: {error}\n")
         raise SystemExit(1)
