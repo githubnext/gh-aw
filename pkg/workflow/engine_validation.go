@@ -133,13 +133,38 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 }
 
 // validateEngineCopilotSDKDriver validates optional engine.copilot-sdk-driver configuration.
-// engine.copilot-sdk-driver must point to a Node.js script.
+// engine.copilot-sdk-driver must be either:
+//   - a safe basename with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), or
+//   - a bare command name without any extension (arbitrary executable in PATH).
 func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.CopilotSDKDriver == "" {
 		return nil
 	}
 
-	return validateEngineScriptFilename("engine.copilot-sdk-driver", workflowData.EngineConfig.CopilotSDKDriver)
+	name := workflowData.EngineConfig.CopilotSDKDriver
+
+	if strings.TrimSpace(name) != name {
+		return fmt.Errorf("engine.copilot-sdk-driver must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+	}
+
+	if filepath.IsAbs(name) ||
+		strings.Contains(name, "/") ||
+		strings.Contains(name, `\`) ||
+		strings.Contains(name, "..") ||
+		!safeHarnessScriptPattern.MatchString(name) {
+		return fmt.Errorf("engine.copilot-sdk-driver must be a safe basename (no path separators, '..', or shell metacharacters) with a supported language extension or no extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+	}
+
+	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".js", ".cjs", ".mjs", ".py", ".ts", ".mts", ".rb":
+		return nil
+	case "":
+		// No extension — valid as an arbitrary command name in PATH.
+		return nil
+	default:
+		return fmt.Errorf("engine.copilot-sdk-driver has unsupported extension %q (found: %s). Must be a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+	}
 }
 
 // validateEngineMCPSessionTimeout validates optional engine.mcp.session-timeout configuration.
