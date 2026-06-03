@@ -50,23 +50,11 @@ printf '{"title":"Fix: something","body":"Details here","labels":["bug","priorit
   | safeoutputs create_issue .
 ```
 
-**When pipes are blocked by the bash security policy**, write the payload to a file first and use **file redirection** with the `.` sentinel instead:
-
-```bash
-# Step 1 — write the JSON payload to a file using the Write tool or a bash heredoc
-# Step 2 — redirect the file into the CLI command using '<'
-safeoutputs create_pull_request . < /tmp/payload.json
-
-# This is equivalent to piping but does not require a separate command before '|'
-safeoutputs add_comment . < /tmp/comment.json
-```
+If pipes are blocked by bash policy, write JSON to a file and use redirection with `.` (for example: `safeoutputs create_pull_request . < /tmp/payload.json`).
 
 > **Why prefer JSON payload mode?**
-> - Single operation for any number of arguments — no repeated `--key value` flags
-> - Native types (integers, booleans, arrays) are preserved exactly as specified
-> - No shell quoting or escaping needed for newlines, quotes, or special characters
-> - Agents can construct the payload as a structured object before emitting the command
-> - File redirection (`< file`) works even when pipes (`|`) are restricted
+> - Preserves native types and avoids shell quoting/escaping pitfalls
+> - Supports both pipe and file-redirection input with the same `.` sentinel
 
 Notes:
 

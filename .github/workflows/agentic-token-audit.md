@@ -34,7 +34,7 @@ tools:
     max-file-size: 102400
     max-patch-size: 51200
 steps:
-  - name: Setup Python runtime
+  - name: Setup Python
     uses: actions/setup-python@v6.2.0
     with:
       python-version: "3.12"
