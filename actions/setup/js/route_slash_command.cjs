@@ -24,11 +24,14 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
     .map(command => `/${command.trim()}`)
     .sort();
 
-  const existingCommandsText = normalizedCommands.length ? normalizedCommands.join(", ") : "<none>";
-  const selectedCommandText = selectedCommand ? `/${selectedCommand}` : "<none>";
+  const selectedCommandText = selectedCommand ? `\`/${selectedCommand}\`` : "`<none>`";
+  const existingCommandsList = normalizedCommands.map(command => `- \`${command}\``).join("\n");
 
   try {
-    summary.addHeading("Agentic Commands Router", 3).addRaw(`- Existing commands: ${existingCommandsText}`, true).addEOL().addRaw(`- Selected command: ${selectedCommandText}`, true).addEOL();
+    summary.addHeading("Agentic Commands Router", 3).addRaw(`- Selected command: ${selectedCommandText}`, true).addEOL().addRaw(`- Configured commands: ${normalizedCommands.length}`, true).addEOL();
+    if (existingCommandsList) {
+      summary.addEOL().addRaw(`<details><summary>Configured commands</summary>\n\n${existingCommandsList}\n\n</details>`, true).addEOL();
+    }
     await summary.write({ overwrite: false });
   } catch (error) {
     core.warning(`Failed to write centralized routing details to step summary: ${String(error)}`);
@@ -286,7 +289,7 @@ function isDisabledWorkflowDispatchError(error) {
     return false;
   }
 
-  return message.includes("workflow is disabled") || message.includes("workflow was disabled");
+  return message.includes("workflow is disabled") || message.includes("workflow was disabled") || message.includes("disabled workflow");
 }
 
 async function main() {

@@ -141,7 +141,7 @@ func TestSafeOutputsConfigYAMLTags(t *testing.T) {
 // Meta field merges in MergeSafeOutputs
 // ========================================
 
-// TestMergeSafeOutputsMetaFieldsUnit verifies that the five previously-unmerged meta fields
+// TestMergeSafeOutputsMetaFieldsUnit verifies that meta fields
 // (Footer, AllowGitHubReferences, GroupReports, MaxBotMentions, Mentions) are correctly
 // merged from imported workflow configs when absent in the top-level config.
 func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {

@@ -186,6 +186,31 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	assert.InDelta(t, float64(5), mentions["max"], 0.0001, "max should be 5")
 }
 
+func TestGenerateSafeOutputsConfigNormalizeClosingKeywordsPerType(t *testing.T) {
+	enabled := true
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					NormalizeClosingKeywords: &enabled,
+				},
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+	createPR, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "create_pull_request config should be present")
+	assert.Equal(t, true, createPR["normalize_closing_keywords"], "create_pull_request.normalize_closing_keywords should be true")
+	_, hasTopLevel := parsed["normalize_closing_keywords"]
+	assert.False(t, hasTopLevel, "top-level normalize_closing_keywords should not be emitted")
+}
+
 // TestPopulateDispatchWorkflowFilesNoSafeOutputs tests that the function handles nil SafeOutputs gracefully.
 func TestPopulateDispatchWorkflowFilesNoSafeOutputs(t *testing.T) {
 	data := &WorkflowData{SafeOutputs: nil}

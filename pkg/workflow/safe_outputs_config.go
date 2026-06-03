@@ -800,6 +800,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("group_by_day", c.GroupByDay).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddIfTrue("staged", c.Staged).
 			AddBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
 		return builder.Build()
@@ -817,6 +818,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddStringSlice("required_labels", c.RequiredLabels).
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfTrue("staged", c.Staged).
@@ -1237,6 +1239,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddDefault("max_patch_files", maxPatchFiles).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
 			AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).

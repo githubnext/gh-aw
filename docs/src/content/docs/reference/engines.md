@@ -263,18 +263,71 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
 
-### Copilot SDK Driver Override (`copilot-sdk-driver`)
+### Copilot SDK Support
 
-When `engine.copilot-sdk: true` is enabled, gh-aw runs a Node.js driver script (`copilot_sdk_driver.cjs`) under the harness. Use `engine.copilot-sdk-driver` to replace that built-in SDK driver with your own script filename.
+Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.
+In this mode, the harness starts a local sidecar and runs the
+SDK driver process instead of the default CLI-only flow.
+
+Use `engine.copilot-sdk-driver` to replace the built-in
+`copilot_sdk_driver.cjs` implementation:
 
 ```yaml wrap
 engine:
   id: copilot
   copilot-sdk: true
-  copilot-sdk-driver: custom_copilot_sdk_driver.cjs
+  copilot-sdk-driver: custom-copilot-driver
 ```
 
-`copilot-sdk-driver` follows the same filename safety rules as `harness`: it must be a bare filename ending with `.js`, `.cjs`, or `.mjs` (no paths, no `..`, no shell metacharacters).
+`copilot-sdk-driver` must be a safe basename (no path
+separators, `..`, or shell metacharacters). It supports:
+
+- script filenames ending with `.js`, `.cjs`, `.mjs`,
+  `.py`, `.ts`, `.mts`, or `.rb`
+- bare command names without an extension (resolved from
+  `PATH`)
+
+See [Copilot SDK Driver Specification](/gh-aw/reference/copilot-sdk-driver-specification/)
+for the full driver contract.
+
+#### SDK driver environment variables
+
+The specification defines the driver environment contract.
+In SDK mode, gh-aw injects required runtime values:
+
+- `GH_AW_PROMPT`
+- `COPILOT_SDK_URI`
+- `COPILOT_CONNECTION_TOKEN`
+
+`COPILOT_MODEL` is optional and follows normal Copilot model
+configuration.
+
+For runtime controls, the driver should consume:
+
+- `COPILOT_SDK_SEND_TIMEOUT_MS`
+- `COPILOT_SDK_LOG_LEVEL`
+
+In gh-aw, `COPILOT_SDK_SEND_TIMEOUT_MS` is usually injected
+automatically from workflow `timeout-minutes` (via
+`GH_AW_TIMEOUT_MINUTES`) with safety headroom. Override it in
+`engine.env` only when you need a custom SDK send timeout.
+`COPILOT_SDK_LOG_LEVEL` is a host-provided driver control and
+should be honored when gh-aw passes it to the driver process.
+
+Do not set `COPILOT_CONNECTION_TOKEN` manually. The harness
+generates it per run and passes the same token to both the
+sidecar and driver process.
+
+```yaml wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+  copilot-sdk-driver: my_driver.ts
+  model: gpt-5
+  env:
+    COPILOT_SDK_SEND_TIMEOUT_MS: "900000"
+    COPILOT_SDK_LOG_LEVEL: info
+```
 
 ### Bare Mode (`bare`)
 
