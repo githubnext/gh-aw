@@ -270,3 +270,4 @@ Portable HTTPS references:
 - `https://github.com/github/gh-aw/blob/main/.github/aw/network.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/patterns.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/triggers.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/create-agentic-workflow.md`
