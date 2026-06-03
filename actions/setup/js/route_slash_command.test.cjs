@@ -256,7 +256,8 @@ describe("route_slash_command", () => {
   it("skips slash routes when target workflow is disabled", async () => {
     globals.github.rest.actions.createWorkflowDispatch = vi.fn(async () => {
       throw Object.assign(new Error("Workflow was disabled"), {
-        response: { data: { message: "Workflow was disabled" } },
+        status: 422,
+        response: { status: 422, data: { message: "Workflow was disabled" } },
       });
     });
     globals.context.payload.comment.body = "/archie please";
@@ -271,7 +272,8 @@ describe("route_slash_command", () => {
   it("skips label routes when target workflow is disabled", async () => {
     globals.github.rest.actions.createWorkflowDispatch = vi.fn(async () => {
       throw Object.assign(new Error("Workflow is disabled"), {
-        response: { data: { message: "Workflow is disabled" } },
+        status: 422,
+        response: { status: 422, data: { message: "Workflow is disabled" } },
       });
     });
     globals.context.eventName = "pull_request";

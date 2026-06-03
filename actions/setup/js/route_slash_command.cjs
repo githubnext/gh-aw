@@ -254,6 +254,7 @@ function toWorkflowDispatchID(route) {
   if (!route?.workflow || typeof route.workflow !== "string" || !route.workflow.trim()) {
     return "";
   }
+  // Routing config may provide either bare workflow name ("archie") or full lock filename ("archie.lock.yml").
   const baseName = nodePath.posix.basename(route.workflow.trim());
   if (!baseName) {
     return "";
@@ -262,12 +263,13 @@ function toWorkflowDispatchID(route) {
 }
 
 function isDisabledWorkflowDispatchError(error) {
+  const status = error?.status ?? error?.response?.status;
   const message = [error?.message, error?.response?.data?.message]
     .filter(value => typeof value === "string" && value.trim())
     .join(" ")
     .toLowerCase();
 
-  if (!message) {
+  if (status !== 422 || !message) {
     return false;
   }
 
