@@ -11,7 +11,6 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-ambient-context-optimizer
-engine: claude
 strict: true
 max-daily-effective-tokens: 100M
 network:
