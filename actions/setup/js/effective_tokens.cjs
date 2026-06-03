@@ -352,9 +352,9 @@ function formatModelEmojiAlias(modelName) {
     emoji = "▲";
   } else if (/gpt|openai/.test(normalized) || identifier.startsWith("gpt")) {
     emoji = "■";
-  } else if (/^o[0-9](?:$|[-_])/.test(normalized) || identifier.startsWith("o")) {
+  } else if (/^o[0-9](?:$|[-_])/.test(normalized)) {
     emoji = "●";
-  } else if (/gemini|gemma|google/.test(normalized) || identifier.startsWith("gem")) {
+  } else if (/gemini|gemma|google/.test(normalized) || /^gem[0-9]/.test(identifier)) {
     emoji = "★";
   }
 
