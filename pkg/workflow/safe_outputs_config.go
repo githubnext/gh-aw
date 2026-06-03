@@ -1251,6 +1251,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("recreate_ref", c.RecreateRef).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddBoolPtr("signed_commits", c.SignedCommits).
+			AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
+			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddIfTrue("staged", c.Staged)
 		return builder.Build()
 	},
