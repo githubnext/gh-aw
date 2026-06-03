@@ -130,11 +130,11 @@ func ensureCheckoutFalseForPullRequestTarget(lines []string) ([]string, bool) {
 			continue
 		}
 
-		if strings.HasPrefix(trimmed, "checkout:") {
+		if inlineCheckoutValue, ok := strings.CutPrefix(trimmed, "checkout:"); ok {
 			// If the checkout line has no inline value, the next indented line
 			// would make this a YAML mapping block.  Replacing it with a scalar
 			// would orphan those child keys and produce invalid YAML.
-			inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "checkout:"))
+			inlineValue := strings.TrimSpace(inlineCheckoutValue)
 			if inlineValue == "" {
 				for j := i + 1; j < len(lines); j++ {
 					next := lines[j]
