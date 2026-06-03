@@ -89,6 +89,9 @@ _ = ssljson.Analyzer
 
 **Internal**:
 - `pkg/linters/errormessage` (via namespace compatibility export `ErrorMessageAnalyzer`).
+- `pkg/linters/fprintlnsprintf` (documented analyzer subpackage).
+- `pkg/linters/ossetenvlibrary` (documented analyzer subpackage).
+- `pkg/linters/uncheckedtypeassertion` (documented analyzer subpackage).
 
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework
