@@ -308,8 +308,7 @@ async function main() {
         core.info(`Line ${i + 1}: type '${itemType}'`);
 
         const typeConfig = expectedOutputTypes[itemType];
-        const normalizeIssueClosingKeywords =
-          typeConfig !== null && typeof typeConfig === "object" && typeConfig.normalize_closing_keywords === true;
+        const normalizeIssueClosingKeywords = typeConfig !== null && typeof typeConfig === "object" && typeConfig.normalize_closing_keywords === true;
 
         // Use the validation engine to validate the item
         if (hasValidationConfig(itemType)) {
