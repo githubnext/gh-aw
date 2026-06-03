@@ -27,7 +27,7 @@ const { closeOlderPullRequests } = require("./close_older_pull_requests.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
@@ -1737,6 +1737,38 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
           if (!patchApplied) {
             return { success: false, error: "Failed to apply patch" };
+          }
+        }
+
+        // POST-APPLY FILE PROTECTION: Verify actual files written match policy.
+        // This is the primary defense against parser-differential attacks where the JS
+        // patch parser and git am disagree on which files a patch contains.
+        // (see github/agentic-workflows#539)
+        {
+          const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `origin/${baseBranch}..HEAD`]);
+          const actualFiles = diffResult.stdout.split("\n").map(f => f.trim()).filter(Boolean);
+          if (actualFiles.length > 0) {
+            core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
+            const postApplyProtection = checkFileProtectionPostApply(actualFiles, {
+              ...config,
+              protected_files_policy: config.protected_files_policy ?? "request_review",
+            });
+            if (postApplyProtection.action === "deny") {
+              const filesStr = postApplyProtection.files.join(", ");
+              const msg = `SECURITY: Post-apply file-protection check failed. ` +
+                `The patch applied files that were not detected by the pre-apply parser: ${filesStr}. ` +
+                `This may indicate a patch-parser bypass attempt. Aborting.`;
+              core.error(msg);
+              return { success: false, error: msg };
+            }
+            if (postApplyProtection.action === "fallback") {
+              manifestProtectionFallback = postApplyProtection.files;
+              core.warning(`Post-apply: Protected file protection triggered (fallback-to-issue): ${postApplyProtection.files.join(", ")}`);
+            }
+            if (postApplyProtection.action === "request_review") {
+              manifestProtectionRequestReview = postApplyProtection.files;
+              core.warning(`Post-apply: Protected file protection triggered (request_review): ${postApplyProtection.files.join(", ")}`);
+            }
           }
         }
 
