@@ -977,7 +977,7 @@ async function main() {
             scheduledAuthNullRetries += 1;
             useContinueOnRetry = false;
             continueDisabledPermanently = true;
-            log(`attempt ${attempt + 1}: no authentication info on fresh run with all auth env vars absent` + ` — retrying once after delay (authNullRetry=${scheduledAuthNullRetries}/${MAX_SCHEDULED_AUTH_NULL_RETRIES})`);
+            log(`attempt ${attempt + 1}: no authentication info on fresh run with all auth env vars absent — retrying once after delay (authNullRetry=${scheduledAuthNullRetries}/${MAX_SCHEDULED_AUTH_NULL_RETRIES})`);
             continue;
           }
           if (!authEnvPresence.anyTokenPresent) {
