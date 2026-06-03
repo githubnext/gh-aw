@@ -359,6 +359,20 @@ To maximize cache hits:
 
 ---
 
+## Technique 9 — Cap Spend with Effective-Token Guardrails
+
+Two top-level frontmatter fields enforce ET budgets directly, independent of the techniques above. Both accept an integer or a `K`/`M` short-form string (e.g. `100M`, `500K`).
+
+- **`max-effective-tokens:`** — Per-run ET budget enforced by the AWF firewall/API proxy (default `25000000`). The agent is steered to stay within budget; set a negative value to disable enforcement and steering.
+- **`max-daily-effective-tokens:`** — Per-user 24-hour guardrail. At activation, gh-aw sums the triggering user's ET across their runs of this workflow over the last 24 hours and blocks execution once the total exceeds the threshold. Enabled by default with a system default threshold; set `-1` to disable, or an explicit value to override the default.
+
+```yaml
+max-effective-tokens: 100M        # per-run cap (short-form string)
+max-daily-effective-tokens: 500M  # per-user 24h cap; -1 disables
+```
+
+---
+
 ## Additional Resources
 
 | Topic | File |
