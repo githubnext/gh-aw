@@ -42,6 +42,11 @@ tools:
     - "cat /tmp/gh-aw/code-simplifier/recent-commits.jsonl"
     - "cat /tmp/gh-aw/code-simplifier/history-summary.json"
     - "ls /tmp/gh-aw/code-simplifier"
+    - "make test-unit"
+    - "make lint"
+    - "make build"
+    - "make fmt"
+    - "go build ./..."
 
 steps:
   - name: Prepare recent-change dataset (deterministic)
