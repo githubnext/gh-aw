@@ -256,7 +256,7 @@ describe("route_slash_command", () => {
 
   it("dispatches only the exact matching command when command name contains dashes", async () => {
     process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
-      smoke: [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
+      smoke: [{ workflow: "smoke", events: ["issue_comment"] }],
       "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
       "smoke-copilot-sdk": [{ workflow: "smoke-copilot-sdk", events: ["issue_comment"] }],
     });
