@@ -17,7 +17,6 @@
 package workflow
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -160,7 +159,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 		spec.command = workspaceCommandPrefix + "dotnet add package GitHub.Copilot.SDK --version " + version
 	case "java":
 		spec.stepName = "Install GitHub Copilot SDK (Java)"
-		spec.command = workspaceCommandPrefix + fmt.Sprintf("mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:%s", version)
+		spec.command = workspaceCommandPrefix + "mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:" + version
 	}
 
 	return spec
@@ -171,22 +170,24 @@ func detectRuntimeFromCopilotCommand(command string) string {
 	if token == "" {
 		return "node"
 	}
+
+	runtime, found := commandToRuntime[token]
+	if found {
+		switch runtime.ID {
+		case "node", "python", "go", "dotnet", "java":
+			return runtime.ID
+		}
+	}
+
 	switch token {
-	case "node", "npm", "npx", "pnpm", "yarn", "ts-node":
+	case "ts-node":
 		return "node"
-	case "python", "python3", "pip", "pip3":
-		return "python"
-	case "go":
-		return "go"
 	case "cargo", "rustc":
 		return "rust"
-	case "dotnet":
-		return "dotnet"
-	case "mvn", "mvnw", "java", "javac":
+	case "mvnw":
 		return "java"
-	default:
-		return "node"
 	}
+	return "node"
 }
 
 func firstCommandToken(command string) string {

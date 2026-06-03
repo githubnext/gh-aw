@@ -1944,6 +1944,20 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			expectedSteps: 1,
 		},
 		{
+			name:          "runtime manager java command uses java sdk install",
+			command:       "gradle test",
+			expectedName:  "name: Install GitHub Copilot SDK (Java)",
+			expectedRun:   "mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "unsupported runtime falls back to node sdk install",
+			command:       "bun run agent.ts",
+			expectedName:  "name: Install GitHub Copilot SDK (Node.js)",
+			expectedRun:   "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
 			name:          "env wrapper command is detected",
 			command:       "env FOO=bar python script.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
