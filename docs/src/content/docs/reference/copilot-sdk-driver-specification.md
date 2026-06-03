@@ -158,9 +158,9 @@ const rawTimeout = process.env.COPILOT_SDK_SEND_TIMEOUT_MS
   : 600000;
 const sendTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 600000;
 const allowedLogLevels = new Set(["none", "error", "warning", "info", "debug", "all"]);
-const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "warning";
+const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL || "warning";
 const logLevel = allowedLogLevels.has(rawLogLevel) ? rawLogLevel : "warning";
-const workingDirectory = process.env.GITHUB_WORKSPACE ?? process.cwd();
+const workingDirectory = process.env.GITHUB_WORKSPACE || process.cwd();
 const prompt = await readFile(promptPath, "utf8");
 
 const client = new CopilotClient({
