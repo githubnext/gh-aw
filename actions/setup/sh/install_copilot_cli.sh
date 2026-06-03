@@ -19,6 +19,7 @@ set +o histexpand
 set -euo pipefail
 
 # Configuration
+SECONDS_PER_DAY=86400
 VERSION="${1:-}"
 COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
@@ -353,7 +354,7 @@ is_cache_expired() {
     return 1
   fi
   
-  age_days=$(( (now_epoch - file_epoch) / 86400 ))
+  age_days=$(( (now_epoch - file_epoch) / SECONDS_PER_DAY ))
   
   if [ "$age_days" -ge "$ttl_days" ]; then
     echo "  Cache age: ${age_days} days (exceeds TTL of ${ttl_days} days)" >&2
@@ -446,15 +447,16 @@ find_cached_copilot_bin() {
       # Apply cache TTL expiry check UNLESS:
       # 1. Cached version equals max-agent (already latest in compat window), OR
       # 2. Explicit version was requested (requested_version != "latest")
-      if [ -n "$cache_ttl_days" ] && [ "$requested_version" = "latest" ]; then
-        # Check if this candidate is NOT the max-agent version
-        if [ -n "$max_version" ] && [ "$candidate_version_normalized" != "$max_version" ]; then
+      if [ -n "$cache_ttl_days" ] && [ "$requested_version" = "latest" ] && [ -n "$max_version" ]; then
+        # Check if candidate version equals max-agent
+        if [ "$candidate_version_normalized" = "$max_version" ]; then
+          echo "  Cache TTL skipped (candidate equals max-agent: ${candidate_version_normalized})" >&2
+        else
+          # Candidate is not max-agent, apply TTL check
           if is_cache_expired "$candidate" "$cache_ttl_days"; then
             echo "  Skipping candidate (cache expired and not max-agent: ${candidate_version_normalized} != ${max_version})" >&2
             continue
           fi
-        else
-          echo "  Cache TTL skipped (candidate equals max-agent: ${candidate_version_normalized})" >&2
         fi
       fi
 
