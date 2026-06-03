@@ -66,6 +66,8 @@ exit 97
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
 	const compatVersion = "1.0.51"
 	const cachedCompatibleVersion = "1.0.40"
+	const cachedBoundaryMinVersion = "1.0.21"
+	const cachedTooOldVersion = "1.0.20"
 	const cachedTooNewVersion = "1.0.60"
 
 	wd, err := os.Getwd()
@@ -76,13 +78,21 @@ func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *te
 
 	tempDir := t.TempDir()
 	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", cachedCompatibleVersion, "x64", "bin")
+	minBoundaryToolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", cachedBoundaryMinVersion, "x64", "bin")
+	tooOldToolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", cachedTooOldVersion, "x64", "bin")
 	tooNewToolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", cachedTooNewVersion, "x64", "bin")
 	require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
+	require.NoError(t, os.MkdirAll(minBoundaryToolcacheBin, 0o755))
+	require.NoError(t, os.MkdirAll(tooOldToolcacheBin, 0o755))
 	require.NoError(t, os.MkdirAll(tooNewToolcacheBin, 0o755))
 
 	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
+	minBoundaryCachedCopilot := filepath.Join(minBoundaryToolcacheBin, "copilot")
+	tooOldCachedCopilot := filepath.Join(tooOldToolcacheBin, "copilot")
 	tooNewCachedCopilot := filepath.Join(tooNewToolcacheBin, "copilot")
 	require.NoError(t, os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+cachedCompatibleVersion+"'\n"), 0o755))
+	require.NoError(t, os.WriteFile(minBoundaryCachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+cachedBoundaryMinVersion+"'\n"), 0o755))
+	require.NoError(t, os.WriteFile(tooOldCachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+cachedTooOldVersion+"'\n"), 0o755))
 	require.NoError(t, os.WriteFile(tooNewCachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+cachedTooNewVersion+"'\n"), 0o755))
 
 	fakeBinDir := filepath.Join(tempDir, "fake-bin")
@@ -150,7 +160,9 @@ exit 97
 
 	assert.Contains(t, string(output), "Resolved Copilot CLI version from compatibility matrix: "+compatVersion)
 	assert.Contains(t, string(output), "Using compat-resolved Copilot CLI window: 1.0.21.."+compatVersion)
+	assert.Contains(t, string(output), "Skipping candidate (below compat minimum: "+cachedTooOldVersion+" < 1.0.21)")
 	assert.Contains(t, string(output), "Skipping candidate (above compat maximum: "+cachedTooNewVersion+" > "+compatVersion+")")
+	assert.NotContains(t, string(output), "Skipping candidate (below compat minimum: "+cachedBoundaryMinVersion+" < 1.0.21)")
 	assert.Contains(t, string(output), "Selected best cached version: "+cachedCompatibleVersion)
 	assert.Contains(t, string(output), "Using cached GitHub Copilot CLI")
 

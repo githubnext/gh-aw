@@ -262,6 +262,7 @@ try:
     with open(compat_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 except Exception:
+    sys.stderr.write(f"Compatibility matrix parse failed for {compat_path}\n")
     print("")
     sys.exit(0)
 
