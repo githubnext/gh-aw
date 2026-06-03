@@ -154,6 +154,7 @@ try {
   const session = await client.createSession({
     model: "gpt-4o-mini",
   });
+  // Simplified inline prompt for demonstration purposes.
   const response = await session.sendAndWait({ prompt: "Summarize this repository." });
   console.log(response);
   await session.disconnect();
@@ -188,7 +189,7 @@ The permission handler MUST resolve as follows:
 
 When scoped rules are active, the implementation MUST evaluate requests as follows:
 
-- `read`: MUST be approved only when `allowedTools` contains `read`.
+- `read`: MUST be denied unless `allowedTools` contains `read`.
 - `write`: MUST be approved only when `allowedTools` contains `write`.
 - `url`: MUST be approved only when `allowedTools` contains `web_fetch`.
 - `custom-tool`: MUST be approved only when `allowedTools` contains the request tool name.
