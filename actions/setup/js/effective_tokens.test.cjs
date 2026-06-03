@@ -412,7 +412,7 @@ describe("effective_tokens", () => {
       });
 
       test("uses well-known gemini shortcut", () => {
-        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
+        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25pro");
       });
 
       test("handles date-like suffixes deterministically", () => {
@@ -439,7 +439,7 @@ describe("effective_tokens", () => {
       test("uses distinct monochrome symbols across compact model kinds", () => {
         expect(formatModelEmojiAlias("claude-opus-4.7")).toBe("◆ opus47");
         expect(formatModelEmojiAlias("claude-haiku-4.5")).toBe("▲ haiku45");
-        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("★ gem25");
+        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("★ gem25pro");
       });
 
       test("uses a monochrome fallback symbol for unknown models", () => {

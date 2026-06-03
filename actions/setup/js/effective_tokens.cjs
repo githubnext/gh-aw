@@ -330,7 +330,7 @@ function reduceModelNameToIdentifier(modelName) {
  * Examples:
  * - claude-sonnet-4.6 -> ◉ sonnet46
  * - gpt-5.5 -> ■ gpt55
- * - gemini-2.5-pro -> ★ gem25
+ * - gemini-2.5-pro -> ★ gem25pro
  *
  * @param {string|undefined|null} modelName
  * @returns {string}
@@ -384,15 +384,14 @@ function formatModelEmojiAliasLegend(models) {
 }
 
 /**
- * Preserve useful tier qualifiers for families where the compact numeric identifier
- * would otherwise hide an important distinction (for example gpt-5.4-mini vs gpt-5.4).
+ * Preserve useful tier qualifiers so the compact identifier reflects important
+ * distinctions (for example gpt-5.4-mini vs gpt-5.4, gemini-2.5-pro vs gemini-2.5).
  *
  * @param {string} normalizedModelName
- * @param {string} familyPrefix
+ * @param {string} _familyPrefix
  * @returns {string}
  */
-function extractKnownModelTierSuffix(normalizedModelName, familyPrefix) {
-  if (familyPrefix !== "gpt" && familyPrefix !== "o") return "";
+function extractKnownModelTierSuffix(normalizedModelName, _familyPrefix) {
   if (hasDelimitedModelQualifier(normalizedModelName, "mini")) return "mini";
   if (hasDelimitedModelQualifier(normalizedModelName, "nano")) return "nano";
   if (hasDelimitedModelQualifier(normalizedModelName, "codex")) return "codex";
