@@ -4,8 +4,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
+
+var effectiveTokenLimitLog = logger.New("workflow:effective_token_limit_parser")
 
 // normalizePositiveEffectiveTokenLimit converts positive integer-like values
 // into a canonical base-10 string.
@@ -27,6 +30,7 @@ func normalizePositiveEffectiveTokenLimit(raw any) (string, bool) {
 
 	rawStr, ok := raw.(string)
 	if !ok {
+		effectiveTokenLimitLog.Printf("Rejecting effective-token limit: unsupported type %T", raw)
 		return "", false
 	}
 
@@ -37,8 +41,10 @@ func normalizePositiveEffectiveTokenLimit(raw any) (string, bool) {
 
 	normalized, ok := typeutil.NormalizeInt64KMSuffix(trimmed)
 	if !ok {
+		effectiveTokenLimitLog.Printf("Rejecting effective-token limit: %q is not a valid positive value", trimmed)
 		return "", false
 	}
+	effectiveTokenLimitLog.Printf("Normalized effective-token limit %q to %s", trimmed, normalized)
 	return normalized, true
 }
 
@@ -59,11 +65,13 @@ func parseMaxEffectiveTokenLimitValue(raw any) (int64, bool) {
 
 	trimmed := strings.TrimSpace(rawStr)
 	if trimmed == "-1" {
+		effectiveTokenLimitLog.Print("Parsed max-effective-tokens sentinel -1 (unlimited)")
 		return -1, true
 	}
 
 	parsed, ok := typeutil.ParseInt64KMSuffix(trimmed)
 	if !ok {
+		effectiveTokenLimitLog.Printf("Rejecting max-effective-tokens: %q is not a supported value", trimmed)
 		return 0, false
 	}
 	return parsed, true

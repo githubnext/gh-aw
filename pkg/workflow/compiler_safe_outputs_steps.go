@@ -524,15 +524,6 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
 	steps = append(steps, "            await main();\n")
 
-	// Add per-handler GitHub App token invalidation steps after the handler manager step.
-	// These always run (even on failure) to revoke the short-lived installation access tokens.
-	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
-		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token invalidation step for create-check-run")
-		for _, step := range c.buildGitHubAppTokenInvalidationStep() {
-			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
-		}
-	}
-
 	return steps, nil
 }
 

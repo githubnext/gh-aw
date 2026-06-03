@@ -475,29 +475,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	return fields
 }
 
-// buildGitHubAppTokenInvalidationStep generates the step to invalidate the GitHub App token
-// This step always runs (even on failure) to ensure tokens are properly cleaned up
-// Only runs if a token was successfully minted
-func (c *Compiler) buildGitHubAppTokenInvalidationStep() []string {
-	var steps []string
-
-	steps = append(steps, "      - name: Invalidate GitHub App token\n")
-	steps = append(steps, "        if: always() && steps.safe-outputs-app-token.outputs.token != ''\n")
-	steps = append(steps, "        env:\n")
-	steps = append(steps, "          TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          echo \"Revoking GitHub App installation token...\"\n")
-	steps = append(steps, "          # GitHub CLI will auth with the token being revoked.\n")
-	steps = append(steps, "          gh api \\\n")
-	steps = append(steps, "            --method DELETE \\\n")
-	steps = append(steps, "            -H \"Authorization: token $TOKEN\" \\\n")
-	steps = append(steps, "            /installation/token || echo \"Token revoke may already be expired.\"\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          echo \"Token invalidation step complete.\"\n")
-
-	return steps
-}
-
 // ========================================
 // Activation Token Steps Generation
 // ========================================

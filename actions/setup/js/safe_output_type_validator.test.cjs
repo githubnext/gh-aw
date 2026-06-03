@@ -81,6 +81,8 @@ const SAMPLE_VALIDATION_CONFIG = {
     fields: {
       body: { type: "string", sanitize: true, maxLength: 65000 },
       event: { type: "string", enum: ["APPROVE", "REQUEST_CHANGES", "COMMENT"] },
+      pull_request_number: { optionalPositiveInteger: true },
+      repo: { type: "string", maxLength: 256 },
     },
   },
   link_sub_issue: {
@@ -211,6 +213,55 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
       // The sanitizeContent function converts @mentions to backticked format
       expect(result.normalizedItem.title).toContain("`@mention`");
+    });
+
+    it("should validate submit_pull_request_review with pull_request_number and repo", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "submit_pull_request_review", event: "APPROVE", pull_request_number: "42", repo: "owner/repo" }, "submit_pull_request_review", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.pull_request_number).toBe(42);
+      expect(result.normalizedItem.repo).toBe("owner/repo");
+    });
+
+    it("should validate submit_pull_request_review with only pull_request_number", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "submit_pull_request_review", event: "COMMENT", pull_request_number: 42 }, "submit_pull_request_review", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.pull_request_number).toBe(42);
+      expect(result.normalizedItem.repo).toBeUndefined();
+    });
+
+    it("should validate submit_pull_request_review with only repo", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "submit_pull_request_review", event: "COMMENT", repo: "owner/repo" }, "submit_pull_request_review", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.pull_request_number).toBeUndefined();
+      expect(result.normalizedItem.repo).toBe("owner/repo");
+    });
+
+    it("should validate submit_pull_request_review with neither pull_request_number nor repo", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "submit_pull_request_review", event: "COMMENT", body: "Looks good." }, "submit_pull_request_review", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should reject invalid submit_pull_request_review pull_request_number", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const invalidValues = [0, -1, "abc", 3.14];
+      for (const value of invalidValues) {
+        const result = validateItem({ type: "submit_pull_request_review", event: "APPROVE", pull_request_number: value }, "submit_pull_request_review", 1);
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain("pull_request_number");
+      }
     });
   });
 
