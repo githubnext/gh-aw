@@ -1394,7 +1394,7 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
     };
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
-      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" }),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
     };
     const pushSignedCommitsModule = require("./push_signed_commits.cjs");
     pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
@@ -1728,7 +1728,7 @@ describe("create_pull_request - excluded-files exclusion list", () => {
     };
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
-      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" }),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
     };
 
     // Clear module cache so globals are picked up fresh
@@ -2652,6 +2652,51 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
     expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
+  });
+
+  it("should deny actual applied files that differ from rename headers", async () => {
+    const craftedPatch =
+      `From 1111111111111111111111111111111111111111 Mon Sep 17 00:00:00 2001
+` +
+      `From: Test Author <test@example.com>
+` +
+      `Subject: [PATCH] benign
+
+` +
+      `---
+` +
+      `diff --git a/README.md b/README.md
+` +
+      `similarity index 100%
+` +
+      `rename from README.md
+` +
+      `rename to .github/CODEOWNERS
+` +
+      `--- a/README.md
+` +
+      `+++ b/.github/CODEOWNERS
+` +
+      `@@ -1 +1 @@
+` +
+      `-old
+` +
+      `+new
+`;
+    fs.writeFileSync(patchFilePath, craftedPatch, "utf8");
+
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "README.md\n.github/CODEOWNERS\n", stderr: "" }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allowed_files: ["README.md"] });
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("applied commits modify files outside the allowed-files list");
+    expect(result.error).toContain(".github/CODEOWNERS");
   });
 
   it("should reuse existing remote branch when preserve-branch-name and recreate-ref are true (force-delete then recreate)", async () => {

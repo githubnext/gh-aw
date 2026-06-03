@@ -324,7 +324,7 @@ index 0000000..abc1234
       const patchPath = createPatchFile();
 
       // Mock git commands
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
@@ -343,7 +343,7 @@ index 0000000..abc1234
       mockContext.payload.issue = { number: 123 };
       const patchPath = createPatchFile();
 
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
@@ -385,7 +385,7 @@ index 0000000..abc1234
       delete mockContext.payload.pull_request;
       const patchPath = createPatchFile();
 
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "*" });
@@ -780,12 +780,28 @@ index 0000000..abc1234
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("remote-head-after");
 
       try {
-        mockExec.getExecOutput
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "0\n", stderr: "" }) // rev-list --merges --count (no merge commits)
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }) // rev-list --count (new commits)
-          .mockResolvedValueOnce({ exitCode: 0, stdout: " file.txt | 1 +\n 1 file changed, 1 insertion(+)\n", stderr: "" }); // git diff --stat (non-empty = has file changes)
+        mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+          const argList = Array.isArray(args) ? args : [];
+          if (argList[0] === "ls-remote" && argList[1] === "--exit-code") {
+            return { exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" };
+          }
+          if (argList[0] === "rev-parse" && argList[1] === "HEAD") {
+            return { exitCode: 0, stdout: "local-head-before\n", stderr: "" };
+          }
+          if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+            return { exitCode: 0, stdout: "file.txt\n", stderr: "" };
+          }
+          if (argList[0] === "rev-list" && argList[1] === "--merges") {
+            return { exitCode: 0, stdout: "0\n", stderr: "" };
+          }
+          if (argList[0] === "rev-list" && argList[1] === "--count") {
+            return { exitCode: 0, stdout: "1\n", stderr: "" };
+          }
+          if (argList[0] === "diff" && argList[1] === "--stat") {
+            return { exitCode: 0, stdout: " file.txt | 1 +\n 1 file changed, 1 insertion(+)\n", stderr: "" };
+          }
+          return { exitCode: 0, stdout: "", stderr: "" };
+        });
 
         const module = await loadModule();
         const handler = await module.main({});
@@ -2141,7 +2157,13 @@ ${diffs}
 
     it("should accept files that match the allowed-files pattern", async () => {
       const patchPath = createPatchFile(createPatchWithFiles(".changeset/my-feature-fix.md"));
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
 
       const module = await loadModule();
       const handler = await module.main({ allowed_files: [".changeset/**"] });
@@ -2171,7 +2193,13 @@ ${diffs}
     it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
       // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
       const patchPath = createPatchFile(createPatchWithFiles("package.json"));
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: "package.json\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
 
       const module = await loadModule();
       const handler = await module.main({
@@ -2248,7 +2276,13 @@ ${diffs}
       // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
       // Simulate post-generation: the patch already contains only the non-ignored file.
       const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: "src/index.js\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
 
       const module = await loadModule();
       const handler = await module.main({

@@ -3,6 +3,92 @@
 /** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
 const { extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 
+const UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE = "ERR_UNPARSEABLE_DIFF_GIT_HEADER";
+
+/**
+ * @param {{ headerLine: string }} entry
+ * @returns {Error}
+ */
+function createUnparseableDiffHeaderError(entry) {
+  const error = new Error(`Patch contains an unparseable diff --git header: ${entry.headerLine}`);
+  error.code = UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE;
+  return error;
+}
+
+/**
+ * @param {string[]} changedPaths
+ * @returns {string[]}
+ */
+function extractBasenamesFromPaths(changedPaths) {
+  return Array.from(
+    new Set(
+      changedPaths
+        .map(filePath => {
+          const parts = filePath.split("/");
+          return parts[parts.length - 1] || "";
+        })
+        .filter(Boolean)
+    )
+  );
+}
+
+/**
+ * @param {string[]} changedPaths
+ * @param {string[]} allowedFilePatterns
+ * @returns {string[]}
+ */
+function findDisallowedPaths(changedPaths, allowedFilePatterns) {
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = allowedFilePatterns.map(p => globPatternToRegex(p));
+  return changedPaths.filter(p => !compiledPatterns.some(re => re.test(p)));
+}
+
+/**
+ * @param {string[]} changedPaths
+ * @param {string[]} pathPrefixes
+ * @returns {string[]}
+ */
+function findProtectedPaths(changedPaths, pathPrefixes) {
+  return changedPaths.filter(p => pathPrefixes.some(prefix => p.startsWith(prefix)));
+}
+
+/**
+ * @param {string[]} changedPaths
+ * @param {string[]} excludedPatterns
+ * @returns {string[]}
+ */
+function findMatchingPaths(changedPaths, excludedPatterns) {
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = excludedPatterns.map(p => globPatternToRegex(p));
+  return changedPaths.filter(p => compiledPatterns.some(re => re.test(p)));
+}
+
+/**
+ * @param {string[]} changedPaths
+ * @param {string[]} protectedFiles
+ * @returns {string[]}
+ */
+function findManifestBasenames(changedPaths, protectedFiles) {
+  const manifestFileSet = new Set(protectedFiles);
+  return extractBasenamesFromPaths(changedPaths).filter(f => manifestFileSet.has(f));
+}
+
+/**
+ * @param {string[]} changedPaths
+ * @param {string[]} [excludes]
+ * @returns {string[]}
+ */
+function findTopLevelDotFolderPaths(changedPaths, excludes) {
+  const excludeSet = new Set(Array.isArray(excludes) ? excludes : []);
+  return changedPaths.filter(p => {
+    const slashIdx = p.indexOf("/");
+    if (slashIdx === -1) return false;
+    const firstComponent = p.substring(0, slashIdx);
+    if (!firstComponent.startsWith(".") || firstComponent.length < 2) return false;
+    return !excludeSet.has(firstComponent + "/");
+  });
+}
+
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
  * Parses "diff --git a/<path> b/<path>" headers to determine which files were modified.
@@ -14,27 +100,7 @@ const { extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
  * @returns {string[]} Deduplicated list of file basenames changed in the patch
  */
 function extractFilenamesFromPatch(patchContent) {
-  if (!patchContent || !patchContent.trim()) {
-    return [];
-  }
-  const fileSet = new Set();
-  const entries = extractDiffGitHeaderEntries(patchContent);
-  for (const entry of entries) {
-    if (!entry.parseable) {
-      continue;
-    }
-    for (const filePath of [entry.oldPath, entry.newPath]) {
-      // "dev/null" is the sentinel used when a file is created or deleted; skip it
-      if (filePath && filePath !== "dev/null") {
-        const parts = filePath.split("/");
-        const basename = parts[parts.length - 1];
-        if (basename) {
-          fileSet.add(basename);
-        }
-      }
-    }
-  }
-  return Array.from(fileSet);
+  return extractBasenamesFromPaths(extractPathsFromPatch(patchContent));
 }
 
 /**
@@ -58,7 +124,7 @@ function extractPathsFromPatch(patchContent) {
   const entries = extractDiffGitHeaderEntries(patchContent);
   for (const entry of entries) {
     if (!entry.parseable) {
-      continue;
+      throw createUnparseableDiffHeaderError(entry);
     }
     for (const filePath of [entry.oldPath, entry.newPath]) {
       if (filePath && filePath !== "dev/null") {
@@ -81,9 +147,8 @@ function checkForManifestFiles(patchContent, manifestFiles) {
   if (!manifestFiles || manifestFiles.length === 0) {
     return { hasManifestFiles: false, manifestFilesFound: [] };
   }
-  const changedFiles = extractFilenamesFromPatch(patchContent);
-  const manifestFileSet = new Set(manifestFiles);
-  const manifestFilesFound = changedFiles.filter(f => manifestFileSet.has(f));
+  const changedPaths = extractPathsFromPatch(patchContent);
+  const manifestFilesFound = findManifestBasenames(changedPaths, manifestFiles);
   return { hasManifestFiles: manifestFilesFound.length > 0, manifestFilesFound };
 }
 
@@ -101,7 +166,7 @@ function checkForProtectedPaths(patchContent, pathPrefixes) {
     return { hasProtectedPaths: false, protectedPathsFound: [] };
   }
   const changedPaths = extractPathsFromPatch(patchContent);
-  const found = changedPaths.filter(p => pathPrefixes.some(prefix => p.startsWith(prefix)));
+  const found = findProtectedPaths(changedPaths, pathPrefixes);
   return { hasProtectedPaths: found.length > 0, protectedPathsFound: found };
 }
 
@@ -127,9 +192,7 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
   if (allPaths.length === 0) {
     return { hasDisallowedFiles: false, disallowedFiles: [] };
   }
-  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-  const compiledPatterns = allowedFilePatterns.map(p => globPatternToRegex(p));
-  const disallowedFiles = allPaths.filter(p => !compiledPatterns.some(re => re.test(p)));
+  const disallowedFiles = findDisallowedPaths(allPaths, allowedFilePatterns);
   return { hasDisallowedFiles: disallowedFiles.length > 0, disallowedFiles };
 }
 
@@ -152,9 +215,7 @@ function checkExcludedFiles(patchContent, excludedFilePatterns) {
   if (allPaths.length === 0) {
     return { excludedFiles: [] };
   }
-  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-  const compiledPatterns = excludedFilePatterns.map(p => globPatternToRegex(p));
-  const excludedFiles = allPaths.filter(p => compiledPatterns.some(re => re.test(p)));
+  const excludedFiles = findMatchingPaths(allPaths, excludedFilePatterns);
   return { excludedFiles };
 }
 
@@ -175,15 +236,53 @@ function checkExcludedFiles(patchContent, excludedFilePatterns) {
  */
 function checkForTopLevelDotFolders(patchContent, excludes) {
   const changedPaths = extractPathsFromPatch(patchContent);
-  const excludeSet = new Set(Array.isArray(excludes) ? excludes : []);
-  const found = changedPaths.filter(p => {
-    const slashIdx = p.indexOf("/");
-    if (slashIdx === -1) return false; // root-level file, not inside a folder
-    const firstComponent = p.substring(0, slashIdx);
-    if (!firstComponent.startsWith(".") || firstComponent.length < 2) return false;
-    return !excludeSet.has(firstComponent + "/");
-  });
+  const found = findTopLevelDotFolderPaths(changedPaths, excludes);
   return { hasTopLevelDotFolders: found.length > 0, topLevelDotFoldersFound: found };
+}
+
+/**
+ * Evaluates an explicit list of changed paths against the configured file-protection policy.
+ * This is used after patch/bundle apply so enforcement is based on the actual git history that
+ * will be pushed, rather than on patch parsing alone.
+ *
+ * @param {string[]} changedPaths
+ * @param {HandlerConfig} config
+ * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] } | { action: 'request_review', files: string[] }}
+ */
+function checkFileProtectionPaths(changedPaths, config) {
+  const normalizedPaths = Array.from(new Set((Array.isArray(changedPaths) ? changedPaths : []).filter(Boolean)));
+
+  const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
+  if (allowedFilePatterns.length > 0) {
+    const disallowedFiles = findDisallowedPaths(normalizedPaths, allowedFilePatterns);
+    if (disallowedFiles.length > 0) {
+      return { action: "deny", source: "allowlist", files: disallowedFiles };
+    }
+  }
+
+  if (config.protected_files_policy === "allowed") {
+    return { action: "allow" };
+  }
+
+  const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
+  const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
+  const manifestFilesFound = findManifestBasenames(normalizedPaths, manifestFiles);
+  const protectedPathsFound = findProtectedPaths(normalizedPaths, prefixes);
+  const dotFolderExcludes = Array.isArray(config.protected_dot_folder_excludes) ? config.protected_dot_folder_excludes : [];
+  const topLevelDotFoldersFound = config.protect_top_level_dot_folders ? findTopLevelDotFolderPaths(normalizedPaths, dotFolderExcludes) : [];
+  const allFound = [...new Set([...manifestFilesFound, ...protectedPathsFound, ...topLevelDotFoldersFound])];
+
+  if (allFound.length === 0) {
+    return { action: "allow" };
+  }
+
+  if (config.protected_files_policy === "fallback-to-issue") {
+    return { action: "fallback", files: allFound };
+  }
+  if (config.protected_files_policy === "request_review") {
+    return { action: "request_review", files: allFound };
+  }
+  return { action: "deny", source: "protected", files: allFound };
 }
 
 /**
@@ -208,39 +307,18 @@ function checkForTopLevelDotFolders(patchContent, excludes) {
  * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] } | { action: 'request_review', files: string[] }}
  */
 function checkFileProtection(patchContent, config) {
-  // Step 1: allowlist check (if configured)
-  const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
-  if (allowedFilePatterns.length > 0) {
-    const { disallowedFiles } = checkAllowedFiles(patchContent, allowedFilePatterns);
-    if (disallowedFiles.length > 0) {
-      return { action: "deny", source: "allowlist", files: disallowedFiles };
-    }
-  }
-
-  // Step 2: protected-files check (independent of allowlist)
-  if (config.protected_files_policy === "allowed") {
-    return { action: "allow" };
-  }
-
-  const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
-  const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-  const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
-  const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
-  const dotFolderExcludes = Array.isArray(config.protected_dot_folder_excludes) ? config.protected_dot_folder_excludes : [];
-  const { topLevelDotFoldersFound } = config.protect_top_level_dot_folders ? checkForTopLevelDotFolders(patchContent, dotFolderExcludes) : { topLevelDotFoldersFound: [] };
-  const allFound = [...new Set([...manifestFilesFound, ...protectedPathsFound, ...topLevelDotFoldersFound])];
-
-  if (allFound.length === 0) {
-    return { action: "allow" };
-  }
-
-  if (config.protected_files_policy === "fallback-to-issue") {
-    return { action: "fallback", files: allFound };
-  }
-  if (config.protected_files_policy === "request_review") {
-    return { action: "request_review", files: allFound };
-  }
-  return { action: "deny", source: "protected", files: allFound };
+  return checkFileProtectionPaths(extractPathsFromPatch(patchContent), config);
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkAllowedFiles, checkExcludedFiles, checkFileProtection };
+module.exports = {
+  UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE,
+  extractFilenamesFromPatch,
+  extractPathsFromPatch,
+  checkForManifestFiles,
+  checkForProtectedPaths,
+  checkForTopLevelDotFolders,
+  checkAllowedFiles,
+  checkExcludedFiles,
+  checkFileProtection,
+  checkFileProtectionPaths,
+};

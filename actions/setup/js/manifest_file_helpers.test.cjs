@@ -3,7 +3,16 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkExcludedFiles, checkFileProtection, checkForTopLevelDotFolders } = require("./manifest_file_helpers.cjs");
+const {
+  UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE,
+  extractFilenamesFromPatch,
+  checkForManifestFiles,
+  checkAllowedFiles,
+  checkExcludedFiles,
+  checkFileProtection,
+  checkFileProtectionPaths,
+  checkForTopLevelDotFolders,
+} = require("./manifest_file_helpers.cjs");
 
 describe("manifest_file_helpers", () => {
   describe("extractFilenamesFromPatch", () => {
@@ -255,11 +264,21 @@ index 0000000..abc
       expect(result).toEqual([".github/workflows/ci.yml"]);
     });
 
-    it("should parse quoted headers and ignore malformed headers", () => {
-      const patch = [`diff --git "a/.github/workflows/ci file.yml" "b/.github/workflows/ci file.yml"`, "index abc..def 100644", "diff --git ", "index abc..def 100644"].join("\n");
+    it("should parse quoted headers with spaces", () => {
+      const patch = [`diff --git "a/.github/workflows/ci file.yml" "b/.github/workflows/ci file.yml"`, "index abc..def 100644"].join("\n");
       const result = extractPathsFromPatch(patch);
       expect(result).toContain(".github/workflows/ci file.yml");
       expect(result).toHaveLength(1);
+    });
+
+    it("should fail closed on malformed quoted headers", () => {
+      const patch = [`diff --git "a/.github/workflows/ci file.yml`, "index abc..def 100644", "--- /dev/null", "+++ b/.github/workflows/evil.yml", "@@ -0,0 +1 @@", "+name: evil"].join("\n");
+      expect(() => extractPathsFromPatch(patch)).toThrow(/unparseable diff --git header/);
+      try {
+        extractPathsFromPatch(patch);
+      } catch (error) {
+        expect(error.code).toBe(UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE);
+      }
     });
 
     it("should preserve full escaped paths from quoted headers", () => {
@@ -625,6 +644,17 @@ index abc..def 100644
       });
       expect(result.action).toBe("deny");
       expect(result.source).toBe("protected");
+    });
+
+    it("should enforce allowlist and protected paths on actual applied path lists", () => {
+      const result = checkFileProtectionPaths(["README.md", ".github/CODEOWNERS"], {
+        allowed_files: ["README.md"],
+        protected_path_prefixes: [".github/"],
+        protected_files_policy: "blocked",
+      });
+      expect(result.action).toBe("deny");
+      expect(result.source).toBe("allowlist");
+      expect(result.files).toContain(".github/CODEOWNERS");
     });
   });
 });

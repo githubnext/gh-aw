@@ -14,7 +14,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR, checkBranchPushable } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection, checkFileProtectionPaths, UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
@@ -99,6 +99,36 @@ function parsePositiveInteger(value) {
   }
   const parsed = Number.parseInt(String(value), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function buildPatchProtectionErrorMessage(error) {
+  if (error && typeof error === "object" && "code" in error && error.code === UNPARSEABLE_DIFF_GIT_HEADER_ERROR_CODE) {
+    return "Cannot push to pull request branch: patch contains an unparseable diff --git header. Fix the patch format and try again.";
+  }
+  return `Cannot push to pull request branch: failed to inspect patch paths (${getErrorMessage(error)}).`;
+}
+
+/**
+ * @param {{ getExecOutput: Function }} execApi
+ * @param {string} baseRef
+ * @param {import('./types/handler-factory').HandlerConfig} config
+ * @param {Record<string, any>} [gitOpts]
+ * @returns {Promise<{ changedPaths: string[], protection: { action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] } | { action: 'request_review', files: string[] } }>}
+ */
+async function getAppliedFileProtectionResult(execApi, baseRef, config, gitOpts = {}) {
+  const { stdout } = await execApi.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${baseRef}..HEAD`], gitOpts);
+  const changedPaths = stdout
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
+  return {
+    changedPaths,
+    protection: checkFileProtectionPaths(changedPaths, config),
+  };
 }
 
 /**
@@ -305,7 +335,14 @@ async function main(config = {}) {
     /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
     let protectedFilesForFallback = null;
     if (!isEmpty) {
-      const protection = checkFileProtection(patchContent, config);
+      let protection;
+      try {
+        protection = checkFileProtection(patchContent, config);
+      } catch (error) {
+        const msg = buildPatchProtectionErrorMessage(error);
+        core.error(msg);
+        return { success: false, error: msg };
+      }
       if (protection.action === "deny") {
         const filesStr = protection.files.join(", ");
         const msg =
@@ -526,16 +563,14 @@ async function main(config = {}) {
       core.info(`✓ Labels validation passed: ${envLabels.join(", ")}`);
     }
 
-    // Deferred protected file protection – fallback-to-issue path.
-    // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
-    if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
+    async function createProtectedFilesFallbackIssue(protectedFiles) {
       const runUrl = buildWorkflowRunUrl(context, context.repo);
       const runId = context.runId;
       const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
-      const fileList = buildProtectedFileList(protectedFilesForFallback, githubServer, repoParts.owner, repoParts.repo, branchName);
+      const fileList = buildProtectedFileList(protectedFiles, githubServer, repoParts.owner, repoParts.repo, branchName);
       const templatePath = getPromptPath("manifest_protection_push_to_pr_fallback.md");
       const issueBody = renderTemplateFromFile(templatePath, {
         files: fileList,
@@ -577,6 +612,12 @@ async function main(config = {}) {
         core.error(error);
         return { success: false, error };
       }
+    }
+
+    // Deferred protected file protection – fallback-to-issue path.
+    // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
+    if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
+      return createProtectedFilesFallbackIssue(protectedFilesForFallback);
     }
 
     const hasChanges = !isEmpty;
@@ -983,6 +1024,30 @@ async function main(config = {}) {
       // This preserves the file-level outcome while producing a linear history that can
       // be signed.  A warning is emitted so workflow authors and agents know that rebase
       // should be preferred over merge in future runs.
+      try {
+        const { protection } = await getAppliedFileProtectionResult(exec, rangeBaseRef, config, baseGitOpts);
+        if (protection.action === "deny") {
+          const filesStr = protection.files.join(", ");
+          const msg =
+            protection.source === "allowlist"
+              ? `Cannot push to pull request branch: applied commits modify files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
+              : `Cannot push to pull request branch: applied commits modify protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+          core.error(msg);
+          return { success: false, error: msg };
+        }
+        if (protection.action === "fallback") {
+          core.warning(`Protected file protection triggered after apply (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
+          return createProtectedFilesFallbackIssue(protection.files);
+        }
+        if (protection.action === "request_review") {
+          core.warning(`Protected file protection triggered after apply (request_review): ${protection.files.join(", ")}. Continuing with branch update because this handler targets an existing pull request branch.`);
+        }
+      } catch (error) {
+        const msg = `Cannot push to pull request branch: failed to inspect applied commit paths (${getErrorMessage(error)}).`;
+        core.error(msg);
+        return { success: false, error: msg };
+      }
+
       if (signedCommits && hasChanges) {
         const squashBase = rangeBaseRef;
         try {
