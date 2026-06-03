@@ -293,6 +293,16 @@ If issues were found (CRITICAL, HIGH, or MEDIUM severity):
 
 Use the following template:
 
+Use h3 (`###`) or lower for all headers in the issue body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title.
+
+Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
+
+Suggested structure:
+- Brief summary (always visible)
+- Key metrics or highlights (always visible)
+- Detailed analysis (in `<details>` tags)
+- Recommendations (always visible)
+
 ```markdown
 ### Concurrency Safety Issue in \`${TOOL_NAME}\`
 
