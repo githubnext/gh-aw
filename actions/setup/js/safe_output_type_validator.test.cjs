@@ -218,13 +218,15 @@ describe("safe_output_type_validator", () => {
     it("should normalize backticked closing references when enabled", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_pull_request", title: "Test", body: "Closes `#123`\n`Resolves github/gh-aw#321`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+      const result = validateItem({ type: "create_pull_request", title: "Test", body: "Closes `#123`\n`Resolves github/gh-aw#321`\n`Fixed` `#99`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.body).toContain("Closes #123");
       expect(result.normalizedItem.body).toContain("Resolves github/gh-aw#321");
+      expect(result.normalizedItem.body).toContain("Fixed #99");
       expect(result.normalizedItem.body).not.toContain("`#123`");
       expect(result.normalizedItem.body).not.toContain("`Resolves github/gh-aw#321`");
+      expect(result.normalizedItem.body).not.toContain("`Fixed` `#99`");
     });
 
     it("should not normalize backticked closing references when disabled", async () => {
@@ -244,6 +246,15 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.body).toContain("Use `#123` for docs reference.");
       expect(result.normalizedItem.body).toContain("Then Closes #456.");
+    });
+
+    it("should leave malformed backticks unchanged", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "add_comment", body: "Closes` #123" }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Closes` #123");
     });
 
     it("should validate submit_pull_request_review with pull_request_number and repo", async () => {

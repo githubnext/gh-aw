@@ -29,7 +29,8 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
  * @typedef {{ allowedAliases?: string[], maxBotMentions?: number, normalizeIssueClosingKeywords?: boolean }} ValidateOptions
  */
 
-const ISSUE_CLOSING_KEYWORD_PATTERN = /(`?\b(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b`?)\s+(`?(?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+`?)/gi;
+const ISSUE_CLOSING_KEYWORD_PATTERN = /(`)?\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b\1(\s+)(`)?((?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)\4/gi;
+const ISSUE_CLOSING_WHOLE_SPAN_PATTERN = /`(\b(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b\s+(?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)`/gi;
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 
 /**
@@ -43,11 +44,12 @@ function normalizeIssueClosingKeywordBackticks(content) {
     return content;
   }
 
-  return content.replace(ISSUE_CLOSING_KEYWORD_PATTERN, match => {
-    if (!match.includes("`")) {
+  const normalizedWholeSpan = content.replace(ISSUE_CLOSING_WHOLE_SPAN_PATTERN, "$1");
+  return normalizedWholeSpan.replace(ISSUE_CLOSING_KEYWORD_PATTERN, (match, keywordTicks, keyword, whitespace, issueRefTicks, issueRef) => {
+    if (!keywordTicks && !issueRefTicks) {
       return match;
     }
-    return match.replaceAll("`", "");
+    return `${keyword}${whitespace}${issueRef}`;
   });
 }
 
