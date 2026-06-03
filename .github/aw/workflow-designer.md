@@ -107,7 +107,7 @@ Present a structured summary and ask for approval before generation.
 |---|---|
 | "when someone opens a PR" | `on: pull_request:` with `types: [opened]` |
 | "when a PR is updated" | `on: pull_request:` with `types: [opened, synchronize]` |
-| "every morning", "daily" | fuzzy schedule shorthand `on: schedule: daily` (compiler expands to cron) |
+| "every morning", "daily" | fuzzy schedule shorthand `on: schedule: daily on weekdays` (compiler expands to cron) |
 | "every Monday", "weekly" | fuzzy schedule shorthand `on: schedule: weekly` (compiler expands to cron) |
 | "when I say /review" | `on: slash_command:` with `name: review` (or requested command) |
 | "when an issue is labeled bug" | `on: issues:` with `types: [labeled]` and label filter guidance |
