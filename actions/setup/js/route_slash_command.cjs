@@ -244,6 +244,64 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
   }
 }
 
+function toWorkflowDispatchID(route) {
+  return `${route.workflow}.lock.yml`;
+}
+
+function basename(path) {
+  if (typeof path !== "string") {
+    return "";
+  }
+  const parts = path.split("/");
+  return parts[parts.length - 1] || "";
+}
+
+async function loadActiveWorkflowDispatchIDs() {
+  const activeWorkflowDispatchIDs = new Set();
+  let page = 1;
+
+  while (true) {
+    const response = await github.rest.actions.listRepoWorkflows({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      per_page: 100,
+      page,
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      },
+    });
+
+    const workflows = response?.data?.workflows ?? [];
+    for (const workflow of workflows) {
+      if (workflow?.state !== "active") {
+        continue;
+      }
+      const workflowFilename = basename(workflow?.path);
+      if (workflowFilename) {
+        activeWorkflowDispatchIDs.add(workflowFilename);
+      }
+    }
+
+    if (workflows.length < 100) {
+      break;
+    }
+    page += 1;
+  }
+
+  return activeWorkflowDispatchIDs;
+}
+
+function filterActiveRoutes(routes, activeWorkflowDispatchIDs, routeKind) {
+  return routes.filter(route => {
+    const dispatchID = toWorkflowDispatchID(route);
+    if (!activeWorkflowDispatchIDs.has(dispatchID)) {
+      core.info(`Skipping ${routeKind} route '${dispatchID}' because workflow is disabled or missing.`);
+      return false;
+    }
+    return true;
+  });
+}
+
 async function main() {
   core.info("Starting centralized command routing.");
   core.info(`Incoming event name: '${context.eventName}'.`);
@@ -278,13 +336,19 @@ async function main() {
       core.info(`No decentralized label routes matched label '${labelName}' for event '${identifier}'.`);
       return;
     }
-    core.info(`Matched routes for label '${labelName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
-    const immediateReaction = resolveImmediateReaction(routes);
+    const activeWorkflowDispatchIDs = await loadActiveWorkflowDispatchIDs();
+    const activeRoutes = filterActiveRoutes(routes, activeWorkflowDispatchIDs, "label");
+    if (activeRoutes.length === 0) {
+      core.info(`No active decentralized label routes matched label '${labelName}' for event '${identifier}'.`);
+      return;
+    }
+    core.info(`Matched active routes for label '${labelName}' on '${identifier}': ${activeRoutes.map(route => route.workflow).join(", ")}.`);
+    const immediateReaction = resolveImmediateReaction(activeRoutes);
     if (immediateReaction) {
       core.info(`Adding immediate '${immediateReaction}' reaction for label '${labelName}'.`);
       await addImmediateReaction(immediateReaction);
     }
-    for (const route of routes) {
+    for (const route of activeRoutes) {
       const routeReaction = normalizeReaction(route?.ai_reaction);
       const awContext = {
         ...buildAwContext(),
@@ -317,15 +381,21 @@ async function main() {
     core.info(`No centralized routes matched command '/${commandName}' for event '${identifier}'.`);
     return;
   }
-  core.info(`Matched routes for '/${commandName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
-  const immediateReaction = resolveImmediateReaction(routes);
+  const activeWorkflowDispatchIDs = await loadActiveWorkflowDispatchIDs();
+  const activeRoutes = filterActiveRoutes(routes, activeWorkflowDispatchIDs, "slash");
+  if (activeRoutes.length === 0) {
+    core.info(`No active centralized routes matched command '/${commandName}' for event '${identifier}'.`);
+    return;
+  }
+  core.info(`Matched active routes for '/${commandName}' on '${identifier}': ${activeRoutes.map(route => route.workflow).join(", ")}.`);
+  const immediateReaction = resolveImmediateReaction(activeRoutes);
   if (immediateReaction) {
     core.info(`Adding immediate '${immediateReaction}' reaction for '/${commandName}'.`);
     await addImmediateReaction(immediateReaction);
   }
 
   core.info(`Dispatch ref resolved to '${ref}'.`);
-  for (const route of routes) {
+  for (const route of activeRoutes) {
     const routeReaction = normalizeReaction(route?.ai_reaction);
     const awContext = {
       ...buildAwContext(),
