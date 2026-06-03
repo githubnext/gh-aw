@@ -595,6 +595,22 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 			expectError: true,
 			errorSubstr: "unsupported extension",
 		},
+		{
+			name: "invalid consecutive slashes",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github//drivers/driver.py"},
+			},
+			expectError: true,
+			errorSubstr: "empty path segments",
+		},
+		{
+			name: "invalid trailing slash",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github/drivers/"},
+			},
+			expectError: true,
+			errorSubstr: "empty path segments",
+		},
 	}
 
 	for _, tt := range tests {

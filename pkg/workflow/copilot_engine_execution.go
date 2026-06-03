@@ -269,7 +269,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			if driverArg != "" {
 				var driverPath string
 				if customSDKDriverConfigured {
-					// Custom driver: sdkDriverScriptName is a path relative to workspace root.
+					// Custom driver: sdkDriverScriptName is a validated workspace-relative path.
+					// Validation ensures no shell metacharacters, quotes, or path traversal,
+					// so it is safe to embed directly in the double-quoted shell argument.
 					driverPath = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
 				} else {
 					driverPath = fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, sdkDriverScriptName)
