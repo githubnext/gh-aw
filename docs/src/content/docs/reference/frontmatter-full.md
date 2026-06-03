@@ -4731,6 +4731,22 @@ safe-outputs:
     # (optional)
     signed-commits: true
 
+    # When true, automatically close older open pull requests from the same workflow
+    # (identified by the workflow-id marker in the PR body) with a comment linking to
+    # the new PR. Searches for open PRs containing the workflow-id marker. Maximum 10
+    # pull requests will be closed. Only runs if PR creation succeeds.
+    # (optional)
+    close-older-pull-requests: true
+
+    # Optional explicit deduplication key for close-older matching. When set, a `<!--
+    # gh-aw-close-key: <value> -->` marker is embedded in the PR body and used as the
+    # primary key for searching and filtering older pull requests instead of the
+    # workflow-id markers. This gives deterministic isolation across caller workflows
+    # and is stable across workflow renames. The value is normalized to identifier
+    # style (lowercase alphanumeric, dashes, underscores).
+    # (optional)
+    close-older-key: "example-value"
+
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
     # (optional)

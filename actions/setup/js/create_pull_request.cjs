@@ -15,7 +15,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
-const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { getBodyHeader } = require("./messages_header.cjs");
@@ -23,6 +23,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
+const { closeOlderPullRequests } = require("./close_older_pull_requests.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -681,12 +682,17 @@ async function main(config = {}) {
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
   const autoCloseIssue = parseBoolTemplatable(config.auto_close_issue, true); // Default to true (auto-close enabled)
+  const closeOlderPullRequestsEnabled = parseBoolTemplatable(config.close_older_pull_requests, false);
+  const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
+  const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;
   if (!workflowId) {
     throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
   }
+
+  const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
 
   // Extract triggering issue number from context (for auto-linking PRs to issues)
   const triggeringIssueNumber = typeof context !== "undefined" && context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
@@ -727,6 +733,12 @@ async function main(config = {}) {
   core.info(`Signed commits: ${signedCommits}`);
   if (expiresHours > 0) {
     core.info(`Pull requests expire after: ${expiresHours} hours`);
+  }
+  if (closeOlderPullRequestsEnabled) {
+    core.info(`Close older pull requests enabled: older PRs with same workflow-id marker will be closed`);
+    if (rawCloseOlderKey) {
+      core.info(`  Using explicit close-older-key: "${closeOlderKey}"`);
+    }
   }
   core.info(`Max count: ${maxCount}`);
   core.info(`Max patch size: ${maxSizeKb} KB`);
@@ -1317,6 +1329,17 @@ async function main(config = {}) {
       // Add to footerParts so the fallback issue body places it after the protected-files section.
       bodyLines.push(``, workflowIdMarker);
       footerParts.push(workflowIdMarker);
+    }
+
+    // Embed gh-aw-workflow-call-id marker so callers sharing the same reusable workflow
+    // do not close each other's PRs when close-older-pull-requests is enabled.
+    if (callerWorkflowId) {
+      bodyLines.push(generateWorkflowCallIdMarker(callerWorkflowId));
+    }
+
+    // Embed gh-aw-close-key marker when an explicit deduplication key is set.
+    if (closeOlderKey) {
+      bodyLines.push(generateCloseKeyMarker(closeOlderKey));
     }
 
     bodyLines.push("");
@@ -2180,6 +2203,25 @@ ${patchPreview}`;
       // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
       // in the same repo as the activation, so the global client has the correct context for updating the comment.
       await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+
+      // Close older pull requests if enabled (best-effort: errors are logged but do not fail the workflow)
+      if (closeOlderPullRequestsEnabled) {
+        if (workflowId || closeOlderKey) {
+          const searchKey = closeOlderKey ? `gh-aw-close-key: ${closeOlderKey}` : `workflow-id: ${workflowId}`;
+          core.info(`Attempting to close older pull requests for ${repoParts.owner}/${repoParts.repo}#${pullRequest.number} using ${searchKey}`);
+          try {
+            const closedPRs = await closeOlderPullRequests(github, repoParts.owner, repoParts.repo, workflowId, { number: pullRequest.number, html_url: pullRequest.html_url }, workflowName, runUrl, callerWorkflowId, closeOlderKey);
+            if (closedPRs.length > 0) {
+              core.info(`Closed ${closedPRs.length} older pull request(s)`);
+            }
+          } catch (error) {
+            // Log error but don't fail the workflow
+            core.warning(`Failed to close older pull requests: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        } else {
+          core.warning("Close older pull requests enabled but neither GH_AW_WORKFLOW_ID nor close-older-key is set - skipping");
+        }
+      }
 
       // Write summary to GitHub Actions summary
       await core.summary
