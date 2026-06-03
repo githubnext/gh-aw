@@ -1655,7 +1655,7 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("resolveCopilotSDKCustomProviderFromReflect is also exported from awf_reflect.cjs", () => {
-      const { resolveCopilotSDKCustomProviderFromReflect: resolveFromReflect } = require("./awf_reflect.cjs");
+      const { resolveCopilotSDKCustomProviderFromReflect: resolveFromAwfReflect } = require("./awf_reflect.cjs");
       const reflectFile = path.join(os.tmpdir(), `awf-reflect-direct-${Date.now()}.json`);
       try {
         fs.writeFileSync(
@@ -1665,7 +1665,7 @@ describe("copilot_harness.cjs", () => {
           }),
           "utf8"
         );
-        expect(resolveFromReflect({ reflectPath: reflectFile })).toEqual({
+        expect(resolveFromAwfReflect({ reflectPath: reflectFile })).toEqual({
           model: "gpt-5.4",
           provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
         });
