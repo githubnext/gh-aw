@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// TestMainWorkflowSchema_SafeOutputsTargetProperties validates that all safe output
+// TestMainWorkflowSchema_SafeOutputsTargetProperties validates that safe output
 // types which support target/target-repo/allowed-repos in the Go code also accept
 // those properties in the JSON schema. This is a regression test for cases where
-// the Go struct embeds SafeOutputTargetConfig but the schema was missing the properties,
-// causing "Unknown properties" validation errors at compile time.
+// the Go code supports these fields but the schema was missing them, causing
+// "Unknown properties" validation errors at compile time.
 func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 	t.Parallel()
 
