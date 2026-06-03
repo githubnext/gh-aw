@@ -253,4 +253,33 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(0);
     expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Pull request is closed at workflow start"));
   });
+
+  it("dispatches only the exact matching command when command name contains dashes", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      smoke: [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
+      "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
+      "smoke-copilot-sdk": [{ workflow: "smoke-copilot-sdk", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/smoke-copilot-sdk";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot-sdk.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("smoke-copilot-sdk");
+  });
+
+  it("does not dispatch smoke-copilot-sdk when command is smoke-copilot", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
+      "smoke-copilot-sdk": [{ workflow: "smoke-copilot-sdk", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/smoke-copilot";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot.lock.yml");
+  });
 });
