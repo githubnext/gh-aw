@@ -76,6 +76,7 @@ const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
+const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -545,7 +546,10 @@ function parseCopilotSDKServerArgsFromEnv(serverArgsEnv, options) {
     logger(`copilot-sdk driver mode: parsed ${parsed.length} sidecar args from GH_AW_COPILOT_SDK_SERVER_ARGS`);
     return parsed;
   } catch (parseErr) {
-    const preview = serverArgsEnv.length > 120 ? serverArgsEnv.slice(0, 120) + "…" : serverArgsEnv;
+    const preview =
+      serverArgsEnv.length > MAX_ENV_VAR_PREVIEW_LENGTH
+        ? serverArgsEnv.slice(0, MAX_ENV_VAR_PREVIEW_LENGTH) + "…"
+        : serverArgsEnv;
     logger(`copilot-sdk driver mode: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${parseErr} (value: ${preview})`);
     return [];
   }

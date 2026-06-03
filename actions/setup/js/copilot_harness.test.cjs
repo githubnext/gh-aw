@@ -239,7 +239,7 @@ describe("copilot_harness.cjs", () => {
         const logger = vi.fn();
         const result = parseCopilotSDKServerArgsFromEnv("not-json", { logger });
         expect(result).toEqual([]);
-        expect(logger.mock.calls.some(call => call[0].includes("failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS"))).toBe(true);
+        expect(logger).toHaveBeenCalledWith(expect.stringContaining("failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS"));
       });
     });
 
