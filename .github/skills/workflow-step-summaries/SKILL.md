@@ -21,6 +21,7 @@ Use this skill when generating content for `$GITHUB_STEP_SUMMARY`.
 
 ### Use Markdown for code and review output
 
+- In `actions/github-script`, prefer `core.summary.*` helpers to build summary content.
 - Use inline code with backticks for commands, paths, IDs, and config keys.
 - Use fenced code blocks with a language tag for logs, diffs, snippets, or commands.
 - Present review findings as markdown sections with clear severity and action items.
