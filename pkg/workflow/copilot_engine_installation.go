@@ -172,7 +172,7 @@ func detectRuntimeFromCopilotCommand(command string) string {
 	}
 
 	runtime, found := commandToRuntime[token]
-	if found {
+	if found && runtime != nil && runtime.ID != "" {
 		return runtime.ID
 	}
 
