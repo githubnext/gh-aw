@@ -3,6 +3,16 @@
 /** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
 const { extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 
+function normalizeDotFolderExcludes(excludes) {
+  return new Set((Array.isArray(excludes) ? excludes : []).map(exclude => String(exclude || "").replace(/\/+$/, "")).filter(Boolean));
+}
+
+function formatHeaderLineForError(headerLine) {
+  const value = typeof headerLine === "string" ? headerLine : "";
+  const truncated = value.length > 200 ? `${value.slice(0, 200)}…` : value;
+  return JSON.stringify(truncated);
+}
+
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
  * Parses "diff --git a/<path> b/<path>" headers to determine which files were modified.
@@ -61,10 +71,7 @@ function extractPathsFromPatch(patchContent) {
       // Fail-closed: unparseable diff --git headers are security-relevant because
       // git am may still apply the hunk via ---/+++ fallback. Throwing here prevents
       // silent policy bypass (see github/agentic-workflows#539).
-      throw new Error(
-        `Patch contains unparseable diff --git header (fail-closed): "${entry.headerLine}". ` +
-        `Cannot verify file-protection policy. Rejecting patch.`
-      );
+      throw new Error(`Patch contains unparseable diff --git header (fail-closed): ${formatHeaderLineForError(entry.headerLine)}. ` + `Cannot verify file-protection policy. Rejecting patch.`);
     }
     for (const filePath of [entry.oldPath, entry.newPath]) {
       if (filePath && filePath !== "dev/null") {
@@ -181,13 +188,13 @@ function checkExcludedFiles(patchContent, excludedFilePatterns) {
  */
 function checkForTopLevelDotFolders(patchContent, excludes) {
   const changedPaths = extractPathsFromPatch(patchContent);
-  const excludeSet = new Set(Array.isArray(excludes) ? excludes : []);
+  const excludeSet = normalizeDotFolderExcludes(excludes);
   const found = changedPaths.filter(p => {
     const slashIdx = p.indexOf("/");
     if (slashIdx === -1) return false; // root-level file, not inside a folder
     const firstComponent = p.substring(0, slashIdx);
     if (!firstComponent.startsWith(".") || firstComponent.length < 2) return false;
-    return !excludeSet.has(firstComponent + "/");
+    return !excludeSet.has(firstComponent);
   });
   return { hasTopLevelDotFolders: found.length > 0, topLevelDotFoldersFound: found };
 }
@@ -232,8 +239,7 @@ function checkFileProtection(patchContent, config) {
   const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
   const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
   const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
-  const dotFolderExcludes = Array.isArray(config.protected_dot_folder_excludes) ? config.protected_dot_folder_excludes : [];
-  const { topLevelDotFoldersFound } = config.protect_top_level_dot_folders ? checkForTopLevelDotFolders(patchContent, dotFolderExcludes) : { topLevelDotFoldersFound: [] };
+  const { topLevelDotFoldersFound } = config.protect_top_level_dot_folders ? checkForTopLevelDotFolders(patchContent, config.protected_dot_folder_excludes) : { topLevelDotFoldersFound: [] };
   const allFound = [...new Set([...manifestFilesFound, ...protectedPathsFound, ...topLevelDotFoldersFound])];
 
   if (allFound.length === 0) {
@@ -288,13 +294,13 @@ function checkFileProtectionPostApply(actualFiles, config) {
 
   const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
   const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-  const dotFolderExcludes = Array.isArray(config.protected_dot_folder_excludes) ? config.protected_dot_folder_excludes : [];
+  const dotFolderExcludes = normalizeDotFolderExcludes(config.protected_dot_folder_excludes);
 
   const allProtected = [];
 
   // Check manifest files (basename match)
   for (const file of actualFiles) {
-    const basename = file.split("/").pop();
+    const basename = file.split("/").pop() || "";
     if (manifestFiles.includes(basename) || manifestFiles.includes(file)) {
       allProtected.push(file);
     }
@@ -314,7 +320,7 @@ function checkFileProtectionPostApply(actualFiles, config) {
     for (const file of actualFiles) {
       if (file.startsWith(".") && file.includes("/")) {
         const topFolder = file.split("/")[0];
-        if (!dotFolderExcludes.includes(topFolder) && !allProtected.includes(file)) {
+        if (!dotFolderExcludes.has(topFolder) && !allProtected.includes(file)) {
           allProtected.push(file);
         }
       }

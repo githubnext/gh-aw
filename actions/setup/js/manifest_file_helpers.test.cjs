@@ -655,6 +655,19 @@ index abc..def 100644
       expect(() => extractPathsFromPatch(patch)).toThrow(/unparseable diff --git header/);
     });
 
+    it("should escape unparseable diff --git headers in the error message", () => {
+      const patch = 'diff --git "a/\u001b[31mevil b/file.txt\nindex abc..def 100644\n';
+      let thrown;
+      try {
+        extractPathsFromPatch(patch);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect(thrown.message).toContain("\\u001b");
+      expect(thrown.message).not.toContain("\u001b");
+    });
+
     it("should NOT throw on valid diff --git headers", () => {
       const patch = `diff --git a/README.md b/README.md\nindex abc..def 100644\n`;
       expect(() => extractPathsFromPatch(patch)).not.toThrow();
@@ -671,63 +684,42 @@ index abc..def 100644
     });
 
     it("should allow when files are within allowed-files list", () => {
-      const result = checkFileProtectionPostApply(
-        ["src/index.js", "src/utils.js"],
-        { allowed_files: ["src/**"] }
-      );
+      const result = checkFileProtectionPostApply(["src/index.js", "src/utils.js"], { allowed_files: ["src/**"] });
       expect(result.action).toBe("allow");
     });
 
     it("should deny when files violate allowed-files (post-apply detection)", () => {
-      const result = checkFileProtectionPostApply(
-        ["src/index.js", ".github/workflows/evil.yml"],
-        { allowed_files: ["src/**"] }
-      );
+      const result = checkFileProtectionPostApply(["src/index.js", ".github/workflows/evil.yml"], { allowed_files: ["src/**"] });
       expect(result.action).toBe("deny");
       expect(result.source).toBe("post-apply");
       expect(result.files).toContain(".github/workflows/evil.yml");
     });
 
     it("should detect protected path prefixes in actual files", () => {
-      const result = checkFileProtectionPostApply(
-        ["README.md", ".github/CODEOWNERS"],
-        { protected_path_prefixes: [".github/"], protected_files_policy: "deny" }
-      );
+      const result = checkFileProtectionPostApply(["README.md", ".github/CODEOWNERS"], { protected_path_prefixes: [".github/"], protected_files_policy: "deny" });
       expect(result.action).toBe("deny");
       expect(result.files).toContain(".github/CODEOWNERS");
     });
 
     it("should detect top-level dot folders", () => {
-      const result = checkFileProtectionPostApply(
-        ["src/app.js", ".husky/pre-commit"],
-        { protect_top_level_dot_folders: true, protected_dot_folder_excludes: [], protected_files_policy: "deny" }
-      );
+      const result = checkFileProtectionPostApply(["src/app.js", ".husky/pre-commit"], { protect_top_level_dot_folders: true, protected_dot_folder_excludes: [], protected_files_policy: "deny" });
       expect(result.action).toBe("deny");
       expect(result.files).toContain(".husky/pre-commit");
     });
 
     it("should respect dot folder excludes", () => {
-      const result = checkFileProtectionPostApply(
-        [".changeset/fix.md"],
-        { protect_top_level_dot_folders: true, protected_dot_folder_excludes: [".changeset"], protected_files_policy: "deny" }
-      );
+      const result = checkFileProtectionPostApply([".changeset/fix.md"], { protect_top_level_dot_folders: true, protected_dot_folder_excludes: [".changeset/"], protected_files_policy: "deny" });
       expect(result.action).toBe("allow");
     });
 
     it("should return fallback when policy is fallback-to-issue", () => {
-      const result = checkFileProtectionPostApply(
-        [".github/CODEOWNERS"],
-        { protected_path_prefixes: [".github/"], protected_files_policy: "fallback-to-issue" }
-      );
+      const result = checkFileProtectionPostApply([".github/CODEOWNERS"], { protected_path_prefixes: [".github/"], protected_files_policy: "fallback-to-issue" });
       expect(result.action).toBe("fallback");
       expect(result.files).toContain(".github/CODEOWNERS");
     });
 
     it("should return request_review when policy is request_review", () => {
-      const result = checkFileProtectionPostApply(
-        ["package.json"],
-        { protected_files: ["package.json"], protected_files_policy: "request_review" }
-      );
+      const result = checkFileProtectionPostApply(["package.json"], { protected_files: ["package.json"], protected_files_policy: "request_review" });
       expect(result.action).toBe("request_review");
       expect(result.files).toContain("package.json");
     });
@@ -736,10 +728,7 @@ index abc..def 100644
     it("should catch files that bypass the pre-apply parser (variant 1: no diff --git header)", () => {
       // Simulates what git am actually applies vs what the parser sees
       const actualFilesFromGitDiff = ["README.md", ".github/workflows/evil.yml"];
-      const result = checkFileProtectionPostApply(
-        actualFilesFromGitDiff,
-        { allowed_files: ["README.md", "src/**"] }
-      );
+      const result = checkFileProtectionPostApply(actualFilesFromGitDiff, { allowed_files: ["README.md", "src/**"] });
       expect(result.action).toBe("deny");
       expect(result.source).toBe("post-apply");
       expect(result.files).toContain(".github/workflows/evil.yml");
@@ -748,10 +737,7 @@ index abc..def 100644
     // Regression: variant 2 — rename to overrides diff --git line
     it("should catch files that bypass via rename-to extended header (variant 2)", () => {
       const actualFilesFromGitDiff = [".github/CODEOWNERS"];
-      const result = checkFileProtectionPostApply(
-        actualFilesFromGitDiff,
-        { allowed_files: ["README.md", "docs/**"] }
-      );
+      const result = checkFileProtectionPostApply(actualFilesFromGitDiff, { allowed_files: ["README.md", "docs/**"] });
       expect(result.action).toBe("deny");
       expect(result.source).toBe("post-apply");
       expect(result.files).toContain(".github/CODEOWNERS");

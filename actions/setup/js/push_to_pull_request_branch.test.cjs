@@ -157,6 +157,14 @@ describe("push_to_pull_request_branch.cjs", () => {
           }),
           getBranchProtection: vi.fn().mockRejectedValue(Object.assign(new Error("Branch not protected"), { status: 404 })),
         },
+        issues: {
+          create: vi.fn().mockResolvedValue({
+            data: {
+              number: 456,
+              html_url: "https://github.com/test-owner/test-repo/issues/456",
+            },
+          }),
+        },
       },
       graphql: vi.fn(),
     };
@@ -783,6 +791,7 @@ index 0000000..abc1234
         mockExec.getExecOutput
           .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
           .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "test.txt\n", stderr: "" }) // post-apply git diff --name-only --no-renames
           .mockResolvedValueOnce({ exitCode: 0, stdout: "0\n", stderr: "" }) // rev-list --merges --count (no merge commits)
           .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }) // rev-list --count (new commits)
           .mockResolvedValueOnce({ exitCode: 0, stdout: " file.txt | 1 +\n 1 file changed, 1 insertion(+)\n", stderr: "" }); // git diff --stat (non-empty = has file changes)
@@ -2141,7 +2150,12 @@ ${diffs}
 
     it("should accept files that match the allowed-files pattern", async () => {
       const patchPath = createPatchFile(createPatchWithFiles(".changeset/my-feature-fix.md"));
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "abc123\n", stderr: "" };
+      });
 
       const module = await loadModule();
       const handler = await module.main({ allowed_files: [".changeset/**"] });
@@ -2171,7 +2185,12 @@ ${diffs}
     it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
       // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
       const patchPath = createPatchFile(createPatchWithFiles("package.json"));
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
+          return { exitCode: 0, stdout: "package.json\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "abc123\n", stderr: "" };
+      });
 
       const module = await loadModule();
       const handler = await module.main({
@@ -2182,6 +2201,46 @@ ${diffs}
       const result = await handler({ patch_path: patchPath }, {});
 
       expect(result.success).toBe(true);
+    });
+
+    it("should create a fallback issue instead of pushing when post-apply detects protected files", async () => {
+      const patchPath = createPatchFile(createPatchWithFiles("README.md"));
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("remote-head-after");
+      const promptsDir = path.join(tempDir, "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(path.join(promptsDir, "manifest_protection_push_to_pr_fallback.md"), "Protected files: {{files}}", "utf8");
+      process.env.GH_AW_PROMPTS_DIR = promptsDir;
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "ls-remote") {
+          return { exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
+          return { exitCode: 0, stdout: "local-head-before\n", stderr: "" };
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".github/CODEOWNERS\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({
+        protected_path_prefixes: [".github/"],
+        protected_files_policy: "fallback-to-issue",
+      });
+      try {
+        const result = await handler({ patch_path: patchPath }, {});
+
+        expect(result.success).toBe(true);
+        expect(result.fallback_used).toBe(true);
+        expect(result.issue_number).toBe(456);
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard", "local-head-before"], expect.any(Object));
+        expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+        expect(pushSignedSpy).not.toHaveBeenCalled();
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
     });
 
     it("should block a protected file when no allowed-files list is configured", async () => {

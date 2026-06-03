@@ -2510,6 +2510,65 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("merge conflicts"));
   });
 
+  it("should diff against the fallback pre-apply HEAD for post-apply protection checks", async () => {
+    let primaryAmAttempted = false;
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    fs.writeFileSync(path.join(promptsDir, "manifest_protection_request_review.md"), "Protected files: {{files}}", "utf8");
+    fs.writeFileSync(path.join(promptsDir, "manifest_protection_request_changes_review.md"), "Protected files: {{files}}", "utf8");
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args) && !primaryAmAttempted) {
+          primaryAmAttempted = true;
+          throw new Error("CONFLICT (content): Merge conflict in file.txt");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "merge-base") {
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({ exitCode: 0, stdout: primaryAmAttempted ? `${MOCK_BASE_COMMIT_SHA}\n` : "origin-main-head\n", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
+          expect(args[3]).toBe(`${MOCK_BASE_COMMIT_SHA}..HEAD`);
+          return Promise.resolve({ exitCode: 0, stdout: ".github/CODEOWNERS\n", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args.includes("--diff-filter=U")) {
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "status") {
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "am" && args[1] === "--show-current-patch=diff") {
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+    });
+    const result = await handler(
+      {
+        title: "Test PR",
+        body: "Test body",
+        patch_path: patchFilePath,
+        branch: "test-branch",
+        base_commit: MOCK_BASE_COMMIT_SHA,
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalled();
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", `${MOCK_BASE_COMMIT_SHA}..HEAD`]);
+  });
+
   it("should return error when both git am --3way and the fallback git am fail", async () => {
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
