@@ -64,6 +64,8 @@ exit 97
 }
 
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
+	const compatVersion = "1.0.51"
+
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory")
 
@@ -71,11 +73,11 @@ func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *te
 	installScript := filepath.Join(projectRoot, "actions", "setup", "sh", "install_copilot_cli.sh")
 
 	tempDir := t.TempDir()
-	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", "1.0.51", "x64", "bin")
+	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", compatVersion, "x64", "bin")
 	require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
 
 	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
-	require.NoError(t, os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot 1.0.51'\n"), 0o755))
+	require.NoError(t, os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+compatVersion+"'\n"), 0o755))
 
 	fakeBinDir := filepath.Join(tempDir, "fake-bin")
 	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
@@ -116,7 +118,7 @@ if [[ "$url" == *"/compat.json" ]]; then
         "min-gh-aw": "0.72.0",
         "max-gh-aw": "*",
         "min-agent": "1.0.21",
-        "max-agent": "1.0.51"
+        "max-agent": "`+compatVersion+`"
       }
     ]
   }
@@ -140,8 +142,8 @@ exit 97
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "install_copilot_cli.sh should resolve compat version and use toolcache: %s", output)
 
-	assert.Contains(t, string(output), "Resolved Copilot CLI version from compatibility matrix: 1.0.51")
-	assert.Contains(t, string(output), "Using compat-resolved Copilot CLI version: 1.0.51")
+	assert.Contains(t, string(output), "Resolved Copilot CLI version from compatibility matrix: "+compatVersion)
+	assert.Contains(t, string(output), "Using compat-resolved Copilot CLI version: "+compatVersion)
 	assert.Contains(t, string(output), "Using cached GitHub Copilot CLI")
 
 	curlLogContent, err := os.ReadFile(curlLog)

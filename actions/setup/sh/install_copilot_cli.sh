@@ -189,10 +189,8 @@ import sys
 
 compat_path = sys.argv[1]
 compiled = sys.argv[2]
-semver_re = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
-
 def parse(v):
-    m = re.match(r"^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?$", v)
+    m = re.match(r"^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$", v)
     if not m:
         return None
     pre = m.group(4).split(".") if m.group(4) else None
@@ -266,7 +264,7 @@ for i, row in enumerate(rows):
         continue
     if max_aw != "*" and parse(max_aw) is None:
         continue
-    if not semver_re.match(max_agent):
+    if parse(min_agent) is None or parse(max_agent) is None:
         continue
 
     if cmp(compiled_no_v, min_aw) < 0:
