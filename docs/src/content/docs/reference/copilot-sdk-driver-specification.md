@@ -130,7 +130,7 @@ In standalone mode, the implementation MUST enforce the following contract:
 | `COPILOT_SDK_URI` | Yes | SDK endpoint URI | MUST be non-empty |
 | `COPILOT_CONNECTION_TOKEN` | Yes | Shared connection token | MUST be non-empty |
 | `COPILOT_MODEL` | No | Model override | OPTIONAL |
-| `COPILOT_SDK_SEND_TIMEOUT_MS` | No | Send timeout in milliseconds | MUST be a positive integer; default `600000`; invalid values SHOULD fall back to default |
+| `COPILOT_SDK_SEND_TIMEOUT_MS` | No | Send timeout in milliseconds | SHOULD be a positive integer; default `600000`; invalid values MUST fall back to default |
 | `COPILOT_SDK_LOG_LEVEL` | No | SDK client log level | Valid values: `none`, `error`, `warning`, `info`, `debug`, `all`; invalid values MUST fall back to `warning` |
 | `GITHUB_WORKSPACE` | No | Working directory hint | SHOULD be used when present |
 
@@ -153,9 +153,8 @@ if (!promptPath || !sdkUri || !connectionToken) {
   throw new Error("Missing required standalone environment variables.");
 }
 
-const rawTimeout = process.env.COPILOT_SDK_SEND_TIMEOUT_MS
-  ? Number.parseInt(process.env.COPILOT_SDK_SEND_TIMEOUT_MS, 10)
-  : 600000;
+const rawTimeoutValue = process.env.COPILOT_SDK_SEND_TIMEOUT_MS;
+const rawTimeout = rawTimeoutValue && /^[1-9]\d*$/.test(rawTimeoutValue) ? Number(rawTimeoutValue) : 600000;
 const sendTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 600000;
 const allowedLogLevels = new Set(["none", "error", "warning", "info", "debug", "all"]);
 const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL || "warning";
