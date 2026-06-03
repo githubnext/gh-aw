@@ -310,6 +310,7 @@ function reduceModelNameToIdentifier(modelName) {
     { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
     { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "haiku" },
     { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
+    { familyPattern: /^o[0-9](?:$|[-_])/, versionPattern: new RegExp(`o${VERSION_SUFFIX_PATTERN}`), prefix: "o" },
     { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
 
@@ -345,7 +346,7 @@ function formatModelEmojiAlias(modelName) {
   let emoji = "🟠";
   if (/claude|sonnet|opus|haiku/.test(normalized)) {
     emoji = "🟣";
-  } else if (/^o[0-9]|gpt|openai/.test(normalized)) {
+  } else if (/^o[0-9](?:$|[-_])|gpt|openai/.test(normalized)) {
     emoji = "🔵";
   } else if (/gemini|gemma|google/.test(normalized)) {
     emoji = "🟢";
@@ -385,7 +386,7 @@ function formatModelEmojiAliasLegend(models) {
  * @returns {string}
  */
 function extractKnownModelTierSuffix(normalizedModelName, familyPrefix) {
-  if (familyPrefix !== "gpt") return "";
+  if (familyPrefix !== "gpt" && familyPrefix !== "o") return "";
   if (hasDelimitedModelQualifier(normalizedModelName, "mini")) return "mini";
   if (hasDelimitedModelQualifier(normalizedModelName, "nano")) return "nano";
   if (hasDelimitedModelQualifier(normalizedModelName, "codex")) return "codex";

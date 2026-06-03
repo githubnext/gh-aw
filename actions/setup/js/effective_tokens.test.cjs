@@ -392,6 +392,11 @@ describe("effective_tokens", () => {
         expect(reduceModelNameToIdentifier("gpt-5.3-codex")).toBe("gpt53codex");
       });
 
+      test("uses compact shortcuts for o-series models", () => {
+        expect(reduceModelNameToIdentifier("o3")).toBe("o30");
+        expect(reduceModelNameToIdentifier("o4-mini")).toBe("o40mini");
+      });
+
       test("uses well-known opus shortcut", () => {
         expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opus47");
       });
@@ -428,6 +433,7 @@ describe("effective_tokens", () => {
 
       test("uses a blue alias for OpenAI-family models", () => {
         expect(formatModelEmojiAlias("gpt-5.5")).toBe("🔵gpt55");
+        expect(formatModelEmojiAlias("o3")).toBe("🔵o30");
       });
 
       test("uses a green alias for Gemini-family models", () => {
