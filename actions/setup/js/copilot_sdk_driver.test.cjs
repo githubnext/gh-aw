@@ -124,7 +124,9 @@ describe("copilot_sdk_driver.cjs", () => {
     it("passes COPILOT_CONNECTION_TOKEN to RuntimeConnection.forUri", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
-      const forUri = vi.fn(() => ({}));
+      const connection = { kind: "uri", url: "http://127.0.0.1:3002", connectionToken: "token-123" };
+      const forUri = vi.fn(() => connection);
+      const constructorSpy = vi.fn();
       const createSession = vi.fn().mockResolvedValue({
         sessionId: "session-connection-token",
         on: () => {},
@@ -132,6 +134,9 @@ describe("copilot_sdk_driver.cjs", () => {
         disconnect,
       });
       class FakeCopilotClient {
+        constructor(options) {
+          constructorSpy(options);
+        }
         start = vi.fn().mockResolvedValue(undefined);
         createSession = createSession;
         stop = stop;
@@ -151,6 +156,11 @@ describe("copilot_sdk_driver.cjs", () => {
 
       expect(result.exitCode).toBe(0);
       expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", { connectionToken: "token-123" });
+      expect(constructorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          connection,
+        })
+      );
     });
 
     it("uses scoped permission handler from SDK permission config", async () => {
