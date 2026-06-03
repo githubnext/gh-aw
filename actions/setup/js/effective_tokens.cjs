@@ -362,6 +362,16 @@ function formatModelEmojiAlias(modelName) {
 }
 
 /**
+ * Escapes HTML-sensitive characters in a string for safe embedding in HTML attributes or content.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
  * Formats a compact alias legend for the models shown in the ET details table.
  *
  * @param {string[]} models
@@ -377,7 +387,7 @@ function formatModelEmojiAliasLegend(models) {
     seen.add(normalized);
     const alias = formatModelEmojiAlias(normalized);
     if (!alias) continue;
-    entries.push(`${alias}=${normalized}`);
+    entries.push(`${alias}=${escapeHtml(normalized)}`);
   }
 
   return entries.join(" · ");
