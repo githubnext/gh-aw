@@ -136,6 +136,8 @@ In standalone mode, the implementation MUST enforce the following contract:
 
 ### 4.2 TypeScript Example (Non-Normative)
 
+Prerequisite: install [`@github/copilot-sdk`](https://www.npmjs.com/package/@github/copilot-sdk) in the runtime where this example executes.
+
 ```ts
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 
@@ -152,7 +154,8 @@ try {
   const session = await client.createSession({
     model: "gpt-4o-mini",
   });
-  await session.sendAndWait({ prompt: "Summarize this repository." });
+  const response = await session.sendAndWait({ prompt: "Summarize this repository." });
+  void response; // Minimal example: response handling is implementation-specific.
   await session.disconnect();
 } finally {
   await client.stop();
