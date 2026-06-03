@@ -486,12 +486,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// that always runs, even if this conclusion job doesn't run.
 	// See buildUnlockJob() in compiler_unlock_job.go
 
-	// Add GitHub App token invalidation step if app is configured
-	if data.SafeOutputs.GitHubApp != nil {
-		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
-		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
-	}
-
 	// Append OTLP conclusion span step (no-op when endpoint is not configured).
 	// Note: this step is now handled by the action post step (post.js) so no
 	// injected step is needed here.
