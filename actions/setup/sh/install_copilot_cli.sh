@@ -162,6 +162,7 @@ download_compat_json() {
   done
 
   if [ -f "$COMPAT_BUNDLED_PATH" ]; then
+    echo "::warning::Compatibility matrix network fetch failed; using bundled fallback at ${COMPAT_BUNDLED_PATH}"
     echo "Falling back to bundled compatibility matrix at ${COMPAT_BUNDLED_PATH}" >&2
     cp "$COMPAT_BUNDLED_PATH" "$compat_file"
     echo "bundled:${COMPAT_BUNDLED_PATH}" > "$source_file"
