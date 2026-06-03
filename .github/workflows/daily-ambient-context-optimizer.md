@@ -16,6 +16,9 @@ max-daily-effective-tokens: 100M
 network:
   allowed: [defaults, github]
 tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
   agentic-workflows:
   bash: true
 safe-outputs:
@@ -167,7 +170,6 @@ Assess whether the request size is likely driven by:
 
 Also review proxy/CLI feature readiness for each sampled workflow:
 
-- GH Proc enabled (check `features.gh-proc: true` or an equivalent GH Proc enablement marker in frontmatter)
 - GitHub gh-proxy enabled (`tools.github.mode: gh-proxy`)
 - CLI proxy enabled (`tools.cli-proxy: true`)
 
@@ -206,7 +208,7 @@ Prioritize recommendations that:
 2. reduce broad skill loading or oversized skill fusion
 3. simplify or remove low-value inline agents
 4. move deterministic data gathering out of the main prompt
-5. enable GH Proc, `gh-proxy`, and `cli-proxy` when missing, then rewrite MCP-tool-oriented problem wording to CLI-form commands
+5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite MCP-tool-oriented problem wording to CLI-form commands
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.
 
