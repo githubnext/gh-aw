@@ -33,6 +33,8 @@ type copilotSDKInstallSpec struct {
 	command   string
 }
 
+const workspaceCommandPrefix = `cd "${GITHUB_WORKSPACE}" && `
+
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if:
 //   - permissions.copilot-requests is set to write (uses GitHub Actions token instead), or
@@ -140,25 +142,25 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 	spec := copilotSDKInstallSpec{
 		runtimeID: runtimeID,
 		stepName:  "Install GitHub Copilot SDK (Node.js)",
-		command:   "cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + version,
+		command:   workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version,
 	}
 
 	switch runtimeID {
 	case "python":
 		spec.stepName = "Install GitHub Copilot SDK (Python)"
-		spec.command = "cd \"${GITHUB_WORKSPACE}\" && pip install --disable-pip-version-check github-copilot-sdk==" + version
+		spec.command = workspaceCommandPrefix + "pip install --disable-pip-version-check github-copilot-sdk==" + version
 	case "go":
 		spec.stepName = "Install GitHub Copilot SDK (Go)"
-		spec.command = "cd \"${GITHUB_WORKSPACE}\" && go get github.com/github/copilot-sdk/go@v" + version
+		spec.command = workspaceCommandPrefix + "go get github.com/github/copilot-sdk/go@v" + version
 	case "rust":
 		spec.stepName = "Install GitHub Copilot SDK (Rust)"
-		spec.command = "cd \"${GITHUB_WORKSPACE}\" && cargo add github-copilot-sdk@" + version
+		spec.command = workspaceCommandPrefix + "cargo add github-copilot-sdk@" + version
 	case "dotnet":
 		spec.stepName = "Install GitHub Copilot SDK (.NET)"
-		spec.command = "cd \"${GITHUB_WORKSPACE}\" && dotnet add package GitHub.Copilot.SDK --version " + version
+		spec.command = workspaceCommandPrefix + "dotnet add package GitHub.Copilot.SDK --version " + version
 	case "java":
 		spec.stepName = "Install GitHub Copilot SDK (Java)"
-		spec.command = fmt.Sprintf("cd \"${GITHUB_WORKSPACE}\" && mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:%s", version)
+		spec.command = workspaceCommandPrefix + fmt.Sprintf("mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:%s", version)
 	}
 
 	return spec
@@ -196,6 +198,9 @@ func firstCommandToken(command string) string {
 	if token != "env" {
 		return token
 	}
+	// Shell-form commands sometimes start with `env` wrappers:
+	//   env FOO=bar python app.py
+	// Skip env assignments/flags and return the first executable token.
 	for _, field := range fields[1:] {
 		if strings.Contains(field, "=") || strings.HasPrefix(field, "-") {
 			continue
