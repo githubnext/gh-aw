@@ -1596,8 +1596,8 @@ not-json
     test("renders header and table columns", () => {
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| # | Model | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
-      expect(md).toContain("claude-sonnet-4-6");
+      expect(md).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
+      expect(md).toContain("◉ sonnet46");
     });
 
     test("includes totals row", () => {
@@ -1620,8 +1620,9 @@ not-json
       ];
       const summary = parseTokenUsageJsonl(lines.join("\n"));
       const md = generateTokenUsageSummary(summary);
-      const firstIdx = md.indexOf("first-model");
-      const secondIdx = md.indexOf("second-model");
+      const { formatModelEmojiAlias } = require("./effective_tokens.cjs");
+      const firstIdx = md.indexOf(formatModelEmojiAlias("first-model"));
+      const secondIdx = md.indexOf(formatModelEmojiAlias("second-model"));
       expect(firstIdx).toBeLessThan(secondIdx);
     });
 
@@ -1633,21 +1634,20 @@ not-json
       expect(md).toContain("| ET |");
     });
 
-    test("shows ● footer line when effective tokens > 0", () => {
+    test("does not render a dangling ET footer line", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
       const md = generateTokenUsageSummary(summary);
-      // Column header has ET columns; footer uses compact ● symbol only
       expect(md).toContain("| ET |");
-      expect(md).toContain("●");
+      expect(md).not.toContain("●");
     });
 
-    test("includes ● ET in footer line without cache efficiency", () => {
+    test("does not include cache efficiency or an ET footer line", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("●");
+      expect(md).not.toContain("●");
       expect(md).not.toContain("Cache efficiency");
     });
 

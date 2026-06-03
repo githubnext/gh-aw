@@ -343,6 +343,51 @@ func TestRenderReleaseVersion(t *testing.T) {
 	assert.Equal(t, "v0.75.3-beta.1 (pre-release)", renderReleaseVersion("v0.75.3-beta.1"))
 }
 
+func TestParseInstalledVersionOutput(t *testing.T) {
+	t.Run("parses version without v prefix", func(t *testing.T) {
+		got, err := parseInstalledVersionOutput("gh-aw version 0.77.5 (2026-06-01)")
+		require.NoError(t, err)
+		assert.Equal(t, "v0.77.5", got)
+	})
+
+	t.Run("parses stable version", func(t *testing.T) {
+		got, err := parseInstalledVersionOutput("gh-aw version v0.77.5 (2026-06-01)")
+		require.NoError(t, err)
+		assert.Equal(t, "v0.77.5", got)
+	})
+
+	t.Run("parses prerelease version", func(t *testing.T) {
+		got, err := parseInstalledVersionOutput("gh-aw version v0.77.6-beta.1")
+		require.NoError(t, err)
+		assert.Equal(t, "v0.77.6-beta.1", got)
+	})
+
+	t.Run("returns error when no version present", func(t *testing.T) {
+		_, err := parseInstalledVersionOutput("gh-aw version unknown")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not parse installed gh-aw version")
+	})
+
+	t.Run("uses first version match when multiple exist", func(t *testing.T) {
+		got, err := parseInstalledVersionOutput("gh-aw v0.77.5 (built from v0.77.6)")
+		require.NoError(t, err)
+		assert.Equal(t, "v0.77.5", got)
+	})
+
+	t.Run("returns error for empty output", func(t *testing.T) {
+		_, err := parseInstalledVersionOutput("")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not parse installed gh-aw version")
+	})
+}
+
+func TestNormalizeVersion(t *testing.T) {
+	assert.Equal(t, "0.77.5", normalizeVersion("v0.77.5"))
+	assert.Equal(t, "0.77.5", normalizeVersion("0.77.5"))
+	assert.Equal(t, "1.0.0-beta.1", normalizeVersion("v1.0.0-beta.1"))
+	assert.Empty(t, normalizeVersion(""))
+}
+
 // TestGhCmdForExtension verifies that ghCmdForExtension always pins
 // GH_HOST=github.com so that GHE-authenticated environments do not
 // redirect extension upgrade/install/remove commands to the wrong host.

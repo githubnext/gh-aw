@@ -12,6 +12,7 @@ const {
   computeBaseWeightedTokens,
   computeEffectiveTokens,
   formatET,
+  formatModelEmojiAlias,
   reduceModelNameToIdentifier,
   resolveActualModelName,
   getEffectiveTokensSuffix,
@@ -391,6 +392,11 @@ describe("effective_tokens", () => {
         expect(reduceModelNameToIdentifier("gpt-5.3-codex")).toBe("gpt53codex");
       });
 
+      test("uses compact shortcuts for o-series models", () => {
+        expect(reduceModelNameToIdentifier("o3")).toBe("o30");
+        expect(reduceModelNameToIdentifier("o4-mini")).toBe("o40mini");
+      });
+
       test("uses well-known opus shortcut", () => {
         expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opus47");
       });
@@ -406,7 +412,7 @@ describe("effective_tokens", () => {
       });
 
       test("uses well-known gemini shortcut", () => {
-        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
+        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25pro");
       });
 
       test("handles date-like suffixes deterministically", () => {
@@ -417,6 +423,27 @@ describe("effective_tokens", () => {
 
       test("returns deterministic 5-character fallback for unknown models", () => {
         expect(reduceModelNameToIdentifier("my-custom-engine-v2")).toBe("myc20");
+      });
+    });
+
+    describe("formatModelEmojiAlias", () => {
+      test("uses a distinct monochrome symbol for sonnet models", () => {
+        expect(formatModelEmojiAlias("claude-sonnet-4.6")).toBe("◉ sonnet46");
+      });
+
+      test("uses distinct monochrome symbols for OpenAI model kinds", () => {
+        expect(formatModelEmojiAlias("gpt-5.5")).toBe("■ gpt55");
+        expect(formatModelEmojiAlias("o3")).toBe("● o30");
+      });
+
+      test("uses distinct monochrome symbols across compact model kinds", () => {
+        expect(formatModelEmojiAlias("claude-opus-4.7")).toBe("◆ opus47");
+        expect(formatModelEmojiAlias("claude-haiku-4.5")).toBe("▲ haiku45");
+        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("★ gem25pro");
+      });
+
+      test("uses a monochrome fallback symbol for unknown models", () => {
+        expect(formatModelEmojiAlias("my-custom-engine-v2")).toBe("○ myc20");
       });
     });
 
@@ -570,10 +597,12 @@ describe("effective_tokens", () => {
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
       expect(result).toContain("ET computation details");
+      expect(result).not.toContain("<summary>ET computation details (formula:");
       expect(result).toContain("Input");
       expect(result).toContain("Output");
       expect(result).toContain("| Token class | Weight |");
       expect(result).not.toContain("| Token class | Count | Weight | Weighted tokens |");
+      expect(result).toContain("<sub>ET formula:");
     });
 
     it("shows aggregated weighted table when agent_usage.json is present and no tokenUsageMarkdown", () => {
@@ -601,15 +630,19 @@ describe("effective_tokens", () => {
 
     it("uses tokenUsageMarkdown directly when provided, ignoring agent_usage.json", () => {
       const { buildETComputationTable } = require("./effective_tokens.cjs");
-      const mockTable = "| Model | Input |\n|-------|------:|\n| claude-sonnet-4.5 | 100,000 |";
-      const result = buildETComputationTable("200000", mockTable);
+      const mockTable = "| Alias | Input |\n|-------|------:|\n| ◉ sonnet45 | 100,000 |";
+      const result = buildETComputationTable("200000", {
+        markdown: mockTable,
+        modelNames: ["claude-sonnet-4.5"],
+      });
       expect(result).toContain("<details>");
       expect(result).toContain("ET computation details");
-      expect(result).toContain("claude-sonnet-4.5");
+      expect(result).toContain("◉ sonnet45");
       expect(result).toContain("100,000");
       // Should not include the fallback aggregated table headers
       expect(result).not.toContain("Token class");
       expect(result).not.toContain("Weighted tokens");
+      expect(result).toContain("Model aliases: ◉ sonnet45=claude-sonnet-4.5");
     });
   });
 });
