@@ -2833,7 +2833,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(
         path.join(promptsDir, "effective_tokens_rate_limit_error.md"),
-        "**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
+        "**Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
           "<details>\n" +
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [effective tokens]({et_spec_link}).\n" +
