@@ -10,6 +10,7 @@ Use this reference for gh-aw technical specs and development guidelines across c
 
 ## Table of Contents
 
+- [Operational Command Playbook](#operational-command-playbook)
 - [Capitalization Guidelines](#capitalization-guidelines)
 - [Code Organization](#code-organization)
   - [WASM Build-Variant Pattern](#wasm-build-variant-pattern)
@@ -24,6 +25,45 @@ Use this reference for gh-aw technical specs and development guidelines across c
 - [Breaking CLI Rules](#breaking-cli-rules)
 - [Go Module Summaries](#go-module-summaries)
 
+
+## Operational Command Playbook
+
+Use this section for the detailed day-to-day command flow that was intentionally removed from `AGENTS.md` to keep first-run ambient context small.
+
+### Validation checkpoints
+
+1. **After first significant code edit**
+   ```bash
+   make build && make fmt
+   ```
+2. **Before `report_progress`**
+   ```bash
+   make agent-report-progress
+   ```
+3. **Before final handoff when time allows**
+   ```bash
+   make agent-finish
+   ```
+
+### Change-type command matrix
+
+- Go file changes: `make fmt`
+- Workflow markdown changes: `make recompile`
+- JavaScript (`*.cjs`) changes: `make fmt-cjs && make lint-cjs`
+
+### Merge-main playbook
+
+When explicitly asked to merge main:
+
+1. Run `make merge-main`.
+2. If conflicts exist in `.go` or `.cjs`, resolve and stage files.
+3. Run:
+   ```bash
+   make build
+   make recompile
+   git commit
+   make fmt
+   ```
 
 ## Capitalization Guidelines
 

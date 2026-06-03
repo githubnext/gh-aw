@@ -23,6 +23,8 @@ mcp-servers:
     container: "semgrep/semgrep"
     version: "latest"
     entrypointArgs: ["semgrep", "mcp", "-t", "stdio"]
+    env:
+      SEMGREP_SEND_METRICS: "off"
     # Security decision (2026-05-19): explicit Semgrep tool allowlist (no wildcard).
     allowed:
       - semgrep_rule_schema

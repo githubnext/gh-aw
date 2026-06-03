@@ -17,7 +17,7 @@ const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_titl
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { createExpirationLine, generateFooterWithExpiration, addExpirationToFooter } = require("./ephemerals.cjs");
-const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { getBodyHeader } = require("./messages_header.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -545,34 +545,41 @@ async function main(config = {}) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
+    const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+    const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+    const triggeringDiscussionNumber = context.payload?.discussion?.number;
+    const historyUrl = includeFooter
+      ? (generateHistoryUrl({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          itemType: "discussion",
+          workflowCallId: callerWorkflowId,
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) ?? undefined)
+      : undefined;
+    const markdownParts = assembleMarkdownBodyParts({
+      includeFooter,
+      workflowName,
+      runUrl,
+      workflowSource: process.env.GH_AW_WORKFLOW_SOURCE ?? "",
+      workflowSourceURL: process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "",
+      triggeringIssueNumber,
+      triggeringPRNumber,
+      triggeringDiscussionNumber,
+      historyUrl,
+    });
+
     // Inject CAUTION at top of body if threat detection warning was raised
     // (unshifted after header so it appears first in the final output)
-    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    const detectionCaution = markdownParts.detectionCaution;
     if (detectionCaution) {
       bodyLines.unshift(...detectionCaution.split("\n"), "");
     }
 
     // Generate footer with expiration using helper
-    // When footer is disabled, only add XML markers (no visible footer content)
     if (includeFooter) {
-      const historyUrl = generateHistoryUrl({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        itemType: "discussion",
-        workflowCallId: callerWorkflowId,
-        workflowId,
-        serverUrl: context.serverUrl,
-      });
-      const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
-      const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
-      const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-      const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-      const triggeringDiscussionNumber = context.payload?.discussion?.number;
-      const footer = addExpirationToFooter(
-        generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd(),
-        expiresHours,
-        "Discussion"
-      );
+      const footer = addExpirationToFooter(markdownParts.footer, expiresHours, "Discussion");
       bodyLines.push(``, ``, footer);
     }
 

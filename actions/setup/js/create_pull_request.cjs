@@ -17,7 +17,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
-const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { getBodyHeader } = require("./messages_header.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
@@ -1253,7 +1253,11 @@ async function main(config = {}) {
       bodyLines.unshift(protectedFilesNotice, "", "");
     }
     // Inject CAUTION at top of body (unshifted after header so it appears first in the final output)
-    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    const detectionCaution = assembleMarkdownBodyParts({
+      includeFooter: false,
+      workflowName,
+      runUrl,
+    }).detectionCaution;
     if (detectionCaution) {
       // unshift(caution, "", "") places the caution alert at index 0 and two blank
       // separator lines so the main body content follows after a full empty line.
@@ -1276,16 +1280,27 @@ async function main(config = {}) {
     // When footer is disabled, only add XML markers (no visible footer content)
     const footerParts = [];
     if (includeFooter) {
-      const historyUrl = generateHistoryUrl({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        itemType: "pull_request",
-        workflowId,
-        serverUrl: context.serverUrl,
-      });
-      // Pass skipDetectionCaution so the caution alert is not duplicated in the footer
-      // (it was already prepended to the top of the body above).
-      let footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd();
+      const historyUrl =
+        generateHistoryUrl({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          itemType: "pull_request",
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) ?? undefined;
+      // The footer builder skips detection caution so the caution already prepended at
+      // the top of the body is not duplicated in the footer.
+      let footer = assembleMarkdownBodyParts({
+        includeFooter: true,
+        workflowName,
+        runUrl,
+        workflowSource,
+        workflowSourceURL,
+        triggeringIssueNumber,
+        triggeringPRNumber,
+        triggeringDiscussionNumber,
+        historyUrl,
+      }).footer;
       footer = addExpirationToFooter(footer, expiresHours, "Pull Request");
       if (expiresHours > 0) {
         footer += "\n\n<!-- gh-aw-expires-type: pull-request -->";
