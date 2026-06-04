@@ -327,7 +327,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.NoError(t, os.WriteFile(tokenFile, []byte(tokenContent+"\n"), 0o644))
 
 		eventsFile := filepath.Join(logsDir, "events.jsonl")
-		require.NoError(t, os.WriteFile(eventsFile, []byte(`{"event":"token_steering"}`+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(eventsFile, []byte(`{"event":"token_steering","message":"[AWF TOKEN WARNING] You have used 95% of your effective token budget. Finalize and submit your work now."}`+"\n"), 0o644))
 
 		summary, err := analyzeTokenUsage(tmpDir, false)
 		require.NoError(t, err)

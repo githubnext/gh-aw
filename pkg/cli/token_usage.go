@@ -566,9 +566,9 @@ func containsSteeringKeyword(line string) bool {
 func isSteeringEvent(eventName, message string) bool {
 	switch eventName {
 	case tokenSteeringEventName:
-		return message == "" || strings.HasPrefix(message, awfTokenWarningPrefix)
+		return strings.HasPrefix(message, awfTokenWarningPrefix)
 	case timeoutSteeringEventName:
-		return message == "" || strings.HasPrefix(message, awfTimeWarningPrefix)
+		return strings.HasPrefix(message, awfTimeWarningPrefix)
 	case "":
 		return strings.HasPrefix(message, awfTokenWarningPrefix) ||
 			strings.HasPrefix(message, awfTimeWarningPrefix)
