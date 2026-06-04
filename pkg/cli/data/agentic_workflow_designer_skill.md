@@ -78,13 +78,19 @@ Guide toward safe output behavior and explicit `noop` instructions.
 
 ### Phase 6: Context & Network
 
-Ask: **"Does it need external APIs, web access, or package installs?"**
+Ask: **"Does it need external APIs, web access, package installs, or MCP servers?"**
 
-Follow up for exact external domains (FQDN/wildcard).
+Follow up:
+- **"Any third-party services or MCP servers to include (for example Slack, Jira, Datadog, custom internal MCP)?"**
+- **"Are you deploying on GitHub.com, GHEC with custom endpoints, or GHES?"**
+- For each integration, identify required auth from source docs and map it to GitHub Actions secrets + workflow env variables.
+- Ask for exact external domains (FQDN/wildcard).
 
 Map to:
 - `network.allowed`
 - Optional MCP/GitHub tool usage in `tools:`
+- `secrets:` / `env:` wiring for integration tokens
+- GHES/GHEC settings such as `engine.api-target` and `aw.json` `ghes: true` (when applicable)
 
 ### Phase 7: Engine (optional)
 
@@ -148,6 +154,29 @@ Present a structured summary and ask for approval before generation.
 | "browse web pages/docs" | `web-fetch` and/or `web-search` |
 | "test UI flows" | `playwright` |
 
+### Integration Auth Mapping
+
+When the user names a third-party service or MCP server:
+
+1. Confirm whether native tool, MCP server, or safe-output job is the right integration path.
+2. Look up the integration's auth requirements and required scopes before finalizing the design.
+3. Provide a concrete setup checklist with:
+   - required GitHub Actions secrets (names to create)
+   - workflow env variables that consume those secrets
+   - minimum token scopes/permissions needed
+
+Output format to use:
+
+```text
+Integration auth setup:
+- <service-or-mcp>: <purpose>
+  - Secrets to create: <SECRET_NAME>, <SECRET_NAME>
+  - Workflow env vars: <ENV_VAR>=${{ secrets.<SECRET_NAME> }}
+  - Required scopes/permissions: <least-privilege scopes>
+```
+
+Never suggest committing plaintext tokens.
+
 ### Data Strategy Mapping
 
 | User says... | Maps to |
@@ -187,6 +216,8 @@ Use this exact structure:
 - Tools: <tool summary>
 - Safe outputs: <list or none>
 - Network: <allowed summary>
+- Integrations/Auth: <service/mcp + required secrets/env vars>
+- Deployment: <GitHub.com or GHEC/GHES details>
 - Intent: <one-sentence task>
 ```
 
@@ -251,6 +282,9 @@ Before final output, run this internal self-check:
 - [ ] Only required toolsets are listed (avoid blanket toolset lists)
 - [ ] Prompt references specific pre-computed file paths
 - [ ] For batch processing (>5 items), sub-agent pattern is suggested
+- [ ] For each third-party service/MCP integration, required secrets/env vars are listed
+- [ ] Auth guidance includes least-privilege token scope recommendations
+- [ ] For GHEC/GHES deployments, `engine.api-target` and GHES compatibility guidance are included when needed
 
 ## References (load only when needed)
 
