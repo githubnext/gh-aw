@@ -332,13 +332,130 @@ See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) and [Conc
 
 ### Use Schedules for Predictable Budgets
 
-Scheduled workflows fire at a fixed cadence, making cost easy to estimate and cap:
+Scheduled workflows fire at a fixed cadence, making cost easy to estimate and cap. The less often a workflow runs, the lower the cost:
 
 ```aw wrap
+# Once per day on weekdays — 5 runs/week
 schedule: daily on weekdays
 ```
 
-One scheduled run per weekday = five agent invocations per week. See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy schedule syntax.
+```aw wrap
+# Every two days — roughly 15 runs/month
+on:
+  schedule:
+    - cron: '0 9 */2 * *'
+```
+
+```aw wrap
+# Weekly on Monday mornings — 4–5 runs/month
+schedule: weekly
+```
+
+When an event-based trigger fires far more often than the agent actually needs to act, a schedule is almost always cheaper. Replace `push` or `issues` triggers with a daily or weekly schedule and let the agent work through a backlog of items in one run.
+
+See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy schedule syntax.
+
+### Batch Instead of Reacting to Events
+
+Reactive triggers like `issues` or `pull_request` launch one agent run per event. When many events arrive in a short window, that adds up quickly. Replacing them with a scheduled batch run groups all pending items into a single invocation — and because the shared system prompt and instructions are sent once for the whole batch, AI providers can cache that context across the items, further reducing effective token usage.
+
+```aw wrap
+description: Nightly issue triage (replaces reactive issues trigger)
+on:
+  schedule: daily
+  workflow_dispatch:
+
+tools:
+  github:
+    toolsets: [issues]
+permissions:
+  issues: write
+engine:
+  id: copilot
+  model: gpt-4.1-mini
+---
+
+Fetch all issues opened or updated in the past 24 hours that have no
+labels. For each issue, apply the most appropriate label from the
+repository label list. Process them in a single pass.
+```
+
+> [!TIP]
+> For high-volume repositories, combine a scheduled trigger with [BatchOps](/gh-aw/patterns/batch-ops/) to split work across parallel matrix jobs and stay within per-run token budgets.
+
+### Use Inline Sub-Agents with Smaller Models
+
+When a workflow delegates specialized tasks to sub-agents, each sub-agent can use a different model. Assign cheap, fast models to high-frequency sub-tasks (summarization, labeling, classification) and reserve frontier models only for the steps that need deep reasoning.
+
+```aw wrap
+description: PR review with tiered model usage
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+engine:
+  id: copilot
+  model: gpt-4.1   # orchestrator uses a capable model
+
+permissions:
+  pull-requests: write
+---
+
+# PR Review
+
+1. Use the `summarizer` sub-agent to produce a one-paragraph summary
+   of the diff.
+2. Use the `security-checker` sub-agent to flag any obvious security
+   issues.
+3. Post a combined review comment with both findings.
+
+## agent: `summarizer`
+---
+model: gpt-4.1-mini
+description: Summarizes a pull request diff in one paragraph
+---
+Read the diff provided and return a single paragraph that describes
+what changed and why. Be factual and concise.
+
+## agent: `security-checker`
+---
+model: gpt-4.1-mini
+description: Flags obvious security issues in a diff
+---
+Scan the diff for hardcoded secrets, unsafe input handling, or
+obvious injection vectors. List findings as bullet points, or reply
+"No issues found" if the diff is clean.
+```
+
+The orchestrator pays the cost of one frontier-model turn; the sub-agents run on a mini model. See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax.
+
+### Use Imports and Skills to Reduce Context
+
+Every token in the prompt costs money. Avoid loading content the agent doesn't need for the current task. Instead of a monolithic workflow that imports all tools and instructions up front, use `imports` to pull in only the sections required for each workflow.
+
+```aw wrap
+# Instead of importing a large shared file:
+# imports:
+#   - shared/all-tools.md   ← loads MCP servers, bash tools,
+#                              reporting instructions, and more
+
+# Import only what this workflow needs:
+imports:
+  - shared/mcp/github-issues.md
+```
+
+The same principle applies to prompt body length. Use `{{#import path#SectionName}}` to pull in a single section rather than an entire document:
+
+```aw wrap
+{{#runtime-import .github/shared/tone.md#EditorialVoice}}
+
+# Daily Digest
+
+Summarize open issues labeled `needs-triage` opened in the past 24 hours.
+```
+
+> [!TIP]
+> If you use the `agentic-workflows` skill in Copilot, import it only in workflows that need self-inspection. Omitting it from unrelated workflows eliminates several hundred tokens of ambient context per run.
 
 ## Agentic Cost Optimization
 
@@ -354,6 +471,43 @@ tools:
   agentic-workflows:
 ```
 
+For a more complete optimization loop — one that not only reports costs but also opens pull requests with suggested changes — give the agent `pull-requests: write` permission and instruct it to act on its findings:
+
+```aw wrap
+description: Weekly cost optimization agent
+on: weekly
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+engine:
+  id: copilot
+  model: gpt-4.1
+tools:
+  agentic-workflows:
+  github:
+    toolsets: [pull_requests]
+---
+
+# Weekly Workflow Cost Optimization
+
+Fetch `gh aw logs --start-date -7d --json` and analyze the results.
+
+For each workflow where you identify a clear optimization opportunity,
+open a pull request that applies **one** of the following changes:
+
+- Switch to a lighter model when `total_effective_tokens` is high and
+  the task is routine (triage, labeling, summarization).
+- Add or tighten `skip-if-match` when runs produce no safe-output.
+- Lower `max-turns` when the average turn count is near the current
+  limit and most runs finish early.
+- Change the trigger to `schedule: daily` when the workflow fires
+  reactively but the latency of a daily batch is acceptable.
+
+Open one pull request per workflow file. Include a one-paragraph
+explanation of the expected savings.
+```
+
 ### What to Optimize Automatically
 
 | Signal | Automatic action |
@@ -366,6 +520,50 @@ tools:
 
 > [!NOTE]
 > The `agentic-workflows` tool requires `actions: read` permission and is configured under the `tools:` frontmatter key. See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
+
+## Optimize at Scale with github/agentic-ops
+
+The [githubnext/agentic-ops](https://github.com/githubnext/agentic-ops) repository is the reference implementation for organization-wide agentic workflow monitoring and optimization. It bundles a set of ready-to-install workflows that apply the [MonitorOps](/gh-aw/patterns/monitor-ops/) pattern at scale:
+
+| Workflow | What it does |
+|----------|-------------|
+| Cost monitor | Summarizes weekly token and Actions-minutes spend per workflow, flags spikes, posts a report to a GitHub Discussion |
+| Failure escalator | Opens issues for workflows with repeated failures or abnormal run counts |
+| Optimization advisor | Proposes pull requests with concrete frontmatter changes (model downgrades, trigger rewrites, `skip-if-match` additions) based on recent log data |
+
+### Install agentic-ops
+
+Add the pre-built workflows to your repository:
+
+```bash
+gh aw add githubnext/agentic-ops/workflows/cost-monitor.md@main
+gh aw add githubnext/agentic-ops/workflows/optimization-advisor.md@main
+```
+
+Or import the shared monitoring components into your own workflow:
+
+```aw wrap
+---
+on: weekly
+permissions:
+ actions: read
+ discussions: write
+engine: copilot
+tools:
+ agentic-workflows:
+
+imports:
+ - githubnext/agentic-ops/shared/cost-analysis.md@main
+---
+
+# Weekly Cost Report
+
+Run the standard cost analysis imported from agentic-ops and post
+the results to the team discussion.
+```
+
+> [!TIP]
+> Pin cross-repository imports to a tag (`@v1.0.0`) rather than `@main` to avoid unexpected behavior when the upstream workflow changes. Run `gh aw update` to apply updates on your own schedule.
 
 ## Common Scenario Estimates
 
@@ -391,6 +589,10 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
+- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents with per-task model selection
+- [Imports](/gh-aw/reference/imports/) - Modularizing workflows to reduce ambient context
+- [BatchOps](/gh-aw/patterns/batch-ops/) - Grouping work items into scheduled batch runs
+- [MonitorOps](/gh-aw/patterns/monitor-ops/) - Scheduled monitoring and escalation for agentic workflows
 - [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Default model and guardrail precedence
 - [Environment Variables](/gh-aw/reference/environment-variables/) - Variable scopes and compiler-managed defaults
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Cron schedule format
