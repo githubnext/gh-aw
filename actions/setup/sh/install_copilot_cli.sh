@@ -205,7 +205,7 @@ resolve_compat_with_jq() {
         "\($max_agent)|\($idx)|\($min_aw)|\($max_aw)|\($min_agent)|\($max_agent)|\($cache_ttl)"
       else empty end
     ) | first // ""
-  ' "$compat_file" 2>&1
+  ' "$compat_file"
 }
 
 # Resolve Copilot version from compat matrix using GH_AW_COMPILED_VERSION.
@@ -242,7 +242,7 @@ resolve_version_from_compat() {
     if [ -n "$resolved_info" ]; then
       echo "$resolved_info" >&2
     fi
-    echo "Compatibility matrix resolver failed unexpectedly." >&2
+    echo "ERROR: Compatibility matrix resolution failed." >&2
     return 1
   fi
 
