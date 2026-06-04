@@ -142,7 +142,7 @@ Then use `gh api` to fetch the file and write it directly to disk:
 ```bash
 # Example gh CLI usage (single command, no base64 decode)
 gh api \
-  --header "Accept: application/vnd.github.raw+json" \
+  --header "Accept: application/vnd.github.raw" \
   "repos/actions/runner-images/contents/images/ubuntu/Ubuntu2404-Readme.md?ref=ubuntu24/20260525.161" \
   > /tmp/gh-aw/agent/ubuntu2404-readme.md
 
