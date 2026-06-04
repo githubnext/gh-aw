@@ -116,11 +116,9 @@ async function checkUserPermission(username, owner, repo, github, core) {
   const usernameKey = username.toLowerCase();
   const cachedPermissions = userPermissionCache.get(repoCacheKey);
   if (cachedPermissions && cachedPermissions.has(usernameKey)) {
-    // .has() check ensures .get() returns boolean, not undefined
-    const cachedValue = cachedPermissions.get(usernameKey);
-    if (cachedValue !== undefined) {
-      return cachedValue;
-    }
+    // TypeScript doesn't recognize Map.has() as a type guard for Map.get()
+    // @ts-expect-error - .has() guarantees .get() returns boolean, not undefined
+    return cachedPermissions.get(usernameKey);
   }
 
   /** @type {Map<string, boolean>} */
