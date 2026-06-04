@@ -550,6 +550,21 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuffixStringsCaseVariants(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":                         "push",
+		"max-effective-tokens":       "100k",
+		"max-daily-effective-tokens": "100M",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-suffix-case-variants-test.md")
+	if err != nil {
+		t.Fatalf("expected max-effective-tokens/max-daily-effective-tokens suffix case variants to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensNegativeAllowed(t *testing.T) {
 	t.Parallel()
 
