@@ -1042,7 +1042,9 @@ jobs:
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          trap 'rm -f /home/runner/.copilot/settings.json' EXIT
           mkdir -p /home/runner/.copilot
+          sudo chown -R "$(id -u):$(id -g)" /home/runner/.copilot
           printf '%s' '{"builtInAgents":{"rubberDuck":false}}' > /home/runner/.copilot/settings.json
           mkdir -p /tmp/gh-aw
           umask 0177
