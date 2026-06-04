@@ -167,7 +167,7 @@ describe("resolve_mentions.cjs", () => {
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
         }),
         it("should reuse cached collaborator list across repeated resolution calls", async () => {
-          mockGithub.rest.repos.listCollaborators.mockResolvedValue({ data: [{ login: "maintainer1", type: "User", permissions: { maintain: !0, admin: !1, push: !1 } }] });
+          mockGithub.rest.repos.listCollaborators.mockResolvedValue({ data: [{ login: "maintainer1", type: "User", permissions: { maintain: true, admin: false, push: false } }] });
 
           await resolveMentionsLazily("Hello @maintainer1", [], "owner", "repo", mockGithub, mockCore);
           await resolveMentionsLazily("Hello @maintainer1", [], "owner", "repo", mockGithub, mockCore);

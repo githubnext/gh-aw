@@ -116,7 +116,7 @@ async function checkUserPermission(username, owner, repo, github, core) {
   const usernameKey = username.toLowerCase();
   const cachedPermissions = userPermissionCache.get(repoCacheKey);
   if (cachedPermissions && cachedPermissions.has(usernameKey)) {
-    return cachedPermissions.get(usernameKey) === true;
+    return cachedPermissions.get(usernameKey);
   }
 
   /** @type {Map<string, boolean>} */
