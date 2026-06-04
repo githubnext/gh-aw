@@ -92,16 +92,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 4. Agentic Workflows MCP guide (if agentic-workflows tool is enabled)
-	if hasAgenticWorkflowsTool(data.ParsedTools) {
-		unifiedPromptLog.Print("Adding agentic-workflows guide section")
-		sections = append(sections, PromptSection{
-			Content: agenticWorkflowsGuideFile,
-			IsFile:  true,
-		})
-	}
-
-	// 5. Trial mode note (if in trial mode)
+	// 4. Trial mode note (if in trial mode)
 	if c.trialMode {
 		unifiedPromptLog.Print("Adding trial mode section")
 		trialContent := fmt.Sprintf("## Note\nThis workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.", c.trialLogicalRepoSlug)
