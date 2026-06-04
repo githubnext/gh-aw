@@ -341,9 +341,7 @@ schedule: daily on weekdays
 
 ```aw wrap
 # Every two days — roughly 15 runs/month
-on:
-  schedule:
-    - cron: '0 9 */2 * *'
+schedule: every 2 days
 ```
 
 ```aw wrap
@@ -365,6 +363,8 @@ on:
   schedule: daily
   workflow_dispatch:
 
+permissions:
+  issues: read
 engine:
   id: copilot
   model: gpt-4.1-mini
@@ -388,6 +388,8 @@ When a workflow delegates specialized tasks to sub-agents, each sub-agent can us
 engine:
   id: copilot
   model: gpt-4.1
+permissions:
+  pull-requests: read
 
 ---
 
@@ -395,7 +397,7 @@ Use the `summarizer` sub-agent to summarize the diff, then post the result as a 
 
 ## agent: `summarizer`
 ---
-model: gpt-4.1-mini
+model: small
 description: Summarizes a pull request diff in one paragraph
 ---
 Read the diff and return a single paragraph describing what changed and why.
