@@ -1390,6 +1390,7 @@ const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
  * @type {string}
  */
 const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
+const PERMISSION_DENIED_RE = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/i;
 
 /**
  * @typedef {Object} RateLimitEntry
@@ -1690,7 +1691,6 @@ function normalizeRuntimeTokenUsage(rawUsage) {
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
   const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0 };
-  const PERMISSION_DENIED_RE = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
   let fallbackPermissionDeniedCount = 0;
   let hasStructuredPermissionDeniedCount = false;
 
@@ -1744,9 +1744,8 @@ function readAgentRuntimeMetrics() {
       if (/^(?:\[WARN\]|npm warn\b)/i.test(line)) {
         metrics.warningCount += 1;
       }
-      const permissionMatches = line.match(PERMISSION_DENIED_RE);
-      if (permissionMatches && permissionMatches.length > 0) {
-        fallbackPermissionDeniedCount += permissionMatches.length;
+      if (PERMISSION_DENIED_RE.test(line)) {
+        fallbackPermissionDeniedCount += 1;
       }
 
       const jsonObjectStart = line.indexOf("{");
