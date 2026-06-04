@@ -10554,33 +10554,30 @@
       ]
     },
     "max_effective_tokens_limit": {
+      "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Use a negative integer to disable budget enforcement and token steering.",
       "oneOf": [
         {
-          "$ref": "#/$defs/positive_effective_tokens_limit",
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement."
+          "$ref": "#/$defs/positive_effective_tokens_limit"
         },
         {
           "type": "integer",
-          "maximum": -1,
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
+          "maximum": -1
         }
       ]
     },
     "max_daily_effective_tokens_limit": {
+      "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable.",
       "oneOf": [
         {
-          "$ref": "#/$defs/positive_effective_tokens_limit",
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user."
+          "$ref": "#/$defs/positive_effective_tokens_limit"
         },
         {
           "type": "integer",
-          "const": -1,
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
+          "const": -1
         },
         {
           "type": "string",
-          "pattern": "^-1$",
-          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string (supports K/M suffix) or GitHub Actions expression. Use -1 to disable."
+          "pattern": "^-1$"
         }
       ]
     },
