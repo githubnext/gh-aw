@@ -266,7 +266,6 @@ func collectUnexpectedIncludedFrontmatterFields(frontmatter map[string]any) []st
 		"secret-masking":           true,
 		"inputs":                   true,
 		"import-schema":            true,
-		"disable-model-invocation": true,
 		"features":                 true,
 	}
 	var unexpectedFields []string
