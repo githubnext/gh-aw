@@ -606,7 +606,7 @@ func isLikelyRequestedSubagentModel(model string) bool {
 	if _, ok := subagentModelAliases[strings.ToLower(model)]; ok {
 		return true
 	}
-	// Concrete model IDs typically contain separators (e.g. claude-haiku-4.5, gpt-5-mini).
+	// Concrete model IDs typically contain separators (e.g. claude-haiku-4.5, gpt-5-mini, bedrock:claude-sonnet-4.5).
 	return strings.ContainsRune(model, '-') || strings.ContainsRune(model, '.') || strings.ContainsRune(model, ':')
 }
 
