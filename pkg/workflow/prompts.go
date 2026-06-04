@@ -48,6 +48,19 @@ func hasAgenticWorkflowsTool(parsedTools *Tools) bool {
 	return hasAgenticWorkflows
 }
 
+// hasAgenticWorkflowsAuditTool checks if the agentic workflows audit guide should be injected.
+// Returns true only when the agentic-workflows tool is enabled AND audit: true is set,
+// since the audit guide (~1,628 chars) is only useful for workflows that explicitly call
+// the MCP audit tool.
+func hasAgenticWorkflowsAuditTool(parsedTools *Tools) bool {
+	if parsedTools == nil || parsedTools.AgenticWorkflows == nil {
+		return false
+	}
+	hasAudit := parsedTools.AgenticWorkflows.Audit
+	promptsLog.Printf("Agentic-workflows audit guide enabled: %v", hasAudit)
+	return hasAudit
+}
+
 // ============================================================================
 // PR Context Prompts
 // ============================================================================

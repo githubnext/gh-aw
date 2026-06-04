@@ -393,6 +393,9 @@ type EditToolConfig struct {
 type AgenticWorkflowsToolConfig struct {
 	// Can be boolean or nil
 	Enabled bool `yaml:"-"`
+	// Audit enables injection of the agentic-workflows audit guide into the prompt.
+	// Set to true for workflows that explicitly call the MCP audit tool.
+	Audit bool `yaml:"audit,omitempty"`
 }
 
 // CacheMemoryToolConfig represents the configuration for cache-memory

@@ -511,6 +511,13 @@ func parseAgenticWorkflowsTool(val any) *AgenticWorkflowsToolConfig {
 		config.Enabled = boolVal
 	} else if val == nil {
 		config.Enabled = true // nil means enabled
+	} else if mapVal, ok := val.(map[string]any); ok {
+		config.Enabled = true
+		if auditVal, exists := mapVal["audit"]; exists {
+			if auditBool, ok := auditVal.(bool); ok {
+				config.Audit = auditBool
+			}
+		}
 	}
 
 	return config

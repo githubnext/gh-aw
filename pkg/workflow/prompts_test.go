@@ -648,13 +648,14 @@ on: schedule daily
 engine: claude
 tools:
   agentic-workflows:
+    audit: true
 permissions:
   actions: read
 ---
 
-# Test Workflow with Agentic Workflows
+# Test Workflow with Agentic Workflows Audit
 
-This workflow uses the agentic-workflows MCP server.
+This workflow uses the agentic-workflows MCP server audit tool.
 `
 
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
@@ -682,7 +683,53 @@ This workflow uses the agentic-workflows MCP server.
 		t.Error("Expected cat command for agentic_workflows_guide.md in generated workflow")
 	}
 
-	t.Logf("Successfully verified agentic-workflows guide is included when agentic-workflows tool is enabled")
+	t.Logf("Successfully verified agentic-workflows guide is included when audit: true is set")
+}
+
+func TestAgenticWorkflowsGuideNotIncludedWithoutAuditFlag(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-agentic-guide-no-audit-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: schedule daily
+engine: claude
+tools:
+  agentic-workflows:
+permissions:
+  actions: read
+---
+
+# Test Workflow with Agentic Workflows but no audit
+
+This workflow uses the agentic-workflows MCP server (status/logs) but not audit.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if strings.Contains(lockStr, "agentic_workflows_guide.md") {
+		t.Error("Did not expect 'agentic_workflows_guide.md' reference when audit: true is not set")
+	}
+
+	t.Logf("Successfully verified agentic-workflows guide is NOT included when audit flag is not set")
 }
 
 func TestAgenticWorkflowsGuideNotIncludedWhenDisabled(t *testing.T) {

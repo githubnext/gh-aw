@@ -17,6 +17,7 @@ tools:
   cache-memory: true
   cli-proxy: true
   agentic-workflows:
+    audit: true
   timeout: 300
 safe-outputs:
   upload-asset:

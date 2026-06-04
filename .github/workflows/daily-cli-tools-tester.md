@@ -13,6 +13,7 @@ permissions:
 tools:
   cli-proxy: true
   agentic-workflows:
+    audit: true
   bash: ["*"]
   edit:
 safe-outputs:

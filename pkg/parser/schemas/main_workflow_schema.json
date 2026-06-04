@@ -4206,9 +4206,20 @@
             {
               "type": "null",
               "description": "Enable agentic-workflows tool with default settings (same as true)"
+            },
+            {
+              "type": "object",
+              "description": "Enable agentic-workflows tool with explicit options",
+              "properties": {
+                "audit": {
+                  "type": "boolean",
+                  "description": "Inject the audit tool reference guide into the prompt. Set to true for workflows that explicitly call the MCP audit tool."
+                }
+              },
+              "additionalProperties": false
             }
           ],
-          "examples": [true, null]
+          "examples": [true, null, {"audit": true}]
         },
         "cache-memory": {
           "description": "Cache memory MCP configuration for persistent memory storage",
