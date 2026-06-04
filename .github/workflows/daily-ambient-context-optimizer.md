@@ -31,6 +31,8 @@ safe-outputs:
     expires: 7d
     max: 1
   noop:
+    max: 1
+    report-as-issue: true
 timeout-minutes: 45
 steps:
   - name: Setup Python runtime
