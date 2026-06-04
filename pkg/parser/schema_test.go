@@ -491,17 +491,17 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensIntegerZeroAllowed(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensIntegerZeroInvalid(t *testing.T) {
 	t.Parallel()
 
-	validFrontmatter := map[string]any{
+	invalidFrontmatter := map[string]any{
 		"on":                   "push",
 		"max-effective-tokens": 0,
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-effective-tokens-zero-integer-test.md")
-	if err != nil {
-		t.Fatalf("expected max-effective-tokens=0 to pass schema validation, got: %v", err)
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-effective-tokens-zero-integer-test.md")
+	if err == nil {
+		t.Fatal("expected max-effective-tokens=0 to fail schema validation")
 	}
 }
 
@@ -550,31 +550,31 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensNegativeInvalid(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensNegativeAllowed(t *testing.T) {
 	t.Parallel()
 
-	invalidFrontmatter := map[string]any{
+	validFrontmatter := map[string]any{
 		"on":                   "push",
 		"max-effective-tokens": -1,
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-effective-tokens-negative-test.md")
-	if err == nil {
-		t.Fatal("expected negative max-effective-tokens to fail schema validation")
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-effective-tokens-negative-test.md")
+	if err != nil {
+		t.Fatalf("expected negative max-effective-tokens to pass schema validation, got: %v", err)
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveTokensIntegerZeroAllowed(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveTokensIntegerZeroInvalid(t *testing.T) {
 	t.Parallel()
 
-	validFrontmatter := map[string]any{
+	invalidFrontmatter := map[string]any{
 		"on":                         "push",
 		"max-daily-effective-tokens": 0,
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-daily-effective-tokens-zero-integer-test.md")
-	if err != nil {
-		t.Fatalf("expected max-daily-effective-tokens=0 to pass schema validation, got: %v", err)
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-daily-effective-tokens-zero-integer-test.md")
+	if err == nil {
+		t.Fatal("expected max-daily-effective-tokens=0 to fail schema validation")
 	}
 }
 
@@ -592,17 +592,17 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveT
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveTokensNegativeInvalid(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveTokensNegativeAllowed(t *testing.T) {
 	t.Parallel()
 
-	invalidFrontmatter := map[string]any{
+	validFrontmatter := map[string]any{
 		"on":                         "push",
 		"max-daily-effective-tokens": -1,
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-daily-effective-tokens-negative-test.md")
-	if err == nil {
-		t.Fatal("expected negative max-daily-effective-tokens to fail schema validation")
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-daily-effective-tokens-negative-test.md")
+	if err != nil {
+		t.Fatalf("expected negative max-daily-effective-tokens to pass schema validation, got: %v", err)
 	}
 }
 
