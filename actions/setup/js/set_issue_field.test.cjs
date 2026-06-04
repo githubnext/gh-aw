@@ -119,8 +119,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
       expect.stringContaining("setIssueFieldValue"),
       expect.objectContaining({
         issueId: issueNodeId,
-        issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
-        confidence: 72,
+        issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High", confidence: 72 })],
       })
     );
   });

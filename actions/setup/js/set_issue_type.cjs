@@ -76,16 +76,37 @@ async function fetchIssueTypes(githubClient, owner, repo) {
  * @returns {Promise<void>}
  */
 async function setIssueTypeById(githubClient, issueNodeId, typeId, confidence) {
-  await githubClient.graphql(
-    `mutation($issueId: ID!, $typeId: ID, $confidence: Int) {
-      updateIssue(input: { id: $issueId, issueTypeId: $typeId, confidence: $confidence }) {
-        issue {
-          id
+  try {
+    await githubClient.graphql(
+      `mutation($issueId: ID!, $typeId: ID, $confidence: Int) {
+        updateIssue(input: { id: $issueId, issueTypeId: $typeId, confidence: $confidence }) {
+          issue {
+            id
+          }
         }
-      }
-    }`,
-    { issueId: issueNodeId, typeId, confidence }
-  );
+      }`,
+      { issueId: issueNodeId, typeId, confidence }
+    );
+  } catch (error) {
+    const message = getErrorMessage(error).toLowerCase();
+    const hasConfidence = typeof confidence === "number";
+    const mentionsConfidence = message.includes("confidence");
+    if (!hasConfidence || !mentionsConfidence) {
+      throw error;
+    }
+
+    core.warning("Issue type confidence is not supported by this API; retrying without confidence.");
+    await githubClient.graphql(
+      `mutation($issueId: ID!, $typeId: ID) {
+        updateIssue(input: { id: $issueId, issueTypeId: $typeId }) {
+          issue {
+            id
+          }
+        }
+      }`,
+      { issueId: issueNodeId, typeId }
+    );
+  }
 }
 
 /**

@@ -903,7 +903,7 @@
   },
   {
     "name": "update_issue",
-    "description": "Update an existing GitHub issue's title, body, labels, assignees, or milestone WITHOUT closing it. This tool is primarily for editing issue metadata and content. While it supports changing status between 'open' and 'closed', use close_issue instead when you want to close an issue with a closing comment. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section. Include `confidence` (0-100) when possible to indicate certainty in the update. IMPORTANT: The behavior of this tool depends on the workflow's `update-issue: target:` configuration. When `target: triggering` (the default), the tool always updates the issue that triggered the workflow and `issue_number` is ignored. When `target: '*'`, the `issue_number` field controls which issue is updated. The tool will fail (not skip silently) when `target: triggering` and there is no triggering issue (e.g., in scheduled or workflow_dispatch workflows).",
+    "description": "Update an existing GitHub issue's title, body, labels, assignees, or milestone WITHOUT closing it. This tool is primarily for editing issue metadata and content. While it supports changing status between 'open' and 'closed', use close_issue instead when you want to close an issue with a closing comment. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section. Include `confidence` (0-100) when the update is inferred from analysis or heuristics rather than explicit user instruction. IMPORTANT: The behavior of this tool depends on the workflow's `update-issue: target:` configuration. When `target: triggering` (the default), the tool always updates the issue that triggered the workflow and `issue_number` is ignored. When `target: '*'`, the `issue_number` field controls which issue is updated. The tool will fail (not skip silently) when `target: triggering` and there is no triggering issue (e.g., in scheduled or workflow_dispatch workflows).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1371,7 +1371,7 @@
   },
   {
     "name": "set_issue_type",
-    "description": "Set the type of a GitHub issue. Pass an empty string \"\" to clear the issue type. Issue types must be configured in the repository or organization settings before they can be assigned. Include `confidence` (0-100) when possible to indicate certainty in the selected type.",
+    "description": "Set the type of a GitHub issue. Pass an empty string \"\" to clear the issue type. Issue types must be configured in the repository or organization settings before they can be assigned. Include `confidence` (0-100) when the selected type is inferred from issue signals rather than explicit user instruction.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -1409,7 +1409,7 @@
   },
   {
     "name": "set_issue_field",
-    "description": "Set a single GitHub issue field by name and value. Use field_name for discovery by field label (for example, \"Priority\"), or provide field_node_id to skip discovery. Supports text, number, date (YYYY-MM-DD), and single-select fields (value must match an option name). Include `confidence` (0-100) when possible to indicate certainty in the field update.",
+    "description": "Set a single GitHub issue field by name and value. Use field_name for discovery by field label (for example, \"Priority\"), or provide field_node_id to skip discovery. Supports text, number, date (YYYY-MM-DD), and single-select fields (value must match an option name). Include `confidence` (0-100) when the field value is inferred rather than explicitly requested.",
     "inputSchema": {
       "type": "object",
       "required": [

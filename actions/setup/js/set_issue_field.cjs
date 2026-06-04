@@ -181,25 +181,51 @@ function buildFieldUpdatePayload(field, rawValue) {
  * Sets one issue field via GraphQL mutation.
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} issueNodeId - GraphQL node ID of the issue
- * @param {{fieldId: string, singleSelectOptionId?: string, numberValue?: number, dateValue?: string, textValue?: string}} fieldUpdate
- * @param {number|undefined} confidence - Optional confidence score (0-100)
+ * @param {{fieldId: string, singleSelectOptionId?: string, numberValue?: number, dateValue?: string, textValue?: string, confidence?: number}} fieldUpdate
  * @returns {Promise<void>}
  */
-async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, confidence) {
-  await githubClient.graphql(
-    `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!, $confidence: Int) {
-      setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields, confidence: $confidence }) {
-        issue {
-          id
+async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
+  const variables = {
+    issueId: issueNodeId,
+    issueFields: [fieldUpdate],
+  };
+
+  try {
+    await githubClient.graphql(
+      `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!) {
+        setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields }) {
+          issue {
+            id
+          }
         }
-      }
-    }`,
-    {
-      issueId: issueNodeId,
-      issueFields: [fieldUpdate],
-      confidence,
+      }`,
+      variables
+    );
+  } catch (error) {
+    const message = getErrorMessage(error).toLowerCase();
+    const hasConfidence = typeof fieldUpdate.confidence === "number";
+    const mentionsConfidence = message.includes("confidence");
+    if (!hasConfidence || !mentionsConfidence) {
+      throw error;
     }
-  );
+
+    const retryFieldUpdate = { ...fieldUpdate };
+    delete retryFieldUpdate.confidence;
+    core.warning("Issue field confidence is not supported by this API; retrying without confidence.");
+    await githubClient.graphql(
+      `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!) {
+        setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields }) {
+          issue {
+            id
+          }
+        }
+      }`,
+      {
+        issueId: issueNodeId,
+        issueFields: [retryFieldUpdate],
+      }
+    );
+  }
 }
 
 /**
@@ -378,7 +404,10 @@ async function main(config = {}) {
       };
 
       const confidence = typeof item.confidence === "number" ? item.confidence : undefined;
-      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, confidence);
+      if (confidence !== undefined) {
+        fieldUpdate.confidence = confidence;
+      }
+      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate);
 
       core.info(`Successfully set issue field ${JSON.stringify(fieldName || fieldNodeId)} to ${JSON.stringify(value)} on issue #${issueNumber}`);
 

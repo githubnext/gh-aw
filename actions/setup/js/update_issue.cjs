@@ -103,12 +103,29 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     }
   }
 
-  const { data: issue } = await github.rest.issues.update({
+  const issueUpdateParams = {
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: issueNumber,
     ...apiData,
-  });
+  };
+
+  let issue;
+  try {
+    ({ data: issue } = await github.rest.issues.update(issueUpdateParams));
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    const hasConfidence = typeof apiData.confidence === "number";
+    const mentionsConfidence = message.includes("confidence");
+    if (!hasConfidence || !mentionsConfidence) {
+      throw error;
+    }
+
+    core.warning("Issue confidence is not supported by this API; retrying without confidence.");
+    const retryParams = { ...issueUpdateParams };
+    delete retryParams.confidence;
+    ({ data: issue } = await github.rest.issues.update(retryParams));
+  }
 
   return issue;
 }
