@@ -376,6 +376,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.Len(t, summary.SubagentModelActuals, 1)
 		assert.Equal(t, 3, summary.MismatchCount)
 		assert.Equal(t, "claude-sonnet-4-6", summary.SubagentModelActuals[0].Model)
+		require.Contains(t, summary.Warnings, subagentStdioWarning)
 
 		for _, req := range summary.SubagentModelRequests {
 			assert.Equal(t, "claude-haiku-4.5", req.RequestedModel)
@@ -398,6 +399,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		assert.Equal(t, 1, summary.MismatchCount)
 		assert.Equal(t, modelMismatchReasonTokenUsageMissing, summary.SubagentModelRequests[0].ReasonCode)
 		assert.Empty(t, summary.SubagentModelRequests[0].EffectiveModel)
+		require.Contains(t, summary.Warnings, subagentStdioWarning)
 	})
 }
 

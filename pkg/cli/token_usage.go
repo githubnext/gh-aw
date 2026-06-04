@@ -66,6 +66,7 @@ type TokenUsageSummary struct {
 	SubagentModelRequests []SubagentModelRequest      `json:"subagent_model_requests,omitempty"`
 	SubagentModelActuals  []SubagentModelActual       `json:"subagent_model_actuals,omitempty"`
 	MismatchCount         int                         `json:"mismatch_count,omitempty"`
+	Warnings              []string                    `json:"warnings,omitempty"`
 }
 
 // ModelTokenUsage contains per-model token usage statistics
@@ -116,6 +117,7 @@ const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
 const agentUsageJSONPath = "agent_usage.json"
 const modelMismatchReasonTokenUsageMissing = "TOKEN_USAGE_MISSING"
 const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
+const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -468,6 +470,7 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 	if len(requests) == 0 {
 		return
 	}
+	addTokenUsageWarning(summary, subagentStdioWarning)
 
 	actuals := make([]SubagentModelActual, 0, len(summary.ByModel))
 	observedModels := make(map[string]string, len(summary.ByModel))
@@ -515,6 +518,18 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 	}
 	summary.SubagentModelRequests = requestRows
 	summary.MismatchCount = mismatchCount
+}
+
+func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
+	if summary == nil || warning == "" {
+		return
+	}
+	for _, existing := range summary.Warnings {
+		if existing == warning {
+			return
+		}
+	}
+	summary.Warnings = append(summary.Warnings, warning)
 }
 
 func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
