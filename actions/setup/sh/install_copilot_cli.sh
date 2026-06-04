@@ -205,7 +205,7 @@ resolve_compat_with_jq() {
         "\($max_agent)|\($idx)|\($min_aw)|\($max_aw)|\($min_agent)|\($max_agent)|\($cache_ttl)"
       else empty end
     ) | first // ""
-  ' "$compat_file" 2>&1 || echo ""
+  ' "$compat_file" 2>&1
 }
 
 # Resolve Copilot version from compat matrix using GH_AW_COMPILED_VERSION.
@@ -233,11 +233,15 @@ resolve_version_from_compat() {
 
   if ! command -v jq >/dev/null 2>&1; then
     echo "ERROR: jq is required for compatibility matrix resolution." >&2
+    echo "ERROR: Install jq from https://jqlang.github.io/jq/download/" >&2
     echo "ERROR: Install jq, or pass an explicit Copilot CLI version to bypass compat resolution." >&2
     return 1
   fi
 
   if ! resolved_info="$(resolve_compat_with_jq "$compat_file" "$compiled_version" 2>&1)"; then
+    if [ -n "$resolved_info" ]; then
+      echo "$resolved_info" >&2
+    fi
     echo "Compatibility matrix resolver failed unexpectedly." >&2
     return 1
   fi
