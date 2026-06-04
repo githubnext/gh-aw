@@ -3617,19 +3617,13 @@ describe("sendJobConclusionSpan", () => {
     const endMs = 1_700_000_005_000;
     const statSpy = vi.spyOn(fs, "statSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl") {
-        return /** @type {Partial<fs.Stats>} */ ({ size: 1024 });
+        return /** @type {Partial<fs.Stats>} */ { size: 1024 };
       }
-      return /** @type {Partial<fs.Stats>} */ ({ mtimeMs: endMs });
+      return /** @type {Partial<fs.Stats>} */ { mtimeMs: endMs };
     });
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl") {
-        return [
-          '{"event":"token_steering","request_id":"r1"}',
-          '{"type":"token_steering","request_id":"r2"}',
-          '{"event":"steering","request_id":"r3"}',
-          '{"event":"request","request_id":"r4"}',
-          "not-json",
-        ].join("\n");
+        return ['{"event":"token_steering","request_id":"r1"}', '{"type":"token_steering","request_id":"r2"}', '{"event":"steering","request_id":"r3"}', '{"event":"request","request_id":"r4"}', "not-json"].join("\n");
       }
       if (filePath === "/tmp/gh-aw/agent-stdio.log") {
         return '{"type":"result","num_turns":2}\n';
