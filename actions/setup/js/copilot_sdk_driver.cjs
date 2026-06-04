@@ -268,15 +268,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */
   const logLevel = isValidLogLevel(rawLogLevel) ? rawLogLevel : "warning";
 
+  const connection = RuntimeConnection.forUri(sdkUri, {
+    connectionToken,
+  });
   const client = new CopilotClient({
-    connection: RuntimeConnection.forUri(
-      sdkUri,
-      connectionToken
-        ? {
-            connectionToken,
-          }
-        : {}
-    ),
+    connection,
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
     logLevel,
   });

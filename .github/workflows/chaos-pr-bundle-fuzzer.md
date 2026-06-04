@@ -27,6 +27,7 @@ safe-outputs:
     max: 5
     expires: 4h
     if-no-changes: "ignore"
+    close-older-pull-requests: true
     allowed-files:
       - "tmp/chaos/**"
       - "scratchpad/chaos/**"

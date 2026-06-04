@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,36 @@ const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null |
 const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
 const nodeRuntimeResolutionCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommandForCopilotSDK + `; "$GH_AW_NODE_EXEC"`
+
+// copilotSDKDriverExecArgs returns the runtime command and driver path argument for the
+// given SDK driver filename.
+//
+// For language scripts with a recognized extension, the runtime command is the appropriate
+// language executor and driverArg is the driver filename (which the caller will prefix with
+// SetupActionDestinationShell). For bare command names (no extension), the driver is treated
+// as an arbitrary executable in PATH: runtimeCmd is the command itself and driverArg is empty.
+//
+//   - .js/.cjs/.mjs → ("$GH_AW_NODE_EXEC", "driver.cjs")
+//   - .py           → ("python3",           "driver.py")
+//   - .ts/.mts      → ("ts-node",           "driver.ts")
+//   - .rb           → ("ruby",              "driver.rb")
+//   - (no ext)      → ("my-driver",         "")
+func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) {
+	ext := strings.ToLower(filepath.Ext(driverName))
+	switch ext {
+	case ".js", ".cjs", ".mjs":
+		return `"$GH_AW_NODE_EXEC"`, driverName
+	case ".py":
+		return "python3", driverName
+	case ".ts", ".mts":
+		return "ts-node", driverName
+	case ".rb":
+		return "ruby", driverName
+	default:
+		// No extension — arbitrary command in PATH; use name directly as command.
+		return driverName, ""
+	}
+}
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
@@ -200,6 +231,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		harnessScriptName = workflowData.EngineConfig.HarnessScript
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
+	sdkDriverScriptName := "copilot_sdk_driver.cjs"
+	customSDKDriverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != "" {
+		sdkDriverScriptName = workflowData.EngineConfig.CopilotSDKDriver
+	}
 
 	// copilotSDKServerArgsJSON holds the JSON-encoded server-args array that will be set in
 	// GH_AW_COPILOT_SDK_SERVER_ARGS when copilot-sdk: true. It is declared here so that the
@@ -215,14 +251,42 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			runtimeResolutionCommand = nodeRuntimeResolutionCommandForCopilotSDK
 		}
 		if isCopilotSDKMode {
-			// Driver mode: the harness receives "$GH_AW_NODE_EXEC" and copilot_sdk_driver.cjs
-			// as its argv, so it calls runProcess("$GH_AW_NODE_EXEC",
-			// ["copilot_sdk_driver.cjs", commandName]) — treating the driver like any other command.
-			// The shell expands $GH_AW_NODE_EXEC before the harness process starts, so the
-			// harness sees the absolute path to the node binary in its argv.
-			execPrefix = fmt.Sprintf(`%s %s/%s "$GH_AW_NODE_EXEC" %s/copilot_sdk_driver.cjs %s`,
-				runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
-				SetupActionDestinationShell, commandName)
+			// Driver mode: the harness receives the driver runtime command and the driver path (or just
+			// the arbitrary command) as its argv, then calls runProcess(command, args) on the driver.
+			//
+			// For language scripts (.js/.cjs/.mjs, .py, .ts/.mts, .rb), the runtime command is
+			// determined by extension. Built-in drivers resolve from the setup action directory;
+			// custom drivers are specified as a path relative to ${GITHUB_WORKSPACE}:
+			//   .js/.cjs/.mjs → "$GH_AW_NODE_EXEC" driver.cjs copilot-binary
+			//   .py            → python3             driver.py  copilot-binary
+			//   .ts/.mts       → ts-node             driver.ts  copilot-binary
+			//   .rb            → ruby                driver.rb  copilot-binary
+			//
+			// For bare command names (no extension), the driver is treated as an arbitrary executable
+			// in PATH — no SetupActionDestinationShell prefix, no runtime wrapper:
+			//   my-driver copilot-binary
+			driverRuntimeCmd, driverArg := copilotSDKDriverExecArgs(sdkDriverScriptName)
+			if driverArg != "" {
+				var driverPath string
+				if customSDKDriverConfigured {
+					// Custom driver: sdkDriverScriptName is a validated workspace-relative path.
+					// Validation ensures no shell metacharacters, quotes, or path traversal,
+					// so it is safe to embed directly in the double-quoted shell argument.
+					driverPath = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
+				} else {
+					driverPath = fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, sdkDriverScriptName)
+				}
+				// Language script: harness runs <runtime> <setup-action-dir>/<harness> <runtime> <driver-path> <copilot-binary>
+				execPrefix = fmt.Sprintf(`%s %s/%s %s %s %s`,
+					runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
+					driverRuntimeCmd,
+					driverPath, commandName)
+			} else {
+				// Arbitrary command: harness runs <driver-cmd> <copilot-binary> directly
+				execPrefix = fmt.Sprintf(`%s %s/%s %s %s`,
+					runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
+					driverRuntimeCmd, commandName)
+			}
 		} else {
 			execPrefix = fmt.Sprintf(`%s %s/%s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
 		}

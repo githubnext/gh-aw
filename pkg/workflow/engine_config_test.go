@@ -364,6 +364,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "copilot", HarnessScript: "custom_copilot_harness.cjs"},
 		},
 		{
+			name: "object format - with copilot sdk driver script",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                 "copilot",
+					"copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+		},
+		{
 			name: "object format - complete with user-agent",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -430,6 +441,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.HarnessScript != test.expectedConfig.HarnessScript {
 					t.Errorf("Expected config.HarnessScript '%s', got '%s'", test.expectedConfig.HarnessScript, config.HarnessScript)
+				}
+
+				if config.CopilotSDKDriver != test.expectedConfig.CopilotSDKDriver {
+					t.Errorf("Expected config.CopilotSDKDriver '%s', got '%s'", test.expectedConfig.CopilotSDKDriver, config.CopilotSDKDriver)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

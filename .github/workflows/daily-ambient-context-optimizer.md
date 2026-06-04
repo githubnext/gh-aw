@@ -16,6 +16,9 @@ max-daily-effective-tokens: 100M
 network:
   allowed: [defaults, github]
 tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
   agentic-workflows:
   bash: true
 safe-outputs:
@@ -48,7 +51,7 @@ Your job is to inspect the **first request sent to the DLLM** for several recent
 
 ## Goals
 
-1. Sample several agentic workflow runs from the last 24 hours.
+1. Sample a small but representative set of agentic workflow runs from the last 24 hours.
 2. Inspect the first DLLM request text for each sampled run.
 3. Use deterministic Python analysis to measure prompt bloat and repetition.
 4. Recommend the highest-leverage improvements to workflow `.md` files, skill usage, and the set of agents/sub-agents.
@@ -58,17 +61,16 @@ Your job is to inspect the **first request sent to the DLLM** for several recent
 
 ### Step 1 — Download recent runs
 
-Use the `logs` tool from the `agentic-workflows` MCP server with:
+Use the CLI form instead of MCP tools:
 
-- `start_date: "-1d"`
-- `count: 120`
-- `parse: true`
-
-The tool downloads run data under `/tmp/gh-aw/aw-mcp/logs/`.
+- run `gh aw logs --start-date -1d -c 60 --json -o /tmp/gh-aw/aw-mcp/logs`
+- use the JSON artifacts under `/tmp/gh-aw/aw-mcp/logs/` as your source of run metadata
 
 ### Step 2 — Pick the sample set
 
-Sample **6 runs** when available. If fewer than 6 eligible runs exist, sample all eligible runs down to a minimum of 3 before falling back to a reduced-data report.
+Sample **4 runs** when available. If fewer than 4 eligible runs exist, sample all eligible runs down to a minimum of 2 before falling back to a reduced-data report.
+
+These limits are intentional to keep token usage bounded and avoid model budget failures.
 
 Eligibility rules:
 
@@ -84,7 +86,7 @@ Prefer higher-cost runs first by using `effective_tokens`, `token_usage`, `turns
 
 ### Step 3 — Enrich a subset with audits
 
-Run the `audit` tool from the `agentic-workflows` MCP server for the **3 most expensive sampled runs** so you have richer token context and references.
+Run the CLI form `gh aw audit <run-id> --json` for the **2 most expensive sampled runs** so you have richer token context and references.
 
 ## First-Request Extraction Rules
 
@@ -166,11 +168,26 @@ Assess whether the request size is likely driven by:
 - duplicated guardrails, examples, or formatting rules
 - context that should be moved to deterministic `steps:` or smaller sub-agents
 
+Also review proxy/CLI feature readiness for each sampled workflow:
+
+- GitHub gh-proxy enabled (`tools.github.mode: gh-proxy`)
+- CLI proxy enabled (`tools.cli-proxy: true`)
+
+When one or more are missing, include a recommendation to enable them and rewrite the workflow problem statements from MCP-tool wording to CLI-form usage.
+
 ## Sub-Agent Usage
 
-After the deterministic Python script finishes, invoke `request-optimizer` **once per sampled run** using that run's compact JSON summary, not the raw full prompt, whenever at least 3 sampled runs exist.
+After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist.
 
-Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those per-run opportunities, then do the final prioritization yourself.
+Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those opportunities, then do the final prioritization yourself.
+
+## Execution Budget Guardrails
+
+- Keep the workflow bounded and avoid exploratory loops.
+- Do not repeatedly re-open or re-parse the same artifacts once required metrics are extracted.
+- Keep the final issue body concise and evidence-based, with short bullets and compact explanations.
+- Use at most 3 run links in the final References section.
+- Create the issue by calling the safe output tool directly once you have the final body.
 
 ## Recommendation Rules
 
@@ -191,6 +208,7 @@ Prioritize recommendations that:
 2. reduce broad skill loading or oversized skill fusion
 3. simplify or remove low-value inline agents
 4. move deterministic data gathering out of the main prompt
+5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite MCP-tool-oriented problem wording to CLI-form commands
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.
 
@@ -202,7 +220,7 @@ Create exactly one issue titled:
 
 Use only `###` or lower headings.
 
-Keep the issue structured like this:
+Keep the issue structured like this (concise, no extra sections):
 
 ### Executive Summary
 - runs sampled
@@ -225,21 +243,21 @@ Keep the issue structured like this:
 <details>
 <summary>Per-Run First-Request Metrics</summary>
 
-Include a markdown table with one row per sampled run.
+Include a markdown table with one row per sampled run (max 4 rows).
 
 </details>
 
 <details>
 <summary>Repeated Ambient Context Signals</summary>
 
-Summarize repeated sections, duplicated fragments, and bloated headings.
+Summarize repeated sections, duplicated fragments, and bloated headings in short bullets.
 
 </details>
 
 <details>
 <summary>Deterministic Analysis Output</summary>
 
-Summarize the Python script outputs and cite the most relevant metrics.
+Summarize the Python script outputs and cite only the most relevant metrics.
 
 </details>
 
@@ -248,12 +266,14 @@ Summarize the Python script outputs and cite the most relevant metrics.
 #### Skills
 #### Agents
 
+Do not add a separate "MCP Tools" section. Keep MCP-to-CLI rewrite guidance inside the existing categories, primarily Workflow Markdown.
+
 ### References
 - Include up to 3 sampled run links in `[§12345](https://github.com/owner/repo/actions/runs/12345)` format
 
 ## Reduced-Data Behavior
 
-If fewer than 3 eligible runs exist, still create the issue.
+If fewer than 2 eligible runs exist, still create the issue.
 
 In that case:
 

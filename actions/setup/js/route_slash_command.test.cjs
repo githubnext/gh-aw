@@ -160,8 +160,9 @@ describe("route_slash_command", () => {
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("archie");
     expect(awContext.desired_ai_reaction).toBe("eyes");
-    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Existing commands: /archie", true);
-    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: /archie", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: `/archie`", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Configured commands: 1", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("<details><summary>Configured commands</summary>\n\n- `/archie`\n\n</details>", true);
     expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });
   });
 
@@ -170,8 +171,9 @@ describe("route_slash_command", () => {
 
     await main();
 
-    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Existing commands: /archie", true);
-    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: <none>", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: `<none>`", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Configured commands: 1", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("<details><summary>Configured commands</summary>\n\n- `/archie`\n\n</details>", true);
     expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });
   });
 
@@ -345,6 +347,37 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(0);
     expect(globals.github.rest.actions.listRepoWorkflows).not.toHaveBeenCalled();
     expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping workflow 'ci-doctor.lock.yml' because it is disabled."));
+  });
+
+  it("ignores disabled workflow_dispatch failures for disabled label routes", async () => {
+    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async params => {
+      if (params.workflow_id === "smoke-otel-backends.lock.yml") {
+        throw Object.assign(new Error("Cannot trigger a 'workflow_dispatch' on a disabled workflow"), {
+          status: 422,
+          response: { status: 422, data: { message: "Cannot trigger a 'workflow_dispatch' on a disabled workflow" } },
+        });
+      }
+      dispatchCalls.push(params);
+    });
+    globals.context.eventName = "pull_request";
+    globals.context.payload = {
+      action: "labeled",
+      label: { name: "smoke" },
+      pull_request: { number: 23 },
+    };
+    process.env.GH_AW_LABEL_ROUTING = JSON.stringify({
+      smoke: [
+        { workflow: "smoke-copilot", events: ["pull_request"] },
+        { workflow: "smoke-otel-backends", events: ["pull_request"] },
+      ],
+    });
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot.lock.yml");
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping workflow 'smoke-otel-backends.lock.yml' because it is disabled."));
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Completed decentralized label routing for 'smoke'."));
   });
 
   it("skips centralized routing when PR is closed at workflow start", async () => {

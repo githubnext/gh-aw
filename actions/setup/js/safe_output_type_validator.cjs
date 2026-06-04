@@ -26,8 +26,42 @@ const MAX_BODY_LENGTH = 65000;
 const MAX_GITHUB_USERNAME_LENGTH = 39;
 
 /**
- * @typedef {{ allowedAliases?: string[], maxBotMentions?: number }} ValidateOptions
+ * @typedef {{ allowedAliases?: string[], maxBotMentions?: number, normalizeIssueClosingKeywords?: boolean }} ValidateOptions
  */
+
+// GitHub issue-closing keywords:
+// https://docs.github.com/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
+const ISSUE_CLOSING_KEYWORDS = "fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved";
+const ISSUE_REFERENCE_PATTERN = "(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+";
+const ISSUE_CLOSING_WHOLE_SPAN_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b\\s+${ISSUE_REFERENCE_PATTERN})\``, "gi");
+const ISSUE_CLOSING_BOTH_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
+const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)(${ISSUE_REFERENCE_PATTERN})`, "gi");
+const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
+const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
+
+/**
+ * Remove markdown backticks around recognized issue-closing keyword references.
+ * Only applied to body fields for configured safe output types.
+ * @param {string} content
+ * @returns {string}
+ */
+function normalizeIssueClosingKeywordBackticks(content) {
+  if (typeof content !== "string" || content.length === 0) {
+    return content;
+  }
+
+  // Order matters:
+  // 1) whole-span backticks: `Closes #1`
+  // 2) both parts backticked: `Closes` `#1`
+  // 3) keyword only: `Closes` #1
+  // 4) reference only: Closes `#1`
+  // Each step removes one specific form without reintroducing backticks, so later steps
+  // only need to handle the remaining unmatched variants.
+  let normalized = content.replace(ISSUE_CLOSING_WHOLE_SPAN_PATTERN, "$1");
+  normalized = normalized.replace(ISSUE_CLOSING_BOTH_BACKTICK_PATTERN, "$1$2$3");
+  normalized = normalized.replace(ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN, "$1$2$3");
+  return normalized.replace(ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN, "$1$2$3");
+}
 
 /**
  * @typedef {Object} FieldValidation
@@ -358,6 +392,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         allowedAliases: options?.allowedAliases || [],
         maxBotMentions: options?.maxBotMentions,
       });
+    }
+    if (options?.normalizeIssueClosingKeywords && fieldName === "body" && NORMALIZE_CLOSER_BODY_TYPES.has(itemType)) {
+      finalValue = normalizeIssueClosingKeywordBackticks(finalValue);
     }
 
     // Check minimum length after any sanitization (trim before checking to reject whitespace-padded placeholders)

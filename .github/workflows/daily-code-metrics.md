@@ -120,92 +120,19 @@ Generate **6 high-quality charts** to visualize code metrics and trends using Py
 
 ### Required Charts
 
-#### 1. LOC by Language (`loc_by_language.png`)
-**Type**: Horizontal bar chart
-**Content**: Distribution of lines of code by programming language
-- Sort by LOC descending
-- Include percentage labels on bars
-- Use color-coding by language type (e.g., compiled vs interpreted)
-- Show total LOC in title
-- Save to: `/tmp/gh-aw/python/charts/loc_by_language.png`
-
-#### 2. Top Directories (`top_directories.png`)
-**Type**: Horizontal bar chart
-**Content**: Top 10 directories by lines of code
-- Show full directory paths
-- Display LOC count and percentage of total codebase
-- Highlight key directories (cmd, pkg, docs, workflows)
-- Use distinct colors for different directory types
-- Save to: `/tmp/gh-aw/python/charts/top_directories.png`
-
-#### 3. Quality Score Breakdown (`quality_score_breakdown.png`)
-**Type**: Stacked bar or pie chart with breakdown
-**Content**: Quality score component breakdown
-- Test Coverage: 30%
-- Code Organization: 25%
-- Documentation: 20%
-- Churn Stability: 15%
-- Comment Density: 10%
-- Show current score vs target (100%) for each component
-- Use color gradient from red (poor) to green (excellent)
-- Save to: `/tmp/gh-aw/python/charts/quality_score_breakdown.png`
-
-#### 4. Test Coverage (`test_coverage.png`)
-**Type**: Grouped bar chart or side-by-side comparison
-**Content**: Test vs source code comparison
-- Test LOC vs Source LOC by language
-- Test-to-source ratio visualization
-- Include trend indicator if historical data available
-- Highlight recommended ratio (e.g., 0.5-1.0)
-- Save to: `/tmp/gh-aw/python/charts/test_coverage.png`
-
-#### 5. Code Churn (`code_churn.png`)
-**Type**: Diverging bar chart
-**Content**: Top 10 most changed source files in last 7 days
-- **EXCLUDE** `*.lock.yml` files (generated workflow files)
-- Show lines added (positive) and deleted (negative)
-- Net change highlighting
-- Color-code by file type
-- Include file paths truncated if needed
-- Save to: `/tmp/gh-aw/python/charts/code_churn.png`
-
-#### 6. Historical Trends (`historical_trends.png`)
-**Type**: Multi-line time series chart
-**Content**: Track key metrics over 30 days
-- Total LOC trend line
-- Test coverage percentage trend line
-- Quality score trend line
-- Use multiple y-axes if scales differ significantly
-- Show 7-day moving averages
-- Annotate significant changes (>10%)
-- Save to: `/tmp/gh-aw/python/charts/historical_trends.png`
+1. **LOC by Language** (`loc_by_language.png`) — horizontal bar chart of LOC by language (sorted descending, percentage labels, language-type colors, total LOC in title). Save to `/tmp/gh-aw/python/charts/loc_by_language.png`.
+2. **Top Directories** (`top_directories.png`) — horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). Save to `/tmp/gh-aw/python/charts/top_directories.png`.
+3. **Quality Score Breakdown** (`quality_score_breakdown.png`) — stacked bar or pie breakdown of Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target (100%) with red→green gradient. Save to `/tmp/gh-aw/python/charts/quality_score_breakdown.png`.
+4. **Test Coverage** (`test_coverage.png`) — grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, and recommended ratio marker (0.5–1.0). Save to `/tmp/gh-aw/python/charts/test_coverage.png`.
+5. **Code Churn** (`code_churn.png`) — diverging bars for top 10 most changed source files in 7 days; **exclude** `*.lock.yml`, show added/deleted/net, color by file type, truncate long paths when needed. Save to `/tmp/gh-aw/python/charts/code_churn.png`.
+6. **Historical Trends** (`historical_trends.png`) — multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. Save to `/tmp/gh-aw/python/charts/historical_trends.png`.
 {{else}}
 Generate **2 high-quality charts** focusing on the most actionable signals:
 
 ### Required Charts (Executive Summary Mode)
 
-#### 1. Quality Score Breakdown (`quality_score_breakdown.png`)
-**Type**: Stacked bar or pie chart with breakdown
-**Content**: Quality score component breakdown
-- Test Coverage: 30%
-- Code Organization: 25%
-- Documentation: 20%
-- Churn Stability: 15%
-- Comment Density: 10%
-- Show current score vs target (100%) for each component
-- Use color gradient from red (poor) to green (excellent)
-- Save to: `/tmp/gh-aw/python/charts/quality_score_breakdown.png`
-
-#### 2. Historical Trends (`historical_trends.png`)
-**Type**: Multi-line time series chart
-**Content**: Track key metrics over 30 days
-- Total LOC trend line
-- Test coverage percentage trend line
-- Quality score trend line
-- Use multiple y-axes if scales differ significantly
-- Show 7-day moving averages
-- Annotate significant changes (>10%)
-- Save to: `/tmp/gh-aw/python/charts/historical_trends.png`
+1. **Quality Score Breakdown** (`quality_score_breakdown.png`) — stacked bar or pie breakdown of Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target (100%) with red→green gradient. Save to `/tmp/gh-aw/python/charts/quality_score_breakdown.png`.
+2. **Historical Trends** (`historical_trends.png`) — multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. Save to `/tmp/gh-aw/python/charts/historical_trends.png`.
 {{/if}}
 
 ### Chart Quality Standards
@@ -307,9 +234,8 @@ Use detailed template with embedded visualization charts:
 
 ### Discussion Structure
 
-**Title**: `Daily Code Metrics Report - YYYY-MM-DD`
-
-**Body**:
+- **Title**: `Daily Code Metrics Report - YYYY-MM-DD`
+- **Body template**:
 
 ```markdown
 {{#if experiments.output_format == 'executive_summary' }}
@@ -317,10 +243,8 @@ Use detailed template with embedded visualization charts:
 
 ### 📊 Key Visualizations
 
-#### Quality Score Breakdown
 ![Quality Score](URL_FROM_UPLOAD_ASSET)
 
-#### Historical Trends (30 Days)
 ![Historical Trends](URL_FROM_UPLOAD_ASSET)
 
 ### 💡 Top Recommendations
@@ -334,32 +258,26 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 ### 📊 Visualizations
 
-#### LOC Distribution by Language
 ![LOC by Language](URL_FROM_UPLOAD_ASSET)
 
 [Analysis of language distribution and changes]
 
-#### Top Directories by LOC
 ![Top Directories](URL_FROM_UPLOAD_ASSET)
 
 [Analysis of directory sizes and organization]
 
-#### Quality Score Breakdown
 ![Quality Score](URL_FROM_UPLOAD_ASSET)
 
 [Current quality score and component analysis]
 
-#### Test Coverage Analysis
 ![Test Coverage](URL_FROM_UPLOAD_ASSET)
 
 [Test coverage metrics and recommendations]
 
-#### Code Churn (Last 7 Days)
 ![Code Churn](URL_FROM_UPLOAD_ASSET)
 
 [Most changed source files and activity patterns - excludes generated *.lock.yml files]
 
-#### Historical Trends (30 Days)
 ![Historical Trends](URL_FROM_UPLOAD_ASSET)
 
 [Trend analysis and significant changes]
@@ -368,15 +286,12 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 <summary>📈 Detailed Metrics</summary>
 
 ### Size Metrics
-
-#### Lines of Code by Language
 | Language | LOC | % of Total | Change (7d) |
 |----------|-----|------------|-------------|
 | Go | X,XXX | XX% | ⬆️ +X% |
 | JavaScript | X,XXX | XX% | ➡️ 0% |
 | ... | ... | ... | ... |
 
-#### Lines of Code by Directory
 | Directory | LOC | % of Total | Files |
 |-----------|-----|------------|-------|
 | pkg/ | X,XXX | XX% | XXX |
@@ -402,20 +317,18 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 ### Code Churn (Last 7 Days)
 
-#### Source Code Churn (Excludes *.lock.yml)
-
 - **Files Modified**: XXX files
 - **Commits**: XXX commits
 - **Lines Added**: +X,XXX lines
 - **Lines Deleted**: -X,XXX lines
 - **Net Change**: +/-X,XXX lines
 
-#### Most Active Source Files
+### Most Active Source Files
 1. path/to/file.go: +XXX/-XXX lines
 2. path/to/file.js: +XXX/-XXX lines
 ...
 
-#### Workflow Lock File Churn (*.lock.yml only)
+### Workflow Lock File Churn (*.lock.yml only)
 
 - **Lock Files Modified**: XXX files
 - **Lines Added**: +X,XXX lines
@@ -440,7 +353,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 ### Quality Score: XX/100
 
-#### Component Breakdown
+### Component Breakdown
 - **Test Coverage (30%)**: XX/30 points
 - **Code Organization (25%)**: XX/25 points
 - **Documentation (20%)**: XX/20 points

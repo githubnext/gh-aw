@@ -150,6 +150,7 @@ func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData
 		c.validateGeminiDeprecation,
 		c.validatePlaywrightMode,
 		c.validateEngineHarnessScript,
+		c.validateEngineCopilotSDKDriver,
 		c.validateEngineMCPSessionTimeout,
 		c.validateEngineMCPToolTimeout,
 	}

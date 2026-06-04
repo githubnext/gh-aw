@@ -263,6 +263,73 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
 
+### Copilot SDK Support
+
+Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.
+In this mode, the harness starts a local sidecar and runs the
+SDK driver process instead of the default CLI-only flow.
+
+Use `engine.copilot-sdk-driver` to replace the built-in
+`copilot_sdk_driver.cjs` implementation:
+
+```yaml wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+  copilot-sdk-driver: .github/drivers/custom-copilot-driver.js
+```
+
+`copilot-sdk-driver` must be a **relative path from the workspace root**
+(no absolute paths, `..`, backslashes, or shell metacharacters). It supports:
+
+- script filenames ending with `.js`, `.cjs`, `.mjs`,
+  `.py`, `.ts`, `.mts`, or `.rb`
+- bare command names without an extension (resolved from
+  `PATH`)
+
+See [Copilot SDK Driver Specification](/gh-aw/reference/copilot-sdk-driver-specification/)
+for the full driver contract.
+
+#### SDK driver environment variables
+
+The specification defines the driver environment contract.
+In SDK mode, gh-aw injects required runtime values:
+
+- `GH_AW_PROMPT`
+- `COPILOT_SDK_URI`
+- `COPILOT_CONNECTION_TOKEN`
+
+`COPILOT_MODEL` is required and must be set to the model to use
+(e.g. `gpt-4o`, `claude-sonnet-4`). Drivers MUST fail fast when
+it is not set.
+
+For runtime controls, the driver should consume:
+
+- `COPILOT_SDK_SEND_TIMEOUT_MS`
+- `COPILOT_SDK_LOG_LEVEL`
+
+In gh-aw, `COPILOT_SDK_SEND_TIMEOUT_MS` is usually injected
+automatically from workflow `timeout-minutes` (via
+`GH_AW_TIMEOUT_MINUTES`) with safety headroom. Override it in
+`engine.env` only when you need a custom SDK send timeout.
+`COPILOT_SDK_LOG_LEVEL` is a host-provided driver control and
+should be honored when gh-aw passes it to the driver process.
+
+Do not set `COPILOT_CONNECTION_TOKEN` manually. The harness
+generates it per run and passes the same token to both the
+sidecar and driver process.
+
+```yaml wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+  copilot-sdk-driver: .github/drivers/my_driver.ts
+  model: gpt-5
+  env:
+    COPILOT_SDK_SEND_TIMEOUT_MS: "900000"
+    COPILOT_SDK_LOG_LEVEL: info
+```
+
 ### Bare Mode (`bare`)
 
 Set `engine.bare: true` to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, AGENTS.md, or built-in system prompts that would otherwise be loaded automatically.

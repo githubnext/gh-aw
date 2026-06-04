@@ -428,14 +428,28 @@ async function main(config = {}) {
     const workflowRepo = process.env.GITHUB_REPOSITORY || "";
     if (itemRepo.toLowerCase() !== workflowRepo.toLowerCase()) {
       core.info(`Cross-repo push: looking for checkout of ${itemRepo}`);
-      const checkoutResult = findRepoCheckout(itemRepo, process.env.GITHUB_WORKSPACE, { allowedRepos: [...allowedRepos] });
-      if (!checkoutResult.success) {
-        return {
-          success: false,
-          error: `Repository '${itemRepo}' not found in workspace. Check out the target repo with actions/checkout and set its 'path' input so the checkout can be located. If checking out multiple repositories, ensure each actions/checkout step uses the appropriate 'path' input.`,
-        };
+      // First try the checkout mapping (faster than scanning the workspace)
+      const checkoutMappingConfig = config.checkout_mapping || null;
+      if (checkoutMappingConfig) {
+        const targetLower = itemRepo.toLowerCase();
+        const mappedPath = checkoutMappingConfig[targetLower];
+        if (mappedPath) {
+          const path = require("path");
+          repoCwd = path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), mappedPath);
+          core.info(`Using checkout mapping: ${itemRepo} -> ${mappedPath}`);
+        }
       }
-      repoCwd = checkoutResult.path;
+      // Fall back to workspace scan if not found in mapping
+      if (!repoCwd) {
+        const checkoutResult = findRepoCheckout(itemRepo, process.env.GITHUB_WORKSPACE, { allowedRepos: [...allowedRepos] });
+        if (!checkoutResult.success) {
+          return {
+            success: false,
+            error: `Repository '${itemRepo}' not found in workspace. Check out the target repo with actions/checkout and set its 'path' input so the checkout can be located. If checking out multiple repositories, ensure each actions/checkout step uses the appropriate 'path' input.`,
+          };
+        }
+        repoCwd = checkoutResult.path;
+      }
       core.info(`Found checkout for ${itemRepo} at: ${repoCwd}`);
     }
 

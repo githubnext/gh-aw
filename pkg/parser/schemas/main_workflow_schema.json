@@ -6254,7 +6254,7 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
@@ -6364,6 +6364,21 @@
                   ],
                   "description": "When true (default), automatically appends a closing keyword (\"Fixes #N\") to the PR description when the workflow is triggered from an issue and no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set to false to prevent this behavior, e.g., for partial-work PRs or multi-PR workflows. Accepts a boolean or a GitHub Actions expression.",
                   "default": true
+                },
+                "close-older-pull-requests": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/templatable_boolean"
+                    }
+                  ],
+                  "description": "When true, automatically close older open pull requests with the same workflow-id marker (or close-older-key when set) with a comment linking to the new PR. Maximum 10 PRs will be closed. Only runs if PR creation succeeds.",
+                  "default": false
+                },
+                "close-older-key": {
+                  "type": "string",
+                  "description": "Optional explicit deduplication key for close-older-pull-requests matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the PR body and used as the primary key for searching and filtering older PRs instead of the workflow-id markers. The value is normalized to identifier style (lowercase alphanumeric, dashes, underscores).",
+                  "minLength": 1,
+                  "pattern": "\\S"
                 },
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
@@ -8025,7 +8040,7 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
@@ -10687,6 +10702,7 @@
         },
         {
           "id": "copilot",
+          "copilot-sdk-driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
           "copilot-sdk": true,
           "version": "latest"
         }
@@ -10931,6 +10947,11 @@
             "copilot-sdk": {
               "type": "boolean",
               "description": "Enables the experimental GitHub Copilot SDK integration (copilot engine only). When true, the harness starts a separate headless Copilot CLI sidecar on the configured localhost port and sets COPILOT_SDK_URI on child processes."
+            },
+            "copilot-sdk-driver": {
+              "type": "string",
+              "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
+              "description": "Custom Copilot SDK driver script or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
             }
           },
           "required": ["id"],
