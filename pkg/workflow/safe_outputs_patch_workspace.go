@@ -67,3 +67,51 @@ func normalizeCurrentCheckoutPatchPath(path string) string {
 	}
 	return filepath.ToSlash(path)
 }
+
+// injectCheckoutMapping adds a checkout_mapping to handler config for create_pull_request
+// and push_to_pull_request_branch when target-repo is "*" (wildcard).
+// The mapping tells the JS handler where each repository is checked out on disk,
+// enabling it to operate on multiple repositories without dynamic git remote switching.
+//
+// The mapping is keyed by lowercase repo slug and values are relative paths within
+// GITHUB_WORKSPACE for cross-repo checkouts (entries with repository + path).
+func injectCheckoutMapping(handlerName string, handlerCfg map[string]any, data *WorkflowData) {
+	if handlerCfg == nil || data == nil {
+		return
+	}
+	if handlerName != "create_pull_request" && handlerName != "push_to_pull_request_branch" {
+		return
+	}
+
+	// Only inject when target-repo is wildcard
+	targetRepo := ""
+	if value, ok := handlerCfg["target-repo"].(string); ok {
+		targetRepo = strings.TrimSpace(value)
+	}
+	if targetRepo != "*" {
+		return
+	}
+
+	// Build the checkout mapping from checkout: configs
+	mapping := make(map[string]string)
+	for _, cfg := range data.CheckoutConfigs {
+		if cfg == nil || cfg.Repository == "" || cfg.Path == "" || cfg.Wiki {
+			continue
+		}
+		// Normalize repo slug to lowercase for consistent lookup
+		repoKey := strings.ToLower(strings.TrimSpace(cfg.Repository))
+		normalizedPath := normalizeCurrentCheckoutPatchPath(cfg.Path)
+		if normalizedPath != "" {
+			mapping[repoKey] = normalizedPath
+		}
+	}
+
+	// Only inject if there are actual cross-repo checkouts configured
+	if len(mapping) == 0 {
+		patchWorkspaceLog.Printf("No checkout mapping entries for handler=%s (wildcard target-repo but no cross-repo checkout: configs)", handlerName)
+		return
+	}
+
+	handlerCfg["checkout_mapping"] = mapping
+	patchWorkspaceLog.Printf("Injected checkout_mapping for handler=%s: %d entries", handlerName, len(mapping))
+}
