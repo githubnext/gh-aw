@@ -285,6 +285,7 @@ jobs:
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: workflow
     outputs:
+      aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       effective_tokens_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.effective_tokens_rate_limit_error || 'false' }}

@@ -290,6 +290,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.NotNil(t, summary, "should return summary")
 		assert.Equal(t, 1, summary.TotalRequests, "should have 1 request")
 		assert.Equal(t, 100, summary.TotalInputTokens, "should have correct input tokens")
+		assert.InDelta(t, 1.575, summary.TotalAIC, 1e-9, "should compute AI Credits from model pricing")
 	})
 
 	t.Run("counts steering events from api-proxy events log", func(t *testing.T) {
@@ -338,7 +339,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 	t.Run("falls back to agent_usage.json when token-usage.jsonl is missing", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "analyze-agent-usage")
 		agentUsageFile := filepath.Join(tmpDir, "agent_usage.json")
-		content := `{"input_tokens":5944,"output_tokens":8698,"cache_read_tokens":1170605,"cache_write_tokens":86049,"effective_tokens":243846}`
+		content := `{"provider":"anthropic","model":"claude-sonnet-4-6","input_tokens":5944,"output_tokens":8698,"cache_read_tokens":1170605,"cache_write_tokens":86049,"effective_tokens":243846}`
 		require.NoError(t, os.WriteFile(agentUsageFile, []byte(content), 0o644))
 
 		summary, err := analyzeTokenUsage(tmpDir, false)
@@ -346,7 +347,8 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.NotNil(t, summary, "should return summary from agent_usage.json")
 		assert.Equal(t, 5944, summary.TotalInputTokens, "input tokens should match agent usage")
 		assert.Equal(t, 8698, summary.TotalOutputTokens, "output tokens should match agent usage")
-		assert.Equal(t, 237902, summary.TotalEffectiveTokens, "effective tokens should be recomputed from raw usage, not copied from stored ET")
+		assert.Equal(t, 2141114, summary.TotalEffectiveTokens, "effective tokens should be recomputed from raw usage, not copied from stored ET")
+		assert.Greater(t, summary.TotalAIC, 0.0, "AI Credits should be recomputed from raw usage")
 		assert.Equal(t, 1, summary.TotalRequests, "agent usage fallback should synthesize one request")
 	})
 

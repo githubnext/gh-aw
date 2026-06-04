@@ -6,6 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { computeEffectiveTokens, formatET, formatModelEmojiAlias } = require("./effective_tokens.cjs");
+const { computeInferenceAIC } = require("./model_costs.cjs");
 const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
 
 /**
@@ -51,7 +52,7 @@ function formatDurationMs(ms) {
  * Parses token-usage.jsonl content and returns an aggregated summary.
  * Computes effective tokens (ET) per model using merged multipliers, env fallback, then built-in multipliers.
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object, entries: Array} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, byModel: Object, entries: Array} | null}
  */
 function parseTokenUsageJsonl(jsonlContent) {
   const summary = {
@@ -62,8 +63,9 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalRequests: 0,
     totalDurationMs: 0,
     totalEffectiveTokens: 0,
+    totalAIC: 0,
     byModel: {},
-    /** @type {{ model: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, durationMs: number, deltaET: number }[]} */
+    /** @type {{ model: string, provider: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, reasoningTokens: number, durationMs: number, deltaET: number, deltaAIC: number }[]} */
     entries: [],
   };
 
@@ -79,6 +81,7 @@ function parseTokenUsageJsonl(jsonlContent) {
       const outputTokens = entry.output_tokens || 0;
       const cacheReadTokens = entry.cache_read_tokens || 0;
       const cacheWriteTokens = entry.cache_write_tokens || 0;
+      const reasoningTokens = entry.reasoning_tokens || 0;
       const durationMs = entry.duration_ms || 0;
 
       summary.totalInputTokens += inputTokens;
@@ -95,19 +98,22 @@ function parseTokenUsageJsonl(jsonlContent) {
         outputTokens: 0,
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
+        reasoningTokens: 0,
         requests: 0,
         durationMs: 0,
         effectiveTokens: 0,
+        aic: 0,
       };
       const m = summary.byModel[model];
       m.inputTokens += inputTokens;
       m.outputTokens += outputTokens;
       m.cacheReadTokens += cacheReadTokens;
       m.cacheWriteTokens += cacheWriteTokens;
+      m.reasoningTokens += reasoningTokens;
       m.requests++;
       m.durationMs += durationMs;
 
-      summary.entries.push({ model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, durationMs, deltaET: 0 });
+      summary.entries.push({ model, provider: m.provider, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens, durationMs, deltaET: 0, deltaAIC: 0 });
     } catch {
       // skip malformed lines
     }
@@ -117,16 +123,38 @@ function parseTokenUsageJsonl(jsonlContent) {
 
   // Compute effective tokens per model and aggregate total
   let totalEffectiveTokens = 0;
+  let totalAIC = 0;
   for (const [model, usage] of Object.entries(summary.byModel)) {
     const et = computeEffectiveTokens(model, usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens);
+    const aic = computeInferenceAIC({
+      provider: usage.provider || "",
+      model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cacheReadTokens: usage.cacheReadTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
+      reasoningTokens: usage.reasoningTokens || 0,
+    });
     usage.effectiveTokens = et;
+    usage.aic = aic;
     totalEffectiveTokens += et;
+    totalAIC += aic;
   }
   summary.totalEffectiveTokens = totalEffectiveTokens;
+  summary.totalAIC = totalAIC;
 
   // Compute per-turn delta ET
   for (const entry of summary.entries) {
     entry.deltaET = computeEffectiveTokens(entry.model, entry.inputTokens, entry.outputTokens, entry.cacheReadTokens, entry.cacheWriteTokens);
+    entry.deltaAIC = computeInferenceAIC({
+      provider: entry.provider || "",
+      model: entry.model,
+      inputTokens: entry.inputTokens,
+      outputTokens: entry.outputTokens,
+      cacheReadTokens: entry.cacheReadTokens,
+      cacheWriteTokens: entry.cacheWriteTokens,
+      reasoningTokens: entry.reasoningTokens || 0,
+    });
   }
 
   return summary;
@@ -192,6 +220,12 @@ function writeStepSummaryWithTokenUsage(coreObj) {
         // inherited by downstream jobs — only job outputs are).
         coreObj.setOutput("effective_tokens", String(roundedET));
         coreObj.info(`Effective tokens: ${roundedET}`);
+      }
+      if (parsedSummary && parsedSummary.totalAIC > 0) {
+        const roundedAIC = parsedSummary.totalAIC.toFixed(3);
+        coreObj.exportVariable("GH_AW_AIC", roundedAIC);
+        coreObj.setOutput("aic", roundedAIC);
+        coreObj.info(`AI Credits: ${roundedAIC}`);
       }
     }
   }

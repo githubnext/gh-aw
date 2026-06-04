@@ -405,6 +405,7 @@ Some content here.`;
         expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Gateway Summary"));
         expect(mockCore.summary.addDetails).not.toHaveBeenCalledWith("Token Usage", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", expect.any(String));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", expect.any(String));
         expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;

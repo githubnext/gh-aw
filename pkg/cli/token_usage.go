@@ -63,6 +63,7 @@ type TokenUsageSummary struct {
 	TotalResponseBytes    int                         `json:"total_response_bytes"`
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
 	TotalEffectiveTokens  int                         `json:"total_effective_tokens" console:"header:Effective Tokens,format:number"`
+	TotalAIC              float64                     `json:"total_aic,omitempty"`
 	AmbientContext        *AmbientContextMetrics      `json:"ambient_context,omitempty"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
 	SubagentModelRequests []SubagentModelRequest      `json:"subagent_model_requests,omitempty"`
@@ -73,29 +74,31 @@ type TokenUsageSummary struct {
 
 // ModelTokenUsage contains per-model token usage statistics
 type ModelTokenUsage struct {
-	Provider         string `json:"provider"`
-	InputTokens      int    `json:"input_tokens" console:"header:Input,format:number"`
-	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
-	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
-	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	ReasoningTokens  int    `json:"reasoning_tokens,omitempty"`
-	Requests         int    `json:"requests" console:"header:Requests"`
-	DurationMs       int    `json:"duration_ms"`
-	ResponseBytes    int    `json:"response_bytes"`
-	EffectiveTokens  int    `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	Provider         string  `json:"provider"`
+	InputTokens      int     `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	ReasoningTokens  int     `json:"reasoning_tokens,omitempty"`
+	Requests         int     `json:"requests" console:"header:Requests"`
+	DurationMs       int     `json:"duration_ms"`
+	ResponseBytes    int     `json:"response_bytes"`
+	EffectiveTokens  int     `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	AIC              float64 `json:"aic,omitempty"`
 }
 
 // ModelTokenUsageRow is a flattened version for console table rendering
 type ModelTokenUsageRow struct {
-	Model            string `json:"model" console:"header:Model"`
-	Provider         string `json:"provider" console:"header:Provider"`
-	InputTokens      int    `json:"input_tokens" console:"header:Input,format:number"`
-	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
-	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
-	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	EffectiveTokens  int    `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
-	Requests         int    `json:"requests" console:"header:Requests"`
-	AvgDuration      string `json:"avg_duration" console:"header:Avg Duration"`
+	Model            string  `json:"model" console:"header:Model"`
+	Provider         string  `json:"provider" console:"header:Provider"`
+	InputTokens      int     `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	EffectiveTokens  int     `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	AIC              float64 `json:"aic,omitempty"`
+	Requests         int     `json:"requests" console:"header:Requests"`
+	AvgDuration      string  `json:"avg_duration" console:"header:Avg Duration"`
 }
 
 // SubagentModelRequest captures requested/effective model attribution for a sub-agent.
@@ -211,6 +214,7 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 
 	// Compute effective tokens using per-model multipliers (with optional custom overrides)
 	populateEffectiveTokensWithCustomWeights(summary, customWeights)
+	populateAIC(summary)
 	summary.AmbientContext = extractAmbientContextMetrics(entries)
 
 	return summary, nil
@@ -414,6 +418,7 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 	// raw usage exists, otherwise keep fallback effective_tokens from the file.
 	if hasRawTokenData {
 		populateEffectiveTokensWithCustomWeights(summary, customWeights)
+		populateAIC(summary)
 	} else {
 		summary.TotalEffectiveTokens = entry.EffectiveTokens
 	}
@@ -915,6 +920,7 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 			CacheReadTokens:  usage.CacheReadTokens,
 			CacheWriteTokens: usage.CacheWriteTokens,
 			EffectiveTokens:  usage.EffectiveTokens,
+			AIC:              usage.AIC,
 			Requests:         usage.Requests,
 			AvgDuration:      timeutil.FormatDurationMs(avgDur),
 		})
@@ -926,4 +932,21 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 		return iTot > jTot
 	})
 	return rows
+}
+
+func populateAIC(summary *TokenUsageSummary) {
+	if summary == nil {
+		return
+	}
+
+	total := 0.0
+	for model, usage := range summary.ByModel {
+		if usage == nil {
+			continue
+		}
+		aic := computeModelInferenceAIC(usage.Provider, model, usage.InputTokens, usage.OutputTokens, usage.CacheReadTokens, usage.CacheWriteTokens, usage.ReasoningTokens)
+		usage.AIC = aic
+		total += aic
+	}
+	summary.TotalAIC = total
 }

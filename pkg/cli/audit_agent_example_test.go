@@ -97,6 +97,7 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			TotalOutputTokens:   5000,
 			TotalRequests:       42,
 			TotalSteeringEvents: 3,
+			TotalAIC:            1.25,
 		},
 		JobDetails: []JobInfoWithDuration{
 			{
@@ -172,6 +173,9 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		}
 		if !strings.Contains(output, "steering=") {
 			t.Error("Console output should include aggregate steering event count")
+		}
+		if !strings.Contains(output, "aic=1.25") {
+			t.Error("Console output should include AI Credits")
 		}
 
 		// Verify emojis and visual indicators

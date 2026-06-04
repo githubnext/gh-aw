@@ -194,6 +194,7 @@ describe("parse_token_usage", () => {
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
       expect(typeof agentUsage.effective_tokens).toBe("number");
+      expect(typeof agentUsage.ai_credits).toBe("number");
       // primary_model is the actual model from token-usage data (not a user alias)
       expect(agentUsage.primary_model).toBe("claude-sonnet-4-6");
     });
@@ -227,6 +228,10 @@ describe("parse_token_usage", () => {
       if (agentUsage.effective_tokens > 0) {
         expect(mockCore.setOutput).toHaveBeenCalledWith("effective_tokens", String(agentUsage.effective_tokens));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", String(agentUsage.effective_tokens));
+      }
+      if (agentUsage.ai_credits > 0) {
+        expect(mockCore.setOutput).toHaveBeenCalledWith("aic", agentUsage.ai_credits.toFixed(3));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", agentUsage.ai_credits.toFixed(3));
       }
     });
 

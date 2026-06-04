@@ -132,6 +132,7 @@ async function main() {
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
       effective_tokens: effectiveTokens,
+      ai_credits: Number((summary.totalAIC || 0).toFixed(3)),
       ...(primaryModel ? { primary_model: primaryModel } : {}),
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
@@ -142,6 +143,12 @@ async function main() {
       core.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(effectiveTokens));
       core.setOutput("effective_tokens", String(effectiveTokens));
       core.info(`Effective tokens: ${effectiveTokens}`);
+    }
+    if (summary.totalAIC > 0) {
+      const aic = summary.totalAIC.toFixed(3);
+      core.exportVariable("GH_AW_AIC", aic);
+      core.setOutput("aic", aic);
+      core.info(`AI Credits: ${aic}`);
     }
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);

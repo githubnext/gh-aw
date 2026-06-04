@@ -13,6 +13,7 @@ const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 const { formatET, reduceModelNameToIdentifier, resolveActualModelName } = require("./effective_tokens.cjs");
+const { formatAIC } = require("./model_costs.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 
 /**
@@ -52,6 +53,20 @@ function getEffectiveTokensFromEnv(modelName) {
 }
 
 /**
+ * Read AI Credits from GH_AW_AIC and return the raw value, formatted value, and suffix.
+ * @returns {{ aiCredits: number|undefined, aiCreditsFormatted: string|undefined, aiCreditsSuffix: string }}
+ */
+function getAICFromEnv() {
+  const raw = process.env.GH_AW_AIC;
+  const parsed = raw ? Number.parseFloat(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    const aiCreditsFormatted = formatAIC(parsed);
+    return { aiCredits: parsed, aiCreditsFormatted, aiCreditsSuffix: aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "" };
+  }
+  return { aiCredits: undefined, aiCreditsFormatted: undefined, aiCreditsSuffix: "" };
+}
+
+/**
  * @param {string} modelName
  * @returns {string}
  */
@@ -71,6 +86,7 @@ function buildModelPrefix(modelName) {
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
  * @property {number} [effectiveTokens] - Total effective token count for the run (shown as N when > 0, in compact format)
+ * @property {number} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
  * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
@@ -92,7 +108,9 @@ function getFooterMessage(ctx) {
   // over GH_AW_ENGINE_MODEL, which may be a user-supplied alias (e.g. "agent").
   const resolvedModelName = ctx.model || resolveActualModelName();
   const { effectiveTokens: envEffectiveTokens, effectiveTokensFormatted: envEffectiveTokensFormatted, effectiveTokensSuffix: envEffectiveTokensSuffix } = getEffectiveTokensFromEnv(resolvedModelName);
+  const { aiCredits: envAIC, aiCreditsFormatted: envAICFormatted, aiCreditsSuffix: envAICSuffix } = getAICFromEnv();
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
+  const aiCredits = ctx.aiCredits ?? envAIC;
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
   const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
@@ -114,9 +132,16 @@ function getFooterMessage(ctx) {
       effectiveTokensSuffix = "";
     }
   }
+  const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  let aiCreditsFormatted = envAICFormatted;
+  let aiCreditsSuffix = envAICSuffix;
+  if (hasExplicitContextAIC) {
+    aiCreditsFormatted = aiCredits ? formatAIC(aiCredits) : undefined;
+    aiCreditsSuffix = aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
+  }
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
-  const templateContext = toSnakeCase({ ...ctx, effectiveTokens, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });
+  const templateContext = toSnakeCase({ ...ctx, effectiveTokens, aiCredits, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix, aiCreditsFormatted, aiCreditsSuffix });
 
   // Use custom footer template if configured (no automatic suffix appended)
   if (messages?.footer) {
@@ -132,6 +157,9 @@ function getFooterMessage(ctx) {
   // Append effective tokens when available (compact format, no "ET" label)
   if (effectiveTokens) {
     defaultFooter += effectiveTokensSuffix;
+  }
+  if (aiCredits) {
+    defaultFooter += aiCreditsSuffix;
   }
   // Append history link when available
   if (ctx.historyUrl) {

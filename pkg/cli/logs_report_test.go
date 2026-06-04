@@ -984,3 +984,28 @@ func TestBuildLogsDataAggregatesSteeringEvents(t *testing.T) {
 		t.Errorf("Expected TotalSteeringEvents = 5, got %d", data.Summary.TotalSteeringEvents)
 	}
 }
+
+func TestBuildLogsDataAggregatesAIC(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf-1"},
+			TokenUsage: &TokenUsageSummary{
+				TotalAIC: 1.25,
+			},
+		},
+		{
+			Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf-2"},
+			TokenUsage: &TokenUsageSummary{
+				TotalAIC: 0.75,
+			},
+		},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+	if data.Summary.TotalAIC != 2.0 {
+		t.Fatalf("Expected TotalAIC = 2.0, got %v", data.Summary.TotalAIC)
+	}
+	if data.Runs[0].AIC != 1.25 {
+		t.Fatalf("Expected run AIC = 1.25, got %v", data.Runs[0].AIC)
+	}
+}
