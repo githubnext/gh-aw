@@ -162,9 +162,13 @@ func versionToGitRef(version string) string {
 }
 
 // collectEngineVersionsForMetadata returns engine version metadata for gh-aw lock files.
-// It includes default versions for built-in engines, applies explicit overrides for configured
-// engines, and includes copilot-sdk only when enabled.
+// It includes only engines that are active in the current workflow, applies explicit version
+// overrides for those engines, and includes copilot-sdk only when enabled on an active copilot engine.
 func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
+	if data == nil {
+		return map[string]string{}
+	}
+
 	versions := map[string]string{
 		string(constants.CopilotEngine):     string(constants.DefaultCopilotVersion),
 		string(constants.ClaudeEngine):      string(constants.DefaultClaudeCodeVersion),
@@ -176,16 +180,35 @@ func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
 		string(constants.PiEngine):          string(constants.DefaultPiVersion),
 	}
 
-	if data == nil {
-		return versions
+	mainEngineID := strings.TrimSpace(ResolveEngineID(data))
+	if mainEngineID == "" {
+		mainEngineID = string(constants.DefaultEngine)
+	}
+	activeEngineIDs := map[string]struct{}{mainEngineID: {}}
+
+	applyMetadataEngineVersionOverrides(versions, data.EngineConfig, mainEngineID)
+	if IsDetectionJobEnabled(data.SafeOutputs) && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		detectionConfig := data.SafeOutputs.ThreatDetection.EngineConfig
+		detectionEngineID := mainEngineID
+		if detectionConfig != nil && strings.TrimSpace(detectionConfig.ID) != "" {
+			detectionEngineID = strings.TrimSpace(detectionConfig.ID)
+		}
+		activeEngineIDs[detectionEngineID] = struct{}{}
+		applyMetadataEngineVersionOverrides(versions, detectionConfig, detectionEngineID)
 	}
 
-	applyMetadataEngineVersionOverrides(versions, data.EngineConfig, data.AI)
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		applyMetadataEngineVersionOverrides(versions, data.SafeOutputs.ThreatDetection.EngineConfig, "")
+	filteredVersions := make(map[string]string, len(activeEngineIDs)+1)
+	for engineID := range activeEngineIDs {
+		if version := strings.TrimSpace(versions[engineID]); version != "" {
+			filteredVersions[engineID] = version
+		}
 	}
 
-	return versions
+	if isCopilotSDKEnabledForActiveEngine(data, mainEngineID) {
+		filteredVersions["copilot-sdk"] = string(constants.DefaultCopilotSDKVersion)
+	}
+
+	return filteredVersions
 }
 
 func applyMetadataEngineVersionOverrides(versions map[string]string, engineConfig *EngineConfig, fallbackEngineID string) {
@@ -200,9 +223,27 @@ func applyMetadataEngineVersionOverrides(versions map[string]string, engineConfi
 	if engineID != "" && strings.TrimSpace(engineConfig.Version) != "" {
 		versions[engineID] = strings.TrimSpace(engineConfig.Version)
 	}
-	if engineID == string(constants.CopilotEngine) && engineConfig.CopilotSDK {
-		versions["copilot-sdk"] = string(constants.DefaultCopilotSDKVersion)
+}
+
+func isCopilotSDKEnabledForActiveEngine(data *WorkflowData, mainEngineID string) bool {
+	if mainEngineID == string(constants.CopilotEngine) && data.EngineConfig != nil && data.EngineConfig.CopilotSDK {
+		return true
 	}
+
+	if !IsDetectionJobEnabled(data.SafeOutputs) || data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
+		return false
+	}
+
+	detectionConfig := data.SafeOutputs.ThreatDetection.EngineConfig
+	if detectionConfig == nil {
+		return false
+	}
+
+	detectionEngineID := strings.TrimSpace(detectionConfig.ID)
+	if detectionEngineID == "" {
+		detectionEngineID = mainEngineID
+	}
+	return detectionEngineID == string(constants.CopilotEngine) && detectionConfig.CopilotSDK
 }
 
 // resolveAgentImageRunnerIdentifier returns a stable identifier for the configured runs-on value.

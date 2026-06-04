@@ -1474,8 +1474,8 @@ Test prompt.
 
 	var metadataLine string
 	for line := range strings.SplitSeq(string(lockContent), "\n") {
-		if strings.HasPrefix(line, "# gh-aw-metadata: ") {
-			metadataLine = strings.TrimPrefix(line, "# gh-aw-metadata: ")
+		if trimmed, ok := strings.CutPrefix(line, "# gh-aw-metadata: "); ok {
+			metadataLine = trimmed
 			break
 		}
 	}
