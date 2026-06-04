@@ -1473,14 +1473,20 @@ Test prompt.
 	}
 
 	var metadataLine string
+	var manifestLine string
 	for line := range strings.SplitSeq(string(lockContent), "\n") {
 		if trimmed, ok := strings.CutPrefix(line, "# gh-aw-metadata: "); ok {
 			metadataLine = trimmed
-			break
+		}
+		if trimmed, ok := strings.CutPrefix(line, "# gh-aw-manifest: "); ok {
+			manifestLine = trimmed
 		}
 	}
 	if metadataLine == "" {
 		t.Fatal("Could not find gh-aw-metadata in lock file")
+	}
+	if strings.Contains(metadataLine, "\n") {
+		t.Fatal("Expected gh-aw-metadata payload to remain a single-line JSON string")
 	}
 
 	var metadata LockMetadata
@@ -1496,5 +1502,22 @@ Test prompt.
 	}
 	if metadata.AgentImageRunner != `["self-hosted","linux"]` {
 		t.Fatalf("Expected serialized array runner identifier, got: %q", metadata.AgentImageRunner)
+	}
+
+	if manifestLine == "" {
+		t.Fatal("Could not find gh-aw-manifest in lock file")
+	}
+	if strings.Contains(manifestLine, "\n") {
+		t.Fatal("Expected gh-aw-manifest payload to remain a single-line JSON string")
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal([]byte(manifestLine), &manifest); err != nil {
+		t.Fatalf("Failed to parse gh-aw-manifest JSON: %v", err)
+	}
+	if _, exists := manifest["engine_versions"]; exists {
+		t.Fatal("gh-aw-manifest must not duplicate engine_versions metadata")
+	}
+	if _, exists := manifest["agent_image_runner"]; exists {
+		t.Fatal("gh-aw-manifest must not duplicate agent_image_runner metadata")
 	}
 }
