@@ -5,9 +5,10 @@
  * Malformed lines are ignored so callers can safely consume partially written logs.
  *
  * @param {string} content
+ * @param {(line: string) => boolean} [lineFilter] Optional predicate to pre-filter lines before JSON parsing.
  * @returns {unknown[]}
  */
-function parseJsonlContent(content) {
+function parseJsonlContent(content, lineFilter) {
   if (typeof content !== "string" || content.length === 0) {
     return [];
   }
@@ -17,6 +18,9 @@ function parseJsonlContent(content) {
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
     if (!line) {
+      continue;
+    }
+    if (typeof lineFilter === "function" && !lineFilter(line)) {
       continue;
     }
     try {

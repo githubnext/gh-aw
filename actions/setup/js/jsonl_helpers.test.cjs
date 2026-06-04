@@ -12,6 +12,13 @@ describe("jsonl_helpers", () => {
     it("returns empty array for non-string or empty content", () => {
       expect(parseJsonlContent("")).toEqual([]);
       expect(parseJsonlContent(/** @type {any} */ null)).toEqual([]);
+      expect(parseJsonlContent(/** @type {any} */ undefined)).toEqual([]);
+    });
+
+    it("supports optional line pre-filtering before JSON parsing", () => {
+      const parsed = parseJsonlContent(['{"event":"token_steering"}', '{"event":"request"}', '{"event":"model_steering"}'].join("\n"), line => line.includes("steering"));
+
+      expect(parsed).toEqual([{ event: "token_steering" }, { event: "model_steering" }]);
     });
   });
 });

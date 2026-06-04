@@ -1397,6 +1397,7 @@ const API_PROXY_EVENT_LOG_PATHS = [
   "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
   "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
 ];
+const STEERING_EVENT_PATTERN = /steering/i;
 const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|EPERM)\b/i;
 
 /**
@@ -1423,6 +1424,8 @@ function readLastRateLimitEntry() {
     const entries = parseJsonlContent(content);
     if (entries.length === 0) return null;
     const last = entries[entries.length - 1];
+    // Rate-limit enrichment requires object entries (not primitive values or
+    // arrays) so the expected fields can be extracted as attributes.
     return last && typeof last === "object" && !Array.isArray(last) ? last : null;
   } catch {
     return null;
@@ -1693,23 +1696,21 @@ function getApiProxyEventName(entry) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     return "";
   }
-  const event = Reflect.get(entry, "event");
-  if (typeof event === "string") {
-    return event;
+  if ("event" in entry && typeof entry.event === "string") {
+    return entry.event;
   }
-  const type = Reflect.get(entry, "type");
-  if (typeof type === "string") {
-    return type;
+  if ("type" in entry && typeof entry.type === "string") {
+    return entry.type;
   }
-  const payload = Reflect.get(entry, "payload");
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    const payloadEvent = Reflect.get(payload, "event");
-    if (typeof payloadEvent === "string") {
-      return payloadEvent;
-    }
-    const payloadType = Reflect.get(payload, "type");
-    if (typeof payloadType === "string") {
-      return payloadType;
+  if ("payload" in entry) {
+    const payload = entry.payload;
+    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+      if ("event" in payload && typeof payload.event === "string") {
+        return payload.event;
+      }
+      if ("type" in payload && typeof payload.type === "string") {
+        return payload.type;
+      }
     }
   }
   return "";
@@ -1723,7 +1724,7 @@ function getApiProxyEventName(entry) {
  */
 function countSteeringEventsInApiProxyJsonl(jsonlContent) {
   let count = 0;
-  for (const parsed of parseJsonlContent(jsonlContent)) {
+  for (const parsed of parseJsonlContent(jsonlContent, line => STEERING_EVENT_PATTERN.test(line))) {
     const eventName = getApiProxyEventName(parsed).toLowerCase();
     if (eventName === "steering" || eventName.endsWith("_steering")) {
       count += 1;
