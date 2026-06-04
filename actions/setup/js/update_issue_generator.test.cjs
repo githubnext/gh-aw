@@ -59,6 +59,21 @@ describe("update_issue.cjs - generator payload", () => {
     expect(data.state).toBe("closed");
   });
 
+  it("passes confidence through to issue update payload", async () => {
+    const updateIssueModule = await import("./update_issue.cjs");
+
+    const { success, data } = updateIssueModule.buildIssueUpdateData(
+      {
+        status: "open",
+        confidence: 91,
+      },
+      {}
+    );
+
+    expect(success).toBe(true);
+    expect(data.confidence).toBe(91);
+  });
+
   it("respects explicit operation when provided", async () => {
     const updateIssueModule = await import("./update_issue.cjs");
 

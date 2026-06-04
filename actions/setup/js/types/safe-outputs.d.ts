@@ -246,6 +246,8 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
   body?: string;
   /** Optional issue number for target "*" */
   issue_number?: number | string;
+  /** Optional confidence score (0-100) indicating certainty for this issue update. */
+  confidence?: number;
 }
 
 /**
@@ -322,6 +324,8 @@ interface SetIssueTypeItem extends BaseSafeOutputItem {
   issue_type: string;
   /** Issue number (optional - uses triggering issue if not provided) */
   issue_number?: number | string;
+  /** Optional confidence score (0-100) indicating certainty in the issue type selection. */
+  confidence?: number;
 }
 
 /**
@@ -337,6 +341,8 @@ interface SetIssueFieldItem extends BaseSafeOutputItem {
   value: string;
   /** Issue number (optional - uses triggering issue if not provided) */
   issue_number?: number | string;
+  /** Optional confidence score (0-100) indicating certainty in the field update value. */
+  confidence?: number;
 }
 
 /**

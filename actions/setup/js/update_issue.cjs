@@ -164,6 +164,9 @@ function buildIssueUpdateData(item, config) {
   if (item.milestone !== undefined) {
     updateData.milestone = item.milestone;
   }
+  if (item.confidence !== undefined) {
+    updateData.confidence = item.confidence;
+  }
 
   // Enforce max limits on labels and assignees before API calls
   const labelsLimitResult = tryEnforceArrayLimit(updateData.labels, MAX_LABELS, "labels");

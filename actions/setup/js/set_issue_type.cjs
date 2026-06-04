@@ -72,18 +72,19 @@ async function fetchIssueTypes(githubClient, owner, repo) {
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} issueNodeId - GraphQL node ID of the issue
  * @param {string|null} typeId - GraphQL node ID of the issue type, or null to clear
+ * @param {number|undefined} confidence - Optional confidence score (0-100)
  * @returns {Promise<void>}
  */
-async function setIssueTypeById(githubClient, issueNodeId, typeId) {
+async function setIssueTypeById(githubClient, issueNodeId, typeId, confidence) {
   await githubClient.graphql(
-    `mutation($issueId: ID!, $typeId: ID) {
-      updateIssue(input: { id: $issueId, issueTypeId: $typeId }) {
+    `mutation($issueId: ID!, $typeId: ID, $confidence: Int) {
+      updateIssue(input: { id: $issueId, issueTypeId: $typeId, confidence: $confidence }) {
         issue {
           id
         }
       }
     }`,
-    { issueId: issueNodeId, typeId }
+    { issueId: issueNodeId, typeId, confidence }
   );
 }
 
@@ -197,6 +198,7 @@ async function main(config = {}) {
         previewInfo: {
           issue_number: issueNumber,
           issue_type: issueTypeName,
+          confidence: typeof item.confidence === "number" ? item.confidence : undefined,
           repo: itemRepo,
         },
       };
@@ -231,7 +233,8 @@ async function main(config = {}) {
         core.info(`Resolved issue type ${JSON.stringify(issueTypeName)} to node ID: ${typeId}`);
       }
 
-      await setIssueTypeById(githubClient, issueNodeId, typeId);
+      const confidence = typeof item.confidence === "number" ? item.confidence : undefined;
+      await setIssueTypeById(githubClient, issueNodeId, typeId, confidence);
 
       const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(issueTypeName)} on issue #${issueNumber}`;
       core.info(successMsg);
@@ -240,6 +243,7 @@ async function main(config = {}) {
         success: true,
         issue_number: issueNumber,
         issue_type: issueTypeName,
+        confidence,
         repo: itemRepo,
       };
     } catch (error) {

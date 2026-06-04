@@ -27,6 +27,8 @@ type FieldValidation struct {
 	ItemType                 string   `json:"itemType,omitempty"`
 	ItemSanitize             bool     `json:"itemSanitize,omitempty"`
 	ItemMaxLength            int      `json:"itemMaxLength,omitempty"`
+	Minimum                  int      `json:"minimum,omitempty"`
+	Maximum                  int      `json:"maximum,omitempty"`
 	Pattern                  string   `json:"pattern,omitempty"`
 	PatternError             string   `json:"patternError,omitempty"`
 	TemporaryID              bool     `json:"temporaryId,omitempty"`
@@ -130,6 +132,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"issue_number": {IssueOrPRNumber: true},
 			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128}, // Empty string clears the type
+			"confidence":   {Type: "number", Minimum: 0, Maximum: 100},
 			"repo":         {Type: "string", MaxLength: 256},                                 // Optional: target repository in format "owner/repo"
 		},
 	},
@@ -141,6 +144,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128},
 			"field_node_id": {Type: "string", MaxLength: 256},
 			"value":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"confidence":    {Type: "number", Minimum: 0, Maximum: 100},
 			"repo":          {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
@@ -175,6 +179,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"assignees":    {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
 			"milestone":    {OptionalPositiveInteger: true},
+			"confidence":   {Type: "number", Minimum: 0, Maximum: 100},
 			"issue_number": {IssueOrPRNumber: true},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

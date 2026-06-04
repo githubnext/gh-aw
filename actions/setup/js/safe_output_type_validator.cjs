@@ -78,6 +78,8 @@ function normalizeIssueClosingKeywordBackticks(content) {
  * @property {string} [itemType] - For arrays, the type of items
  * @property {boolean} [itemSanitize] - For arrays, whether to sanitize items
  * @property {number} [itemMaxLength] - For arrays, max length per item
+ * @property {number} [minimum] - For numbers, minimum allowed value (inclusive)
+ * @property {number} [maximum] - For numbers, maximum allowed value (inclusive)
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
  */
@@ -466,6 +468,18 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
       return {
         isValid: false,
         error: `Line ${lineNum}: ${itemType} '${fieldName}' must be a number`,
+      };
+    }
+    if (validation.minimum !== undefined && value < validation.minimum) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} '${fieldName}' must be >= ${validation.minimum}`,
+      };
+    }
+    if (validation.maximum !== undefined && value > validation.maximum) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} '${fieldName}' must be <= ${validation.maximum}`,
       };
     }
     return { isValid: true, normalizedValue: value };

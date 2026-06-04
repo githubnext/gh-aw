@@ -105,6 +105,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
       issue_number: 42,
       field_name: "Customer Impact",
       value: "High",
+      confidence: 72,
     };
 
     const result = await handler(message, {});
@@ -113,11 +114,13 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.issue_number).toBe(42);
     expect(result.field_name).toBe("Customer Impact");
     expect(result.field_node_id).toBe(textFieldId);
+    expect(result.confidence).toBe(72);
     expect(mockGraphql).toHaveBeenCalledWith(
       expect.stringContaining("setIssueFieldValue"),
       expect.objectContaining({
         issueId: issueNodeId,
         issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
+        confidence: 72,
       })
     );
   });

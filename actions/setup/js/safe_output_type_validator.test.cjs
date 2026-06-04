@@ -43,6 +43,7 @@ const SAMPLE_VALIDATION_CONFIG = {
       status: { type: "string", enum: ["open", "closed"] },
       title: { type: "string", sanitize: true, maxLength: 128 },
       body: { type: "string", sanitize: true, maxLength: 65000 },
+      confidence: { type: "number", minimum: 0, maximum: 100 },
       issue_number: { issueOrPRNumber: true },
     },
   },
@@ -703,6 +704,29 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.status).toBe("open");
+    });
+
+    describe("number range validation", () => {
+      it("should accept confidence within range", async () => {
+        const { validateItem } = await import("./safe_output_type_validator.cjs");
+        const result = validateItem({ type: "update_issue", status: "open", confidence: 75 }, "update_issue", 1);
+        expect(result.isValid).toBe(true);
+        expect(result.normalizedItem.confidence).toBe(75);
+      });
+
+      it("should reject confidence below minimum", async () => {
+        const { validateItem } = await import("./safe_output_type_validator.cjs");
+        const result = validateItem({ type: "update_issue", status: "open", confidence: -1 }, "update_issue", 1);
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain("must be >= 0");
+      });
+
+      it("should reject confidence above maximum", async () => {
+        const { validateItem } = await import("./safe_output_type_validator.cjs");
+        const result = validateItem({ type: "update_issue", status: "open", confidence: 101 }, "update_issue", 1);
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain("must be <= 100");
+      });
     });
 
     it("should reject invalid enum value", async () => {

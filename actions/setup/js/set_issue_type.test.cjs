@@ -88,6 +88,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       type: "set_issue_type",
       issue_number: 42,
       issue_type: "Bug",
+      confidence: 88,
     };
 
     const result = await handler(message, {});
@@ -95,12 +96,13 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     expect(result.success).toBe(true);
     expect(result.issue_number).toBe(42);
     expect(result.issue_type).toBe("Bug");
+    expect(result.confidence).toBe(88);
     expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
       issue_number: 42,
     });
-    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.objectContaining({ issueId: issueNodeId, typeId: bugTypeId }));
+    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.objectContaining({ issueId: issueNodeId, typeId: bugTypeId, confidence: 88 }));
   });
 
   it("should clear issue type when issue_type is empty string", async () => {

@@ -182,12 +182,13 @@ function buildFieldUpdatePayload(field, rawValue) {
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} issueNodeId - GraphQL node ID of the issue
  * @param {{fieldId: string, singleSelectOptionId?: string, numberValue?: number, dateValue?: string, textValue?: string}} fieldUpdate
+ * @param {number|undefined} confidence - Optional confidence score (0-100)
  * @returns {Promise<void>}
  */
-async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
+async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, confidence) {
   await githubClient.graphql(
-    `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!) {
-      setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields }) {
+    `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!, $confidence: Int) {
+      setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields, confidence: $confidence }) {
         issue {
           id
         }
@@ -196,6 +197,7 @@ async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
     {
       issueId: issueNodeId,
       issueFields: [fieldUpdate],
+      confidence,
     }
   );
 }
@@ -300,6 +302,7 @@ async function main(config = {}) {
           field_name: fieldName,
           field_node_id: fieldNodeId,
           value,
+          confidence: typeof item.confidence === "number" ? item.confidence : undefined,
           repo: itemRepo,
         },
       };
@@ -374,7 +377,8 @@ async function main(config = {}) {
         ...fieldUpdateResult.update,
       };
 
-      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate);
+      const confidence = typeof item.confidence === "number" ? item.confidence : undefined;
+      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, confidence);
 
       core.info(`Successfully set issue field ${JSON.stringify(fieldName || fieldNodeId)} to ${JSON.stringify(value)} on issue #${issueNumber}`);
 
@@ -384,6 +388,7 @@ async function main(config = {}) {
         field_name: fieldName,
         field_node_id: fieldNodeId,
         value,
+        confidence,
         repo: itemRepo,
       };
     } catch (error) {
