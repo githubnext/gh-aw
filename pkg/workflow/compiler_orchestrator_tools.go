@@ -334,7 +334,7 @@ func (c *Compiler) resolveMarkdownArtifacts(
 	mainWorkflowMarkdown := markdownContent
 	orchestratorToolsLog.Printf("Main workflow markdown: %d bytes", len(mainWorkflowMarkdown))
 	importPaths := append([]string{}, importsResult.ImportPaths...)
-	promptImports := append([]parser.PromptImportEntry{}, importsResult.PromptImports...)
+	promptImports := append([]parser.PromptImportEntry(nil), importsResult.PromptImports...)
 	if len(importPaths) > 0 {
 		orchestratorToolsLog.Printf("Found %d import paths for runtime-import macros", len(importPaths))
 	}

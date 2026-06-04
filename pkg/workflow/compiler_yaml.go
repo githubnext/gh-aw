@@ -487,7 +487,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// - compile-time inlined markdown (imports with inputs)
 	// - runtime-import macros (imports without inputs)
 	// In older workflow data (without PromptImports), fall back to legacy grouped handling.
-	if data.PromptImports != nil {
+	if len(data.PromptImports) > 0 {
 		compilerYamlLog.Printf("Processing %d ordered prompt import entries", len(data.PromptImports))
 		workspaceRoot := ""
 		hasImportInputs := len(data.ImportInputs) > 0
