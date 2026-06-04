@@ -133,7 +133,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"issue_number": {IssueOrPRNumber: true},
 			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128}, // Empty string clears the type
 			"confidence":   {Type: "number", Minimum: 0, Maximum: 100},
-			"repo":         {Type: "string", MaxLength: 256},                                 // Optional: target repository in format "owner/repo"
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"set_issue_field": {
