@@ -113,8 +113,7 @@ func renderConsole(data AuditData, logsPath string) {
 
 	// Token usage (if firewall data present)
 	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
-		const tokenUsageLineFormat = "  tokens: in=%s out=%s cache_read=%s reqs=%d steering=%d\n"
-		fmt.Fprintf(os.Stderr, tokenUsageLineFormat,
+		fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d steering=%d\n",
 			console.FormatNumber(data.FirewallTokenUsage.TotalInputTokens),
 			console.FormatNumber(data.FirewallTokenUsage.TotalOutputTokens),
 			console.FormatNumber(data.FirewallTokenUsage.TotalCacheReadTokens),

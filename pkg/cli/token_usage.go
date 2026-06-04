@@ -520,7 +520,7 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || (!strings.Contains(line, "steering") && !strings.Contains(line, "STEERING")) {
+		if line == "" || !containsSteeringKeyword(line) {
 			continue
 		}
 		var entry map[string]any
@@ -555,6 +555,15 @@ func coalesceString(values ...any) string {
 	return ""
 }
 
+func containsSteeringKeyword(line string) bool {
+	return strings.Contains(line, "steering") ||
+		strings.Contains(line, "STEERING") ||
+		strings.Contains(line, "Steering")
+}
+
+// isSteeringEventName matches known API proxy steering event names.
+// It supports exact token_steering/steering values and *_steering suffixes to
+// tolerate schema variants emitted by different proxy versions.
 func isSteeringEventName(eventName string) bool {
 	return eventName == tokenSteeringEventName ||
 		eventName == genericSteeringEventName ||
