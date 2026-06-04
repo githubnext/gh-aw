@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -729,20 +730,7 @@ func mergeEventConfig(existing any, incoming any) any {
 	existingTypes, existingTypesOK := parseEventTypes(existingMap["types"])
 	incomingTypes, incomingTypesOK := parseEventTypes(incomingMap["types"])
 	if existingTypesOK && incomingTypesOK {
-		seen := make(map[string]bool, safeAllocationCapacity(len(existingTypes), len(incomingTypes)))
-		combined := make([]string, 0, safeAllocationCapacity(len(existingTypes), len(incomingTypes)))
-		for _, eventType := range existingTypes {
-			if !seen[eventType] {
-				seen[eventType] = true
-				combined = append(combined, eventType)
-			}
-		}
-		for _, eventType := range incomingTypes {
-			if !seen[eventType] {
-				seen[eventType] = true
-				combined = append(combined, eventType)
-			}
-		}
+		combined := sliceutil.MergeUnique(existingTypes, incomingTypes...)
 		merged["types"] = combined
 	}
 
