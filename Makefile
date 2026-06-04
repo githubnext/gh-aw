@@ -653,11 +653,11 @@ MODELS_DEV_MODELS_JSON_URL ?= https://raw.githubusercontent.com/anomalyco/models
 refresh-models-json:
 	@echo "Refreshing models.json from $(MODELS_DEV_MODELS_JSON_URL)..."
 	@tmp=$$(mktemp); \
-	curl -fsSL "$(MODELS_DEV_MODELS_JSON_URL)" | jq '.' > "$$tmp"; \
+	curl -fsSL "$(MODELS_DEV_MODELS_JSON_URL)" | jq '.data |= map(select(.id | test("^(github|anthropic|openai)/")))' > "$$tmp"; \
 	cp "$$tmp" pkg/cli/data/models.json; \
 	cp "$$tmp" actions/setup/js/models.json; \
 	rm -f "$$tmp"; \
-	echo "✓ Refreshed pkg/cli/data/models.json and actions/setup/js/models.json"
+	echo "✓ Refreshed pkg/cli/data/models.json and actions/setup/js/models.json (github/anthropic/openai only)"
 
 # Check file sizes and function counts
 .PHONY: check-file-sizes
