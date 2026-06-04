@@ -182,15 +182,16 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
  * @param {string} branchName - Target branch name
  * @param {string} originalAgentBranch - Original source branch name from the agent, if different
  * @param {{ exec: Function, getExecOutput: Function }} execApi - GitHub Actions exec API
+ * @param {string} [baseBranch] - Base branch name (used for iterative shallow-clone deepening)
  * @returns {Promise<void>}
  */
-async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, execApi) {
+async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, execApi, baseBranch) {
   let bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
   const bundleTargetRef = `refs/heads/${branchName}`;
   const bundleTempRef = createBundleTempRef(branchName);
 
   try {
-    await ensureFullHistoryForBundle(execApi);
+    await ensureFullHistoryForBundle(execApi, {}, { baseRef: baseBranch, bundleFilePath });
     core.info(`Applying bundle ${bundleFilePath} to ${bundleTargetRef} using temp ref ${bundleTempRef} from ${bundleBranchRef}`);
 
     // Fetch from bundle into a temporary ref, then update the target branch.
@@ -1478,7 +1479,7 @@ async function main(config = {}) {
         // unlike git format-patch which flattens history and drops merge resolution content.
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         try {
-          await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec);
+          await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec, baseBranch);
         } catch (bundleError) {
           core.error(`Failed to apply bundle: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
           return { success: false, error: "Failed to apply bundle" };
