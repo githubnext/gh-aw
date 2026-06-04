@@ -3563,7 +3563,7 @@ describe("sendJobConclusionSpan", () => {
     const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/agent-stdio.log") {
-        return ["[ERROR] Permission denied while running tool", "EACCES: permission denied", "EPERM operation not permitted", "permission denied count: 7", '{"type":"result","num_turns":2}'].join("\n");
+        return ["[ERROR] Permission denied while running tool", "EACCES: permission denied", "EPERM operation not permitted", "permission denied count: 7", "permissions denied counts: 4", '{"type":"result","num_turns":2}'].join("\n");
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
