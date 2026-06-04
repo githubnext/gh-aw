@@ -7,8 +7,6 @@ sidebar:
 
 An inline Copilot sub-agent is a named agent definition embedded directly in a workflow markdown file. Instead of creating a separate file in `.github/agents/`, you define the agent's frontmatter and instructions in a dedicated section of the same workflow file.
 
-Inline sub-agents are enabled by default. `features.inline-agents` is deprecated/no-op, and `inline-sub-agents: false` is rejected at compile time.
-
 ## Syntax
 
 Start a sub-agent block with a level-2 heading in the following form:

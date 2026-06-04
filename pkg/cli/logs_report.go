@@ -60,6 +60,7 @@ type LogsSummary struct {
 	TotalEffectiveTokens          int     `json:"total_effective_tokens" console:"header:Total Effective Tokens,format:number"`
 	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
 	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
+	TotalSteeringEvents           int     `json:"total_steering_events,omitempty" console:"header:Total Steering Events,format:number,omitempty"`
 	TotalErrors                   int     `json:"total_errors" console:"header:Total Errors"`
 	TotalWarnings                 int     `json:"total_warnings" console:"header:Total Warnings"`
 	TotalMissingTools             int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
@@ -160,6 +161,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalEffectiveTokens int
 	var totalActionMinutes float64
 	var totalTurns int
+	var totalSteeringEvents int
 	var totalErrors int
 	var totalWarnings int
 	var totalMissingTools int
@@ -193,6 +195,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalEffectiveTokens += run.EffectiveTokens
 		totalActionMinutes += run.ActionMinutes
 		totalTurns += run.Turns
+		if pr.TokenUsage != nil {
+			totalSteeringEvents += pr.TokenUsage.TotalSteeringEvents
+		}
 		totalErrors += run.ErrorCount
 		totalWarnings += run.WarningCount
 		totalMissingTools += run.MissingToolCount
@@ -341,6 +346,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalEffectiveTokens:          totalEffectiveTokens,
 		TotalActionMinutes:            totalActionMinutes,
 		TotalTurns:                    totalTurns,
+		TotalSteeringEvents:           totalSteeringEvents,
 		TotalErrors:                   totalErrors,
 		TotalWarnings:                 totalWarnings,
 		TotalMissingTools:             totalMissingTools,

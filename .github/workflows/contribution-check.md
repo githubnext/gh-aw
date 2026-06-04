@@ -18,7 +18,7 @@ env:
 engine:
   id: copilot
   agent: contribution-checker
-  max-continuations: 20
+  max-continuations: 25
 
 imports:
   - shared/otlp.md
@@ -101,6 +101,16 @@ steps:
         echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
       fi
 
+      full=$(cat "$GITHUB_WORKSPACE/contributing-guidelines.md")
+      if [ ${#full} -le 2000 ]; then
+        cp "$GITHUB_WORKSPACE/contributing-guidelines.md" \
+           "$GITHUB_WORKSPACE/contributing-guidelines-truncated.md"
+      else
+        printf '%s\n...\n%s' "${full:0:1500}" "${full: -500}" \
+          > "$GITHUB_WORKSPACE/contributing-guidelines-truncated.md"
+      fi
+      echo "✓ Wrote contributing-guidelines-truncated.md"
+
 
 ---
 
@@ -135,30 +145,17 @@ For each PR number in the comma-separated list, delegate evaluation to the **con
 
 ### How to dispatch
 
-Read the contents of `contributing-guidelines.md` from the workspace root. This file was pre-fetched in the `pre-agent` step and contains the target repository's contributing guidelines.
-
-Before injecting into any subagent prompt, **truncate the guidelines to at most 2,000 characters**: keep the first 1,500 characters and the last 500 characters. If the full content is 2,000 characters or shorter, use it as-is. This prevents token bloat when the target repository has a lengthy CONTRIBUTING.md.
-
-To build the truncated guidelines string, apply the following logic (pseudocode):
-
-```
-full = read("contributing-guidelines.md")
-if len(full) <= 2000:
-    guidelines = full
-else:
-    guidelines = full[:1500] + "\n...\n" + full[-500:]
-```
+Read the contents of `contributing-guidelines-truncated.md` from the workspace root. This file is prepared in the `pre-agent` step and already truncated to at most 2,000 characters.
 
 Call the contribution-checker subagent for each PR with this prompt:
 
 ```
-The CONTRIBUTING.md content for this repository is attached below (truncated to 2000 chars).
+The CONTRIBUTING.md content for this repository is attached below (already truncated to 2000 chars by the pre-agent step).
 Skip Step 1 — do not fetch CONTRIBUTING.md again.
+Do not call GitHub Actions APIs (do not list or read workflow runs). Focus exclusively on PR metadata, diff, and contributing guidelines.
 
 <contributing-guidelines>
-{first 1500 chars of contributing-guidelines.md}
-...
-{last 500 chars of contributing-guidelines.md}
+{contents of contributing-guidelines-truncated.md}
 </contributing-guidelines>
 
 Evaluate PR ${{ env.TARGET_REPOSITORY }}#<number> against the contribution guidelines.
@@ -231,8 +228,6 @@ If any subagent call failed (❓), also apply `outdated`.
 - Be constructive in assessments — these reports help maintainers prioritize, not gatekeep.
 - `noop` is global, not per-PR. Emit at most one consolidated noop for the entire workflow run.
 - If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
-
-{{#runtime-import shared/noop-reminder.md}}
 
 ## agent: `report-formatter`
 ---

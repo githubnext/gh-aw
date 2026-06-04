@@ -1625,11 +1625,6 @@ env:
 # Format 2: string
 env: "example-value"
 
-# Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by
-# default. Setting this to false is not supported and causes a compilation error.
-# (optional)
-inline-sub-agents: true
-
 # Feature flags and configuration options for experimental or optional features in
 # the workflow. Each feature can be a boolean flag or a string value. The
 # 'action-tag' feature (string) specifies the tag or SHA to use when referencing

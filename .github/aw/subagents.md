@@ -8,12 +8,6 @@ Inline sub-agents let you define specialised agents directly inside a workflow m
 
 ---
 
-## Enabling the Feature
-
-Inline sub-agent extraction is always on — no config needed. The deprecated `features.inline-agents` field and the unsupported `inline-sub-agents: false` field both fail compilation; remove them.
-
----
-
 ## Syntax
 
 Define a sub-agent with a level-2 Markdown heading of the form `## agent: \`name\``:
