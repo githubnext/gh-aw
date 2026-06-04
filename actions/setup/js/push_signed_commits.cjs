@@ -205,20 +205,11 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     return;
   }
 
-  const uniquePaths = Array.from(
-    new Set(
-      [...deletions.map(entry => entry.path), ...additions.map(entry => entry.path)]
-        .map(path => String(path || "").trim())
-        .filter(Boolean)
-    )
-  );
+  const uniquePaths = Array.from(new Set([...deletions.map(entry => entry.path), ...additions.map(entry => entry.path)].map(path => String(path || "").trim()).filter(Boolean)));
 
   const maxFilesRaw = Number.parseInt(String(validationConfig.max_patch_files ?? ""), 10);
   if (Number.isFinite(maxFilesRaw) && maxFilesRaw > 0 && uniquePaths.length > maxFilesRaw) {
-    throw new PushSignedCommitsPolicyViolation(
-      `E003: Signed-commit payload exceeds max-patch-files (${maxFilesRaw}). ` +
-        `Synthesized payload touches ${uniquePaths.length} file(s): ${uniquePaths.join(", ")}`
-    );
+    throw new PushSignedCommitsPolicyViolation(`E003: Signed-commit payload exceeds max-patch-files (${maxFilesRaw}). ` + `Synthesized payload touches ${uniquePaths.length} file(s): ${uniquePaths.join(", ")}`);
   }
 
   const maxSizeKbRaw = Number.parseInt(String(validationConfig.max_patch_size ?? ""), 10);
@@ -226,10 +217,7 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     const additionsBytes = additions.reduce((total, entry) => total + Buffer.from(entry.contents, "base64").length, 0);
     const additionsKb = Math.ceil(additionsBytes / 1024);
     if (additionsKb > maxSizeKbRaw) {
-      throw new PushSignedCommitsPolicyViolation(
-        `E003: Signed-commit payload exceeds max-patch-size (${maxSizeKbRaw} KB). ` +
-          `Synthesized payload additions total ${additionsKb} KB`
-      );
+      throw new PushSignedCommitsPolicyViolation(`E003: Signed-commit payload exceeds max-patch-size (${maxSizeKbRaw} KB). ` + `Synthesized payload additions total ${additionsKb} KB`);
     }
   }
 
@@ -238,9 +226,7 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     protected_files_policy: validationConfig.protected_files_policy ?? "request_review",
   });
   if (protection.action !== "allow") {
-    throw new PushSignedCommitsPolicyViolation(
-      `Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`
-    );
+    throw new PushSignedCommitsPolicyViolation(`Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`);
   }
 }
 
@@ -388,10 +374,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     }
   }
   if (firstReplayParentOid && firstGraphqlParentOid && firstReplayParentOid !== firstGraphqlParentOid && !graphqlParentIsAncestorOfHead) {
-    core.warning(
-      `pushSignedCommits: replay parent ${firstReplayParentOid} does not match GraphQL parent ${firstGraphqlParentOid}; ` +
-        `rebasing commit range before signed replay to avoid stale-base file synthesis`
-    );
+    core.warning(`pushSignedCommits: replay parent ${firstReplayParentOid} does not match GraphQL parent ${firstGraphqlParentOid}; ` + `rebasing commit range before signed replay to avoid stale-base file synthesis`);
     try {
       await exec.exec("git", ["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd });
     } catch (rebaseError) {
