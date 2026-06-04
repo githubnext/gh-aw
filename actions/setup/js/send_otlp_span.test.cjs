@@ -3623,7 +3623,14 @@ describe("sendJobConclusionSpan", () => {
     });
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl") {
-        return ['{"event":"token_steering","request_id":"r1"}', '{"type":"token_steering","request_id":"r2"}', '{"event":"steering","request_id":"r3"}', '{"event":"request","request_id":"r4"}', "not-json"].join("\n");
+        return [
+          '{"event":"token_steering","request_id":"r1"}',
+          '{"type":"token_steering","request_id":"r2"}',
+          '{"event":"steering","request_id":"r3"}',
+          '{"event":"TOKEN_STEERING","request_id":"r4"}',
+          '{"event":"request","request_id":"r5"}',
+          "not-json",
+        ].join("\n");
       }
       if (filePath === "/tmp/gh-aw/agent-stdio.log") {
         return '{"type":"result","num_turns":2}\n';
@@ -3639,7 +3646,7 @@ describe("sendJobConclusionSpan", () => {
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
-    expect(attrs["gh-aw.steering_event_count"]).toBe(3);
+    expect(attrs["gh-aw.steering_event_count"]).toBe(4);
   });
 
   it("emits gh-aw.otlp.export_errors on the conclusion job span", async () => {

@@ -1728,7 +1728,7 @@ function countSteeringEventsInApiProxyJsonl(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const rawLine of lines) {
     const line = rawLine.trim();
-    if (!line || !line.includes("steering")) {
+    if (!line || !line.toLowerCase().includes("steering")) {
       continue;
     }
     try {
