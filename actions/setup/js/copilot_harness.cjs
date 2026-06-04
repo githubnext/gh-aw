@@ -563,8 +563,8 @@ async function main() {
   // Resolve BYOK custom provider from live reflect data (SDK mode only).
   // BYOK is the only supported mode for SDK sessions — fail immediately if the provider
   // cannot be resolved so retries are not wasted on a misconfigured environment.
-  let sdkProviderBaseUrl = "";
-  let sdkResolvedModel = "";
+  let providerBaseUrl = "";
+  let resolvedModel = "";
   if (copilotSDKMode) {
     const configuredModel = process.env.COPILOT_MODEL || "";
     const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, reflectData: awfReflectData, logger: log });
@@ -572,9 +572,9 @@ async function main() {
       log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
       process.exit(1);
     }
-    sdkProviderBaseUrl = customProvider.provider.baseUrl;
-    sdkResolvedModel = customProvider.model;
-    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${sdkProviderBaseUrl} model=${sdkResolvedModel})`);
+    providerBaseUrl = customProvider.provider.baseUrl;
+    resolvedModel = customProvider.model;
+    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} model=${resolvedModel})`);
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -589,8 +589,8 @@ async function main() {
     ? {
         ...sdkEnv,
         COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
-        GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: sdkProviderBaseUrl,
-        COPILOT_MODEL: sdkResolvedModel,
+        GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: providerBaseUrl,
+        COPILOT_MODEL: resolvedModel,
       }
     : sdkEnv;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
