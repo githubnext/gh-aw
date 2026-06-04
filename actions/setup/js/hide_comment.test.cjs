@@ -148,6 +148,28 @@ describe("hide_comment.cjs", () => {
       expect(result.comment_id).toBe("IC_kwDOABCD123456");
     });
 
+    it("should fail when comment_id is an empty string", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ comment_id: "", reason: "SPAM" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("comment_id is required");
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+
+    it("should fail when comment_id is a whitespace-only string", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ comment_id: "   ", reason: "SPAM" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("comment_id is required");
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+
     it("should fail for invalid numeric comment_id", async () => {
       const { main } = await loadModule();
       const handler = await main();
@@ -156,6 +178,21 @@ describe("hide_comment.cjs", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe("comment_id must be a GraphQL node ID string or a positive numeric REST comment ID");
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+
+    it("should fail when repo context is unavailable for numeric comment_id", async () => {
+      global.context = { eventName: "issue_comment", payload: {} };
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ comment_id: 12345, reason: "SPAM" }, {});
+
+      global.context = mockContext;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("repository context");
+      expect(mockGithub.rest.issues.getComment).not.toHaveBeenCalled();
       expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
 

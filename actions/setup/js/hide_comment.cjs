@@ -128,7 +128,7 @@ async function main(config = {}) {
 
     try {
       const commentId = message.comment_id;
-      if (commentId === undefined || commentId === null) {
+      if (commentId === undefined || commentId === null || (typeof commentId === "string" && !commentId.trim())) {
         core.warning("comment_id is required");
         return {
           success: false,
