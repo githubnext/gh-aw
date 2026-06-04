@@ -407,9 +407,8 @@ Write the updated content back to
 ### 3. Build Community Section
 
 Start from `readme_community_section_tier012.md` (pre-formatted Tier 0-2 content).
-Insert Tier 3 entries (sorted, alphabetical author order). Append
-`### ⚠️ Attribution Candidates Need Review` section for Tier 4 items. Leave a
-blank line after `</details>`.
+Insert Tier 3 entries (sorted, alphabetical author order). Ignore Tier 4 items
+in `README.md` output. Leave a blank line after `</details>`.
 {{#else}}
 ### 3. Build the Community Contributions Section
 
@@ -443,18 +442,8 @@ above) so that the next markdown header renders correctly.
 - **`_(direct issue)_`** (Tier 0): issue closed as `COMPLETED`, no PR linkage
 - _(no suffix)_ (Tier 1/2): PR closes the issue via native close reference or keyword
 - **`_(via follow-up #M)_`** (Tier 3): indirect chain through a follow-up issue
-- Omit issues that cannot be attributed (see Attribution Candidates section below)
-
-If there are unattributed candidates (Tier 4), append after the `</details>` blank line:
-
-```markdown
-### ⚠️ Attribution Candidates Need Review
-
-The following community issues were closed but could not be automatically
-linked to a specific merged PR. Please verify whether they should be credited:
-
-- **@author** for [Issue title](#N) — closed DATE
-```
+- Omit issues that cannot be attributed (Tier 4); do not render an attribution
+  candidates section in `README.md`
 {{#endif}}
 
 {{#if experiments.prompt_style == 'concise'}}
