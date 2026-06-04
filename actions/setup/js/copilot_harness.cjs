@@ -538,14 +538,6 @@ async function main() {
     log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }
-  // Merge SDK env additions into the child process env only when the SDK helper
-  // returned at least one variable; otherwise leave the env undefined so that
-  // runProcess inherits the full process.env (the common case).
-  // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
-  // Always attach the generated per-run COPILOT_CONNECTION_TOKEN so both the sidecar
-  // (started by the harness) and the SDK client share the same token.
-  const sdkChildEnv = copilotSDKMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
-  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
   // In driver mode the args are the driver command + copilot binary path; no stdin payload.
   // In CLI mode, args are resolved to inline prompt text.
@@ -556,12 +548,45 @@ async function main() {
     resolvedArgs = resolvePromptFileArgs(args);
   }
 
-  // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
-  // This is best-effort: failures are logged but do not affect the agent run.
+  // Fetch AWF API proxy reflection data before running the agent.
+  // In SDK/BYOK mode the live data is used immediately to resolve the custom provider
+  // configuration that is injected into the driver subprocess environment.
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+  let awfReflectData = null;
   if (process.env.AWF_REFLECT_ENABLED === "1") {
-    await fetchAWFReflect({ logger: log });
+    const reflectResult = await fetchAWFReflect({ logger: log });
+    if (reflectResult.ok && reflectResult.reflectData) {
+      awfReflectData = reflectResult.reflectData;
+    }
   }
+
+  // Resolve BYOK custom provider from live reflect data (SDK mode only).
+  // BYOK is the only supported mode for SDK sessions — fail immediately if the provider
+  // cannot be resolved so retries are not wasted on a misconfigured environment.
+  let sdkProviderBaseUrl = "";
+  if (copilotSDKMode) {
+    const configuredModel = process.env.COPILOT_MODEL || "";
+    const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, reflectData: awfReflectData, logger: log });
+    if (!customProvider) {
+      log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
+      process.exit(1);
+    }
+    sdkProviderBaseUrl = customProvider.provider.baseUrl;
+    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${sdkProviderBaseUrl})`);
+  }
+
+  // Merge SDK env additions into the child process env only when the SDK helper
+  // returned at least one variable; otherwise leave the env undefined so that
+  // runProcess inherits the full process.env (the common case).
+  // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
+  // Always attach the generated per-run COPILOT_CONNECTION_TOKEN so both the sidecar
+  // (started by the harness) and the SDK client share the same token.
+  // In SDK mode also inject the resolved BYOK provider base URL so the driver subprocess
+  // does not need to re-read the reflect file.
+  const sdkChildEnv = copilotSDKMode
+    ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken, GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: sdkProviderBaseUrl }
+    : sdkEnv;
+  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;

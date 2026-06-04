@@ -39,7 +39,6 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { resolveCopilotSDKCustomProviderFromReflect } = require("./awf_reflect.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -493,21 +492,19 @@ async function main() {
 
   log(`connecting to sidecar at ${sdkUri}`);
 
-  // --- Resolve custom provider from AWF reflect data ------------------
-  // In offline+BYOK mode COPILOT_GITHUB_TOKEN is unset by the AWF entrypoint.
-  // The SDK server and client must use a custom provider pointing at the AWF
-  // API proxy instead of token-based Copilot auth.  The AWF harness fetches
-  // the /reflect payload before launching the driver, so the file is available
-  // at the well-known path when this function runs.
-  const customProvider = resolveCopilotSDKCustomProviderFromReflect({
-    model,
-    logger: log,
-  });
-  const provider = customProvider ? customProvider.provider : undefined;
-  // When the reflect data provides a model, prefer it over the env-var model so
-  // the provider and model stay consistent (e.g. BYOK endpoint may enforce a
-  // specific model ID).
-  const resolvedModel = customProvider ? customProvider.model : model;
+  // --- Resolve BYOK custom provider from environment ------------------
+  // The harness resolves the BYOK provider from live AWF reflect data before launching
+  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL.
+  // BYOK is the only supported mode — fail immediately if the env var is missing.
+  const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
+  if (!providerBaseUrl) {
+    process.stderr.write(
+      "[copilot-sdk-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " +
+        "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n"
+    );
+    process.exit(1);
+  }
+  const provider = /** @type {import("@github/copilot-sdk").ProviderConfig} */ ({ type: "openai", baseUrl: providerBaseUrl });
 
   // --- Run SDK session -------------------------------------------------
 
@@ -515,7 +512,7 @@ async function main() {
     sdkUri,
     prompt,
     logger: log,
-    model: resolvedModel,
+    model,
     connectionToken,
     provider,
   });

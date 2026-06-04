@@ -245,6 +245,7 @@ describe("awf_reflect.cjs", () => {
           reflectUrl: "http://api-proxy:10000/reflect",
           outputPath,
           bytesWritten: expect.any(Number),
+          reflectData: expect.objectContaining({ endpoints: expect.any(Array) }),
         });
         const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
@@ -388,6 +389,33 @@ describe("awf_reflect.cjs", () => {
       });
       expect(result).toBeNull();
       expect(logs.some(l => l.includes("unable to read custom provider config"))).toBe(true);
+    });
+
+    it("resolves provider from live reflectData without touching the file system", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10003, configured: true, models: ["gpt-5.4"] }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
+        model: "gpt-5.4",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10003" },
+      });
+    });
+
+    it("returns null when reflectData has no configured endpoints", () => {
+      const logs = [];
+      const result = resolveCopilotSDKCustomProviderFromReflect({
+        reflectData: { endpoints: [{ provider: "copilot", port: 10002, configured: false, models: ["gpt-4o"] }] },
+        logger: msg => logs.push(msg),
+      });
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
+    });
+
+    it("returns null when reflectData is null", () => {
+      const logs = [];
+      const result = resolveCopilotSDKCustomProviderFromReflect({ reflectData: null, logger: msg => logs.push(msg) });
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
     });
   });
 });
