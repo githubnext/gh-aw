@@ -121,6 +121,8 @@ const agentUsageJSONPath = "agent_usage.json"
 const modelMismatchReasonTokenUsageMissing = "TOKEN_USAGE_MISSING"
 const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
+const tokenSteeringEventName = "token_steering"
+const genericSteeringEventName = "steering"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -518,7 +520,7 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || !strings.Contains(strings.ToLower(line), "steering") {
+		if line == "" || (!strings.Contains(line, "steering") && !strings.Contains(line, "STEERING")) {
 			continue
 		}
 		var entry map[string]any
@@ -534,7 +536,7 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 		if eventName == "" {
 			continue
 		}
-		if eventName == "token_steering" || strings.HasSuffix(eventName, "_steering") || eventName == "steering" {
+		if isSteeringEventName(eventName) {
 			count++
 		}
 	}
@@ -551,6 +553,12 @@ func coalesceString(values ...any) string {
 		}
 	}
 	return ""
+}
+
+func isSteeringEventName(eventName string) bool {
+	return eventName == tokenSteeringEventName ||
+		eventName == genericSteeringEventName ||
+		strings.HasSuffix(eventName, "_steering")
 }
 
 func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) {
