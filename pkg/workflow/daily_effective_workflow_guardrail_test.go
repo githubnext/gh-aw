@@ -64,7 +64,7 @@ func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: 100M
+max-daily-effective-tokens: 100_000_000
 safe-outputs:
   add-comment:
     max: 1
@@ -226,7 +226,7 @@ Daily guardrail via env var`
 	}
 }
 
-func TestDailyETGuardrailNegativeDisable(t *testing.T) {
+func TestDailyETGuardrailNegativeValueRejected(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-explicit-disable-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail-explicit-disable.md")
 
@@ -247,24 +247,11 @@ Explicitly disable daily guardrail`
 	}
 
 	compiler := NewCompiler()
-	if err := compiler.CompileWorkflow(workflowFile); err != nil {
-		t.Fatalf("failed to compile workflow: %v", err)
+	err := compiler.CompileWorkflow(workflowFile)
+	if err == nil {
+		t.Fatal("expected compile to fail for negative max-daily-effective-tokens")
 	}
-
-	lockFile := stringutil.MarkdownToLockFile(workflowFile)
-	lockContent, err := os.ReadFile(lockFile)
-	if err != nil {
-		t.Fatalf("failed to read lock file: %v", err)
-	}
-	lockStr := string(lockContent)
-
-	if strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
-		t.Fatal("expected explicit negative workflow threshold to suppress guardrail step emission")
-	}
-	if strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
-		t.Fatal("expected explicit negative workflow threshold to suppress daily ET output wiring")
-	}
-	if strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
-		t.Fatal("expected explicit negative workflow threshold to suppress dynamic artifact client gating")
+	if !strings.Contains(err.Error(), "must be at least 0") {
+		t.Fatalf("expected minimum value validation error, got: %v", err)
 	}
 }

@@ -223,6 +223,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
           cat << 'GH_AW_PROMPT_NORM_EOF'
           </system>
+          {{#runtime-import shared/gh.md}}
+          {{#runtime-import shared/reporting.md}}
+          {{#runtime-import shared/github-queries-mcp-script.md}}
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -252,11 +255,6 @@ jobs:
           2. **Activate project first** — always call `activate_project` before other tools
           3. **Cross-reference findings** — validate with multiple tools for accuracy
           4. **Focus on the relevant language files** — ignore unrelated file types
-          
-          
-          {{#runtime-import shared/gh.md}}
-          {{#runtime-import shared/reporting.md}}
-          {{#runtime-import shared/github-queries-mcp-script.md}}
           # Smoke Test: Copilot Engine Validation
           
           **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**

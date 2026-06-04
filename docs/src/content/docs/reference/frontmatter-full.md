@@ -1625,11 +1625,6 @@ env:
 # Format 2: string
 env: "example-value"
 
-# Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by
-# default. Setting this to false is not supported and causes a compilation error.
-# (optional)
-inline-sub-agents: true
-
 # Feature flags and configuration options for experimental or optional features in
 # the workflow. Each feature can be a boolean flag or a string value. The
 # 'action-tag' feature (string) specifies the tag or SHA to use when referencing
@@ -7727,45 +7722,6 @@ user-rate-limit:
   # 'maintain', 'write'] if not specified. Users with any of these roles will not be
   # subject to rate limiting checks. To apply rate limiting to all users, set to an
   # empty array: []
-  # (optional)
-  ignored-roles: []
-    # Array of strings
-
-# Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with
-# 'max-runs-per-window'.
-# (optional)
-rate-limit:
-  # Legacy maximum runs key. Prefer 'max-runs-per-window'.
-  # (optional)
-  # Accepted formats:
-
-  # Format 1: integer
-  max-runs: 1
-
-  # Format 2: GitHub Actions expression that resolves to an integer at runtime
-  max-runs: "example-value"
-
-  # Legacy maximum runs key. Prefer 'max-runs-per-window'.
-  # (optional)
-  # Accepted formats:
-
-  # Format 1: integer
-  max: 1
-
-  # Format 2: GitHub Actions expression that resolves to an integer at runtime
-  max: "example-value"
-
-  # Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180
-  # (3 hours).
-  # (optional)
-  window: 1
-
-  # Optional list of event types to apply rate limiting to.
-  # (optional)
-  events: []
-    # Array of strings
-
-  # Optional list of roles that are exempt from rate limiting.
   # (optional)
   ignored-roles: []
     # Array of strings

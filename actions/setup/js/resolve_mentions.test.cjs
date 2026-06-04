@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const mockCore = { info: vi.fn(), warning: vi.fn() },
   mockGithub = { rest: { repos: { listCollaborators: vi.fn(), getCollaboratorPermissionLevel: vi.fn() }, users: { getByUsername: vi.fn() } } };
 ((global.core = mockCore), (global.github = mockGithub));
-const { extractMentions, isPayloadUserBot, getRecentCollaborators, checkUserPermission, resolveMentionsLazily } = require("./resolve_mentions.cjs");
+const { extractMentions, isPayloadUserBot, getRecentCollaborators, checkUserPermission, resolveMentionsLazily, resetMentionResolutionCaches } = require("./resolve_mentions.cjs");
 describe("resolve_mentions.cjs", () => {
   (beforeEach(() => {
     vi.clearAllMocks();
+    resetMentionResolutionCaches();
   }),
     describe("extractMentions", () => {
       (it("should extract single mention", () => {
@@ -157,6 +158,21 @@ describe("resolve_mentions.cjs", () => {
           (await resolveMentionsLazily("Hello @author1 @maintainer1", ["author1"], "owner", "repo", mockGithub, mockCore),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 2 unique mentions")),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Total allowed mentions")));
+        }),
+        it("should skip collaborator lookups when text has no mentions", async () => {
+          const result = await resolveMentionsLazily("Hello world", [], "owner", "repo", mockGithub, mockCore);
+          expect(result).toMatchObject({ allowedMentions: [], totalMentions: 0, resolvedCount: 0, limitExceeded: false });
+          expect(mockGithub.rest.repos.listCollaborators).not.toHaveBeenCalled();
+          expect(mockGithub.rest.users.getByUsername).not.toHaveBeenCalled();
+          expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+        }),
+        it("should reuse cached collaborator list across repeated resolution calls", async () => {
+          mockGithub.rest.repos.listCollaborators.mockResolvedValue({ data: [{ login: "maintainer1", type: "User", permissions: { maintain: true, admin: false, push: false } }] });
+
+          await resolveMentionsLazily("Hello @maintainer1", [], "owner", "repo", mockGithub, mockCore);
+          await resolveMentionsLazily("Hello @maintainer1", [], "owner", "repo", mockGithub, mockCore);
+
+          expect(mockGithub.rest.repos.listCollaborators).toHaveBeenCalledTimes(1);
         }));
     }));
 });

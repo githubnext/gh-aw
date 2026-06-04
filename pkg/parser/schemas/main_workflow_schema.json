@@ -2713,11 +2713,6 @@
         }
       ]
     },
-    "inline-sub-agents": {
-      "type": "boolean",
-      "description": "Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by default. Setting this to false is not supported and causes a compilation error.",
-      "examples": [true]
-    },
     "features": {
       "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only).",
       "type": "object",
@@ -3690,12 +3685,12 @@
       "examples": [15, "${{ inputs.max-turns }}"]
     },
     "max-effective-tokens": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/max_effective_tokens_limit",
       "default": 25000000,
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/max_daily_effective_tokens_limit",
       "description": "24-hour effective-token guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
@@ -9870,68 +9865,6 @@
         }
       ]
     },
-    "rate-limit": {
-      "type": "object",
-      "description": "Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with 'max-runs-per-window'.",
-      "properties": {
-        "max-runs": {
-          "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
-          "oneOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 10
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to an integer at runtime"
-            }
-          ]
-        },
-        "max": {
-          "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
-          "oneOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 10
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to an integer at runtime"
-            }
-          ]
-        },
-        "window": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 180,
-          "default": 60,
-          "description": "Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180 (3 hours)."
-        },
-        "events": {
-          "type": "array",
-          "description": "Optional list of event types to apply rate limiting to.",
-          "items": {
-            "type": "string",
-            "enum": ["workflow_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "issues", "pull_request", "discussion_comment", "discussion"]
-          },
-          "minItems": 1
-        },
-        "ignored-roles": {
-          "type": "array",
-          "description": "Optional list of roles that are exempt from rate limiting.",
-          "items": {
-            "type": "string",
-            "enum": ["admin", "maintain", "write", "triage", "read"]
-          },
-          "minItems": 0
-        }
-      },
-      "additionalProperties": false
-    },
     "strict": {
       "type": "boolean",
       "default": true,
@@ -10542,50 +10475,42 @@
       ],
       "description": "Positive integer as a string (supports optional K/M suffix) or a GitHub Actions expression."
     },
-    "max_effective_tokens_limit": {
+    "positive_effective_tokens_limit": {
       "oneOf": [
         {
           "type": "integer",
-          "not": {
-            "enum": [0]
-          },
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
+          "minimum": 1
         },
         {
-          "allOf": [
-            {
-              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-            }
-          ],
-          "description": "Maximum effective-token (ET) budget as a numeric string (supports K/M suffix) or GitHub Actions expression."
+          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+        }
+      ]
+    },
+    "max_effective_tokens_limit": {
+      "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Use a negative integer to disable budget enforcement and token steering.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/positive_effective_tokens_limit"
+        },
+        {
+          "type": "integer",
+          "maximum": -1
         }
       ]
     },
     "max_daily_effective_tokens_limit": {
+      "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable.",
       "oneOf": [
         {
+          "$ref": "#/$defs/positive_effective_tokens_limit"
+        },
+        {
           "type": "integer",
-          "oneOf": [
-            {
-              "const": -1
-            },
-            {
-              "minimum": 1
-            }
-          ],
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
+          "const": -1
         },
         {
           "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^-1$"
-            },
-            {
-              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-            }
-          ],
-          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string (supports K/M suffix) or GitHub Actions expression. Use -1 to disable."
+          "pattern": "^-1$"
         }
       ]
     },
