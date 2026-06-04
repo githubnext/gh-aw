@@ -176,30 +176,23 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 
 ## Test Requirements
 
-1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
-3. **Serena CLI Testing**: 
-   - Use bash to run `serena activate_project --path ${{ github.workspace }}` to initialize the workspace and verify it succeeds (do NOT use bash to run go commands - use the serena CLI only)
-   - After initialization, use bash to run `serena find_symbol --name_path <symbol>` to search for symbols and verify that at least 3 symbols are found in the results
-4. **Playwright CLI Testing**: Use bash to run `playwright-cli open https://github.com` to navigate to <https://github.com>, then `playwright-cli screenshot` to take a screenshot and verify that the output indicates a successful navigation to "GitHub" (do NOT try to install playwright - use the `playwright-cli` command via bash only)
-5. **Web Fetch Testing**: Use the web-fetch tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch tool directly)
-6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-8. **Discussion Interaction Testing**: 
-   - Use the `github-discussion-query` mcp-script tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
-   - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
-   - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, playful comment stating that the smoke test agent was here
-9. **Build gh-aw**: Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set under `/tmp/gh-aw/agent` because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
-10. **Upload gh-aw binary as artifact**: After a successful build, use bash to copy the `./gh-aw` binary into the staging directory (`mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts && cp ./gh-aw $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw`), then call the `upload_artifact` safe-output tool with `path: "gh-aw"`. The `upload_artifact` tool is available and configured in this workflow run — use it directly, do NOT use `missing_tool` for it. Mark this test as ❌ if the build in step 9 failed.
-11. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated". Use the temporary ID `aw_smoke_discussion` for this discussion so you can reference it in the Output section.
-12. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
-13. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. To test `reply_to_pull_request_review_comment`: use the `pull_request_read` tool (with `method: "get_review_comments"` and `pullNumber: ${{ github.event.pull_request.number }}`) to fetch the PR's existing review comments, then reply to the most recent one using `reply_to_pull_request_review_comment` with its actual numeric `id` as the `comment_id`. Note: `create_pull_request_review_comment` does not return a `comment_id` — you must fetch existing comment IDs from the GitHub API. If the PR has no existing review comments, skip the reply sub-test.
-14. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
-15. **Sub-Agent Testing**: Use the `file-summarizer` agent to summarize `README.md`. Mark this test as ❌ if the sub-agent is unavailable or returns an error.
+Run these checks and mark each as ✅/❌:
 
-16. **Check Run Safe Output Testing**: Use the `create_check_run` safe-output tool to create a check run on the current commit:
-   - Use `conclusion: "success"`, `title: "Smoke Copilot - Run ${{ github.run_id }}"`, `summary: "All smoke tests completed."`, and `text: "Detailed results attached."`
-   - Verify the tool call succeeds
+1. GitHub MCP: review 2 merged PRs in `${{ github.repository }}`.
+2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
+3. Serena CLI (bash only): run `serena activate_project --path ${{ github.workspace }}`, then `serena find_symbol --name_path <symbol>` and confirm at least 3 symbols.
+4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.
+5. Web fetch tool: fetch `https://github.com` and confirm response contains `GitHub`.
+6. File + bash: create `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with timestamped success text, then `cat` it.
+7. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then `add_comment` to that discussion.
+8. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
+9. Artifact upload (only if build passes): stage `./gh-aw` at `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw` and call `upload_artifact` with `path: "gh-aw"`.
+10. Discussion create: call `create_discussion` in `announcements` with label `ai-generated`, title `copilot was here`, temp ID `aw_smoke_discussion`.
+11. Workflow dispatch: call `dispatch_workflow` for `haiku-printer` with an original testing/automation haiku.
+12. PR review tools: add 1-2 inline `create_pull_request_review_comment` comments, submit review with event `COMMENT`, then reply to most recent existing review comment ID when available.
+13. Comment memory: append an original 3-line haiku to `/tmp/gh-aw/comment-memory/*.md`.
+14. Sub-agent: use `file-summarizer` on `README.md`.
+15. Check run: call `create_check_run` with `conclusion=success`, title `Smoke Copilot - Run ${{ github.run_id }}`, summary `All smoke tests completed.`, text `Detailed results attached.`
 
 ## Output
 
