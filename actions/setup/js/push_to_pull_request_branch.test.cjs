@@ -1463,7 +1463,7 @@ index 0000000..abc1234
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
         const unshallowCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-        expect(unshallowCallIndex).toBe(-1);
+        expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
       } finally {
         pushSignedSpy.mockRestore();
       }

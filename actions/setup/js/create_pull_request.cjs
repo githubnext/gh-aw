@@ -1502,6 +1502,7 @@ async function main(config = {}) {
               signedCommits,
               resolvedTemporaryIds,
               currentRepo: itemRepo,
+              validationConfig: config,
             });
             core.info("Changes pushed to branch (from bundle)");
 
@@ -1534,6 +1535,7 @@ async function main(config = {}) {
                   signedCommits,
                   resolvedTemporaryIds,
                   currentRepo: itemRepo,
+                  validationConfig: config,
                 });
                 core.info("Changes pushed to branch after bundle rewrite retry");
 
@@ -1865,6 +1867,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 signedCommits,
                 resolvedTemporaryIds,
                 currentRepo: itemRepo,
+                validationConfig: config,
               });
               core.info("Changes pushed to branch");
 
@@ -2013,6 +2016,7 @@ ${patchPreview}`;
                 signedCommits,
                 resolvedTemporaryIds,
                 currentRepo: itemRepo,
+                validationConfig: config,
               });
               core.info("Empty branch pushed successfully");
 

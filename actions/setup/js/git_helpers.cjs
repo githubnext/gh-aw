@@ -158,9 +158,8 @@ function hasMergeCommitsInRange(baseRef, headRef, options = {}) {
  * depth-1 checkout may not contain those prerequisites, and `git fetch <bundle>`
  * can reject the bundle before the caller can update refs.
  *
- * IMPORTANT: Do not unshallow here. Full-history fetches are prohibitively
- * expensive for large monorepos. Callers recover from prerequisite failures by
- * fetching only the missing commit objects from origin and retrying.
+ * When the repository is shallow, unshallow once so bundle prerequisite ancestry
+ * and merge-base calculations can run against the current base branch safely.
  *
  * @param {{ getExecOutput: Function, exec: Function }} execApi - Exec API to run git commands.
  * @param {Object} [options] - Options passed through to exec calls.
@@ -176,7 +175,8 @@ async function ensureFullHistoryForBundle(execApi, options = {}) {
     return;
   }
   if (stdout.trim() === "true") {
-    core.info("Repository is shallow; skipping full-history fetch and relying on prerequisite recovery");
+    core.info("Repository is shallow; fetching full history before bundle processing");
+    await execApi.exec("git", ["fetch", "--unshallow", "origin"], options);
   }
 }
 

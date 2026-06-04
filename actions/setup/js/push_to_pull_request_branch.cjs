@@ -1072,6 +1072,7 @@ async function main(config = {}) {
           signedCommits,
           resolvedTemporaryIds,
           currentRepo: itemRepo,
+          validationConfig: config,
         });
         if (pushedSha) {
           pushedCommitSha = pushedSha;

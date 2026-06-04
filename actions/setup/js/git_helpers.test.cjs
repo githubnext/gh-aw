@@ -283,7 +283,7 @@ describe("git_helpers.cjs", () => {
   });
 
   describe("ensureFullHistoryForBundle", () => {
-    it("should not fetch full history when the repository is shallow", async () => {
+    it("should unshallow the repository when the repository is shallow", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
       const execApi = {
         getExecOutput: vi.fn().mockResolvedValue({ stdout: "true\n" }),
@@ -294,7 +294,7 @@ describe("git_helpers.cjs", () => {
       await ensureFullHistoryForBundle(execApi, options);
 
       expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["rev-parse", "--is-shallow-repository"], options);
-      expect(execApi.exec).not.toHaveBeenCalled();
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], options);
     });
 
     it("should not fetch full history when the repository is not shallow", async () => {

@@ -225,7 +225,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
     vi.clearAllMocks();
   });
 
-  it("should fetch bundle without forcing an unshallow fetch", async () => {
+  it("should unshallow before fetching bundle in shallow repositories", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
       patchPath,
@@ -265,7 +265,7 @@ index 0000000..abc1234
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
     const bundleFetchCallIndex = global.exec.getExecOutput.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-    expect(unshallowCallIndex).toBe(-1);
+    expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
     expect(bundleFetchCallIndex).toBeGreaterThanOrEqual(0);
   });
 
