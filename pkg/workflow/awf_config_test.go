@@ -1031,6 +1031,9 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// Should reference the config file via --config
 	assert.Contains(t, command, "--config", "expected --config flag in AWF invocation")
 
+	// Should pass the setup-copied pricing catalog by file path rather than embedding it inline.
+	assert.Contains(t, command, `export GH_AW_MODELS_JSON_PATH="${RUNNER_TEMP}/gh-aw/actions/models.json"`, "expected AWF command to export the setup-copied models.json path")
+
 	// Should NOT have --allow-domains as a CLI flag (moved to config file)
 	assert.NotContains(t, command, "--allow-domains", "expected --allow-domains to be absent from CLI args")
 
@@ -1146,15 +1149,18 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	// PathSetup, config write, and AWF invocation must all appear in order
 	pathSetupIdx := strings.Index(command, "GH_AW_NODE_BIN")
 	configWriteIdx := strings.Index(command, "awf-config.json")
+	modelsPathIdx := strings.Index(command, "GH_AW_MODELS_JSON_PATH")
 	awfIdx := strings.Index(command, "sudo -E awf")
 
 	assert.GreaterOrEqual(t, pathSetupIdx, 0, "path setup should appear in command")
 	assert.GreaterOrEqual(t, configWriteIdx, 0, "config file write should appear in command")
+	assert.GreaterOrEqual(t, modelsPathIdx, 0, "models.json path export should appear in command")
 	assert.GreaterOrEqual(t, awfIdx, 0, "AWF invocation should appear in command")
 
-	// Order must be: path setup → config write → AWF invocation
+	// Order must be: path setup → config write → models path export → AWF invocation
 	assert.Less(t, pathSetupIdx, configWriteIdx, "path setup must precede config file write")
-	assert.Less(t, configWriteIdx, awfIdx, "config file write must precede AWF invocation")
+	assert.Less(t, configWriteIdx, modelsPathIdx, "config file write must precede models.json path export")
+	assert.Less(t, modelsPathIdx, awfIdx, "models.json path export must precede AWF invocation")
 }
 
 func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {

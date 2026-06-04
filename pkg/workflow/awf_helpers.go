@@ -38,6 +38,7 @@ const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
+	awfModelsJSONPathExpr       = "${RUNNER_TEMP}/gh-aw/actions/models.json"
 	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
 	awfMergeModelMultipliersJS  = "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
@@ -106,6 +107,10 @@ func cloneWorkflowDataWithoutModelMultipliers(data *WorkflowData) *WorkflowData 
 
 func buildModelMultipliersFromFileScript() string {
 	return fmt.Sprintf(`GH_AW_MODEL_MULTIPLIERS_PATH=%q node "%s"`, awfModelMultipliersFilePath, awfMergeModelMultipliersJS)
+}
+
+func buildModelsJSONPathExportScript() string {
+	return fmt.Sprintf(`export GH_AW_MODELS_JSON_PATH="%s"`, awfModelsJSONPathExpr)
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
@@ -264,6 +269,7 @@ fi`,
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
 		awfHelpersLog.Print("Using AWF config file (--config flag)")
 	}
+	modelsJSONPathExport := buildModelsJSONPathExportScript()
 
 	// When upload_artifact is configured, add a read-write mount for the staging directory
 	// so the model can copy files there from inside the container. The parent ${RUNNER_TEMP}/gh-aw
@@ -312,6 +318,7 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
@@ -319,6 +326,7 @@ fi`,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
+			modelsJSONPathExport,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
@@ -336,12 +344,14 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
+			modelsJSONPathExport,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
@@ -358,12 +368,14 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
+			modelsJSONPathExport,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
@@ -379,11 +391,13 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
+			modelsJSONPathExport,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
