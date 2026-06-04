@@ -39,6 +39,11 @@ var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
 
+// copilotDefaultLogLevel is the default --log-level value passed to the Copilot CLI.
+// When ACTIONS_RUNNER_DEBUG=true the log level is elevated to "all" at runtime.
+// Users can override via the COPILOT_SDK_LOG_LEVEL environment variable.
+const copilotDefaultLogLevel = "info"
+
 // copilotSettingsPath is the path to the Copilot CLI settings file on GitHub Actions runners.
 // The Copilot CLI resolves its config directory as ~/.copilot, which on GitHub Actions
 // runners is /home/runner/.copilot (HOME=/home/runner).
@@ -119,7 +124,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	isBYOKMode := engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
 	if sandboxEnabled {
 		// Simplified args for sandbox mode (AWF)
-		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
+		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-dir", logsFolder}
 
 		// Note: --add-dir "${GITHUB_WORKSPACE}" is appended raw after shellJoinArgs below
 		// to allow shell variable expansion (cannot go through shellEscapeArg).
@@ -128,7 +133,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotExecLog.Print("Using firewall mode with simplified arguments")
 	} else {
 		// Original args for non-sandbox mode
-		copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", logsFolder}
+		copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-dir", logsFolder}
 		copilotExecLog.Print("Using standard mode with full arguments")
 	}
 
@@ -336,10 +341,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		//
 		// The driver appends --add-dir $GITHUB_WORKSPACE automatically when that env var
 		// is set, so addWorkspaceDir does not need to be signalled separately.
+		//
+		// --log-level defaults to copilotDefaultLogLevel ("info") here. The pathSetup /
+		// preCommandSetup shell snippet overrides GH_AW_COPILOT_SDK_SERVER_ARGS at runtime
+		// to use "all" when ACTIONS_RUNNER_DEBUG=true, or the user-supplied COPILOT_SDK_LOG_LEVEL.
 		serverArgs := append(
 			[]string{"--headless", "--no-auto-update", "--port", strconv.Itoa(constants.DefaultCopilotSDKPort)},
 			copilotArgs...,
 		)
+		serverArgs = append(serverArgs, "--log-level", copilotDefaultLogLevel)
 		serverArgsJSON, err := json.Marshal(serverArgs)
 		if err != nil {
 			// This should never happen with a plain string slice, but fall back to an
@@ -351,11 +361,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// No CLI args are appended; all options are in env vars.
 		copilotCommand = execPrefix
 	} else if sandboxEnabled {
-		// Sandbox mode: add workspace dir and pass prompt file path directly
-		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+		// Sandbox mode: add workspace dir and pass prompt file path directly.
+		// --log-level is resolved at runtime from GH_AW_COPILOT_LOG_LEVEL (set in pathSetup).
+		copilotCommand = fmt.Sprintf(`%s %s --log-level "${GH_AW_COPILOT_LOG_LEVEL}" --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	} else {
-		// Non-sandbox mode: pass prompt file path directly
-		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+		// Non-sandbox mode: pass prompt file path directly.
+		// --log-level is resolved at runtime from GH_AW_COPILOT_LOG_LEVEL (set in preCommandSetup).
+		copilotCommand = fmt.Sprintf(`%s %s --log-level "${GH_AW_COPILOT_LOG_LEVEL}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	}
 
 	// Conditionally wrap with sandbox (AWF only)
@@ -422,7 +434,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// shell-expanded, but this run: shell script is — $COPILOT_DUMMY_BYOK
 			// expands to the sentinel before sudo -E awf runs, and sudo -E preserves
 			// the variable for the AWF container.
-			"export COPILOT_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
+			"export COPILOT_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\"\n" +
+			// Compute the Copilot CLI log level at runner time and export it so AWF
+			// forwards it into the container via --env-all. The inner bash -c command
+			// then expands "${GH_AW_COPILOT_LOG_LEVEL}" when invoking copilot.
+			buildCopilotSDKLogLevelSetup(isCopilotSDKMode)
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}
@@ -471,6 +487,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Write the Copilot settings file before the agent runs to disable the rubber-duck
 		// sub-agent. This reduces token overhead and latency for Copilot engine runs.
 		preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + preCommandSetup
+		// Compute the Copilot CLI log level at runner time; the copilotCommand references
+		// "${GH_AW_COPILOT_LOG_LEVEL}" which bash expands in the same shell process.
+		preCommandSetup += buildCopilotSDKLogLevelSetup(isCopilotSDKMode)
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
@@ -764,9 +783,33 @@ func extractAddDirPaths(args []string) []string {
 	return dirs
 }
 
+// buildCopilotSDKLogLevelSetup returns the shell snippet that computes GH_AW_COPILOT_LOG_LEVEL
+// at runner time and exports it for use in the Copilot CLI --log-level argument.
+//
+// Priority (highest to lowest):
+//  1. COPILOT_SDK_LOG_LEVEL environment variable (user override)
+//  2. "all" when ACTIONS_RUNNER_DEBUG=true (GitHub Actions debug mode)
+//  3. "info" (default)
+//
+// For SDK mode (isCopilotSDKMode=true) it also overwrites GH_AW_COPILOT_SDK_SERVER_ARGS,
+// replacing the static "info" placeholder that was JSON-encoded at compile time with the
+// runtime-computed level. AWF's --env-all then forwards the updated variable into the
+// container, where the SDK sidecar reads it from the JSON.
+func buildCopilotSDKLogLevelSetup(isCopilotSDKMode bool) string {
+	setup := `GH_AW_COPILOT_LOG_LEVEL="${COPILOT_SDK_LOG_LEVEL:-$([ "${ACTIONS_RUNNER_DEBUG:-}" = "true" ] && echo all || echo info)}"` + "\n" +
+		"export GH_AW_COPILOT_LOG_LEVEL\n"
+	if isCopilotSDKMode {
+		// Replace the "info" placeholder in the JSON-encoded server args with the
+		// runtime log level. The JSON produced by json.Marshal is always compact
+		// ("--log-level","info") so this substitution is safe and unambiguous.
+		setup += `GH_AW_COPILOT_SDK_SERVER_ARGS="${GH_AW_COPILOT_SDK_SERVER_ARGS/\"--log-level\",\"info\"/\"--log-level\",\"${GH_AW_COPILOT_LOG_LEVEL}\"}"` + "\n" +
+			"export GH_AW_COPILOT_SDK_SERVER_ARGS\n"
+	}
+	return setup
+}
+
 func buildEngineCommandScriptSetup(command string) string {
-	// engine.command intentionally accepts shell-form commands from trusted workflow
-	// configuration authored in-repo; preserve shell semantics and forward driver args.
+	// engine.command intentionally accepts shell-form commands from trusted workflow	// configuration authored in-repo; preserve shell semantics and forward driver args.
 	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset +o histexpand\nset -eo pipefail\n%s \"$@\"\n", command)
 	heredocDelimiter := "GH_AW_ENGINE_COMMAND_EOF"
 	for strings.Contains(scriptContent, heredocDelimiter) {

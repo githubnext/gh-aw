@@ -284,6 +284,11 @@ const (
 	// while still managing sidecar start/stop itself.
 	CopilotSDKDriverEnvVar = "GH_AW_COPILOT_SDK_DRIVER"
 
+	// CopilotSDKLogLevelEnvVar is the environment variable users can set to override
+	// the Copilot CLI --log-level at runtime. When set, its value takes precedence over
+	// the ACTIONS_RUNNER_DEBUG-based "all" level and over the default "info" level.
+	CopilotSDKLogLevelEnvVar = "COPILOT_SDK_LOG_LEVEL"
+
 	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's
 	// runtime BYOK detection for Copilot offline mode. The real credential remains
 	// isolated in the AWF API proxy sidecar.

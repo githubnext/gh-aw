@@ -138,8 +138,18 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 
 	// When firewall is disabled, should use 'copilot' command (not npx)
-	if !strings.Contains(stepContent, "copilot") || !strings.Contains(stepContent, "--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir") {
-		t.Errorf("Expected command to contain 'copilot' and '--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "copilot") || !strings.Contains(stepContent, "--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-dir") {
+		t.Errorf("Expected command to contain 'copilot' and '--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-dir' in step content:\n%s", stepContent)
+	}
+
+	// The log level must be resolved dynamically at runtime via GH_AW_COPILOT_LOG_LEVEL.
+	if !strings.Contains(stepContent, `--log-level "${GH_AW_COPILOT_LOG_LEVEL}"`) {
+		t.Errorf("Expected command to contain '--log-level \"${GH_AW_COPILOT_LOG_LEVEL}\"' in step content:\n%s", stepContent)
+	}
+
+	// The setup snippet that computes GH_AW_COPILOT_LOG_LEVEL must be present.
+	if !strings.Contains(stepContent, "GH_AW_COPILOT_LOG_LEVEL=") {
+		t.Errorf("Expected step to compute GH_AW_COPILOT_LOG_LEVEL, got:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "/tmp/gh-aw/test.log") {
