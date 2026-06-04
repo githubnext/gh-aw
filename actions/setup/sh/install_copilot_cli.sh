@@ -233,16 +233,16 @@ resolve_version_from_compat() {
 
   if ! command -v jq >/dev/null 2>&1; then
     echo "ERROR: jq is required for compatibility matrix resolution." >&2
-    echo "ERROR: Install jq from https://jqlang.github.io/jq/download/" >&2
-    echo "ERROR: Install jq, or pass an explicit Copilot CLI version to bypass compat resolution." >&2
+    echo "ERROR: Install jq from https://jqlang.github.io/jq/download/ or pass an explicit Copilot CLI version to bypass compat resolution." >&2
     return 1
   fi
 
   if ! resolved_info="$(resolve_compat_with_jq "$compat_file" "$compiled_version" 2>&1)"; then
     if [ -n "$resolved_info" ]; then
-      echo "$resolved_info" >&2
+      echo "ERROR: Compatibility matrix resolution failed: ${resolved_info}" >&2
+    else
+      echo "ERROR: Compatibility matrix resolution failed." >&2
     fi
-    echo "ERROR: Compatibility matrix resolution failed." >&2
     return 1
   fi
 
