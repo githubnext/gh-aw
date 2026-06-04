@@ -387,7 +387,7 @@ When a workflow delegates specialized tasks to sub-agents, each sub-agent can us
 ```aw wrap
 engine:
   id: copilot
-  model: gpt-4.1
+  model: small
 permissions:
   pull-requests: read
 
@@ -405,19 +405,30 @@ Read the diff and return a single paragraph describing what changed and why.
 
 See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax.
 
-### Use Imports and Skills to Reduce Context
+### Use Inline Skills to Reduce Context
 
-Every token in the prompt costs money. Use `imports` to pull in only the tools and instructions each workflow actually needs, rather than a single shared file that loads everything:
-
-```aw wrap
-imports:
-  - shared/mcp/github-issues.md
-```
-
-For prompt bodies, use `#SectionName` to import a single section instead of an entire document:
+Move large instruction blocks out of the main prompt body using inline skills. At runtime, each `## skill:` block is extracted and written to engine-specific skill locations — the agent can invoke the skill on demand instead of receiving the guidance upfront, keeping the ambient context slim:
 
 ```aw wrap
-{{#runtime-import .github/shared/tone.md#EditorialVoice}}
+engine:
+  id: copilot
+  model: small
+permissions:
+  issues: read
+tools:
+  github:
+    toolsets: [issues]
+
+---
+
+Triage the issue using the `triage-rules` skill.
+
+## skill: `triage-rules`
+---
+description: Classify issues and suggest next actions.
+---
+Classify by bug / feature / question, identify missing information, and suggest
+the smallest actionable next step.
 ```
 
 > [!TIP]
@@ -479,7 +490,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
 - [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents with per-task model selection
-- [Imports](/gh-aw/reference/imports/) - Modularizing workflows to reduce ambient context
+- [Imports](/gh-aw/reference/imports/) - Sharing workflow components across multiple workflows
 - [BatchOps](/gh-aw/patterns/batch-ops/) - Grouping work items into scheduled batch runs
 - [MonitorOps](/gh-aw/patterns/monitor-ops/) - Scheduled monitoring and escalation for agentic workflows
 - [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Default model and guardrail precedence
