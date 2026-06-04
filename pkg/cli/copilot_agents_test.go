@@ -339,6 +339,7 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	if strings.Contains(content, ".github/agents/agentic-workflows") {
 		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
+	assert.Contains(t, content, "Design workflows from scratch via interview: `skills/agentic-workflow-designer/SKILL.md`")
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
@@ -369,6 +370,24 @@ func TestBuildAgenticWorkflowsSkillContentFallsBackToEmbeddedFileList(t *testing
 
 	assert.NotContains(t, content, agenticWorkflowsSkillFileListPlaceholder, "expected generated skill content to replace the file-list placeholder")
 	assert.Contains(t, content, "- `.github/aw/create-agentic-workflow.md`\n", "expected embedded fallback markdown file list to be used")
+	assert.Contains(t, content, "- `.github/skills/agentic-workflow-designer/SKILL.md`\n", "expected generated skill content to include agentic-workflow-designer skill")
+}
+
+func TestCheckedInAgenticWorkflowDesignerSkillMatchesEmbeddedTemplate(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "skills", "agentic-workflow-designer", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in workflow designer skill file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(agenticWorkflowDesignerSkillTemplate) {
+		t.Fatalf("Checked-in workflow designer skill file is out of sync with embedded template\nexpected:\n%s\nactual:\n%s", agenticWorkflowDesignerSkillTemplate, string(actual))
+	}
 }
 
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {

@@ -1446,6 +1446,21 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
   });
 });
 
+describe("push_repo_memory.cjs - changed-file limit checks", () => {
+  it("should enforce MAX_FILE_COUNT against changed files, not scanned wiki file count (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    expect(scriptContent).toContain("changedFileCount");
+    expect(scriptContent).toContain('execGitSync(["status", "--porcelain"])');
+    expect(scriptContent).toContain("Too many changed files");
+    expect(scriptContent).not.toContain("if (filesToCopy.length > maxFileCount)");
+    expect(scriptContent).toContain("if (changedFileCount > maxFileCount)");
+  });
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Signed-commit push tests
 // Verifies that push_repo_memory delegates to pushSignedCommits (GraphQL-based

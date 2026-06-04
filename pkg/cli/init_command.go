@@ -26,6 +26,7 @@ engine selection or secret configuration.
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates the dispatcher skill at .github/skills/agentic-workflows/SKILL.md
+- Creates the workflow designer skill at .github/skills/agentic-workflow-designer/SKILL.md
 - Creates the custom agent at .github/agents/agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)

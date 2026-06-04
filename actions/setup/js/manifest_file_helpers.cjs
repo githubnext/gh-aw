@@ -3,6 +3,16 @@
 /** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
 const { extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 
+function normalizeDotFolderExcludes(excludes) {
+  return new Set((Array.isArray(excludes) ? excludes : []).map(exclude => String(exclude || "").replace(/\/+$/, "")).filter(Boolean));
+}
+
+function formatHeaderLineForError(headerLine) {
+  const value = typeof headerLine === "string" ? headerLine : "";
+  const truncated = value.length > 200 ? `${value.slice(0, 200)}…` : value;
+  return JSON.stringify(truncated);
+}
+
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
  * Parses "diff --git a/<path> b/<path>" headers to determine which files were modified.
@@ -58,7 +68,10 @@ function extractPathsFromPatch(patchContent) {
   const entries = extractDiffGitHeaderEntries(patchContent);
   for (const entry of entries) {
     if (!entry.parseable) {
-      continue;
+      // Fail-closed: unparseable diff --git headers are security-relevant because
+      // git am may still apply the hunk via ---/+++ fallback. Throwing here prevents
+      // silent policy bypass (see github/agentic-workflows#539).
+      throw new Error(`Patch contains unparseable diff --git header (fail-closed): ${formatHeaderLineForError(entry.headerLine)}. ` + `Cannot verify file-protection policy. Rejecting patch.`);
     }
     for (const filePath of [entry.oldPath, entry.newPath]) {
       if (filePath && filePath !== "dev/null") {
@@ -175,13 +188,13 @@ function checkExcludedFiles(patchContent, excludedFilePatterns) {
  */
 function checkForTopLevelDotFolders(patchContent, excludes) {
   const changedPaths = extractPathsFromPatch(patchContent);
-  const excludeSet = new Set(Array.isArray(excludes) ? excludes : []);
+  const excludeSet = normalizeDotFolderExcludes(excludes);
   const found = changedPaths.filter(p => {
     const slashIdx = p.indexOf("/");
     if (slashIdx === -1) return false; // root-level file, not inside a folder
     const firstComponent = p.substring(0, slashIdx);
     if (!firstComponent.startsWith(".") || firstComponent.length < 2) return false;
-    return !excludeSet.has(firstComponent + "/");
+    return !excludeSet.has(firstComponent);
   });
   return { hasTopLevelDotFolders: found.length > 0, topLevelDotFoldersFound: found };
 }
@@ -226,8 +239,7 @@ function checkFileProtection(patchContent, config) {
   const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
   const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
   const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
-  const dotFolderExcludes = Array.isArray(config.protected_dot_folder_excludes) ? config.protected_dot_folder_excludes : [];
-  const { topLevelDotFoldersFound } = config.protect_top_level_dot_folders ? checkForTopLevelDotFolders(patchContent, dotFolderExcludes) : { topLevelDotFoldersFound: [] };
+  const { topLevelDotFoldersFound } = config.protect_top_level_dot_folders ? checkForTopLevelDotFolders(patchContent, config.protected_dot_folder_excludes) : { topLevelDotFoldersFound: [] };
   const allFound = [...new Set([...manifestFilesFound, ...protectedPathsFound, ...topLevelDotFoldersFound])];
 
   if (allFound.length === 0) {
@@ -243,4 +255,89 @@ function checkFileProtection(patchContent, config) {
   return { action: "deny", source: "protected", files: allFound };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkAllowedFiles, checkExcludedFiles, checkFileProtection };
+/**
+ * Post-apply file-protection verification.
+ *
+ * After `git am` applies a patch, this function runs `git diff --name-only`
+ * against the pre-apply commit to get the *actual* files written to the working
+ * tree. It then re-checks file protection against that ground-truth file list.
+ *
+ * This eliminates parser-differential attacks where the JS patch parser and
+ * `git am` disagree on which files a patch contains (see github/agentic-workflows#539).
+ *
+ * @param {string[]} actualFiles - List of files actually modified (from `git diff --name-only`)
+ * @param {HandlerConfig} config - The handler configuration with file protection rules
+ * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected'|'post-apply', files: string[] } | { action: 'fallback', files: string[] } | { action: 'request_review', files: string[] }}
+ */
+function checkFileProtectionPostApply(actualFiles, config) {
+  if (!actualFiles || actualFiles.length === 0) {
+    return { action: "allow" };
+  }
+
+  // Step 1: allowlist check
+  const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
+  if (allowedFilePatterns.length > 0) {
+    const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+    const compiledPatterns = allowedFilePatterns.map(p => globPatternToRegex(p));
+    const disallowed = actualFiles.filter(file => {
+      return !compiledPatterns.some(re => re.test(file));
+    });
+    if (disallowed.length > 0) {
+      return { action: "deny", source: "post-apply", files: disallowed };
+    }
+  }
+
+  // Step 2: protected-files check
+  if (config.protected_files_policy === "allowed") {
+    return { action: "allow" };
+  }
+
+  const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
+  const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
+  const dotFolderExcludes = normalizeDotFolderExcludes(config.protected_dot_folder_excludes);
+
+  const allProtected = [];
+
+  // Check manifest files (basename match)
+  for (const file of actualFiles) {
+    const basename = file.split("/").pop() || "";
+    if (manifestFiles.includes(basename) || manifestFiles.includes(file)) {
+      allProtected.push(file);
+    }
+  }
+
+  // Check path prefixes
+  for (const file of actualFiles) {
+    if (prefixes.some(prefix => file.startsWith(prefix))) {
+      if (!allProtected.includes(file)) {
+        allProtected.push(file);
+      }
+    }
+  }
+
+  // Check top-level dot folders
+  if (config.protect_top_level_dot_folders) {
+    for (const file of actualFiles) {
+      if (file.startsWith(".") && file.includes("/")) {
+        const topFolder = file.split("/")[0];
+        if (!dotFolderExcludes.has(topFolder) && !allProtected.includes(file)) {
+          allProtected.push(file);
+        }
+      }
+    }
+  }
+
+  if (allProtected.length === 0) {
+    return { action: "allow" };
+  }
+
+  if (config.protected_files_policy === "fallback-to-issue") {
+    return { action: "fallback", files: allProtected };
+  }
+  if (config.protected_files_policy === "request_review") {
+    return { action: "request_review", files: allProtected };
+  }
+  return { action: "deny", source: "protected", files: allProtected };
+}
+
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkAllowedFiles, checkExcludedFiles, checkFileProtection, checkFileProtectionPostApply };

@@ -15,6 +15,7 @@ Create new workflow files under `.github/workflows/` using the installed `gh aw`
 - [workflow-patterns.md](workflow-patterns.md)
 - [safe-outputs.md](safe-outputs.md)
 - [syntax.md](syntax.md)
+- [mcp-clis.md](mcp-clis.md)
 
 Load these topic files only when relevant:
 
@@ -81,14 +82,19 @@ The main agent job must stay read-only.
 ### 4. Select tools
 
 - `bash` and `edit` are enabled by default in sandboxed workflows; do not add them unless you are restricting them.
-- For GitHub API reads, use:
+- For GitHub reads, prefer `tools.github.mode: gh-proxy` and instruct the agent to use `gh` commands.
+- For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and instruct the agent to use the mounted `mcp-clis` commands.
+- Combined configuration example for GitHub reads plus non-GitHub MCP CLI access:
 
   ```yaml
   tools:
     github:
       mode: gh-proxy
       toolsets: [default]
+    cli-proxy: true
   ```
+
+  Omit `cli-proxy: true` when the workflow only needs GitHub reads.
 
 - Suggest `playwright` for browser automation.
 - Suggest dedicated topic files rather than embedding long tutorials in the prompt.
@@ -191,6 +197,7 @@ tools:
   github:
     mode: gh-proxy
     toolsets: [default]
+  cli-proxy: true
 safe-outputs:
   add-comment:
 ---

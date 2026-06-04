@@ -14,7 +14,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR, checkBranchPushable } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
@@ -540,16 +540,14 @@ async function main(config = {}) {
       core.info(`✓ Labels validation passed: ${envLabels.join(", ")}`);
     }
 
-    // Deferred protected file protection – fallback-to-issue path.
-    // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
-    if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
+    const createProtectedFilesFallbackIssue = async files => {
       const runUrl = buildWorkflowRunUrl(context, context.repo);
       const runId = context.runId;
       const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
-      const fileList = buildProtectedFileList(protectedFilesForFallback, githubServer, repoParts.owner, repoParts.repo, branchName);
+      const fileList = buildProtectedFileList(files, githubServer, repoParts.owner, repoParts.repo, branchName);
       const templatePath = getPromptPath("manifest_protection_push_to_pr_fallback.md");
       const issueBody = renderTemplateFromFile(templatePath, {
         files: fileList,
@@ -591,6 +589,12 @@ async function main(config = {}) {
         core.error(error);
         return { success: false, error };
       }
+    };
+
+    // Deferred protected file protection – fallback-to-issue path.
+    // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
+    if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
+      return await createProtectedFilesFallbackIssue(protectedFilesForFallback);
     }
 
     const hasChanges = !isEmpty;
@@ -911,6 +915,35 @@ async function main(config = {}) {
         }
       } // end else (patch path)
       core.info(`Apply transport completed; signed-push base ref: ${rangeBaseRef}`);
+
+      // POST-APPLY FILE PROTECTION: Verify actual files written match policy.
+      // This is the primary defense against parser-differential attacks where the JS
+      // patch parser and git am disagree on which files a patch contains.
+      // (see github/agentic-workflows#539)
+      {
+        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..HEAD`], baseGitOpts);
+        const actualFiles = diffResult.stdout
+          .split("\n")
+          .map(f => f.trim())
+          .filter(Boolean);
+        if (actualFiles.length > 0) {
+          core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
+          const postApplyProtection = checkFileProtectionPostApply(actualFiles, config);
+          if (postApplyProtection.action === "deny") {
+            const filesStr = postApplyProtection.files.join(", ");
+            const msg = `SECURITY: Post-apply file-protection check failed. ` + `The patch applied files that were not detected by the pre-apply parser: ${filesStr}. ` + `This may indicate a patch-parser bypass attempt. Aborting push.`;
+            core.error(msg);
+            // Reset to pre-apply state
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            return { success: false, error: msg };
+          }
+          if (postApplyProtection.action === "fallback") {
+            core.warning(`Post-apply: Protected file protection triggered (fallback-to-issue): ${postApplyProtection.files.join(", ")}`);
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            return await createProtectedFilesFallbackIssue(postApplyProtection.files);
+          }
+        }
+      }
 
       // When threat detection produced a warning, create a review PR instead of pushing
       // directly to the existing PR branch. This allows manual review of the changes

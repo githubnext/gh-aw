@@ -315,12 +315,6 @@ async function main() {
     return;
   }
 
-  // Validate file count
-  if (filesToCopy.length > maxFileCount) {
-    core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
-    return;
-  }
-
   if (filesToCopy.length === 0) {
     core.info("No files to copy from artifact");
     return;
@@ -366,20 +360,30 @@ async function main() {
   }
 
   // Check if we have any changes to commit
-  let hasChanges = false;
+  let changedFileCount = 0;
   try {
     const status = execGitSync(["status", "--porcelain"]);
-    hasChanges = status.trim().length > 0;
+    const changedEntries = status
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean);
+    changedFileCount = changedEntries.length;
   } catch (error) {
     core.setFailed(`Failed to check git status: ${getErrorMessage(error)}`);
     return;
   }
 
-  if (!hasChanges) {
+  if (changedFileCount === 0) {
     core.info("No changes detected after copying files");
     return;
   }
 
+  if (changedFileCount > maxFileCount) {
+    core.setFailed(`Too many changed files in working directory (${changedFileCount} > ${maxFileCount})`);
+    return;
+  }
+
+  core.info(`Changed files detected after copying: ${changedFileCount}`);
   core.info("Changes detected, committing and pushing...");
 
   // Stage all changes.
