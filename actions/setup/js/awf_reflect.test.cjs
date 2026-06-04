@@ -310,117 +310,66 @@ describe("awf_reflect.cjs", () => {
 
   describe("resolveCopilotSDKCustomProviderFromReflect", () => {
     it("resolves provider baseUrl and model from port when models_url is absent", () => {
-      const reflectFile = path.join(os.tmpdir(), `awf-reflect-sdk-provider-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(
-          reflectFile,
-          JSON.stringify({
-            endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
-          }),
-          "utf8"
-        );
-        expect(resolveCopilotSDKCustomProviderFromReflect({ reflectPath: reflectFile })).toEqual({
-          model: "gpt-5.4",
-          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
-        });
-      } finally {
-        fs.unlinkSync(reflectFile);
-      }
-    });
-
-    it("prefers the endpoint matching the configured model", () => {
-      const reflectFile = path.join(os.tmpdir(), `awf-reflect-sdk-model-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(
-          reflectFile,
-          JSON.stringify({
-            endpoints: [
-              { provider: "openai", port: 10001, configured: true, models: ["gpt-4o"] },
-              { provider: "anthropic", port: 10002, configured: true, models: ["claude-sonnet-4.6"] },
-            ],
-          }),
-          "utf8"
-        );
-        expect(resolveCopilotSDKCustomProviderFromReflect({ reflectPath: reflectFile, model: "claude-sonnet-4.6" })).toEqual({
-          model: "claude-sonnet-4.6",
-          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
-        });
-      } finally {
-        fs.unlinkSync(reflectFile);
-      }
-    });
-
-    it("derives baseUrl from models_url origin when available", () => {
-      const reflectFile = path.join(os.tmpdir(), `awf-reflect-sdk-url-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(
-          reflectFile,
-          JSON.stringify({
-            endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-4o"], models_url: "http://172.30.0.30:10002/v1/models" }],
-          }),
-          "utf8"
-        );
-        expect(resolveCopilotSDKCustomProviderFromReflect({ reflectPath: reflectFile })).toEqual({
-          model: "gpt-4o",
-          provider: { type: "openai", baseUrl: "http://172.30.0.30:10002" },
-        });
-      } finally {
-        fs.unlinkSync(reflectFile);
-      }
-    });
-
-    it("returns null when no configured endpoints exist", () => {
-      const reflectFile = path.join(os.tmpdir(), `awf-reflect-sdk-empty-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(reflectFile, JSON.stringify({ endpoints: [{ provider: "copilot", port: 10002, configured: false, models: [] }] }), "utf8");
-        const logs = [];
-        expect(resolveCopilotSDKCustomProviderFromReflect({ reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBeNull();
-        expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
-      } finally {
-        fs.unlinkSync(reflectFile);
-      }
-    });
-
-    it("returns null when the reflect file is missing", () => {
-      const logs = [];
-      const result = resolveCopilotSDKCustomProviderFromReflect({
-        reflectPath: "/tmp/gh-aw-nonexistent-reflect.json",
-        logger: msg => logs.push(msg),
-      });
-      expect(result).toBeNull();
-      expect(logs.some(l => l.includes("unable to read custom provider config"))).toBe(true);
-    });
-
-    it("resolves provider from live reflectData without touching the file system", () => {
       const reflectData = {
-        endpoints: [{ provider: "copilot", port: 10003, configured: true, models: ["gpt-5.4"] }],
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10003" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
       });
     });
 
-    it("returns null when reflectData has no configured endpoints", () => {
+    it("prefers the endpoint matching the configured model", () => {
+      const reflectData = {
+        endpoints: [
+          { provider: "openai", port: 10001, configured: true, models: ["gpt-4o"] },
+          { provider: "anthropic", port: 10002, configured: true, models: ["claude-sonnet-4.6"] },
+        ],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "claude-sonnet-4.6" })).toEqual({
+        model: "claude-sonnet-4.6",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
+    });
+
+    it("derives baseUrl from models_url origin when available", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-4o"], models_url: "http://172.30.0.30:10002/v1/models" }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
+        model: "gpt-4o",
+        provider: { type: "openai", baseUrl: "http://172.30.0.30:10002" },
+      });
+    });
+
+    it("returns null when no configured endpoints exist", () => {
       const logs = [];
       const result = resolveCopilotSDKCustomProviderFromReflect({
-        reflectData: { endpoints: [{ provider: "copilot", port: 10002, configured: false, models: ["gpt-4o"] }] },
+        reflectData: { endpoints: [{ provider: "copilot", port: 10002, configured: false, models: [] }] },
         logger: msg => logs.push(msg),
       });
       expect(result).toBeNull();
       expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
     });
 
-    it("falls back to file reading when reflectData is null", () => {
+    it("returns null when reflectData is null", () => {
       const logs = [];
-      // null reflectData triggers file fallback; the default path doesn't exist in test env
       const result = resolveCopilotSDKCustomProviderFromReflect({
         reflectData: null,
-        reflectPath: "/tmp/gh-aw-nonexistent-reflect-null.json",
         logger: msg => logs.push(msg),
       });
       expect(result).toBeNull();
-      expect(logs.some(l => l.includes("unable to read custom provider config"))).toBe(true);
+      expect(logs.some(l => l.includes("no reflect data provided"))).toBe(true);
+    });
+
+    it("returns null when reflectData is undefined", () => {
+      const logs = [];
+      const result = resolveCopilotSDKCustomProviderFromReflect({
+        reflectData: undefined,
+        logger: msg => logs.push(msg),
+      });
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("no reflect data provided"))).toBe(true);
     });
   });
 });

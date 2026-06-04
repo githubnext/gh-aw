@@ -308,14 +308,11 @@ async function fetchAWFReflect(options) {
  * Returns null when no suitable endpoint is found (e.g. no reflect data, or endpoints not
  * configured).
  *
- * Accepts live reflect data directly via `reflectData` (preferred — avoids re-reading the
- * persisted file). Falls back to reading from `reflectPath` when `reflectData` is not provided.
+ * Requires live reflect data passed directly via `reflectData`.
  *
  * @param {{
  *   model?: string,
- *   reflectData?: object | null,
- *   reflectPath?: string,
- *   readFileSync?: (path: string, encoding: BufferEncoding) => string,
+ *   reflectData: object | null | undefined,
  *   logger?: (msg: string) => void,
  * }} [options]
  * @returns {{ model: string, provider: { type: "openai", baseUrl: string } } | null}
@@ -324,22 +321,10 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
   const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
 
-  let reflectData;
-  if (options != null && options.reflectData != null) {
-    // Live data passed directly by the harness — use it without touching the file system.
-    reflectData = options.reflectData;
-  } else {
-    // Fallback: read from the persisted reflect file.
-    const reflectPath = (options && options.reflectPath) || AWF_REFLECT_OUTPUT_PATH;
-    const readFile = (options && options.readFileSync) || fs.readFileSync;
-    try {
-      const raw = readFile(reflectPath, "utf8");
-      reflectData = JSON.parse(raw);
-    } catch (error) {
-      const err = /** @type {Error} */ (error);
-      logger(`sdk-mode: unable to read custom provider config from ${reflectPath}: ${err.message}`);
-      return null;
-    }
+  const reflectData = options?.reflectData;
+  if (reflectData == null) {
+    logger("sdk-mode: no reflect data provided; cannot resolve custom provider");
+    return null;
   }
 
   const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
