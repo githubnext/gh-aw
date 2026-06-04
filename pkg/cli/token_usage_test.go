@@ -304,6 +304,8 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		eventsContent := strings.Join([]string{
 			`{"event":"token_steering","message":"warn 80%"}`,
 			`{"type":"token_steering","message":"warn 90%"}`,
+			`{"event_name":"token_steering","message":"warn 95%"}`,
+			`{"eventName":"token_steering","message":"warn 99%"}`,
 			`{"event":"request.forwarded"}`,
 			`{"event":"budget_steering"}`,
 		}, "\n")
@@ -312,7 +314,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		summary, err := analyzeTokenUsage(tmpDir, false)
 		require.NoError(t, err)
 		require.NotNil(t, summary)
-		assert.Equal(t, 3, summary.TotalSteeringEvents, "should count steering events from api-proxy events.jsonl")
+		assert.Equal(t, 5, summary.TotalSteeringEvents, "should count steering events from api-proxy events.jsonl")
 	})
 
 	t.Run("counts steering events from legacy firewall-audit-logs events file", func(t *testing.T) {
