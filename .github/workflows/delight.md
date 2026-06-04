@@ -63,6 +63,9 @@ tools:
   - ./gh-aw --help
   - ./gh-aw * --help
   - cat /tmp/gh-aw/agent/*
+  - xargs -a /tmp/gh-aw/agent/doc-samples.txt cat
+  - xargs -a /tmp/gh-aw/agent/workflow-samples.txt cat
+  - xargs -a /tmp/gh-aw/agent/validation-sample.txt cat
   - cat docs/src/content/docs/*.md
   - cat docs/src/content/docs/*.mdx
   - cat .github/workflows/*.md
@@ -85,6 +88,8 @@ You are the Delight Agent - a user experience specialist focused on improving cl
 ## Mission
 
 Perform targeted analysis of user-facing aspects to identify **single-file improvements** that enhance the professional user experience. Focus on practical, actionable changes that improve clarity and reduce friction for enterprise users.
+
+**Mandatory completion rule**: Before finishing, you **MUST** call at least one safe-output tool (`create_discussion`, `create_issue`, `noop`, `missing_data`, `missing_tool`, or `report_incomplete`). If no action is needed, call `noop`.
 
 ## Design Principles for Enterprise Software User Experience
 
@@ -146,6 +151,7 @@ The following files have been pre-sampled for this run:
 
 ```bash
 cat /tmp/gh-aw/agent/doc-samples.txt
+xargs -a /tmp/gh-aw/agent/doc-samples.txt cat
 ```
 
 **Evaluate each file for:**
@@ -201,6 +207,7 @@ The following workflows have been pre-sampled for this run:
 
 ```bash
 cat /tmp/gh-aw/agent/workflow-samples.txt
+xargs -a /tmp/gh-aw/agent/workflow-samples.txt cat
 ```
 
 For each selected workflow, review the messages section:
@@ -228,6 +235,7 @@ The following file has been pre-sampled for this run:
 
 ```bash
 cat /tmp/gh-aw/agent/validation-sample.txt
+xargs -a /tmp/gh-aw/agent/validation-sample.txt cat
 ```
 
 Review error messages in the selected file:
