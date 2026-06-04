@@ -36,6 +36,24 @@ emoji: 📝
 engine: claude
 name: Go Logger Enhancement
 timeout-minutes: 15
+max-turns: "${{ needs.activation.outputs.max_turns_budget == 'conservative' && '20' || needs.activation.outputs.max_turns_budget == 'generous' && '55' || '35' }}"
+experiments:
+  max_turns_budget:
+    variants: [conservative, standard, generous]
+    description: "Tests whether the agent turn budget affects logging quality and token cost. Conservative caps deliberation early; generous allows deeper analysis of complex files."
+    hypothesis: "H0: no change in files-logged-per-run or checklist compliance across turn budgets. H1: conservative reduces cost 20-30% with <5% quality loss; generous improves complex-file compliance by >10%."
+    metric: files_successfully_logged_per_run
+    secondary_metrics: [token_cost_per_file, checklist_compliance_rate, run_duration_ms]
+    guardrail_metrics:
+      - name: empty_pr_rate
+        threshold: "<=0.10"
+      - name: build_failure_rate
+        threshold: "<=0.05"
+    min_samples: 15
+    weight: [33, 34, 33]
+    start_date: "2026-06-04"
+    analysis_type: mann_whitney
+    tags: [cost-efficiency, agent-turns, go-logging]
 tools:
   bash:
   - find pkg -name "*.go" -type f ! -name "*_test.go"

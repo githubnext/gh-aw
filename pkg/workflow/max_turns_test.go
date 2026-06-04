@@ -294,6 +294,52 @@ max-turns: "${{ inputs.max-turns }}"
 	}
 }
 
+func TestTopLevelMaxTurnsExpressionCompilationForClaude(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "top-level-max-turns-claude")
+
+	testContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+max-turns: "${{ inputs.max-turns }}"
+---
+
+# Test Top-Level Max Turns (Claude)
+`
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	if !strings.Contains(lockContentStr, `GH_AW_MAX_TURNS: "${{ inputs.max-turns }}"`) &&
+		!strings.Contains(lockContentStr, "GH_AW_MAX_TURNS: ${{ inputs.max-turns }}") {
+		t.Errorf("Expected top-level max-turns to compile into GH_AW_MAX_TURNS.\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `--max-turns "$GH_AW_MAX_TURNS"`) {
+		t.Errorf("Expected Claude command to use shell-expanded GH_AW_MAX_TURNS for expression max-turns.\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(lockContentStr, `--max-turns "${{ inputs.max-turns }}"`) {
+		t.Errorf("Expected Claude command to avoid embedding GitHub expression directly in run script.\nLock file content:\n%s", lockContentStr)
+	}
+}
+
 func TestMaxTurnsFromSharedImport(t *testing.T) {
 	// This test verifies that max-turns is correctly propagated when
 	// the engine config is sourced from a shared import rather than defined inline.

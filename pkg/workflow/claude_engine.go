@@ -142,6 +142,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
+	maxTurnsFromExpression := false
 	toolsWithMountedCLIs := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 
 	// Add print flag for non-interactive mode
@@ -158,8 +159,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add max_turns if specified (in CLI it's max-turns)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		claudeLog.Printf("Setting max turns: %s", workflowData.EngineConfig.MaxTurns)
-		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
+		if containsExpression(workflowData.EngineConfig.MaxTurns) {
+			maxTurnsFromExpression = true
+			claudeLog.Printf("Max turns uses expression; deferring --max-turns to GH_AW_MAX_TURNS env var")
+		} else {
+			claudeLog.Printf("Setting max turns: %s", workflowData.EngineConfig.MaxTurns)
+			claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
+		}
 	}
 
 	// Add MCP configuration only if there are MCP servers.
@@ -286,6 +292,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			modelEnvVar = constants.EnvVarModelAgentClaude
 		}
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
+	}
+
+	// For expression-based max-turns values, avoid embedding GitHub expressions directly
+	// in run scripts. Instead, pass max turns via runtime shell expansion of GH_AW_MAX_TURNS.
+	if maxTurnsFromExpression {
+		claudeCommand = fmt.Sprintf(`%s${GH_AW_MAX_TURNS:+ --max-turns "$GH_AW_MAX_TURNS"}`, claudeCommand)
 	}
 
 	// Build the full command based on whether firewall is enabled
