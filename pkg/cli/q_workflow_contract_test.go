@@ -26,4 +26,9 @@ func TestQWorkflowSafeOutputContract(t *testing.T) {
 	assert.Contains(t, text, "Permission denied and could not request permission from user", "Q workflow must handle non-interactive permission-denied failures")
 	assert.Contains(t, text, "call `report_incomplete`", "Q workflow must require report_incomplete for blocked execution")
 	assert.Contains(t, text, "Every run must end with at least one safe-output call", "Q workflow must require at least one safe output call")
+	assert.Contains(t, text, "`create-pull-request`", "Q workflow safe-output list must include create-pull-request")
+	assert.Contains(t, text, "`add-comment`", "Q workflow safe-output list must include add-comment")
+	assert.Contains(t, text, "`add-labels`", "Q workflow safe-output list must include add-labels")
+	assert.Contains(t, text, "`noop`", "Q workflow safe-output list must include noop")
+	assert.Contains(t, text, "`report_incomplete`", "Q workflow safe-output list must include report_incomplete")
 }
