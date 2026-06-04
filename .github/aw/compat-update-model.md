@@ -116,7 +116,7 @@ When all guard conditions pass, canary emits:
 
 ## gh-aw Bump Workflow
 
-When gh-aw receives the `repository_dispatch`:
+When gh-aw receives the `repository_dispatch` (workflow: `.github/workflows/compat-bump-from-canary-dispatch.yml`):
 
 1. **Validate payload**: Verify all guard conditions are still true
 2. **Fetch current compat.json**: Read current `max-agent` value

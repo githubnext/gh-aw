@@ -1,0 +1,271 @@
+name: Compat Bump From Canary Dispatch
+
+on:
+  repository_dispatch:
+    types: [compat-bump]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  compat-bump:
+    name: Apply canary compat bump
+    runs-on: ubuntu-latest
+    if: github.repository == 'github/gh-aw'
+    steps:
+      - name: Validate dispatch payload and open/update bump PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const path = ".github/aw/compat.json";
+            const eventName = context.eventName;
+
+            if (eventName !== "repository_dispatch") {
+              core.notice("Manual workflow_dispatch run: payload validation/update skipped.");
+              return;
+            }
+
+            const payload = context.payload.client_payload || {};
+            const sourceRepository = typeof payload.source_repository === "string" ? payload.source_repository.trim() : "";
+            const expectedSourceRepository = "github/agentic-workflows-canary";
+            if (sourceRepository !== expectedSourceRepository) {
+              core.setFailed(`Invalid source_repository: expected "${expectedSourceRepository}", got "${sourceRepository || "<missing>"}"`);
+              return;
+            }
+
+            const requiredGuards = [
+              "scenarios_passed",
+              "within_freshness_window",
+              "version_eligible",
+              "no_active_incidents",
+            ];
+            const guardConditions = payload.guard_conditions || {};
+            for (const guard of requiredGuards) {
+              if (guardConditions[guard] !== true) {
+                core.setFailed(`Guard condition failed or missing: guard_conditions.${guard} must be true`);
+                return;
+              }
+            }
+
+            const freshnessTimestamp = typeof payload.freshness_timestamp === "string" ? payload.freshness_timestamp : "";
+            const freshnessMillis = Date.parse(freshnessTimestamp);
+            if (!Number.isFinite(freshnessMillis)) {
+              core.setFailed("Invalid or missing freshness_timestamp in payload");
+              return;
+            }
+            const ageMs = Date.now() - freshnessMillis;
+            const maxAgeMs = 24 * 60 * 60 * 1000;
+            if (ageMs < -5 * 60 * 1000) {
+              core.setFailed("freshness_timestamp is unexpectedly in the future");
+              return;
+            }
+            if (ageMs > maxAgeMs) {
+              core.setFailed(`freshness_timestamp is stale (age ${Math.floor(ageMs / 1000)}s > 86400s)`);
+              return;
+            }
+
+            const normalizeVersion = (version) => (typeof version === "string" ? version.trim().replace(/^v/, "") : "");
+            const semverPattern = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/;
+            const candidateVersion = normalizeVersion(payload.version);
+            if (!semverPattern.test(candidateVersion)) {
+              core.setFailed(`Invalid or missing version in payload: "${payload.version ?? ""}"`);
+              return;
+            }
+
+            const agent = (typeof payload.agent === "string" && payload.agent.trim()) ? payload.agent.trim().toLowerCase() : "copilot";
+
+            const parseSemver = (version) => {
+              const normalized = normalizeVersion(version);
+              const match = normalized.match(/^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?$/);
+              if (!match) return null;
+              return {
+                major: Number(match[1]),
+                minor: Number(match[2]),
+                patch: Number(match[3]),
+                pre: match[4] || "",
+              };
+            };
+
+            const compareSemver = (a, b) => {
+              const pa = parseSemver(a);
+              const pb = parseSemver(b);
+              if (!pa || !pb) throw new Error(`Cannot compare invalid semver values: "${a}" vs "${b}"`);
+              for (const key of ["major", "minor", "patch"]) {
+                if (pa[key] < pb[key]) return -1;
+                if (pa[key] > pb[key]) return 1;
+              }
+              if (pa.pre === pb.pre) return 0;
+              if (!pa.pre) return 1;
+              if (!pb.pre) return -1;
+              return pa.pre < pb.pre ? -1 : 1;
+            };
+
+            const repoInfo = await github.rest.repos.get({ owner, repo });
+            const defaultBranch = repoInfo.data.default_branch;
+            const defaultRef = await github.rest.git.getRef({
+              owner,
+              repo,
+              ref: `heads/${defaultBranch}`,
+            });
+            const defaultBranchSha = defaultRef.data.object.sha;
+
+            const compatFile = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path,
+              ref: defaultBranch,
+            });
+
+            if (!("content" in compatFile.data) || typeof compatFile.data.content !== "string") {
+              core.setFailed(`Unable to read ${path}`);
+              return;
+            }
+
+            const compatRaw = Buffer.from(compatFile.data.content, compatFile.data.encoding || "base64").toString("utf8");
+            const compat = JSON.parse(compatRaw);
+            const matrix = compat["agent-compat-v1"];
+            if (!matrix || typeof matrix !== "object") {
+              core.setFailed("compat.json missing agent-compat-v1 object");
+              return;
+            }
+
+            const rows = matrix[agent];
+            if (!Array.isArray(rows) || rows.length === 0) {
+              core.setFailed(`compat.json has no rows for agent "${agent}"`);
+              return;
+            }
+
+            let rowIndex = rows.findIndex((row) => row && row["max-gh-aw"] === "*" && row.open === true);
+            if (rowIndex < 0) {
+              rowIndex = rows.findIndex((row) => row && row.open === true);
+            }
+            if (rowIndex < 0) {
+              core.setFailed(`No open compat row found for agent "${agent}"`);
+              return;
+            }
+
+            const targetRow = rows[rowIndex];
+            const currentMaxAgent = normalizeVersion(targetRow["max-agent"]);
+            const minAgent = normalizeVersion(targetRow["min-agent"]);
+            if (!semverPattern.test(currentMaxAgent) || !semverPattern.test(minAgent)) {
+              core.setFailed(`Target compat row has invalid min/max agent values: min-agent="${targetRow["min-agent"]}", max-agent="${targetRow["max-agent"]}"`);
+              return;
+            }
+
+            if (compareSemver(candidateVersion, minAgent) < 0) {
+              core.setFailed(`Candidate version ${candidateVersion} is below min-agent ${minAgent} for target row`);
+              return;
+            }
+
+            const comparison = compareSemver(candidateVersion, currentMaxAgent);
+            if (comparison <= 0) {
+              core.notice(`No update needed: candidate ${candidateVersion} is not newer than current max-agent ${currentMaxAgent}`);
+              return;
+            }
+
+            targetRow["max-agent"] = candidateVersion;
+            const updatedCompatRaw = `${JSON.stringify(compat, null, 2)}\n`;
+
+            const safeVersion = candidateVersion.replace(/[^0-9A-Za-z.-]/g, "-");
+            const branchName = `automation/compat-bump-${agent}-${safeVersion}`;
+            const commitMessage = `chore(compat): bump ${agent} max-agent to ${candidateVersion}`;
+
+            try {
+              await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${branchName}`,
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${branchName}`,
+                sha: defaultBranchSha,
+              });
+            }
+
+            let currentBranchFileSha;
+            try {
+              const existingBranchFile = await github.rest.repos.getContent({
+                owner,
+                repo,
+                path,
+                ref: branchName,
+              });
+              if ("sha" in existingBranchFile.data) {
+                currentBranchFileSha = existingBranchFile.data.sha;
+              }
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            await github.rest.repos.createOrUpdateFileContents({
+              owner,
+              repo,
+              path,
+              branch: branchName,
+              message: commitMessage,
+              content: Buffer.from(updatedCompatRaw, "utf8").toString("base64"),
+              sha: currentBranchFileSha,
+            });
+
+            const canaryRunId = payload.canary_run_id ? String(payload.canary_run_id) : "";
+            const canaryScenariosUrl = payload.canary_scenarios_url ? String(payload.canary_scenarios_url) : "";
+            const title = `chore(compat): bump ${agent} max-agent to ${candidateVersion}`;
+            const body = [
+              "## Summary",
+              `Update \`.github/aw/compat.json\` for **${agent}** by bumping \`max-agent\` from \`${currentMaxAgent}\` to \`${candidateVersion}\` in the open row.",
+              "",
+              "## Dispatch guard checks",
+              "- source repository: `github/agentic-workflows-canary`",
+              "- `guard_conditions.scenarios_passed`: `true`",
+              "- `guard_conditions.within_freshness_window`: `true`",
+              "- `guard_conditions.version_eligible`: `true`",
+              "- `guard_conditions.no_active_incidents`: `true`",
+              `- freshness timestamp: \`${freshnessTimestamp}\` (age ${Math.floor(ageMs / 1000)}s)`,
+              "",
+              "## Canary context",
+              `- canary run id: ${canaryRunId || "n/a"}`,
+              `- canary scenarios url: ${canaryScenariosUrl || "n/a"}`,
+              "",
+              "_Auto-generated from repository_dispatch event `compat-bump`._",
+            ].join("\n");
+
+            const existingPrs = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              head: `${owner}:${branchName}`,
+              base: defaultBranch,
+              per_page: 100,
+            });
+
+            let prNumber;
+            if (existingPrs.length > 0) {
+              prNumber = existingPrs[0].number;
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: prNumber,
+                title,
+                body,
+              });
+              core.notice(`Updated existing PR #${prNumber}`);
+            } else {
+              const createdPr = await github.rest.pulls.create({
+                owner,
+                repo,
+                title,
+                head: branchName,
+                base: defaultBranch,
+                body,
+              });
+              prNumber = createdPr.data.number;
+              core.notice(`Created PR #${prNumber}`);
+            }
