@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -152,6 +153,21 @@ func TestGetContainerPin_MCPGatewayV039IsPinned(t *testing.T) {
 	assert.Equal(t, image, pin.Image, "Expected image name to match key")
 	assert.Equal(t, "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.Digest, "Expected v0.3.9 digest to match")
 	assert.Equal(t, image+"@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.PinnedImage, "Expected pinned image to include v0.3.9 digest")
+}
+
+func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
+	images := []string{
+		constants.DefaultMCPGatewayContainer + ":" + string(constants.DefaultMCPGatewayVersion),
+		"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
+	}
+
+	for _, image := range images {
+		pin, ok := GetContainerPin(image)
+		require.True(t, ok, "Expected embedded container pin for %s", image)
+		assert.Equal(t, image, pin.Image, "Expected image name to match key")
+		assert.NotEmpty(t, pin.Digest, "Expected digest to be populated for %s", image)
+		assert.Equal(t, image+"@"+pin.Digest, pin.PinnedImage, "Expected pinned image to include digest for %s", image)
+	}
 }
 
 type countingResolver struct {
