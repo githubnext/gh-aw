@@ -65,7 +65,7 @@ exit 97
 }
 
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
-	const compatVersion = "1.0.51"
+	const compatVersion = "1.0.56"
 	const cachedCompatibleVersion = "1.0.40"
 	const cachedBoundaryMinVersion = "1.0.21"
 	const cachedTooOldVersion = "1.0.20"

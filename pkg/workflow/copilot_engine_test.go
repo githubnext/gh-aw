@@ -245,6 +245,9 @@ func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
 	if !strings.Contains(stepContent, copilotSettingsPath) {
 		t.Errorf("Expected copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
 	}
+	if !strings.Contains(stepContent, "rm -f "+copilotSettingsPath) {
+		t.Errorf("Expected cleanup command to remove copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
+	}
 }
 
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
