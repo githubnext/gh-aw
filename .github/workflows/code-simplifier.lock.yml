@@ -922,6 +922,9 @@ jobs:
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          trap 'rm -f /home/runner/.copilot/settings.json' EXIT
+          mkdir -p /home/runner/.copilot
+          printf '%s' '{"builtInAgents":{"rubberDuck":false}}' > /home/runner/.copilot/settings.json
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
@@ -1456,6 +1459,9 @@ jobs:
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          trap 'rm -f /home/runner/.copilot/settings.json' EXIT
+          mkdir -p /home/runner/.copilot
+          printf '%s' '{"builtInAgents":{"rubberDuck":false}}' > /home/runner/.copilot/settings.json
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
