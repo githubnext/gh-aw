@@ -12,6 +12,8 @@ permissions:
   pull-requests: read
 tracker-id: audit-workflows-daily
 engine: claude
+features:
+  mcp-clis-slim-system-block: true
 tools:
   cli-proxy: true
   agentic-workflows:

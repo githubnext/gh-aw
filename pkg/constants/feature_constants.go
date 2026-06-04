@@ -76,4 +76,12 @@ const (
 	//	features:
 	//	  group-concurrency-queue: false
 	GroupConcurrencyQueueFeatureFlag FeatureFlag = "group-concurrency-queue"
+	// MCPCLISlimSystemBlockFeatureFlag enables the compact MCP CLI system prompt
+	// block that omits verbose usage examples and points users to --help output.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  mcp-clis-slim-system-block: true
+	MCPCLISlimSystemBlockFeatureFlag FeatureFlag = "mcp-clis-slim-system-block"
 )
