@@ -25,7 +25,7 @@ network:
 tools:
   cli-proxy: true
   github:
-    mode: "local"
+    mode: gh-proxy
     toolsets: [issues]
   repo-memory:
     wiki: true

@@ -27,13 +27,10 @@ engine:
 strict: false
 inlined-imports: true
 imports:
-  - shared/mcp-pagination.md
   - shared/gh.md
   - shared/mcp/tavily.md
-  - shared/reporting.md
   - shared/go-make.md
   - shared/github-mcp-app.md
-  - shared/mcp/serena-go.md
   - shared/otlp.md
 network:
   allowed:
@@ -51,6 +48,7 @@ tools:
   cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [repos, pull_requests]
   playwright:
     mode: cli

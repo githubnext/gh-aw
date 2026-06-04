@@ -30,6 +30,10 @@ experiments:
     tags: [tone, output-quality, triage]
     issue: 36105
 tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
+    toolsets: [actions, issues, pull_requests]
   bash: ["*"]
 cache:
   - key: aw-failure-investigator-prefetch-${{ github.run_id }}
