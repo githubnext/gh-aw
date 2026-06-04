@@ -315,7 +315,7 @@ func TestComputeModelEffectiveTokensWithWeights_UnknownModelFallbackAndEffective
 	// effective_input=max(50-100,0)=0
 	// base=(1.0*0)+(0.1*100)+(4.0*80)+(4.0*10)+(1.0*0)=370
 	// unknown model fallback multiplier=1.0 -> ET=370
-	et := computeModelEffectiveTokensWithWeights("unknown-model", "anthropic", tokenUsage{
+	et := computeModelEffectiveTokensWithWeights("unknown-model", "anthropic", tokenCounts{
 		inputTokens:      50,
 		outputTokens:     80,
 		cacheReadTokens:  100,
@@ -332,7 +332,7 @@ func TestComputeModelEffectiveTokensWithWeights_NoCacheReadSubtractionForUnknown
 	// Provider "test-provider" is treated as additive cache semantics by default:
 	// effective_input=50 (no subtraction), base=(1.0*50)+(0.1*100)+(4.0*80)+(4.0*10)=420
 	// unknown model fallback multiplier=1.0 -> ET=420
-	et := computeModelEffectiveTokensWithWeights("unknown-model", "test-provider", tokenUsage{
+	et := computeModelEffectiveTokensWithWeights("unknown-model", "test-provider", tokenCounts{
 		inputTokens:      50,
 		outputTokens:     80,
 		cacheReadTokens:  100,
@@ -342,7 +342,7 @@ func TestComputeModelEffectiveTokensWithWeights_NoCacheReadSubtractionForUnknown
 	assert.Equal(t, 420, et)
 
 	// Contrast with a known bundled provider where subtraction applies.
-	etBundled := computeModelEffectiveTokensWithWeights("unknown-model", "anthropic", tokenUsage{
+	etBundled := computeModelEffectiveTokensWithWeights("unknown-model", "anthropic", tokenCounts{
 		inputTokens:      50,
 		outputTokens:     80,
 		cacheReadTokens:  100,

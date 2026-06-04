@@ -844,7 +844,7 @@ func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile st
 			continue
 		}
 		et := computeModelEffectiveTokensWithWeights(
-			e.Model, e.Provider, tokenUsage{
+			e.Model, e.Provider, tokenCounts{
 				inputTokens:      e.InputTokens,
 				outputTokens:     e.OutputTokens,
 				cacheReadTokens:  e.CacheReadTokens,

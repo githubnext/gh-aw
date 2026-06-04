@@ -181,7 +181,7 @@ func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom
 		if usage == nil {
 			continue
 		}
-		eff := computeModelEffectiveTokensWithWeights(model, usage.Provider, tokenUsage{
+		eff := computeModelEffectiveTokensWithWeights(model, usage.Provider, tokenCounts{
 			inputTokens:      usage.InputTokens,
 			outputTokens:     usage.OutputTokens,
 			cacheReadTokens:  usage.CacheReadTokens,
@@ -241,7 +241,7 @@ func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, ty
 
 // computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
 // multiplier table and token class weights instead of the global defaults.
-type tokenUsage struct {
+type tokenCounts struct {
 	inputTokens      int
 	outputTokens     int
 	cacheReadTokens  int
@@ -249,7 +249,7 @@ type tokenUsage struct {
 	reasoningTokens  int
 }
 
-func computeModelEffectiveTokensWithWeights(model, provider string, usage tokenUsage, multipliers map[string]float64, w types.TokenClassWeights) int {
+func computeModelEffectiveTokensWithWeights(model, provider string, usage tokenCounts, multipliers map[string]float64, w types.TokenClassWeights) int {
 	base := computeBaseWeightedTokensForUsage(w, provider, usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens, usage.reasoningTokens)
 	if base == 0 {
 		return 0
