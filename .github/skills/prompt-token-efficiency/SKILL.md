@@ -25,21 +25,21 @@ Use this skill to compress prompts while preserving intent and output quality.
 - Put required context before optional context.
 - Avoid conflicting instructions.
 
-## Compression Pattern
+## Prose Compression Pattern
 
-Rewrite prompts in this order:
+Rewrite prose to be direct and compact:
 
-1. **Task**: one sentence objective.
-2. **Inputs**: exact data and boundaries.
-3. **Constraints**: hard requirements and forbidden behavior.
-4. **Output**: strict schema/shape and brevity target.
+1. Start with the objective in one short sentence.
+2. Keep only facts needed to complete the task.
+3. Replace long qualifiers with concrete limits.
+4. Remove filler words that do not change behavior.
+5. End with explicit success criteria.
 
 ## LLM-Optimized Writing Style
 
 - Use imperative statements.
 - Prefer bullets over long prose.
 - Keep each instruction atomic.
-- Use compact field labels (`Task`, `Input`, `Constraints`, `Output`).
 - Avoid examples unless needed to prevent failure.
 - If examples are required, include one minimal example.
 
@@ -53,20 +53,12 @@ Before finalizing a prompt, verify:
 - Success criteria are testable.
 - Output format is unambiguous.
 
-## Output Contract Template
+## Prose Rewrite Checks
 
-Use this compact shape when rewriting prompts:
+When rewriting, ensure the final prompt:
 
-```text
-Task: <single objective>
-Input: <required context only>
-Constraints:
-- <hard rule 1>
-- <hard rule 2>
-Output:
-- Format: <exact structure>
-- Length: <token/line/word bound>
-- Include: <required fields>
-- Exclude: <forbidden content>
-```
-
+- Uses fewer words than the original.
+- Preserves all required constraints.
+- Uses concrete nouns instead of pronouns where possible.
+- Avoids optional wording unless options are actually allowed.
+- States required output and any length bound in plain language.
