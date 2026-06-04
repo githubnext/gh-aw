@@ -629,6 +629,11 @@ func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 		AgentModel:          "gpt-5",
 		DetectionAgentID:    "copilot",
 		DetectionAgentModel: "gpt-5.1-codex-mini",
+		EngineVersions: map[string]string{
+			"copilot": "1.0.57",
+			"claude":  "2.1.160",
+		},
+		AgentImageRunner: "ubuntu-latest",
 	}
 	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, "", false, agentInfo)
 
@@ -638,6 +643,8 @@ func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 	assert.Equal(t, "gpt-5", metadata.AgentModel, "Should preserve agent model")
 	assert.Equal(t, "copilot", metadata.DetectionAgentID, "Should preserve detection agent ID")
 	assert.Equal(t, "gpt-5.1-codex-mini", metadata.DetectionAgentModel, "Should preserve detection agent model")
+	assert.Equal(t, "1.0.57", metadata.EngineVersions["copilot"], "Should preserve engine versions")
+	assert.Equal(t, "ubuntu-latest", metadata.AgentImageRunner, "Should preserve agent image runner")
 }
 
 func TestGenerateLockMetadataAgentFieldsOmittedWhenEmpty(t *testing.T) {
@@ -661,6 +668,12 @@ func TestLockMetadataToJSONWithAgentFields(t *testing.T) {
 		AgentModel:          "claude-sonnet-4.5",
 		DetectionAgentID:    "copilot",
 		DetectionAgentModel: "gpt-5.1-codex-mini",
+		EngineVersions: map[string]string{
+			"claude":      "2.1.160",
+			"copilot":     "1.0.57",
+			"copilot-sdk": "1.0.0",
+		},
+		AgentImageRunner: `["self-hosted","linux"]`,
 	}
 
 	json, err := metadata.ToJSON()
@@ -672,10 +685,12 @@ func TestLockMetadataToJSONWithAgentFields(t *testing.T) {
 	assert.Contains(t, json, `"agent_model":"claude-sonnet-4.5"`)
 	assert.Contains(t, json, `"detection_agent_id":"copilot"`)
 	assert.Contains(t, json, `"detection_agent_model":"gpt-5.1-codex-mini"`)
+	assert.Contains(t, json, `"engine_versions":{"claude":"2.1.160","copilot":"1.0.57","copilot-sdk":"1.0.0"}`)
+	assert.Contains(t, json, `"agent_image_runner":"[\"self-hosted\",\"linux\"]"`)
 }
 
 func TestExtractMetadataWithAgentFields(t *testing.T) {
-	content := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc123","strict":true,"agent_id":"copilot","agent_model":"gpt-5","detection_agent_id":"copilot","detection_agent_model":"gpt-5.1-codex-mini"}
+	content := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc123","strict":true,"agent_id":"copilot","agent_model":"gpt-5","detection_agent_id":"copilot","detection_agent_model":"gpt-5.1-codex-mini","engine_versions":{"copilot":"1.0.57","claude":"2.1.160","copilot-sdk":"1.0.0"},"agent_image_runner":"[\"self-hosted\",\"linux\"]"}
 name: test
 `
 	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
@@ -689,4 +704,8 @@ name: test
 	assert.Equal(t, "gpt-5", metadata.AgentModel, "Should extract agent model")
 	assert.Equal(t, "copilot", metadata.DetectionAgentID, "Should extract detection agent ID")
 	assert.Equal(t, "gpt-5.1-codex-mini", metadata.DetectionAgentModel, "Should extract detection agent model")
+	assert.Equal(t, "1.0.57", metadata.EngineVersions["copilot"], "Should extract engine versions")
+	assert.Equal(t, "2.1.160", metadata.EngineVersions["claude"], "Should extract engine versions")
+	assert.Equal(t, "1.0.0", metadata.EngineVersions["copilot-sdk"], "Should extract copilot-sdk version")
+	assert.Equal(t, `["self-hosted","linux"]`, metadata.AgentImageRunner, "Should extract agent image runner")
 }

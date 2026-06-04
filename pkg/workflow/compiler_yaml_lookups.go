@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"regexp"
 	"strings"
 
@@ -158,4 +159,110 @@ func versionToGitRef(version string) string {
 	}
 	compilerYamlLookupsLog.Printf("Using version as git ref: %s -> %s", version, clean)
 	return clean
+}
+
+// collectEngineVersionsForMetadata returns engine version metadata for gh-aw lock files.
+// It includes only engines that are active in the current workflow, applies explicit version
+// overrides for those engines, and includes copilot-sdk only when enabled on an active copilot engine.
+func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
+	if data == nil {
+		return map[string]string{}
+	}
+
+	versions := map[string]string{
+		string(constants.CopilotEngine):     string(constants.DefaultCopilotVersion),
+		string(constants.ClaudeEngine):      string(constants.DefaultClaudeCodeVersion),
+		string(constants.CodexEngine):       string(constants.DefaultCodexVersion),
+		string(constants.GeminiEngine):      string(constants.DefaultGeminiVersion),
+		string(constants.AntigravityEngine): string(constants.DefaultAntigravityVersion),
+		string(constants.OpenCodeEngine):    string(constants.DefaultOpenCodeVersion),
+		string(constants.CrushEngine):       string(constants.DefaultCrushVersion),
+		string(constants.PiEngine):          string(constants.DefaultPiVersion),
+	}
+
+	mainEngineID := strings.TrimSpace(ResolveEngineID(data))
+	if mainEngineID == "" {
+		mainEngineID = string(constants.DefaultEngine)
+	}
+	activeEngineIDs := map[string]struct{}{mainEngineID: {}}
+
+	applyMetadataEngineVersionOverrides(versions, data.EngineConfig, mainEngineID)
+	if IsDetectionJobEnabled(data.SafeOutputs) && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		detectionConfig := data.SafeOutputs.ThreatDetection.EngineConfig
+		detectionEngineID := mainEngineID
+		if detectionConfig != nil && strings.TrimSpace(detectionConfig.ID) != "" {
+			detectionEngineID = strings.TrimSpace(detectionConfig.ID)
+		}
+		activeEngineIDs[detectionEngineID] = struct{}{}
+		applyMetadataEngineVersionOverrides(versions, detectionConfig, detectionEngineID)
+	}
+
+	filteredVersions := make(map[string]string, len(activeEngineIDs)+1)
+	for engineID := range activeEngineIDs {
+		if version := strings.TrimSpace(versions[engineID]); version != "" {
+			filteredVersions[engineID] = version
+		}
+	}
+
+	if isCopilotSDKEnabledForActiveEngine(data, mainEngineID) {
+		filteredVersions["copilot-sdk"] = string(constants.DefaultCopilotSDKVersion)
+	}
+
+	return filteredVersions
+}
+
+func applyMetadataEngineVersionOverrides(versions map[string]string, engineConfig *EngineConfig, fallbackEngineID string) {
+	if engineConfig == nil {
+		return
+	}
+
+	engineID := strings.TrimSpace(engineConfig.ID)
+	if engineID == "" {
+		engineID = strings.TrimSpace(fallbackEngineID)
+	}
+	if engineID != "" && strings.TrimSpace(engineConfig.Version) != "" {
+		versions[engineID] = strings.TrimSpace(engineConfig.Version)
+	}
+}
+
+func isCopilotSDKEnabledForActiveEngine(data *WorkflowData, mainEngineID string) bool {
+	if mainEngineID == string(constants.CopilotEngine) && data.EngineConfig != nil && data.EngineConfig.CopilotSDK {
+		return true
+	}
+
+	if !IsDetectionJobEnabled(data.SafeOutputs) || data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
+		return false
+	}
+
+	detectionConfig := data.SafeOutputs.ThreatDetection.EngineConfig
+	if detectionConfig == nil {
+		return false
+	}
+
+	detectionEngineID := strings.TrimSpace(detectionConfig.ID)
+	if detectionEngineID == "" {
+		detectionEngineID = mainEngineID
+	}
+	return detectionEngineID == string(constants.CopilotEngine) && detectionConfig.CopilotSDK
+}
+
+// resolveAgentImageRunnerIdentifier returns a stable identifier for the configured runs-on value.
+// For string values it returns the value directly; for array/object values it returns JSON.
+func resolveAgentImageRunnerIdentifier(frontmatter map[string]any) string {
+	if frontmatter == nil {
+		return ""
+	}
+	runsOn, exists := frontmatter["runs-on"]
+	if !exists || runsOn == nil {
+		return ""
+	}
+	if rawRunner, ok := runsOn.(string); ok {
+		return strings.TrimSpace(rawRunner)
+	}
+
+	serialized, err := json.Marshal(runsOn)
+	if err != nil {
+		return ""
+	}
+	return string(serialized)
 }

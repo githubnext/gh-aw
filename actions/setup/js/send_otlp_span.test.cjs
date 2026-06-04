@@ -927,6 +927,18 @@ describe("readLastRateLimitEntry", () => {
     });
     expect(readLastRateLimitEntry()).toBeNull();
   });
+
+  it("returns the last valid entry when the final line is malformed (truncated write)", () => {
+    const valid = { resource: "core", remaining: 4999 };
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+        return JSON.stringify(valid) + "\ntruncated-";
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    // parseJsonlContent drops the malformed trailing line; the last valid entry is returned.
+    expect(readLastRateLimitEntry()).toEqual(valid);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -3521,6 +3533,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.error_count"]).toBe(2);
     expect(attrs["gh-aw.warning_count"]).toBe(3);
     expect(attrs["gh-aw.permission_denied_count"]).toBe(0);
+    expect(attrs["gh-aw.steering_event_count"]).toBe(0);
     expect(attrs["gh-aw.run.status"]).toBe("timeout");
     expect(attrs["gh-aw.tracker.id"]).toBe("copilot-token-optimizer");
   });
@@ -3604,6 +3617,94 @@ describe("sendJobConclusionSpan", () => {
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
     expect(attrs["gh-aw.permission_denied_count"]).toBe(3);
+  });
+
+  it("emits gh-aw.steering_event_count from api-proxy event logs JSONL", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const eventLogPath = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl";
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(filePath => {
+      if (filePath === eventLogPath) {
+        return /** @type {Partial<fs.Stats>} */ { size: 1024 };
+      }
+      if (filePath === "/tmp/gh-aw/agent_output.json") {
+        return /** @type {Partial<fs.Stats>} */ { mtimeMs: endMs };
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === eventLogPath) {
+        return [
+          '{"event":"token_steering","request_id":"r1"}',
+          '{"type":"token_steering","request_id":"r2"}',
+          '{"event":"steering","request_id":"r3"}',
+          '{"event":"TOKEN_STEERING","request_id":"r4"}',
+          '{"event":"request","request_id":"r5"}',
+          '{"payload":{"event":"token_steering"},"request_id":"r6"}',
+          '{"payload":{"type":"model_steering"},"request_id":"r7"}',
+          "not-json",
+        ].join("\n");
+      }
+      if (filePath === "/tmp/gh-aw/agent-stdio.log") {
+        return '{"type":"result","num_turns":2}\n';
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
+    expect(attrs["gh-aw.steering_event_count"]).toBe(6);
+  });
+
+  it("falls back to second api-proxy log path when first is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const fallbackLogPath = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/events.jsonl";
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(filePath => {
+      if (filePath === fallbackLogPath) {
+        return /** @type {Partial<fs.Stats>} */ { size: 512 };
+      }
+      if (filePath === "/tmp/gh-aw/agent_output.json") {
+        return /** @type {Partial<fs.Stats>} */ { mtimeMs: endMs };
+      }
+      // First api-proxy log path and any other paths are treated as absent.
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === fallbackLogPath) {
+        return '{"event":"token_steering"}\n';
+      }
+      if (filePath === "/tmp/gh-aw/agent-stdio.log") {
+        return '{"type":"result","num_turns":1}\n';
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
+    expect(attrs["gh-aw.steering_event_count"]).toBe(1);
   });
 
   it("emits gh-aw.otlp.export_errors on the conclusion job span", async () => {

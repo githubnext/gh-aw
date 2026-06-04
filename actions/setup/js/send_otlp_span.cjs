@@ -9,6 +9,8 @@ const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
+const { parseJsonlContent } = require("./jsonl_helpers.cjs");
+const { countSteeringEventsInApiProxyJsonl } = require("./steering_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -1390,6 +1392,12 @@ const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
  * @type {string}
  */
 const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
+const API_PROXY_EVENT_LOG_PATHS = [
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/events.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
+];
 const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|EPERM)\b/i;
 
 /**
@@ -1413,9 +1421,12 @@ const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|
 function readLastRateLimitEntry() {
   try {
     const content = fs.readFileSync(GITHUB_RATE_LIMITS_JSONL_PATH, "utf8");
-    const lines = content.split("\n").filter(l => l.trim() !== "");
-    if (lines.length === 0) return null;
-    return JSON.parse(lines[lines.length - 1]);
+    const entries = parseJsonlContent(content);
+    if (entries.length === 0) return null;
+    const last = entries[entries.length - 1];
+    // Rate-limit enrichment requires object entries (not primitive values or
+    // arrays) so the expected fields can be extracted as attributes.
+    return last && typeof last === "object" && !Array.isArray(last) ? last : null;
   } catch {
     return null;
   }
@@ -1493,18 +1504,9 @@ function readOTLPExportErrorDetails() {
     const content = fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8");
     /** @type {OTLPExportErrorDetail[]} */
     const details = [];
-    for (const rawLine of content.split("\n")) {
-      const line = rawLine.trim();
-      if (!line) {
-        continue;
-      }
-      try {
-        const parsed = JSON.parse(line);
-        if (isValidOTLPExportErrorDetail(parsed)) {
-          details.push(normalizeOTLPExportErrorDetail(parsed));
-        }
-      } catch {
-        // Ignore malformed and partially written JSONL lines.
+    for (const parsed of parseJsonlContent(content)) {
+      if (isValidOTLPExportErrorDetail(parsed)) {
+        details.push(normalizeOTLPExportErrorDetail(parsed));
       }
     }
     return details;
@@ -1629,6 +1631,7 @@ function getErrorMessage(errorEntry) {
  * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
  * @property {number} warningCount
  * @property {number} permissionDeniedCount
+ * @property {number} steeringEventCount
  */
 
 /**
@@ -1684,13 +1687,39 @@ function normalizeRuntimeTokenUsage(rawUsage) {
 }
 
 /**
+ * Read steering-event count from the first available API proxy event-log JSONL.
+ *
+ * Uses first-available-wins semantics: the first non-empty file encountered is
+ * the single source of truth for this run. Multiple paths cover runtime vs
+ * audit sandbox layouts. If the file exists but has no steering events, 0 is
+ * returned without checking later paths.
+ *
+ * @returns {number}
+ */
+function readApiProxySteeringEventCount() {
+  for (const filePath of API_PROXY_EVENT_LOG_PATHS) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (!stat || stat.size <= 0) {
+        continue;
+      }
+      const content = fs.readFileSync(filePath, "utf8");
+      return countSteeringEventsInApiProxyJsonl(content);
+    } catch {
+      // Ignore missing/unreadable files and fall through to the next path.
+    }
+  }
+  return 0;
+}
+
+/**
  * Read turns, token usage, and warning volume from agent-stdio.log.
  *
  * @returns {AgentRuntimeMetrics}
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0 };
+  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0, steeringEventCount: readApiProxySteeringEventCount() };
   let fallbackPermissionDeniedCount = 0;
   let hasStructuredPermissionDeniedCount = false;
 
@@ -1979,6 +2008,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
   attributes.push(buildAttr("gh-aw.permission_denied_count", runtimeMetrics.permissionDeniedCount));
+  attributes.push(buildAttr("gh-aw.steering_event_count", runtimeMetrics.steeringEventCount));
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
