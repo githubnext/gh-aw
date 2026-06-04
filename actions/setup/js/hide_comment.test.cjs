@@ -155,7 +155,7 @@ describe("hide_comment.cjs", () => {
       const result = await handler({ comment_id: 0, reason: "SPAM" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("positive numeric REST comment ID");
+      expect(result.error).toBe("comment_id must be a GraphQL node ID string or a positive numeric REST comment ID");
       expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
 
