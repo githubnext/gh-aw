@@ -540,7 +540,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			}
 			chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
 			userPromptChunks = append(userPromptChunks, chunks...)
-			expressionMappings = exprMaps
+			expressionMappings = append(expressionMappings, exprMaps...)
 			compilerYamlLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
 		}
 

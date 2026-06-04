@@ -224,7 +224,7 @@ steps:
 # Infrastructure Setup
 
 Ensure environment is ready.`
-	if err := os.WriteFile(runtimeImportPath, []byte(runtimeImportContent), 0644); err != nil {
+	if err := os.WriteFile(runtimeImportPath, []byte(runtimeImportContent), 0o644); err != nil {
 		t.Fatalf("Failed to write runtime import file: %v", err)
 	}
 
@@ -239,7 +239,7 @@ import-schema:
 # Mode Instructions
 
 Use mode: ${{ github.aw.import-inputs.mode }}.`
-	if err := os.WriteFile(parameterizedImportPath, []byte(parameterizedImportContent), 0644); err != nil {
+	if err := os.WriteFile(parameterizedImportPath, []byte(parameterizedImportContent), 0o644); err != nil {
 		t.Fatalf("Failed to write parameterized import file: %v", err)
 	}
 
@@ -260,7 +260,7 @@ imports:
 # Main Workflow
 
 Handle the issue.`
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
