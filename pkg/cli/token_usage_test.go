@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -289,6 +290,46 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.NotNil(t, summary, "should return summary")
 		assert.Equal(t, 1, summary.TotalRequests, "should have 1 request")
 		assert.Equal(t, 100, summary.TotalInputTokens, "should have correct input tokens")
+	})
+
+	t.Run("counts steering events from api-proxy events log", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-steering-events")
+		logsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(logsDir, 0o755))
+		tokenFile := filepath.Join(logsDir, "token-usage.jsonl")
+		tokenContent := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"1","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":100,"output_tokens":200,"cache_read_tokens":5000,"cache_write_tokens":3000,"duration_ms":2500,"response_bytes":1500}`
+		require.NoError(t, os.WriteFile(tokenFile, []byte(tokenContent+"\n"), 0o644))
+
+		eventsFile := filepath.Join(logsDir, "events.jsonl")
+		eventsContent := strings.Join([]string{
+			`{"event":"token_steering","message":"warn 80%"}`,
+			`{"type":"token_steering","message":"warn 90%"}`,
+			`{"event":"request.forwarded"}`,
+			`{"event":"budget_steering"}`,
+		}, "\n")
+		require.NoError(t, os.WriteFile(eventsFile, []byte(eventsContent+"\n"), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.Equal(t, 3, summary.TotalSteeringEvents, "should count steering events from api-proxy events.jsonl")
+	})
+
+	t.Run("counts steering events from legacy firewall-audit-logs events file", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-steering-events-legacy")
+		logsDir := filepath.Join(tmpDir, "firewall-audit-logs", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(logsDir, 0o755))
+		tokenFile := filepath.Join(logsDir, "token-usage.jsonl")
+		tokenContent := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"1","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":100,"output_tokens":200,"cache_read_tokens":5000,"cache_write_tokens":3000,"duration_ms":2500,"response_bytes":1500}`
+		require.NoError(t, os.WriteFile(tokenFile, []byte(tokenContent+"\n"), 0o644))
+
+		eventsFile := filepath.Join(logsDir, "events.jsonl")
+		require.NoError(t, os.WriteFile(eventsFile, []byte(`{"event":"token_steering"}`+"\n"), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.Equal(t, 1, summary.TotalSteeringEvents, "should count steering events from legacy events.jsonl")
 	})
 
 	t.Run("falls back to agent_usage.json when token-usage.jsonl is missing", func(t *testing.T) {

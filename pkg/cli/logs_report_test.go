@@ -919,6 +919,32 @@ func TestBuildLogsDataEngineCountsFromAwInfo(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0600); err != nil {
 			t.Fatalf("Failed to write aw_info.json: %v", err)
 		}
+
+		func TestBuildLogsDataAggregatesSteeringEvents(t *testing.T) {
+			processedRuns := []ProcessedRun{
+				{
+					Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf-1"},
+					TokenUsage: &TokenUsageSummary{
+						TotalSteeringEvents: 2,
+					},
+				},
+				{
+					Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf-2"},
+					TokenUsage: &TokenUsageSummary{
+						TotalSteeringEvents: 3,
+					},
+				},
+				{
+					Run:       WorkflowRun{DatabaseID: 3, WorkflowName: "wf-3"},
+					TokenUsage: nil,
+				},
+			}
+
+			data := buildLogsData(processedRuns, "/tmp/logs", nil)
+			if data.Summary.TotalSteeringEvents != 5 {
+				t.Errorf("Expected TotalSteeringEvents = 5, got %d", data.Summary.TotalSteeringEvents)
+			}
+		}
 		return dir
 	}
 
