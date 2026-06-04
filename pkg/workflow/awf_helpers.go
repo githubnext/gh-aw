@@ -202,9 +202,7 @@ fi`,
 	toolCacheMountProbe := fmt.Sprintf(`%s=""
 GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"
 if [ -d "$GH_AW_TOOL_CACHE" ]; then
-  if [[ "$GH_AW_TOOL_CACHE" != /opt/* ]]; then
-    %s="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"
-  fi
+  %s="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"
 elif [ -d "/home/runner/work/_tool" ]; then
   %s="/home/runner/work/_tool:/home/runner/work/_tool:ro"
 fi`,
