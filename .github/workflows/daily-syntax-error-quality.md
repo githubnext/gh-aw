@@ -237,6 +237,13 @@ Collect key strengths (1–2 bullets) and improvement suggestions (1–2 bullets
 - Any individual test case scores < 50, OR
 - Critical pattern issues are identified
 
+### Output Contract (Required)
+
+1. Emit **exactly one** safe-output before finishing.
+2. If issue criteria are met and the issue body is complete, emit `create_issue` once.
+3. Otherwise, emit `noop` once with a one-line summary of what you analyzed and why no issue was created.
+4. Never end with plain text only. A run without a safe-output call is a failure.
+
 ### Issue Structure
 
 Use this **compact** template (do not add extra sections):
