@@ -379,7 +379,7 @@ async function main() {
   }
 
   if (changedFileCount > maxFileCount) {
-    core.setFailed(`Too many changed files (${changedFileCount} > ${maxFileCount})`);
+    core.setFailed(`Too many changed files in working directory (${changedFileCount} > ${maxFileCount})`);
     return;
   }
 
