@@ -25,9 +25,7 @@ func TestBuildLogsDataIncludesAmbientContext(t *testing.T) {
 			},
 			TokenUsage: &TokenUsageSummary{
 				AmbientContext: &AmbientContextMetrics{
-					InputTokens:     800,
-					CachedTokens:    200,
-					EffectiveTokens: 1000,
+					InputTokens: 800,
 				},
 			},
 		},
@@ -37,6 +35,4 @@ func TestBuildLogsDataIncludesAmbientContext(t *testing.T) {
 	require.Len(t, data.Runs, 1, "should produce a single run")
 	require.NotNil(t, data.Runs[0].AmbientContext, "ambient context should be included")
 	assert.Equal(t, 800, data.Runs[0].AmbientContext.InputTokens, "input tokens should match")
-	assert.Equal(t, 200, data.Runs[0].AmbientContext.CachedTokens, "cached tokens should match")
-	assert.Equal(t, 1000, data.Runs[0].AmbientContext.EffectiveTokens, "effective tokens should match")
 }

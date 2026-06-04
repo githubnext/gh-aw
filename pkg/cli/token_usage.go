@@ -43,9 +43,7 @@ type TokenUsageEntry struct {
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
 type AmbientContextMetrics struct {
-	InputTokens     int `json:"input_tokens" console:"header:Ambient Input,format:number"`
-	CachedTokens    int `json:"cached_tokens" console:"header:Ambient Cached,format:number"`
-	EffectiveTokens int `json:"effective_tokens" console:"header:Ambient Effective,format:number"`
+	InputTokens int `json:"input_tokens" console:"header:Ambient Context,format:number"`
 }
 
 // TokenUsageSummary contains aggregated token usage from the firewall proxy
@@ -219,9 +217,7 @@ func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetr
 
 	firstCall := ordered[0].entry
 	return &AmbientContextMetrics{
-		InputTokens:     firstCall.InputTokens,
-		CachedTokens:    firstCall.CacheReadTokens,
-		EffectiveTokens: firstCall.InputTokens + firstCall.CacheReadTokens,
+		InputTokens: firstCall.InputTokens,
 	}
 }
 
@@ -371,9 +367,7 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 	}
 
 	summary.AmbientContext = &AmbientContextMetrics{
-		InputTokens:     entry.InputTokens,
-		CachedTokens:    entry.CacheReadTokens,
-		EffectiveTokens: entry.InputTokens + entry.CacheReadTokens,
+		InputTokens: entry.InputTokens,
 	}
 
 	// Effective tokens are derived data; recompute from raw token usage whenever

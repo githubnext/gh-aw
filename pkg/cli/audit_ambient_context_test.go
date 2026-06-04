@@ -22,9 +22,7 @@ func TestBuildAuditDataIncludesAmbientContext(t *testing.T) {
 		},
 		TokenUsage: &TokenUsageSummary{
 			AmbientContext: &AmbientContextMetrics{
-				InputTokens:     1200,
-				CachedTokens:    300,
-				EffectiveTokens: 1500,
+				InputTokens: 1200,
 			},
 		},
 	}
@@ -32,6 +30,4 @@ func TestBuildAuditDataIncludesAmbientContext(t *testing.T) {
 	auditData := buildAuditData(processedRun, workflow.LogMetrics{}, nil)
 	require.NotNil(t, auditData.Metrics.AmbientContext, "ambient context should be populated")
 	assert.Equal(t, 1200, auditData.Metrics.AmbientContext.InputTokens, "input tokens should match")
-	assert.Equal(t, 300, auditData.Metrics.AmbientContext.CachedTokens, "cached tokens should match")
-	assert.Equal(t, 1500, auditData.Metrics.AmbientContext.EffectiveTokens, "effective tokens should match")
 }

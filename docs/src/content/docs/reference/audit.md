@@ -81,8 +81,6 @@ gh aw audit 12345 12346 --repo owner/repo      # Specify repository
 
 The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run:
 - `ambient_context.input_tokens` — input tokens for the first invocation
-- `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
-- `ambient_context.effective_tokens` — `input_tokens + cached_tokens`
 
 **Diff output** includes:
 - New and removed network domains
@@ -121,7 +119,7 @@ This feature is built into the `gh aw logs` command via the `--format` flag.
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
-For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, `effective_tokens`).
+For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`) and is not multiplied by model weighting factors.
 
 **`--stdin` mode:** Pass `--stdin` to supply an explicit list of run IDs or URLs instead of letting the command discover runs from the GitHub API. Date, count, and workflow-name filters are ignored; `--engine`, `--firewall`, `--safe-output`, and other content filters still apply. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`.
 

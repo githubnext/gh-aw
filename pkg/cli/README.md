@@ -235,7 +235,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `ActionlintStats` | struct | Static-analysis statistics from an actionlint run |
 | `AddInteractiveConfig` | struct | Configuration for the interactive `add-wizard` command |
 | `AgenticAssessment` | struct | Agentic behavior assessment derived from audit logs |
-| `AmbientContextMetrics` | struct | Token metrics for ambient context (input, cached, effective token counts) |
+| `AmbientContextMetrics` | struct | Ambient context for first LLM invocation (`input_tokens`) |
 | `Argument` | struct | A command-line argument definition from the MCP registry API |
 | `ArtifactSet` | string alias | Named set of artifacts (e.g. `"agent"`, `"detection"`) |
 | `AuditComparisonClassification` | struct | A classification label and reason codes for an audit comparison |

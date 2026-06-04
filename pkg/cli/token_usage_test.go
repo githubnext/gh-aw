@@ -83,11 +83,9 @@ func TestParseTokenUsageFile(t *testing.T) {
 		require.NotNil(t, summary, "should return non-nil summary")
 		require.NotNil(t, summary.AmbientContext, "ambient context should be present")
 		assert.Equal(t, 7, summary.AmbientContext.InputTokens, "ambient input tokens should come from first invocation")
-		assert.Equal(t, 3, summary.AmbientContext.CachedTokens, "ambient cached tokens should come from first invocation")
-		assert.Equal(t, 10, summary.AmbientContext.EffectiveTokens, "ambient effective tokens should be input + cached")
 	})
 
-	t.Run("ambient context defaults cached tokens to zero when absent", func(t *testing.T) {
+	t.Run("ambient context keeps first invocation input tokens when cache fields are absent", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "token-usage")
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
 
@@ -99,8 +97,6 @@ func TestParseTokenUsageFile(t *testing.T) {
 		require.NotNil(t, summary, "should return non-nil summary")
 		require.NotNil(t, summary.AmbientContext, "ambient context should be present")
 		assert.Equal(t, 11, summary.AmbientContext.InputTokens, "ambient input tokens should match")
-		assert.Equal(t, 0, summary.AmbientContext.CachedTokens, "missing cached tokens should default to zero")
-		assert.Equal(t, 11, summary.AmbientContext.EffectiveTokens, "ambient effective tokens should fall back to input only")
 	})
 
 	t.Run("empty file returns nil", func(t *testing.T) {

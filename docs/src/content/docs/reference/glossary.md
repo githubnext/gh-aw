@@ -714,7 +714,7 @@ To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, 
 
 ### Ambient Context
 
-The token footprint of the first LLM invocation in a workflow run, used as a proxy for the static context loaded at startup (system prompt, tools list, memory). Because the first invocation fires before the agent has accumulated any conversation history, its input token count primarily reflects the overhead of the configured environment rather than task-specific content. Reported as an optional `ambient_context` object in `gh aw audit` and `gh aw logs` JSON output with three fields: `input_tokens`, `cached_tokens`, and `effective_tokens`. Useful for comparing context overhead across different workflow configurations. See [Audit Commands](/gh-aw/reference/audit/).
+The input-token footprint of the first LLM invocation in a workflow run, used as a proxy for the static context loaded at startup (system prompt, tools list, memory). Because the first invocation fires before the agent has accumulated any conversation history, its input token count primarily reflects the overhead of the configured environment rather than task-specific content. Reported as an optional `ambient_context` object in `gh aw audit` and `gh aw logs` JSON output with one field: `input_tokens`. Useful for comparing context overhead across different workflow configurations. Ambient context is a raw first-call input-token measure and does not apply model multipliers. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Firewall Analysis
 
