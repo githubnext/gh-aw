@@ -22,7 +22,6 @@ imports:
 tools:
   cli-proxy: true
   agentic-workflows:
-    audit: true
   github:
     mode: gh-proxy
     min-integrity: none

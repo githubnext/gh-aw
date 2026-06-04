@@ -26,7 +26,6 @@ safe-outputs:
 tools:
   cli-proxy: true
   agentic-workflows:
-    audit: true
   github:
     toolsets:
       - all

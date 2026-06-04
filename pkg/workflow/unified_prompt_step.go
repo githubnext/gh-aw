@@ -92,11 +92,9 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 4. Agentic Workflows audit guide (only when audit: true is set)
-	// The guide (~1,628 chars) documents the audit MCP tool; inject it only for
-	// workflows that explicitly opt in with `agentic-workflows: {audit: true}`.
-	if hasAgenticWorkflowsAuditTool(data.ParsedTools) {
-		unifiedPromptLog.Print("Adding agentic-workflows audit guide section")
+	// 4. Agentic Workflows MCP guide (if agentic-workflows tool is enabled)
+	if hasAgenticWorkflowsTool(data.ParsedTools) {
+		unifiedPromptLog.Print("Adding agentic-workflows guide section")
 		sections = append(sections, PromptSection{
 			Content: agenticWorkflowsGuideFile,
 			IsFile:  true,
