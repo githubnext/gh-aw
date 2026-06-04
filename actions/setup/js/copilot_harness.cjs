@@ -564,6 +564,7 @@ async function main() {
   // BYOK is the only supported mode for SDK sessions — fail immediately if the provider
   // cannot be resolved so retries are not wasted on a misconfigured environment.
   let sdkProviderBaseUrl = "";
+  let sdkResolvedModel = "";
   if (copilotSDKMode) {
     const configuredModel = process.env.COPILOT_MODEL || "";
     const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, reflectData: awfReflectData, logger: log });
@@ -572,7 +573,8 @@ async function main() {
       process.exit(1);
     }
     sdkProviderBaseUrl = customProvider.provider.baseUrl;
-    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${sdkProviderBaseUrl})`);
+    sdkResolvedModel = customProvider.model;
+    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${sdkProviderBaseUrl} model=${sdkResolvedModel})`);
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -581,10 +583,15 @@ async function main() {
   // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
   // Always attach the generated per-run COPILOT_CONNECTION_TOKEN so both the sidecar
   // (started by the harness) and the SDK client share the same token.
-  // In SDK mode also inject the resolved BYOK provider base URL so the driver subprocess
-  // does not need to re-read the reflect file.
+  // In SDK mode also inject the resolved BYOK provider base URL and model so the driver
+  // subprocess does not need to re-read the reflect file.
   const sdkChildEnv = copilotSDKMode
-    ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken, GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: sdkProviderBaseUrl }
+    ? {
+        ...sdkEnv,
+        COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
+        GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: sdkProviderBaseUrl,
+        COPILOT_MODEL: sdkResolvedModel,
+      }
     : sdkEnv;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 

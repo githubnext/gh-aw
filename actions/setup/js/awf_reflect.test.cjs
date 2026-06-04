@@ -411,11 +411,16 @@ describe("awf_reflect.cjs", () => {
       expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
     });
 
-    it("returns null when reflectData is null", () => {
+    it("falls back to file reading when reflectData is null", () => {
       const logs = [];
-      const result = resolveCopilotSDKCustomProviderFromReflect({ reflectData: null, logger: msg => logs.push(msg) });
+      // null reflectData triggers file fallback; the default path doesn't exist in test env
+      const result = resolveCopilotSDKCustomProviderFromReflect({
+        reflectData: null,
+        reflectPath: "/tmp/gh-aw-nonexistent-reflect-null.json",
+        logger: msg => logs.push(msg),
+      });
       expect(result).toBeNull();
-      expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
+      expect(logs.some(l => l.includes("unable to read custom provider config"))).toBe(true);
     });
   });
 });

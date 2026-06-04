@@ -325,7 +325,7 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
 
   let reflectData;
-  if (options && "reflectData" in options) {
+  if (options != null && options.reflectData != null) {
     // Live data passed directly by the harness — use it without touching the file system.
     reflectData = options.reflectData;
   } else {
