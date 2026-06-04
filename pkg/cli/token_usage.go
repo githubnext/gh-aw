@@ -122,7 +122,9 @@ const modelMismatchReasonTokenUsageMissing = "TOKEN_USAGE_MISSING"
 const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
 const tokenSteeringEventName = "token_steering"
-const genericSteeringEventName = "steering"
+const timeoutSteeringEventName = "timeout_steering"
+const awfTokenWarningPrefix = "[awf token warning]"
+const awfTimeWarningPrefix = "[awf time warning]"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -533,10 +535,8 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 			entry["event_name"],
 			entry["eventName"],
 		)))
-		if eventName == "" {
-			continue
-		}
-		if isSteeringEventName(eventName) {
+		message := strings.ToLower(strings.TrimSpace(coalesceString(entry["message"])))
+		if isSteeringEvent(eventName, message) {
 			count++
 		}
 	}
@@ -561,13 +561,20 @@ func containsSteeringKeyword(line string) bool {
 		strings.Contains(line, "Steering")
 }
 
-// isSteeringEventName matches known API proxy steering event names.
-// It supports exact token_steering/steering values and *_steering suffixes to
-// tolerate schema variants emitted by different proxy versions.
-func isSteeringEventName(eventName string) bool {
-	return eventName == tokenSteeringEventName ||
-		eventName == genericSteeringEventName ||
-		strings.HasSuffix(eventName, "_steering")
+// isSteeringEvent matches AWF proxy steering events using both event name and
+// message format from the firewall specification.
+func isSteeringEvent(eventName, message string) bool {
+	switch eventName {
+	case tokenSteeringEventName:
+		return message == "" || strings.HasPrefix(message, awfTokenWarningPrefix)
+	case timeoutSteeringEventName:
+		return message == "" || strings.HasPrefix(message, awfTimeWarningPrefix)
+	case "":
+		return strings.HasPrefix(message, awfTokenWarningPrefix) ||
+			strings.HasPrefix(message, awfTimeWarningPrefix)
+	default:
+		return false
+	}
 }
 
 func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) {

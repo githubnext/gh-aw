@@ -302,19 +302,20 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 
 		eventsFile := filepath.Join(logsDir, "events.jsonl")
 		eventsContent := strings.Join([]string{
-			`{"event":"token_steering","message":"warn 80%"}`,
-			`{"type":"token_steering","message":"warn 90%"}`,
-			`{"event_name":"token_steering","message":"warn 95%"}`,
-			`{"eventName":"token_steering","message":"warn 99%"}`,
+			`{"event":"token_steering","message":"[AWF TOKEN WARNING] You have used 80% of your effective token budget. Begin planning to wrap up your current work."}`,
+			`{"type":"token_steering","message":"[AWF TOKEN WARNING] You have used 90% of your effective token budget. Complete your current task and prepare final output."}`,
+			`{"event_name":"timeout_steering","message":"[AWF TIME WARNING] You have used 80% of your allotted run time. Begin planning to wrap up your current work."}`,
+			`{"eventName":"timeout_steering","message":"[AWF TIME WARNING] You have used 90% of your allotted run time. Complete your current task and prepare final output."}`,
 			`{"event":"request.forwarded"}`,
-			`{"event":"budget_steering"}`,
+			`{"event":"token_steering","message":"warn 95%"}`,
+			`{"event":"budget_steering","message":"[AWF TOKEN WARNING] non-spec event name"}`,
 		}, "\n")
 		require.NoError(t, os.WriteFile(eventsFile, []byte(eventsContent+"\n"), 0o644))
 
 		summary, err := analyzeTokenUsage(tmpDir, false)
 		require.NoError(t, err)
 		require.NotNil(t, summary)
-		assert.Equal(t, 5, summary.TotalSteeringEvents, "should count steering events from api-proxy events.jsonl")
+		assert.Equal(t, 4, summary.TotalSteeringEvents, "should count spec-compliant steering events from api-proxy events.jsonl")
 	})
 
 	t.Run("counts steering events from legacy firewall-audit-logs events file", func(t *testing.T) {
