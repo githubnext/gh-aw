@@ -218,6 +218,35 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 }
 
+// TestCopilotEngineDisablesRubberDuck verifies that the Copilot engine execution steps
+// write a settings file that disables the rubber-duck sub-agent, reducing token overhead
+// and latency for Copilot engine runs.
+func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// The step should create the Copilot config directory and write a settings file
+	// that disables the rubber-duck sub-agent.
+	if !strings.Contains(stepContent, "mkdir -p /home/runner/.copilot") {
+		t.Errorf("Expected 'mkdir -p /home/runner/.copilot' in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, copilotSettingsContent) {
+		t.Errorf("Expected copilot settings content %q in step content:\n%s", copilotSettingsContent, stepContent)
+	}
+	if !strings.Contains(stepContent, copilotSettingsPath) {
+		t.Errorf("Expected copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
+	}
+}
+
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{

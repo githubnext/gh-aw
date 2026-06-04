@@ -38,6 +38,25 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
+
+// copilotSettingsPath is the path to the Copilot CLI settings file on GitHub Actions runners.
+// The Copilot CLI resolves its config directory as ~/.copilot, which on GitHub Actions
+// runners is /home/runner/.copilot (HOME=/home/runner).
+const copilotSettingsPath = "/home/runner/.copilot/settings.json"
+
+// copilotSettingsContent is the JSON content written to the Copilot CLI settings file.
+// Setting builtInAgents.rubberDuck to false disables the rubber-duck sub-agent, which
+// would otherwise be invoked proactively for non-trivial tasks. In Copilot engine runs
+// this adds unnecessary token overhead and latency with little benefit, since the primary
+// model already has strong reasoning capabilities.
+const copilotSettingsContent = `{"builtInAgents":{"rubberDuck":false}}`
+
+// buildCopilotSettingsSetup returns shell commands that write the Copilot CLI settings
+// file before the agent runs, disabling the rubber-duck sub-agent.
+func buildCopilotSettingsSetup() string {
+	return fmt.Sprintf("mkdir -p /home/runner/.copilot\nprintf '%%s' %s > %s\n",
+		shellEscapeArg(copilotSettingsContent), copilotSettingsPath)
+}
 const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi`
 const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
@@ -396,6 +415,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}
+		// Write the Copilot settings file before AWF starts. The file is created on the
+		// host and AWF mounts it into the container, where the Copilot CLI reads it to
+		// disable the rubber-duck sub-agent.
+		pathSetup = buildCopilotSettingsSetup() + pathSetup
 		// Build the list of core secret var names to hide from the agent shell tools.
 		// In BYOK mode COPILOT_GITHUB_TOKEN is not injected into the step env at all,
 		// so there is nothing to exclude. Excluding it unconditionally would produce
@@ -434,6 +457,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if customCommandScriptSetup != "" {
 			preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
 		}
+		// Write the Copilot settings file before the agent runs to disable the rubber-duck
+		// sub-agent. This reduces token overhead and latency for Copilot engine runs.
+		preCommandSetup = buildCopilotSettingsSetup() + preCommandSetup
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
