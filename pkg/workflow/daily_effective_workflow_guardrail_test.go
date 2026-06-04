@@ -64,7 +64,7 @@ func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: 100000000
+max-daily-effective-tokens: 100_000_000
 safe-outputs:
   add-comment:
     max: 1
