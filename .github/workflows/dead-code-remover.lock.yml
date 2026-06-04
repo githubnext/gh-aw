@@ -231,24 +231,24 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_18306a05ecb4d558_EOF'
+          cat << 'GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF'
           <system>
-          GH_AW_PROMPT_18306a05ecb4d558_EOF
+          GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_18306a05ecb4d558_EOF'
+          cat << 'GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF'
           <safe-output-tools>
           Tools: create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_18306a05ecb4d558_EOF
+          GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_18306a05ecb4d558_EOF'
+          cat << 'GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_18306a05ecb4d558_EOF
+          GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_18306a05ecb4d558_EOF'
+          cat << 'GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -277,15 +277,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_18306a05ecb4d558_EOF
+          GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_18306a05ecb4d558_EOF'
+          cat << 'GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/activation-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/dead-code-remover.md}}
-          GH_AW_PROMPT_18306a05ecb4d558_EOF
+          GH_AW_PROMPT_78a1d3ec5c7dcc5e_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -548,9 +548,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c200878e6f494fe3_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_6a962a6b758a044f_EOF'
           {"create_pull_request":{"expires":72,"labels":["chore","dead-code"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_files_policy":"request_review","reviewers":["copilot"],"title_prefix":"[dead-code] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_c200878e6f494fe3_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_6a962a6b758a044f_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -762,7 +762,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_7d54735b2e88781a_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_433f84c29b1f57ad_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -792,7 +792,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_7d54735b2e88781a_EOF
+          GH_AW_MCP_CONFIG_433f84c29b1f57ad_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1744,3 +1744,4 @@ jobs:
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
+
