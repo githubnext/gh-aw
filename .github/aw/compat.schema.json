@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/github/gh-aw/.github/aw/compat.schema.json",
   "title": "gh-aw agent compatibility matrix",
-  "description": "Pins agentic CLI versions to gh-aw release ranges. Consumed by the setup action to install a known-good agent version per gh-aw release. Updates are driven by canary testing via repository_dispatch (push model). See compat-update-model.md for the security model and bump workflow.",
+  "description": "Pins agentic CLI versions to gh-aw release ranges. Consumed by the setup action to install a known-good agent version per gh-aw release. See ADR for the design rationale.",
   "type": "object",
   "required": ["agent-compat-v1"],
   "additionalProperties": false,

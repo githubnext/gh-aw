@@ -8,20 +8,13 @@ set +o histexpand
 # releases with SHA256 checksum verification, following the secure pattern from
 # install_awf_binary.sh to avoid executing unverified downloaded scripts.
 #
-# Compatibility-driven version selection:
-#   When VERSION is not provided, the installer resolves the Copilot CLI version
-#   from the compatibility matrix (.github/aw/compat.json) based on GH_AW_COMPILED_VERSION.
-#   The compat matrix is updated via canary-driven repository_dispatch events.
-#   See .github/aw/compat-update-model.md for the push model and security architecture.
-#
 # Arguments:
-#   VERSION - Optional Copilot CLI version to install (default: compat-matrix-driven)
+#   VERSION - Optional Copilot CLI version to install (default: latest release)
 #
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)
 #   - Verifies SHA256 checksum against official SHA256SUMS.txt
 #   - Fails fast if checksum verification fails
-#   - Respects compatibility matrix to prevent incompatible agent/gh-aw pairings
 
 set -euo pipefail
 

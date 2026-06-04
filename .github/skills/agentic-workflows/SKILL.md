@@ -12,7 +12,6 @@ This skill is a dispatcher: identify the task type, load the matching `.github/a
 Read only the files you need:
 Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/agentic-chat.md`
-- `.github/aw/agentic-workflows-mcp.md`
 - `.github/aw/asciicharts.md`
 - `.github/aw/campaign.md`
 - `.github/aw/charts-trending.md`
