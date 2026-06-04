@@ -10,7 +10,7 @@ Inline sub-agents let you define specialised agents directly inside a workflow m
 
 ## Enabling the Feature
 
-Inline sub-agent extraction is always on — no config needed. The deprecated `features.inline-agents` field and the unsupported `inline-sub-agents: false` field both fail compilation; remove them.
+Inline sub-agent extraction is always on — no config needed. The deprecated `features.inline-agents` and `inline-sub-agents` fields should be removed from frontmatter.
 
 ---
 

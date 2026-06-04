@@ -1408,6 +1408,11 @@ permissions:
   # (optional)
   checks: "read"
 
+  # Permission level for Copilot requests (write/none only). Set to write to allow
+  # Copilot inference via the GitHub Actions token.
+  # (optional)
+  copilot-requests: "write"
+
   # Permission for repository contents (read: view files, write: modify
   # files/branches, none: no access)
   # (optional)
@@ -1557,8 +1562,7 @@ runs-on-slim: "example-value"
 # Format 1: integer
 timeout-minutes: 1
 
-# Format 2: GitHub Actions expression that resolves to an integer (e.g. '${{
-# inputs.timeout }}')
+# Format 2: GitHub Actions expression that resolves to an integer at runtime
 timeout-minutes: "example-value"
 
 # Concurrency control to limit concurrent workflow runs (GitHub Actions standard
@@ -1625,11 +1629,6 @@ env:
 # Format 2: string
 env: "example-value"
 
-# Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by
-# default. Setting this to false is not supported and causes a compilation error.
-# (optional)
-inline-sub-agents: true
-
 # Feature flags and configuration options for experimental or optional features in
 # the workflow. Each feature can be a boolean flag or a string value. The
 # 'action-tag' feature (string) specifies the tag or SHA to use when referencing
@@ -1669,16 +1668,11 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
   storage: "cache"
-
-# Controls whether the custom agent should disable model invocation. When set to
-# true, the agent will not make additional model calls.
-# (optional)
-disable-model-invocation: true
 
 # Secret values passed to workflow execution. Secrets can be defined as simple
 # strings (GitHub Actions expressions) or objects with 'value' and 'description'
@@ -2094,18 +2088,6 @@ engine:
   # (optional)
   permission-mode: "auto"
 
-  # Maximum number of chat iterations per run. Helps prevent runaway loops and
-  # control costs. Has sensible defaults and can typically be omitted. Note: Only
-  # supported by the claude engine.
-  # (optional)
-  # Accepted formats:
-
-  # Format 1: Maximum number of chat iterations per run as an integer value
-  max-turns: 1
-
-  # Format 2: Maximum number of chat iterations per run as a string value
-  max-turns: "example-value"
-
   # Maximum number of continuations for multi-run autopilot mode. Default is 1
   # (single run, no autopilot). Values greater than 1 enable --autopilot mode for
   # the copilot engine with --max-autopilot-continues set to this value. Note: Only
@@ -2308,9 +2290,11 @@ engine:
   # (optional)
   copilot-sdk: true
 
-  # Custom Node.js Copilot SDK driver script filename (copilot engine only). This is
-  # only used when copilot-sdk: true is set and must be a safe basename ending with
-  # .js, .cjs, or .mjs.
+  # Custom Copilot SDK driver script or command (copilot engine only). Used only
+  # when `copilot-sdk: true` is set. Accepts a relative path from the workspace root
+  # with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g.
+  # `.github/drivers/my_driver.py`, or a bare command name without an extension for
+  # an arbitrary executable in PATH.
   # (optional)
   copilot-sdk-driver: "example-value"
 
@@ -2534,30 +2518,50 @@ engine:
   # the default engine when engine.id is not specified.
   model: "example-value"
 
-# Explicit ET budget control for firewall cost enforcement. Defaults to 25M
-# when omitted. Set to a negative value to disable budget enforcement and token
-# steering.
+# AWF turn cap (`max_turns`) applied consistently across all agentic engines.
+# Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for
+# reusable workflow_call workflows.
 # (optional)
 # Accepted formats:
 
-# Format 1: Maximum effective-token (ET) budget for AWF API proxy enforcement. Use
-# a negative value to disable budget enforcement and token steering.
+# Format 1: integer
+max-turns: 1
+
+# Format 2: GitHub Actions expression that resolves to an integer at runtime
+max-turns: "example-value"
+
+# Explicit ET budget control for firewall cost enforcement. Defaults to 25000000
+# when omitted. Supports GitHub Actions expressions.
+# (optional)
+# Accepted formats:
+
+# Format 1: Configuration object
+
+# Format 2: integer
 max-effective-tokens: 1
 
-# Format 2: Maximum effective-token (ET) budget as a numeric string or GitHub
-# Actions expression.
-max-effective-tokens: "example-value"
-
-# AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.
-# Defaults to 500 when omitted.
+# 24-hour effective-token guardrail for runs triggered by the same user. Omit the
+# field to leave the guardrail disabled. Supports GitHub Actions expressions.
 # (optional)
 # Accepted formats:
 
-# Format 1: Maximum number of LLM invocations allowed per run.
+# Format 1: Configuration object
+
+# Format 2: integer
+max-daily-effective-tokens: 1
+
+# Format 3: string
+max-daily-effective-tokens: "example-value"
+
+# AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.
+# Defaults to 500 when omitted. Supports GitHub Actions expressions.
+# (optional)
+# Accepted formats:
+
+# Format 1: integer
 max-runs: 1
 
-# Format 2: Maximum number of LLM invocations allowed per run as a numeric string
-# or GitHub Actions expression.
+# Format 2: GitHub Actions expression that resolves to an integer at runtime
 max-runs: "example-value"
 
 # MCP server definitions
@@ -4023,6 +4027,12 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # List of additional repositories in format 'owner/repo' that discussions can be
+    # closed in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
     # (optional)
@@ -4078,6 +4088,12 @@ safe-outputs:
     # updates. Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that discussions can be
+    # updated in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # Controls whether AI-generated footer is added when updating the discussion body.
     # When false, the visible footer content is omitted. Defaults to true. Only
@@ -4194,6 +4210,12 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # List of additional repositories in format 'owner/repo' that pull requests can be
+    # closed in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
@@ -4244,6 +4266,12 @@ safe-outputs:
     # precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that pull requests can be
+    # marked as ready in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -4497,7 +4525,9 @@ safe-outputs:
     allow-empty: true
 
     # Target repository in format 'owner/repo' for cross-repository pull request
-    # creation. Takes precedence over trial target repo settings.
+    # creation, or '*' to let the agent choose the target repository at runtime
+    # (requires checkout: configs with path: for each possible target). Takes
+    # precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
 
@@ -4613,6 +4643,20 @@ safe-outputs:
     # expression.
     # (optional)
     auto-close-issue: null
+
+    # When true, automatically close older open pull requests with the same
+    # workflow-id marker (or close-older-key when set) with a comment linking to the
+    # new PR. Maximum 10 PRs will be closed. Only runs if PR creation succeeds.
+    # (optional)
+    close-older-pull-requests: null
+
+    # Optional explicit deduplication key for close-older-pull-requests matching. When
+    # set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the PR body and
+    # used as the primary key for searching and filtering older PRs instead of the
+    # workflow-id markers. The value is normalized to identifier style (lowercase
+    # alphanumeric, dashes, underscores).
+    # (optional)
+    close-older-key: "example-value"
 
     # Token used to push an empty commit after PR creation to trigger CI events. Works
     # around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs.
@@ -4730,22 +4774,6 @@ safe-outputs:
     # allows pushing merge commits that GraphQL cannot represent.
     # (optional)
     signed-commits: true
-
-    # When true, automatically close older open pull requests from the same workflow
-    # (identified by the workflow-id marker in the PR body) with a comment linking to
-    # the new PR. Searches for open PRs containing the workflow-id marker. Maximum 10
-    # pull requests will be closed. Only runs if PR creation succeeds.
-    # (optional)
-    close-older-pull-requests: true
-
-    # Optional explicit deduplication key for close-older matching. When set, a `<!--
-    # gh-aw-close-key: <value> -->` marker is embedded in the PR body and used as the
-    # primary key for searching and filtering older pull requests instead of the
-    # workflow-id markers. This gives deterministic isolation across caller workflows
-    # and is stable across workflow renames. The value is normalized to identifier
-    # style (lowercase alphanumeric, dashes, underscores).
-    # (optional)
-    close-older-key: "example-value"
 
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
@@ -4981,14 +5009,16 @@ safe-outputs:
   # Format 2: Enable with default configuration
   reply-to-pull-request-review-comment: null
 
-  # Enable AI agents to resolve review threads on the triggering pull request after
-  # addressing feedback.
+  # Enable AI agents to resolve review threads on pull requests after addressing
+  # feedback. Supports cross-repository resolution via target, target-repo, and
+  # allowed-repos.
   # (optional)
   # Accepted formats:
 
-  # Format 1: Configuration for resolving review threads on pull requests.
-  # Resolution is scoped to the triggering PR only — threads on other PRs cannot be
-  # resolved.
+  # Format 1: Configuration for resolving review threads on pull requests. By
+  # default, resolution is scoped to the triggering PR only. When target,
+  # target-repo, or allowed-repos are specified, cross-repository thread resolution
+  # is supported.
   resolve-pull-request-review-thread:
     # Maximum number of review threads to resolve (default: 10) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
@@ -5000,6 +5030,26 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
+
+    # Target PR for thread resolution: 'triggering' (default, current PR), '*' (any
+    # PR, requires pull_request_number in agent output), or explicit PR number (e.g.
+    # ${{ github.event.inputs.pr_number }}). Required when workflow is not triggered
+    # by a pull request (e.g. workflow_dispatch).
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository PR review thread
+    # resolution. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that PR review threads
+    # can be resolved in. When specified, the agent can use a 'repo' field in the
+    # output to specify which repository to resolve threads in. The target repository
+    # (current or target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -5552,6 +5602,12 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # List of additional repositories in format 'owner/repo' that reviewers can be
+    # added in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
@@ -5601,10 +5657,21 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
+    # Target for milestone assignment: 'triggering' (default, current issue/PR), '*'
+    # (any issue/PR), or explicit number.
+    # (optional)
+    target: "example-value"
+
     # Target repository in format 'owner/repo' for cross-repository milestone
     # assignment. Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that milestone
+    # assignments can target. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -5687,6 +5754,12 @@ safe-outputs:
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that agents can be
+    # assigned in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # Target repository where the pull request should be created, in format
     # 'owner/repo'. If omitted, the PR will be created in the same repository as the
@@ -5897,6 +5970,11 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
+    # Target for sub-issue linking: 'triggering' (default, current issue), '*' (any
+    # issue), or explicit issue number.
+    # (optional)
+    target: "example-value"
+
     # Optional list of labels that parent issues must have to be eligible for linking
     # (optional)
     parent-required-labels: []
@@ -5919,6 +5997,12 @@ safe-outputs:
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that sub-issue linking
+    # can target. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -6067,6 +6151,12 @@ safe-outputs:
     # updates. Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that pull requests can be
+    # updated in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -6249,7 +6339,9 @@ safe-outputs:
     signed-commits: true
 
     # Target repository in format 'owner/repo' for cross-repository push to pull
-    # request branch. Takes precedence over trial target repo settings.
+    # request branch, or '*' to let the agent choose the target repository at runtime
+    # (requires checkout: configs with path: for each possible target). Takes
+    # precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
 
@@ -6387,10 +6479,21 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
+    # Target for comment hiding: 'triggering' (default, current issue/PR), '*' (any
+    # item), or explicit number.
+    # (optional)
+    target: "example-value"
+
     # Target repository in format 'owner/repo' for cross-repository comment hiding.
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that comment hiding can
+    # target. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # List of allowed reasons for hiding comments. Default: all reasons allowed (spam,
     # abuse, off_topic, outdated, resolved, low_quality).
@@ -6917,7 +7020,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
