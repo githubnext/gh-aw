@@ -574,7 +574,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
               text: JSON.stringify({
                 result: "error",
                 error: `Failed to pin branch '${entry.branch}' before bundle generation: ${getErrorMessage(pinError)}`,
-                details: "Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally.",
+                details: `Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally (for example: git branch --list '${entry.branch}').`,
               }),
             },
           ],
@@ -971,7 +971,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
               text: JSON.stringify({
                 result: "error",
                 error: `Failed to pin branch '${entry.branch}' before bundle generation: ${getErrorMessage(pinError)}`,
-                details: "Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally.",
+                details: `Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally (for example: git branch --list '${entry.branch}').`,
               }),
             },
           ],
