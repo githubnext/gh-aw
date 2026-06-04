@@ -10,6 +10,7 @@ const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
 const { parseJsonlContent } = require("./jsonl_helpers.cjs");
+const { countSteeringEventsInApiProxyJsonl } = require("./steering_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -1397,7 +1398,6 @@ const API_PROXY_EVENT_LOG_PATHS = [
   "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
   "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
 ];
-const STEERING_EVENT_PATTERN = /steering/i;
 const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|EPERM)\b/i;
 
 /**
@@ -1687,54 +1687,12 @@ function normalizeRuntimeTokenUsage(rawUsage) {
 }
 
 /**
- * Resolve an event name from a firewall proxy event entry.
- *
- * @param {unknown} entry
- * @returns {string}
- */
-function getApiProxyEventName(entry) {
-  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-    return "";
-  }
-  if ("event" in entry && typeof entry.event === "string") {
-    return entry.event;
-  }
-  if ("type" in entry && typeof entry.type === "string") {
-    return entry.type;
-  }
-  if ("payload" in entry) {
-    const payload = entry.payload;
-    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-      if ("event" in payload && typeof payload.event === "string") {
-        return payload.event;
-      }
-      if ("type" in payload && typeof payload.type === "string") {
-        return payload.type;
-      }
-    }
-  }
-  return "";
-}
-
-/**
- * Count steering events in proxy event-log JSONL content.
- *
- * @param {string} jsonlContent
- * @returns {number}
- */
-function countSteeringEventsInApiProxyJsonl(jsonlContent) {
-  let count = 0;
-  for (const parsed of parseJsonlContent(jsonlContent, line => STEERING_EVENT_PATTERN.test(line))) {
-    const eventName = getApiProxyEventName(parsed).toLowerCase();
-    if (eventName === "steering" || eventName.endsWith("_steering")) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-/**
  * Read steering-event count from the first available API proxy event-log JSONL.
+ *
+ * Uses first-available-wins semantics: the first non-empty file encountered is
+ * the single source of truth for this run. Multiple paths cover runtime vs
+ * audit sandbox layouts. If the file exists but has no steering events, 0 is
+ * returned without checking later paths.
  *
  * @returns {number}
  */
