@@ -117,7 +117,7 @@ func inspectFileNode(pass *analysis.Pass, fileVars map[types.Object]*fileVarStat
 	return true
 }
 
-func processFileOpenAssign(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, assign *ast.AssignStmt) {
+func trackFileOpenAssignment(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, assign *ast.AssignStmt) {
 	for i, rhs := range assign.Rhs {
 		call, ok := rhs.(*ast.CallExpr)
 		if !ok || !isFileOpenCall(call) {
@@ -148,7 +148,7 @@ func processFileOpenAssign(pass *analysis.Pass, fileVars map[types.Object]*fileV
 }
 
 func markManualClose(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, call *ast.CallExpr) {
-	obj := getCloseCallObj(pass, call)
+	obj := getCloseReceiverObject(pass, call)
 	if obj == nil {
 		return
 	}
@@ -176,9 +176,9 @@ func isFileOpenCall(call *ast.CallExpr) bool {
 	return sel.Sel.Name == "Open" || sel.Sel.Name == "Create" || sel.Sel.Name == "OpenFile"
 }
 
-// getCloseCallObj returns the types.Object for the receiver if call is like file.Close(),
+// getCloseReceiverObject returns the types.Object for the receiver if call is like file.Close(),
 // enabling correct identification across variable shadowing.
-func getCloseCallObj(pass *analysis.Pass, call *ast.CallExpr) types.Object {
+func getCloseReceiverObject(pass *analysis.Pass, call *ast.CallExpr) types.Object {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != "Close" {
 		return nil
