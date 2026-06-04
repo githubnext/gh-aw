@@ -487,16 +487,17 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// - compile-time inlined markdown (imports with inputs)
 	// - runtime-import macros (imports without inputs)
 	// In older workflow data (without PromptImports), fall back to legacy grouped handling.
-	if len(data.PromptImports) > 0 {
+	if data.PromptImports != nil {
 		compilerYamlLog.Printf("Processing %d ordered prompt import entries", len(data.PromptImports))
 		workspaceRoot := ""
+		hasImportInputs := len(data.ImportInputs) > 0
 		if data.InlinedImports && c.markdownPath != "" {
 			workspaceRoot = resolveWorkspaceRoot(c.markdownPath)
 		}
 		for _, entry := range data.PromptImports {
 			if entry.Markdown != "" {
 				cleaned := removeXMLComments(entry.Markdown)
-				if len(data.ImportInputs) > 0 {
+				if hasImportInputs {
 					cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 				}
 				chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
