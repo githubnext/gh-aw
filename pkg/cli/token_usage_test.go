@@ -401,6 +401,26 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		assert.Empty(t, summary.SubagentModelRequests[0].EffectiveModel)
 		require.Contains(t, summary.Warnings, subagentStdioWarning)
 	})
+
+	t.Run("captures alias-based sub-agent model requests used by workflow subagents", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-subagent-model-alias")
+		logsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(logsDir, 0o755))
+		tokenFile := filepath.Join(logsDir, "token-usage.jsonl")
+		tokenContent := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"1","provider":"openai","model":"gpt-5-mini","path":"/v1/messages","status":200,"streaming":true,"input_tokens":100,"output_tokens":200,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":2500,"response_bytes":1500}`
+		require.NoError(t, os.WriteFile(tokenFile, []byte(tokenContent+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(`● workflow-characterizer(small) Classify`), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		require.Len(t, summary.SubagentModelRequests, 1)
+		assert.Equal(t, "small", summary.SubagentModelRequests[0].RequestedModel)
+		assert.Equal(t, "gpt-5-mini", summary.SubagentModelRequests[0].EffectiveModel)
+		assert.Equal(t, modelMismatchReasonModelNotObserved, summary.SubagentModelRequests[0].ReasonCode)
+		assert.Equal(t, 1, summary.MismatchCount)
+		require.Contains(t, summary.Warnings, subagentStdioWarning)
+	})
 }
 
 func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {

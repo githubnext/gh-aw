@@ -120,6 +120,11 @@ const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
+var subagentModelAliases = map[string]struct{}{
+	"small":     {},
+	"large":     {},
+	"inherited": {},
+}
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 // Custom weights, when non-nil, override the built-in model multipliers and token class
@@ -562,9 +567,7 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 				}
 				agentName := strings.TrimSpace(m[1])
 				requestedModel := strings.TrimSpace(m[2])
-				// Model identifiers are expected to include hyphens (e.g. claude-haiku-4.5).
-				// This trims false positives from other parenthesized log fragments.
-				if agentName == "" || requestedModel == "" || !strings.ContainsRune(requestedModel, '-') {
+				if agentName == "" || !isLikelyRequestedSubagentModel(requestedModel) {
 					continue
 				}
 				counts[key{agent: agentName, model: requestedModel}]++
@@ -594,6 +597,17 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 		return rows[i].RequestedModel < rows[j].RequestedModel
 	})
 	return rows
+}
+
+func isLikelyRequestedSubagentModel(model string) bool {
+	if model == "" {
+		return false
+	}
+	if _, ok := subagentModelAliases[strings.ToLower(model)]; ok {
+		return true
+	}
+	// Concrete model IDs typically contain separators (e.g. claude-haiku-4.5, gpt-5-mini).
+	return strings.ContainsRune(model, '-') || strings.ContainsRune(model, '.') || strings.ContainsRune(model, ':')
 }
 
 func findAgentStdioFile(runDir string) string {
