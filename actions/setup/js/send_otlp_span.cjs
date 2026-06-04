@@ -9,6 +9,7 @@ const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
+const { parseJsonlContent } = require("./jsonl_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -1419,9 +1420,10 @@ const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|
 function readLastRateLimitEntry() {
   try {
     const content = fs.readFileSync(GITHUB_RATE_LIMITS_JSONL_PATH, "utf8");
-    const lines = content.split("\n").filter(l => l.trim() !== "");
-    if (lines.length === 0) return null;
-    return JSON.parse(lines[lines.length - 1]);
+    const entries = parseJsonlContent(content);
+    if (entries.length === 0) return null;
+    const last = entries[entries.length - 1];
+    return last && typeof last === "object" && !Array.isArray(last) ? last : null;
   } catch {
     return null;
   }
@@ -1499,18 +1501,9 @@ function readOTLPExportErrorDetails() {
     const content = fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8");
     /** @type {OTLPExportErrorDetail[]} */
     const details = [];
-    for (const rawLine of content.split("\n")) {
-      const line = rawLine.trim();
-      if (!line) {
-        continue;
-      }
-      try {
-        const parsed = JSON.parse(line);
-        if (isValidOTLPExportErrorDetail(parsed)) {
-          details.push(normalizeOTLPExportErrorDetail(parsed));
-        }
-      } catch {
-        // Ignore malformed and partially written JSONL lines.
+    for (const parsed of parseJsonlContent(content)) {
+      if (isValidOTLPExportErrorDetail(parsed)) {
+        details.push(normalizeOTLPExportErrorDetail(parsed));
       }
     }
     return details;
@@ -1700,18 +1693,23 @@ function getApiProxyEventName(entry) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     return "";
   }
-  if (typeof entry.event === "string") {
-    return entry.event;
+  const event = Reflect.get(entry, "event");
+  if (typeof event === "string") {
+    return event;
   }
-  if (typeof entry.type === "string") {
-    return entry.type;
+  const type = Reflect.get(entry, "type");
+  if (typeof type === "string") {
+    return type;
   }
-  if (entry.payload && typeof entry.payload === "object" && !Array.isArray(entry.payload)) {
-    if (typeof entry.payload.event === "string") {
-      return entry.payload.event;
+  const payload = Reflect.get(entry, "payload");
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const payloadEvent = Reflect.get(payload, "event");
+    if (typeof payloadEvent === "string") {
+      return payloadEvent;
     }
-    if (typeof entry.payload.type === "string") {
-      return entry.payload.type;
+    const payloadType = Reflect.get(payload, "type");
+    if (typeof payloadType === "string") {
+      return payloadType;
     }
   }
   return "";
@@ -1725,20 +1723,10 @@ function getApiProxyEventName(entry) {
  */
 function countSteeringEventsInApiProxyJsonl(jsonlContent) {
   let count = 0;
-  const lines = jsonlContent.split("\n");
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line || !line.toLowerCase().includes("steering")) {
-      continue;
-    }
-    try {
-      const parsed = JSON.parse(line);
-      const eventName = getApiProxyEventName(parsed).toLowerCase();
-      if (eventName === "steering" || eventName.endsWith("_steering")) {
-        count += 1;
-      }
-    } catch {
-      // Ignore malformed JSONL lines.
+  for (const parsed of parseJsonlContent(jsonlContent)) {
+    const eventName = getApiProxyEventName(parsed).toLowerCase();
+    if (eventName === "steering" || eventName.endsWith("_steering")) {
+      count += 1;
     }
   }
   return count;
