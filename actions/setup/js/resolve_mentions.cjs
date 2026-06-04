@@ -116,6 +116,8 @@ async function checkUserPermission(username, owner, repo, github, core) {
   const usernameKey = username.toLowerCase();
   const cachedPermissions = userPermissionCache.get(repoCacheKey);
   if (cachedPermissions && cachedPermissions.has(usernameKey)) {
+    // Safe: .has() check ensures the value exists
+    // @ts-expect-error - .has() guarantees .get() returns boolean, not undefined
     return cachedPermissions.get(usernameKey);
   }
 
