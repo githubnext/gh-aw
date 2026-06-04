@@ -10,10 +10,10 @@ Use this skill to run a structured interview with users who know their goal but 
 
 ## When to Use This Skill
 
-Use this before `create-agentic-workflow.md` when requirements are unclear or incomplete.
+Use this before `.github/aw/create-agentic-workflow.md` when requirements are unclear or incomplete.
 
-- Use `workflow-designer.md` to discover and confirm requirements.
-- Use `create-agentic-workflow.md` once requirements are clear and ready for implementation.
+- Use `skills/workflow-designer/SKILL.md` to discover and confirm requirements.
+- Use `.github/aw/create-agentic-workflow.md` once requirements are clear and ready for implementation.
 - Use `.github/aw/agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
 
 ## Interview Framework
@@ -194,7 +194,7 @@ Then ask: **"Ready to generate, or want to adjust anything?"**
 
 ## Generation Template
 
-After confirmation, generate one workflow file using the same skeleton style as `create-agentic-workflow.md`.
+After confirmation, generate one workflow file using the same skeleton style as `.github/aw/create-agentic-workflow.md`.
 
 ```markdown
 ---
