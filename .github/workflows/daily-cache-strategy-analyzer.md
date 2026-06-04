@@ -13,8 +13,25 @@ permissions:
   pull-requests: read
   discussions: read
 tracker-id: daily-cache-strategy-analyzer
-engine: codex
+engine:
+  id: codex
+  model: "${{ needs.activation.outputs.model_size }}"
 strict: true
+experiments:
+  model_size:
+    variants: [agent, small-agent]
+    description: "Tests whether a small-agent model identifies cache issues and produces equivalent analysis at lower token cost."
+    hypothesis: "H0: no change in issue creation rate or run success rate. H1: small-agent reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
+    metric: effective_tokens_total
+    secondary_metrics: [run_success_rate, run_duration_ms]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.90"
+      - name: empty_output_rate
+        threshold: "<=0.10"
+    min_samples: 20
+    weight: [50, 50]
+    start_date: "2026-06-04"
 network:
   allowed:
     - "github.com"

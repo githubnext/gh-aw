@@ -20,7 +20,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 		"gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "mai-code", "reasoning",
 		"gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "computer-use", "robotics", "deep-research",
 		"nano-banana",
-		"mini", "large", "any", "agent", "copilot", "claude", "codex", "gemini", "summarization",
+		"mini", "large", "any", "agent", "small-agent", "copilot", "claude", "codex", "gemini", "summarization",
 	}
 	for _, family := range expectedFamilies {
 		patterns, ok := aliases[family]
@@ -69,6 +69,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Equal(t, []string{"sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should reference sonnet, gpt-5-pro, gpt-5, and gemini-pro")
 	assert.Equal(t, []string{"copilot/*", "anthropic/*", "openai/*", "google/*", "gemini/*"}, aliases["any"], "any should provide a provider-wide catch-all fallback chain")
 	assert.Equal(t, []string{"sonnet-6x", "gpt-5.4", "gpt-5.3", "gemini-pro", "any"}, aliases["agent"], "agent should default to the configured high-capability fallback chain before any-model fallback")
+	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash", "any"}, aliases["small-agent"], "small-agent should default to the small/fast model fallback chain before any-model fallback")
 	assert.Equal(t, []string{"agent"}, aliases["copilot"], "copilot should define per-engine default fallback chain")
 	assert.Equal(t, []string{"agent"}, aliases["claude"], "claude should define per-engine default fallback chain")
 	assert.Equal(t, []string{"agent"}, aliases["codex"], "codex should define per-engine default fallback chain")
