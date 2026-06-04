@@ -569,9 +569,6 @@ func isSteeringEvent(eventName, message string) bool {
 		return strings.HasPrefix(message, awfTokenWarningPrefix)
 	case timeoutSteeringEventName:
 		return strings.HasPrefix(message, awfTimeWarningPrefix)
-	case "":
-		return strings.HasPrefix(message, awfTokenWarningPrefix) ||
-			strings.HasPrefix(message, awfTimeWarningPrefix)
 	default:
 		return false
 	}
