@@ -312,8 +312,6 @@ jobs:
           cat << 'GH_AW_PROMPT_7241816e5fdddd36_EOF'
           </system>
           **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.
-          
-          
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}

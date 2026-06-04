@@ -320,6 +320,23 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_206d7ac82f0ea1ed_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/mcp/arxiv.md}}
+          {{#runtime-import .github/workflows/shared/mcp/ast-grep.md}}
+          {{#runtime-import .github/workflows/shared/mcp/brave.md}}
+          {{#runtime-import .github/workflows/shared/mcp/context7.md}}
+          {{#runtime-import .github/workflows/shared/mcp/datadog.md}}
+          {{#runtime-import .github/workflows/shared/mcp/deepwiki.md}}
+          {{#runtime-import .github/workflows/shared/mcp/fabric-rti.md}}
+          {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
+          {{#runtime-import .github/workflows/shared/mcp/microsoft-docs.md}}
+          {{#runtime-import .github/workflows/shared/mcp/notion.md}}
+          {{#runtime-import .github/workflows/shared/mcp/sentry.md}}
+          {{#runtime-import .github/workflows/shared/mcp/server-memory.md}}
+          {{#runtime-import .github/workflows/shared/mcp/slack.md}}
+          {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
+          {{#runtime-import .github/workflows/shared/otlp.md}}
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -349,25 +366,6 @@ jobs:
           2. **Activate project first** — always call `activate_project` before other tools
           3. **Cross-reference findings** — validate with multiple tools for accuracy
           4. **Focus on the relevant language files** — ignore unrelated file types
-          
-          
-          {{#runtime-import .github/workflows/shared/mcp/arxiv.md}}
-          {{#runtime-import .github/workflows/shared/mcp/ast-grep.md}}
-          {{#runtime-import .github/workflows/shared/mcp/brave.md}}
-          {{#runtime-import .github/workflows/shared/mcp/context7.md}}
-          {{#runtime-import .github/workflows/shared/mcp/datadog.md}}
-          {{#runtime-import .github/workflows/shared/mcp/deepwiki.md}}
-          {{#runtime-import .github/workflows/shared/mcp/fabric-rti.md}}
-          {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
-          {{#runtime-import .github/workflows/shared/mcp/microsoft-docs.md}}
-          {{#runtime-import .github/workflows/shared/mcp/notion.md}}
-          {{#runtime-import .github/workflows/shared/mcp/sentry.md}}
-          {{#runtime-import .github/workflows/shared/mcp/server-memory.md}}
-          {{#runtime-import .github/workflows/shared/mcp/slack.md}}
-          {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
-          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          {{#runtime-import .github/workflows/shared/otlp.md}}
-          {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/mcp-inspector.md}}
           GH_AW_PROMPT_206d7ac82f0ea1ed_EOF

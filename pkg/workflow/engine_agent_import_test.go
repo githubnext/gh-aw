@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 // TestCopilotEngineWithAgentFromEngineConfig tests that copilot engine includes --agent flag when specified in engine.agent
@@ -680,5 +682,64 @@ func TestCompilerIncludesAgentFileViaImportPaths(t *testing.T) {
 		t.Errorf("Expected main workflow runtime-import macro %q in generated prompt YAML, got:\n%s", mainWorkflowMacro, generated)
 	} else if agentIdx > mainIdx {
 		t.Errorf("Agent file runtime-import macro must appear before main workflow macro in prompt:\n%s", generated)
+	}
+}
+
+func TestGeneratePromptFallsBackWhenPromptImportsIsEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "test.md")
+	if err := os.MkdirAll(filepath.Dir(workflowFile), 0o755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+	if err := os.WriteFile(workflowFile, []byte("# Main workflow\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	workflowData := &WorkflowData{
+		Name:             "test-workflow",
+		AI:               "claude",
+		EngineConfig:     &EngineConfig{ID: "claude"},
+		ImportedMarkdown: "Legacy parameterized content.",
+		ImportPaths:      []string{"shared/legacy.md"},
+		PromptImports:    []parser.PromptImportEntry{},
+	}
+
+	compiler := NewCompiler()
+	compiler.markdownPath = workflowFile
+
+	var buf strings.Builder
+	compiler.generatePrompt(&buf, workflowData, false, nil)
+	generated := buf.String()
+
+	if !strings.Contains(generated, "Legacy parameterized content.") {
+		t.Fatalf("Expected legacy ImportedMarkdown content to be emitted when PromptImports is empty, got:\n%s", generated)
+	}
+	if !strings.Contains(generated, "{{#runtime-import shared/legacy.md}}") {
+		t.Fatalf("Expected legacy ImportPaths runtime macro to be emitted when PromptImports is empty, got:\n%s", generated)
+	}
+}
+
+func TestResolveMarkdownArtifactsPreservesNilPromptImports(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(workflowPath, []byte("# Test\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	artifacts, err := compiler.resolveMarkdownArtifacts(
+		"# Test",
+		tmpDir,
+		workflowPath,
+		&parser.FrontmatterResult{Frontmatter: map[string]any{}},
+		&parser.ImportsResult{},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("resolveMarkdownArtifacts returned error: %v", err)
+	}
+
+	if artifacts.promptImports != nil {
+		t.Fatalf("Expected promptImports to remain nil when source PromptImports is nil, got %#v", artifacts.promptImports)
 	}
 }

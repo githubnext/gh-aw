@@ -293,8 +293,6 @@ jobs:
           cat << 'GH_AW_PROMPT_042e57fb4a56230f_EOF'
           </system>
           **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.
-          
-          
           {{#runtime-import .github/skills/jqschema/SKILL.md}}
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/python-nlp.md}}

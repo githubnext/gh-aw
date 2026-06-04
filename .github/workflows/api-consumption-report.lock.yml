@@ -527,8 +527,6 @@ jobs:
           
           </details>
           ```
-          
-          
           {{#runtime-import .github/skills/jqschema/SKILL.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}

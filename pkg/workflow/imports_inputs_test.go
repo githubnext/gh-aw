@@ -206,6 +206,92 @@ Consumer workflow.
 	}
 }
 
+func TestImportPromptOrderInterleavesRuntimeAndParameterizedImports(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-order-*")
+
+	sharedDir := filepath.Join(tempDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	runtimeImportPath := filepath.Join(sharedDir, "infra.md")
+	runtimeImportContent := `---
+steps:
+  - name: Setup
+    run: echo setup
+---
+
+# Infrastructure Setup
+
+Ensure environment is ready.`
+	if err := os.WriteFile(runtimeImportPath, []byte(runtimeImportContent), 0o644); err != nil {
+		t.Fatalf("Failed to write runtime import file: %v", err)
+	}
+
+	parameterizedImportPath := filepath.Join(sharedDir, "instructions.md")
+	parameterizedImportContent := `---
+import-schema:
+  mode:
+    type: string
+    required: true
+---
+
+# Mode Instructions
+
+Use mode: ${{ github.aw.import-inputs.mode }}.`
+	if err := os.WriteFile(parameterizedImportPath, []byte(parameterizedImportContent), 0o644); err != nil {
+		t.Fatalf("Failed to write parameterized import file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "order-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - shared/infra.md
+  - uses: shared/instructions.md
+    with:
+      mode: strict
+---
+
+# Main Workflow
+
+Handle the issue.`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContent := string(lockFileContent)
+
+	runtimeMacro := "{{#runtime-import shared/infra.md}}"
+	parameterizedContent := "Use mode: strict."
+
+	runtimeIdx := strings.Index(lockContent, runtimeMacro)
+	if runtimeIdx == -1 {
+		t.Fatalf("Expected lock file to contain %q", runtimeMacro)
+	}
+	parameterizedIdx := strings.Index(lockContent, parameterizedContent)
+	if parameterizedIdx == -1 {
+		t.Fatalf("Expected lock file to contain substituted parameterized import content %q", parameterizedContent)
+	}
+	if runtimeIdx > parameterizedIdx {
+		t.Fatalf("Expected runtime import macro to appear before parameterized import content (runtimeIdx=%d, parameterizedIdx=%d)", runtimeIdx, parameterizedIdx)
+	}
+}
+
 // TestImportWithInputsStringFormat tests that string import format still works
 func TestImportWithInputsStringFormat(t *testing.T) {
 	// Create a temporary directory for test files

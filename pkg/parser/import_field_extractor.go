@@ -23,6 +23,7 @@ type importAccumulator struct {
 	mcpServersBuilder        strings.Builder
 	markdownBuilder          strings.Builder // imports with substituted inputs or schema defaults (compile-time substitution)
 	importPaths              []string        // Import paths for runtime-import macro generation
+	promptImports            []PromptImportEntry
 	stepsBuilder             strings.Builder
 	copilotSetupStepsBuilder strings.Builder // Steps from copilot-setup-steps.yml (inserted at start)
 	preStepsBuilder          strings.Builder
@@ -235,6 +236,7 @@ func (acc *importAccumulator) extractToolsContent(rawContent string, item import
 func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath, rawContent string, wasSubstituted bool) error {
 	if !wasSubstituted && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
 		acc.importPaths = append(acc.importPaths, importRelPath)
+		acc.promptImports = append(acc.promptImports, PromptImportEntry{ImportPath: importRelPath})
 		parserLog.Printf("Added import path for runtime-import: %s", importRelPath)
 		return nil
 	}
@@ -247,6 +249,7 @@ func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath
 		return fmt.Errorf("failed to extract markdown from imported file '%s': %w", fullPath, err)
 	}
 	appendMarkdownWithSeparator(&acc.markdownBuilder, markdownContent)
+	acc.promptImports = append(acc.promptImports, PromptImportEntry{Markdown: markdownContent})
 	return nil
 }
 
@@ -694,6 +697,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMCPScripts:              acc.mcpScripts,
 		MergedMarkdown:                acc.markdownBuilder.String(),
 		ImportPaths:                   acc.importPaths,
+		PromptImports:                 acc.promptImports,
 		MergedSteps:                   acc.stepsBuilder.String(),
 		CopilotSetupSteps:             acc.copilotSetupStepsBuilder.String(),
 		MergedPreSteps:                acc.preStepsBuilder.String(),

@@ -483,36 +483,35 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	var userPromptChunks []string
 	var expressionMappings []*ExpressionMapping
 
-	// Step 1a: Process and inline imported markdown with inputs (if any)
-	// Imports with inputs MUST be inlined because substitution happens at compile time
-	if data.ImportedMarkdown != "" {
-		compilerYamlLog.Printf("Processing imported markdown (%d bytes)", len(data.ImportedMarkdown))
-
-		// Clean, substitute, and post-process imported markdown
-		cleaned := removeXMLComments(data.ImportedMarkdown)
-		if len(data.ImportInputs) > 0 {
-			compilerYamlLog.Printf("Substituting %d import input values", len(data.ImportInputs))
-			cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
-		}
-		chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
-		userPromptChunks = append(userPromptChunks, chunks...)
-		expressionMappings = exprMaps
-		compilerYamlLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
-	}
-
-	// Step 1b: For imports without inputs:
-	// - inlinedImports mode (inlined-imports: true frontmatter): read and inline content at compile time
-	// - normal mode: generate runtime-import macros (loaded at runtime)
-	if len(data.ImportPaths) > 0 {
+	// Step 1a/1b: Process imports in declaration order, interleaving:
+	// - compile-time inlined markdown (imports with inputs)
+	// - runtime-import macros (imports without inputs)
+	// In older workflow data (without PromptImports), fall back to legacy grouped handling.
+	if len(data.PromptImports) > 0 {
+		compilerYamlLog.Printf("Processing %d ordered prompt import entries", len(data.PromptImports))
+		workspaceRoot := ""
+		hasImportInputs := len(data.ImportInputs) > 0
 		if data.InlinedImports && c.markdownPath != "" {
-			// inlinedImports mode: read import file content from disk and embed directly
-			compilerYamlLog.Printf("Inlining %d imports without inputs at compile time", len(data.ImportPaths))
-			workspaceRoot := resolveWorkspaceRoot(c.markdownPath)
-			for _, importPath := range data.ImportPaths {
-				importPath = filepath.ToSlash(importPath)
+			workspaceRoot = resolveWorkspaceRoot(c.markdownPath)
+		}
+		for _, entry := range data.PromptImports {
+			if entry.Markdown != "" {
+				cleaned := removeXMLComments(entry.Markdown)
+				if hasImportInputs {
+					cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
+				}
+				chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
+				userPromptChunks = append(userPromptChunks, chunks...)
+				expressionMappings = append(expressionMappings, exprMaps...)
+				continue
+			}
+			if entry.ImportPath == "" {
+				continue
+			}
+			importPath := filepath.ToSlash(entry.ImportPath)
+			if workspaceRoot != "" {
 				rawContent, err := os.ReadFile(filepath.Join(workspaceRoot, importPath))
 				if err != nil {
-					// Fall back to runtime-import macro if file cannot be read
 					compilerYamlLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
 					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
 					continue
@@ -524,15 +523,62 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
 				userPromptChunks = append(userPromptChunks, chunks...)
 				expressionMappings = append(expressionMappings, exprMaps...)
-				compilerYamlLog.Printf("Inlined import without inputs: %s", importPath)
+				continue
 			}
-		} else {
-			// Normal mode: generate runtime-import macros (loaded at workflow runtime)
-			compilerYamlLog.Printf("Generating runtime-import macros for %d imports without inputs", len(data.ImportPaths))
-			for _, importPath := range data.ImportPaths {
-				importPath = filepath.ToSlash(importPath)
-				userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
-				compilerYamlLog.Printf("Added runtime-import macro for: %s", importPath)
+			userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
+		}
+	} else {
+		// Step 1a: Process and inline imported markdown with inputs (if any)
+		// Imports with inputs MUST be inlined because substitution happens at compile time
+		if data.ImportedMarkdown != "" {
+			compilerYamlLog.Printf("Processing imported markdown (%d bytes)", len(data.ImportedMarkdown))
+
+			// Clean, substitute, and post-process imported markdown
+			cleaned := removeXMLComments(data.ImportedMarkdown)
+			if len(data.ImportInputs) > 0 {
+				compilerYamlLog.Printf("Substituting %d import input values", len(data.ImportInputs))
+				cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
+			}
+			chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
+			userPromptChunks = append(userPromptChunks, chunks...)
+			expressionMappings = append(expressionMappings, exprMaps...)
+			compilerYamlLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
+		}
+
+		// Step 1b: For imports without inputs:
+		// - inlinedImports mode (inlined-imports: true frontmatter): read and inline content at compile time
+		// - normal mode: generate runtime-import macros (loaded at runtime)
+		if len(data.ImportPaths) > 0 {
+			if data.InlinedImports && c.markdownPath != "" {
+				// inlinedImports mode: read import file content from disk and embed directly
+				compilerYamlLog.Printf("Inlining %d imports without inputs at compile time", len(data.ImportPaths))
+				workspaceRoot := resolveWorkspaceRoot(c.markdownPath)
+				for _, importPath := range data.ImportPaths {
+					importPath = filepath.ToSlash(importPath)
+					rawContent, err := os.ReadFile(filepath.Join(workspaceRoot, importPath))
+					if err != nil {
+						// Fall back to runtime-import macro if file cannot be read
+						compilerYamlLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
+						userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
+						continue
+					}
+					importedBody, extractErr := parser.ExtractMarkdownContent(string(rawContent))
+					if extractErr != nil {
+						importedBody = string(rawContent)
+					}
+					chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
+					userPromptChunks = append(userPromptChunks, chunks...)
+					expressionMappings = append(expressionMappings, exprMaps...)
+					compilerYamlLog.Printf("Inlined import without inputs: %s", importPath)
+				}
+			} else {
+				// Normal mode: generate runtime-import macros (loaded at workflow runtime)
+				compilerYamlLog.Printf("Generating runtime-import macros for %d imports without inputs", len(data.ImportPaths))
+				for _, importPath := range data.ImportPaths {
+					importPath = filepath.ToSlash(importPath)
+					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
+					compilerYamlLog.Printf("Added runtime-import macro for: %s", importPath)
+				}
 			}
 		}
 	}

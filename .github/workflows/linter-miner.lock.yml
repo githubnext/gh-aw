@@ -274,6 +274,8 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_1084932ca7f19edb_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
+          {{#runtime-import .github/workflows/shared/otlp.md}}
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -303,10 +305,6 @@ jobs:
           2. **Activate project first** — always call `activate_project` before other tools
           3. **Cross-reference findings** — validate with multiple tools for accuracy
           4. **Focus on the relevant language files** — ignore unrelated file types
-          
-          
-          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/linter-miner.md}}
           GH_AW_PROMPT_1084932ca7f19edb_EOF
           } > "$GH_AW_PROMPT"

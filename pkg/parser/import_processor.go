@@ -15,6 +15,13 @@ import (
 
 var importLog = logger.New("parser:import_processor")
 
+// PromptImportEntry describes one import contribution to prompt assembly, preserving
+// import declaration order across runtime-import and compile-time inlined markdown.
+type PromptImportEntry struct {
+	ImportPath string // Non-empty when this import should be emitted as {{#runtime-import ...}}
+	Markdown   string // Non-empty when this import should be inlined into the prompt at compile time
+}
+
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
 	MergedTools                   string                // Merged tools configuration from all imports
@@ -24,6 +31,7 @@ type ImportsResult struct {
 	MergedMCPScripts              []string              // Merged mcp-scripts configurations from all imports
 	MergedMarkdown                string                // Only contains imports WITH inputs (for compile-time substitution)
 	ImportPaths                   []string              // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
+	PromptImports                 []PromptImportEntry   // Ordered import prompt contributions (runtime-import and inlined markdown interleaved)
 	MergedSteps                   string                // Merged steps configuration from all imports (excluding copilot-setup-steps)
 	CopilotSetupSteps             string                // Steps from copilot-setup-steps.yml (inserted at start)
 	MergedPreSteps                string                // Merged pre-steps configuration from all imports (prepended in order)

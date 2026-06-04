@@ -292,8 +292,6 @@ jobs:
           cat << 'GH_AW_PROMPT_90d5e81135a07f25_EOF'
           </system>
           **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.
-          
-          
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}

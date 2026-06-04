@@ -248,6 +248,7 @@ func handleAgentImportItem(item importQueueItem, state *importBFSState) (bool, e
 	importRelPath := assignAgentFilePath(state.acc, fullPathSlash, item.importPath, item.fullPath)
 	if len(item.inputs) == 0 {
 		state.acc.importPaths = append(state.acc.importPaths, importRelPath)
+		state.acc.promptImports = append(state.acc.promptImports, PromptImportEntry{ImportPath: importRelPath})
 		parserLog.Printf("Added agent import path for runtime-import: %s", importRelPath)
 		return true, nil
 	}
@@ -257,6 +258,7 @@ func handleAgentImportItem(item importQueueItem, state *importBFSState) (bool, e
 		return true, fmt.Errorf("failed to process markdown from agent file '%s': %w", item.fullPath, err)
 	}
 	appendMarkdownWithSeparator(&state.acc.markdownBuilder, markdownContent)
+	state.acc.promptImports = append(state.acc.promptImports, PromptImportEntry{Markdown: markdownContent})
 	return true, nil
 }
 

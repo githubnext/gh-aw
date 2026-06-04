@@ -46,6 +46,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		ImportedFiles:           importsResult.ImportedFiles,
 		ImportedMarkdown:        toolsResult.importedMarkdown, // Only imports WITH inputs
 		ImportPaths:             toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
+		PromptImports:           toolsResult.promptImports,    // Ordered prompt contributions from imports
 		MainWorkflowMarkdown:    toolsResult.mainWorkflowMarkdown,
 		IncludedFiles:           toolsResult.allIncludedFiles,
 		ImportInputs:            importsResult.ImportInputs,
