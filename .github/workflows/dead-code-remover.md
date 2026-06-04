@@ -12,6 +12,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+  bare: true
 imports:
   - uses: shared/skip-if-issue-open.md
     with:
@@ -30,7 +31,8 @@ network:
     - go
 tools:
   cli-proxy: true
-  bash: true
+  bash:
+    - "*"
   edit:
   github:
     mode: gh-proxy
