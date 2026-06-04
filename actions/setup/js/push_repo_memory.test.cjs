@@ -1456,7 +1456,8 @@ describe("push_repo_memory.cjs - changed-file limit checks", () => {
     expect(scriptContent).toContain("changedFileCount");
     expect(scriptContent).toContain('execGitSync(["status", "--porcelain"])');
     expect(scriptContent).toContain("Too many changed files");
-    expect(scriptContent).not.toContain("Too many files (${filesToCopy.length} > ${maxFileCount})");
+    expect(scriptContent).not.toContain("if (filesToCopy.length > maxFileCount)");
+    expect(scriptContent).toContain("if (changedFileCount > maxFileCount)");
   });
 });
 
