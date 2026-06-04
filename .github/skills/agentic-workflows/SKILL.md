@@ -27,7 +27,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/github-agentic-workflows.md`
 - `.github/aw/github-mcp-server.md`
 - `.github/aw/llms.md`
-- `.github/aw/mcp-clis.md`
 - `.github/aw/memory.md`
 - `.github/aw/messages.md`
 - `.github/aw/network.md`
