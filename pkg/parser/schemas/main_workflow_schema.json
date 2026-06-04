@@ -3690,36 +3690,18 @@
       "examples": [15, "${{ inputs.max-turns }}"]
     },
     "max-effective-tokens": {
-      "$ref": "#/$defs/max_effective_tokens_limit",
+      "$ref": "#/$defs/templatable_integer",
       "default": 25000000,
-      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Set to a negative value to disable budget enforcement and token steering."
+      "description": "Explicit ET budget control for firewall cost enforcement. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
-      "$ref": "#/$defs/max_daily_effective_tokens_limit",
-      "description": "When set, activation checks the triggering user's runs of this workflow over the last 24 hours and prevents execution once the aggregated effective-token total exceeds this threshold. Omit the field or set it to -1 to leave the guardrail disabled."
+      "$ref": "#/$defs/templatable_integer",
+      "description": "24-hour effective-token guardrail for runs triggered by the same user. Supports GitHub Actions expressions."
     },
     "max-runs": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed per run."
-        },
-        {
-          "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^[1-9][0-9]*$"
-            },
-            {
-              "pattern": "^\\$\\{\\{.*\\}\\}$"
-            }
-          ],
-          "description": "Maximum number of LLM invocations allowed per run as a numeric string or GitHub Actions expression."
-        }
-      ],
+      "$ref": "#/$defs/templatable_integer",
       "default": 500,
-      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted."
+      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Supports GitHub Actions expressions."
     },
     "mcp-servers": {
       "type": "object",
