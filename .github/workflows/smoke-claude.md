@@ -20,9 +20,9 @@ permissions:
   actions: read
   
 name: Smoke Claude
+max-turns: 100
 engine:
   id: claude
-  max-turns: 100
   bare: true
 strict: false
 inlined-imports: true
@@ -31,7 +31,6 @@ imports:
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/reporting.md
-  - shared/github-queries-mcp-script.md
   - shared/go-make.md
   - shared/github-mcp-app.md
   - shared/mcp/serena-go.md
@@ -49,6 +48,7 @@ sandbox:
           - /tmp/gh-aw/agent
 tools:
   agentic-workflows:
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]
@@ -142,8 +142,10 @@ timeout-minutes: 10
 
 ## Test Requirements
 
+For tests below, mark a test as passed only if the required tool call succeeds.
+
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
+2. **GH CLI Testing (via `gh-proxy`)**: Use `bash` to run `gh pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`
 3. **Serena MCP Testing**: 
    - Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools or the mcpscripts-go/mcpscripts-make tools from the go-make shared workflow)
    - After initialization, use the `find_symbol` tool to search for symbols (find which tool to call) and verify that at least 3 symbols are found in the results
@@ -153,7 +155,7 @@ timeout-minutes: 10
 7. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
 8. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 9. **Discussion Interaction Testing**: 
-   - Use the `github-discussion-query` mcp-script tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
+   - Use `gh api repos/${{ github.repository }}/discussions?per_page=1` to get the latest discussion from ${{ github.repository }}
    - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
    - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, comic-book style comment stating that the smoke test agent was here
 10. **Agentic Workflows MCP Testing**: 
@@ -165,16 +167,13 @@ timeout-minutes: 10
 
 11. **Slack Script Safe Output Testing**: Use the `post_slack_message` safe-output tool to post a fictitious Slack message:
    - Use `channel: "#smoke-tests"` and `message: "💥 Smoke test ${{ github.run_id }} passed — Claude engine nominal!"`
-   - Verify the tool call succeeds
 
 12. **Code Scanning Alert Safe Output Testing**: Use the `create_code_scanning_alert` safe-output tool to post a dummy warning code scanning alert:
    - Use `level: "warning"`, `message: "Smoke test dummy warning — Run ${{ github.run_id }}"`, `file: "README.md"`, `line: 1`
-   - Verify the tool call succeeds
    - This tests the SARIF artifact upload/download pipeline
 
 13. **Check Run Safe Output Testing**: Use the `create_check_run` safe-output tool to create a check run on the current commit:
    - Use `conclusion: "success"`, `title: "Smoke Claude - Run ${{ github.run_id }}"`, `summary: "All smoke tests completed."`, and `text: "Detailed results attached."`
-   - Verify the tool call succeeds
 
 ## PR Review Safe Outputs Testing
 

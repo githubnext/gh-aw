@@ -312,29 +312,11 @@ Tone instruction: Write in clinical, neutral style. Use numbered lists, avoid ed
 
 ## Output Requirements
 
-**Report Formatting**: Use `###` or lower for all headers in the issue body. Wrap evidence/log excerpts and verbose tables in `<details><summary>Section Name</summary>` tags.
-
-### Parent report issue structure
-
-Include these sections:
-1. Executive summary
-2. Failure clusters (table)
-3. Evidence (logs/audit/audit-diff)
-4. Existing issue correlation
-5. Proposed fix roadmap (P0/P1/P2)
-6. Sub-issues created
-
-### Sub-issue quality bar
-
-- Prefer a few high-quality, actionable sub-issues over many weak ones.
-- Avoid duplicates of already-open issues unless new evidence materially changes scope.
-- Reference the parent issue and the concrete run IDs analyzed.
+Follow `shared/reporting.md` for header levels and progressive disclosure formatting.
+When creating a parent report issue, include: executive summary, failure cluster table, evidence, existing issue correlation, fix roadmap (P0/P1/P2), and sub-issues created.
+For sub-issues, prioritize high-quality actionable items, avoid duplicates unless scope changed, and reference the parent issue and analyzed run IDs.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
 
 ## agent: `cluster-evidence-extractor`
 ---

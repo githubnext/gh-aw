@@ -37,6 +37,7 @@ network:
     - github
     - playwright
 tools:
+  cli-proxy: true
   cache-memory: true
   comment-memory: true
   github:
