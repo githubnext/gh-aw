@@ -547,6 +547,8 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 				}
 				agentName := strings.TrimSpace(m[1])
 				requestedModel := strings.TrimSpace(m[2])
+				// Model identifiers are expected to include hyphens (e.g. claude-haiku-4.5).
+				// This trims false positives from other parenthesized log fragments.
 				if agentName == "" || requestedModel == "" || !strings.ContainsRune(requestedModel, '-') {
 					continue
 				}
