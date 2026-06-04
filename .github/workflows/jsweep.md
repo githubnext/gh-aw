@@ -246,6 +246,10 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 - **Do not retry more than once**
 - Call the `noop` safe-output tool to report what happened, then STOP
 
+**Final Safe-Output Guardrail (required):**
+- This workflow must always emit at least one safe output before exiting.
+- If you are about to stop and have not called any safe-output tool yet, call `noop` with a brief explanation, then STOP.
+
 ## Important Constraints
 
 - **PRIORITIZE files with `@ts-nocheck`** - These files need type checking enabled. Remove `@ts-nocheck`, add proper type annotations, and fix all type errors.
