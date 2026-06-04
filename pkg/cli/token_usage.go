@@ -562,7 +562,7 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 				}
 				agentName := strings.TrimSpace(m[1])
 				requestedModel := strings.TrimSpace(m[2])
-				if agentName == "" || !isLikelyRequestedSubagentModel(requestedModel) {
+				if agentName == "" || requestedModel == "" {
 					continue
 				}
 				counts[key{agent: agentName, model: requestedModel}]++
@@ -592,14 +592,6 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 		return rows[i].RequestedModel < rows[j].RequestedModel
 	})
 	return rows
-}
-
-func isLikelyRequestedSubagentModel(model string) bool {
-	// Accept any non-empty identifier matched by subagentDispatchPattern.
-	// Model aliases are dynamic (e.g. "small", "large", "inherited", or user-defined),
-	// so we do not maintain a hardcoded list – the pattern already constrains matches
-	// to alphanumeric identifiers with optional separator characters.
-	return model != ""
 }
 
 func findAgentStdioFile(runDir string) string {
