@@ -3692,16 +3692,16 @@
     "max-effective-tokens": {
       "$ref": "#/$defs/templatable_integer",
       "default": 25000000,
-      "description": "Explicit ET budget control for firewall cost enforcement. Supports GitHub Actions expressions."
+      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
       "$ref": "#/$defs/templatable_integer",
-      "description": "24-hour effective-token guardrail for runs triggered by the same user. Supports GitHub Actions expressions."
+      "description": "24-hour effective-token guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
       "$ref": "#/$defs/templatable_integer",
       "default": 500,
-      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Supports GitHub Actions expressions."
+      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted. Supports GitHub Actions expressions."
     },
     "mcp-servers": {
       "type": "object",
