@@ -2573,6 +2573,9 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		if !strings.Contains(stepContent, "GH_AW_ENGINE_COMMAND_EOF") {
 			t.Errorf("Expected step to include heredoc delimiter for script serialization, got:\n%s", stepContent)
 		}
+		if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)" /home/runner/.copilot`) {
+			t.Errorf("Expected step to fix ownership for /home/runner/.copilot in custom engine.command mode, got:\n%s", stepContent)
+		}
 	})
 }
 
