@@ -324,7 +324,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const pendingToolCalls = new Map();
 
     /**
-     * Write one JSONL entry to the events file.
+     * Write one JSONL entry to the events file and stderr.
      * Uses the event's own ISO-8601 timestamp when available.
      *
      * @param {string} type
@@ -333,7 +333,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
      */
     function writeEvent(type, data, timestamp) {
       const entry = { type, timestamp: timestamp ?? new Date().toISOString(), data };
-      stream.write(JSON.stringify(entry) + "\n");
+      const jsonl = JSON.stringify(entry) + "\n";
+      stream.write(jsonl);
+      process.stderr.write(jsonl);
     }
 
     // Subscribe to all session events and serialise the ones we care about.

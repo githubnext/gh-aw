@@ -9,6 +9,7 @@ describe("copilot_sdk_driver.cjs", () => {
     it("disconnects session and stops client on success", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
       let onEvent = () => {};
       const session = {
         sessionId: "session-success",
@@ -48,6 +49,9 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result.output).toContain("hello from sdk");
       expect(disconnect).toHaveBeenCalledTimes(1);
       expect(stop).toHaveBeenCalledTimes(1);
+      expect(stderrWriteSpy).toHaveBeenCalledWith(expect.stringContaining('"type":"assistant.message"'));
+      expect(stderrWriteSpy).toHaveBeenCalledWith(expect.stringContaining('"content":"hello from sdk"'));
+      stderrWriteSpy.mockRestore();
     });
 
     it("disconnects session and stops client on send failure", async () => {
