@@ -50,7 +50,8 @@ describe("copilot_sdk_driver.cjs", () => {
         expect(result.output).toContain("hello from sdk");
         expect(disconnect).toHaveBeenCalledTimes(1);
         expect(stop).toHaveBeenCalledTimes(1);
-        const jsonlLine = stderrWriteSpy.mock.calls.find(([message]) => typeof message === "string" && message.includes('"type":"assistant.message"'))?.[0];
+        const matchingCall = stderrWriteSpy.mock.calls.find(([message]) => typeof message === "string" && message.includes('"type":"assistant.message"'));
+        const jsonlLine = matchingCall?.[0];
         expect(jsonlLine).toBeDefined();
         expect(jsonlLine.endsWith("\n")).toBe(true);
         const parsedEvent = JSON.parse(jsonlLine.trimEnd());
