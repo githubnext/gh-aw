@@ -30,12 +30,23 @@ safe-outputs:
     close-older-issues: true
     expires: 7d
     max: 1
+  noop:
 timeout-minutes: 45
 steps:
   - name: Setup Python runtime
     uses: actions/setup-python@v6.2.0
     with:
       python-version: "3.12"
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
   - name: Prepare analysis workspace
     run: |
       mkdir -p /tmp/gh-aw/ambient-context
@@ -48,6 +59,16 @@ imports:
 You are a cost-optimization analyst for `${{ github.repository }}`.
 
 Your job is to inspect the **first request sent to the DLLM** for several recent workflow runs, identify avoidable ambient context, and publish exactly one issue with concrete workflow improvements.
+
+## MCP CLI Preflight
+
+Before downloading any logs, verify MCP CLI readiness:
+
+- run `gh --version`
+- run `gh aw --version`
+- run `gh aw logs --help`
+
+If any preflight command fails, stop and call `noop` with a short error summary that includes the failed command.
 
 ## Goals
 
