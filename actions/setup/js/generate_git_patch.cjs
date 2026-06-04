@@ -49,6 +49,9 @@ function debugLog(message) {
  * @param {string[]} [options.excludedFiles] - Glob patterns for files to exclude from the patch.
  *   Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec so
  *   matching files are never included in the generated patch.
+ * @param {string} [options.pinnedSha] - SECURITY: When set, use this SHA as the branch tip instead
+ *   of resolving refs/heads/<branchName>. Prevents TOCTOU races where the agent flips the branch
+ *   ref between patch and bundle generation.
  * @returns {Promise<Object>} Object with patch info or error
  */
 async function generateGitPatch(branchName, baseBranch, options = {}) {
@@ -134,11 +137,20 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   try {
     // Strategy 1: If we have a branch name, check if that branch exists and get its diff
     if (branchName) {
-      debugLog(`Strategy 1: Checking if branch '${branchName}' exists locally`);
-      // Check if the branch exists locally
+      // SECURITY: When pinnedSha is provided, use it directly as the tip commit instead
+      // of dereferencing refs/heads/<branchName>. This prevents TOCTOU races where the
+      // agent can flip the branch ref between patch and bundle generation.
+      const tipRef = options.pinnedSha || branchName;
+
       try {
-        execGitSync(["show-ref", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd });
-        debugLog(`Strategy 1: Branch '${branchName}' exists locally`);
+        if (options.pinnedSha) {
+          debugLog(`Strategy 1: Using pinned SHA ${options.pinnedSha} (branch: ${branchName})`);
+        } else {
+          debugLog(`Strategy 1: Checking if branch '${branchName}' exists locally`);
+          // Check if the branch exists locally
+          execGitSync(["show-ref", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd });
+          debugLog(`Strategy 1: Branch '${branchName}' exists locally`);
+        }
 
         // Determine base ref for patch generation
         let baseRef;
@@ -251,7 +263,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           }
 
           if (defaultBranchRef) {
-            baseRef = execGitSync(["merge-base", "--", defaultBranchRef, branchName], { cwd }).trim();
+            baseRef = execGitSync(["merge-base", "--", defaultBranchRef, tipRef], { cwd }).trim();
             debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
           } else {
             // No remote refs available - fall through to Strategy 2
@@ -265,12 +277,12 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         debugLog(`Strategy 1: Resolved baseRef ${baseRef} to SHA ${baseCommitSha}`);
 
         // Count commits to be included
-        const commitCount = parseInt(execGitSync(["rev-list", "--count", `${baseRef}..${branchName}`], { cwd }).trim(), 10);
-        debugLog(`Strategy 1: Found ${commitCount} commits between ${baseRef} and ${branchName}`);
+        const commitCount = parseInt(execGitSync(["rev-list", "--count", `${baseRef}..${tipRef}`], { cwd }).trim(), 10);
+        debugLog(`Strategy 1: Found ${commitCount} commits between ${baseRef} and ${tipRef}`);
 
         if (commitCount > 0) {
           // Generate patch from the determined base to the branch
-          const patchContent = execGitSync(["format-patch", `${baseRef}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
+          const patchContent = execGitSync(["format-patch", `${baseRef}..${tipRef}`, "--stdout", ...excludeArgs()], { cwd });
 
           if (patchContent && patchContent.trim()) {
             fs.writeFileSync(patchPath, patchContent, "utf8");
@@ -299,16 +311,25 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         // error preserves the "incremental" contract that the patch reflects only
         // the new commits.
         if (!patchGenerated && mode === "incremental") {
-          debugLog(`Strategy 1 (incremental): format-patch produced no output for ${baseRef}..${branchName} despite ${commitCount} incremental commit(s), refusing to fall through to checkout-base strategies`);
+          debugLog(`Strategy 1 (incremental): format-patch produced no output for ${baseRef}..${tipRef} despite ${commitCount} incremental commit(s), refusing to fall through to checkout-base strategies`);
           return {
             success: false,
-            error: `Cannot generate incremental patch: git format-patch produced no output for ${baseRef}..${branchName} despite ${commitCount} incremental commit(s).`,
+            error: `Cannot generate incremental patch: git format-patch produced no output for ${baseRef}..${tipRef} despite ${commitCount} incremental commit(s).`,
             patchPath: patchPath,
           };
         }
       } catch (branchError) {
-        // Branch does not exist locally
+        // Branch does not exist locally (or pinnedSha failed)
         debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
+        if (options.pinnedSha) {
+          // SECURITY: When pinnedSha is set, fail closed — do not fall through to
+          // other strategies that would resolve a different commit.
+          return {
+            success: false,
+            error: `Pinned SHA ${options.pinnedSha} failed to generate patch: ${getErrorMessage(branchError)}`,
+            patchPath: patchPath,
+          };
+        }
         if (mode === "incremental") {
           return {
             success: false,

@@ -323,8 +323,12 @@ async function main() {
             }
             continue;
           }
-          // Update item with normalized values
-          Object.assign(item, validationResult.normalizedItem);
+          // SECURITY: Use normalizedItem (which only contains declared schema
+          // fields) instead of the original item, to prevent agent-injected
+          // infrastructure fields (patch_path, bundle_path, base_commit, diff_size)
+          // from reaching the privileged handler.
+          core.info(`Line ${i + 1}: Valid ${itemType} item`);
+          parsedItems.push(validationResult.normalizedItem);
         } else {
           // Fall back to validateItemWithSafeJobConfig for unknown types
           const jobOutputType = expectedOutputTypes[itemType];
@@ -341,10 +345,9 @@ async function main() {
             }
             Object.assign(item, validation.normalizedItem);
           }
+          core.info(`Line ${i + 1}: Valid ${itemType} item`);
+          parsedItems.push(item);
         }
-
-        core.info(`Line ${i + 1}: Valid ${itemType} item`);
-        parsedItems.push(item);
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
