@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -170,4 +171,14 @@ exit 97
 	require.NoError(t, err, "Expected curl to fetch compatibility matrix")
 	assert.Contains(t, string(curlLogContent), "/compat.json", "compat matrix should be downloaded")
 	assert.NotContains(t, string(curlLogContent), "SHA256SUMS.txt", "release downloads should not run when toolcache is hit")
+
+	// Ensure compat.json is only fetched once — no double network fallback.
+	curlLines := strings.Split(strings.TrimSpace(string(curlLogContent)), "\n")
+	compatFetches := 0
+	for _, line := range curlLines {
+		if strings.Contains(line, "/compat.json") {
+			compatFetches++
+		}
+	}
+	assert.Equal(t, 1, compatFetches, "compat.json should be fetched exactly once (no double fallback)")
 }

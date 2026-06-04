@@ -25,8 +25,7 @@ COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
 COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
-COMPAT_URL_PRIMARY="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
-COMPAT_URL_FALLBACK="${COPILOT_COMPAT_FALLBACK_URL:-https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json}"
+COMPAT_URL="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
 COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
@@ -142,26 +141,18 @@ version_is_greater() {
   return 1
 }
 
-# Download compatibility matrix with fallback URLs.
+# Download compatibility matrix with bundled fallback.
 download_compat_json() {
   local compat_file="$1"
   local source_file="$2"
-  local url=""
-  local urls=("$COMPAT_URL_PRIMARY")
 
-  if [ "$COMPAT_URL_FALLBACK" != "$COMPAT_URL_PRIMARY" ]; then
-    urls+=("$COMPAT_URL_FALLBACK")
+  echo "Attempting to download compatibility matrix from ${COMPAT_URL}..." >&2
+  if curl -fsSL --retry 3 --retry-delay 5 -o "$compat_file" "$COMPAT_URL"; then
+    echo "$COMPAT_URL" > "$source_file"
+    echo "Successfully downloaded compatibility matrix from ${COMPAT_URL}" >&2
+    return 0
   fi
-
-  for url in "${urls[@]}"; do
-    echo "Attempting to download compatibility matrix from ${url}..." >&2
-    if curl -fsSL --retry 3 --retry-delay 5 -o "$compat_file" "$url"; then
-      echo "$url" > "$source_file"
-      echo "Successfully downloaded compatibility matrix from ${url}" >&2
-      return 0
-    fi
-    echo "Compatibility matrix download failed from ${url}" >&2
-  done
+  echo "Compatibility matrix download failed from ${COMPAT_URL}" >&2
 
   if [ -f "$COMPAT_BUNDLED_PATH" ]; then
     echo "::warning::Compatibility matrix network fetch failed; using bundled fallback at ${COMPAT_BUNDLED_PATH}"
