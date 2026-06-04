@@ -253,7 +253,7 @@ Brief overview with key findings (tools analyzed, best/worst usefulness ratings,
 <details>
 <summary>Full Structural Analysis Report</summary>
 
-## Executive Summary
+### Executive Summary
 
 | Metric | Value |
 |--------|-------|
@@ -263,7 +263,7 @@ Brief overview with key findings (tools analyzed, best/worst usefulness ratings,
 | Best Rated Tool | {tool}: {rating}/5 |
 | Worst Rated Tool | {tool}: {rating}/5 |
 
-## Usefulness Ratings for Agentic Work
+### Usefulness Ratings for Agentic Work
 
 | Tool | Toolset | Rating | Assessment |
 |------|---------|--------|------------|
@@ -273,26 +273,26 @@ Brief overview with key findings (tools analyzed, best/worst usefulness ratings,
 | ... | ... | ⭐⭐ | Limited usefulness |
 | ... | ... | ⭐ | Poor for agentic tasks |
 
-## Schema Analysis
+### Schema Analysis
 
 | Tool | Type | Depth | Key Fields | Notes |
 |------|------|-------|------------|-------|
 | ... | object | 2 | login, id, name | Clean structure |
 | ... | array | 3 | number, title, labels | Nested user data |
 
-## Response Size Analysis
+### Response Size Analysis
 
 | Toolset | Avg Tokens | Tools Tested |
 |---------|------------|--------------|
 | ... | ... | ... |
 
-## Tool-by-Tool Analysis
+### Tool-by-Tool Analysis
 
 | Tool | Toolset | Tokens | Schema | Rating | Notes |
 |------|---------|--------|--------|--------|-------|
 | ... | ... | ... | ... | ... | ... |
 
-## 30-Day Trend Summary
+### 30-Day Trend Summary
 
 | Metric | Value |
 |--------|-------|
@@ -300,7 +300,7 @@ Brief overview with key findings (tools analyzed, best/worst usefulness ratings,
 | Average Daily Tokens | {avg} |
 | Average Rating Trend | {improving/declining/stable} |
 
-## Recommendations
+### Recommendations
 
 Based on the analysis:
 - **High-value tools** (rating 4-5): {list}
@@ -308,18 +308,18 @@ Based on the analysis:
 - **Context-efficient tools** (low tokens, high rating): {list}
 - **Context-heavy tools** (high tokens): {list}
 
-## Visualizations
+### Visualizations
 
-### Response Size by Toolset
+#### Response Size by Toolset
 ![Toolset Sizes](toolset_sizes.png)
 
-### Usefulness Ratings
+#### Usefulness Ratings
 ![Usefulness Ratings](usefulness_ratings.png)
 
-### Daily Token Trend
+#### Daily Token Trend
 ![Daily Trend](daily_trend.png)
 
-### Size vs Usefulness
+#### Size vs Usefulness
 ![Size vs Usefulness](size_vs_usefulness.png)
 
 </details>
