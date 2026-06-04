@@ -187,6 +187,17 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
         if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
           return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
         }
+        if (cmd === "git" && args[0] === "bundle" && args[1] === "verify") {
+          // Declare a fake prerequisite so ensureFullHistoryForBundle proceeds to deepen.
+          return Promise.resolve({ exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${"a".repeat(40)}\n` });
+        }
+        if (cmd === "git" && args[0] === "merge-base" && args[1] === "--is-ancestor") {
+          // Report prereq missing initially → iterative deepen kicks in; after the
+          // first deepen fetch we still report missing so the fallback --unshallow
+          // path is exercised. The default mock for exec() resolves successfully,
+          // so all 7 deepen steps complete instantly before the fallback fires.
+          return Promise.resolve({ exitCode: 1, stdout: "", stderr: "" });
+        }
         if (cmd === "git" && args[0] === "rev-list") {
           return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
         }
@@ -225,7 +236,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
     vi.clearAllMocks();
   });
 
-  it("should unshallow before fetching bundle in shallow repositories", async () => {
+  it("should deepen origin/<base> before fetching bundle in shallow repositories", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
       patchPath,
@@ -264,8 +275,9 @@ index 0000000..abc1234
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
     const bundleFetchCallIndex = global.exec.getExecOutput.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
-    const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-    expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
+    // Iterative deepen replaces a single --unshallow: assert the first --deepen step ran.
+    const deepenCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && typeof args[1] === "string" && args[1].startsWith("--deepen="));
+    expect(deepenCallIndex).toBeGreaterThanOrEqual(0);
     expect(bundleFetchCallIndex).toBeGreaterThanOrEqual(0);
   });
 
