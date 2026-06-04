@@ -11,8 +11,6 @@ permissions:
   pull-requests: read
   discussions: read
 strict: true
-features:
-  mcp-clis-slim-system-block: true
 tracker-id: daily-regulatory
 tools:
   cli-proxy: true

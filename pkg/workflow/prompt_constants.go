@@ -28,7 +28,6 @@ const (
 	githubMCPToolsPromptFile                = "github_mcp_tools_prompt.md"
 	githubMCPToolsWithSafeOutputsPromptFile = "github_mcp_tools_with_safeoutputs_prompt.md"
 	mcpCLIToolsPromptFile                   = "mcp_cli_tools_prompt.md"
-	mcpCLIToolsSlimPromptFile               = "mcp_cli_tools_prompt_slim.md"
 	cliProxyPromptFile                      = "cli_proxy_prompt.md"
 	cliProxyWithSafeOutputsPromptFile       = "cli_proxy_with_safeoutputs_prompt.md"
 )

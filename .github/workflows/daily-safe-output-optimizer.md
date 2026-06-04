@@ -24,8 +24,6 @@ timeout-minutes: 30
 max-runs: 200
 max-effective-tokens: 40000000
 strict: true
-features:
-  mcp-clis-slim-system-block: true
 
 imports:
   - uses: shared/skip-if-issue-open.md

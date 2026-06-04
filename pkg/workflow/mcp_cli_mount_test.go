@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -226,21 +225,5 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	prompt := string(content)
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?##\s+`, prompt, "prompt must not contain H2 Markdown headings")
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?###\s+`, prompt, "prompt must not contain H3 Markdown headings")
-	assert.Contains(t, prompt, "How to use:")
-}
-
-func TestBuildMCPCLIPromptSection_UsesSlimPromptWithFeatureFlag(t *testing.T) {
-	data := &WorkflowData{
-		Features: map[string]any{
-			string(constants.MCPCLISlimSystemBlockFeatureFlag): true,
-		},
-		SafeOutputs: &SafeOutputsConfig{
-			CreateIssues: &CreateIssuesConfig{},
-		},
-	}
-
-	section := buildMCPCLIPromptSection(data)
-	require.NotNil(t, section)
-	assert.Equal(t, mcpCLIToolsSlimPromptFile, section.Content)
-	assert.Contains(t, section.EnvVars["GH_AW_MCP_CLI_SERVERS_LIST"], "safeoutputs")
+	assert.Contains(t, prompt, "Use `<server> --help` for tool names, parameters, and examples before calling any command.")
 }

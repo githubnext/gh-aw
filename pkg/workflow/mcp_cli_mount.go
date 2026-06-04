@@ -314,13 +314,8 @@ func buildMCPCLIPromptSection(data *WorkflowData) *PromptSection {
 	}
 	serversList := strings.Join(listLines, "\n")
 
-	promptFile := mcpCLIToolsPromptFile
-	if isFeatureEnabled(constants.MCPCLISlimSystemBlockFeatureFlag, data) {
-		promptFile = mcpCLIToolsSlimPromptFile
-	}
-
 	return &PromptSection{
-		Content: promptFile,
+		Content: mcpCLIToolsPromptFile,
 		IsFile:  true,
 		EnvVars: map[string]string{
 			"GH_AW_MCP_CLI_SERVERS_LIST": serversList,
