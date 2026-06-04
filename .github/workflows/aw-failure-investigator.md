@@ -295,7 +295,7 @@ First, identify currently open `agentic-workflows` issues that are now fixed, st
 
 Then, if new uncovered work remains, add **sub-issues** for concrete fixes to the **most recent open parent report issue** instead of creating a new parent by default.
 
-Only create a new parent report issue (temporary ID format `aw_` + 3-8 alphanumeric characters) when **P0 failures have no existing tracking coverage**.
+Only create a new parent report issue when **P0 failures have no existing tracking coverage**.
 
 Each new sub-issue must include:
 - clear problem statement

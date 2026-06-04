@@ -39,6 +39,8 @@ timeout-minutes: 15
 
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
 
 
 ---
@@ -144,19 +146,9 @@ Use the GitHub tools with one of these strategies:
 
 ### Phase 2: Analyze Each PR
 
-For each PR created by Copilot in the last 24 hours:
+For each PR created by Copilot in the last 24 hours, determine outcome (Merged / Closed without merge / Still Open), then:
 
-#### 2.1 Determine Outcome
-- **Merged**: PR was successfully merged
-- **Closed without merge**: PR was closed but not merged
-- **Still Open**: PR is still open (pending)
-
-#### 2.2 Count Human Comments
-Count comments from human users (exclude bot comments):
-- Use `pull_request_read` with method `get` to get PR details including comments
-- Use `pull_request_read` with method `get_review_comments` to get review comments
-- Filter out comments from bots (check comment author)
-- Count unique human comments
+- **Count human comments**: Use `pull_request_read` with methods `get` and `get_review_comments`; filter out bots; count unique human comments.
 
 #### 2.3 Calculate Timing Metrics
 
@@ -249,7 +241,7 @@ If the history file doesn't exist or has gaps in the data, rebuild it by queryin
 
 Store today's metrics (see standardized metric names in scratchpad/metrics-glossary.md):
 - Total PRs created today (`agent_prs_total`)
-- Number merged/closed/open (`agent_prs_merged`)
+- Number merged/closed/open (`agent_prs_merged`, `closed_prs`, `open_prs`)
 - Average comments per PR
 - Average agent duration
 - Average total duration
@@ -299,18 +291,6 @@ Or use `list_pull_requests` with date filtering and filter results by agent crit
 - **Maximum 3 days** of historical data for concise reporting
 - Prioritize data quality over quantity
 
-#### 4.3 Store Today's Metrics
-
-After ensuring historical data is available (either from existing repo memory or rebuilt), add today's metrics (see scratchpad/metrics-glossary.md):
-- Total PRs created today (`agent_prs_total`)
-- Number merged/closed/open (`agent_prs_merged`, `closed_prs`, `open_prs`)
-- Average comments per PR
-- Average agent duration
-- Average total duration
-- Success rate (`agent_success_rate`)
-
-Append to history.json in the repo memory.
-
 #### 4.4 Analyze Trends
 
 **Concise Trend Analysis** - If historical data exists (at least 3 days), show:
@@ -343,7 +323,7 @@ Create a **concise** discussion with your findings using the safe-outputs create
 **Analysis Period**: Last 24 hours
 **Total PRs** (`agent_prs_total`): [count] | **Merged** (`agent_prs_merged`): [count] ([percentage]%) | **Avg Duration**: [time]
 
-#### Performance Metrics
+**Performance Metrics**
 
 | Date | PRs | Merged | Success Rate | Avg Duration | Avg Comments |
 |------|-----|--------|--------------|--------------|--------------|
@@ -369,16 +349,16 @@ Create a **concise** discussion with your findings using the safe-outputs create
 
 [Only list if there are failures, closures, or issues - otherwise omit this section]
 
-#### Issues ⚠️
+**Issues ⚠️**
 - **PR #[number]**: [title] - [brief reason for failure/closure]
 
-#### Open PRs ⏳
+**Open PRs ⏳**
 [Only list if open for >24 hours]
 - **PR #[number]**: [title] - [age]
 
 </details>
 
-#### Key Insights
+**Key Insights**
 
 [1-2 bullet points only, focus on actionable items or notable observations]
 

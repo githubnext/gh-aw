@@ -13,6 +13,8 @@ tracker-id: daily-code-metrics
 engine: claude
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
   repo-memory:
     branch-prefix: daily
     description: "Historical code quality and health metrics"
@@ -141,8 +143,6 @@ All charts must meet these quality standards:
 
 - **DPI**: 300 minimum for publication quality
 - **Figure Size**: 12x7 inches (consistent with daily-issues-report)
-- **Styling**: Use seaborn styling (`sns.set_style("whitegrid")`)
-- **Color Palette**: Professional colors (`sns.set_palette("husl")` or custom)
 - **Labels**: Clear titles, axis labels, and legends
 - **Grid Lines**: Enable for readability (`ax.grid(True, alpha=0.3)`)
 - **Save Format**: PNG with `bbox_inches='tight'` for proper cropping
@@ -167,9 +167,7 @@ from datetime import datetime, timedelta
 import json
 from pathlib import Path
 
-# Set style
-sns.set_style("whitegrid")
-sns.set_palette("husl")
+# Apply canonical chart setup (see python-dataviz.md Chart Generation Best Practices)
 
 # Load historical data from repo-memory
 history_file = Path('/tmp/gh-aw/repo-memory/default/history.jsonl')
@@ -323,10 +321,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 - **Lines Deleted**: -X,XXX lines
 - **Net Change**: +/-X,XXX lines
 
-### Most Active Source Files
-1. path/to/file.go: +XXX/-XXX lines
-2. path/to/file.js: +XXX/-XXX lines
-...
+**Most Active Source Files**: path/to/file.go (+XXX/-XXX), path/to/file.js (+XXX/-XXX), ...
 
 ### Workflow Lock File Churn (*.lock.yml only)
 
@@ -352,8 +347,6 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 - **Documentation Coverage**: XX%
 
 ### Quality Score: XX/100
-
-### Component Breakdown
 - **Test Coverage (30%)**: XX/30 points
 - **Code Organization (25%)**: XX/25 points
 - **Documentation (20%)**: XX/20 points

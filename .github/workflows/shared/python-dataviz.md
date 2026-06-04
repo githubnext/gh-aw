@@ -230,9 +230,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Set style
-sns.set_style("whitegrid")
-sns.set_palette("husl")
+# Apply canonical chart setup (see Chart Generation Best Practices above)
 
 # Load data from external file (NEVER inline)
 data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
