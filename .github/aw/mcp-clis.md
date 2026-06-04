@@ -6,7 +6,7 @@ description: MCP CLI command usage guidance and JSON payload patterns
 
 The MCP CLI feature exposes mounted MCP servers as shell commands on `PATH` and provides a consistent command interface for tool calls.
 
-> **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** listed above instead of the equivalent MCP tools. The CLI wrappers are the preferred interface — do **not** call their MCP tools directly even though they may appear in your tool list.
+> **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** instead of the equivalent MCP tools. The CLI wrappers are the preferred interface — do **not** call their MCP tools directly even though they may appear in your tool list.
 >
 > For `safeoutputs`, treat every successful command as a real write-intent declaration. Do **not** use `safeoutputs` for exploratory probing, auth checks, placeholder payloads, repeated "try again" variants, or manual runtime experiments. When you need a safe-output, emit the final intended call once. If you are not ready to perform the real action, use `noop` or `report_incomplete` instead.
 >
