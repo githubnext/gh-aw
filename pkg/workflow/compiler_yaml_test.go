@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1365,6 +1366,65 @@ func TestLockMetadataVersionInReleaseBuilds(t *testing.T) {
 			version:       "v0.1.2",
 			expectVersion: true,
 		},
+	}
+
+	func TestCompileWorkflowMetadataIncludesEngineVersionsAndRunnerIdentifier(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "lock-metadata-engine-versions")
+
+		workflowContent := `---
+	engine:
+	  id: copilot
+	  copilot-sdk: true
+	runs-on:
+	  - self-hosted
+	  - linux
+	on: issues
+	---
+	# Test Workflow
+
+	Test prompt.
+	`
+		workflowPath := filepath.Join(tmpDir, "metadata-engine-versions.md")
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		var metadataLine string
+		for line := range strings.SplitSeq(string(lockContent), "\n") {
+			if strings.HasPrefix(line, "# gh-aw-metadata: ") {
+				metadataLine = strings.TrimPrefix(line, "# gh-aw-metadata: ")
+				break
+			}
+		}
+		if metadataLine == "" {
+			t.Fatal("Could not find gh-aw-metadata in lock file")
+		}
+
+		var metadata LockMetadata
+		if err := json.Unmarshal([]byte(metadataLine), &metadata); err != nil {
+			t.Fatalf("Failed to parse lock metadata JSON: %v", err)
+		}
+
+		if got := metadata.EngineVersions["copilot"]; got == "" {
+			t.Fatal("Expected copilot version in metadata engine_versions")
+		}
+		if got := metadata.EngineVersions["copilot-sdk"]; got == "" {
+			t.Fatal("Expected copilot-sdk version in metadata engine_versions when copilot-sdk is enabled")
+		}
+		if metadata.AgentImageRunner != `["self-hosted","linux"]` {
+			t.Fatalf("Expected serialized array runner identifier, got: %q", metadata.AgentImageRunner)
+		}
 	}
 
 	for _, tt := range tests {
