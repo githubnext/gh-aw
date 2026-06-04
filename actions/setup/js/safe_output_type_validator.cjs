@@ -545,6 +545,14 @@ function validateItem(item, itemType, lineNum, options) {
   }
 
   const normalizedItem = { ...item };
+  // SECURITY: Strip infrastructure fields that must only be set by the MCP handler,
+  // never by the agent. If an agent injects these via NDJSON output, it could bypass
+  // file-protection policy (patch_path/bundle_path point to attacker-controlled files)
+  // or circumvent size limits (diff_size).
+  delete normalizedItem.patch_path;
+  delete normalizedItem.bundle_path;
+  delete normalizedItem.base_commit;
+  delete normalizedItem.diff_size;
   const errors = [];
 
   // Run custom validation first if defined
