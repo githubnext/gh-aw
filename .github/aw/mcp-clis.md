@@ -4,11 +4,7 @@ description: MCP CLI command usage guidance and JSON payload patterns
 
 # MCP CLI Usage
 
-The following servers are available as CLI commands on `PATH`:
-
-__GH_AW_MCP_CLI_SERVERS_LIST__
-
-`__GH_AW_MCP_CLI_SERVERS_LIST__` is populated at runtime with the currently mounted MCP CLI server names.
+The MCP CLI feature exposes mounted MCP servers as shell commands on `PATH` and provides a consistent command interface for tool calls.
 
 > **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** listed above instead of the equivalent MCP tools. The CLI wrappers are the preferred interface — do **not** call their MCP tools directly even though they may appear in your tool list.
 >
