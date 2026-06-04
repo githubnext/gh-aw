@@ -386,6 +386,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
 			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
 			"export GH_AW_NODE_BIN\n" +
+			"if [ -n \"$GH_AW_NODE_BIN\" ] && [ -x \"$GH_AW_NODE_BIN\" ]; then export PATH=\"$(dirname \"$GH_AW_NODE_BIN\"):$PATH\"; fi\n" +
 			// Export COPILOT_API_KEY via shell variable expansion so the sentinel
 			// value is never written as a literal next to a *_API_KEY key in the
 			// generated YAML env: block. GitHub Actions env: values are not
