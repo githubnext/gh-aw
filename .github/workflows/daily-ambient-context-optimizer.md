@@ -66,7 +66,8 @@ Use the `agentic-workflows` MCP server instead of shelling out to `gh aw`:
 - call the `logs` MCP tool with `start_date: "-1d"` and `count: 60`
 - use the JSON artifacts under `/tmp/gh-aw/aw-mcp/logs/` as your source of run metadata
 - keep GitHub reads on `tools.github.mode: gh-proxy`
-- use `tools.cli-proxy: true` only for other proxied `gh` CLI commands when they are truly needed; do not use it for `gh aw logs` or `gh aw audit`
+- use `tools.cli-proxy: true` only for other proxied `gh` CLI commands when they are truly needed
+- do not run `gh aw logs` or `gh aw audit` through the CLI proxy because the `agentic-workflows` MCP server already provides dedicated `logs` and `audit` tools for those operations
 
 ### Step 2 — Pick the sample set
 
