@@ -1627,6 +1627,7 @@ function getErrorMessage(errorEntry) {
  * @property {string | undefined} resolvedModel
  * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
  * @property {number} warningCount
+ * @property {number} permissionDeniedCount
  */
 
 /**
@@ -1688,7 +1689,10 @@ function normalizeRuntimeTokenUsage(rawUsage) {
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0 };
+  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0 };
+  const PERMISSION_DENIED_RE = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
+  let fallbackPermissionDeniedCount = 0;
+  let hasStructuredPermissionDeniedCount = false;
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
@@ -1722,6 +1726,13 @@ function readAgentRuntimeMetrics() {
       if (tokenUsage) {
         metrics.tokenUsage = tokenUsage;
       }
+      if (Array.isArray(parsed.permission_denials)) {
+        metrics.permissionDeniedCount = Math.max(metrics.permissionDeniedCount, parsed.permission_denials.length);
+        hasStructuredPermissionDeniedCount = true;
+      } else if (typeof parsed.permission_denied_count === "number" && Number.isFinite(parsed.permission_denied_count) && parsed.permission_denied_count >= 0) {
+        metrics.permissionDeniedCount = Math.max(metrics.permissionDeniedCount, parsed.permission_denied_count);
+        hasStructuredPermissionDeniedCount = true;
+      }
     };
 
     for (const rawLine of lines) {
@@ -1732,6 +1743,10 @@ function readAgentRuntimeMetrics() {
 
       if (/^(?:\[WARN\]|npm warn\b)/i.test(line)) {
         metrics.warningCount += 1;
+      }
+      const permissionMatches = line.match(PERMISSION_DENIED_RE);
+      if (permissionMatches && permissionMatches.length > 0) {
+        fallbackPermissionDeniedCount += permissionMatches.length;
       }
 
       const jsonObjectStart = line.indexOf("{");
@@ -1763,6 +1778,10 @@ function readAgentRuntimeMetrics() {
     }
   } catch {
     return metrics;
+  }
+
+  if (!hasStructuredPermissionDeniedCount) {
+    metrics.permissionDeniedCount = fallbackPermissionDeniedCount;
   }
 
   return metrics;
@@ -1960,6 +1979,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.run.status", runStatus));
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
+  attributes.push(buildAttr("gh-aw.permission_denied_count", runtimeMetrics.permissionDeniedCount));
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
