@@ -2053,37 +2053,6 @@
         }
       }
     },
-    "rate-limit": {
-      "type": "object",
-      "desc": "Legacy alias for 'user-rate-limit'.",
-      "children": {
-        "max-runs": {
-          "type": "integer|string",
-          "desc": "Legacy maximum runs key.",
-          "leaf": true
-        },
-        "max": {
-          "type": "integer|string",
-          "desc": "Legacy maximum runs key.",
-          "leaf": true
-        },
-        "window": {
-          "type": "integer",
-          "desc": "Time window in minutes for rate limiting.",
-          "leaf": true
-        },
-        "events": {
-          "type": "array",
-          "desc": "Optional list of event types to apply rate limiting to.",
-          "array": true
-        },
-        "ignored-roles": {
-          "type": "array",
-          "desc": "Optional list of roles that are exempt from rate limiting.",
-          "array": true
-        }
-      }
-    },
     "strict": {
       "type": "boolean",
       "desc": "Enable strict mode validation for enhanced security and compliance.",

@@ -7731,45 +7731,6 @@ user-rate-limit:
   ignored-roles: []
     # Array of strings
 
-# Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with
-# 'max-runs-per-window'.
-# (optional)
-rate-limit:
-  # Legacy maximum runs key. Prefer 'max-runs-per-window'.
-  # (optional)
-  # Accepted formats:
-
-  # Format 1: integer
-  max-runs: 1
-
-  # Format 2: GitHub Actions expression that resolves to an integer at runtime
-  max-runs: "example-value"
-
-  # Legacy maximum runs key. Prefer 'max-runs-per-window'.
-  # (optional)
-  # Accepted formats:
-
-  # Format 1: integer
-  max: 1
-
-  # Format 2: GitHub Actions expression that resolves to an integer at runtime
-  max: "example-value"
-
-  # Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180
-  # (3 hours).
-  # (optional)
-  window: 1
-
-  # Optional list of event types to apply rate limiting to.
-  # (optional)
-  events: []
-    # Array of strings
-
-  # Optional list of roles that are exempt from rate limiting.
-  # (optional)
-  ignored-roles: []
-    # Array of strings
-
 # Enable strict mode validation for enhanced security and compliance. Strict mode
 # enforces: (1) Write Permissions - refuses contents:write, issues:write,
 # pull-requests:write; requires safe-outputs instead, (2) Network Configuration -
