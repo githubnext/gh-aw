@@ -41,6 +41,7 @@ tools:
   cache-memory: true
   comment-memory: true
   github:
+    mode: gh-proxy
   playwright:
     mode: cli
   edit:

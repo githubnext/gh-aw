@@ -43,7 +43,8 @@ Suggested response pattern:
 - Keep the main agent job read-only.
 - Do not add GitHub write permissions to the agent job.
 - Route GitHub writes through `safe-outputs:`.
-- Prefer `tools.github.mode: gh-proxy` and `toolsets:` over ad hoc shell access.
+- Prefer `tools.github.mode: gh-proxy` with `gh` for GitHub reads.
+- Prefer `tools.cli-proxy: true` with mounted `mcp-clis` commands for non-GitHub MCP tools.
 - Constrain `network.allowed:` to the minimum required ecosystems or domains.
 - Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
 
