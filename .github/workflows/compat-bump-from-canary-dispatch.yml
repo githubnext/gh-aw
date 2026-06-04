@@ -58,8 +58,9 @@ jobs:
               return;
             }
             const ageMs = Date.now() - freshnessMillis;
+            const maxFutureSkewMs = 5 * 60 * 1000;
             const maxAgeMs = 24 * 60 * 60 * 1000;
-            if (ageMs < -5 * 60 * 1000) {
+            if (ageMs < -maxFutureSkewMs) {
               core.setFailed("freshness_timestamp is unexpectedly in the future");
               return;
             }
@@ -170,7 +171,7 @@ jobs:
             targetRow["max-agent"] = candidateVersion;
             const updatedCompatRaw = `${JSON.stringify(compat, null, 2)}\n`;
 
-            const safeVersion = candidateVersion.replace(/[^0-9A-Za-z.-]/g, "-");
+            const safeVersion = candidateVersion.replace(/[^0-9A-Za-z-]/g, "-");
             const branchName = `automation/compat-bump-${agent}-${safeVersion}`;
             const commitMessage = `chore(compat): bump ${agent} max-agent to ${candidateVersion}`;
 
