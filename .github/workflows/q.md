@@ -321,6 +321,10 @@ Create a pull request with your improvements using the safe-outputs MCP server:
 - **Cross-reference**: Verify findings across multiple sources
 - **Be accurate**: Double-check workflow names, tool names, and configurations
 
+### Safe Output Reliability
+- If repeated tool calls fail with `Permission denied and could not request permission from user`, stop retrying blocked tools and call `report_incomplete` with the blocked tool/command and exact error text.
+- Never finish with plain text only. Every run must end with at least one safe-output call (`create-pull-request`, `add-comment`, `add-labels`, `noop`, or `report_incomplete`).
+
 ### Compilation Rules
 - **Ignore .lock.yml files**: Do NOT modify or track lock files
 - **Validate all changes**: Use the `compile` tool from gh-aw MCP server before PR
