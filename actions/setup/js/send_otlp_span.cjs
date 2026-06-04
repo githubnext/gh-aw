@@ -1390,7 +1390,7 @@ const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
  * @type {string}
  */
 const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
-const PERMISSION_DENIED_RE = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/i;
+const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+count\b)|EACCES|EPERM)\b/i;
 
 /**
  * @typedef {Object} RateLimitEntry
