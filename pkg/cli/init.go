@@ -88,8 +88,13 @@ func InitRepository(opts InitOptions) error {
 				initLog.Printf("Failed to write dispatcher skill: %v", err)
 				return fmt.Errorf("failed to write dispatcher skill: %w", err)
 			}
+			initLog.Print("Writing agentic workflow designer skill")
+			if err := ensureAgenticWorkflowDesignerSkill(opts.Verbose, false); err != nil {
+				initLog.Printf("Failed to write agentic workflow designer skill: %v", err)
+				return fmt.Errorf("failed to write agentic workflow designer skill: %w", err)
+			}
 			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher and designer skills"))
 			}
 		} else {
 			initLog.Print("Skipping agentic workflows dispatcher skill")
