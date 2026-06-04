@@ -61,14 +61,6 @@ metadata:
 
 Keys must be 1–64 characters; values are string-only, up to 1024 characters.
 
-### `disable-model-invocation`
-
-Controls whether a custom agent workflow disables model invocation. When set to `true`, the custom agent will not make additional model calls.
-
-```yaml wrap
-disable-model-invocation: true
-```
-
 ### Trigger Events (`on:`)
 
 The `on:` section uses standard GitHub Actions syntax to define workflow triggers, with additional fields for security and approval controls:
