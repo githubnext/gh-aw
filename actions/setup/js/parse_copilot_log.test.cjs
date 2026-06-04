@@ -4,7 +4,7 @@ import path from "path";
 
 describe("parse_copilot_log.cjs", () => {
   let mockCore, originalConsole, originalProcess;
-  let main, parseCopilotLog, extractPremiumRequestCount;
+  let main, parseCopilotLog;
 
   beforeEach(async () => {
     originalConsole = global.console;
@@ -45,7 +45,6 @@ describe("parse_copilot_log.cjs", () => {
     const module = await import("./parse_copilot_log.cjs?" + Date.now());
     main = module.main;
     parseCopilotLog = module.parseCopilotLog;
-    extractPremiumRequestCount = module.extractPremiumRequestCount;
   });
 
   afterEach(() => {
@@ -215,14 +214,6 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("2,000");
     });
 
-    it("should set premium flag and use _premium_requests from pretty-print format", () => {
-      const prettyLog = ["● Bash", "    └ ok", "", "Breakdown by AI model:", "  gpt-4o  10k in, 2k out (Est. 1 Premium request)", "", "Total usage est: 12k tokens"].join("\n");
-
-      const result = parseCopilotLog(prettyLog);
-
-      expect(result.markdown).toContain("Premium Requests Consumed");
-    });
-
     it("should use Turns: count from pretty-print format when available", () => {
       const prettyLog = ["● Bash", "    └ ok", "● Bash", "    └ ok2", "", "Turns: 5", "Total usage est: 100 tokens"].join("\n");
 
@@ -390,16 +381,6 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("gpt-4");
     });
 
-    it("should not display premium requests for non-premium models", () => {
-      const structuredLog = JSON.stringify([
-        { type: "system", subtype: "init", session_id: "non-premium-test", tools: ["Bash"], model: "gpt-3.5-turbo", model_info: { is_premium: false } },
-        { type: "result", num_turns: 3, usage: { input_tokens: 500, output_tokens: 200 } },
-      ]);
-      const result = parseCopilotLog(structuredLog);
-
-      expect(result.markdown).not.toContain("**Premium Requests:**");
-    });
-
     it("renders AWF token steering warnings from structured log entries", () => {
       const structuredLog = JSON.stringify([
         { type: "system", subtype: "init", session_id: "steering-test", tools: ["Bash"], model: "gpt-5" },
@@ -422,32 +403,6 @@ describe("parse_copilot_log.cjs", () => {
 
       expect(result.markdown).toContain("Firewall Steering");
       expect(result.markdown).toContain("[AWF TOKEN WARNING] You have used 90% of your effective token budget.");
-    });
-  });
-
-  describe("extractPremiumRequestCount function", () => {
-    it("should default to 1 if no match found", () => {
-      expect(extractPremiumRequestCount("No premium info here")).toBe(1);
-    });
-
-    it("should ignore invalid numbers", () => {
-      expect(extractPremiumRequestCount("Premium requests: abc")).toBe(1);
-    });
-
-    it("should parse integer premium request count", () => {
-      expect(extractPremiumRequestCount("premium requests consumed: 2")).toBe(2);
-    });
-
-    it("should parse decimal premium request count (e.g. gemini-3-flash-preview)", () => {
-      expect(extractPremiumRequestCount("premium requests consumed: 0.33")).toBe(0.33);
-    });
-
-    it("should parse decimal in alternate format", () => {
-      expect(extractPremiumRequestCount("0.33 premium requests consumed")).toBe(0.33);
-    });
-
-    it("should parse decimal in consumed-first format", () => {
-      expect(extractPremiumRequestCount("consumed 0.5 premium requests")).toBe(0.5);
     });
   });
 

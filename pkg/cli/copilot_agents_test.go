@@ -424,6 +424,36 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	}
 }
 
+// TestFallbackAWFilesMatchesLocalAWDirectory validates that the embedded fallback file list
+// matches the .md files actually present in .github/aw/. This ensures that when files are
+// added or removed from .github/aw/, the fallback list is kept in sync so that offline
+// compilation still produces an accurate SKILL.md.
+func TestFallbackAWFilesMatchesLocalAWDirectory(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	awEntries, err := os.ReadDir(filepath.Join(gitRoot, ".github", "aw"))
+	require.NoError(t, err, "failed to read .github/aw directory")
+
+	localFiles := make([]string, 0, len(awEntries))
+	for _, entry := range awEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		localFiles = append(localFiles, entry.Name())
+	}
+	sort.Strings(localFiles)
+
+	fallbackFiles := embeddedFallbackAWMarkdownFiles()
+	sort.Strings(fallbackFiles)
+
+	assert.Equal(t, localFiles, fallbackFiles,
+		"embedded fallback file list (pkg/cli/data/agentic_workflows_fallback_aw_files.json) is out of sync with .github/aw/*.md — update the JSON to match")
+}
+
 func withMockAWMarkdownFileList(t *testing.T, files []string, err error) {
 	t.Helper()
 	previous := listAgenticWorkflowsMarkdownFiles

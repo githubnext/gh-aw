@@ -1,5 +1,6 @@
 [
   "agentic-chat.md",
+  "agentic-workflows-mcp.md",
   "asciicharts.md",
   "campaign.md",
   "charts-trending.md",
@@ -15,6 +16,7 @@
   "github-agentic-workflows.md",
   "github-mcp-server.md",
   "llms.md",
+  "mcp-clis.md",
   "memory.md",
   "messages.md",
   "network.md",

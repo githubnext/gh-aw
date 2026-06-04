@@ -58,6 +58,9 @@ fmt.Println(reference) // actions/checkout@<sha> # v5
 - `github.com/github/gh-aw/pkg/logger` — debug logging
 - `github.com/github/gh-aw/pkg/semverutil` — semantic version compatibility checks
 
+**Test-only**:
+- `github.com/github/gh-aw/pkg/constants` — engine names, job names, and version constants used by package tests
+
 ## Thread Safety
 
 Embedded pin loading and index creation use `sync.Once`, and read access to loaded pin slices/maps is safe after initialization.

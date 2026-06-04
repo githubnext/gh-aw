@@ -465,7 +465,6 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/parser` — markdown frontmatter parsing
 - `github.com/github/gh-aw/pkg/console` — terminal output formatting
 - `github.com/github/gh-aw/pkg/logger` — structured debug logging
-- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by CLI package tests
 - `github.com/github/gh-aw/pkg/constants` — engine names, job names, feature flags
 - `github.com/github/gh-aw/pkg/agentdrain` — Drain log anomaly detection for audit analysis
 - `github.com/github/gh-aw/pkg/envutil` — environment variable reading with bounds validation
@@ -484,6 +483,9 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/repoutil` — repository name parsing and normalization
 - `github.com/github/gh-aw/pkg/stringutil` — string manipulation and sanitization utilities
 - `github.com/github/gh-aw/pkg/syncutil` — thread-safe one-shot caching (used for repository slug lookup)
+
+**Test-only**:
+- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by CLI package tests
 
 **External**:
 - `github.com/spf13/cobra` — CLI framework

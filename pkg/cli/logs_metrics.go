@@ -154,7 +154,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		if eventsErr == nil {
 			metrics = eventsMetrics
 			eventsJSONLParsed = true
-			logsMetricsLog.Printf("events.jsonl parsed: turns=%d premiumRequests=%d toolCalls=%d",
+			logsMetricsLog.Printf("events.jsonl parsed: turns=%d tokens=%d toolCalls=%d",
 				metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
 		} else {
 			logsMetricsLog.Printf("Failed to parse events.jsonl, falling back to log files: %v", eventsErr)

@@ -13,16 +13,16 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestExperimentsExperimentalWarning tests that the experiments feature
-// emits an experimental warning when enabled.
-func TestExperimentsExperimentalWarning(t *testing.T) {
+// TestExperimentsNoExperimentalWarning tests that the experiments feature
+// does not emit an experimental warning, as the feature is no longer
+// considered experimental.
+func TestExperimentsNoExperimentalWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name    string
+		content string
 	}{
 		{
-			name: "experiments enabled produces experimental warning",
+			name: "experiments enabled does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -36,7 +36,6 @@ experiments:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 		{
 			name: "no experiments does not produce experimental warning",
@@ -49,10 +48,9 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 		{
-			name: "multiple experiments produce experimental warning",
+			name: "multiple experiments do not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -69,7 +67,6 @@ experiments:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 	}
 
@@ -103,24 +100,9 @@ experiments:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: experiments"
-
-			if tt.expectWarning {
-				if !strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedMessage, stderrOutput)
-				}
-			} else {
-				if strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedMessage, stderrOutput)
-				}
-			}
-
-			// Verify warning count includes experiments warning
-			if tt.expectWarning {
-				warningCount := compiler.GetWarningCount()
-				if warningCount == 0 {
-					t.Error("Expected warning count > 0 but got 0")
-				}
+			unexpectedMessage := "Using experimental feature: experiments"
+			if strings.Contains(stderrOutput, unexpectedMessage) {
+				t.Errorf("Did not expect experimental warning '%s', but got stderr:\n%s", unexpectedMessage, stderrOutput)
 			}
 		})
 	}

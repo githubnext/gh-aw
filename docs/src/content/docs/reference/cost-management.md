@@ -26,7 +26,7 @@ The agent job invokes an AI engine to process the prompt and call tools. Inferen
 
 | Engine | Billed to | Unit |
 |--------|-----------|------|
-| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Premium requests (1–2 per run; see [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
+| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Tokens (see [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
 | `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | Tokens |
 | `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | Tokens |
 
@@ -373,9 +373,9 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 | Scenario | Frequency | Actions minutes/month | Inference/month |
 |----------|-----------|----------------------|-----------------|
-| Weekly digest (schedule, 1 repo) | 4×/month | ~1 min | ~4–8 premium requests (Copilot) |
-| Issue triage (issues opened, 20/month) | 20×/month | ~10 min | ~20–40 premium requests |
-| PR review on every push (busy repo, 100 pushes/month) | 100×/month | ~100 min | ~100–200 premium requests |
+| Weekly digest (schedule, 1 repo) | 4×/month | ~1 min | Varies by model and prompt size |
+| Issue triage (issues opened, 20/month) | 20×/month | ~10 min | Varies by model and prompt size |
+| PR review on every push (busy repo, 100 pushes/month) | 100×/month | ~100 min | Varies by model and prompt size |
 | On-demand via slash command | User-controlled | Varies | Varies |
 
 > [!TIP]

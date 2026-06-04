@@ -544,13 +544,13 @@ jobs:
 
 Depends on the engine:
 
-- **GitHub Copilot CLI** (default): the account supplying [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) — drawn from its monthly premium-request quota. See [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot).
+- **GitHub Copilot CLI** (default): the account supplying [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) — drawn from its inference quota. See [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot).
 - **Claude**: the Anthropic account tied to the [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) secret.
 - **Codex**: the OpenAI account tied to the [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) secret.
 
 ### What's the approximate cost per workflow run?
 
-Costs vary by workflow complexity, model, and execution time. Copilot CLI typically uses 1-2 premium requests per run. Track usage with `gh aw logs`, `gh aw audit <run-id>`, or your AI provider's portal — use separate PAT/API keys per repository for granular tracking. Reduce costs by optimizing prompts, using smaller models, limiting tool calls, reducing run frequency, and caching results.
+Costs vary by workflow complexity, model, and execution time. Track usage with `gh aw logs`, `gh aw audit <run-id>`, or your AI provider's portal — use separate PAT/API keys per repository for granular tracking. Reduce costs by optimizing prompts, using smaller models, limiting tool calls, reducing run frequency, and caching results.
 
 ### Are GitHub Actions minutes charged in addition to AI costs?
 
@@ -569,7 +569,7 @@ engine:
 max-turns: 5
 ```
 
-For scheduled workflows, run frequency is the primary cost lever — an hourly schedule at 1–2 premium requests per run adds up quickly.
+For scheduled workflows, run frequency is the primary cost lever — an hourly schedule adds up quickly.
 
 ### How do I control spend and set budgets?
 

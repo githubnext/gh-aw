@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -61,6 +63,10 @@ type TokenUsageSummary struct {
 	TotalEffectiveTokens  int                         `json:"total_effective_tokens" console:"header:Effective Tokens,format:number"`
 	AmbientContext        *AmbientContextMetrics      `json:"ambient_context,omitempty"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
+	SubagentModelRequests []SubagentModelRequest      `json:"subagent_model_requests,omitempty"`
+	SubagentModelActuals  []SubagentModelActual       `json:"subagent_model_actuals,omitempty"`
+	MismatchCount         int                         `json:"mismatch_count,omitempty"`
+	Warnings              []string                    `json:"warnings,omitempty"`
 }
 
 // ModelTokenUsage contains per-model token usage statistics
@@ -90,9 +96,30 @@ type ModelTokenUsageRow struct {
 	AvgDuration      string `json:"avg_duration" console:"header:Avg Duration"`
 }
 
+// SubagentModelRequest captures requested/effective model attribution for a sub-agent.
+type SubagentModelRequest struct {
+	AgentName       string `json:"agent_name"`
+	RequestedModel  string `json:"requested_model"`
+	InvocationCount int    `json:"invocation_count"`
+	EffectiveModel  string `json:"effective_model,omitempty"`
+	ReasonCode      string `json:"reason_code,omitempty"`
+}
+
+// SubagentModelActual captures model usage observed in token-usage logs.
+type SubagentModelActual struct {
+	Model    string `json:"model"`
+	Provider string `json:"provider,omitempty"`
+	Requests int    `json:"requests"`
+}
+
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
 const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
 const agentUsageJSONPath = "agent_usage.json"
+const modelMismatchReasonTokenUsageMissing = "TOKEN_USAGE_MISSING"
+const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
+const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
+
+var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 // Custom weights, when non-nil, override the built-in model multipliers and token class
@@ -406,7 +433,12 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 
 		// Try to load custom token weights from aw_info.json for this run
 		customWeights := extractCustomTokenWeightsFromDir(runDir)
-		return parseTokenUsageFile(filePath, customWeights)
+		summary, err := parseTokenUsageFile(filePath, customWeights)
+		if err != nil || summary == nil {
+			return summary, err
+		}
+		augmentSubagentModelAttribution(runDir, summary)
+		return summary, nil
 	}
 
 	agentUsagePath := findAgentUsageFile(runDir)
@@ -421,7 +453,171 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	}
 
 	customWeights := extractCustomTokenWeightsFromDir(runDir)
-	return parseAgentUsageFile(agentUsagePath, customWeights)
+	summary, err := parseAgentUsageFile(agentUsagePath, customWeights)
+	if err != nil || summary == nil {
+		return summary, err
+	}
+	augmentSubagentModelAttribution(runDir, summary)
+	return summary, nil
+}
+
+func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) {
+	if summary == nil {
+		return
+	}
+
+	requests := extractSubagentModelRequests(runDir)
+	if len(requests) == 0 {
+		return
+	}
+	addTokenUsageWarning(summary, subagentStdioWarning)
+
+	actuals := make([]SubagentModelActual, 0, len(summary.ByModel))
+	observedModels := make(map[string]string, len(summary.ByModel))
+	for model, usage := range summary.ByModel {
+		if usage == nil || model == "" {
+			continue
+		}
+		actuals = append(actuals, SubagentModelActual{
+			Model:    model,
+			Provider: usage.Provider,
+			Requests: usage.Requests,
+		})
+		observedModels[model] = usage.Provider
+	}
+	sort.SliceStable(actuals, func(i, j int) bool {
+		if actuals[i].Requests != actuals[j].Requests {
+			return actuals[i].Requests > actuals[j].Requests
+		}
+		return actuals[i].Model < actuals[j].Model
+	})
+	summary.SubagentModelActuals = actuals
+
+	var fallbackEffectiveModel string
+	if len(observedModels) == 1 {
+		for model := range observedModels {
+			fallbackEffectiveModel = model
+		}
+	}
+
+	requestRows := make([]SubagentModelRequest, 0, len(requests))
+	mismatchCount := 0
+	for _, row := range requests {
+		if _, ok := observedModels[row.RequestedModel]; ok {
+			row.EffectiveModel = row.RequestedModel
+		} else {
+			row.EffectiveModel = fallbackEffectiveModel
+			if len(observedModels) == 0 {
+				row.ReasonCode = modelMismatchReasonTokenUsageMissing
+			} else {
+				row.ReasonCode = modelMismatchReasonModelNotObserved
+			}
+			mismatchCount += row.InvocationCount
+		}
+		requestRows = append(requestRows, row)
+	}
+	summary.SubagentModelRequests = requestRows
+	summary.MismatchCount = mismatchCount
+}
+
+func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
+	if summary == nil || warning == "" {
+		return
+	}
+	for _, existing := range summary.Warnings {
+		if existing == warning {
+			return
+		}
+	}
+	summary.Warnings = append(summary.Warnings, warning)
+}
+
+func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
+	agentStdioPath := findAgentStdioFile(runDir)
+	if agentStdioPath == "" {
+		return nil
+	}
+
+	file, err := os.Open(agentStdioPath)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	type key struct {
+		agent string
+		model string
+	}
+	counts := make(map[key]int)
+
+	reader := bufio.NewReader(file)
+	for {
+		line, readErr := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if line != "" {
+			matches := subagentDispatchPattern.FindAllStringSubmatch(line, -1)
+			for _, m := range matches {
+				if len(m) < 3 {
+					continue
+				}
+				agentName := strings.TrimSpace(m[1])
+				requestedModel := strings.TrimSpace(m[2])
+				if agentName == "" || requestedModel == "" {
+					continue
+				}
+				counts[key{agent: agentName, model: requestedModel}]++
+			}
+		}
+
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return nil
+		}
+	}
+
+	rows := make([]SubagentModelRequest, 0, len(counts))
+	for k, n := range counts {
+		rows = append(rows, SubagentModelRequest{
+			AgentName:       k.agent,
+			RequestedModel:  k.model,
+			InvocationCount: n,
+		})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].AgentName != rows[j].AgentName {
+			return rows[i].AgentName < rows[j].AgentName
+		}
+		return rows[i].RequestedModel < rows[j].RequestedModel
+	})
+	return rows
+}
+
+func findAgentStdioFile(runDir string) string {
+	primary := filepath.Join(runDir, "agent-stdio.log")
+	if _, err := os.Stat(primary); err == nil {
+		return primary
+	}
+
+	var found string
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info == nil || info.IsDir() {
+			return nil
+		}
+		if info.Name() == "agent-stdio.log" {
+			found = path
+			return filepath.SkipAll
+		}
+		return nil
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		tokenUsageLog.Printf("findAgentStdioFile walk error: %v", walkErr)
+	}
+
+	return found
 }
 
 // extractCustomTokenWeightsFromDir reads aw_info.json from a run directory and returns
