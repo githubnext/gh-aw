@@ -491,7 +491,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensIntegerZeroInvalid(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensZeroInvalid(t *testing.T) {
 	t.Parallel()
 
 	invalidFrontmatter := map[string]any{
@@ -564,7 +564,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokens
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveTokensIntegerZeroInvalid(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyEffectiveTokensZeroInvalid(t *testing.T) {
 	t.Parallel()
 
 	invalidFrontmatter := map[string]any{
