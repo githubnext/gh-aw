@@ -123,8 +123,8 @@ const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
 const tokenSteeringEventName = "token_steering"
 const timeoutSteeringEventName = "timeout_steering"
-const awfTokenWarningPrefix = "[awf token warning]"
-const awfTimeWarningPrefix = "[awf time warning]"
+const awfTokenWarningPrefix = "[AWF TOKEN WARNING]"
+const awfTimeWarningPrefix = "[AWF TIME WARNING]"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -535,7 +535,7 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 			entry["event_name"],
 			entry["eventName"],
 		)))
-		message := strings.ToLower(strings.TrimSpace(coalesceString(entry["message"])))
+		message := strings.TrimSpace(coalesceString(entry["message"]))
 		if isSteeringEvent(eventName, message) {
 			count++
 		}
