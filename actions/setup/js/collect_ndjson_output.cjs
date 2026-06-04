@@ -323,10 +323,10 @@ async function main() {
             }
             continue;
           }
-          // SECURITY: Use normalizedItem (which only contains declared schema
-          // fields) instead of the original item, to prevent agent-injected
-          // infrastructure fields (patch_path, bundle_path, base_commit, diff_size)
-          // from reaching the privileged handler.
+          // SECURITY: Use normalizedItem (which strips infrastructure-only fields
+          // like patch_path, bundle_path, base_commit, diff_size) instead of the
+          // original item, to prevent agent-injected transport metadata from
+          // reaching the privileged handler.
           core.info(`Line ${i + 1}: Valid ${itemType} item`);
           parsedItems.push(validationResult.normalizedItem);
         } else {

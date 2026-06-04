@@ -560,11 +560,27 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const gitCwd = repoCwd || process.env.GITHUB_WORKSPACE || process.cwd();
     let pinnedSha;
     try {
-      pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: gitCwd }).toString().trim();
+      pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: gitCwd })
+        .toString()
+        .trim();
       server.debug(`Pinned branch '${entry.branch}' to SHA ${pinnedSha}`);
     } catch (pinError) {
       server.debug(`Failed to pin branch '${entry.branch}': ${getErrorMessage(pinError)}`);
-      // If we can't resolve the branch, let the downstream functions handle the error
+      if (useBundle) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: `Failed to pin branch '${entry.branch}' before bundle generation: ${getErrorMessage(pinError)}`,
+                details: "Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
       pinnedSha = null;
     }
 
@@ -646,13 +662,14 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
       server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
 
-
       // SECURITY: Verify the branch ref hasn't been flipped between patch and bundle
       // generation (TOCTOU check). If the SHA changed, the bundle may contain different
       // commits than the patch used for file-protection policy enforcement.
       if (pinnedSha) {
         try {
-          const currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: gitCwd }).toString().trim();
+          const currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: gitCwd })
+            .toString()
+            .trim();
           if (currentSha !== pinnedSha) {
             server.debug(`SECURITY: Branch '${entry.branch}' SHA changed during transport generation (was ${pinnedSha}, now ${currentSha}). Aborting.`);
             return {
@@ -940,10 +957,27 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const pushGitCwd = repoCwd || process.env.GITHUB_WORKSPACE || process.cwd();
     let pushPinnedSha;
     try {
-      pushPinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: pushGitCwd }).toString().trim();
+      pushPinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: pushGitCwd })
+        .toString()
+        .trim();
       server.debug(`Pinned branch '${entry.branch}' to SHA ${pushPinnedSha}`);
     } catch (pinError) {
       server.debug(`Failed to pin branch '${entry.branch}': ${getErrorMessage(pinError)}`);
+      if (useBundle) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: `Failed to pin branch '${entry.branch}' before bundle generation: ${getErrorMessage(pinError)}`,
+                details: "Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
       pushPinnedSha = null;
     }
 
@@ -1037,7 +1071,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // generation (TOCTOU check).
       if (pushPinnedSha) {
         try {
-          const currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: pushGitCwd }).toString().trim();
+          const currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: pushGitCwd })
+            .toString()
+            .trim();
           if (currentSha !== pushPinnedSha) {
             server.debug(`SECURITY: Branch '${entry.branch}' SHA changed during transport generation (was ${pushPinnedSha}, now ${currentSha}). Aborting.`);
             return {

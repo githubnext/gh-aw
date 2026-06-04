@@ -133,15 +133,16 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   // can use it directly. The From <sha> header in format-patch output contains the
   // *new* commit SHA which won't exist in the target checkout.
   let baseCommitSha = null;
+  let resolvedTipRef = null;
 
   try {
     // Strategy 1: If we have a branch name, check if that branch exists and get its diff
     if (branchName) {
+      resolvedTipRef = options.pinnedSha || branchName;
       // SECURITY: When pinnedSha is provided, use it directly as the tip commit instead
       // of dereferencing refs/heads/<branchName>. This prevents TOCTOU races where the
       // agent can flip the branch ref between patch and bundle generation.
-      const tipRef = options.pinnedSha || branchName;
-
+      const tipRef = resolvedTipRef;
       try {
         if (options.pinnedSha) {
           debugLog(`Strategy 1: Using pinned SHA ${options.pinnedSha} (branch: ${branchName})`);
@@ -531,7 +532,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     // of the PR head. Use the merge-base as the effective diff base to exclude those
     // merged upstream commits from the size measurement.
     let diffBaseForSize = baseCommitSha;
-    if (mode === "incremental" && baseCommitSha && branchName && defaultBranch) {
+    if (mode === "incremental" && baseCommitSha && resolvedTipRef && defaultBranch) {
       try {
         let baseBranchRemoteRef = null;
         try {
@@ -548,15 +549,15 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // baseCommitSha as the diff base.
           let baseIsAncestorOfBranch = false;
           try {
-            execGitSync(["merge-base", "--is-ancestor", "--", baseCommitSha, branchName], { cwd });
+            execGitSync(["merge-base", "--is-ancestor", "--", baseCommitSha, resolvedTipRef], { cwd });
             baseIsAncestorOfBranch = true;
           } catch {
-            // baseCommitSha is not an ancestor of branchName (rebase / force-push)
-            debugLog(`Strategy 1 (incremental): baseCommitSha ${baseCommitSha} is not an ancestor of ${branchName} (rebase/force-push?); skipping merge-base adjustment`);
+            // baseCommitSha is not an ancestor of tipRef (rebase / force-push)
+            debugLog(`Strategy 1 (incremental): baseCommitSha ${baseCommitSha} is not an ancestor of ${resolvedTipRef} (rebase/force-push?); skipping merge-base adjustment`);
           }
 
           if (baseIsAncestorOfBranch) {
-            const mb = execGitSync(["merge-base", "--", baseBranchRemoteRef, branchName], { cwd }).trim();
+            const mb = execGitSync(["merge-base", "--", baseBranchRemoteRef, resolvedTipRef], { cwd }).trim();
             // Check if mb is already an ancestor of baseCommitSha.
             // If it is, baseCommitSha is "later" and the agent did NOT merge the default
             // branch ahead of the PR head — keep baseCommitSha as the diff base.
@@ -582,15 +583,15 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     }
 
     let diffSize = null;
-    if (mode === "incremental" && diffBaseForSize && branchName) {
+    if (mode === "incremental" && diffBaseForSize && resolvedTipRef) {
       diffSize = computeIncrementalDiffSize({
         baseRef: diffBaseForSize,
-        headRef: branchName,
+        headRef: resolvedTipRef,
         cwd,
         tmpPath: `${patchPath}.diff.tmp`,
         excludedFiles: options.excludedFiles,
       });
-      debugLog(`Final: diffSize=${diffSize ?? "(n/a)"} bytes (baseRef=${diffBaseForSize}..${branchName})`);
+      debugLog(`Final: diffSize=${diffSize ?? "(n/a)"} bytes (baseRef=${diffBaseForSize}..${resolvedTipRef})`);
     }
 
     debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, diffSize=${diffSize ?? "(n/a)"} bytes, baseCommit=${baseCommitSha || "(unknown)"}`);
