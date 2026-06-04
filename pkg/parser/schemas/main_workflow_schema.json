@@ -3690,12 +3690,12 @@
       "examples": [15, "${{ inputs.max-turns }}"]
     },
     "max-effective-tokens": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/max_effective_tokens_limit",
       "default": 25000000,
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/max_daily_effective_tokens_limit",
       "description": "24-hour effective-token guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
