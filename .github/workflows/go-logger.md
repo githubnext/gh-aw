@@ -36,10 +36,36 @@ steps:
 
     last_sha=""
     if [ -f "$cache_dir/last-run.json" ]; then
-      last_sha="$(jq -r '.commit_sha // .sha // .last_commit_sha // empty' "$cache_dir/last-run.json" 2>/dev/null || true)"
+      last_sha="$(jq -r '.commit_sha // empty' "$cache_dir/last-run.json" 2>/dev/null || true)"
     fi
 
-    python -c "import json,pathlib,re,sys;paths=[p for p in pathlib.Path(sys.argv[1]).read_text(encoding='utf-8').splitlines() if p];m={'files_needing_logger':[],'missing_logger_import':[],'candidate_call_sites':[]};[(m['files_needing_logger'].append(rel) if 'var log = logger.New' not in txt else None,m['missing_logger_import'].append(rel) if ('log.' in txt and '\"github.com/github/gh-aw/pkg/logger\"' not in txt) else None,[m['candidate_call_sites'].append({'file':rel,'line':i,'function':mm.group(1)}) for i,l in enumerate(txt.splitlines(),1) for mm in [re.match(r'\\s*func\\s+([A-Za-z0-9_]+)',l)] if mm]) for rel in paths for txt in [pathlib.Path(rel).read_text(encoding='utf-8') if pathlib.Path(rel).exists() else '']];pathlib.Path(sys.argv[2]).write_text(json.dumps(m,indent=2),encoding='utf-8')" "$current_files" "$out_dir/manifest.json"
+    files_needing_logger="$out_dir/files-needing-logger.txt"
+    files_missing_logger_import="$out_dir/files-missing-logger-import.txt"
+    call_sites="$out_dir/call-sites.tsv"
+    : > "$files_needing_logger"
+    : > "$files_missing_logger_import"
+    : > "$call_sites"
+
+    while IFS= read -r rel; do
+      [ -f "$rel" ] || continue
+      if ! grep -q "var log = logger.New" "$rel"; then
+        echo "$rel" >> "$files_needing_logger"
+      fi
+      if grep -q "log\\." "$rel" && ! grep -q '"github.com/github/gh-aw/pkg/logger"' "$rel"; then
+        echo "$rel" >> "$files_missing_logger_import"
+      fi
+      while IFS=: read -r line_number match_line; do
+        function_name="$(printf '%s' "$match_line" | sed -E 's/^[[:space:]]*func[[:space:]]+([A-Za-z0-9_]+).*/\\1/')"
+        printf "%s\\t%s\\t%s\\n" "$rel" "$line_number" "$function_name" >> "$call_sites"
+      done < <(grep -nE "^[[:space:]]*func[[:space:]]+[A-Za-z0-9_]+" "$rel" || true)
+    done < "$current_files"
+
+    jq -n \
+      --argjson files_needing_logger "$(jq -R -s 'split(\"\\n\") | map(select(length > 0))' "$files_needing_logger")" \
+      --argjson missing_logger_import "$(jq -R -s 'split(\"\\n\") | map(select(length > 0))' "$files_missing_logger_import")" \
+      --argjson candidate_call_sites "$(jq -R -s 'split(\"\\n\") | map(select(length > 0) | split(\"\\t\") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites")" \
+      '{files_needing_logger: $files_needing_logger, missing_logger_import: $missing_logger_import, candidate_call_sites: $candidate_call_sites}' \
+      > "$out_dir/manifest.json"
 
     should_run=true
     if [ "$current_sha" = "$last_sha" ] && [ ! -s "$new_files" ]; then
