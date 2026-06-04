@@ -211,6 +211,7 @@ describe("process_runner.cjs", () => {
       it("forwards COPILOT_SDK_URI in sdk mode", () => {
         expect(buildCopilotSDKEnv({ COPILOT_SDK_URI: "http://127.0.0.1:3000" })).toEqual({
           COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_LOG_LEVEL: "all",
         });
       });
 
@@ -222,6 +223,7 @@ describe("process_runner.cjs", () => {
           })
         ).toEqual({
           COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_LOG_LEVEL: "all",
           COPILOT_SDK_SEND_TIMEOUT_MS: "3570000",
         });
       });
@@ -235,6 +237,7 @@ describe("process_runner.cjs", () => {
           })
         ).toEqual({
           COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_LOG_LEVEL: "all",
           COPILOT_SDK_SEND_TIMEOUT_MS: "1234",
         });
       });
@@ -247,6 +250,19 @@ describe("process_runner.cjs", () => {
           })
         ).toEqual({
           COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_LOG_LEVEL: "all",
+        });
+      });
+
+      it("respects an explicit COPILOT_SDK_LOG_LEVEL override", () => {
+        expect(
+          buildCopilotSDKEnv({
+            COPILOT_SDK_URI: "http://127.0.0.1:3000",
+            COPILOT_SDK_LOG_LEVEL: "error",
+          })
+        ).toEqual({
+          COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_LOG_LEVEL: "error",
         });
       });
     });
