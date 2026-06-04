@@ -56,7 +56,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/visual-regression.md`
 - `.github/aw/workflow-constraints.md`
 - `.github/aw/workflow-designer.md`
-- `.github/aw/workflow-designer.md`
 - `.github/aw/workflow-editing.md`
 - `.github/aw/workflow-patterns.md`
 
