@@ -154,4 +154,10 @@ Use this priority rubric:
 - Keep recommendations concrete and actionable.
 - If no action is needed, call `noop` with a brief explanation.
 
+## Command Guardrails (Required)
+
+- Do **NOT** repeatedly retry variations of the same blocked command.
+- If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
+- If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
+
 {{#runtime-import shared/noop-reminder.md}}

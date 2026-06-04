@@ -68,6 +68,12 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 
 Use only the preloaded MCP tools and configured safe outputs directly. Do not run discovery or setup steps for MCP servers; proceed with the task steps using `logs`, `audit`, and `audit-diff`.
 
+### Command Guardrails (Required)
+
+- Do **NOT** repeatedly retry variations of the same blocked command.
+- If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
+- If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
+
 ### Step 0: Fresh Analysis - No Caching
 
 **ALWAYS PERFORM FRESH ANALYSIS**: This report must always use fresh data from the audit tool. 

@@ -159,6 +159,12 @@ Do **not** re-fetch these datasets with GitHub tools unless a required file is m
 - Avoid loading full payloads when filtered data already exists.
 - Prefer deterministic shell outputs and compact JSON over repeated tool queries.
 
+## Command Guardrails (Required)
+
+- Do **NOT** repeatedly retry variations of the same blocked command.
+- If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
+- If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
+
 ## Phase 1 — Determine Scope
 
 1. Read `recent-context.json` and `source-files.json`.
