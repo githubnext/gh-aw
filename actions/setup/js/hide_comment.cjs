@@ -42,6 +42,51 @@ async function hideCommentAPI(github, nodeId, reason = "spam") {
 }
 
 /**
+ * Resolve a safe-output comment_id into a GraphQL node ID.
+ * Supports both GraphQL node IDs and numeric REST comment IDs.
+ * @param {any} github - GitHub client
+ * @param {{owner?: string, repo?: string}|null|undefined} repoContext - Repository context
+ * @param {string|number} commentId - GraphQL node ID or numeric REST comment ID
+ * @returns {Promise<string>} GraphQL node ID
+ */
+async function resolveCommentNodeId(github, repoContext, commentId) {
+  if (typeof commentId === "string") {
+    const trimmed = commentId.trim();
+    if (!trimmed) {
+      throw new Error("comment_id is required");
+    }
+
+    // GraphQL node IDs (e.g., IC_kwDOABCD123456) can be used directly.
+    if (!/^\d+$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    commentId = Number.parseInt(trimmed, 10);
+  }
+
+  if (!Number.isInteger(commentId) || commentId <= 0) {
+    throw new Error("comment_id must be a GraphQL node ID string or a positive numeric REST comment ID");
+  }
+
+  if (!repoContext || !repoContext.owner || !repoContext.repo) {
+    throw new Error("Unable to resolve numeric comment_id: repository context (owner/repo) is not available");
+  }
+
+  const comment = await github.rest.issues.getComment({
+    owner: repoContext.owner,
+    repo: repoContext.repo,
+    comment_id: commentId,
+  });
+
+  const nodeId = comment && comment.data ? comment.data.node_id : null;
+  if (!nodeId || typeof nodeId !== "string") {
+    throw new Error(`Failed to resolve GraphQL node ID for comment_id ${commentId}: comment not found or node_id unavailable`);
+  }
+
+  return nodeId;
+}
+
+/**
  * Main handler factory for hide_comment
  * Returns a message handler function that processes individual hide_comment messages
  * @type {HandlerFactoryFunction}
@@ -83,11 +128,11 @@ async function main(config = {}) {
 
     try {
       const commentId = message.comment_id;
-      if (!commentId || typeof commentId !== "string") {
-        core.warning("comment_id is required and must be a string (GraphQL node ID)");
+      if (commentId === undefined || commentId === null || (typeof commentId === "string" && !commentId.trim())) {
+        core.warning("comment_id is required");
         return {
           success: false,
-          error: "comment_id is required and must be a string (GraphQL node ID)",
+          error: "comment_id is required",
         };
       }
 
@@ -121,13 +166,14 @@ async function main(config = {}) {
         };
       }
 
-      const hideResult = await hideCommentAPI(githubClient, commentId, normalizedReason);
+      const resolvedNodeId = await resolveCommentNodeId(githubClient, context && context.repo ? context.repo : null, commentId);
+      const hideResult = await hideCommentAPI(githubClient, resolvedNodeId, normalizedReason);
 
       if (hideResult.isMinimized) {
-        core.info(`Successfully hidden comment: ${commentId}`);
+        core.info(`Successfully hidden comment: ${resolvedNodeId}`);
         return {
           success: true,
-          comment_id: commentId,
+          comment_id: resolvedNodeId,
           is_hidden: true,
         };
       } else {

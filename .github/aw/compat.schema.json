@@ -2,13 +2,36 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/github/gh-aw/.github/aw/compat.schema.json",
   "title": "gh-aw agent compatibility matrix",
-  "description": "Pins agentic CLI versions to gh-aw release ranges. Consumed by the setup action to install a known-good agent version per gh-aw release. See ADR for the design rationale.",
+  "description": "Pins agentic CLI versions to gh-aw release ranges. Consumed by the setup action to install a known-good agent version per gh-aw release.",
   "type": "object",
   "required": ["agent-compat-v1"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
       "type": "string"
+    },
+    "blockedVersions": {
+      "type": "array",
+      "description": "List of blocked compile-agentic versions that are not allowed to run (e.g. due to a security compromise). Workflows compiled with a blocked version will fail at activation.",
+      "items": {
+        "type": "string",
+        "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+        "description": "A blocked version string in vMAJOR.MINOR.PATCH format (e.g. 'v1.2.3')"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "minimumVersion": {
+      "type": "string",
+      "description": "The minimum supported compile-agentic version in vMAJOR.MINOR.PATCH format. Workflows compiled with a version below this will fail at activation. Use an empty string to disable this check.",
+      "pattern": "^(v[0-9]+\\.[0-9]+\\.[0-9]+)?$",
+      "default": ""
+    },
+    "minRecommendedVersion": {
+      "type": "string",
+      "description": "The minimum recommended compile-agentic version in vMAJOR.MINOR.PATCH format. Workflows compiled with a version below this will emit a warning (but not fail) at activation, nudging users to upgrade. Use an empty string to disable this check.",
+      "pattern": "^(v[0-9]+\\.[0-9]+\\.[0-9]+)?$",
+      "default": ""
     },
     "agent-compat-v1": {
       "type": "object",

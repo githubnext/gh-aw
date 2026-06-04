@@ -324,7 +324,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const pendingToolCalls = new Map();
 
     /**
-     * Write one JSONL entry to the events file.
+     * Write one JSONL entry to the events file and stderr.
      * Uses the event's own ISO-8601 timestamp when available.
      *
      * @param {string} type
@@ -333,7 +333,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
      */
     function writeEvent(type, data, timestamp) {
       const entry = { type, timestamp: timestamp ?? new Date().toISOString(), data };
-      stream.write(JSON.stringify(entry) + "\n");
+      const jsonl = JSON.stringify(entry) + "\n";
+      stream.write(jsonl);
+      process.stderr.write(jsonl);
     }
 
     // Subscribe to all session events and serialise the ones we care about.
@@ -492,6 +494,17 @@ async function main() {
 
   log(`connecting to sidecar at ${sdkUri}`);
 
+  // --- Resolve BYOK custom provider from environment ------------------
+  // The harness resolves the BYOK provider from live AWF reflect data before launching
+  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL.
+  // BYOK is the only supported mode — fail immediately if the env var is missing.
+  const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
+  if (!providerBaseUrl) {
+    process.stderr.write("[copilot-sdk-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " + "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n");
+    process.exit(1);
+  }
+  const provider = /** @type {import("@github/copilot-sdk").ProviderConfig} */ { type: "openai", baseUrl: providerBaseUrl };
+
   // --- Run SDK session -------------------------------------------------
 
   const result = await runWithCopilotSDK({
@@ -500,6 +513,7 @@ async function main() {
     logger: log,
     model,
     connectionToken,
+    provider,
   });
 
   process.exit(result.exitCode);

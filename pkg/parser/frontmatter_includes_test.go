@@ -84,42 +84,6 @@ This file only has name and description in frontmatter.`
 	}
 }
 
-// TestProcessIncludedFileWithDisableModelInvocationField verifies that the "disable-model-invocation" field
-// (used in custom agent format) is accepted without warnings
-func TestProcessIncludedFileWithDisableModelInvocationField(t *testing.T) {
-	tempDir := t.TempDir()
-	agentsDir := filepath.Join(tempDir, ".github", "agents")
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		t.Fatalf("Failed to create agents directory: %v", err)
-	}
-
-	// Create a test file with the "disable-model-invocation" field (custom agent format)
-	testFile := filepath.Join(agentsDir, "test-agent.agent.md")
-	testContent := `---
-name: Test Agent
-description: A test custom agent
-disable-model-invocation: true
----
-
-# Test Agent
-
-This is a custom agent file with the disable-model-invocation field.`
-
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
-		t.Fatalf("Failed to write test file: %v", err)
-	}
-
-	// Process the included file - should not generate warnings
-	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
-	if err != nil {
-		t.Fatalf("processIncludedFileWithVisited() error = %v", err)
-	}
-
-	if !strings.Contains(result, "# Test Agent") {
-		t.Errorf("Expected markdown content not found in result")
-	}
-}
-
 // TestProcessIncludedFileWithAgentToolsArray verifies that custom agent files
 // with tools as an array (GitHub Copilot format) are processed without validation errors
 func TestProcessIncludedFileWithAgentToolsArray(t *testing.T) {

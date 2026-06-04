@@ -116,6 +116,16 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Printf("Using trialLogicalRepoSlug: %s", targetRepoSlug)
 	}
 
+	// Wildcard target-repo: the agent chooses the target repo at runtime.
+	// Instead of a single cross-repo checkout, emit checkout steps for ALL repos
+	// declared in checkout: configs (mirroring the agent job), so that any of them
+	// can be targeted by the agent's safe output messages at runtime.
+	// The JS handler uses findRepoCheckout() to locate the correct directory.
+	if targetRepoSlug == "*" {
+		consolidatedSafeOutputsStepsLog.Print("Wildcard target-repo: generating multi-repo checkout steps for safe_outputs")
+		return c.buildMultiRepoCheckoutSteps(data, checkoutMgr, checkoutToken, gitRemoteToken, condition)
+	}
+
 	// For cross-repo targets, override fetch-depth and sparse-checkout patterns
 	// from the checkout: config entry that targets the same repository.  The agent
 	// job already uses these values; the safe_outputs job must mirror them so that
@@ -263,6 +273,170 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 
 	consolidatedSafeOutputsStepsLog.Printf("Added shared checkout with condition: %s", condition.Render())
 	return steps
+}
+
+// buildMultiRepoCheckoutSteps generates checkout steps for ALL repositories declared
+// in the checkout: config, mirroring what the agent job does. This is used when
+// target-repo is "*" (wildcard), meaning the agent decides at runtime which repository
+// to target. Each repository is checked out to its configured path (or workspace root
+// for the default checkout), so the JS handler can locate it via findRepoCheckout().
+//
+// The git credential configuration step sets up authentication for ALL checked-out
+// repositories, enabling push operations to any of them at runtime.
+func (c *Compiler) buildMultiRepoCheckoutSteps(data *WorkflowData, checkoutMgr *CheckoutManager, checkoutToken, gitRemoteToken string, condition ConditionNode) []string {
+	var steps []string
+	conditionStr := RenderCondition(condition)
+
+	// Step 1: Checkout the default (workspace root) repository.
+	// This mirrors the single-repo path but without a cross-repo repository: parameter.
+	defaultCheckout := checkoutMgr.GetDefaultCheckoutOverride()
+	defaultFetchDepth := 1
+	var defaultSparsePatterns []string
+	if defaultCheckout != nil {
+		if defaultCheckout.fetchDepth != nil {
+			defaultFetchDepth = *defaultCheckout.fetchDepth
+		}
+		if len(defaultCheckout.sparsePatterns) > 0 {
+			defaultSparsePatterns = defaultCheckout.sparsePatterns
+		}
+	}
+
+	// Checkout ref: use extracted base branch from agent output with event-context fallbacks.
+	// For comment-triggered privileged events, force checkout to trusted default branch.
+	const baseBranchFallbackExpr = "${{ (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') && github.event.repository.default_branch || steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
+	steps = append(steps, "      - name: Checkout repository\n")
+	steps = append(steps, fmt.Sprintf("        if: %s\n", conditionStr))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          ref: %s\n", baseBranchFallbackExpr))
+	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
+	steps = append(steps, "          persist-credentials: false\n")
+	steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", defaultFetchDepth))
+	steps = appendSparseCheckoutLines(steps, defaultSparsePatterns)
+
+	// Step 2: Checkout additional repositories from checkout: configs into their paths.
+	// Only include entries that have a non-empty repository and path (cross-repo checkouts).
+	for _, cfg := range data.CheckoutConfigs {
+		if cfg == nil || cfg.Repository == "" || cfg.Path == "" {
+			continue
+		}
+		if cfg.Wiki {
+			// Wiki checkouts are not relevant for PR/push operations.
+			continue
+		}
+
+		entryFetchDepth := 1
+		if cfg.FetchDepth != nil {
+			entryFetchDepth = *cfg.FetchDepth
+		}
+		var entrySparsePatterns []string
+		if cfg.SparseCheckout != "" {
+			entrySparsePatterns = strings.Split(cfg.SparseCheckout, "\n")
+		}
+
+		// Use the safe-outputs token for authentication (consistent with single-repo path)
+		entryToken := checkoutToken
+		if cfg.GitHubToken != "" {
+			entryToken = cfg.GitHubToken
+		}
+
+		steps = append(steps, fmt.Sprintf("      - name: Checkout %s into %s\n", cfg.Repository, cfg.Path))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", conditionStr))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          repository: %s\n", cfg.Repository))
+		steps = append(steps, fmt.Sprintf("          path: %s\n", cfg.Path))
+		steps = append(steps, fmt.Sprintf("          token: %s\n", entryToken))
+		steps = append(steps, "          persist-credentials: false\n")
+		steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", entryFetchDepth))
+		steps = appendSparseCheckoutLines(steps, entrySparsePatterns)
+
+		consolidatedSafeOutputsStepsLog.Printf("Added multi-repo checkout: %s -> %s", cfg.Repository, cfg.Path)
+	}
+
+	// Step 3: Configure Git credentials for ALL repositories.
+	// Set up authentication for the workspace root and each subdirectory checkout.
+	gitConfigSteps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", conditionStr),
+		"        env:\n",
+		"          REPO_NAME: ${{ github.repository }}\n",
+		"          SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          git config --global am.keepcr true\n",
+		"          # Re-authenticate git with GitHub token for workspace root\n",
+		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		"          git remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
+	}
+
+	// Also configure credentials for each subdirectory checkout
+	for _, cfg := range data.CheckoutConfigs {
+		if cfg == nil || cfg.Repository == "" || cfg.Path == "" || cfg.Wiki {
+			continue
+		}
+		gitConfigSteps = append(gitConfigSteps,
+			fmt.Sprintf("          # Re-authenticate git for %s\n", cfg.Repository),
+			fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/%s.git\"\n", cfg.Path, cfg.Repository),
+		)
+	}
+
+	gitConfigSteps = append(gitConfigSteps,
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	)
+	steps = append(steps, gitConfigSteps...)
+
+	// Step 4: Fetch additional refs for each repository that declares them.
+	for _, cfg := range data.CheckoutConfigs {
+		if cfg == nil || cfg.Repository == "" || cfg.Path == "" || cfg.Wiki {
+			continue
+		}
+		if entry := checkoutMgr.GetCheckoutForRepository(cfg.Repository); entry != nil && len(entry.fetchRefs) > 0 {
+			consolidatedSafeOutputsStepsLog.Printf("Adding fetch refs step for multi-repo target %s (%d refs)", cfg.Repository, len(entry.fetchRefs))
+			if fetchStep := buildSafeOutputsMultiRepoFetchRefsStep(cfg.Repository, cfg.Path, checkoutToken, entry.fetchRefs, entry.fetchDepth, conditionStr); fetchStep != "" {
+				steps = append(steps, fetchStep)
+			}
+		}
+	}
+
+	consolidatedSafeOutputsStepsLog.Printf("Added multi-repo checkout steps with condition: %s", condition.Render())
+	return steps
+}
+
+// buildSafeOutputsMultiRepoFetchRefsStep generates a conditional "Fetch additional refs"
+// step for a repository checked out into a subdirectory (multi-repo wildcard scenario).
+// Unlike buildSafeOutputsFetchRefsStep, this step targets a specific subdirectory via -C.
+func buildSafeOutputsMultiRepoFetchRefsStep(repoSlug, path, token string, fetchRefs []string, fetchDepth *int, condition string) string {
+	if len(fetchRefs) == 0 {
+		return ""
+	}
+	refspecs := make([]string, 0, len(fetchRefs))
+	for _, ref := range fetchRefs {
+		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
+	}
+
+	depthFlag := ""
+	effectiveDepth := 1
+	if fetchDepth != nil {
+		effectiveDepth = *fetchDepth
+	}
+	if effectiveDepth > 0 {
+		depthFlag = fmt.Sprintf(" --depth=%d", effectiveDepth)
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: Fetch additional refs for %s\n", repoSlug)
+	if condition != "" {
+		fmt.Fprintf(&sb, "        if: %s\n", condition)
+	}
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
+	fmt.Fprintf(&sb, "          git -C \"%s\" -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin%s %s\n", path, depthFlag, strings.Join(refspecs, " "))
+	return sb.String()
 }
 
 // buildSafeOutputsFetchRefsStep generates a conditional "Fetch additional refs" step

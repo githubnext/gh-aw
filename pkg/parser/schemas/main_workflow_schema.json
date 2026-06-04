@@ -2934,11 +2934,6 @@
         }
       }
     },
-    "disable-model-invocation": {
-      "type": "boolean",
-      "description": "Controls whether the custom agent should disable model invocation. When set to true, the agent will not make additional model calls.",
-      "examples": [true]
-    },
     "secrets": {
       "description": "Secret values passed to workflow execution. Secrets can be defined as simple strings (GitHub Actions expressions) or objects with 'value' and 'description' properties. Typically used to provide secrets to MCP servers or custom engines. Note: For passing secrets to reusable workflows, use the jobs.<job_id>.secrets field instead.",
       "type": "object",
@@ -3695,36 +3690,18 @@
       "examples": [15, "${{ inputs.max-turns }}"]
     },
     "max-effective-tokens": {
-      "$ref": "#/$defs/max_effective_tokens_limit",
+      "$ref": "#/$defs/templatable_integer",
       "default": 25000000,
-      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Set to a negative value to disable budget enforcement and token steering."
+      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
-      "$ref": "#/$defs/max_daily_effective_tokens_limit",
-      "description": "When set, activation checks the triggering user's runs of this workflow over the last 24 hours and prevents execution once the aggregated effective-token total exceeds this threshold. Omit the field or set it to -1 to leave the guardrail disabled."
+      "$ref": "#/$defs/templatable_integer",
+      "description": "24-hour effective-token guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed per run."
-        },
-        {
-          "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^[1-9][0-9]*$"
-            },
-            {
-              "pattern": "^\\$\\{\\{.*\\}\\}$"
-            }
-          ],
-          "description": "Maximum number of LLM invocations allowed per run as a numeric string or GitHub Actions expression."
-        }
-      ],
+      "$ref": "#/$defs/templatable_integer",
       "default": 500,
-      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted."
+      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted. Supports GitHub Actions expressions."
     },
     "mcp-servers": {
       "type": "object",
@@ -6254,7 +6231,7 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
@@ -8040,7 +8017,7 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
@@ -10702,7 +10679,7 @@
         },
         {
           "id": "copilot",
-          "copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+          "copilot-sdk-driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
           "copilot-sdk": true,
           "version": "latest"
         }
@@ -10950,8 +10927,8 @@
             },
             "copilot-sdk-driver": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*(?:\\.(?:js|cjs|mjs|py|ts|mts|rb))?$",
-              "description": "Custom Copilot SDK driver script filename or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a safe basename with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb) for scripts in the setup action directory, or a bare command name without an extension for an arbitrary executable in PATH."
+              "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
+              "description": "Custom Copilot SDK driver script or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
             }
           },
           "required": ["id"],

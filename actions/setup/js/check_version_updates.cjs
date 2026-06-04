@@ -7,7 +7,7 @@
  * This script:
  * 1. Reads the compiled version from GH_AW_COMPILED_VERSION env var.
  * 2. Skips the check if the version is not in vMAJOR.MINOR.PATCH official release format.
- * 3. Fetches .github/aw/releases.json from the gh-aw repository via raw.githubusercontent.com.
+ * 3. Fetches .github/aw/compat.json from the gh-aw-actions repository via raw.githubusercontent.com.
  *    - Uses withRetry to handle transient network failures.
  * 4. If the download fails or config is invalid JSON, the check is skipped (soft failure).
  * 5. Validates that the compiled version is not in the blocked list.
@@ -18,7 +18,7 @@
 
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
-const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/releases.json";
+const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json";
 
 /**
  * Parse an official version string (must be in vMAJOR.MINOR.PATCH format).

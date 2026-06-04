@@ -144,6 +144,10 @@ func TestInitCommandHelp(t *testing.T) {
 		t.Error("Expected help text to mention the Agentic Workflows custom agent")
 	}
 
+	if !strings.Contains(helpText, ".github/skills/agentic-workflow-designer/SKILL.md") {
+		t.Error("Expected help text to mention the agentic workflow designer skill")
+	}
+
 	if !strings.Contains(helpText, "Copilot") {
 		t.Error("Expected help text to mention Copilot")
 	}
@@ -241,6 +245,10 @@ func TestInitRepositoryBasic(t *testing.T) {
 	skillPath := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
 		t.Errorf("Expected dispatcher skill file to be created at %s", skillPath)
+	}
+	designerSkillPath := filepath.Join(".github", "skills", "agentic-workflow-designer", "SKILL.md")
+	if _, err := os.Stat(designerSkillPath); os.IsNotExist(err) {
+		t.Errorf("Expected workflow designer skill file to be created at %s", designerSkillPath)
 	}
 
 	agentPath := filepath.Join(".github", "agents", "agentic-workflows.md")
@@ -351,6 +359,9 @@ func TestInitRepositoryWithNoMCP(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); os.IsNotExist(err) {
 		t.Error("Expected dispatcher skill file to still be created with --no-mcp flag")
 	}
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflow-designer", "SKILL.md")); os.IsNotExist(err) {
+		t.Error("Expected workflow designer skill file to still be created with --no-mcp flag")
+	}
 	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.md")); os.IsNotExist(err) {
 		t.Error("Expected Agentic Workflows custom agent file to still be created with --no-mcp flag")
 	}
@@ -385,6 +396,9 @@ func TestInitRepositoryWithNoSkill(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err == nil {
 		t.Error("Expected dispatcher skill file to NOT be created with skill disabled")
+	}
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflow-designer", "SKILL.md")); err == nil {
+		t.Error("Expected workflow designer skill file to NOT be created with skill disabled")
 	}
 	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.md")); os.IsNotExist(err) {
 		t.Error("Expected Agentic Workflows custom agent file to still be created with skill disabled")
@@ -421,6 +435,9 @@ func TestInitRepositoryWithNoAgent(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); os.IsNotExist(err) {
 		t.Error("Expected dispatcher skill file to still be created with agent disabled")
 	}
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflow-designer", "SKILL.md")); os.IsNotExist(err) {
+		t.Error("Expected workflow designer skill file to still be created with agent disabled")
+	}
 	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.md")); err == nil {
 		t.Error("Expected Agentic Workflows custom agent file to NOT be created with agent disabled")
 	}
@@ -455,6 +472,9 @@ func TestInitRepositoryWithNonCopilotEngineSkipsCopilotArtifacts(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err == nil {
 		t.Error("Expected dispatcher skill file to NOT be created for non-Copilot engine")
+	}
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflow-designer", "SKILL.md")); err == nil {
+		t.Error("Expected workflow designer skill file to NOT be created for non-Copilot engine")
 	}
 	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.md")); err == nil {
 		t.Error("Expected Agentic Workflows custom agent file to NOT be created for non-Copilot engine")
@@ -512,6 +532,9 @@ func TestInitRepositoryRemovesLegacyDispatcherAgentFile(t *testing.T) {
 	skillPath := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
 		t.Fatalf("Expected dispatcher skill file to be created at %s", skillPath)
+	}
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflow-designer", "SKILL.md")); os.IsNotExist(err) {
+		t.Fatalf("Expected workflow designer skill file to be created")
 	}
 }
 

@@ -669,10 +669,48 @@ jobs:
           core.info(`✅ ${CONFIG_FILE} is valid JSON`);
 
           const errors = [];
-          const allowedTopKeys = new Set(['$schema', 'agent-compat-v1']);
+          const allowedTopKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion', 'agent-compat-v1']);
           for (const key of Object.keys(config)) {
             if (!allowedTopKeys.has(key)) {
               errors.push(`Unknown top-level property: '${key}'`);
+            }
+          }
+
+          const releaseVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+          if ('blockedVersions' in config) {
+            if (!Array.isArray(config.blockedVersions)) {
+              errors.push("'blockedVersions' must be an array");
+            } else {
+              const seenBlocked = new Set();
+              config.blockedVersions.forEach((v, i) => {
+                if (typeof v !== 'string') {
+                  errors.push(`blockedVersions[${i}] must be a string`);
+                  return;
+                }
+                if (!releaseVersionRe.test(v)) {
+                  errors.push(`blockedVersions[${i}] ('${v}') must match vMAJOR.MINOR.PATCH`);
+                }
+                if (seenBlocked.has(v)) {
+                  errors.push(`blockedVersions contains duplicate entry '${v}'`);
+                }
+                seenBlocked.add(v);
+              });
+            }
+          }
+          if ('minimumVersion' in config) {
+            const mv = config.minimumVersion;
+            if (typeof mv !== 'string') {
+              errors.push("'minimumVersion' must be a string");
+            } else if (!(mv === '' || releaseVersionRe.test(mv))) {
+              errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (vMAJOR.MINOR.PATCH or empty string)`);
+            }
+          }
+          if ('minRecommendedVersion' in config) {
+            const mrv = config.minRecommendedVersion;
+            if (typeof mrv !== 'string') {
+              errors.push("'minRecommendedVersion' must be a string");
+            } else if (!(mrv === '' || releaseVersionRe.test(mrv))) {
+              errors.push(`'minRecommendedVersion' ('${mrv}') does not match expected version pattern (vMAJOR.MINOR.PATCH or empty string)`);
             }
           }
 

@@ -17,6 +17,62 @@ safe-outputs:
     - automation
     title-prefix: "[log] "
 steps:
+- name: Build deterministic logger manifest
+  id: logger_manifest
+  run: |
+    set -euo pipefail
+    cache_dir="/tmp/gh-aw/cache-memory/go-logger"
+    out_dir="/tmp/gh-aw/agent/go-logger"
+    mkdir -p "$cache_dir" "$out_dir"
+
+    current_sha="$(git rev-parse HEAD)"
+    current_files="$out_dir/current-files.txt"
+    processed_files="$cache_dir/processed-files.txt"
+    find pkg -name '*.go' -type f ! -name '*_test.go' | sort > "$current_files"
+    [ -f "$processed_files" ] || : > "$processed_files"
+
+    new_files="$out_dir/new-files.txt"
+    comm -23 "$current_files" "$processed_files" > "$new_files" || true
+
+    last_sha=""
+    if [ -f "$cache_dir/last-run.json" ]; then
+      last_sha="$(jq -r '.commit_sha // empty' "$cache_dir/last-run.json" 2>/dev/null || true)"
+    fi
+
+    files_needing_logger="$out_dir/files-needing-logger.txt"
+    files_missing_logger_import="$out_dir/files-missing-logger-import.txt"
+    call_sites="$out_dir/call-sites.tsv"
+    : > "$files_needing_logger"
+    : > "$files_missing_logger_import"
+    : > "$call_sites"
+
+    while IFS= read -r rel; do
+      [ -f "$rel" ] || continue
+      if ! grep -q "var log = logger.New" "$rel"; then
+        echo "$rel" >> "$files_needing_logger"
+      fi
+      if grep -q "log\\." "$rel" && ! grep -q '"github.com/github/gh-aw/pkg/logger"' "$rel"; then
+        echo "$rel" >> "$files_missing_logger_import"
+      fi
+      while IFS=: read -r line_number match_line; do
+        function_name="$(printf '%s' "$match_line" | sed -E 's/^[[:space:]]*func[[:space:]]+([A-Za-z0-9_]+).*/\\1/')"
+        printf "%s\\t%s\\t%s\\n" "$rel" "$line_number" "$function_name" >> "$call_sites"
+      done < <(grep -nE "^[[:space:]]*func[[:space:]]+[A-Za-z0-9_]+" "$rel" || true)
+    done < "$current_files"
+
+    jq -n \
+      --argjson files_needing_logger "$(jq -R -s 'split(\"\\n\") | map(select(length > 0))' "$files_needing_logger")" \
+      --argjson missing_logger_import "$(jq -R -s 'split(\"\\n\") | map(select(length > 0))' "$files_missing_logger_import")" \
+      --argjson candidate_call_sites "$(jq -R -s 'split(\"\\n\") | map(select(length > 0) | split(\"\\t\") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites")" \
+      '{files_needing_logger: $files_needing_logger, missing_logger_import: $missing_logger_import, candidate_call_sites: $candidate_call_sites}' \
+      > "$out_dir/manifest.json"
+
+    should_run=true
+    if [ "$current_sha" = "$last_sha" ] && [ ! -s "$new_files" ]; then
+      should_run=false
+    fi
+    echo "{\"should_run\": \"$should_run\", \"current_sha\": \"$current_sha\", \"last_sha\": \"$last_sha\", \"manifest\": \"$out_dir/manifest.json\", \"new_files\": \"$new_files\"}" > "$out_dir/preflight.json"
+    echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
 - name: Setup Node.js
   uses: actions/setup-node@v6.4.0
   with:
@@ -34,15 +90,18 @@ steps:
 description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 emoji: 📝
 engine: claude
+if: needs.pre_activation.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+jobs:
+  pre-activation:
+    outputs:
+      should_run: ${{ steps.logger_manifest.outputs.should_run }}
 name: Go Logger Enhancement
 timeout-minutes: 15
 tools:
   bash:
-  - find pkg -name "*.go" -type f ! -name "*_test.go"
-  - grep -r "var log = logger.New" pkg --include="*.go"
-  - grep -n "func " pkg/*.go
-  - head -n * pkg/**/*.go
-  - wc -l pkg/**/*.go
+  - cat /tmp/gh-aw/agent/go-logger/preflight.json
+  - cat /tmp/gh-aw/agent/go-logger/manifest.json
+  - cat /tmp/gh-aw/agent/go-logger/new-files.txt
   - make build
   - make fmt
   - make recompile
@@ -69,22 +128,17 @@ make build && make fmt       # Build the project and check formatting
 make recompile               # Recompile workflows only if you changed .md files
 ```
 
-## Efficiency First: Check Cache
+## Efficiency First: Use Pre-flight Outputs
 
-Before analyzing files:
+Before analyzing files, read `/tmp/gh-aw/agent/go-logger/preflight.json` and `/tmp/gh-aw/agent/go-logger/manifest.json`.
 
-1. Check `/tmp/gh-aw/cache-memory/go-logger/` for previous logging sessions
-2. Read `processed-files.json` to see which files were already enhanced
-3. Read `last-run.json` for the last commit SHA processed
-4. If cache files are missing (cold cache / first run), initialize defaults and continue. This is expected and should **not** be reported as `missing_data`.
-5. Only report `missing_data` for cache-memory when files exist but are unreadable/corrupted (for example malformed JSON that cannot be recovered).
-6. If current commit SHA matches and no new .go files exist, exit early with success
-7. Update cache after processing:
-   - Save list of processed files to `processed-files.json`
-   - Save current commit SHA to `last-run.json`
-   - Save summary of changes made
-
-This prevents re-analyzing already-processed files and reduces token usage significantly.
+- The pre-flight step already computed whether this run should proceed.
+- If cache files are missing (cold cache / first run), treat that as expected and continue.
+- Only report `missing_data` when cache files exist but are unreadable/corrupted.
+- Update cache after processing:
+  - Save list of processed files to `processed-files.txt`
+  - Save current commit SHA to `last-run.json`
+  - Save summary of changes made
 
 ## Mission
 
@@ -103,17 +157,12 @@ Read the **Debug Logging** section of `AGENTS.md` with the read or bash tools, t
 
 ## Task Steps
 
-### 1. Find Candidate Go Files
+### 1. Read Deterministic Candidate Manifest
 
-Use bash to identify Go files that could benefit from additional logging:
-
-```bash
-# Find all non-test Go files in pkg/
-find pkg -name '*.go' -type f ! -name '*_test.go'
-
-# Check which files already have loggers
-grep -r 'var log = logger.New' pkg --include='*.go'
-```
+Use `/tmp/gh-aw/agent/go-logger/manifest.json` as the source of truth for:
+- `files_needing_logger`
+- `missing_logger_import`
+- `candidate_call_sites`
 
 ### 2. Select Files for Enhancement
 
@@ -195,6 +244,26 @@ Before creating the PR, verify:
 - The safe-outputs create-pull-request will automatically create the PR
 - Focus on quality over quantity - 5 well-logged files is better than 10 poorly-logged files
 - Remember: debug logs are for developers, not end users
+
+## Structured Patch Output
+
+When proposing per-file logger changes, use this compact schema in your reasoning/output to reduce verbose prose:
+
+```json
+{
+  "patches": [
+    {
+      "file": "pkg/path/file.go",
+      "logger_name": "pkg:filename",
+      "add_import": true,
+      "add_logger_var": true,
+      "call_sites": [
+        {"line": 123, "function": "Run", "message": "enter Run"}
+      ]
+    }
+  ]
+}
+```
 
 Good luck enhancing the codebase with better logging!
 

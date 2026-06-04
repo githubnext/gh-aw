@@ -293,7 +293,7 @@ function generateInformationSection(lastEntry, options = {}) {
     markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
   }
 
-  // Call additional info callback if provided (for engine-specific info like premium requests)
+  // Call additional info callback if provided (for engine-specific info)
   if (additionalInfoCallback) {
     const additionalInfo = additionalInfoCallback(lastEntry);
     if (additionalInfo) {

@@ -9,45 +9,66 @@ describe("copilot_sdk_driver.cjs", () => {
     it("disconnects session and stops client on success", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
-      let onEvent = () => {};
-      const session = {
-        sessionId: "session-success",
-        on: handler => {
-          onEvent = handler;
-        },
-        sendAndWait: vi.fn().mockImplementation(async () => {
-          onEvent({
-            type: "assistant.message",
-            ephemeral: false,
-            timestamp: new Date().toISOString(),
-            data: { content: "hello from sdk" },
-          });
-          return { data: { content: "hello from sdk" } };
-        }),
-        disconnect,
-      };
-      class FakeCopilotClient {
-        start = vi.fn().mockResolvedValue(undefined);
-        createSession = vi.fn().mockResolvedValue(session);
-        stop = stop;
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      try {
+        let onEvent = () => {};
+        const session = {
+          sessionId: "session-success",
+          on: handler => {
+            onEvent = handler;
+          },
+          sendAndWait: vi.fn().mockImplementation(async () => {
+            onEvent({
+              type: "assistant.message",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: { content: "hello from sdk" },
+            });
+            return { data: { content: "hello from sdk" } };
+          }),
+          disconnect,
+        };
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = vi.fn().mockResolvedValue(session);
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("hello from sdk");
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(stop).toHaveBeenCalledTimes(1);
+        const parsedEvents = stderrWriteSpy.mock.calls
+          .map(([message]) => {
+            if (typeof message !== "string" || !message.endsWith("\n")) return null;
+            try {
+              return JSON.parse(message.trimEnd());
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        const parsedEvent = parsedEvents.find(event => event.type === "assistant.message");
+        expect(parsedEvent).toMatchObject({
+          type: "assistant.message",
+          data: { content: "hello from sdk" },
+        });
+        expect(typeof parsedEvent.timestamp).toBe("string");
+      } finally {
+        stderrWriteSpy.mockRestore();
       }
-
-      const result = await runWithCopilotSDK({
-        sdkUri: "http://127.0.0.1:3002",
-        prompt: "test prompt",
-        logger: () => {},
-        sdkModule: {
-          CopilotClient: FakeCopilotClient,
-          RuntimeConnection: { forUri: vi.fn(() => ({})) },
-          approveAll: () => "allow",
-        },
-      });
-
-      expect(result.exitCode).toBe(0);
-      expect(result.hasOutput).toBe(true);
-      expect(result.output).toContain("hello from sdk");
-      expect(disconnect).toHaveBeenCalledTimes(1);
-      expect(stop).toHaveBeenCalledTimes(1);
     });
 
     it("disconnects session and stops client on send failure", async () => {

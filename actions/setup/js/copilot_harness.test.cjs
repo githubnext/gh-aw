@@ -1324,22 +1324,13 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("derives SDK custom provider and model from reflect data", () => {
-      const reflectFile = path.join(os.tmpdir(), `awf-reflect-provider-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(
-          reflectFile,
-          JSON.stringify({
-            endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
-          }),
-          "utf8"
-        );
-        expect(resolveCopilotSDKCustomProviderFromReflect({ reflectPath: reflectFile })).toEqual({
-          model: "gpt-5.4",
-          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
-        });
-      } finally {
-        fs.unlinkSync(reflectFile);
-      }
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
+        model: "gpt-5.4",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
     });
   });
 

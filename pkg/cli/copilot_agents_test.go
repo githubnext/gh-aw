@@ -339,6 +339,7 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	if strings.Contains(content, ".github/agents/agentic-workflows") {
 		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
+	assert.Contains(t, content, "Design workflows from scratch via interview: `skills/agentic-workflow-designer/SKILL.md`")
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
@@ -369,6 +370,24 @@ func TestBuildAgenticWorkflowsSkillContentFallsBackToEmbeddedFileList(t *testing
 
 	assert.NotContains(t, content, agenticWorkflowsSkillFileListPlaceholder, "expected generated skill content to replace the file-list placeholder")
 	assert.Contains(t, content, "- `.github/aw/create-agentic-workflow.md`\n", "expected embedded fallback markdown file list to be used")
+	assert.Contains(t, content, "- `.github/skills/agentic-workflow-designer/SKILL.md`\n", "expected generated skill content to include agentic-workflow-designer skill")
+}
+
+func TestCheckedInAgenticWorkflowDesignerSkillMatchesEmbeddedTemplate(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "skills", "agentic-workflow-designer", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in workflow designer skill file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(agenticWorkflowDesignerSkillTemplate) {
+		t.Fatalf("Checked-in workflow designer skill file is out of sync with embedded template\nexpected:\n%s\nactual:\n%s", agenticWorkflowDesignerSkillTemplate, string(actual))
+	}
 }
 
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
@@ -403,6 +422,36 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
 		t.Fatalf("Checked-in skill file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
+}
+
+// TestFallbackAWFilesMatchesLocalAWDirectory validates that the embedded fallback file list
+// matches the .md files actually present in .github/aw/. This ensures that when files are
+// added or removed from .github/aw/, the fallback list is kept in sync so that offline
+// compilation still produces an accurate SKILL.md.
+func TestFallbackAWFilesMatchesLocalAWDirectory(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	awEntries, err := os.ReadDir(filepath.Join(gitRoot, ".github", "aw"))
+	require.NoError(t, err, "failed to read .github/aw directory")
+
+	localFiles := make([]string, 0, len(awEntries))
+	for _, entry := range awEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		localFiles = append(localFiles, entry.Name())
+	}
+	sort.Strings(localFiles)
+
+	fallbackFiles := embeddedFallbackAWMarkdownFiles()
+	sort.Strings(fallbackFiles)
+
+	assert.Equal(t, localFiles, fallbackFiles,
+		"embedded fallback file list (pkg/cli/data/agentic_workflows_fallback_aw_files.json) is out of sync with .github/aw/*.md — update the JSON to match")
 }
 
 func withMockAWMarkdownFileList(t *testing.T, files []string, err error) {

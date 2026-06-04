@@ -57,6 +57,12 @@ When problems are detected, create detailed GitHub issues with reproduction step
 - **Parallel batching**: Combine independent tool calls into a single turn whenever possible (e.g. run 2–3 targeted compiles in parallel rather than sequentially).
 - **Skip redundant variants**: If a test variant (e.g. a second date-range filter) would produce essentially the same signal as one already run, skip it and document the skip reason.
 
+## Command Guardrails (Required)
+
+- Do **NOT** repeatedly retry variations of the same blocked command.
+- If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
+- If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
+
 ## Available Tools
 
 ### Agentic Workflows MCP Server

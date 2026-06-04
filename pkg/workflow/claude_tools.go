@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
@@ -411,19 +412,7 @@ func appendMCPScriptsTools(allowedTools []string, mcpScripts *MCPScriptsConfig) 
 }
 
 func dedupeAllowedTools(allowedTools []string) []string {
-	if len(allowedTools) <= 1 {
-		return allowedTools
-	}
-	seen := make(map[string]struct{}, len(allowedTools))
-	deduped := make([]string, 0, len(allowedTools))
-	for _, tool := range allowedTools {
-		if _, ok := seen[tool]; ok {
-			continue
-		}
-		seen[tool] = struct{}{}
-		deduped = append(deduped, tool)
-	}
-	return deduped
+	return sliceutil.Deduplicate(allowedTools)
 }
 
 func appendIfMissing(items []string, item string) []string {

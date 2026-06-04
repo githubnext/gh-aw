@@ -40,6 +40,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	for handlerName, builder := range handlerRegistry {
 		if handlerCfg := builder(data.SafeOutputs); handlerCfg != nil {
 			injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerCfg, data)
+			injectCheckoutMapping(handlerName, handlerCfg, data)
 			excludeFiles := ParseStringArrayFromConfig(handlerCfg, "_protected_files_exclude", nil)
 			// Strip the internal sentinel key used by the handler manager for compile-time
 			// exclusion processing — it must not be forwarded to the runtime config.json.

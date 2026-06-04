@@ -803,4 +803,111 @@ describe("safe_output_type_validator", () => {
       expect(result.error).toContain("must contain only strings");
     });
   });
+
+  describe("infrastructure field stripping (security)", () => {
+    it("should strip patch_path from normalizedItem", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const item = {
+        type: "create_pull_request",
+        title: "Fix bug",
+        body: "Fixes the thing",
+        branch: "fix/bug",
+        patch_path: "/tmp/evil.patch",
+      };
+
+      const result = validateItem(item, "create_pull_request", 1);
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).not.toHaveProperty("patch_path");
+    });
+
+    it("should strip bundle_path from normalizedItem", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const item = {
+        type: "create_pull_request",
+        title: "Fix bug",
+        body: "Fixes the thing",
+        branch: "fix/bug",
+        bundle_path: "/tmp/evil.bundle",
+      };
+
+      const result = validateItem(item, "create_pull_request", 1);
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).not.toHaveProperty("bundle_path");
+    });
+
+    it("should strip base_commit from normalizedItem", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const item = {
+        type: "create_pull_request",
+        title: "Fix bug",
+        body: "Fixes the thing",
+        branch: "fix/bug",
+        base_commit: "abc123deadbeef",
+      };
+
+      const result = validateItem(item, "create_pull_request", 1);
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).not.toHaveProperty("base_commit");
+    });
+
+    it("should strip diff_size from normalizedItem", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const item = {
+        type: "create_pull_request",
+        title: "Fix bug",
+        body: "Fixes the thing",
+        branch: "fix/bug",
+        diff_size: 1,
+      };
+
+      const result = validateItem(item, "create_pull_request", 1);
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).not.toHaveProperty("diff_size");
+    });
+
+    it("should strip all infrastructure fields simultaneously", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const item = {
+        type: "create_pull_request",
+        title: "Fix bug",
+        body: "Fixes the thing",
+        branch: "fix/bug",
+        patch_path: "/tmp/evil.patch",
+        bundle_path: "/tmp/evil.bundle",
+        base_commit: "abc123",
+        diff_size: 999999,
+      };
+
+      const result = validateItem(item, "create_pull_request", 1);
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).not.toHaveProperty("patch_path");
+      expect(result.normalizedItem).not.toHaveProperty("bundle_path");
+      expect(result.normalizedItem).not.toHaveProperty("base_commit");
+      expect(result.normalizedItem).not.toHaveProperty("diff_size");
+      // Legitimate fields should still be present
+      expect(result.normalizedItem.title).toBe("Fix bug");
+      expect(result.normalizedItem.branch).toBe("fix/bug");
+    });
+
+    it("should preserve non-infrastructure undeclared fields", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const item = {
+        type: "create_issue",
+        title: "Test",
+        body: "Body text",
+        metadata: { project: "test" },
+      };
+
+      const result = validateItem(item, "create_issue", 1);
+      expect(result.isValid).toBe(true);
+      // Non-infrastructure extra fields should pass through
+      expect(result.normalizedItem.metadata).toEqual({ project: "test" });
+    });
+  });
 });

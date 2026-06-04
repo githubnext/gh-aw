@@ -601,10 +601,10 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("Failed to pin branch");
+      expect(responseData.error).toContain("before bundle generation");
       expect(responseData.details).toBeDefined();
-      expect(responseData.details).toContain("Make sure you have committed your changes");
-      expect(responseData.details).toContain("git add and git commit");
+      expect(responseData.details).toContain("Bundle transport requires branch pinning");
 
       // Should not have appended to safe output since patch generation failed
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
@@ -623,10 +623,8 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
 
       // Verify the details provide actionable guidance
-      expect(responseData.details).toContain("create a pull request");
-      expect(responseData.details).toContain("git add");
-      expect(responseData.details).toContain("git commit");
-      expect(responseData.details).toContain("create_pull_request");
+      expect(responseData.details).toContain("Bundle transport requires branch pinning");
+      expect(responseData.details).toContain("branch exists locally");
     });
 
     it("should return error when repo parameter is not in the allowed-repos list", async () => {
@@ -663,7 +661,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       // Should be a patch generation error, not a repo not found error
       expect(responseData.error).not.toContain("not found in workspace");
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("Failed to pin branch");
     });
 
     it("should treat whitespace-only repo as workspace root", async () => {
@@ -1062,10 +1060,9 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("does not exist locally");
+      expect(responseData.error).toContain("Failed to pin branch");
       expect(responseData.details).toBeDefined();
-      expect(responseData.details).toContain("push to the pull request branch");
-      expect(responseData.details).toContain("git add and git commit");
+      expect(responseData.details).toContain("Bundle transport requires branch pinning");
 
       // Should not have appended to safe output since patch generation failed
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
@@ -1096,10 +1093,8 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
 
       // Verify the details provide actionable guidance
-      expect(responseData.details).toContain("push to the pull request branch");
-      expect(responseData.details).toContain("git add");
-      expect(responseData.details).toContain("git commit");
-      expect(responseData.details).toContain("push_to_pull_request_branch");
+      expect(responseData.details).toContain("Bundle transport requires branch pinning");
+      expect(responseData.details).toContain("branch exists locally");
     });
 
     it("should return error when repo checkout is not found for explicit repo", async () => {

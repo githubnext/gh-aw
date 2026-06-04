@@ -62,7 +62,7 @@ Every compiled `.lock.yml` embeds the gh-aw version used to produce it:
 GH_AW_INFO_AWF_VERSION: "v0.64.5"
 ```
 
-At runtime, the activation job fetches `.github/aw/releases.json` and compares the embedded version against three policies:
+At runtime, the activation job fetches `.github/aw/compat.json` and compares the embedded version against three policies:
 
 | Policy | Effect |
 |--------|--------|

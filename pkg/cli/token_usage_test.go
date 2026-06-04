@@ -355,6 +355,72 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.Contains(t, summary.ByModel, "unknown", "unknown model bucket should be present")
 		assert.Equal(t, 60, summary.ByModel["unknown"].EffectiveTokens, "per-model effective tokens should use custom weights")
 	})
+
+	t.Run("records requested sub-agent models and mismatch when token logs do not show requested model", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-subagent-model-mismatch")
+		logsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(logsDir, 0o755))
+		tokenFile := filepath.Join(logsDir, "token-usage.jsonl")
+		tokenContent := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"1","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":100,"output_tokens":200,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":2500,"response_bytes":1500}`
+		require.NoError(t, os.WriteFile(tokenFile, []byte(tokenContent+"\n"), 0o644))
+
+		agentLogContent := `● Agent-alpha(claude-haiku-4.5) Get model name
+● Agent-beta(claude-haiku-4.5) Get model name
+● Agent-gamma(claude-haiku-4.5) Get model name`
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(agentLogContent), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		require.Len(t, summary.SubagentModelRequests, 3)
+		require.Len(t, summary.SubagentModelActuals, 1)
+		assert.Equal(t, 3, summary.MismatchCount)
+		assert.Equal(t, "claude-sonnet-4-6", summary.SubagentModelActuals[0].Model)
+		require.Contains(t, summary.Warnings, subagentStdioWarning)
+
+		for _, req := range summary.SubagentModelRequests {
+			assert.Equal(t, "claude-haiku-4.5", req.RequestedModel)
+			assert.Equal(t, 1, req.InvocationCount)
+			assert.Equal(t, "claude-sonnet-4-6", req.EffectiveModel)
+			assert.Equal(t, modelMismatchReasonModelNotObserved, req.ReasonCode)
+		}
+	})
+
+	t.Run("records token-usage-missing reason when sub-agent model request is present but no model actuals exist", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-subagent-model-token-missing")
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent_usage.json"), []byte(`{}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(`● Agent-alpha(claude-haiku-4.5) Get model name`), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		require.Len(t, summary.SubagentModelRequests, 1)
+		assert.Empty(t, summary.SubagentModelActuals)
+		assert.Equal(t, 1, summary.MismatchCount)
+		assert.Equal(t, modelMismatchReasonTokenUsageMissing, summary.SubagentModelRequests[0].ReasonCode)
+		assert.Empty(t, summary.SubagentModelRequests[0].EffectiveModel)
+		require.Contains(t, summary.Warnings, subagentStdioWarning)
+	})
+
+	t.Run("captures alias-based sub-agent model requests used by workflow subagents", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-subagent-model-alias")
+		logsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(logsDir, 0o755))
+		tokenFile := filepath.Join(logsDir, "token-usage.jsonl")
+		tokenContent := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"1","provider":"openai","model":"gpt-5-mini","path":"/v1/messages","status":200,"streaming":true,"input_tokens":100,"output_tokens":200,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":2500,"response_bytes":1500}`
+		require.NoError(t, os.WriteFile(tokenFile, []byte(tokenContent+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(`● workflow-characterizer(small) Classify`), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		require.Len(t, summary.SubagentModelRequests, 1)
+		assert.Equal(t, "small", summary.SubagentModelRequests[0].RequestedModel)
+		assert.Equal(t, "gpt-5-mini", summary.SubagentModelRequests[0].EffectiveModel)
+		assert.Equal(t, modelMismatchReasonModelNotObserved, summary.SubagentModelRequests[0].ReasonCode)
+		assert.Equal(t, 1, summary.MismatchCount)
+		require.Contains(t, summary.Warnings, subagentStdioWarning)
+	})
 }
 
 func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {

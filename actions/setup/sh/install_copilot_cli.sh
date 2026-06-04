@@ -19,11 +19,20 @@ set +o histexpand
 set -euo pipefail
 
 # Configuration
+SECONDS_PER_DAY=86400
 VERSION="${1:-}"
 COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
 COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
+COMPAT_URL="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
+COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
+COMPAT_MATCHED_MIN_AGENT=""
+COMPAT_MATCHED_MAX_AGENT=""
+COMPAT_CACHE_TTL_DAYS=""
 
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
@@ -132,9 +141,172 @@ version_is_greater() {
   return 1
 }
 
+# Download compatibility matrix with bundled fallback.
+download_compat_json() {
+  local compat_file="$1"
+  local source_file="$2"
+
+  echo "Attempting to download compatibility matrix from ${COMPAT_URL}..." >&2
+  if curl -fsSL --retry 3 --retry-delay 5 -o "$compat_file" "$COMPAT_URL"; then
+    echo "$COMPAT_URL" > "$source_file"
+    echo "Successfully downloaded compatibility matrix from ${COMPAT_URL}" >&2
+    return 0
+  fi
+  echo "Compatibility matrix download failed from ${COMPAT_URL}" >&2
+
+  if [ -f "$COMPAT_BUNDLED_PATH" ]; then
+    echo "::warning::Compatibility matrix network fetch failed; using bundled fallback at ${COMPAT_BUNDLED_PATH}"
+    echo "Falling back to bundled compatibility matrix at ${COMPAT_BUNDLED_PATH}" >&2
+    cp "$COMPAT_BUNDLED_PATH" "$compat_file"
+    echo "bundled:${COMPAT_BUNDLED_PATH}" > "$source_file"
+    return 0
+  fi
+
+  echo "Bundled compatibility matrix not found at ${COMPAT_BUNDLED_PATH}" >&2
+  return 1
+}
+
+# Resolve compat using jq.
+# Returns: "max_agent|row_index|min_aw|max_aw|min_agent|max_agent|cache_ttl_days"
+resolve_compat_with_jq() {
+  local compat_file="$1"
+  local compiled_version="$2"
+  local compiled_no_v="${compiled_version#v}"
+  
+  jq -r --arg compiled "$compiled_no_v" '
+    # Semver comparison: returns -1 if a<b, 0 if equal, 1 if a>b
+    def semver_cmp(a; b):
+      (a | split(".") | map(tonumber)) as $a_parts |
+      (b | split(".") | map(tonumber)) as $b_parts |
+      if ($a_parts[0] < $b_parts[0]) then -1
+      elif ($a_parts[0] > $b_parts[0]) then 1
+      elif ($a_parts[1] < $b_parts[1]) then -1
+      elif ($a_parts[1] > $b_parts[1]) then 1
+      elif ($a_parts[2] < $b_parts[2]) then -1
+      elif ($a_parts[2] > $b_parts[2]) then 1
+      else 0 end;
+    
+    .["agent-compat-v1"] as $compat |
+    ($compat["cache-ttl-days"] // "") as $cache_ttl |
+    ($compat.copilot // []) as $rows |
+    
+    # Find first matching row
+    $rows | to_entries | map(
+      .value as $row |
+      .key as $idx |
+      $row["min-gh-aw"] as $min_aw |
+      $row["max-gh-aw"] as $max_aw |
+      $row["min-agent"] as $min_agent |
+      $row["max-agent"] as $max_agent |
+      
+      # Check if gh-aw version is in range
+      if (semver_cmp($compiled; $min_aw) >= 0) and
+         (($max_aw == "*") or (semver_cmp($compiled; $max_aw) <= 0)) then
+        "\($max_agent)|\($idx)|\($min_aw)|\($max_aw)|\($min_agent)|\($max_agent)|\($cache_ttl)"
+      else empty end
+    ) | first // ""
+  ' "$compat_file"
+}
+
+# Resolve Copilot version from compat matrix using GH_AW_COMPILED_VERSION.
+resolve_version_from_compat() {
+  local compiled_version="${1:-}"
+  local compat_file="$2"
+  local resolved_info=""
+  local compat_source=""
+
+  if [ -z "$compiled_version" ]; then
+    echo "No GH_AW_COMPILED_VERSION provided, skipping compatibility matrix resolution." >&2
+    return 1
+  fi
+
+  if [[ ! "$compiled_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "GH_AW_COMPILED_VERSION '${compiled_version}' is not in vMAJOR.MINOR.PATCH format; skipping compatibility matrix resolution." >&2
+    return 1
+  fi
+
+  compat_source="${compat_file}.source"
+  if ! download_compat_json "$compat_file" "$compat_source"; then
+    echo "Could not resolve compatibility matrix from network or bundled fallback." >&2
+    return 1
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "ERROR: jq is required for compatibility matrix resolution." >&2
+    echo "ERROR: Install jq from https://jqlang.github.io/jq/download/ or pass an explicit Copilot CLI version to bypass compat resolution." >&2
+    return 1
+  fi
+
+  if ! resolved_info="$(resolve_compat_with_jq "$compat_file" "$compiled_version" 2>&1)"; then
+    if [ -n "$resolved_info" ]; then
+      echo "ERROR: Compatibility matrix resolution failed: ${resolved_info}" >&2
+    else
+      echo "ERROR: Compatibility matrix resolution failed." >&2
+    fi
+    return 1
+  fi
+
+  if [ -z "$resolved_info" ]; then
+    echo "Compatibility matrix lookup found no matching copilot window for gh-aw ${compiled_version}." >&2
+    return 1
+  fi
+
+  IFS='|' read -r resolved_version row_index row_min_aw row_max_aw row_min_agent row_max_agent cache_ttl_days <<< "$resolved_info"
+  echo "Compatibility matrix source: $(cat "$compat_source")" >&2
+  echo "Compatibility matrix matched row ${row_index}: gh-aw ${row_min_aw}..${row_max_aw}, copilot ${row_min_agent}..${row_max_agent}" >&2
+  echo "Resolved Copilot CLI version from compatibility matrix: ${resolved_version}" >&2
+  if [ -n "$cache_ttl_days" ]; then
+    echo "Cache TTL: ${cache_ttl_days} days" >&2
+  fi
+  printf '%s|%s|%s|%s\n' "$resolved_version" "$row_min_agent" "$row_max_agent" "$cache_ttl_days"
+  return 0
+}
+
+# Check if a cached binary has exceeded the cache TTL (in days).
+# Returns 0 (expired) or 1 (not expired).
+is_cache_expired() {
+  local cached_binary="$1"
+  local ttl_days="$2"
+  local now_epoch=""
+  local file_epoch=""
+  local age_days=""
+  
+  # If TTL is not set or not numeric, consider cache as not expired
+  if [ -z "$ttl_days" ] || ! [[ "$ttl_days" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  
+  # Get current time and file modification time as epoch seconds
+  now_epoch="$(date +%s)"
+  
+  # Try to get file modification time (platform-portable)
+  if file_epoch="$(stat -c %Y "$cached_binary" 2>/dev/null)"; then
+    : # Linux stat format worked
+  elif file_epoch="$(stat -f %m "$cached_binary" 2>/dev/null)"; then
+    : # macOS stat format worked
+  else
+    # Cannot determine file age, consider not expired
+    return 1
+  fi
+  
+  # Calculate age in days (integer division truncates partial days, e.g., 1.9 days → 1 day)
+  age_days=$(( (now_epoch - file_epoch) / SECONDS_PER_DAY ))
+  
+  if [ "$age_days" -ge "$ttl_days" ]; then
+    echo "  Cache age: ${age_days} days (exceeds TTL of ${ttl_days} days)" >&2
+    return 0  # Expired
+  else
+    echo "  Cache age: ${age_days} days (within TTL of ${ttl_days} days)" >&2
+    return 1  # Not expired
+  fi
+}
+
 # Look up a compatible Copilot CLI from the Actions toolcache before downloading a release tarball.
 find_cached_copilot_bin() {
   local requested_version="${1:-latest}"
+  local min_version="${2:-}"
+  local max_version="${3:-}"
+  local cache_ttl_days="${4:-}"
   local requested_version_normalized=""
   local tool_cache_root=""
   local candidate=""
@@ -145,7 +317,10 @@ find_cached_copilot_bin() {
   local best_candidate=""
   local best_version=""
 
-  echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME})..." >&2
+  echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME}, range: ${min_version:-none}..${max_version:-none})..." >&2
+  if [ -n "$cache_ttl_days" ]; then
+    echo "  Cache TTL enabled: ${cache_ttl_days} days" >&2
+  fi
 
   if [ "$requested_version" != "latest" ]; then
     requested_version_normalized="$(normalize_version "$requested_version")"
@@ -193,6 +368,32 @@ find_cached_copilot_bin() {
         fi
         echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
         continue
+      fi
+
+      if [ -n "$min_version" ] && version_is_greater "$min_version" "$candidate_version_normalized"; then
+        echo "  Skipping candidate (below compat minimum: ${candidate_version_normalized} < ${min_version})" >&2
+        continue
+      fi
+
+      if [ -n "$max_version" ] && version_is_greater "$candidate_version_normalized" "$max_version"; then
+        echo "  Skipping candidate (above compat maximum: ${candidate_version_normalized} > ${max_version})" >&2
+        continue
+      fi
+
+      # Apply cache TTL expiry check UNLESS:
+      # 1. Cached version equals max-agent (already latest in compat window), OR
+      # 2. Explicit version was requested (requested_version != "latest")
+      if [ -n "$cache_ttl_days" ] && [ "$requested_version" = "latest" ] && [ -n "$max_version" ]; then
+        # Check if candidate version equals max-agent
+        if [ "$candidate_version_normalized" = "$max_version" ]; then
+          echo "  Cache TTL skipped (candidate equals max-agent: ${candidate_version_normalized})" >&2
+        else
+          # Candidate is not max-agent, apply TTL check
+          if is_cache_expired "$candidate" "$cache_ttl_days"; then
+            echo "  Skipping candidate (cache expired and not max-agent: ${candidate_version_normalized} != ${max_version})" >&2
+            continue
+          fi
+        fi
       fi
 
       if [ -z "$best_candidate" ] || version_is_greater "$candidate_version_normalized" "$best_version"; then
@@ -246,8 +447,28 @@ EOF
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
+# Resolve a compatible Copilot version from compat matrix unless the caller passed an explicit version.
+if [ -z "$VERSION" ]; then
+  echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
+  if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+    IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
+    VERSION="$RESOLVED_COMPAT_VERSION"
+    REQUESTED_VERSION="latest"
+    echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
+    echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
+  else
+    echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
+    echo "ERROR: Cannot install without a compatible version." >&2
+    echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.51')" >&2
+    echo "   or ensure GH_AW_COMPILED_VERSION matches a row in .github/aw/compat.json" >&2
+    exit 1
+  fi
+else
+  echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
+fi
+
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
-if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION")"; then
+if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then
   echo "Using cached GitHub Copilot CLI from ${CACHED_COPILOT_BIN}"
   activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
 

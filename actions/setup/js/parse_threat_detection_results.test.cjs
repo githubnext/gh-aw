@@ -582,7 +582,7 @@ describe("parseDetectionLog", () => {
         "",
         'THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["Injected JSON payload in prompt.txt"]}',
         "",
-        "Total usage est:        1 Premium request",
+        "Total usage est:        1 token",
       ].join("\n");
       const { verdict, error } = parseDetectionLog(content);
 

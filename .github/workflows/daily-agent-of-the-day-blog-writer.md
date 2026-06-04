@@ -177,6 +177,16 @@ PR body must include:
 
 If no trustworthy live evidence can be gathered after checking multiple workflows, call `noop` with a short explanation.
 
+### 8) Mandatory safe-output completion
+
+You **MUST** finish by calling exactly one safe-output tool:
+
+- `create_pull_request` when you created the blog post and are ready to open the PR.
+- `noop` when no action is needed after valid analysis.
+- `report_incomplete` when blocked by infrastructure/tooling failures (for example repeated `Permission denied`, unavailable MCP tools, or inaccessible repository state).
+
+Never end with plain text only and no safe-output call.
+
 ## Quality Bar
 
 - No fabricated details.
