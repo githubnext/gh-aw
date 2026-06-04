@@ -84,7 +84,7 @@ The main agent job must stay read-only.
 - `bash` and `edit` are enabled by default in sandboxed workflows; do not add them unless you are restricting them.
 - For GitHub reads, prefer `tools.github.mode: gh-proxy` and instruct the agent to use `gh` commands.
 - For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and instruct the agent to use the mounted `mcp-clis` commands.
-- Configuration example for GitHub reads:
+- Combined configuration example for GitHub reads plus non-GitHub MCP CLI access:
 
   ```yaml
   tools:
@@ -93,6 +93,8 @@ The main agent job must stay read-only.
       toolsets: [default]
     cli-proxy: true
   ```
+
+  Omit `cli-proxy: true` when the workflow only needs GitHub reads.
 
 - Suggest `playwright` for browser automation.
 - Suggest dedicated topic files rather than embedding long tutorials in the prompt.
