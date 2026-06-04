@@ -55,24 +55,6 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("parses inline-sub-agents boolean", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"inline-sub-agents": false,
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.InlineSubAgents == nil {
-			t.Fatal("InlineSubAgents should not be nil")
-		}
-		if *config.InlineSubAgents {
-			t.Error("InlineSubAgents should be false")
-		}
-	})
-
 	t.Run("parses complete workflow config", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"name":        "full-workflow",

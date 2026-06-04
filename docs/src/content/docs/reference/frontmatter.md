@@ -392,6 +392,18 @@ runtimes:
 
 Omitted runtimes use the defaults above. Runtimes from imported shared workflows are merged with your workflow's configuration.
 
+### `run-install-scripts`
+
+Controls whether npm pre/post-install scripts are allowed during package installation. Configure this under `runtimes.node.run-install-scripts`. The default is `false`.
+
+```yaml wrap
+runtimes:
+  node:
+    run-install-scripts: true
+```
+
+Enabling this increases supply chain risk because install hooks from dependencies can execute arbitrary code. In strict mode, `run-install-scripts: true` is rejected.
+
 ### Source Tracking (`source:`)
 
 Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated when using `gh aw add` to install workflows from external repositories. Optional for manually created workflows.
@@ -442,6 +454,16 @@ private: true
 Adding the workflow from another repository then fails with `workflow 'owner/repo/internal-tooling' is private and cannot be added to other repositories`. Use this for internal tooling, sensitive automation, or repository-specific workflows not intended for reuse.
 
 This only blocks installation via `gh aw add`; the visibility of the workflow file itself is controlled by your repository's access settings.
+
+### `check-for-updates`
+
+Controls whether the compile-agentic version update check runs in the activation job.
+
+```yaml wrap
+check-for-updates: true
+```
+
+When `true` (default), the activation job verifies the compiled version is not blocked and meets the minimum supported version. Set to `false` to disable this check (not allowed in strict mode).
 
 ### Feature Flags (`features:`)
 

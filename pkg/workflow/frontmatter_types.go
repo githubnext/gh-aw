@@ -316,12 +316,9 @@ type FrontmatterConfig struct {
 	Sandbox *SandboxConfig      `json:"sandbox,omitempty"`
 
 	// Feature flags and other settings
-	Features map[string]any `json:"features,omitempty"` // Dynamic feature flags
-	// Deprecated: as of v1.1.0, inline sub-agents are always enabled.
-	// Remove this field from frontmatter. Setting false causes a compilation error.
-	InlineSubAgents *bool             `json:"inline-sub-agents,omitempty"`
-	Env             map[string]string `json:"env,omitempty"`
-	Secrets         map[string]any    `json:"secrets,omitempty"`
+	Features map[string]any    `json:"features,omitempty"` // Dynamic feature flags
+	Env      map[string]string `json:"env,omitempty"`
+	Secrets  map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
 	RunsOn        any            `json:"runs-on,omitempty"`      // Supports string, array, or object GitHub Actions runner forms

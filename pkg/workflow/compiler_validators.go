@@ -101,12 +101,6 @@ func (c *Compiler) validateFeatureConfig(workflowData *WorkflowData, markdownPat
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
-	// Inline sub-agents are always enabled and can no longer be disabled.
-	if workflowData.InlineSubAgentsDisabled {
-		msg := "inline-sub-agents: false is not supported. Inline sub-agents are always enabled. Remove inline-sub-agents from your frontmatter."
-		return formatCompilerError(markdownPath, "error", msg, errors.New("inline-sub-agents cannot be set to false"))
-	}
-
 	// Check for action-mode feature flag override
 	if workflowData.Features != nil {
 		if actionModeVal, exists := workflowData.Features["action-mode"]; exists {

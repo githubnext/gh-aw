@@ -164,6 +164,9 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 				t.Errorf("Console output missing section: %s", section)
 			}
 		}
+		if !strings.Contains(output, "steering=") {
+			t.Error("Console output should include aggregate steering event count")
+		}
 
 		// Verify emojis and visual indicators
 		if !strings.Contains(output, "✅") {

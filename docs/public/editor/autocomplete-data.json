@@ -526,12 +526,6 @@
       "desc": "Environment variables for the workflow",
       "leaf": true
     },
-    "inline-sub-agents": {
-      "type": "boolean",
-      "desc": "Deprecated switch for inline sub-agent support.",
-      "enum": [true, false],
-      "leaf": true
-    },
     "features": {
       "type": "object",
       "desc": "Feature flags and configuration options for experimental or optional features in the workflow."

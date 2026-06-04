@@ -58,6 +58,7 @@ type TokenUsageSummary struct {
 	TotalCacheReadTokens  int                         `json:"total_cache_read_tokens" console:"header:Cache Read,format:number"`
 	TotalCacheWriteTokens int                         `json:"total_cache_write_tokens" console:"header:Cache Write,format:number"`
 	TotalRequests         int                         `json:"total_requests" console:"header:Requests"`
+	TotalSteeringEvents   int                         `json:"total_steering_events,omitempty" console:"header:Steering Events,format:number,omitempty"`
 	TotalDurationMs       int                         `json:"total_duration_ms"`
 	TotalResponseBytes    int                         `json:"total_response_bytes"`
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
@@ -115,10 +116,15 @@ type SubagentModelActual struct {
 
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
 const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
+const proxyEventsJSONLPath = "api-proxy-logs/events.jsonl"
 const agentUsageJSONPath = "agent_usage.json"
 const modelMismatchReasonTokenUsageMissing = "TOKEN_USAGE_MISSING"
 const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
+const tokenSteeringEventName = "token_steering"
+const timeoutSteeringEventName = "timeout_steering"
+const awfTokenWarningPrefix = "[AWF TOKEN WARNING]"
+const awfTimeWarningPrefix = "[AWF TIME WARNING]"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -438,6 +444,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		if err != nil || summary == nil {
 			return summary, err
 		}
+		summary.TotalSteeringEvents = countAPIProxySteeringEvents(runDir)
 		augmentSubagentModelAttribution(runDir, summary)
 		return summary, nil
 	}
@@ -458,8 +465,113 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	if err != nil || summary == nil {
 		return summary, err
 	}
+	summary.TotalSteeringEvents = countAPIProxySteeringEvents(runDir)
 	augmentSubagentModelAttribution(runDir, summary)
 	return summary, nil
+}
+
+func countAPIProxySteeringEvents(runDir string) int {
+	eventsPath := findAPIProxyEventsFile(runDir)
+	if eventsPath == "" {
+		return 0
+	}
+	count, err := parseAPIProxySteeringEvents(eventsPath)
+	if err != nil {
+		tokenUsageLog.Printf("Failed to parse API proxy events file %s: %v", eventsPath, err)
+		return 0
+	}
+	return count
+}
+
+func findAPIProxyEventsFile(runDir string) string {
+	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", proxyEventsJSONLPath)
+	if _, err := os.Stat(primary); err == nil {
+		return primary
+	}
+
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return ""
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
+			candidate := filepath.Join(runDir, name, proxyEventsJSONLPath)
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
+	return ""
+}
+
+func parseAPIProxySteeringEvents(filePath string) (int, error) {
+	file, err := os.Open(filepath.Clean(filePath))
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	count := 0
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !containsSteeringKeyword(line) {
+			continue
+		}
+		var entry map[string]any
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		eventName := strings.ToLower(strings.TrimSpace(coalesceString(
+			entry["event"],
+			entry["type"],
+			entry["event_name"],
+			entry["eventName"],
+		)))
+		message := strings.TrimSpace(coalesceString(entry["message"]))
+		if isSteeringEvent(eventName, message) {
+			count++
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func coalesceString(values ...any) string {
+	for _, value := range values {
+		if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
+			return str
+		}
+	}
+	return ""
+}
+
+func containsSteeringKeyword(line string) bool {
+	return strings.Contains(line, "steering") ||
+		strings.Contains(line, "STEERING") ||
+		strings.Contains(line, "Steering")
+}
+
+// isSteeringEvent matches AWF proxy steering events using both event name and
+// message format from the firewall specification.
+func isSteeringEvent(eventName, message string) bool {
+	switch eventName {
+	case tokenSteeringEventName:
+		return strings.HasPrefix(message, awfTokenWarningPrefix)
+	case timeoutSteeringEventName:
+		return strings.HasPrefix(message, awfTimeWarningPrefix)
+	default:
+		return false
+	}
 }
 
 func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) {

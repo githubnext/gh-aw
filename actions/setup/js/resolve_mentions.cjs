@@ -2,6 +2,20 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+/** @type {Map<string, Map<string, boolean>>} */
+const recentCollaboratorsCache = new Map();
+/** @type {Map<string, Map<string, boolean>>} */
+const userPermissionCache = new Map();
+
+/**
+ * Build a stable cache key for repository-scoped lookups.
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {string}
+ */
+function getRepoCacheKey(owner, repo) {
+  return `${owner}/${repo}`.toLowerCase();
+}
 
 /**
  * @typedef {Object} MentionResolutionResult
@@ -58,6 +72,11 @@ function isPayloadUserBot(user) {
  * @returns {Promise<Map<string, boolean>>} Map of username (lowercase) to whether they're allowed (any collaborator, not bot)
  */
 async function getRecentCollaborators(owner, repo, github, core) {
+  const repoCacheKey = getRepoCacheKey(owner, repo);
+  const cachedCollaborators = recentCollaboratorsCache.get(repoCacheKey);
+  if (cachedCollaborators) {
+    return cachedCollaborators;
+  }
   try {
     // Fetch only first page (30 collaborators) for optimistic resolution
     const collaborators = await github.rest.repos.listCollaborators({
@@ -75,6 +94,7 @@ async function getRecentCollaborators(owner, repo, github, core) {
       allowedMap.set(lowercaseLogin, isAllowed);
     }
 
+    recentCollaboratorsCache.set(repoCacheKey, allowedMap);
     return allowedMap;
   } catch (error) {
     core.warning(`Failed to fetch recent collaborators: ${getErrorMessage(error)}`);
@@ -92,6 +112,17 @@ async function getRecentCollaborators(owner, repo, github, core) {
  * @returns {Promise<boolean>} True if user is allowed (any collaborator, not bot)
  */
 async function checkUserPermission(username, owner, repo, github, core) {
+  const repoCacheKey = getRepoCacheKey(owner, repo);
+  const usernameKey = username.toLowerCase();
+  const cachedPermissions = userPermissionCache.get(repoCacheKey);
+  if (cachedPermissions && cachedPermissions.has(usernameKey)) {
+    // TypeScript doesn't recognize Map.has() as a type guard for Map.get()
+    // @ts-expect-error - .has() guarantees .get() returns boolean, not undefined
+    return cachedPermissions.get(usernameKey);
+  }
+
+  /** @type {Map<string, boolean>} */
+  const permissionsForRepo = cachedPermissions || new Map();
   try {
     // First check if user exists and is not a bot
     const { data: user } = await github.rest.users.getByUsername({
@@ -99,6 +130,8 @@ async function checkUserPermission(username, owner, repo, github, core) {
     });
 
     if (user.type === "Bot") {
+      permissionsForRepo.set(usernameKey, false);
+      userPermissionCache.set(repoCacheKey, permissionsForRepo);
       return false;
     }
 
@@ -110,9 +143,14 @@ async function checkUserPermission(username, owner, repo, github, core) {
     });
 
     // Allow any permission level (read, triage, write, maintain, admin)
-    return permissionData.permission !== "none";
+    const isAllowed = permissionData.permission !== "none";
+    permissionsForRepo.set(usernameKey, isAllowed);
+    userPermissionCache.set(repoCacheKey, permissionsForRepo);
+    return isAllowed;
   } catch (error) {
     // User doesn't exist, not a collaborator, or API error - deny
+    permissionsForRepo.set(usernameKey, false);
+    userPermissionCache.set(repoCacheKey, permissionsForRepo);
     return false;
   }
 }
@@ -140,6 +178,16 @@ async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, co
 
   if (limitExceeded) {
     core.warning(`Mention limit exceeded: ${totalMentions} mentions found, processing only first 50`);
+  }
+
+  if (mentionsToProcess.length === 0) {
+    core.info("No mentions found in text");
+    return {
+      allowedMentions: [],
+      totalMentions,
+      resolvedCount: 0,
+      limitExceeded,
+    };
   }
 
   // Build set of known allowed authors (case-insensitive)
@@ -189,10 +237,16 @@ async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, co
   };
 }
 
+function resetMentionResolutionCaches() {
+  recentCollaboratorsCache.clear();
+  userPermissionCache.clear();
+}
+
 module.exports = {
   extractMentions,
   isPayloadUserBot,
   getRecentCollaborators,
   checkUserPermission,
   resolveMentionsLazily,
+  resetMentionResolutionCaches,
 };

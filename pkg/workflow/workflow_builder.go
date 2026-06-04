@@ -126,17 +126,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
-	// Populate inline-sub-agents disable flag: explicit false is rejected during validation.
-	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.InlineSubAgents != nil {
-		workflowData.InlineSubAgentsDisabled = !*toolsResult.parsedFrontmatter.InlineSubAgents
-	} else if rawVal, ok := result.Frontmatter["inline-sub-agents"]; ok {
-		// Fall back to raw frontmatter parsing when full ParseFrontmatterConfig fails
-		// (e.g. due to unrecognized config shapes in other frontmatter sections).
-		if boolVal, ok := rawVal.(bool); ok {
-			workflowData.InlineSubAgentsDisabled = !boolVal
-		}
-	}
-
 	// Populate stale-check flag: disabled when on.stale-check: false is set in frontmatter;
 	// full mode when on.stale-check: full is set.
 	if onVal, ok := result.Frontmatter["on"]; ok {

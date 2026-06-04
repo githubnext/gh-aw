@@ -113,11 +113,12 @@ func renderConsole(data AuditData, logsPath string) {
 
 	// Token usage (if firewall data present)
 	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
-		fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d\n",
+		fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d steering=%s\n",
 			console.FormatNumber(data.FirewallTokenUsage.TotalInputTokens),
 			console.FormatNumber(data.FirewallTokenUsage.TotalOutputTokens),
 			console.FormatNumber(data.FirewallTokenUsage.TotalCacheReadTokens),
-			data.FirewallTokenUsage.TotalRequests)
+			data.FirewallTokenUsage.TotalRequests,
+			console.FormatNumber(data.FirewallTokenUsage.TotalSteeringEvents))
 	}
 
 	// GitHub API usage (one line)
