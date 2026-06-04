@@ -1390,6 +1390,12 @@ const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
  * @type {string}
  */
 const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
+const API_PROXY_EVENT_LOG_PATHS = [
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/events.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
+];
 const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|EPERM)\b/i;
 
 /**
@@ -1629,6 +1635,7 @@ function getErrorMessage(errorEntry) {
  * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
  * @property {number} warningCount
  * @property {number} permissionDeniedCount
+ * @property {number} steeringEventCount
  */
 
 /**
@@ -1684,13 +1691,88 @@ function normalizeRuntimeTokenUsage(rawUsage) {
 }
 
 /**
+ * Resolve an event name from a firewall proxy event entry.
+ *
+ * @param {unknown} entry
+ * @returns {string}
+ */
+function getApiProxyEventName(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return "";
+  }
+  if (typeof entry.event === "string") {
+    return entry.event;
+  }
+  if (typeof entry.type === "string") {
+    return entry.type;
+  }
+  if (entry.payload && typeof entry.payload === "object" && !Array.isArray(entry.payload)) {
+    if (typeof entry.payload.event === "string") {
+      return entry.payload.event;
+    }
+    if (typeof entry.payload.type === "string") {
+      return entry.payload.type;
+    }
+  }
+  return "";
+}
+
+/**
+ * Count steering events in proxy event-log JSONL content.
+ *
+ * @param {string} jsonlContent
+ * @returns {number}
+ */
+function countSteeringEventsInApiProxyJsonl(jsonlContent) {
+  let count = 0;
+  const lines = jsonlContent.split("\n");
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || !line.includes("steering")) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(line);
+      const eventName = getApiProxyEventName(parsed).toLowerCase();
+      if (eventName === "steering" || eventName.endsWith("_steering")) {
+        count += 1;
+      }
+    } catch {
+      // Ignore malformed JSONL lines.
+    }
+  }
+  return count;
+}
+
+/**
+ * Read steering-event count from the first available API proxy event-log JSONL.
+ *
+ * @returns {number}
+ */
+function readApiProxySteeringEventCount() {
+  for (const filePath of API_PROXY_EVENT_LOG_PATHS) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (!stat || stat.size <= 0) {
+        continue;
+      }
+      const content = fs.readFileSync(filePath, "utf8");
+      return countSteeringEventsInApiProxyJsonl(content);
+    } catch {
+      // Ignore missing/unreadable files and fall through to the next path.
+    }
+  }
+  return 0;
+}
+
+/**
  * Read turns, token usage, and warning volume from agent-stdio.log.
  *
  * @returns {AgentRuntimeMetrics}
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0 };
+  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0, steeringEventCount: readApiProxySteeringEventCount() };
   let fallbackPermissionDeniedCount = 0;
   let hasStructuredPermissionDeniedCount = false;
 
@@ -1979,6 +2061,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
   attributes.push(buildAttr("gh-aw.permission_denied_count", runtimeMetrics.permissionDeniedCount));
+  attributes.push(buildAttr("gh-aw.steering_event_count", runtimeMetrics.steeringEventCount));
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
