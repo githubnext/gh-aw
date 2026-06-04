@@ -86,12 +86,12 @@ func inspectFileNode(pass *analysis.Pass, fileVars map[types.Object]*fileVarStat
 
 	// Look for assignments like: file, err := os.Open(...)
 	if assign, ok := node.(*ast.AssignStmt); ok {
-		processFileOpenAssign(pass, fileVars, assign)
+		trackFileOpenAssignment(pass, fileVars, assign)
 	}
 
 	// Look for defer file.Close()
 	if deferStmt, ok := node.(*ast.DeferStmt); ok {
-		if obj := getCloseCallObj(pass, deferStmt.Call); obj != nil {
+		if obj := getCloseReceiverObject(pass, deferStmt.Call); obj != nil {
 			if state, found := fileVars[obj]; found {
 				state.hasDefer = true
 			}
