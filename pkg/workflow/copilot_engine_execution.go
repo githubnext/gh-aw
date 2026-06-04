@@ -53,9 +53,9 @@ const copilotSettingsContent = `{"builtInAgents":{"rubberDuck":false}}`
 
 // buildCopilotSettingsSetup returns shell commands that write the Copilot CLI settings
 // file before the agent runs, disabling the rubber-duck sub-agent.
-func buildCopilotSettingsSetup(ensureRunnerOwnership bool) string {
+func buildCopilotSettingsSetup(fixOwnershipForCustomCommand bool) string {
 	setup := "mkdir -p /home/runner/.copilot\n"
-	if ensureRunnerOwnership {
+	if fixOwnershipForCustomCommand {
 		setup += "sudo chown -R \"$(id -u):$(id -g)\" /home/runner/.copilot\n"
 	}
 	return setup + fmt.Sprintf("printf '%%s' %s > %s\n",
