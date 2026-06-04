@@ -92,6 +92,12 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		FirewallAnalysis: firewallAnalysis,
 		MissingTools:     []MissingToolReport{},
 		MCPFailures:      []MCPFailureReport{},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:    40000,
+			TotalOutputTokens:   5000,
+			TotalRequests:       42,
+			TotalSteeringEvents: 3,
+		},
 		JobDetails: []JobInfoWithDuration{
 			{
 				JobInfo: JobInfo{

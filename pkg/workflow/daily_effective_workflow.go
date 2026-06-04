@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -94,8 +95,7 @@ func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON str
 }
 
 // hasMaxDailyEffectiveTokensGuardrail reports whether compiler should emit the
-// daily effective-token guardrail wiring. The guardrail is enabled by default
-// and can only be suppressed by an explicit workflow-level negative value (-1).
+// daily effective-token guardrail wiring. The guardrail is enabled by default.
 func hasMaxDailyEffectiveTokensGuardrail(data *WorkflowData) bool {
 	return !hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data)
 }
@@ -113,4 +113,22 @@ func hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data *WorkflowData) bool 
 // setup and guardrail execution consistently.
 func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
 	return data != nil && data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != ""
+}
+
+// validateMaxDailyEffectiveTokensFrontmatter returns an error when the
+// max-daily-effective-tokens frontmatter field is set to a negative integer.
+// Zero and positive values are accepted; GitHub Actions expressions are passed
+// through unchanged for runtime evaluation.
+func validateMaxDailyEffectiveTokensFrontmatter(data *WorkflowData) error {
+	if data == nil || data.RawFrontmatter == nil {
+		return nil
+	}
+	raw, ok := data.RawFrontmatter[maxDailyEffectiveTokensField]
+	if !ok {
+		return nil
+	}
+	if val, ok := typeutil.ParseIntValue(raw); ok && val < 0 {
+		return fmt.Errorf("%s must be at least 0, got %d", maxDailyEffectiveTokensField, val)
+	}
+	return nil
 }
