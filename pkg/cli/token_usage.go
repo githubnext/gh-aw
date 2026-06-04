@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -524,10 +525,8 @@ func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
 	if summary == nil || warning == "" {
 		return
 	}
-	for _, existing := range summary.Warnings {
-		if existing == warning {
-			return
-		}
+	if slices.Contains(summary.Warnings, warning) {
+		return
 	}
 	summary.Warnings = append(summary.Warnings, warning)
 }
