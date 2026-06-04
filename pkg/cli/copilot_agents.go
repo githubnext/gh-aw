@@ -33,6 +33,9 @@ var agenticWorkflowsSkillTemplate string
 //go:embed data/agentic_workflows_fallback_aw_files.json
 var agenticWorkflowsFallbackAWFiles string
 
+//go:embed data/agentic_workflow_designer_skill.md
+var agenticWorkflowDesignerSkillTemplate string
+
 var listAgenticWorkflowsMarkdownFiles = fetchAgenticWorkflowsMarkdownFiles
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
@@ -95,6 +98,63 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		copilotAgentsLog.Printf("Updated dispatcher skill: %s", targetPath)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated dispatcher skill: "+targetPath))
+		}
+	}
+
+	return nil
+}
+
+// ensureAgenticWorkflowDesignerSkill ensures that
+// .github/skills/agentic-workflow-designer/SKILL.md exists and matches the
+// bundled workflow designer skill content.
+func ensureAgenticWorkflowDesignerSkill(verbose bool, skipInstructions bool) error {
+	copilotAgentsLog.Print("Ensuring agentic workflow designer skill")
+
+	if skipInstructions {
+		copilotAgentsLog.Print("Skipping skill creation: instructions disabled")
+		return nil
+	}
+
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	targetDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflow-designer")
+	targetPath := filepath.Join(targetDir, "SKILL.md")
+
+	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create .github/skills/agentic-workflow-designer directory: %w", err)
+	}
+
+	existingContent := ""
+	if content, err := os.ReadFile(targetPath); err == nil {
+		existingContent = string(content)
+	}
+
+	expectedContent := strings.TrimSpace(agenticWorkflowDesignerSkillTemplate)
+	if strings.TrimSpace(existingContent) == expectedContent {
+		copilotAgentsLog.Printf("Agentic workflow designer skill is up-to-date: %s", targetPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Agentic workflow designer skill is up-to-date: "+targetPath))
+		}
+		return nil
+	}
+
+	if err := os.WriteFile(targetPath, []byte(agenticWorkflowDesignerSkillTemplate), constants.FilePermPublic); err != nil {
+		copilotAgentsLog.Printf("Failed to write agentic workflow designer skill: %s, error: %v", targetPath, err)
+		return fmt.Errorf("failed to write agentic workflow designer skill: %w", err)
+	}
+
+	if existingContent == "" {
+		copilotAgentsLog.Printf("Created agentic workflow designer skill: %s", targetPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic workflow designer skill: "+targetPath))
+		}
+	} else {
+		copilotAgentsLog.Printf("Updated agentic workflow designer skill: %s", targetPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated agentic workflow designer skill: "+targetPath))
 		}
 	}
 

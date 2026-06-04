@@ -51,6 +51,11 @@ import (
 var engineValidationLog = newValidationLogger("engine")
 var safeHarnessScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
+// safeSDKDriverSegmentPattern allows path segments that may start with a dot followed by an
+// alphanumeric/underscore (e.g. ".github"), but still rejects ".." traversals, leading hyphens,
+// and shell metacharacters.
+var safeSDKDriverSegmentPattern = regexp.MustCompile(`^(?:\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*$`)
+
 func validateEngineScriptFilename(fieldName, scriptName string) error {
 	if strings.TrimSpace(scriptName) != scriptName {
 		return fmt.Errorf("%s must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
@@ -134,8 +139,11 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 
 // validateEngineCopilotSDKDriver validates optional engine.copilot-sdk-driver configuration.
 // engine.copilot-sdk-driver must be either:
-//   - a safe basename with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), or
+//   - a relative path (with safe segments separated by '/') ending with a supported language
+//     extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), or
 //   - a bare command name without any extension (arbitrary executable in PATH).
+//
+// Absolute paths, backslashes, '..' components, and shell metacharacters are rejected.
 func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.CopilotSDKDriver == "" {
 		return nil
@@ -144,15 +152,24 @@ func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) er
 	name := workflowData.EngineConfig.CopilotSDKDriver
 
 	if strings.TrimSpace(name) != name {
-		return fmt.Errorf("engine.copilot-sdk-driver must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+		return fmt.Errorf("engine.copilot-sdk-driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
 	}
 
 	if filepath.IsAbs(name) ||
-		strings.Contains(name, "/") ||
 		strings.Contains(name, `\`) ||
-		strings.Contains(name, "..") ||
-		!safeHarnessScriptPattern.MatchString(name) {
-		return fmt.Errorf("engine.copilot-sdk-driver must be a safe basename (no path separators, '..', or shell metacharacters) with a supported language extension or no extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+		strings.Contains(name, "..") {
+		return fmt.Errorf("engine.copilot-sdk-driver must be a relative path (no absolute paths, '..', or backslashes) with a supported language extension or no extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+	}
+
+	// Each path segment must be safe (alphanumeric, underscore, dot, hyphen; may start with dot).
+	// Empty segments (consecutive slashes, leading/trailing slashes) are rejected.
+	for _, segment := range strings.Split(name, "/") {
+		if segment == "" {
+			return fmt.Errorf("engine.copilot-sdk-driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/') (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+		}
+		if !safeSDKDriverSegmentPattern.MatchString(segment) {
+			return fmt.Errorf("engine.copilot-sdk-driver must not contain shell metacharacters (found unsafe segment %q in: %s).\n\nSee: %s", segment, name, constants.DocsEnginesURL)
+		}
 	}
 
 	ext := strings.ToLower(filepath.Ext(name))

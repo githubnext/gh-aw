@@ -24,8 +24,9 @@ type toolsProcessingResult struct {
 	markdownContent       string
 	importedMarkdown      string   // Only imports WITH inputs (for compile-time substitution)
 	importPaths           []string // Import paths for runtime-import macro generation (imports without inputs)
-	mainWorkflowMarkdown  string   // main workflow markdown without imports (for runtime-import)
-	rawMainMarkdown       string   // raw main markdown before include expansion, without inline sub-agent sections
+	promptImports         []parser.PromptImportEntry
+	mainWorkflowMarkdown  string // main workflow markdown without imports (for runtime-import)
+	rawMainMarkdown       string // raw main markdown before include expansion, without inline sub-agent sections
 	allIncludedFiles      []string
 	workflowName          string
 	frontmatterName       string
@@ -89,6 +90,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		markdownContent:       markdownData.markdownContent,
 		importedMarkdown:      markdownData.importedMarkdown,
 		importPaths:           markdownData.importPaths,
+		promptImports:         markdownData.promptImports,
 		mainWorkflowMarkdown:  markdownData.mainWorkflowMarkdown,
 		rawMainMarkdown:       effectiveMarkdown,
 		allIncludedFiles:      markdownData.allIncludedFiles,
@@ -124,6 +126,7 @@ type markdownArtifacts struct {
 	markdownContent      string
 	importedMarkdown     string
 	importPaths          []string
+	promptImports        []parser.PromptImportEntry
 	mainWorkflowMarkdown string
 	allIncludedFiles     []string
 	workflowName         string
@@ -331,6 +334,7 @@ func (c *Compiler) resolveMarkdownArtifacts(
 	mainWorkflowMarkdown := markdownContent
 	orchestratorToolsLog.Printf("Main workflow markdown: %d bytes", len(mainWorkflowMarkdown))
 	importPaths := append([]string{}, importsResult.ImportPaths...)
+	promptImports := append([]parser.PromptImportEntry(nil), importsResult.PromptImports...)
 	if len(importPaths) > 0 {
 		orchestratorToolsLog.Printf("Found %d import paths for runtime-import macros", len(importPaths))
 	}
@@ -339,6 +343,7 @@ func (c *Compiler) resolveMarkdownArtifacts(
 		orchestratorToolsLog.Printf("Found %d body-level {{#runtime-import}} directive(s) to promote to lock-file macros", len(bodyImports))
 		for _, bodyImport := range bodyImports {
 			importPaths = append(importPaths, bodyImport.Path)
+			promptImports = append(promptImports, parser.PromptImportEntry{ImportPath: bodyImport.Path})
 		}
 	}
 	importedMarkdown := ""
@@ -364,6 +369,7 @@ func (c *Compiler) resolveMarkdownArtifacts(
 		markdownContent:      markdownContent,
 		importedMarkdown:     importedMarkdown,
 		importPaths:          importPaths,
+		promptImports:        promptImports,
 		mainWorkflowMarkdown: mainWorkflowMarkdown,
 		allIncludedFiles:     mergeAndSortIncludedFiles(includedToolFiles, includedMarkdownFiles),
 		workflowName:         workflowName,

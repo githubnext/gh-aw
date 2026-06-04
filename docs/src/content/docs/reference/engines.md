@@ -276,11 +276,11 @@ Use `engine.copilot-sdk-driver` to replace the built-in
 engine:
   id: copilot
   copilot-sdk: true
-  copilot-sdk-driver: custom-copilot-driver
+  copilot-sdk-driver: .github/drivers/custom-copilot-driver.js
 ```
 
-`copilot-sdk-driver` must be a safe basename (no path
-separators, `..`, or shell metacharacters). It supports:
+`copilot-sdk-driver` must be a **relative path from the workspace root**
+(no absolute paths, `..`, backslashes, or shell metacharacters). It supports:
 
 - script filenames ending with `.js`, `.cjs`, `.mjs`,
   `.py`, `.ts`, `.mts`, or `.rb`
@@ -299,8 +299,9 @@ In SDK mode, gh-aw injects required runtime values:
 - `COPILOT_SDK_URI`
 - `COPILOT_CONNECTION_TOKEN`
 
-`COPILOT_MODEL` is optional and follows normal Copilot model
-configuration.
+`COPILOT_MODEL` is required and must be set to the model to use
+(e.g. `gpt-4o`, `claude-sonnet-4`). Drivers MUST fail fast when
+it is not set.
 
 For runtime controls, the driver should consume:
 
@@ -322,7 +323,7 @@ sidecar and driver process.
 engine:
   id: copilot
   copilot-sdk: true
-  copilot-sdk-driver: my_driver.ts
+  copilot-sdk-driver: .github/drivers/my_driver.ts
   model: gpt-5
   env:
     COPILOT_SDK_SEND_TIMEOUT_MS: "900000"

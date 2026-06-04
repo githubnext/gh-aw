@@ -18,6 +18,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 
 describe("awf_reflect.cjs", () => {
@@ -244,6 +245,7 @@ describe("awf_reflect.cjs", () => {
           reflectUrl: "http://api-proxy:10000/reflect",
           outputPath,
           bytesWritten: expect.any(Number),
+          reflectData: expect.objectContaining({ endpoints: expect.any(Array) }),
         });
         const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
@@ -303,6 +305,71 @@ describe("awf_reflect.cjs", () => {
         logger: msg => collected.push(msg),
       });
       expect(collected.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("resolveCopilotSDKCustomProviderFromReflect", () => {
+    it("resolves provider baseUrl and model from port when models_url is absent", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
+        model: "gpt-5.4",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
+    });
+
+    it("prefers the endpoint matching the configured model", () => {
+      const reflectData = {
+        endpoints: [
+          { provider: "openai", port: 10001, configured: true, models: ["gpt-4o"] },
+          { provider: "anthropic", port: 10002, configured: true, models: ["claude-sonnet-4.6"] },
+        ],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "claude-sonnet-4.6" })).toEqual({
+        model: "claude-sonnet-4.6",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
+    });
+
+    it("derives baseUrl from models_url origin when available", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-4o"], models_url: "http://172.30.0.30:10002/v1/models" }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
+        model: "gpt-4o",
+        provider: { type: "openai", baseUrl: "http://172.30.0.30:10002" },
+      });
+    });
+
+    it("returns null when no configured endpoints exist", () => {
+      const logs = [];
+      const result = resolveCopilotSDKCustomProviderFromReflect({
+        reflectData: { endpoints: [{ provider: "copilot", port: 10002, configured: false, models: [] }] },
+        logger: msg => logs.push(msg),
+      });
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("no configured endpoints"))).toBe(true);
+    });
+
+    it("returns null when reflectData is null", () => {
+      const logs = [];
+      const result = resolveCopilotSDKCustomProviderFromReflect({
+        reflectData: null,
+        logger: msg => logs.push(msg),
+      });
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("no reflect data provided"))).toBe(true);
+    });
+
+    it("returns null when reflectData is undefined", () => {
+      const logs = [];
+      const result = resolveCopilotSDKCustomProviderFromReflect({
+        reflectData: undefined,
+        logger: msg => logs.push(msg),
+      });
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("no reflect data provided"))).toBe(true);
     });
   });
 });

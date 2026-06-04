@@ -492,6 +492,17 @@ async function main() {
 
   log(`connecting to sidecar at ${sdkUri}`);
 
+  // --- Resolve BYOK custom provider from environment ------------------
+  // The harness resolves the BYOK provider from live AWF reflect data before launching
+  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL.
+  // BYOK is the only supported mode — fail immediately if the env var is missing.
+  const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
+  if (!providerBaseUrl) {
+    process.stderr.write("[copilot-sdk-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " + "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n");
+    process.exit(1);
+  }
+  const provider = /** @type {import("@github/copilot-sdk").ProviderConfig} */ { type: "openai", baseUrl: providerBaseUrl };
+
   // --- Run SDK session -------------------------------------------------
 
   const result = await runWithCopilotSDK({
@@ -500,6 +511,7 @@ async function main() {
     logger: log,
     model,
     connectionToken,
+    provider,
   });
 
   process.exit(result.exitCode);

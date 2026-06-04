@@ -57,6 +57,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -227,73 +228,6 @@ function isModelAvailableInReflectFile(model, options) {
     const err = /** @type {Error} */ error;
     logger(`awf-reflect: unable to read model availability from ${reflectPath}: ${err.message}`);
     return false;
-  }
-}
-
-/**
- * Resolve Copilot SDK BYOK custom provider configuration from saved AWF /reflect data.
- * Chooses a configured endpoint and maps it to an OpenAI-compatible provider base URL.
- *
- * @param {{
- *   model?: string,
- *   reflectPath?: string,
- *   readFileSync?: (path: string, encoding: string) => string,
- *   logger?: (msg: string) => void,
- * }} [options]
- * @returns {{ model: string, provider: { type: "openai", baseUrl: string } } | null}
- */
-function resolveCopilotSDKCustomProviderFromReflect(options) {
-  const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
-  const reflectPath = (options && options.reflectPath) || AWF_REFLECT_OUTPUT_PATH;
-  const readFile = (options && options.readFileSync) || fs.readFileSync;
-  const logger = (options && options.logger) || log;
-
-  try {
-    const raw = readFile(reflectPath, "utf8");
-    const reflectData = JSON.parse(raw);
-    const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
-    if (endpoints.length === 0) {
-      logger(`sdk-mode: no configured endpoints in ${reflectPath}; skipping custom provider config`);
-      return null;
-    }
-
-    const endpoint = (configuredModel ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel)) : null) || endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") || endpoints[0];
-
-    let baseUrl = "";
-    if (typeof endpoint?.models_url === "string" && endpoint.models_url) {
-      try {
-        baseUrl = new URL(endpoint.models_url).origin;
-      } catch {
-        // ignore malformed URL and fall back to port-based construction below
-      }
-    }
-    if (!baseUrl && endpoint?.port != null) {
-      baseUrl = `http://api-proxy:${String(endpoint.port)}`;
-    }
-    if (!baseUrl) {
-      logger("sdk-mode: unable to derive provider baseUrl from awf-reflect endpoint data; skipping custom provider config");
-      return null;
-    }
-
-    let model = configuredModel;
-    if (!model && Array.isArray(endpoint?.models)) {
-      const firstModel = endpoint.models.find(m => typeof m === "string" && m.trim().length > 0);
-      model = typeof firstModel === "string" ? firstModel.trim() : "";
-    }
-    if (!model) {
-      logger("sdk-mode: unable to derive model for custom provider from awf-reflect; skipping custom provider config");
-      return null;
-    }
-
-    logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} baseUrl=${baseUrl} model=${model})`);
-    return {
-      model,
-      provider: { type: "openai", baseUrl },
-    };
-  } catch (error) {
-    const err = /** @type {Error} */ error;
-    logger(`sdk-mode: unable to read custom provider config from ${reflectPath}: ${err.message}`);
-    return null;
   }
 }
 
@@ -604,14 +538,6 @@ async function main() {
     log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }
-  // Merge SDK env additions into the child process env only when the SDK helper
-  // returned at least one variable; otherwise leave the env undefined so that
-  // runProcess inherits the full process.env (the common case).
-  // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
-  // Always attach the generated per-run COPILOT_CONNECTION_TOKEN so both the sidecar
-  // (started by the harness) and the SDK client share the same token.
-  const sdkChildEnv = copilotSDKMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
-  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
   // In driver mode the args are the driver command + copilot binary path; no stdin payload.
   // In CLI mode, args are resolved to inline prompt text.
@@ -622,12 +548,52 @@ async function main() {
     resolvedArgs = resolvePromptFileArgs(args);
   }
 
-  // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
-  // This is best-effort: failures are logged but do not affect the agent run.
+  // Fetch AWF API proxy reflection data before running the agent.
+  // In SDK/BYOK mode the live data is used immediately to resolve the custom provider
+  // configuration that is injected into the driver subprocess environment.
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+  let awfReflectData = null;
   if (process.env.AWF_REFLECT_ENABLED === "1") {
-    await fetchAWFReflect({ logger: log });
+    const reflectResult = await fetchAWFReflect({ logger: log });
+    if (reflectResult.ok && reflectResult.reflectData) {
+      awfReflectData = reflectResult.reflectData;
+    }
   }
+
+  // Resolve BYOK custom provider from live reflect data (SDK mode only).
+  // BYOK is the only supported mode for SDK sessions — fail immediately if the provider
+  // cannot be resolved so retries are not wasted on a misconfigured environment.
+  let providerBaseUrl = "";
+  let resolvedModel = "";
+  if (copilotSDKMode) {
+    const configuredModel = process.env.COPILOT_MODEL || "";
+    const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, reflectData: awfReflectData, logger: log });
+    if (!customProvider) {
+      log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
+      process.exit(1);
+    }
+    providerBaseUrl = customProvider.provider.baseUrl;
+    resolvedModel = customProvider.model;
+    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} model=${resolvedModel})`);
+  }
+
+  // Merge SDK env additions into the child process env only when the SDK helper
+  // returned at least one variable; otherwise leave the env undefined so that
+  // runProcess inherits the full process.env (the common case).
+  // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
+  // Always attach the generated per-run COPILOT_CONNECTION_TOKEN so both the sidecar
+  // (started by the harness) and the SDK client share the same token.
+  // In SDK mode also inject the resolved BYOK provider base URL and model so the driver
+  // subprocess does not need to re-read the reflect file.
+  const sdkChildEnv = copilotSDKMode
+    ? {
+        ...sdkEnv,
+        COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
+        GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: providerBaseUrl,
+        COPILOT_MODEL: resolvedModel,
+      }
+    : sdkEnv;
+  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;

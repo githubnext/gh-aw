@@ -497,15 +497,29 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "../driver.cjs"},
 			},
 			expectError: true,
-			errorSubstr: "safe basename",
+			errorSubstr: "relative path",
 		},
 		{
-			name: "invalid path separator",
+			name: "invalid path separator leading slash",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "/abs/driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "relative path",
+		},
+		{
+			name: "valid relative path driver",
 			workflow: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "nested/driver.cjs"},
 			},
-			expectError: true,
-			errorSubstr: "safe basename",
+			expectError: false,
+		},
+		{
+			name: "valid github drivers path driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github/drivers/my_driver.py"},
+			},
+			expectError: false,
 		},
 		{
 			name: "invalid shell metacharacter",
@@ -513,7 +527,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver;rm -rf /.cjs"},
 			},
 			expectError: true,
-			errorSubstr: "safe basename",
+			errorSubstr: "metacharacter",
 		},
 		{
 			name: "invalid leading whitespace",
@@ -529,7 +543,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "-driver.cjs"},
 			},
 			expectError: true,
-			errorSubstr: "safe basename",
+			errorSubstr: "metacharacter",
 		},
 		{
 			name: "valid python driver",
@@ -580,6 +594,22 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 			},
 			expectError: true,
 			errorSubstr: "unsupported extension",
+		},
+		{
+			name: "invalid consecutive slashes",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github//drivers/driver.py"},
+			},
+			expectError: true,
+			errorSubstr: "empty path segments",
+		},
+		{
+			name: "invalid trailing slash",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github/drivers/"},
+			},
+			expectError: true,
+			errorSubstr: "empty path segments",
 		},
 	}
 

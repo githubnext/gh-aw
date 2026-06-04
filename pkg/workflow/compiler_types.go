@@ -460,6 +460,7 @@ type WorkflowData struct {
 	ImportedFiles                  []string       // list of files imported via imports field (rendered as comment in lock file)
 	ImportedMarkdown               string         // Only imports WITH inputs (for compile-time substitution)
 	ImportPaths                    []string       // Import file paths for runtime-import macro generation (imports without inputs)
+	PromptImports                  []parser.PromptImportEntry
 	MainWorkflowMarkdown           string         // main workflow markdown without imports (for runtime-import)
 	IncludedFiles                  []string       // list of files included via @include directives (rendered as comment in lock file)
 	ImportInputs                   map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)

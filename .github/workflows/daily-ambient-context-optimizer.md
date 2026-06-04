@@ -61,10 +61,13 @@ Your job is to inspect the **first request sent to the DLLM** for several recent
 
 ### Step 1 — Download recent runs
 
-Use the CLI form instead of MCP tools:
+Use the `agentic-workflows` MCP server instead of shelling out to `gh aw`:
 
-- run `gh aw logs --start-date -1d -c 60 --json -o /tmp/gh-aw/aw-mcp/logs`
+- call the `logs` MCP tool with `start_date: "-1d"` and `count: 60`
 - use the JSON artifacts under `/tmp/gh-aw/aw-mcp/logs/` as your source of run metadata
+- keep GitHub reads on `tools.github.mode: gh-proxy`
+- use `tools.cli-proxy: true` only for other proxied `gh` CLI commands when they are truly needed
+- do not run `gh aw logs` or `gh aw audit` through the CLI proxy because the `agentic-workflows` MCP server already provides dedicated `logs` and `audit` tools for those operations
 
 ### Step 2 — Pick the sample set
 
@@ -86,7 +89,7 @@ Prefer higher-cost runs first by using `effective_tokens`, `token_usage`, `turns
 
 ### Step 3 — Enrich a subset with audits
 
-Run the CLI form `gh aw audit <run-id> --json` for the **2 most expensive sampled runs** so you have richer token context and references.
+Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer token context and references.
 
 ## First-Request Extraction Rules
 
@@ -173,7 +176,7 @@ Also review proxy/CLI feature readiness for each sampled workflow:
 - GitHub gh-proxy enabled (`tools.github.mode: gh-proxy`)
 - CLI proxy enabled (`tools.cli-proxy: true`)
 
-When one or more are missing, include a recommendation to enable them and rewrite the workflow problem statements from MCP-tool wording to CLI-form usage.
+When one or more are missing, include a recommendation to enable them and rewrite raw `gh aw` shell instructions into explicit `agentic-workflows` MCP-tool usage.
 
 ## Sub-Agent Usage
 
@@ -208,7 +211,7 @@ Prioritize recommendations that:
 2. reduce broad skill loading or oversized skill fusion
 3. simplify or remove low-value inline agents
 4. move deterministic data gathering out of the main prompt
-5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite MCP-tool-oriented problem wording to CLI-form commands
+5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite raw CLI-oriented problem wording to explicit `agentic-workflows` MCP-tool calls
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.
 

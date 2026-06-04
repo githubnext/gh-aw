@@ -226,6 +226,7 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  *   reflectUrl: string,
  *   outputPath: string,
  *   bytesWritten?: number,
+ *   reflectData?: object,
  *   reason?: "unexpected_status"|"timeout"|"request_failed",
  *   status?: number,
  *   error?: string,
@@ -275,6 +276,7 @@ async function fetchAWFReflect(options) {
       reflectUrl,
       outputPath,
       bytesWritten: enrichedBody.length,
+      reflectData,
     };
   } catch (err) {
     const e = /** @type {Error} */ err;
@@ -300,6 +302,72 @@ async function fetchAWFReflect(options) {
   }
 }
 
+/**
+ * Resolve Copilot SDK BYOK custom provider configuration from AWF /reflect data.
+ * Chooses a configured endpoint and maps it to an OpenAI-compatible provider base URL.
+ * Returns null when no suitable endpoint is found (e.g. no reflect data, or endpoints not
+ * configured).
+ *
+ * Requires live reflect data passed directly via `reflectData`.
+ *
+ * @param {{
+ *   model?: string,
+ *   reflectData: object | null | undefined,
+ *   logger?: (msg: string) => void,
+ * }} [options]
+ * @returns {{ model: string, provider: { type: "openai", baseUrl: string } } | null}
+ */
+function resolveCopilotSDKCustomProviderFromReflect(options) {
+  const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
+  const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
+
+  const reflectData = options?.reflectData;
+  if (reflectData == null) {
+    logger("sdk-mode: no reflect data provided; cannot resolve custom provider");
+    return null;
+  }
+
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  if (endpoints.length === 0) {
+    logger("sdk-mode: no configured endpoints in awf-reflect data; cannot resolve custom provider");
+    return null;
+  }
+
+  const endpoint = (configuredModel ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel)) : null) || endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") || endpoints[0];
+
+  let baseUrl = "";
+  if (typeof endpoint?.models_url === "string" && endpoint.models_url) {
+    try {
+      baseUrl = new URL(endpoint.models_url).origin;
+    } catch {
+      // ignore malformed URL and fall back to port-based construction below
+    }
+  }
+  if (!baseUrl && endpoint?.port != null) {
+    baseUrl = `http://api-proxy:${String(endpoint.port)}`;
+  }
+  if (!baseUrl) {
+    logger("sdk-mode: unable to derive provider baseUrl from awf-reflect endpoint data; cannot resolve custom provider");
+    return null;
+  }
+
+  let model = configuredModel;
+  if (!model && Array.isArray(endpoint?.models)) {
+    const firstModel = endpoint.models.find(m => typeof m === "string" && m.trim().length > 0);
+    model = typeof firstModel === "string" ? firstModel.trim() : "";
+  }
+  if (!model) {
+    logger("sdk-mode: unable to derive model for custom provider from awf-reflect; cannot resolve custom provider");
+    return null;
+  }
+
+  logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} baseUrl=${baseUrl} model=${model})`);
+  return {
+    model,
+    provider: { type: "openai", baseUrl },
+  };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     AWF_API_PROXY_REFLECT_URL,
@@ -314,5 +382,6 @@ if (typeof module !== "undefined" && module.exports) {
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    resolveCopilotSDKCustomProviderFromReflect,
   };
 }

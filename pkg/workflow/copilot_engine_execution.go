@@ -232,6 +232,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 	sdkDriverScriptName := "copilot_sdk_driver.cjs"
+	customSDKDriverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != ""
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != "" {
 		sdkDriverScriptName = workflowData.EngineConfig.CopilotSDKDriver
 	}
@@ -253,9 +254,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// Driver mode: the harness receives the driver runtime command and the driver path (or just
 			// the arbitrary command) as its argv, then calls runProcess(command, args) on the driver.
 			//
-			// For language scripts (.js/.cjs/.mjs, .py, .ts/.mts, .rb), the driver lives in the
-			// setup action directory and is prefixed with SetupActionDestinationShell. The runtime
-			// command is determined by the file extension:
+			// For language scripts (.js/.cjs/.mjs, .py, .ts/.mts, .rb), the runtime command is
+			// determined by extension. Built-in drivers resolve from the setup action directory;
+			// custom drivers are specified as a path relative to ${GITHUB_WORKSPACE}:
 			//   .js/.cjs/.mjs → "$GH_AW_NODE_EXEC" driver.cjs copilot-binary
 			//   .py            → python3             driver.py  copilot-binary
 			//   .ts/.mts       → ts-node             driver.ts  copilot-binary
@@ -266,11 +267,20 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			//   my-driver copilot-binary
 			driverRuntimeCmd, driverArg := copilotSDKDriverExecArgs(sdkDriverScriptName)
 			if driverArg != "" {
-				// Language script: harness runs <runtime> <setup-action-dir>/<driver> <copilot-binary>
-				execPrefix = fmt.Sprintf(`%s %s/%s %s %s/%s %s`,
+				var driverPath string
+				if customSDKDriverConfigured {
+					// Custom driver: sdkDriverScriptName is a validated workspace-relative path.
+					// Validation ensures no shell metacharacters, quotes, or path traversal,
+					// so it is safe to embed directly in the double-quoted shell argument.
+					driverPath = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
+				} else {
+					driverPath = fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, sdkDriverScriptName)
+				}
+				// Language script: harness runs <runtime> <setup-action-dir>/<harness> <runtime> <driver-path> <copilot-binary>
+				execPrefix = fmt.Sprintf(`%s %s/%s %s %s %s`,
 					runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
 					driverRuntimeCmd,
-					SetupActionDestinationShell, sdkDriverScriptName, commandName)
+					driverPath, commandName)
 			} else {
 				// Arbitrary command: harness runs <driver-cmd> <copilot-binary> directly
 				execPrefix = fmt.Sprintf(`%s %s/%s %s %s`,
