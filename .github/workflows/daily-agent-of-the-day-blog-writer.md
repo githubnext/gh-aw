@@ -98,11 +98,13 @@ Use UTC date and set target file:
 
 ### 2) Collect live workflow evidence
 
-Use `agentic-workflows` MCP tools:
+Use `agenticworkflows` CLI commands (run each as a **simple shell command with no pipes or redirects**):
 
-1. `list` to identify active workflows.
-2. `logs` for recent runs (last 3 days, up to 5 runs) of top candidates.
-3. `audit` for structured evidence when available.
+1. `agenticworkflows status` to identify active workflows.
+2. `agenticworkflows logs <workflow-name> --start-date -3d --limit 5` for recent runs of top candidates.
+3. `agenticworkflows audit <run-id>` for structured evidence when available.
+
+**Important**: If any command is not working, run `agenticworkflows --help` as a standalone command (no pipes) to check available subcommands and flags. Do not combine commands with `|`, `&&`, `2>&1`, or other shell operators.
 
 From evidence, extract:
 
@@ -110,7 +112,7 @@ From evidence, extract:
 - Real links to created/updated issues and PRs.
 - Any chart/image links or artifact links.
 
-If no useful data appears for the selected workflow, pick another active workflow.
+If no useful data appears for the selected workflow, pick another active workflow. If evidence collection commands keep failing (e.g., tool not found or permission error), call `noop` immediately with a brief explanation — **do not delegate evidence collection to a general-purpose sub-agent**.
 
 ### 3) Gather optional chart image
 
@@ -163,6 +165,8 @@ Body requirements:
 
 ### 6) Open PR
 
+**You (the main agent) must call `create_pull_request` directly** — sub-agents cannot call safe-output tools. Do not delegate this step to a general-purpose sub-agent.
+
 Create a PR with title:
 
 - `Agent of the Day – YYYY-MM-DD`
@@ -175,7 +179,7 @@ PR body must include:
 
 ### 7) No-action rule
 
-If no trustworthy live evidence can be gathered after checking multiple workflows, call `noop` with a short explanation.
+If no trustworthy live evidence can be gathered after checking multiple workflows, or if the `agenticworkflows` CLI commands fail, call `noop` with a short explanation. **Do not end the session without calling at least one safe-output tool** (`create_pull_request` or `noop`).
 
 ## Quality Bar
 
