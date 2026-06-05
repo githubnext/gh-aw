@@ -245,24 +245,27 @@ max-effective-tokens: 100M
 max-effective-tokens: -1
 ```
 
-### Daily Per-Workflow Effective Token Guardrail (`max-daily-effective-tokens:`)
+### Daily Per-Workflow AI Credits Guardrail (`max-daily-ai-credits:`)
 
-Sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
+Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
 
 This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 
+> [!NOTE]
+> `max-daily-effective-tokens` is deprecated. Use `max-daily-ai-credits` instead.
+
 ```yaml wrap
-max-daily-effective-tokens: 15M
+max-daily-ai-credits: 15M
 ```
 
 ```yaml wrap
 # Equivalent shorthand
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 ```
 
 ```yaml wrap
 # Disable the guardrail explicitly
-max-daily-effective-tokens: -1
+max-daily-ai-credits: -1
 ```
 
 ### Secrets (`secrets:`)

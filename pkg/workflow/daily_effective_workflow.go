@@ -12,7 +12,8 @@ import (
 
 var dailyEffectiveWorkflowLog = logger.New("workflow:daily_effective_workflow")
 
-const maxDailyEffectiveTokensField = "max-daily-effective-tokens"
+const maxDailyAICreditsField = "max-daily-ai-credits"
+const maxDailyEffectiveTokensField = "max-daily-effective-tokens" // deprecated
 const maxDailyEffectiveTokensEnvVar = "GH_AW_MAX_DAILY_EFFECTIVE_TOKENS"
 const maxDailyEffectiveTokensConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}"
 
@@ -70,8 +71,12 @@ func resolveMaxDailyEffectiveTokensFromRaw(raw any) (*string, bool) {
 }
 
 func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON string) *string {
+	if value, found := resolveMaxDailyEffectiveTokensFromRaw(frontmatter[maxDailyAICreditsField]); found {
+		dailyEffectiveWorkflowLog.Print("Resolved max-daily-ai-credits from workflow frontmatter")
+		return value
+	}
 	if value, found := resolveMaxDailyEffectiveTokensFromRaw(frontmatter[maxDailyEffectiveTokensField]); found {
-		dailyEffectiveWorkflowLog.Print("Resolved max-daily-effective-tokens from workflow frontmatter")
+		dailyEffectiveWorkflowLog.Print("Resolved deprecated max-daily-effective-tokens from workflow frontmatter")
 		return value
 	}
 	if importedJSON == "" {
@@ -104,6 +109,9 @@ func hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data *WorkflowData) bool 
 	if data == nil || data.RawFrontmatter == nil {
 		return false
 	}
+	if isMaxDailyEffectiveTokensDisabled(data.RawFrontmatter[maxDailyAICreditsField]) {
+		return true
+	}
 	return isMaxDailyEffectiveTokensDisabled(data.RawFrontmatter[maxDailyEffectiveTokensField])
 }
 
@@ -123,12 +131,14 @@ func validateMaxDailyEffectiveTokensFrontmatter(data *WorkflowData) error {
 	if data == nil || data.RawFrontmatter == nil {
 		return nil
 	}
-	raw, ok := data.RawFrontmatter[maxDailyEffectiveTokensField]
-	if !ok {
-		return nil
-	}
-	if val, ok := typeutil.ParseIntValue(raw); ok && val < 0 {
-		return fmt.Errorf("%s must be at least 0, got %d", maxDailyEffectiveTokensField, val)
+	for _, field := range []string{maxDailyAICreditsField, maxDailyEffectiveTokensField} {
+		raw, ok := data.RawFrontmatter[field]
+		if !ok {
+			continue
+		}
+		if val, ok := typeutil.ParseIntValue(raw); ok && val < 0 {
+			return fmt.Errorf("%s must be at least 0, got %d", field, val)
+		}
 	}
 	return nil
 }

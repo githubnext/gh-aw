@@ -66,7 +66,7 @@ type ImportsResult struct {
 	MergedMaxTurns                string                // First max-turns value found across all imports (JSON-encoded, first-wins)
 	MergedMaxRuns                 string                // First max-runs value found across all imports (JSON-encoded, first-wins)
 	MergedMaxEffectiveTokens      string                // First max-effective-tokens value found across all imports (JSON-encoded, first-wins)
-	MergedMaxDailyEffectiveTokens string                // First max-daily-effective-tokens value found across all imports (JSON-encoded, first-wins)
+	MergedMaxDailyEffectiveTokens string                // First max-daily-ai-credits (or deprecated max-daily-effective-tokens) value found across all imports (JSON-encoded, first-wins)
 	ImportedFiles                 []string              // List of imported file paths (for manifest)
 	AgentFile                     string                // Path to custom agent file (if imported)
 	AgentImportSpec               string                // Original import specification for agent file (e.g., "owner/repo/path@ref")

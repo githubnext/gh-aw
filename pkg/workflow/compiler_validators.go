@@ -163,7 +163,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating safe-outputs allow-workflows", validateFn: func() error { return validateSafeOutputsAllowWorkflows(workflowData.SafeOutputs) }},
 		{logMessage: "Validating labels", validateFn: func() error { return validateLabels(workflowData) }},
 		{logMessage: "Validating workflow_dispatch input requirements for command triggers", validateFn: func() error { return validateCommandWorkflowDispatchInputs(workflowData) }},
-		{logMessage: "Validating max-daily-effective-tokens frontmatter", validateFn: func() error { return validateMaxDailyEffectiveTokensFrontmatter(workflowData) }},
+		{logMessage: "Validating max-daily-ai-credits frontmatter", validateFn: func() error { return validateMaxDailyEffectiveTokensFrontmatter(workflowData) }},
 	}
 	// This validation is intentionally outside the table below because strict mode
 	// turns the same validation result into either an error or a warning.

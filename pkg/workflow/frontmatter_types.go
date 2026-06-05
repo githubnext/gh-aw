@@ -289,6 +289,7 @@ type FrontmatterConfig struct {
 	TrackerID               string            `json:"tracker-id,omitempty"`
 	Version                 string            `json:"version,omitempty"`
 	TimeoutMinutes          *TemplatableInt32 `json:"timeout-minutes,omitempty"`
+	MaxDailyAICredits       *TemplatableInt32 `json:"max-daily-ai-credits,omitempty"`
 	MaxDailyEffectiveTokens *TemplatableInt32 `json:"max-daily-effective-tokens,omitempty"`
 	Strict                  *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
 	Private                 *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories

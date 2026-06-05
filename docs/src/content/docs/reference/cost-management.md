@@ -268,14 +268,14 @@ environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual
 workflows override this default by setting `max-turns` in
 frontmatter.
 
-### Cap Daily Effective Tokens per Workflow
+### Cap Daily AI Credits per Workflow
 
-Use `max-daily-effective-tokens` to set a 24-hour effective-token
+Use `max-daily-ai-credits` to set a 24-hour AI Credits
 cap for one workflow. The guardrail sums runs from the past 24 hours of the same
 workflow started by the same triggering user.
 
 ```aw wrap
-max-daily-effective-tokens: 15M
+max-daily-ai-credits: 15M
 ```
 
 You can also configure the same threshold via environment variable
@@ -293,6 +293,9 @@ conclusion job report the failure context.
 The guardrail is disabled by default when omitted. Set `-1` to disable
 it explicitly. Positive values accept plain integers or `K`/`M`
 suffixes such as `100M`.
+
+> [!NOTE]
+> `max-daily-effective-tokens` is deprecated. Use `max-daily-ai-credits`.
 
 > [!NOTE]
 > The daily guardrail is skipped for `workflow_call`,

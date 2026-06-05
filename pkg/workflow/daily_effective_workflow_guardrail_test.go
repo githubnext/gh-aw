@@ -16,7 +16,7 @@ import (
 func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 	t.Run("prefers top-level literal value", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": 1234}, `"999"`)
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": 1234}, `"999"`)
 		if got == nil || *got != "1234" {
 			t.Fatalf("expected literal top-level value, got %v", got)
 		}
@@ -25,9 +25,17 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("falls back to imported expression", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-effective-tokens }}"`)
-		if got == nil || *got != "${{ inputs.max-daily-effective-tokens }}" {
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-ai-credits }}"`)
+		if got == nil || *got != "${{ inputs.max-daily-ai-credits }}" {
 			t.Fatalf("expected imported expression, got %v", got)
+		}
+	})
+
+	t.Run("supports deprecated field fallback", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": 1234}, "")
+		if got == nil || *got != "1234" {
+			t.Fatalf("expected deprecated field fallback value, got %v", got)
 		}
 	})
 
@@ -41,7 +49,7 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("normalizes suffix strings", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": "100M"}, "")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": "100M"}, "")
 		if got == nil || *got != "100000000" {
 			t.Fatalf("expected normalized suffix string, got %v", got)
 		}
@@ -49,7 +57,7 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": -1}, "")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": -1}, "")
 		if got != nil {
 			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
 		}
@@ -64,7 +72,7 @@ func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: 100_000_000
+max-daily-ai-credits: 100_000_000
 safe-outputs:
   add-comment:
     max: 1
@@ -234,7 +242,7 @@ func TestDailyETGuardrailNegativeValueRejected(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: -1
+	max-daily-ai-credits: -1
 safe-outputs:
   add-comment:
     max: 1
@@ -249,7 +257,7 @@ Explicitly disable daily guardrail`
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(workflowFile)
 	if err == nil {
-		t.Fatal("expected compile to fail for negative max-daily-effective-tokens")
+		t.Fatal("expected compile to fail for negative max-daily-ai-credits")
 	}
 	if !strings.Contains(err.Error(), "must be at least 0") {
 		t.Fatalf("expected minimum value validation error, got: %v", err)
