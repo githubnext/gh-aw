@@ -471,6 +471,40 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC");
     });
 
+    it("should include AI Credits next to effective_tokens_suffix in generated custom footers", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      process.env.GH_AW_AIC = "1.25";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K · 1.25 AIC");
+    });
+
+    it("should not duplicate AI Credits when custom footer explicitly includes ai_credits_suffix", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      process.env.GH_AW_AIC = "1.25";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}{ai_credits_suffix}",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K · 1.25 AIC");
+    });
+
     it("should include reduced model identifier in effective_tokens_suffix for custom templates", async () => {
       process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
       process.env.GH_AW_ENGINE_MODEL = "gpt-5.5";
