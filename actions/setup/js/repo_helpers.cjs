@@ -103,14 +103,16 @@ function parseAllowedRepos(allowedReposValue) {
  */
 function getDefaultTargetRepo(config) {
   // First check if there's an explicit target repo in config
-  if (config && config["target-repo"]) {
-    return config["target-repo"];
-  }
-  if (config && config.target_repo) {
-    return config.target_repo;
-  }
-  if (config && config.targetRepo) {
-    return config.targetRepo;
+  if (config) {
+    if (config["target-repo"]) {
+      return config["target-repo"];
+    }
+    if (config.target_repo) {
+      return config.target_repo;
+    }
+    if (config.targetRepo) {
+      return config.targetRepo;
+    }
   }
   // Fall back to env var for backward compatibility
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
