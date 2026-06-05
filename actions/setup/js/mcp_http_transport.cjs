@@ -41,11 +41,12 @@ class MCPServer {
    * @param {Object} [options] - Server options
    * @param {Object} [options.capabilities] - Server capabilities
    * @param {string} [options.logDir] - Log directory path
+   * @param {(toolName: string, args: any) => any} [options.normalizeArguments] - Optional tool argument normalizer
    */
   constructor(serverInfo, options = {}) {
     // Extract logDir for createServer, keep capabilities for this class
-    const { capabilities, logDir } = options;
-    this._coreServer = createServer(serverInfo, { logDir });
+    const { capabilities, logDir, normalizeArguments } = options;
+    this._coreServer = createServer(serverInfo, { logDir, normalizeArguments });
     this.serverInfo = serverInfo;
     this.capabilities = capabilities || { tools: {} };
     this.tools = new Map();
