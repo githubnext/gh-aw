@@ -357,3 +357,54 @@ Test workflow content.`,
 		})
 	}
 }
+
+func TestMatchesGitHubExpression(t *testing.T) {
+	t.Parallel()
+
+	assertions := []struct {
+		name     string
+		value    string
+		expected string
+		match    bool
+	}{
+		{
+			name:     "spaced expression",
+			value:    "${{ github.repository }}",
+			expected: "github.repository",
+			match:    true,
+		},
+		{
+			name:     "compact expression",
+			value:    "${{github.repository}}",
+			expected: "github.repository",
+			match:    true,
+		},
+		{
+			name:     "missing closing braces",
+			value:    "${{ github.repository",
+			expected: "github.repository",
+			match:    false,
+		},
+		{
+			name:     "empty expression",
+			value:    "${{}}",
+			expected: "github.repository",
+			match:    false,
+		},
+		{
+			name:     "extra trailing tokens",
+			value:    "${{ github.repository }}bar}}",
+			expected: "github.repository",
+			match:    false,
+		},
+	}
+
+	for _, tc := range assertions {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := matchesGitHubExpression(tc.value, tc.expected)
+			if actual != tc.match {
+				t.Fatalf("matchesGitHubExpression(%q, %q) = %v, want %v", tc.value, tc.expected, actual, tc.match)
+			}
+		})
+	}
+}

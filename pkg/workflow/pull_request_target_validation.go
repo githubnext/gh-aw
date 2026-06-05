@@ -36,12 +36,14 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/goccy/go-yaml"
 )
 
 var pullRequestTargetLog = newValidationLogger("pull_request_target")
+var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^{}]+?)\s*\}\}$`)
 
 // validatePullRequestTargetTrigger validates security requirements for pull_request_target triggers.
 //
@@ -141,8 +143,7 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"checkout:\n" +
 		"  repository: ${{ github.repository }}\n" +
 		"  ref: ${{ github.event.pull_request.base.sha }}\n\n" +
-		"You can also use 'ref: ${{ github.event.pull_request.base.ref }}' or\n" +
-		"'ref: ${{ github.ref }}' when appropriate.\n" +
+		"You can also use 'ref: ${{ github.event.pull_request.base.ref }}'.\n" +
 		"If you omit ref with pull_request_target, checkout defaults to the base branch.\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
@@ -183,7 +184,6 @@ func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
 	return ref == "" || matchesAnyGitHubExpression(ref,
 		"github.event.pull_request.base.sha",
 		"github.event.pull_request.base.ref",
-		"github.ref",
 	)
 }
 
@@ -198,10 +198,9 @@ func matchesAnyGitHubExpression(value string, expectedExpressions ...string) boo
 
 func matchesGitHubExpression(value string, expectedExpression string) bool {
 	trimmed := strings.TrimSpace(value)
-	if !strings.HasPrefix(trimmed, "${{") || !strings.HasSuffix(trimmed, "}}") {
+	matches := pullRequestTargetGitHubExpressionPattern.FindStringSubmatch(trimmed)
+	if len(matches) != 2 {
 		return false
 	}
-
-	inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "${{"), "}}")
-	return strings.TrimSpace(inner) == expectedExpression
+	return strings.TrimSpace(matches[1]) == expectedExpression
 }
