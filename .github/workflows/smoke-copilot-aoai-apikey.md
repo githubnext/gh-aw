@@ -28,7 +28,6 @@ engine:
   env:
     COPILOT_PROVIDER_BASE_URL: ${{ secrets.FOUNDRY_OPENAI_ENDPOINT }}
     COPILOT_PROVIDER_API_KEY: ${{ secrets.FOUNDRY_API_KEY }}
-    COPILOT_PROVIDER_TYPE: azure
 imports:
   - shared/github-guard-policy.md
   - shared/gh.md
