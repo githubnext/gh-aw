@@ -45,6 +45,7 @@ const os = require("os");
 // timeouts for individual tool calls and model inference.
 // Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
 const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
+const MAX_TOOL_FAILURE_DEFAULT = 5;
 
 /**
  * @typedef {{
@@ -52,6 +53,29 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  *   allowedTools?: string[],
  * }} CopilotSDKPermissionConfig
  */
+
+/**
+ * Parse max tool failure threshold from input.
+ * Falls back to MAX_TOOL_FAILURE_DEFAULT when unset/invalid.
+ *
+ * @param {unknown} value
+ * @returns {number}
+ */
+function parseMaxToolFailureLimit(value) {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return MAX_TOOL_FAILURE_DEFAULT;
+}
 
 /**
  * @typedef {{
@@ -110,7 +134,7 @@ function logPermissionDenied(coreLogger, logger, request) {
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
- * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void}=} logOptions
+ * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void, onDenied?: (requestSummary: string) => void}=} logOptions
  * @returns {import("@github/copilot-sdk").PermissionHandler | undefined}
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptions) {
@@ -184,7 +208,11 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
     if (isAllowed(request)) {
       return { kind: "approve-once" };
     }
+    const requestSummary = summarizePermissionRequest(request);
     logPermissionDenied(logOptions?.coreLogger, logger, request);
+    if (logOptions?.onDenied) {
+      logOptions.onDenied(requestSummary);
+    }
     return { kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." };
   };
 }
@@ -224,6 +252,7 @@ function extractPromptFromArgs(args) {
  *   model?: string,
  *   connectionToken?: string,
  *   provider?: import("@github/copilot-sdk").ProviderConfig,
+ *   maxToolFailure?: number | string,
  *   permissionConfig?: {
  *     allowAllTools?: boolean,
  *     allowedTools?: string[],
@@ -237,7 +266,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, permissionConfig, coreLogger, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolFailure, permissionConfig, coreLogger, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -248,6 +277,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
   const log = msg => logger(`[sdk-driver] ${msg}`);
   log(`attempt ${attempt + 1}: connecting to Copilot SDK at ${sdkUri}`);
+  const maxToolFailureLimit = parseMaxToolFailureLimit(maxToolFailure ?? process.env.GH_AW_MAX_TOOL_FAILURE);
+  log(`max-tool-failure threshold: ${maxToolFailureLimit}`);
 
   // Session state directory — mirrors the target path used by unified_timeline.cjs.
   // /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
@@ -280,6 +311,28 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   /** @type {fs.WriteStream | null} */
   let eventsStream = null;
   let clientStarted = false;
+  let toolFailureCount = 0;
+  let catastrophicToolFailureError = null;
+  let catastrophicToolFailureTriggered = false;
+
+  /**
+   * @param {string} reason
+   */
+  function recordToolFailure(reason) {
+    toolFailureCount += 1;
+    log(`tool failure ${toolFailureCount}/${maxToolFailureLimit}: ${reason}`);
+    if (catastrophicToolFailureTriggered || toolFailureCount < maxToolFailureLimit) {
+      return;
+    }
+    catastrophicToolFailureTriggered = true;
+    catastrophicToolFailureError = new Error(`max tool failure threshold reached (${toolFailureCount}/${maxToolFailureLimit})`);
+    log(`${catastrophicToolFailureError.message}; stopping SDK session early`);
+    if (session) {
+      void session.disconnect().catch(() => {
+        // best-effort early stop
+      });
+    }
+  }
 
   try {
     await client.start();
@@ -294,6 +347,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll, {
       coreLogger,
       logger: log,
+      onDenied: requestSummary => recordToolFailure(`permission denied: ${requestSummary}`),
     });
 
     /** @type {import("@github/copilot-sdk").SessionConfig} */
@@ -368,6 +422,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           if (toolCallId) pendingToolCalls.delete(toolCallId);
           const success = event.data?.success ?? !event.data?.error;
           writeEvent("tool.execution_complete", { toolName, mcpServerName, success }, event.timestamp);
+          if (!success) {
+            recordToolFailure(`tool execution failed: ${toolName}`);
+          }
           break;
         }
 
@@ -390,6 +447,10 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     log("sending prompt...");
     const sendTimeoutMs = Number(process.env.COPILOT_SDK_SEND_TIMEOUT_MS) || SDK_SEND_TIMEOUT_MS_DEFAULT;
     const result = await session.sendAndWait({ prompt }, sendTimeoutMs);
+
+    if (catastrophicToolFailureError) {
+      throw catastrophicToolFailureError;
+    }
 
     // sendAndWait returns the last assistant.message event; capture its content
     // as a fallback in case the on() handler missed it.

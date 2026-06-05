@@ -13,6 +13,7 @@
 //   - validateAgentFile() - Validates custom agent file exists
 //   - validateMaxTurnsSupport() - Validates max-turns feature support
 //   - validateMaxContinuationsSupport() - Validates max-continuations feature support
+//   - validateMaxToolFailureSupport() - Validates max-tool-failure support for Copilot SDK mode
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
 //   - validateBareModeSupport() - Validates bare mode feature support (warning)
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
@@ -52,6 +53,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 )
 
@@ -151,6 +153,29 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 	if !engine.GetCapabilities().MaxContinuations {
 		agentValidationLog.Printf("Engine %s does not support max-continuations feature", engine.GetID())
 		return fmt.Errorf("max-continuations not supported: engine '%s' does not support the max-continuations feature", engine.GetID())
+	}
+
+	return nil
+}
+
+// validateMaxToolFailureSupport validates that max-tool-failure is only used with
+// the Copilot engine in Copilot SDK mode.
+func (c *Compiler) validateMaxToolFailureSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
+	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+
+	if engineConfig == nil || engineConfig.MaxToolFailure == "" {
+		return nil
+	}
+
+	agentValidationLog.Printf("Validating max-tool-failure support: engine=%s, maxToolFailure=%s, copilotSDK=%v",
+		engine.GetID(), engineConfig.MaxToolFailure, engineConfig.CopilotSDK)
+
+	if engine.GetID() != string(constants.CopilotEngine) {
+		return fmt.Errorf("max-tool-failure not supported: engine '%s' does not support max-tool-failure (supported only with engine 'copilot' and engine.copilot-sdk: true)", engine.GetID())
+	}
+
+	if !engineConfig.CopilotSDK {
+		return errors.New("max-tool-failure requires Copilot SDK mode: set engine.copilot-sdk: true when using max-tool-failure")
 	}
 
 	return nil

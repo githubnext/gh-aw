@@ -344,5 +344,59 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
       expect(approveAll).not.toHaveBeenCalled();
     });
+
+    it("stops session when permission-denied failures reach max-tool-failure threshold", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let sessionConfig;
+      const session = {
+        sessionId: "session-max-tool-failure",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          return { data: { content: "should-not-complete" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolFailure = process.env.GH_AW_MAX_TOOL_FAILURE;
+      process.env.GH_AW_MAX_TOOL_FAILURE = "3";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("max tool failure threshold reached");
+        expect(disconnect).toHaveBeenCalled();
+      } finally {
+        if (oldMaxToolFailure === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_FAILURE;
+        } else {
+          process.env.GH_AW_MAX_TOOL_FAILURE = oldMaxToolFailure;
+        }
+      }
+    });
   });
 });

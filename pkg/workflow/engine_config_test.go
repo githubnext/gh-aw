@@ -61,6 +61,22 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxTurns: "${{ inputs.max-turns }}"},
 		},
 		{
+			name: "top-level max-tool-failure without engine",
+			frontmatter: map[string]any{
+				"max-tool-failure": 5,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxToolFailure: "5"},
+		},
+		{
+			name: "top-level max-tool-failure expression without engine",
+			frontmatter: map[string]any{
+				"max-tool-failure": "${{ inputs.max-tool-failure }}",
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxToolFailure: "${{ inputs.max-tool-failure }}"},
+		},
+		{
 			name: "top-level max-turns zero is ignored",
 			frontmatter: map[string]any{
 				"max-turns": 0,
@@ -216,6 +232,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex", MaxTurns: "12"},
+		},
+		{
+			name: "object format - with top-level max-tool-failure",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+				"max-tool-failure": 8,
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", MaxToolFailure: "8"},
 		},
 		{
 			name: "object format - top-level max-turns overrides engine max-turns",
@@ -438,7 +465,9 @@ func TestExtractEngineConfig(t *testing.T) {
 				if config.MaxTurns != test.expectedConfig.MaxTurns {
 					t.Errorf("Expected config.MaxTurns '%s', got '%s'", test.expectedConfig.MaxTurns, config.MaxTurns)
 				}
-
+				if config.MaxToolFailure != test.expectedConfig.MaxToolFailure {
+					t.Errorf("Expected config.MaxToolFailure '%s', got '%s'", test.expectedConfig.MaxToolFailure, config.MaxToolFailure)
+				}
 				if config.MaxEffectiveTokens != test.expectedConfig.MaxEffectiveTokens {
 					t.Errorf("Expected config.MaxEffectiveTokens '%d', got '%d'", test.expectedConfig.MaxEffectiveTokens, config.MaxEffectiveTokens)
 				}

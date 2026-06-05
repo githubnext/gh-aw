@@ -297,6 +297,10 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, expectedURI) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
 	}
+	expectedMaxToolFailure := constants.EnvVarMaxToolFailure + ": " + strconv.Itoa(constants.DefaultMaxToolFailure)
+	if !strings.Contains(stepContent, expectedMaxToolFailure) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedMaxToolFailure, stepContent)
+	}
 	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from npm global root, got:\n%s", stepContent)
 	}
@@ -379,6 +383,28 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	}
 	if strings.Contains(stepContent, "/actions/copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected built-in SDK driver to be replaced, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKMaxToolFailureOverride(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:     true,
+			MaxToolFailure: "${{ inputs.max-tool-failure }}",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, constants.EnvVarMaxToolFailure+": ${{ inputs.max-tool-failure }}") &&
+		!strings.Contains(stepContent, constants.EnvVarMaxToolFailure+`: "${{ inputs.max-tool-failure }}"`) {
+		t.Fatalf("Expected %s to include workflow expression override, got:\n%s", constants.EnvVarMaxToolFailure, stepContent)
 	}
 }
 
