@@ -32,7 +32,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 45
 steps:
-  - name: Setup Python runtime
+  - name: Setup Python
     uses: actions/setup-python@v6.2.0
     with:
       python-version: "3.12"
