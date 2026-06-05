@@ -178,11 +178,11 @@ A conforming driver implementation MUST treat `COPILOT_SDK_SEND_TIMEOUT_MS` as m
 
 `COPILOT_SDK_LOG_LEVEL` is the host-provided SDK client log level control. A conforming driver implementation MUST use the provided value when it is one of `none`, `error`, `warning`, `info`, `debug`, or `all`; otherwise it MUST fall back to `warning`.
 
-### 4.5 Tool-Failure Guardrail Environment Variable
+### 4.5 Tool-Denials Guardrail Environment Variable
 
-`GH_AW_MAX_TOOL_DENIALS` controls the catastrophic tool-failure
+`GH_AW_MAX_TOOL_DENIALS` controls the catastrophic tool-denials
 guardrail in SDK mode. A conforming driver implementation SHOULD count
-repeated tool refusals and failed tool executions, and MUST stop
+repeated tool refusals (permission denials), and MUST stop
 inference once the configured threshold is reached. When unset,
 non-numeric, or non-positive, implementations MUST apply the default
 value (`5`).

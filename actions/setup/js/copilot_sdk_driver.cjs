@@ -436,6 +436,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           const mcpServerName = pending?.mcpServerName ?? "";
           if (toolCallId) pendingToolCalls.delete(toolCallId);
           const success = event.data?.success ?? !event.data?.error;
+          // max-tool-denials intentionally tracks permission denials only.
+          // Tool execution failures are still logged, but do not increment the guardrail counter.
           writeEvent("tool.execution_complete", { toolName, mcpServerName, success }, event.timestamp);
           break;
         }
