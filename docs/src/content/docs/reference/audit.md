@@ -92,7 +92,7 @@ The Metrics section includes an `ambient_context` object when available. Ambient
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns)
 - Token usage and spend breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, AIC, total API requests, and cache efficiency per run
-- Tokens per turn: effective tokens divided by turn count for each run, with the change between runs (plus AIC visibility for spend tracking)
+- Tokens per turn: effective tokens divided by turn count for each run, with the change between runs; AIC is reported alongside these token metrics in the same audit output for spend tracking
 - Tool call breakdown: per-tool call counts (new, removed, and changed tools) with max input/output sizes
 - Bash command breakdown: aggregated call counts and max input/output sizes for each distinct bash command invoked
 

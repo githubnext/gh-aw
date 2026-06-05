@@ -15,7 +15,7 @@ This page defines the common outcome states, summarizes what `accepted` means ac
 
 Token and cost data are necessary, but they are not enough. A workflow can become cheaper because it became more efficient, or because it simply did less useful work. Outcomes make that difference visible by relating AI Credits (AIC) to accepted results.
 
-Outcome efficiency is measured as AI Credits (AIC) divided by accepted outcomes. Lower is better: a lower value means the workflow spent less AI spend per accepted result.
+Outcome efficiency is measured as AI Credits (AIC) divided by accepted outcomes. Lower is better: a lower value means the workflow consumed fewer AI Credits per accepted result.
 
 ## Outcome States
 
