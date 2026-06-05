@@ -39,7 +39,7 @@ type EngineConfig struct {
 	UserAgent          string
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
-	CopilotSDKDriver   string // Custom Copilot SDK driver script filename or command (copilot engine only; used when copilot-sdk=true). Supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name for an arbitrary executable in PATH.
+	CopilotSDKDriver   string // Custom Copilot SDK driver script filename or command (copilot engine only). Setting this field implies copilot-sdk=true. Supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name for an arbitrary executable in PATH.
 	Env                map[string]string
 	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
@@ -546,6 +546,10 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.CopilotSDK = sdkBool
 					engineLog.Printf("Extracted copilot-sdk: %v", config.CopilotSDK)
 				}
+			}
+			if config.CopilotSDKDriver != "" && !config.CopilotSDK {
+				config.CopilotSDK = true
+				engineLog.Print("Enabled copilot-sdk because copilot-sdk-driver is configured")
 			}
 
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)

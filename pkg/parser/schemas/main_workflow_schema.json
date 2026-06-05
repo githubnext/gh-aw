@@ -10855,7 +10855,7 @@
             "copilot-sdk-driver": {
               "type": "string",
               "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
-              "description": "Custom Copilot SDK driver script or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
+              "description": "Custom Copilot SDK driver script or command (copilot engine only). Setting this field implies `copilot-sdk: true`. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
             }
           },
           "required": ["id"],
