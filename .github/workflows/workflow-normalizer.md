@@ -86,24 +86,23 @@ Focus on workflows that create reports or generate documentation, especially:
 
 ### Step 1: Identify Active Workflows
 
-Use the gh-aw MCP server to:
-1. Get workflow runs from the last 24 hours
-2. Identify which workflow markdown files were executed
-3. Focus on workflows that create reports (look for `create-issue`, `create-discussion`, `add-comment` in safe-outputs)
+Read recent workflow run data from `/tmp/gh-aw/logs-cache/` (pre-cached JSON files):
+1. Use `ls -t /tmp/gh-aw/logs-cache/*.json | head -1` to find the most recent file.
+2. Read that file once and extract all workflow names executed in the last 24 hours.
+3. Focus on workflows that create reports (look for `create-issue`, `create-discussion`, `add-comment` in safe-outputs).
 
 ### Step 2: Analyze Workflow Prompts
 
-For each active reporting workflow:
-1. Read the workflow markdown file from `.github/workflows/`
-2. Analyze the prompt instructions for style compliance
-3. Check if the workflow mentions:
-   - Header level guidelines (should specify h3+)
-   - Progressive disclosure with `<details>` tags
-   - Report structure recommendations
+Use a single `python3` or `bash` script to scan all active reporting workflow files in one pass.
+For each file, return a structured compliance table with:
+- `header_guidelines`: whether the file enforces h3 (`###`) or lower
+- `progressive_disclosure`: whether `<details>` usage is mentioned
+- `report_structure`: whether report structure recommendations are present
+- `status`: `compliant`, `non-compliant`, or `skip`
 
 ### Step 3: Identify Non-Compliant Workflows
 
-Document workflows that:
+From the compliance table, document workflows that are `non-compliant` because they:
 - Don't specify proper header levels in their instructions
 - Don't mention using `<details>` tags for long content
 - Have unclear or inconsistent report formatting instructions
@@ -115,60 +114,12 @@ Create **one** issue that consolidates all non-compliant workflows found.
 
 **Title**: `[workflow-style] Normalize report formatting for non-compliant workflows`
 
-**Body Template**:
-```markdown
-### Workflows to Update
-
-The following workflows generate reports but don't include markdown style guidelines:
-
-| Workflow File | Issues Found |
-|---|---|
-| `.github/workflows/<workflow-name-1>.md` | Missing header level guidelines |
-| `.github/workflows/<workflow-name-2>.md` | No progressive disclosure instructions |
-
-### Required Changes
-
-For each workflow listed above, update the prompt to include these formatting guidelines:
-
-#### 1. Header Levels
-Add instruction: "Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy."
-
-#### 2. Progressive Disclosure
-Add instruction: "Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling."
-
-Example:
-\`\`\`markdown
-<details>
-<summary>Full Analysis Details</summary>
-
-[Long detailed content here...]
-
-</details>
-\`\`\`
-
-#### 3. Report Structure
-Suggest a structure like:
-- Brief summary (always visible)
-- Key metrics or highlights (always visible)
-- Detailed analysis (in `<details>` tags)
-- Recommendations (always visible)
-
-### Design Principles (Airbnb-Inspired)
-
-The updated workflows should create reports that:
-1. **Build trust through clarity**: Most important info immediately visible
-2. **Exceed expectations**: Add helpful context, trends, comparisons
-3. **Create delight**: Use progressive disclosure to reduce overwhelm
-4. **Maintain consistency**: Follow the same patterns as other reporting workflows
-
-### Example Reference
-
-See workflows like `daily-repo-chronicle` or `audit-workflows` for good examples of structured reporting.
-
-### Agent Task
-
-Update each workflow file listed in the table above to include the formatting guidelines in the prompt instructions. Test the updated workflows to ensure they produce well-formatted reports.
-```
+**Issue Body Requirements**:
+- Include a table of non-compliant workflow files with specific issues found.
+- List required changes for each workflow: h3+ header guidance, `<details>` usage, and clear report structure.
+- Include one concise example of progressive disclosure formatting.
+- Reference good examples (for example `daily-repo-chronicle` or `audit-workflows`).
+- Follow the design principles described in the Style Guidelines above.
 
 ### Step 5: Summary Report
 
@@ -230,7 +181,7 @@ Create a summary comment or discussion showing:
 
 ## Technical Requirements
 
-1. Use the gh-aw MCP server to access workflow runs and logs
+1. Read recent workflow run data from `/tmp/gh-aw/logs-cache/` (pre-cached JSON files). Use `ls` to find the most recent file, then read it once and extract all needed workflow names.
 2. Read workflow markdown files from `.github/workflows/`
 3. Create issues using the `create-issue` safe output
 4. Keep track of workflows already reported to avoid duplicates (check for existing open issues with same title)
