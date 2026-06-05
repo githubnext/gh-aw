@@ -15,7 +15,7 @@ The cost of running an agentic workflow is the sum of two components: **GitHub A
 |----------|----------------|
 | `claude` | Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens) |
 | `codex` | Based on OpenAI token pricing |
-| `copilot` | Not available — Copilot does not expose billing-grade pricing data; use Effective Tokens as a proxy |
+| `copilot` | Not available — Copilot does not expose billing-grade pricing data; use Effective Tokens as a proxy and cross-reference [models.dev](https://models.dev/) plus [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models) and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs |
 
 AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit reports alongside raw token counts, and as `{ai_credits_suffix}` in workflow footer templates. For structured output, each run under `.runs[]` includes an `aic` field and each episode under `.episodes[]` includes `total_aic`.
 
@@ -44,7 +44,7 @@ The agent job invokes an AI engine to process the prompt and call tools. Inferen
 
 | Engine | Billed to | gh-aw cost metric |
 |--------|-----------|-------------------|
-| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Effective Tokens (AIC not available; Copilot does not expose pricing data) |
+| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Effective Tokens (AIC not available; Copilot does not expose pricing data — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
 | `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | AIC (AI Credits) |
 | `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | AIC (AI Credits) |
 
