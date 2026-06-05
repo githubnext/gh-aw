@@ -23,6 +23,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    env:
+      GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "500000"
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -94,6 +96,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
           GH_AW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "500000"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

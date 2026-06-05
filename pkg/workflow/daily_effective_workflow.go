@@ -80,22 +80,22 @@ func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON str
 		return value
 	}
 	if importedJSON == "" {
-		dailyEffectiveWorkflowLog.Print("No frontmatter value and no imported config; falling back to default max-daily-effective-tokens")
-		defaultValue := compilerenv.ResolveDefaultMaxDailyEffectiveTokens("")
+		dailyEffectiveWorkflowLog.Print("No frontmatter value and no imported config; falling back to default max-daily-ai-credits")
+		defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
 		return parseMaxDailyEffectiveTokensValue(defaultValue)
 	}
 	var imported any
 	if err := json.Unmarshal([]byte(importedJSON), &imported); err != nil {
-		dailyEffectiveWorkflowLog.Printf("Failed to unmarshal imported max-daily-effective-tokens JSON, using default: %v", err)
-		defaultValue := compilerenv.ResolveDefaultMaxDailyEffectiveTokens("")
+		dailyEffectiveWorkflowLog.Printf("Failed to unmarshal imported max-daily-ai-credits JSON, using default: %v", err)
+		defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
 		return parseMaxDailyEffectiveTokensValue(defaultValue)
 	}
 	if value, found := resolveMaxDailyEffectiveTokensFromRaw(imported); found {
-		dailyEffectiveWorkflowLog.Print("Resolved max-daily-effective-tokens from imported config")
+		dailyEffectiveWorkflowLog.Print("Resolved max-daily-ai-credits from imported config")
 		return value
 	}
-	dailyEffectiveWorkflowLog.Print("Imported config did not provide a usable value; falling back to default max-daily-effective-tokens")
-	defaultValue := compilerenv.ResolveDefaultMaxDailyEffectiveTokens("")
+	dailyEffectiveWorkflowLog.Print("Imported config did not provide a usable value; falling back to default max-daily-ai-credits")
+	defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
 	return parseMaxDailyEffectiveTokensValue(defaultValue)
 }
 

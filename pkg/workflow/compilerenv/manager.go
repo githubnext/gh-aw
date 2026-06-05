@@ -16,9 +16,15 @@ const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
 	// when max-effective-tokens is not explicitly configured in workflow frontmatter.
 	DefaultMaxEffectiveTokens = "GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS"
+	// DefaultMaxDailyAICredits is the enterprise override for the top-level
+	// max-daily-ai-credits guardrail when it is not explicitly configured in
+	// workflow frontmatter.
+	DefaultMaxDailyAICredits = "GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS"
 	// DefaultMaxDailyEffectiveTokens is the enterprise override for the top-level
 	// max-daily-effective-tokens guardrail when it is not explicitly configured in
 	// workflow frontmatter.
+	//
+	// Deprecated: use DefaultMaxDailyAICredits (GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS) instead.
 	DefaultMaxDailyEffectiveTokens = "GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS"
 	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
@@ -61,9 +67,46 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 	return fallback
 }
 
+// ResolveDefaultMaxDailyAICredits returns the resolved daily AI Credits guardrail
+// default, checking enterprise env vars in order of precedence:
+//  1. GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS (preferred)
+//  2. GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS (deprecated; accepted with a warning)
+//  3. fallback (built-in default when neither env var is set)
+//
+// A value of -1 is preserved to allow explicitly disabling the guardrail.
+func ResolveDefaultMaxDailyAICredits(fallback string) string {
+	if raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyAICredits)); raw != "" {
+		if raw == "-1" {
+			managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyAICredits, raw, fallback)
+			return "-1"
+		}
+		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+			managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyAICredits, normalized, fallback)
+			return normalized
+		}
+		managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyAICredits, raw, fallback)
+		return fallback
+	}
+	if raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyEffectiveTokens)); raw != "" {
+		managerLog.Printf("WARNING: %s is deprecated; use %s instead", DefaultMaxDailyEffectiveTokens, DefaultMaxDailyAICredits)
+		if raw == "-1" {
+			managerLog.Printf("Applying deprecated enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, raw, fallback)
+			return "-1"
+		}
+		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+			managerLog.Printf("Applying deprecated enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, normalized, fallback)
+			return normalized
+		}
+		managerLog.Printf("Invalid deprecated %s=%q, using fallback=%q", DefaultMaxDailyEffectiveTokens, raw, fallback)
+	}
+	return fallback
+}
+
 // ResolveDefaultMaxDailyEffectiveTokens returns fallback when the env var is
 // unset/invalid, otherwise returns the parsed override as a normalized string.
 // A value of -1 is preserved to allow explicitly disabling the guardrail.
+//
+// Deprecated: use ResolveDefaultMaxDailyAICredits instead.
 func ResolveDefaultMaxDailyEffectiveTokens(fallback string) string {
 	raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyEffectiveTokens))
 	if raw == "" {

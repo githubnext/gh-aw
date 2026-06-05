@@ -65,6 +65,74 @@ func TestResolveDefaultMaxDailyEffectiveTokens(t *testing.T) {
 	})
 }
 
+func TestResolveDefaultMaxDailyAICredits(t *testing.T) {
+	t.Run("both unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("new var invalid uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "abc")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("new var zero uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "0")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("new var valid value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "1000000")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
+		assert.Equal(t, "1000000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("new var suffix value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "2M")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
+		assert.Equal(t, "2000000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("new var disables guardrail with -1", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "-1")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
+		assert.Equal(t, "-1", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("deprecated var used as fallback when new var unset", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "750000")
+		assert.Equal(t, "750000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("deprecated var with suffix used as fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "1M")
+		assert.Equal(t, "1000000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("deprecated var -1 disables guardrail", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "-1")
+		assert.Equal(t, "-1", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("new var takes precedence over deprecated var", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "800000")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "200000")
+		assert.Equal(t, "800000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+
+	t.Run("deprecated var invalid falls back to built-in", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "")
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "bad")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+}
+
 func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}",

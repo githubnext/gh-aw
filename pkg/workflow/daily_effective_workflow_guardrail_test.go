@@ -40,10 +40,29 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 	})
 
 	t.Run("uses enterprise default when unset", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "")
 		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
 		if got == nil || *got != "2222" {
 			t.Fatalf("expected enterprise default, got %v", got)
+		}
+	})
+
+	t.Run("falls back to deprecated enterprise var when new var unset", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "")
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		if got == nil || *got != "2222" {
+			t.Fatalf("expected deprecated enterprise default, got %v", got)
+		}
+	})
+
+	t.Run("uses built-in 500k default when no frontmatter and no env vars", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "")
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		if got == nil || *got != "500000" {
+			t.Fatalf("expected built-in 500k default, got %v", got)
 		}
 	})
 
@@ -56,7 +75,8 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 	})
 
 	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "")
 		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": -1}, "")
 		if got != nil {
 			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
