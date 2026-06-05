@@ -2888,7 +2888,7 @@ describe("handle_agent_failure", () => {
 
     it("includes a link to the ET specification docs", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
-      expect(result).toContain("https://github.github.com/gh-aw/reference/effective-tokens-specification/");
+      expect(result).toContain("https://github.github.com/gh-aw/specs/effective-tokens-specification/");
     });
 
     it("includes a link to the token optimization guide", () => {

@@ -425,6 +425,7 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/threat-detection/aw-prompts\n",
+		"          rm -f /tmp/gh-aw/agent_usage.json\n",
 		"          cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true\n",
 		"          if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then\n",
 		"            echo \"::warning::ERR_VALIDATION: Missing or empty detection context prompt at /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt. Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. Detection will continue with fallback workflow context.\"\n",

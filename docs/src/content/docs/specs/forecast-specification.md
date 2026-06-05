@@ -9,7 +9,7 @@ sidebar:
 
 **Version**: 0.1.0  
 **Status**: Experimental Draft  
-**Latest Version**: [forecast-specification](/gh-aw/reference/forecast-specification/)  
+**Latest Version**: [forecast-specification](/gh-aw/specs/forecast-specification/)  
 **Editor**: GitHub Agentic Workflows Team
 
 > ⚠️ **Experimental**: This specification describes a feature that is under active development. The command interface, output schema, and algorithmic parameters are subject to change without notice. Do not depend on this interface in production workflows.
@@ -101,7 +101,7 @@ This specification covers:
 
 This specification does NOT cover:
 
-- The Effective Tokens (ET) computation algorithm (defined in the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/))
+- The Effective Tokens (ET) computation algorithm (defined in the [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/))
 - The `aw_info.json` artifact schema
 - A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/experimental/experiments-specification/))
 - Billing, pricing, or financial modeling beyond token projections
@@ -145,7 +145,7 @@ Implementations MUST support:
 
 ### 3.1 Effective Tokens (ET)
 
-A normalized unit of LLM token consumption defined in the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/). ET accounts for token class weights and model multipliers to produce a single comparable scalar across heterogeneous LLM invocations.
+A normalized unit of LLM token consumption defined in the [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/). ET accounts for token class weights and model multipliers to produce a single comparable scalar across heterogeneous LLM invocations.
 
 ### 3.2 Workflow Run
 
@@ -1131,7 +1131,7 @@ Safeguard requirements for this specification are now defined in §10.7.
 
 - **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. <https://www.ietf.org/rfc/rfc2119.txt>
 - **[RFC 3339]** Klyne, G. and Newman, C., "Date and Time on the Internet: Timestamps", RFC 3339, July 2002. <https://www.ietf.org/rfc/rfc3339.txt>
-- **[ET-SPEC]** GitHub Agentic Workflows Team, "Effective Tokens Specification". [effective-tokens-specification](/gh-aw/reference/effective-tokens-specification/)
+- **[ET-SPEC]** GitHub Agentic Workflows Team, "Effective Tokens Specification". [effective-tokens-specification](/gh-aw/specs/effective-tokens-specification/)
 - **[EXP-SPEC]** GitHub Agentic Workflows Team, "A/B Experiments Specification". [experiments-specification](/gh-aw/experimental/experiments-specification/)
 
 ### Informative References

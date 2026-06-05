@@ -1176,6 +1176,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/ace-editor"
       GH_AW_COMMANDS: "[\"ace\"]"

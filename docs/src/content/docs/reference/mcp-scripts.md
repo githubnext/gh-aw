@@ -277,7 +277,7 @@ MCP Scripts tools run on the GitHub Actions **runner host** — outside the agen
 
 ## Related Documentation
 
-- [MCP Scripts Specification](/gh-aw/reference/mcp-scripts-specification/) - Formal W3C-style specification
+- [MCP Scripts Specification](/gh-aw/specs/mcp-scripts-specification/) - Formal W3C-style specification
 - [Tools](/gh-aw/reference/tools/) - Other tool configuration options
 - [Imports](/gh-aw/reference/imports/) - Importing shared workflows
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Automated post-workflow actions

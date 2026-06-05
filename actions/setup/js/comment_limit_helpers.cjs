@@ -9,7 +9,7 @@
  *
  * The limits defined here must match the constraints documented in:
  * - pkg/workflow/js/safe_outputs_tools.json (add_comment tool description)
- * - docs/src/content/docs/reference/safe-outputs-specification.md
+ * - docs/src/content/docs/specs/safe-outputs-specification.md
  *
  * This ensures constraint consistency per Requirement MCE5.
  */
