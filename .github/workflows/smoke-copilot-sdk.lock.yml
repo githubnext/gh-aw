@@ -870,6 +870,7 @@ jobs:
           COPILOT_SDK_URI: http://127.0.0.1:3002
           GH_AW_COPILOT_SDK_DRIVER: 1
           GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-all-tools","--allow-all-paths","--no-custom-instructions"]'
+          GH_AW_MAX_TOOL_DENIALS: 5
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent

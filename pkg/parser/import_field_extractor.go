@@ -77,6 +77,7 @@ type importAccumulator struct {
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
 	mergedMaxTurns                string
+	mergedMaxToolDenials          string
 	mergedMaxRuns                 string
 	mergedMaxEffectiveTokens      string
 	mergedMaxDailyEffectiveTokens string
@@ -350,13 +351,14 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // extractConfigFields extracts scalar and builder-based configuration fields from the
 // frontmatter map and writes them into the appropriate accumulator builders and slices.
 //
-// Side effects: acc.mergedMaxTurns, acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
+// Side effects: acc.mergedMaxTurns, acc.mergedMaxToolDenials, acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
 // acc.mergedMaxDailyEffectiveTokens, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
 func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath string) {
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turns", &acc.mergedMaxTurns)
+	acc.extractFirstWinsJSONField(fm, fullPath, "max-tool-denials", &acc.mergedMaxToolDenials)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-effective-tokens", &acc.mergedMaxEffectiveTokens)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyEffectiveTokens)
@@ -734,6 +736,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
 		MergedEngineModel:             acc.mergedEngineModel,
 		MergedMaxTurns:                acc.mergedMaxTurns,
+		MergedMaxToolDenials:          acc.mergedMaxToolDenials,
 		MergedMaxRuns:                 acc.mergedMaxRuns,
 		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
 		MergedMaxDailyEffectiveTokens: acc.mergedMaxDailyEffectiveTokens,

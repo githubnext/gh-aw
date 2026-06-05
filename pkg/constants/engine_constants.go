@@ -348,6 +348,10 @@ const (
 	// EnvVarMaxTurns is the maximum number of turns for agent execution
 	EnvVarMaxTurns = "GH_AW_MAX_TURNS"
 
+	// EnvVarMaxToolDenials is the maximum number of repeated tool denials
+	// allowed in Copilot SDK driver mode before inference is stopped.
+	EnvVarMaxToolDenials = "GH_AW_MAX_TOOL_DENIALS"
+
 	// EnvVarStartupTimeout is the tool startup timeout in seconds
 	EnvVarStartupTimeout = "GH_AW_STARTUP_TIMEOUT"
 
@@ -374,6 +378,12 @@ const (
 	// a comma- or newline-separated list of GitHub usernames elevated to "approved" integrity.
 	// Set as an org or repo variable to apply a consistent trusted user list across all workflows.
 	EnvVarGitHubTrustedUsers = "GH_AW_GITHUB_TRUSTED_USERS"
+)
+
+const (
+	// DefaultMaxToolDenials is the default maximum number of repeated tool
+	// denials allowed in Copilot SDK mode before stopping inference.
+	DefaultMaxToolDenials = 5
 )
 
 // CopilotStemCommands defines commands that Copilot CLI treats as "stem" commands

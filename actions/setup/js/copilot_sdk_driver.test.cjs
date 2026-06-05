@@ -344,5 +344,169 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
       expect(approveAll).not.toHaveBeenCalled();
     });
+
+    it("stops session when permission denials reach max-tool-denials threshold", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let sessionConfig;
+      const session = {
+        sessionId: "session-max-tool-denials",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          return { data: { content: "should-not-complete" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "3";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("max tool denials threshold reached");
+        expect(disconnect).toHaveBeenCalled();
+      } finally {
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
+        } else {
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
+        }
+      }
+    });
+
+    it("falls back to default threshold when GH_AW_MAX_TOOL_DENIALS is malformed", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let sessionConfig;
+      const session = {
+        sessionId: "session-max-tool-denials-malformed-env",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          return { data: { content: "completed" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "3ms";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+      } finally {
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
+        } else {
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
+        }
+      }
+    });
+
+    it("returns threshold error when sendAndWait fails after catastrophic denial disconnect", async () => {
+      let sessionConfig;
+      let disconnected = false;
+      const disconnect = vi.fn().mockImplementation(async () => {
+        disconnected = true;
+      });
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const session = {
+        sessionId: "session-max-tool-denials-disconnect",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          if (disconnected) {
+            throw new Error("transport disconnected");
+          }
+          return { data: { content: "unexpected" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "2";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("max tool denials threshold reached");
+      } finally {
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
+        } else {
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
+        }
+      }
+    });
   });
 });
