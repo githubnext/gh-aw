@@ -2,4406 +2,656 @@
   "data": [
     {
       "id": "anthropic/claude-opus-4.7-fast",
-      "canonical_slug": "anthropic/claude-4.7-opus-fast-20260512",
-      "hugging_face_id": null,
-      "name": "Anthropic: Claude Opus 4.7 (Fast)",
-      "created": 1778613011,
-      "description": "Fast-mode variant of [Opus 4.7](/anthropic/claude-opus-4.7) - identical capabilities with higher output speed at premium 6x pricing.\n\nLearn more in Anthropic's docs: https://platform.claude.com/docs/en/build-with-claude/fast-mode",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00003",
         "completion": "0.00015",
         "web_search": "0.01",
         "input_cache_read": "0.000003",
         "input_cache_write": "0.0000375"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "tool_choice",
-        "tools",
-        "verbosity"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.7-opus-fast-20260512/endpoints"
       }
     },
     {
       "id": "openai/gpt-chat-latest",
-      "canonical_slug": "openai/gpt-chat-latest-20260505",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT Chat Latest",
-      "created": 1778000212,
-      "description": "GPT Chat Latest points to OpenAI's stable API alias `chat-latest` that always resolves to the latest Instant chat model used in ChatGPT. As OpenAI rolls out new Instant model updates...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000005",
         "completion": "0.00003",
         "web_search": "0.01",
         "input_cache_read": "0.0000005"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "tool_choice",
-        "tools",
-        "top_logprobs"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-chat-latest-20260505/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.5-pro",
-      "canonical_slug": "openai/gpt-5.5-pro-20260423",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.5 Pro",
-      "created": 1777051896,
-      "description": "GPT-5.5 Pro is OpenAI’s high-capability model optimized for deep reasoning and accuracy on complex, high-stakes workloads. It features a 1M+ token context window (922K input, 128K output) with support for...",
-      "context_length": 1050000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00003",
         "completion": "0.00018",
         "web_search": "0.01"
-      },
-      "top_provider": {
-        "context_length": 1050000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-12-01",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.5-pro-20260423/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.5",
-      "canonical_slug": "openai/gpt-5.5-20260423",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.5",
-      "created": 1777051893,
-      "description": "GPT-5.5 is OpenAI’s frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks. It features a 1M+ token...",
-      "context_length": 1050000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000005",
         "completion": "0.00003",
         "web_search": "0.01",
         "input_cache_read": "0.0000005"
-      },
-      "top_provider": {
-        "context_length": 1050000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-12-01",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.5-20260423/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.4-image-2",
-      "canonical_slug": "openai/gpt-5.4-image-2-20260421",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.4 Image 2",
-      "created": 1776797528,
-      "description": "[GPT-5.4](https://openrouter.ai/openai/gpt-5.4) Image 2 combines OpenAI's GPT-5.4 model with state-of-the-art image generation capabilities from GPT Image 2. It enables rich multimodal workflows, allowing users to seamlessly move between reasoning, coding, and...",
-      "context_length": 272000,
-      "architecture": {
-        "modality": "text+image+file->text+image",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "image",
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000008",
         "completion": "0.000015",
         "web_search": "0.01",
         "input_cache_read": "0.000002"
-      },
-      "top_provider": {
-        "context_length": 272000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "top_logprobs"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.4-image-2-20260421/endpoints"
       }
     },
     {
       "id": "anthropic/claude-opus-4.7",
-      "canonical_slug": "anthropic/claude-4.7-opus-20260416",
-      "hugging_face_id": null,
-      "name": "Anthropic: Claude Opus 4.7",
-      "created": 1776351100,
-      "description": "Opus 4.7 is the next generation of Anthropic's Opus family, built for long-running, asynchronous agents. Building on the coding and agentic strengths of Opus 4.6, it delivers stronger performance on...",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000005",
         "completion": "0.000025",
         "web_search": "0.01",
         "input_cache_read": "0.0000005",
         "input_cache_write": "0.00000625"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "tool_choice",
-        "tools",
-        "verbosity"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.7-opus-20260416/endpoints"
       }
     },
     {
       "id": "anthropic/claude-opus-4.6-fast",
-      "canonical_slug": "anthropic/claude-4.6-opus-fast-20260407",
-      "hugging_face_id": null,
-      "name": "Anthropic: Claude Opus 4.6 (Fast)",
-      "created": 1775592472,
-      "description": "Fast-mode variant of [Opus 4.6](/anthropic/claude-opus-4.6) - identical capabilities with higher output speed at premium 6x pricing.\n\nLearn more in Anthropic's docs: https://platform.claude.com/docs/en/build-with-claude/fast-mode",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00003",
         "completion": "0.00015",
         "web_search": "0.01",
         "input_cache_read": "0.000003",
         "input_cache_write": "0.0000375"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p",
-        "verbosity"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.6-opus-fast-20260407/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.4-nano",
-      "canonical_slug": "openai/gpt-5.4-nano-20260317",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.4 Nano",
-      "created": 1773748187,
-      "description": "GPT-5.4 nano is the most lightweight and cost-efficient variant of the GPT-5.4 family, optimized for speed-critical and high-volume tasks. It supports text and image inputs and is designed for low-latency...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000002",
         "completion": "0.00000125",
         "web_search": "0.01",
         "input_cache_read": "0.00000002"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-08-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.4-nano-20260317/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.4-mini",
-      "canonical_slug": "openai/gpt-5.4-mini-20260317",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.4 Mini",
-      "created": 1773748178,
-      "description": "GPT-5.4 mini brings the core capabilities of GPT-5.4 to a faster, more efficient model optimized for high-throughput workloads. It supports text and image inputs with strong performance across reasoning, coding,...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000075",
         "completion": "0.0000045",
         "web_search": "0.01",
         "input_cache_read": "0.000000075"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-08-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.4-mini-20260317/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.4-pro",
-      "canonical_slug": "openai/gpt-5.4-pro-20260305",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.4 Pro",
-      "created": 1772734366,
-      "description": "GPT-5.4 Pro is OpenAI's most advanced model, building on GPT-5.4's unified architecture with enhanced reasoning capabilities for complex, high-stakes tasks. It features a 1M+ token context window (922K input, 128K...",
-      "context_length": 1050000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00003",
         "completion": "0.00018",
         "web_search": "0.01"
-      },
-      "top_provider": {
-        "context_length": 1050000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.4-pro-20260305/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.4",
-      "canonical_slug": "openai/gpt-5.4-20260305",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.4",
-      "created": 1772734352,
-      "description": "GPT-5.4 is OpenAI’s latest frontier model, unifying the Codex and GPT lines into a single system. It features a 1M+ token context window (922K input, 128K output) with support for...",
-      "context_length": 1050000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.000015",
         "web_search": "0.01",
         "input_cache_read": "0.00000025"
-      },
-      "top_provider": {
-        "context_length": 1050000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.4-20260305/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.3-chat",
-      "canonical_slug": "openai/gpt-5.3-chat-20260303",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.3 Chat",
-      "created": 1772564061,
-      "description": "GPT-5.3 Chat is an update to ChatGPT's most-used model that makes everyday conversations smoother, more useful, and more directly helpful. It delivers more accurate answers with better contextualization and significantly...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000175",
         "completion": "0.000014",
         "web_search": "0.01",
         "input_cache_read": "0.000000175"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_completion_tokens",
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.3-chat-20260303/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.3-codex",
-      "canonical_slug": "openai/gpt-5.3-codex-20260224",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.3-Codex",
-      "created": 1771959164,
-      "description": "GPT-5.3-Codex is OpenAI’s most advanced agentic coding model, combining the frontier software engineering performance of GPT-5.2-Codex with the broader reasoning and professional knowledge capabilities of GPT-5.2. It achieves state-of-the-art results...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000175",
         "completion": "0.000014",
         "web_search": "0.01",
         "input_cache_read": "0.000000175"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.3-codex-20260224/endpoints"
       }
     },
     {
       "id": "anthropic/claude-sonnet-4.6",
-      "canonical_slug": "anthropic/claude-4.6-sonnet-20260217",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Sonnet 4.6",
-      "created": 1771342990,
-      "description": "Sonnet 4.6 is Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work. It excels at iterative development, complex codebase navigation, end-to-end project management with...",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000003",
         "completion": "0.000015",
         "web_search": "0.01",
         "input_cache_read": "0.0000003",
         "input_cache_write": "0.00000375"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p",
-        "verbosity"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.6-sonnet-20260217/endpoints"
       }
     },
     {
       "id": "anthropic/claude-opus-4.6",
-      "canonical_slug": "anthropic/claude-4.6-opus-20260205",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Opus 4.6",
-      "created": 1770219050,
-      "description": "Opus 4.6 is Anthropic’s strongest model for coding and long-running professional tasks. It is built for agents that operate across entire workflows rather than single prompts, making it especially effective...",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000005",
         "completion": "0.000025",
         "web_search": "0.01",
         "input_cache_read": "0.0000005",
         "input_cache_write": "0.00000625"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p",
-        "verbosity"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.6-opus-20260205/endpoints"
       }
     },
     {
       "id": "openai/gpt-audio",
-      "canonical_slug": "openai/gpt-audio",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT Audio",
-      "created": 1768862569,
-      "description": "The gpt-audio model is OpenAI's first generally available audio model. The new snapshot features an upgraded decoder for more natural sounding voices and maintains better voice consistency. Audio is priced...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+audio->text+audio",
-        "input_modalities": [
-          "text",
-          "audio"
-        ],
-        "output_modalities": [
-          "text",
-          "audio"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.00001",
         "audio": "0.000032"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-audio/endpoints"
       }
     },
     {
       "id": "openai/gpt-audio-mini",
-      "canonical_slug": "openai/gpt-audio-mini",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT Audio Mini",
-      "created": 1768859419,
-      "description": "A cost-efficient version of GPT Audio. The new snapshot features an upgraded decoder for more natural sounding voices and maintains better voice consistency. Input is priced at $0.60 per million...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+audio->text+audio",
-        "input_modalities": [
-          "text",
-          "audio"
-        ],
-        "output_modalities": [
-          "text",
-          "audio"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000006",
         "completion": "0.0000024",
         "audio": "0.0000006"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-audio-mini/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.2-codex",
-      "canonical_slug": "openai/gpt-5.2-codex-20260114",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.2-Codex",
-      "created": 1768409315,
-      "description": "GPT-5.2-Codex is an upgraded version of GPT-5.1-Codex optimized for software engineering and coding workflows. It is designed for both interactive development sessions and long, independent execution of complex engineering tasks....",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000175",
         "completion": "0.000014",
         "input_cache_read": "0.000000175"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.2-codex-20260114/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.2-chat",
-      "canonical_slug": "openai/gpt-5.2-chat-20251211",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.2 Chat",
-      "created": 1765389783,
-      "description": "GPT-5.2 Chat (AKA Instant) is the fast, lightweight member of the 5.2 family, optimized for low-latency chat while retaining strong general intelligence. It uses adaptive reasoning to selectively “think” on...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000175",
         "completion": "0.000014",
         "input_cache_read": "0.000000175"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 32000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_completion_tokens",
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.2-chat-20251211/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.2-pro",
-      "canonical_slug": "openai/gpt-5.2-pro-20251211",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.2 Pro",
-      "created": 1765389780,
-      "description": "GPT-5.2 Pro is OpenAI’s most advanced model, offering major improvements in agentic coding and long context performance over GPT-5 Pro. It is optimized for complex tasks that require step-by-step reasoning,...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000021",
         "completion": "0.000168",
         "web_search": "0.01"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.2-pro-20251211/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.2",
-      "canonical_slug": "openai/gpt-5.2-20251211",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.2",
-      "created": 1765389775,
-      "description": "GPT-5.2 is the latest frontier-grade model in the GPT-5 series, offering stronger agentic and long context perfomance compared to GPT-5.1. It uses adaptive reasoning to allocate computation dynamically, responding quickly...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000175",
         "completion": "0.000014",
         "input_cache_read": "0.000000175"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.2-20251211/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.1-codex-max",
-      "canonical_slug": "openai/gpt-5.1-codex-max-20251204",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.1-Codex-Max",
-      "created": 1764878934,
-      "description": "GPT-5.1-Codex-Max is OpenAI’s latest agentic coding model, designed for long-running, high-context software development tasks. It is based on an updated version of the 5.1 reasoning stack and trained on agentic...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "web_search": "0.01",
         "input_cache_read": "0.000000125"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.1-codex-max-20251204/endpoints"
       }
     },
     {
       "id": "anthropic/claude-opus-4.5",
-      "canonical_slug": "anthropic/claude-4.5-opus-20251124",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Opus 4.5",
-      "created": 1764010580,
-      "description": "Claude Opus 4.5 is Anthropic’s frontier reasoning model optimized for complex software engineering, agentic workflows, and long-horizon computer use. It offers strong multimodal capabilities, competitive performance across real-world coding and...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000005",
         "completion": "0.000025",
         "web_search": "0.01",
         "input_cache_read": "0.0000005",
         "input_cache_write": "0.00000625"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 64000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "verbosity"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.5-opus-20251124/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.1",
-      "canonical_slug": "openai/gpt-5.1-20251113",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.1",
-      "created": 1763060305,
-      "description": "GPT-5.1 is the latest frontier-grade model in the GPT-5 series, offering stronger general-purpose reasoning, improved instruction adherence, and a more natural conversational style compared to GPT-5. It uses adaptive reasoning...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "input_cache_read": "0.00000013"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.1-20251113/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.1-chat",
-      "canonical_slug": "openai/gpt-5.1-chat-20251113",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.1 Chat",
-      "created": 1763060302,
-      "description": "GPT-5.1 Chat (AKA Instant is the fast, lightweight member of the 5.1 family, optimized for low-latency chat while retaining strong general intelligence. It uses adaptive reasoning to selectively “think” on...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "web_search": "0.01",
         "input_cache_read": "0.000000125"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_completion_tokens",
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.1-chat-20251113/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.1-codex",
-      "canonical_slug": "openai/gpt-5.1-codex-20251113",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.1-Codex",
-      "created": 1763060298,
-      "description": "GPT-5.1-Codex is a specialized version of GPT-5.1 optimized for software engineering and coding workflows. It is designed for both interactive development sessions and long, independent execution of complex engineering tasks....",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "input_cache_read": "0.000000125"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.1-codex-20251113/endpoints"
       }
     },
     {
       "id": "openai/gpt-5.1-codex-mini",
-      "canonical_slug": "openai/gpt-5.1-codex-mini-20251113",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5.1-Codex-Mini",
-      "created": 1763057820,
-      "description": "GPT-5.1-Codex-Mini is a smaller and faster version of GPT-5.1-Codex",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000025",
         "completion": "0.000002",
         "input_cache_read": "0.00000003"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5.1-codex-mini-20251113/endpoints"
       }
     },
     {
       "id": "openai/gpt-oss-safeguard-20b",
-      "canonical_slug": "openai/gpt-oss-safeguard-20b",
-      "hugging_face_id": "openai/gpt-oss-safeguard-20b",
-      "name": "OpenAI: gpt-oss-safeguard-20b",
-      "created": 1761752836,
-      "description": "gpt-oss-safeguard-20b is a safety reasoning model from OpenAI built upon gpt-oss-20b. This open-weight, 21B-parameter Mixture-of-Experts (MoE) model offers lower latency for safety tasks like content classification, LLM filtering, and trust...",
-      "context_length": 131072,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000000075",
         "completion": "0.0000003",
         "input_cache_read": "0.000000037"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 65536,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-oss-safeguard-20b/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-image-mini",
-      "canonical_slug": "openai/gpt-5-image-mini",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Image Mini",
-      "created": 1760624583,
-      "description": "GPT-5 Image Mini combines OpenAI's advanced language capabilities, powered by [GPT-5 Mini](https://openrouter.ai/openai/gpt-5-mini), with GPT Image 1 Mini for efficient image generation. This natively multimodal model features superior instruction following, text...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text+image",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "image",
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.000002",
         "web_search": "0.01",
         "input_cache_read": "0.00000025"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-image-mini/endpoints"
       }
     },
     {
       "id": "anthropic/claude-haiku-4.5",
-      "canonical_slug": "anthropic/claude-4.5-haiku-20251001",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Haiku 4.5",
-      "created": 1760547638,
-      "description": "Claude Haiku 4.5 is Anthropic’s fastest and most efficient model, delivering near-frontier intelligence at a fraction of the cost and latency of larger Claude models. Matching Claude Sonnet 4’s performance...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000001",
         "completion": "0.000005",
         "web_search": "0.01",
         "input_cache_read": "0.0000001",
         "input_cache_write": "0.00000125"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 64000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.5-haiku-20251001/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-image",
-      "canonical_slug": "openai/gpt-5-image",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Image",
-      "created": 1760447986,
-      "description": "[GPT-5](https://openrouter.ai/openai/gpt-5) Image combines OpenAI's GPT-5 model with state-of-the-art image generation capabilities. It offers major improvements in reasoning, code quality, and user experience while incorporating GPT Image 1's superior instruction following,...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text+image",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "image",
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00001",
         "completion": "0.00001",
         "web_search": "0.01",
         "input_cache_read": "0.00000125"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-image/endpoints"
       }
     },
     {
       "id": "openai/o3-deep-research",
-      "canonical_slug": "openai/o3-deep-research-2025-06-26",
-      "hugging_face_id": "",
-      "name": "OpenAI: o3 Deep Research",
-      "created": 1760129661,
-      "description": "o3-deep-research is OpenAI's advanced model for deep research, designed to tackle complex, multi-step research tasks.\n\nNote: This model always uses the 'web_search' tool which adds additional cost.",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00001",
         "completion": "0.00004",
         "web_search": "0.01",
         "input_cache_read": "0.0000025"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o3-deep-research-2025-06-26/endpoints"
       }
     },
     {
       "id": "openai/o4-mini-deep-research",
-      "canonical_slug": "openai/o4-mini-deep-research-2025-06-26",
-      "hugging_face_id": "",
-      "name": "OpenAI: o4 Mini Deep Research",
-      "created": 1760129642,
-      "description": "o4-mini-deep-research is OpenAI's faster, more affordable deep research model—ideal for tackling complex, multi-step research tasks.\n\nNote: This model always uses the 'web_search' tool which adds additional cost.",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000002",
         "completion": "0.000008",
         "web_search": "0.01",
         "input_cache_read": "0.0000005"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": null,
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o4-mini-deep-research-2025-06-26/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-pro",
-      "canonical_slug": "openai/gpt-5-pro-2025-10-06",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Pro",
-      "created": 1759776663,
-      "description": "GPT-5 Pro is OpenAI’s most advanced model, offering major improvements in reasoning, code quality, and user experience. It is optimized for complex tasks that require step-by-step reasoning, instruction following, and...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000015",
         "completion": "0.00012",
         "web_search": "0.01"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-pro-2025-10-06/endpoints"
       }
     },
     {
       "id": "anthropic/claude-sonnet-4.5",
-      "canonical_slug": "anthropic/claude-4.5-sonnet-20250929",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Sonnet 4.5",
-      "created": 1759161676,
-      "description": "Claude Sonnet 4.5 is Anthropic’s most advanced Sonnet model to date, optimized for real-world agents and coding workflows. It delivers state-of-the-art performance on coding benchmarks such as SWE-bench Verified, with...",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000003",
         "completion": "0.000015",
         "web_search": "0.01",
         "input_cache_read": "0.0000003",
         "input_cache_write": "0.00000375"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 64000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": 1,
-        "top_p": 1,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-01-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.5-sonnet-20250929/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-codex",
-      "canonical_slug": "openai/gpt-5-codex",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Codex",
-      "created": 1758643403,
-      "description": "GPT-5-Codex is a specialized version of GPT-5 optimized for software engineering and coding workflows. It is designed for both interactive development sessions and long, independent execution of complex engineering tasks....",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "input_cache_read": "0.000000125"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-codex/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-audio-preview",
-      "canonical_slug": "openai/gpt-4o-audio-preview",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4o Audio",
-      "created": 1755233061,
-      "description": "The gpt-4o-audio-preview model adds support for audio inputs as prompts. This enhancement allows the model to detect nuances within audio recordings and add depth to generated user experiences. Audio outputs...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+audio->text+audio",
-        "input_modalities": [
-          "audio",
-          "text"
-        ],
-        "output_modalities": [
-          "text",
-          "audio"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.00001",
         "audio": "0.00004"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-audio-preview/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-chat",
-      "canonical_slug": "openai/gpt-5-chat-2025-08-07",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Chat",
-      "created": 1754587837,
-      "description": "GPT-5 Chat is designed for advanced, natural, multimodal, and context-aware conversations for enterprise applications.",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "file",
-          "image",
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "web_search": "0.01",
         "input_cache_read": "0.000000125"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-chat-2025-08-07/endpoints"
       }
     },
     {
       "id": "openai/gpt-5",
-      "canonical_slug": "openai/gpt-5-2025-08-07",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5",
-      "created": 1754587413,
-      "description": "GPT-5 is OpenAI’s most advanced model, offering major improvements in reasoning, code quality, and user experience. It is optimized for complex tasks that require step-by-step reasoning, instruction following, and accuracy...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000125",
         "completion": "0.00001",
         "input_cache_read": "0.000000125"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-2025-08-07/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-mini",
-      "canonical_slug": "openai/gpt-5-mini-2025-08-07",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Mini",
-      "created": 1754587407,
-      "description": "GPT-5 Mini is a compact version of GPT-5, designed to handle lighter-weight reasoning tasks. It provides the same instruction-following and safety-tuning benefits as GPT-5, but with reduced latency and cost....",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000025",
         "completion": "0.000002",
         "web_search": "0.01",
         "input_cache_read": "0.000000025"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": 128000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-05-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-mini-2025-08-07/endpoints"
       }
     },
     {
       "id": "openai/gpt-5-nano",
-      "canonical_slug": "openai/gpt-5-nano-2025-08-07",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-5 Nano",
-      "created": 1754587402,
-      "description": "GPT-5-Nano is the smallest and fastest variant in the GPT-5 system, optimized for developer tools, rapid interactions, and ultra-low latency environments. While limited in reasoning depth compared to its larger...",
-      "context_length": 400000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000005",
         "completion": "0.0000004",
         "input_cache_read": "0.00000001"
-      },
-      "top_provider": {
-        "context_length": 400000,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_completion_tokens",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-05-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-5-nano-2025-08-07/endpoints"
       }
     },
     {
       "id": "openai/gpt-oss-120b:free",
-      "canonical_slug": "openai/gpt-oss-120b",
-      "hugging_face_id": "openai/gpt-oss-120b",
-      "name": "OpenAI: gpt-oss-120b (free)",
-      "created": 1754414231,
-      "description": "gpt-oss-120b is an open-weight, 117B-parameter Mixture-of-Experts (MoE) language model from OpenAI designed for high-reasoning, agentic, and general-purpose production use cases. It activates 5.1B parameters per forward pass and is optimized...",
-      "context_length": 131072,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0",
         "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 131072,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-oss-120b/endpoints"
       }
     },
     {
       "id": "openai/gpt-oss-120b",
-      "canonical_slug": "openai/gpt-oss-120b",
-      "hugging_face_id": "openai/gpt-oss-120b",
-      "name": "OpenAI: gpt-oss-120b",
-      "created": 1754414231,
-      "description": "gpt-oss-120b is an open-weight, 117B-parameter Mixture-of-Experts (MoE) language model from OpenAI designed for high-reasoning, agentic, and general-purpose production use cases. It activates 5.1B parameters per forward pass and is optimized...",
-      "context_length": 131072,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000000039",
         "completion": "0.00000018"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-oss-120b/endpoints"
       }
     },
     {
       "id": "openai/gpt-oss-20b:free",
-      "canonical_slug": "openai/gpt-oss-20b",
-      "hugging_face_id": "openai/gpt-oss-20b",
-      "name": "OpenAI: gpt-oss-20b (free)",
-      "created": 1754414229,
-      "description": "gpt-oss-20b is an open-weight 21B parameter model released by OpenAI under the Apache 2.0 license. It uses a Mixture-of-Experts (MoE) architecture with 3.6B active parameters per forward pass, optimized for...",
-      "context_length": 131072,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0",
         "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 8192,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-oss-20b/endpoints"
       }
     },
     {
       "id": "openai/gpt-oss-20b",
-      "canonical_slug": "openai/gpt-oss-20b",
-      "hugging_face_id": "openai/gpt-oss-20b",
-      "name": "OpenAI: gpt-oss-20b",
-      "created": 1754414229,
-      "description": "gpt-oss-20b is an open-weight 21B parameter model released by OpenAI under the Apache 2.0 license. It uses a Mixture-of-Experts (MoE) architecture with 3.6B active parameters per forward pass, optimized for...",
-      "context_length": 131072,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000003",
         "completion": "0.00000014"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 131072,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-oss-20b/endpoints"
       }
     },
     {
       "id": "anthropic/claude-opus-4.1",
-      "canonical_slug": "anthropic/claude-4.1-opus-20250805",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Opus 4.1",
-      "created": 1754411591,
-      "description": "Claude Opus 4.1 is an updated version of Anthropic’s flagship model, offering improved performance in coding, reasoning, and agentic tasks. It achieves 74.5% on SWE-bench Verified and shows notable gains...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000015",
         "completion": "0.000075",
         "web_search": "0.01",
         "input_cache_read": "0.0000015",
         "input_cache_write": "0.00001875"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 32000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-01-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4.1-opus-20250805/endpoints"
       }
     },
     {
       "id": "openai/o3-pro",
-      "canonical_slug": "openai/o3-pro-2025-06-10",
-      "hugging_face_id": "",
-      "name": "OpenAI: o3 Pro",
-      "created": 1749598352,
-      "description": "The o-series of models are trained with reinforcement learning to think before they answer and perform complex reasoning. The o3-pro model uses more compute to think harder and provide consistently...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "file",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00002",
         "completion": "0.00008",
         "web_search": "0.01"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o3-pro-2025-06-10/endpoints"
       }
     },
     {
       "id": "anthropic/claude-opus-4",
-      "canonical_slug": "anthropic/claude-4-opus-20250522",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Opus 4",
-      "created": 1747931245,
-      "description": "Claude Opus 4 is benchmarked as the world’s best coding model, at time of release, bringing sustained performance on complex, long-running tasks and agent workflows. It sets new benchmarks in...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000015",
         "completion": "0.000075",
         "web_search": "0.01",
         "input_cache_read": "0.0000015",
         "input_cache_write": "0.00001875"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 32000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-01-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4-opus-20250522/endpoints"
       }
     },
     {
       "id": "anthropic/claude-sonnet-4",
-      "canonical_slug": "anthropic/claude-4-sonnet-20250522",
-      "hugging_face_id": "",
-      "name": "Anthropic: Claude Sonnet 4",
-      "created": 1747930371,
-      "description": "Claude Sonnet 4 significantly enhances the capabilities of its predecessor, Sonnet 3.7, excelling in both coding and reasoning tasks with improved precision and controllability. Achieving state-of-the-art performance on SWE-bench (72.7%),...",
-      "context_length": 1000000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000003",
         "completion": "0.000015",
         "web_search": "0.01",
         "input_cache_read": "0.0000003",
         "input_cache_write": "0.00000375"
-      },
-      "top_provider": {
-        "context_length": 1000000,
-        "max_completion_tokens": 64000,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2025-01-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-4-sonnet-20250522/endpoints"
       }
     },
     {
       "id": "openai/o4-mini-high",
-      "canonical_slug": "openai/o4-mini-high-2025-04-16",
-      "hugging_face_id": "",
-      "name": "OpenAI: o4 Mini High",
-      "created": 1744824212,
-      "description": "OpenAI o4-mini-high is the same model as [o4-mini](/openai/o4-mini) with reasoning_effort set to high. OpenAI o4-mini is a compact reasoning model in the o-series, optimized for fast, cost-efficient performance while retaining...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000011",
         "completion": "0.0000044",
         "web_search": "0.01",
         "input_cache_read": "0.000000275"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o4-mini-high-2025-04-16/endpoints"
       }
     },
     {
       "id": "openai/o3",
-      "canonical_slug": "openai/o3-2025-04-16",
-      "hugging_face_id": "",
-      "name": "OpenAI: o3",
-      "created": 1744823457,
-      "description": "o3 is a well-rounded and powerful model across domains. It sets a new standard for math, science, coding, and visual reasoning tasks. It also excels at technical writing and instruction-following....",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000002",
         "completion": "0.000008",
         "web_search": "0.01",
         "input_cache_read": "0.0000005"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o3-2025-04-16/endpoints"
       }
     },
     {
       "id": "openai/o4-mini",
-      "canonical_slug": "openai/o4-mini-2025-04-16",
-      "hugging_face_id": "",
-      "name": "OpenAI: o4 Mini",
-      "created": 1744820942,
-      "description": "OpenAI o4-mini is a compact reasoning model in the o-series, optimized for fast, cost-efficient performance while retaining strong multimodal and agentic capabilities. It supports tool use and demonstrates competitive reasoning...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000011",
         "completion": "0.0000044",
         "web_search": "0.01",
         "input_cache_read": "0.000000275"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o4-mini-2025-04-16/endpoints"
       }
     },
     {
       "id": "openai/gpt-4.1",
-      "canonical_slug": "openai/gpt-4.1-2025-04-14",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4.1",
-      "created": 1744651385,
-      "description": "GPT-4.1 is a flagship large language model optimized for advanced instruction following, real-world software engineering, and long-context reasoning. It supports a 1 million token context window and outperforms GPT-4o and...",
-      "context_length": 1047576,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000002",
         "completion": "0.000008",
         "input_cache_read": "0.0000005"
-      },
-      "top_provider": {
-        "context_length": 1047576,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_completion_tokens",
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4.1-2025-04-14/endpoints"
       }
     },
     {
       "id": "openai/gpt-4.1-mini",
-      "canonical_slug": "openai/gpt-4.1-mini-2025-04-14",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4.1 Mini",
-      "created": 1744651381,
-      "description": "GPT-4.1 Mini is a mid-sized model delivering performance competitive with GPT-4o at substantially lower latency and cost. It retains a 1 million token context window and scores 45.1% on hard...",
-      "context_length": 1047576,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000004",
         "completion": "0.0000016",
         "web_search": "0.01",
         "input_cache_read": "0.0000001"
-      },
-      "top_provider": {
-        "context_length": 1047576,
-        "max_completion_tokens": 32768,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_completion_tokens",
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4.1-mini-2025-04-14/endpoints"
       }
     },
     {
       "id": "openai/gpt-4.1-nano",
-      "canonical_slug": "openai/gpt-4.1-nano-2025-04-14",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4.1 Nano",
-      "created": 1744651369,
-      "description": "For tasks that demand low latency, GPT‑4.1 nano is the fastest and cheapest model in the GPT-4.1 series. It delivers exceptional performance at a small size with its 1 million...",
-      "context_length": 1047576,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000001",
         "completion": "0.0000004",
         "web_search": "0.01",
         "input_cache_read": "0.000000025"
-      },
-      "top_provider": {
-        "context_length": 1047576,
-        "max_completion_tokens": 32768,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_completion_tokens",
-        "max_tokens",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-06-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4.1-nano-2025-04-14/endpoints"
       }
     },
     {
       "id": "openai/o1-pro",
-      "canonical_slug": "openai/o1-pro",
-      "hugging_face_id": "",
-      "name": "OpenAI: o1-pro",
-      "created": 1742423211,
-      "description": "The o1 series of models are trained with reinforcement learning to think before they answer and perform complex reasoning. The o1-pro model uses more compute to think harder and provide...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00015",
         "completion": "0.0006"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o1-pro/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-mini-search-preview",
-      "canonical_slug": "openai/gpt-4o-mini-search-preview-2025-03-11",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4o-mini Search Preview",
-      "created": 1741818122,
-      "description": "GPT-4o mini Search Preview is a specialized model for web search in Chat Completions. It is trained to understand and execute web search queries.",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000015",
         "completion": "0.0000006",
         "web_search": "0.0275"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_tokens",
-        "response_format",
-        "structured_outputs",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-mini-search-preview-2025-03-11/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-search-preview",
-      "canonical_slug": "openai/gpt-4o-search-preview-2025-03-11",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4o Search Preview",
-      "created": 1741817949,
-      "description": "GPT-4o Search Previewis a specialized model for web search in Chat Completions. It is trained to understand and execute web search queries.",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.00001",
         "web_search": "0.035"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_tokens",
-        "response_format",
-        "structured_outputs",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-search-preview-2025-03-11/endpoints"
       }
     },
     {
       "id": "openai/o3-mini-high",
-      "canonical_slug": "openai/o3-mini-high-2025-01-31",
-      "hugging_face_id": "",
-      "name": "OpenAI: o3 Mini High",
-      "created": 1739372611,
-      "description": "OpenAI o3-mini-high is the same model as [o3-mini](/openai/o3-mini) with reasoning_effort set to high. o3-mini is a cost-efficient language model optimized for STEM reasoning tasks, particularly excelling in science, mathematics, and...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+file->text",
-        "input_modalities": [
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000011",
         "completion": "0.0000044",
         "input_cache_read": "0.00000055"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o3-mini-high-2025-01-31/endpoints"
       }
     },
     {
       "id": "openai/o3-mini",
-      "canonical_slug": "openai/o3-mini-2025-01-31",
-      "hugging_face_id": "",
-      "name": "OpenAI: o3 Mini",
-      "created": 1738351721,
-      "description": "OpenAI o3-mini is a cost-efficient language model optimized for STEM reasoning tasks, particularly excelling in science, mathematics, and coding. This model supports the `reasoning_effort` parameter, which can be set to...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+file->text",
-        "input_modalities": [
-          "text",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000011",
         "completion": "0.0000044",
         "input_cache_read": "0.00000055"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o3-mini-2025-01-31/endpoints"
       }
     },
     {
       "id": "openai/o1",
-      "canonical_slug": "openai/o1-2024-12-17",
-      "hugging_face_id": "",
-      "name": "OpenAI: o1",
-      "created": 1734459999,
-      "description": "The latest and strongest model family from OpenAI, o1 is designed to spend more time thinking before responding. The o1 model series is trained with large-scale reinforcement learning to reason...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000015",
         "completion": "0.00006",
         "input_cache_read": "0.0000075"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 100000,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "tool_choice",
-        "tools"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "top_k": null,
-        "frequency_penalty": null,
-        "presence_penalty": null,
-        "repetition_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/o1-2024-12-17/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-2024-11-20",
-      "canonical_slug": "openai/gpt-4o-2024-11-20",
-      "hugging_face_id": "",
-      "name": "OpenAI: GPT-4o (2024-11-20)",
-      "created": 1732127594,
-      "description": "The 2024-11-20 version of GPT-4o offers a leveled-up creative writing ability with more natural, engaging, and tailored writing to improve relevance & readability. It’s also better at working with uploaded...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.00001",
         "input_cache_read": "0.00000125"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-2024-11-20/endpoints"
       }
     },
     {
       "id": "anthropic/claude-3.5-haiku",
-      "canonical_slug": "anthropic/claude-3-5-haiku",
-      "hugging_face_id": null,
-      "name": "Anthropic: Claude 3.5 Haiku",
-      "created": 1730678400,
-      "description": "Claude 3.5 Haiku features offers enhanced capabilities in speed, coding accuracy, and tool use. Engineered to excel in real-time applications, it delivers quick response times that are essential for dynamic...",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000008",
         "completion": "0.000004",
         "web_search": "0.01",
         "input_cache_read": "0.00000008",
         "input_cache_write": "0.000001"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 8192,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_tokens",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {
-        "temperature": null,
-        "top_p": null,
-        "frequency_penalty": null
-      },
-      "supported_voices": null,
-      "knowledge_cutoff": "2024-07-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-3-5-haiku/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-2024-08-06",
-      "canonical_slug": "openai/gpt-4o-2024-08-06",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4o (2024-08-06)",
-      "created": 1722902400,
-      "description": "The 2024-08-06 version of GPT-4o offers improved performance in structured outputs, with the ability to supply a JSON schema in the respone_format. Read more [here](https://openai.com/index/introducing-structured-outputs-in-the-api/). GPT-4o (\"o\" for \"omni\") is...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.00001",
         "input_cache_read": "0.00000125"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-2024-08-06/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-mini-2024-07-18",
-      "canonical_slug": "openai/gpt-4o-mini-2024-07-18",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4o-mini (2024-07-18)",
-      "created": 1721260800,
-      "description": "GPT-4o mini is OpenAI's newest model after [GPT-4 Omni](/models/openai/gpt-4o), supporting both text and image inputs with text outputs. As their most advanced small model, it is many multiples more affordable...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000015",
         "completion": "0.0000006",
         "input_cache_read": "0.000000075"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-mini-2024-07-18/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-mini",
-      "canonical_slug": "openai/gpt-4o-mini",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4o-mini",
-      "created": 1721260800,
-      "description": "GPT-4o mini is OpenAI's newest model after [GPT-4 Omni](/models/openai/gpt-4o), supporting both text and image inputs with text outputs. As their most advanced small model, it is many multiples more affordable...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000015",
         "completion": "0.0000006",
         "input_cache_read": "0.000000075"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-mini/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o",
-      "canonical_slug": "openai/gpt-4o",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4o",
-      "created": 1715558400,
-      "description": "GPT-4o (\"o\" for \"omni\") is OpenAI's latest AI model, supporting both text and image inputs with text outputs. It maintains the intelligence level of [GPT-4 Turbo](/models/openai/gpt-4-turbo) while being twice as...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000025",
         "completion": "0.00001"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 16384,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o/endpoints"
       }
     },
     {
       "id": "openai/gpt-4o-2024-05-13",
-      "canonical_slug": "openai/gpt-4o-2024-05-13",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4o (2024-05-13)",
-      "created": 1715558400,
-      "description": "GPT-4o (\"o\" for \"omni\") is OpenAI's latest AI model, supporting both text and image inputs with text outputs. It maintains the intelligence level of [GPT-4 Turbo](/models/openai/gpt-4-turbo) while being twice as...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000005",
         "completion": "0.000015"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 4096,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p",
-        "web_search_options"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-10-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4o-2024-05-13/endpoints"
       }
     },
     {
       "id": "openai/gpt-4-turbo",
-      "canonical_slug": "openai/gpt-4-turbo",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4 Turbo",
-      "created": 1712620800,
-      "description": "The latest GPT-4 Turbo model with vision capabilities. Vision requests can now use JSON mode and function calling.\n\nTraining data: up to December 2023.",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00001",
         "completion": "0.00003"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-12-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4-turbo/endpoints"
       }
     },
     {
       "id": "anthropic/claude-3-haiku",
-      "canonical_slug": "anthropic/claude-3-haiku",
-      "hugging_face_id": null,
-      "name": "Anthropic: Claude 3 Haiku",
-      "created": 1710288000,
-      "description": "Claude 3 Haiku is Anthropic's fastest and most compact model for\nnear-instant responsiveness. Quick and accurate targeted performance.\n\nSee the launch announcement and benchmark results [here](https://www.anthropic.com/news/claude-3-haiku)\n\n#multimodal",
-      "context_length": 200000,
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Claude",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00000025",
         "completion": "0.00000125",
         "input_cache_read": "0.00000003",
         "input_cache_write": "0.0000003"
-      },
-      "top_provider": {
-        "context_length": 200000,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "max_tokens",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-08-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/anthropic/claude-3-haiku/endpoints"
       }
     },
     {
       "id": "openai/gpt-3.5-turbo-0613",
-      "canonical_slug": "openai/gpt-3.5-turbo-0613",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-3.5 Turbo (older v0613)",
-      "created": 1706140800,
-      "description": "GPT-3.5 Turbo is OpenAI's fastest model. It can understand and generate natural language or code, and is optimized for chat and traditional completion tasks.\n\nTraining data up to Sep 2021.",
-      "context_length": 4095,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000001",
         "completion": "0.000002"
-      },
-      "top_provider": {
-        "context_length": 4095,
-        "max_completion_tokens": 4096,
-        "is_moderated": false
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2021-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-3.5-turbo-0613/endpoints"
       }
     },
     {
       "id": "openai/gpt-4-turbo-preview",
-      "canonical_slug": "openai/gpt-4-turbo-preview",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4 Turbo Preview",
-      "created": 1706140800,
-      "description": "The preview GPT-4 model with improved instruction following, JSON mode, reproducible outputs, parallel function calling, and more. Training data: up to Dec 2023. **Note:** heavily rate limited by OpenAI while...",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00001",
         "completion": "0.00003"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-12-31",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4-turbo-preview/endpoints"
       }
     },
     {
       "id": "openai/gpt-4-1106-preview",
-      "canonical_slug": "openai/gpt-4-1106-preview",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4 Turbo (older v1106)",
-      "created": 1699228800,
-      "description": "The latest GPT-4 Turbo model with vision capabilities. Vision requests can now use JSON mode and function calling.\n\nTraining data: up to April 2023.",
-      "context_length": 128000,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00001",
         "completion": "0.00003"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2023-04-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4-1106-preview/endpoints"
       }
     },
     {
       "id": "openai/gpt-3.5-turbo-instruct",
-      "canonical_slug": "openai/gpt-3.5-turbo-instruct",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-3.5 Turbo Instruct",
-      "created": 1695859200,
-      "description": "This model is a variant of GPT-3.5 Turbo tuned for instructional prompts and omitting chat-related optimizations. Training data: up to Sep 2021.",
-      "context_length": 4095,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": "chatml"
-      },
       "pricing": {
         "prompt": "0.0000015",
         "completion": "0.000002"
-      },
-      "top_provider": {
-        "context_length": 4095,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2021-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-3.5-turbo-instruct/endpoints"
       }
     },
     {
       "id": "openai/gpt-3.5-turbo-16k",
-      "canonical_slug": "openai/gpt-3.5-turbo-16k",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-3.5 Turbo 16k",
-      "created": 1693180800,
-      "description": "This model offers four times the context length of gpt-3.5-turbo, allowing it to support approximately 20 pages of text in a single request at a higher cost. Training data: up...",
-      "context_length": 16385,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.000003",
         "completion": "0.000004"
-      },
-      "top_provider": {
-        "context_length": 16385,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2021-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-3.5-turbo-16k/endpoints"
       }
     },
     {
       "id": "openai/gpt-4-0314",
-      "canonical_slug": "openai/gpt-4-0314",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4 (older v0314)",
-      "created": 1685232000,
-      "description": "GPT-4-0314 is the first version of GPT-4 released, with a context length of 8,192 tokens, and was supported until June 14. Training data: up to Sep 2021.",
-      "context_length": 8191,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00003",
         "completion": "0.00006"
-      },
-      "top_provider": {
-        "context_length": 8191,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2021-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4-0314/endpoints"
       }
     },
     {
       "id": "openai/gpt-4",
-      "canonical_slug": "openai/gpt-4",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-4",
-      "created": 1685232000,
-      "description": "OpenAI's flagship model, GPT-4 is a large-scale multimodal language model capable of solving difficult problems with greater accuracy than previous models due to its broader general knowledge and advanced reasoning...",
-      "context_length": 8191,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.00003",
         "completion": "0.00006"
-      },
-      "top_provider": {
-        "context_length": 8191,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2021-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-4/endpoints"
       }
     },
     {
       "id": "openai/gpt-3.5-turbo",
-      "canonical_slug": "openai/gpt-3.5-turbo",
-      "hugging_face_id": null,
-      "name": "OpenAI: GPT-3.5 Turbo",
-      "created": 1685232000,
-      "description": "GPT-3.5 Turbo is OpenAI's fastest model. It can understand and generate natural language or code, and is optimized for chat and traditional completion tasks.\n\nTraining data up to Sep 2021.",
-      "context_length": 16385,
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      },
       "pricing": {
         "prompt": "0.0000005",
         "completion": "0.0000015"
-      },
-      "top_provider": {
-        "context_length": 16385,
-        "max_completion_tokens": 4096,
-        "is_moderated": true
-      },
-      "per_request_limits": null,
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_logprobs",
-        "top_p"
-      ],
-      "default_parameters": {},
-      "supported_voices": null,
-      "knowledge_cutoff": "2021-09-30",
-      "expiration_date": null,
-      "links": {
-        "details": "/api/v1/models/openai/gpt-3.5-turbo/endpoints"
       }
     }
   ]
