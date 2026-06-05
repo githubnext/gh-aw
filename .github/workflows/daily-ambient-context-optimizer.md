@@ -85,11 +85,11 @@ Eligibility rules:
   - preferred: `prompt.txt`
   - fallback: the first `user.message` event in `events.jsonl`
 
-Prefer higher-cost runs first by using `effective_tokens`, `token_usage`, `turns`, or prompt size when available.
+Prefer higher-cost runs first by using `aic`, then `effective_tokens`, `token_usage`, `turns`, or prompt size when available.
 
 ### Step 3 — Enrich a subset with audits
 
-Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer token context and references.
+Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer cost context and references.
 
 ## First-Request Extraction Rules
 
@@ -114,7 +114,7 @@ Include at least:
 - `run_url`
 - `status`
 - `conclusion`
-- `effective_tokens`
+- `aic`
 - `token_usage`
 - `turns`
 - `request_chars`
