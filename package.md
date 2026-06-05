@@ -73,7 +73,7 @@ Keep package manifest simple:
 Documentation links:
 
 - https://github.github.com/gh-aw/reference/repository-package-manifest/
-- https://github.github.com/gh-aw/reference/repository-package-manifest-specification/
+- https://github.github.com/gh-aw/specs/repository-package-manifest-specification/
 
 ## Step 4: Dependency Cleanup for Reusability
 
