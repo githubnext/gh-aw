@@ -299,7 +299,12 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
   const log = msg => logger(`[sdk-driver] ${msg}`);
   log(`attempt ${attempt + 1}: connecting to Copilot SDK at ${sdkUri}`);
-  const maxToolDenialsLimit = maxToolDenials === undefined ? getEnvPositiveIntOrDefault("GH_AW_MAX_TOOL_DENIALS", MAX_TOOL_DENIALS_DEFAULT) : parseMaxToolDenialsLimit(maxToolDenials);
+  let maxToolDenialsLimit = MAX_TOOL_DENIALS_DEFAULT;
+  if (maxToolDenials === undefined) {
+    maxToolDenialsLimit = getEnvPositiveIntOrDefault("GH_AW_MAX_TOOL_DENIALS", MAX_TOOL_DENIALS_DEFAULT);
+  } else {
+    maxToolDenialsLimit = parseMaxToolDenialsLimit(maxToolDenials);
+  }
   log(`max-tool-denials threshold: ${maxToolDenialsLimit}`);
 
   // Session state directory — mirrors the target path used by unified_timeline.cjs.
