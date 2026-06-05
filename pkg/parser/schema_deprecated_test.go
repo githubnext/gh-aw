@@ -180,6 +180,26 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 		}
 	}
 
+	// features.inline-agents must be detected with its x-deprecation-message.
+	inlineAgents, ok := byPath["features.inline-agents"]
+	if !ok {
+		t.Error("expected 'features.inline-agents' in deep deprecated fields, not found")
+	} else {
+		if inlineAgents.DeprecationMessage == "" {
+			t.Error("features.inline-agents: DeprecationMessage should not be empty")
+		}
+	}
+
+	// rate-limit must be detected with its x-deprecation-message.
+	rateLimit, ok := byPath["rate-limit"]
+	if !ok {
+		t.Error("expected 'rate-limit' in deep deprecated fields, not found")
+	} else {
+		if rateLimit.DeprecationMessage == "" {
+			t.Error("rate-limit: DeprecationMessage should not be empty")
+		}
+	}
+
 	t.Logf("Found %d deep deprecated fields in schema", len(fields))
 }
 
