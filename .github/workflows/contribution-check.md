@@ -75,6 +75,26 @@ steps:
       EVALUATED_COUNT=$(echo "$EVALUATED" | jq 'length')
       SKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))
 
+      # Pre-fetch PR diff and changed-file metadata so the subagent can read from disk
+      for PR_NUMBER in $(echo "$EVALUATED" | jq -r '.[]'); do
+        if gh pr diff "$PR_NUMBER" \
+            --repo "$TARGET_REPOSITORY" > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}.diff" 2>/dev/null; then
+          echo "✓ Pre-fetched diff for PR #$PR_NUMBER"
+        else
+          echo "" > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}.diff"
+          echo "⚠ Could not pre-fetch diff for PR #$PR_NUMBER; wrote empty fallback"
+        fi
+
+        if gh api "repos/$TARGET_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '[.[] | {filename, status, additions, deletions, changes}]' \
+            > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.json" 2>/dev/null; then
+          echo "✓ Pre-fetched changed files for PR #$PR_NUMBER"
+        else
+          echo "[]" > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.json"
+          echo "⚠ Could not pre-fetch changed files for PR #$PR_NUMBER; wrote [] fallback"
+        fi
+      done
+
       # Write results to workspace root
       jq -n \
         --argjson pr_numbers "$EVALUATED" \
@@ -152,7 +172,12 @@ Call the contribution-checker subagent for each PR with this prompt:
 ```
 The CONTRIBUTING.md content for this repository is attached below (already truncated to 2000 chars by the pre-agent step).
 Skip Step 1 — do not fetch CONTRIBUTING.md again.
-Do not call GitHub Actions APIs (do not list or read workflow runs). Focus exclusively on PR metadata, diff, and contributing guidelines.
+The pre-agent step already wrote PR artifacts to disk:
+- `pr-<number>.diff`
+- `pr-<number>-files.json`
+Read those files from disk for this PR and do not call `get_diff` or `get_files`.
+Do not call GitHub Actions APIs (do not list or read workflow runs). Focus exclusively on PR metadata, prefetched files, and contributing guidelines.
+If any PR read fails with `connection refused` or `dial tcp ...:18443`, retry at most once and then emit `report_incomplete`.
 
 <contributing-guidelines>
 {contents of contributing-guidelines-truncated.md}
@@ -169,7 +194,7 @@ The subagent will return a single JSON object with the verdict and a comment for
 
 Dispatch **ALL subagent calls simultaneously in a single tool-use block** before waiting for any results. Do not wait for one subagent to return before dispatching the next. Collect all results only after every dispatch has been initiated.
 
-Each subagent call is stateless and self-contained. It fetches its own PR data.
+Each subagent call is stateless and self-contained. It reads pre-fetched PR data from workspace files.
 
 ### Collecting results
 

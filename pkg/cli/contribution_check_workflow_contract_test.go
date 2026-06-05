@@ -32,4 +32,8 @@ func TestContributionCheckWorkflowSafeOutputContract(t *testing.T) {
 	assert.Contains(t, text, "#<temporary_id>", "Workflow must describe item_number temporary_id reference format")
 	assert.Contains(t, text, "Never emit `add_comment` without a numeric target field", "Workflow must forbid targetless add_comment items")
 	assert.Contains(t, text, "\"issue_number\":35304", "Workflow should include a concrete add_comment issue_number example")
+	assert.Contains(t, text, "pr-<number>.diff", "Workflow must document the pre-fetched PR diff artifact")
+	assert.Contains(t, text, "pr-<number>-files.json", "Workflow must document the pre-fetched PR file metadata artifact")
+	assert.Contains(t, text, "do not call `get_diff` or `get_files`", "Workflow must explicitly prohibit in-agent PR diff/files fetch calls")
+	assert.Contains(t, text, "retry at most once and then emit `report_incomplete`", "Workflow must enforce fail-fast retry guidance for connection failures")
 }
