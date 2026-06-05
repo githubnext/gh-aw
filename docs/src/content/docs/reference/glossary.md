@@ -150,7 +150,7 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 ### Outcome Efficiency
 
-A cost-quality metric computed as effective tokens divided by accepted outcomes. Lower values indicate the workflow spent less AI work per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
+A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow spent less AI spend per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
 
 ### Pwn Request
 

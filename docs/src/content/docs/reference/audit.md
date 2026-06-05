@@ -91,8 +91,8 @@ The Metrics section includes an `ambient_context` object when available. Ambient
 - Anomaly flags (new denied domains, previously-denied domains now allowed)
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns)
-- Token usage breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, total API requests, and cache efficiency per run
-- Tokens per turn: effective tokens divided by turn count for each run, with the change between runs
+- Token usage and spend breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, AIC, total API requests, and cache efficiency per run
+- Tokens per turn: effective tokens divided by turn count for each run, with the change between runs (plus AIC visibility for spend tracking)
 - Tool call breakdown: per-tool call counts (new, removed, and changed tools) with max input/output sizes
 - Bash command breakdown: aggregated call counts and max input/output sizes for each distinct bash command invoked
 
@@ -145,7 +145,8 @@ gh aw logs --format markdown --repo owner/repo --count 10
 
 - [Cost Management](/gh-aw/reference/cost-management/) — Track token usage and inference spend
 - [Artifacts](/gh-aw/reference/artifacts/) — Artifact names, directory structures, and token usage file locations (`token-usage.jsonl` in `firewall-audit-logs`)
-- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) — How effective tokens are computed
+- [Cost Management](/gh-aw/reference/cost-management/) — Preferred AIC-based cost tracking and budgeting
+- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) — Legacy effective token computation details
 - [Network](/gh-aw/reference/network/) — Firewall and domain allow/deny configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — MCP server health and debugging
 - [CLI Commands](/gh-aw/setup/cli/) — Full CLI reference
