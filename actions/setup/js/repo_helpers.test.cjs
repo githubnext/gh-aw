@@ -86,6 +86,20 @@ describe("repo_helpers", () => {
       expect(result).toBe("config-org/config-repo");
     });
 
+    it("should support target_repo alias in config", async () => {
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const config = { target_repo: "alias-org/alias-repo" };
+      const result = getDefaultTargetRepo(config);
+      expect(result).toBe("alias-org/alias-repo");
+    });
+
+    it("should support targetRepo alias in config", async () => {
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const config = { targetRepo: "camel-org/camel-repo" };
+      const result = getDefaultTargetRepo(config);
+      expect(result).toBe("camel-org/camel-repo");
+    });
+
     it("should return target-repo override when set", async () => {
       process.env.GH_AW_TARGET_REPO_SLUG = "override-org/override-repo";
       const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");

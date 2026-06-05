@@ -59,6 +59,8 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  * Handler configuration object with repository settings
  * @typedef {Object} HandlerRepoConfig
  * @property {string} [target-repo] - Configured target repository
+ * @property {string} [target_repo] - Configured target repository (underscore alias)
+ * @property {string} [targetRepo] - Configured target repository (camelCase alias)
  * @property {string[]|string} [allowed_repos] - Allowed repositories (array or comma-separated)
  */
 
@@ -100,9 +102,15 @@ function parseAllowedRepos(allowedReposValue) {
  * @returns {string} Repository slug in "owner/repo" format
  */
 function getDefaultTargetRepo(config) {
-  // First check if there's a target-repo in config
+  // First check if there's an explicit target repo in config
   if (config && config["target-repo"]) {
     return config["target-repo"];
+  }
+  if (config && config.target_repo) {
+    return config.target_repo;
+  }
+  if (config && config.targetRepo) {
+    return config.targetRepo;
   }
   // Fall back to env var for backward compatibility
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
