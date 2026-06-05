@@ -20,6 +20,9 @@ The cost of running an agentic workflow is the sum of two components: **GitHub A
 AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit reports alongside raw token counts, and as `{ai_credits_suffix}` in workflow footer templates. For structured output, each run under `.runs[]` includes an `aic` field and each episode under `.episodes[]` includes `total_aic`.
 
 > [!NOTE]
+> AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
+
+> [!NOTE]
 > Effective Tokens (ET) remain available for backward compatibility and are still the most reliable proxy for Copilot inference usage. For all other engines, prefer AIC. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the ET definition.
 
 ## Cost Components
