@@ -77,21 +77,55 @@ steps:
 
       # Pre-fetch PR diff and changed-file metadata so the subagent can read from disk
       for PR_NUMBER in $(echo "$EVALUATED" | jq -r '.[]'); do
+        DIFF_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}.diff"
+        DIFF_ERR_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}.diff.err"
+        FILES_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.json"
+        FILES_TMP_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.tmp.json"
+        FILES_ERR_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.err"
+
         if gh pr diff "$PR_NUMBER" \
-            --repo "$TARGET_REPOSITORY" > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}.diff" 2>/dev/null; then
+            --repo "$TARGET_REPOSITORY" > "$DIFF_PATH" 2>"$DIFF_ERR_PATH"; then
+          rm -f "$DIFF_ERR_PATH"
           echo "✓ Pre-fetched diff for PR #$PR_NUMBER"
         else
-          echo "" > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}.diff"
-          echo "⚠ Could not pre-fetch diff for PR #$PR_NUMBER; wrote empty fallback"
+          echo "" > "$DIFF_PATH"
+          echo "⚠ Could not pre-fetch diff for PR #$PR_NUMBER; wrote empty fallback (details in pr-${PR_NUMBER}.diff.err)"
         fi
 
-        if gh api "repos/$TARGET_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
-            --jq '[.[] | {filename, status, additions, deletions, changes}]' \
-            > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.json" 2>/dev/null; then
+        echo "[]" > "$FILES_TMP_PATH"
+        FILES_FETCH_OK=true
+        PAGE=1
+        while true; do
+          PAGE_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files-page-${PAGE}.json"
+          PAGE_NORM_PATH="$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files-page-${PAGE}-normalized.json"
+
+          if gh api "repos/$TARGET_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100&page=$PAGE" \
+              > "$PAGE_PATH" 2>"$FILES_ERR_PATH"; then
+            PAGE_COUNT=$(jq 'length' "$PAGE_PATH")
+            jq '[.[] | {filename, status, additions, deletions, changes}]' "$PAGE_PATH" > "$PAGE_NORM_PATH"
+            jq -s '.[0] + .[1]' "$FILES_TMP_PATH" "$PAGE_NORM_PATH" > "${FILES_TMP_PATH}.new"
+            mv "${FILES_TMP_PATH}.new" "$FILES_TMP_PATH"
+            rm -f "$PAGE_PATH" "$PAGE_NORM_PATH"
+
+            if [ "$PAGE_COUNT" -lt 100 ]; then
+              break
+            fi
+            PAGE=$((PAGE + 1))
+          else
+            FILES_FETCH_OK=false
+            rm -f "$PAGE_PATH" "$PAGE_NORM_PATH" "${FILES_TMP_PATH}.new"
+            break
+          fi
+        done
+
+        if [ "$FILES_FETCH_OK" = "true" ]; then
+          mv "$FILES_TMP_PATH" "$FILES_PATH"
+          rm -f "$FILES_ERR_PATH"
           echo "✓ Pre-fetched changed files for PR #$PR_NUMBER"
         else
-          echo "[]" > "$GITHUB_WORKSPACE/pr-${PR_NUMBER}-files.json"
-          echo "⚠ Could not pre-fetch changed files for PR #$PR_NUMBER; wrote [] fallback"
+          rm -f "$FILES_TMP_PATH"
+          echo "[]" > "$FILES_PATH"
+          echo "⚠ Could not pre-fetch changed files for PR #$PR_NUMBER; wrote [] fallback (details in pr-${PR_NUMBER}-files.err)"
         fi
       done
 
@@ -177,7 +211,7 @@ The pre-agent step already wrote PR artifacts to disk:
 - `pr-<number>-files.json`
 Read those files from disk for this PR and do not call `get_diff` or `get_files`.
 Do not call GitHub Actions APIs (do not list or read workflow runs). Focus exclusively on PR metadata, prefetched files, and contributing guidelines.
-If any PR read fails with `connection refused` or `dial tcp ...:18443`, retry at most once and then emit `report_incomplete`.
+If you must perform any additional PR reads and a read fails with `connection refused` or `dial tcp ...:18443`, retry at most once and then emit `report_incomplete`.
 
 <contributing-guidelines>
 {contents of contributing-guidelines-truncated.md}
