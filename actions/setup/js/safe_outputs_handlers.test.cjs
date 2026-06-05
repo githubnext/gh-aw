@@ -1552,6 +1552,22 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.error).toContain("noop or report_incomplete");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
+
+    it("should require explicit item_number when add_comment target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.addCommentHandler({ body: "Post a real review summary." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires item_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
   });
 
   describe("createIssueHandler", () => {
