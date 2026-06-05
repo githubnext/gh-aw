@@ -14,7 +14,7 @@ Set `max-daily-ai-credits` in your workflow frontmatter to a higher value, then 
 max-daily-ai-credits: 5M
 ```
 
-Common suffix shorthands: `K` = thousands, `M` = millions (e.g. `2K` = 2,000).
+Common suffix shorthands: `K` = thousands, `M` = millions (e.g. `2M` = 2,000,000).
 
 After editing the workflow source file, regenerate the compiled lock file:
 
