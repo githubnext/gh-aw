@@ -7,7 +7,7 @@ const { normalizeTool } = require("./mcp_server_core.cjs");
  * Applies only when the outer object does not already carry a type.
  * @param {string} toolName
  * @param {any} args
- * @param {{ debug?: (message: string) => void }} [logger]
+ * @param {{ debug?: Function }} [logger]
  * @returns {any}
  */
 function normalizeSafeOutputToolArguments(toolName, args, logger) {
@@ -24,7 +24,8 @@ function normalizeSafeOutputToolArguments(toolName, args, logger) {
   for (const candidateKey of candidateKeys) {
     const nestedArgs = args[candidateKey];
     if (nestedArgs && typeof nestedArgs === "object" && !Array.isArray(nestedArgs)) {
-      logger?.debug?.(`Unwrapped nested safe-output tool arguments for '${normalizedToolName}' from key '${candidateKey}'`);
+      const outerKeys = Object.keys(args);
+      logger?.debug?.(`Recovered wrapped safe-output tool arguments for '${normalizedToolName}' by unwrapping key '${candidateKey}' from payload keys ${JSON.stringify(outerKeys)}`);
       return nestedArgs;
     }
   }

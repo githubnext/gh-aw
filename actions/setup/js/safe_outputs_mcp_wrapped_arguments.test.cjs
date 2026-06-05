@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
 import safeOutputsMCPServerHTTP from "./safe_outputs_mcp_server_http.cjs";
+import { normalizeSafeOutputToolArguments } from "./safe_outputs_mcp_arguments.cjs";
 
 const { createMCPServer } = safeOutputsMCPServerHTTP;
 
@@ -20,6 +21,27 @@ describe("safe_outputs_mcp wrapped tool arguments", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
     delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
     delete process.env.GH_AW_SAFE_OUTPUTS;
+  });
+
+  it("logs when wrapped arguments are unwrapped", () => {
+    const debug = vi.fn();
+
+    const normalized = normalizeSafeOutputToolArguments(
+      "create_discussion",
+      {
+        create_discussion: {
+          title: "Wrapped title",
+          body: "Wrapped body",
+        },
+      },
+      { debug }
+    );
+
+    expect(normalized).toEqual({
+      title: "Wrapped title",
+      body: "Wrapped body",
+    });
+    expect(debug).toHaveBeenCalledWith("Recovered wrapped safe-output tool arguments for 'create_discussion' by unwrapping key 'create_discussion' from payload keys [\"create_discussion\"]");
   });
 
   it("unwraps child arguments that match the tool name", async () => {
