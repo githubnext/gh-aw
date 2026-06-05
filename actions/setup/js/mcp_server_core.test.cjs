@@ -186,6 +186,55 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].result.isError).toBe(false);
     });
 
+    it("should normalize tool arguments before required-field validation", async () => {
+      const { createServer, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+      results = [];
+      server = createServer(
+        { name: "test-server", version: "1.0.0" },
+        {
+          normalizeArguments: (toolName, args) => (args && args[toolName] ? args[toolName] : args),
+        }
+      );
+
+      server.writeMessage = msg => {
+        results.push(msg);
+      };
+      server.replyResult = (id, result) => {
+        if (id === undefined || id === null) return;
+        results.push({ jsonrpc: "2.0", id, result });
+      };
+      server.replyError = (id, code, message) => {
+        if (id === undefined || id === null) return;
+        results.push({ jsonrpc: "2.0", id, error: { code, message } });
+      };
+
+      registerTool(server, {
+        name: "test_tool",
+        description: "A test tool",
+        inputSchema: {
+          type: "object",
+          properties: { input: { type: "string", description: "Input text to process" } },
+          required: ["input"],
+        },
+        handler: args => ({
+          content: [{ type: "text", text: `received: ${args.input}` }],
+        }),
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: { test_tool: { input: "hello" } },
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toBe("received: hello");
+    });
+
     it("should return error for unknown tool", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 

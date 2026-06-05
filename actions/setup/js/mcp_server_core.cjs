@@ -66,6 +66,7 @@ const encoder = new TextEncoder();
  * @property {string} [logDir] - Optional log directory
  * @property {string} [logFilePath] - Optional log file path
  * @property {boolean} logFileInitialized - Whether log file has been initialized
+ * @property {(toolName: string, args: any) => any} [normalizeArguments] - Optional tool argument normalizer
  */
 
 /**
@@ -187,6 +188,7 @@ function createReplyErrorFunction(server) {
  * @param {ServerInfo} serverInfo - Server information (name and version)
  * @param {Object} [options] - Optional server configuration
  * @param {string} [options.logDir] - Directory for log file (optional)
+ * @param {(toolName: string, args: any) => any} [options.normalizeArguments] - Optional tool argument normalizer
  * @returns {MCPServer} The MCP server instance
  */
 function createServer(serverInfo, options = {}) {
@@ -206,6 +208,7 @@ function createServer(serverInfo, options = {}) {
     logDir,
     logFilePath,
     logFileInitialized: false,
+    normalizeArguments: typeof options.normalizeArguments === "function" ? options.normalizeArguments : undefined,
   };
 
   // Initialize functions with references to server
@@ -558,6 +561,21 @@ function containsAtFilepathReference(value) {
 }
 
 /**
+ * Normalize tool arguments when the server provides a custom normalizer.
+ * @param {MCPServer} server
+ * @param {string} toolName
+ * @param {any} args
+ * @returns {any}
+ */
+function normalizeToolArguments(server, toolName, args) {
+  if (typeof server.normalizeArguments !== "function") {
+    return args;
+  }
+  const normalized = server.normalizeArguments(toolName, args);
+  return normalized == null ? args : normalized;
+}
+
+/**
  * Handle an incoming JSON-RPC request and return a response (for HTTP transport)
  * This function is compatible with the MCPServer class's handleRequest method.
  * @param {MCPServer} server - The MCP server instance
@@ -603,17 +621,11 @@ async function handleRequest(server, request, defaultHandler) {
       result = { tools: list };
     } else if (method === "tools/call") {
       const name = params?.name;
-      const args = params?.arguments ?? {};
+      const rawArgs = params?.arguments ?? {};
       if (!name || typeof name !== "string") {
         throw {
           code: -32602,
           message: "Invalid params: 'name' must be a string",
-        };
-      }
-      if (containsAtFilepathReference(args)) {
-        throw {
-          code: -32602,
-          message: "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
         };
       }
       const tool = server.tools[normalizeTool(name)];
@@ -642,6 +654,14 @@ async function handleRequest(server, request, defaultHandler) {
         throw {
           code: -32603,
           message: `No handler for tool: ${name}`,
+        };
+      }
+
+      const args = normalizeToolArguments(server, tool.name, rawArgs);
+      if (containsAtFilepathReference(args)) {
+        throw {
+          code: -32602,
+          message: "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
         };
       }
 
@@ -760,13 +780,9 @@ async function handleMessage(server, req, defaultHandler) {
       server.replyResult(id, { tools: list });
     } else if (method === "tools/call") {
       const name = params?.name;
-      const args = params?.arguments ?? {};
+      const rawArgs = params?.arguments ?? {};
       if (!name || typeof name !== "string") {
         server.replyError(id, -32602, "Invalid params: 'name' must be a string");
-        return;
-      }
-      if (containsAtFilepathReference(args)) {
-        server.replyError(id, -32602, "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.");
         return;
       }
       const tool = server.tools[normalizeTool(name)];
@@ -791,6 +807,12 @@ async function handleMessage(server, req, defaultHandler) {
       }
       if (!handler) {
         server.replyError(id, -32603, `No handler for tool: ${name}`);
+        return;
+      }
+
+      const args = normalizeToolArguments(server, tool.name, rawArgs);
+      if (containsAtFilepathReference(args)) {
+        server.replyError(id, -32602, "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.");
         return;
       }
 
