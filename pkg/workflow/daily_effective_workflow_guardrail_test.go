@@ -242,7 +242,7 @@ func TestDailyETGuardrailNegativeValueRejected(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-	max-daily-ai-credits: -1
+max-daily-ai-credits: -1
 safe-outputs:
   add-comment:
     max: 1
