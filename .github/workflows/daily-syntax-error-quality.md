@@ -303,13 +303,13 @@ After Phase 5 scoring (and after Phase 6 if you created an issue):
 **Path A — Threshold met (average ≥ 65, no score < 50)**:
 Run this shell command now:
 ```
-safeoutputs:noop "Analyzed [workflow1.md] (Category A) + [workflow2.md] (Category B). Average: [N]/100. Threshold met — no issue needed."
+safeoutputs noop --message "Analyzed [workflow1.md] (Category A) + [workflow2.md] (Category B). Average: [N]/100. Threshold met — no issue needed."
 ```
 
 **Path B — Issue created in Phase 6**:
 Run this shell command now:
 ```
-safeoutputs:noop "Created quality improvement issue. Analyzed [workflow1.md] + [workflow2.md]. Average: [N]/100."
+safeoutputs noop --message "Created quality improvement issue. Analyzed [workflow1.md] + [workflow2.md]. Average: [N]/100."
 ```
 
 ⚠️ **Your session ends only after executing one of the above shell commands. Do not output text and stop — run the command.**
