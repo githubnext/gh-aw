@@ -10494,6 +10494,17 @@
         }
       ]
     },
+    "positive_ai_credits_limit": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+        }
+      ]
+    },
     "max_effective_tokens_limit": {
       "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Use a negative integer to disable budget enforcement and token steering.",
       "oneOf": [
@@ -10526,7 +10537,7 @@
       "description": "Maximum AI Credits budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable.",
       "oneOf": [
         {
-          "$ref": "#/$defs/positive_effective_tokens_limit"
+          "$ref": "#/$defs/positive_ai_credits_limit"
         },
         {
           "type": "integer",

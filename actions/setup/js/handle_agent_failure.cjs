@@ -1386,11 +1386,11 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
  * Build a context string when the 24-hour per-workflow AIC guardrail prevented the agent from
  * starting in the activation job.
  * @param {boolean} hasDailyEffectiveWorkflowExceeded - Whether the daily workflow quota was exceeded
- * @param {string} totalEffectiveTokens - Aggregated AIC usage across the last 24 hours
+ * @param {string} totalAIC - Aggregated AIC usage across the last 24 hours
  * @param {string} threshold - Configured daily workflow threshold
  * @returns {string} Formatted context string, or empty string if no failure
  */
-function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalEffectiveTokens, threshold) {
+function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalAIC, threshold) {
   if (!hasDailyEffectiveWorkflowExceeded) {
     return "";
   }
@@ -1399,7 +1399,7 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
   return (
     "\n" +
     renderTemplateFromFile(templatePath, {
-      total_effective_tokens: totalEffectiveTokens || "unknown",
+      total_effective_tokens: totalAIC || "unknown",
       threshold: threshold || "unknown",
     })
   );

@@ -124,9 +124,10 @@ func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
 }
 
 // validateMaxDailyEffectiveTokensFrontmatter returns an error when the
-// max-daily-effective-tokens frontmatter field is set to a negative integer.
-// Zero and positive values are accepted; GitHub Actions expressions are passed
-// through unchanged for runtime evaluation.
+// max-daily-ai-credits (or deprecated max-daily-effective-tokens) frontmatter field
+// is set to an integer below -1. Zero, positive values, and -1 (explicit disable)
+// are accepted; GitHub Actions expressions are passed through unchanged for
+// runtime evaluation.
 func validateMaxDailyEffectiveTokensFrontmatter(data *WorkflowData) error {
 	if data == nil || data.RawFrontmatter == nil {
 		return nil
@@ -136,8 +137,8 @@ func validateMaxDailyEffectiveTokensFrontmatter(data *WorkflowData) error {
 		if !ok {
 			continue
 		}
-		if val, ok := typeutil.ParseIntValue(raw); ok && val < 0 {
-			return fmt.Errorf("%s must be at least 0, got %d", field, val)
+		if val, ok := typeutil.ParseIntValue(raw); ok && val < -1 {
+			return fmt.Errorf("%s must be -1 (disable) or a positive integer, got %d", field, val)
 		}
 	}
 	return nil

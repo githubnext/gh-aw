@@ -258,17 +258,18 @@ func TestDailyETGuardrailNegativeValueRejected(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-explicit-disable-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail-explicit-disable.md")
 
+	// -2 is below the minimum of -1 (the explicit disable sentinel) and must be rejected.
 	workflow := `---
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-ai-credits: -1
+max-daily-ai-credits: -2
 safe-outputs:
   add-comment:
     max: 1
 ---
 
-Explicitly disable daily guardrail`
+Invalid negative daily guardrail value`
 
 	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
 		t.Fatalf("failed to write test workflow: %v", err)
@@ -277,9 +278,11 @@ Explicitly disable daily guardrail`
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(workflowFile)
 	if err == nil {
-		t.Fatal("expected compile to fail for negative max-daily-ai-credits")
+		t.Fatal("expected compile to fail for invalid negative max-daily-ai-credits")
 	}
-	if !strings.Contains(err.Error(), "must be at least 0") {
-		t.Fatalf("expected minimum value validation error, got: %v", err)
+	// Schema validation or frontmatter validation may produce the error; either
+	// correctly rejects values below -1.
+	if !strings.Contains(err.Error(), "must be -1") && !strings.Contains(err.Error(), "minimum") {
+		t.Fatalf("expected validation error rejecting -2, got: %v", err)
 	}
 }

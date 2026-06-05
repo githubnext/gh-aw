@@ -287,6 +287,7 @@ async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, thr
 async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
   core.setOutput("daily_effective_workflow_total_effective_tokens", "");
+  core.setOutput("daily_effective_workflow_total_ai_credits", "");
   core.setOutput("daily_effective_workflow_threshold", "");
   const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
   if (threshold <= 0) {
@@ -444,6 +445,7 @@ async function main() {
     }
 
     core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalAIC));
+    core.setOutput("daily_effective_workflow_total_ai_credits", String(totalAIC));
     core.setOutput("daily_effective_workflow_threshold", String(threshold));
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
