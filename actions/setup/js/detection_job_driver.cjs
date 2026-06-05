@@ -27,8 +27,8 @@
  *   GH_AW_COPILOT_SDK_PROVIDER_BASE_URL — BYOK provider base URL
  *
  * Optional overrides:
- *   GH_AW_DETECTION_SMALL_MODEL   — model for Phase 1 triage (default: claude-haiku-4-5)
- *   GH_AW_DETECTION_LARGE_MODEL   — model for Phase 2 analysis (default: claude-sonnet-4-5)
+ *   GH_AW_DETECTION_SMALL_MODEL   — model for Phase 1 triage (default: claude-haiku-4.5)
+ *   GH_AW_DETECTION_LARGE_MODEL   — model for Phase 2 analysis (default: claude-sonnet-4.5)
  *
  * The harness starts and stops the SDK sidecar server; this driver only opens a
  * client connection, runs the session(s), and exits.
@@ -41,8 +41,8 @@ const { runWithCopilotSDK } = require("./copilot_sdk_runner.cjs");
 const { SAFE_VERDICT, buildTriagePrompt, classifyTriageResponse } = require("./detection_triage_helpers.cjs");
 
 // Default model names for the two detection phases.
-const DEFAULT_SMALL_MODEL = "claude-haiku-4-5";
-const DEFAULT_LARGE_MODEL = "claude-sonnet-4-5";
+const DEFAULT_SMALL_MODEL = "claude-haiku-4.5";
+const DEFAULT_LARGE_MODEL = "claude-sonnet-4.5";
 
 /**
  * Log a message prefixed with [detection-job-driver] to stderr.
@@ -82,10 +82,7 @@ async function main() {
 
   const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
   if (!providerBaseUrl) {
-    process.stderr.write(
-      "[detection-job-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " +
-        "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n"
-    );
+    process.stderr.write("[detection-job-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " + "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n");
     process.exit(1);
   }
 
