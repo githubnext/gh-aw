@@ -494,7 +494,7 @@ func TestParseFrontmatterConfig(t *testing.T) {
 				"env": map[string]any{
 					"NODE_ENV": "test",
 				},
-				"ports":   []any{"8080", "9000"},
+				"ports":   []any{8080, "9000"},
 				"volumes": []any{"/data:/data"},
 				"options": "--cpus 1",
 			},

@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -339,12 +340,41 @@ func (c *ContainerConfig) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	type alias ContainerConfig
-	var parsed alias
+	var parsed struct {
+		Image       string                      `json:"image,omitempty"`
+		Credentials *ContainerCredentialsConfig `json:"credentials,omitempty"`
+		Env         map[string]string           `json:"env,omitempty"`
+		Ports       []any                       `json:"ports,omitempty"`
+		Volumes     []string                    `json:"volumes,omitempty"`
+		Options     string                      `json:"options,omitempty"`
+	}
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		return fmt.Errorf("invalid container config: %w", err)
 	}
-	*c = ContainerConfig(parsed)
+
+	ports := make([]string, 0, len(parsed.Ports))
+	for _, port := range parsed.Ports {
+		switch v := port.(type) {
+		case string:
+			ports = append(ports, v)
+		case float64:
+			if v != float64(int64(v)) {
+				return fmt.Errorf("invalid container config: ports values must be strings or integers")
+			}
+			ports = append(ports, strconv.FormatInt(int64(v), 10))
+		default:
+			return fmt.Errorf("invalid container config: ports values must be strings or integers")
+		}
+	}
+
+	*c = ContainerConfig{
+		Image:       parsed.Image,
+		Credentials: parsed.Credentials,
+		Env:         parsed.Env,
+		Ports:       ports,
+		Volumes:     parsed.Volumes,
+		Options:     parsed.Options,
+	}
 	c.shorthandForm = false
 	return nil
 }
