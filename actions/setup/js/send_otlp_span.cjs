@@ -1970,9 +1970,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Gate both sources behind jobEmitsOwnTokenUsage: GH_AW_EFFECTIVE_TOKENS is
   // propagated to every downstream job via needs.agent.outputs.*, so reading it
   // unconditionally would re-inflate metrics on conclusion/safe_outputs/etc.
-  const effectiveTokens = jobEmitsOwnTokenUsage
-    ? (normalizeNonNegativeNumber(process.env.GH_AW_EFFECTIVE_TOKENS) ?? agentUsage.effective_tokens)
-    : undefined;
+  const effectiveTokens = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_EFFECTIVE_TOKENS) ?? agentUsage.effective_tokens) : undefined;
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentTimedOut = agentConclusion === "timed_out";
@@ -2072,9 +2070,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   // GH_AW_AIC is propagated to downstream jobs via needs.agent.outputs.*, so gate it
   // behind jobEmitsOwnTokenUsage to prevent non-agent jobs from re-emitting it.
-  const aiCredits = jobEmitsOwnTokenUsage
-    ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits)
-    : undefined;
+  const aiCredits = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits) : undefined;
   if (typeof aiCredits === "number" && aiCredits > 0) {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
