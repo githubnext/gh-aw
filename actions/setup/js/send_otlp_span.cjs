@@ -2053,7 +2053,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
-  const aiCredits = agentUsage.ai_credits ?? normalizeNonNegativeNumber(process.env.GH_AW_AIC);
+  const aiCredits = typeof agentUsage.ai_credits === "number" ? agentUsage.ai_credits : normalizeNonNegativeNumber(process.env.GH_AW_AIC);
   if (typeof aiCredits === "number" && aiCredits > 0) {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
