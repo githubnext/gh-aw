@@ -132,7 +132,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		result["permissions"] = fc.Permissions
 	}
 	if fc.Concurrency != nil {
-		if fc.Concurrency.isStringForm && fc.Concurrency.Group != "" && fc.Concurrency.CancelInProgress == nil && fc.Concurrency.Queue == "" && fc.Concurrency.JobDiscriminator == "" {
+		if fc.Concurrency.isShorthandOnly() {
 			result["concurrency"] = fc.Concurrency.Group
 		} else {
 			concurrency := make(map[string]any)
@@ -221,7 +221,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		result["environment"] = fc.Environment
 	}
 	if fc.Container != nil {
-		if fc.Container.isStringForm && fc.Container.Image != "" && fc.Container.Credentials == nil && len(fc.Container.Env) == 0 && len(fc.Container.Ports) == 0 && len(fc.Container.Volumes) == 0 && fc.Container.Options == "" {
+		if fc.Container.isShorthandOnly() {
 			result["container"] = fc.Container.Image
 		} else {
 			container := make(map[string]any)

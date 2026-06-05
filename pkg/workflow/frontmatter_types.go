@@ -283,7 +283,7 @@ type ConcurrencyConfig struct {
 	Queue            string `json:"queue,omitempty"`
 	JobDiscriminator string `json:"job-discriminator,omitempty"`
 
-	isStringForm bool `json:"-"`
+	shorthandForm bool `json:"-"`
 }
 
 // ContainerCredentialsConfig represents credentials for pulling private container images.
@@ -302,7 +302,7 @@ type ContainerConfig struct {
 	Volumes     []string                    `json:"volumes,omitempty"`
 	Options     string                      `json:"options,omitempty"`
 
-	isStringForm bool `json:"-"`
+	shorthandForm bool `json:"-"`
 }
 
 func (c *ConcurrencyConfig) UnmarshalJSON(data []byte) error {
@@ -312,7 +312,7 @@ func (c *ConcurrencyConfig) UnmarshalJSON(data []byte) error {
 		c.CancelInProgress = nil
 		c.Queue = ""
 		c.JobDiscriminator = ""
-		c.isStringForm = true
+		c.shorthandForm = true
 		return nil
 	}
 
@@ -322,7 +322,7 @@ func (c *ConcurrencyConfig) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid concurrency config: %w", err)
 	}
 	*c = ConcurrencyConfig(parsed)
-	c.isStringForm = false
+	c.shorthandForm = false
 	return nil
 }
 
@@ -335,7 +335,7 @@ func (c *ContainerConfig) UnmarshalJSON(data []byte) error {
 		c.Ports = nil
 		c.Volumes = nil
 		c.Options = ""
-		c.isStringForm = true
+		c.shorthandForm = true
 		return nil
 	}
 
@@ -345,8 +345,16 @@ func (c *ContainerConfig) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid container config: %w", err)
 	}
 	*c = ContainerConfig(parsed)
-	c.isStringForm = false
+	c.shorthandForm = false
 	return nil
+}
+
+func (c *ConcurrencyConfig) isShorthandOnly() bool {
+	return c.shorthandForm && c.Group != "" && c.CancelInProgress == nil && c.Queue == "" && c.JobDiscriminator == ""
+}
+
+func (c *ContainerConfig) isShorthandOnly() bool {
+	return c.shorthandForm && c.Image != "" && c.Credentials == nil && len(c.Env) == 0 && len(c.Ports) == 0 && len(c.Volumes) == 0 && c.Options == ""
 }
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
