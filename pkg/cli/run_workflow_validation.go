@@ -45,7 +45,7 @@ func IsRunnable(markdownPath string) (bool, error) {
 
 	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
 	// The lockPath is derived from markdownPath which comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304
+	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304 -- path is sanitized with filepath.Clean() and derived from trusted CLI argument
 	if err != nil {
 		return false, fmt.Errorf("failed to read lock file: %w", err)
 	}
@@ -98,7 +98,7 @@ func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinitio
 
 	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
 	// The lockPath is derived from markdownPath which comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304
+	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304 -- path is sanitized with filepath.Clean() and derived from trusted CLI argument
 	if err != nil {
 		return nil, fmt.Errorf("failed to read lock file: %w", err)
 	}
