@@ -8,7 +8,7 @@ const { computeInferenceCostUSD } = require("./model_costs.cjs");
  * Effective Tokens (ET) computation module.
  *
  * Implements the Effective Tokens specification defined in
- * docs/src/content/docs/reference/effective-tokens-specification.md.
+ * docs/src/content/docs/specs/effective-tokens-specification.md.
  *
  * Effective token values are normalized from model inference cost (USD).
  * Cost is computed using the same pricing logic used by AI Credits and then

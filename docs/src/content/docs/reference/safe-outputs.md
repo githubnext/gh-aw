@@ -72,7 +72,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Dispatch Repository Event**](#repository-dispatch-dispatch_repository) (`dispatch_repository`) - Trigger `repository_dispatch` events in external repositories, experimental (cross-repo)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) - Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) - Create automated fixes for code scanning alerts (max: 10, same-repo only)
-- [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
+- [**Create Agent Session**](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
 
 ### System Types (Auto-Enabled)
 
@@ -1311,6 +1311,8 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
+See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#create-agent-session)** for full details and authentication setup.
+
 ### Assign to Agent (`assign-to-agent:`)
 
 Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
@@ -1332,7 +1334,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-See **[Assign to Copilot](/gh-aw/reference/assign-to-copilot/)** for complete configuration options and authorization setup.
+See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#assign-to-agent)** for complete configuration options and authorization setup.
 
 If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
 
@@ -1638,7 +1640,7 @@ The `footer-install` template renders the install instructions that follow the f
 
 **Variables**: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`, `{effective_tokens}`, `{effective_tokens_formatted}`, `{effective_tokens_suffix}`
 
-`{effective_tokens}` contains the raw total effective token count for the run (e.g. `1200`), and `{effective_tokens_formatted}` is the compact human-readable form (e.g. `1.2K`, `3M`). Both are only present when the effective token count is greater than zero. `{effective_tokens_suffix}` is a pre-formatted, always-safe suffix string (e.g. `" · sonnet46 1.2K"` or `""`) that can be inserted directly into footer templates alongside `{history_link}`. When the run's engine model is known, the suffix is prefixed with a deterministic compact model identifier — `sonnetNN` for Sonnet, `gptNN` for GPT, `opusNN` for Opus, `haikuNN` for Haiku, `gemNN` for Gemini, with a stable fallback for other models. Direct short aliases like `opus`, `sonnet`, and `haiku` are preserved. The default footer automatically includes the formatted value — use these variables in custom footer templates to include token usage in your own format. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for details on how effective tokens are computed.
+`{effective_tokens}` contains the raw total effective token count for the run (e.g. `1200`), and `{effective_tokens_formatted}` is the compact human-readable form (e.g. `1.2K`, `3M`). Both are only present when the effective token count is greater than zero. `{effective_tokens_suffix}` is a pre-formatted, always-safe suffix string (e.g. `" · sonnet46 1.2K"` or `""`) that can be inserted directly into footer templates alongside `{history_link}`. When the run's engine model is known, the suffix is prefixed with a deterministic compact model identifier — `sonnetNN` for Sonnet, `gptNN` for GPT, `opusNN` for Opus, `haikuNN` for Haiku, `gemNN` for Gemini, with a stable fallback for other models. Direct short aliases like `opus`, `sonnet`, and `haiku` are preserved. The default footer automatically includes the formatted value — use these variables in custom footer templates to include token usage in your own format. See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) for details on how effective tokens are computed.
 
 ## Staged Mode
 

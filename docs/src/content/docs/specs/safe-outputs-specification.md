@@ -11,7 +11,7 @@ sidebar:
 **Status**: Working Draft  
 **Publication Date**: 2026-05-19  
 **Editor**: GitHub Agentic Workflows Team  
-**This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
+**This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
 
 ---

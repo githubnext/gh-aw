@@ -3,7 +3,7 @@ set +o histexpand
 
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
-# Specification: docs/src/content/docs/reference/safe-outputs-specification.md
+# Specification: docs/src/content/docs/specs/safe-outputs-specification.md
 # Version: 1.21.0 (2026-05-19)
 
 set -euo pipefail
@@ -274,7 +274,7 @@ check_staged_mode
 # REQ-001: RFC 2119 Keyword Usage
 echo "Running REQ-001: RFC 2119 Keyword Usage..."
 check_rfc2119() {
-    local spec_file="docs/src/content/docs/reference/safe-outputs-specification.md"
+    local spec_file="docs/src/content/docs/specs/safe-outputs-specification.md"
     local failed=0
     
     # Check key sections have RFC 2119 keywords
@@ -294,7 +294,7 @@ check_rfc2119
 # REQ-002: Safe Output Type Completeness
 echo "Running REQ-002: Safe Output Type Completeness..."
 check_type_completeness() {
-    local spec_file="docs/src/content/docs/reference/safe-outputs-specification.md"
+    local spec_file="docs/src/content/docs/specs/safe-outputs-specification.md"
     local failed=0
     
     # Extract type names
@@ -323,7 +323,7 @@ check_type_completeness
 # REQ-003: Verification Method Specification
 echo "Running REQ-003: Verification Method Specification..."
 check_verification_methods() {
-    local spec_file="docs/src/content/docs/reference/safe-outputs-specification.md"
+    local spec_file="docs/src/content/docs/specs/safe-outputs-specification.md"
     local failed=0
     
     # Check key requirements have verification methods

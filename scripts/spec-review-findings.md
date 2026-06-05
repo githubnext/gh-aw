@@ -1,7 +1,7 @@
 # Safe Outputs Specification Review Findings
 
 **Date**: 2026-02-14  
-**Specification**: [Safe Outputs MCP Gateway Specification v1.8.0](/docs/src/content/docs/reference/safe-outputs-specification.md)  
+**Specification**: [Safe Outputs MCP Gateway Specification v1.8.0](/docs/src/content/docs/specs/safe-outputs-specification.md)  
 **Commit**: [a5b6606](https://github.com/github/gh-aw/commit/a5b6606aead2b2f2c3c53a46da1d1fe88f5ee583)  
 **Reviewer**: Automated Security, Usability, and Requirements Review
 
@@ -543,7 +543,7 @@ rules:
     check: |
       # Find sentences that describe requirements without keywords
       grep -E "(must|shall|will|is required to|needs to)" \
-        docs/src/content/docs/reference/safe-outputs-specification.md | \
+        docs/src/content/docs/specs/safe-outputs-specification.md | \
         grep -v "MUST\|SHALL\|REQUIRED" || true
     severity: MEDIUM
     action: |
@@ -674,7 +674,7 @@ rules:
       Each safe output type must have complete documentation
     check: |
       # Extract all "#### Type: " headers
-      grep "^#### Type:" docs/src/content/docs/reference/safe-outputs-specification.md | \
+      grep "^#### Type:" docs/src/content/docs/specs/safe-outputs-specification.md | \
       while read -r line; do
         type_name=$(echo "$line" | sed 's/^#### Type: //')
         
@@ -876,7 +876,7 @@ rules:
     check: |
       # Check sections that should have normative statements
       for section in "Security Architecture" "Configuration Semantics" "Execution Guarantees"; do
-        grep -A 200 "## .*$section" docs/src/content/docs/reference/safe-outputs-specification.md | \
+        grep -A 200 "## .*$section" docs/src/content/docs/specs/safe-outputs-specification.md | \
         grep -q "MUST\|SHALL\|SHOULD\|MAY" || {
           echo "WARN: Section '$section' may lack RFC 2119 keywords"
         }
@@ -889,11 +889,11 @@ rules:
     description: Verify each type has all required documentation sections
     check: |
       # Extract type names and check for required sections
-      grep "^#### Type:" docs/src/content/docs/reference/safe-outputs-specification.md | \
+      grep "^#### Type:" docs/src/content/docs/specs/safe-outputs-specification.md | \
       sed 's/^#### Type: //' | while read -r type; do
         sections_found=0
         for section in "MCP Tool Schema" "Operational Semantics" "Configuration Parameters" "Security Requirements" "Required Permissions"; do
-          grep -A 150 "^#### Type: $type" docs/src/content/docs/reference/safe-outputs-specification.md | \
+          grep -A 150 "^#### Type: $type" docs/src/content/docs/specs/safe-outputs-specification.md | \
           grep -q "**$section**" && ((sections_found++))
         done
         if [ $sections_found -lt 5 ]; then
@@ -909,7 +909,7 @@ rules:
     check: |
       # Check that key requirements have verification guidance
       for req in "AR1" "AR2" "AR3" "SP1" "SP2" "SP3"; do
-        grep -A 30 "**Requirement $req:\|**Property $req:" docs/src/content/docs/reference/safe-outputs-specification.md | \
+        grep -A 30 "**Requirement $req:\|**Property $req:" docs/src/content/docs/specs/safe-outputs-specification.md | \
         grep -q "Verification:\|Formal Definition:" || {
           echo "WARN: Requirement $req may lack verification method"
         }
@@ -960,7 +960,7 @@ rules:
       # For each type, compare generated schema to spec
       for type in create_issue add_comment; do
         # Extract schema from spec
-        spec_required=$(grep -A 20 "\"$type\"" docs/src/content/docs/reference/safe-outputs-specification.md | \
+        spec_required=$(grep -A 20 "\"$type\"" docs/src/content/docs/specs/safe-outputs-specification.md | \
                        grep "\"required\":" | head -1)
         
         # Compare to generated config

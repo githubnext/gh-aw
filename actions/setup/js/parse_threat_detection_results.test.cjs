@@ -30,6 +30,7 @@ const mockCore = {
   error: vi.fn(),
   setFailed: vi.fn(),
   setOutput: vi.fn(),
+  exportVariable: vi.fn(),
 };
 global.core = mockCore;
 
@@ -722,6 +723,8 @@ describe("main", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "skipped");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -732,6 +735,8 @@ describe("main", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "skipped");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -742,6 +747,8 @@ describe("main", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "skipped");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
@@ -759,6 +766,8 @@ describe("main", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "warning");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "warning");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -771,6 +780,8 @@ describe("main", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
     });
 
@@ -783,6 +794,8 @@ describe("main", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
     });
 

@@ -180,6 +180,14 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 		}
 	}
 
+	// These legacy fields are fixed by codemods and should not remain in the main schema.
+	if _, ok := byPath["features.inline-agents"]; ok {
+		t.Error("did not expect 'features.inline-agents' in deep deprecated fields")
+	}
+	if _, ok := byPath["rate-limit"]; ok {
+		t.Error("did not expect 'rate-limit' in deep deprecated fields")
+	}
+
 	t.Logf("Found %d deep deprecated fields in schema", len(fields))
 }
 
