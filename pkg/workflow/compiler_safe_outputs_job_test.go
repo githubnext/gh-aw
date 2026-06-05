@@ -813,6 +813,48 @@ func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 	assert.Contains(t, stepsContent, "id: safe-outputs-app-token")
 }
 
+// TestGitHubAppTokenStepWithOTLPHeaders ensures the app token step insertion point
+// stays aligned when OTLP header masking steps are present.
+func TestGitHubAppTokenStepWithOTLPHeaders(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		Env: `"env":
+  OTEL_EXPORTER_OTLP_HEADERS: "Authorization=******"`,
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.ACTIONS_APP_ID }}",
+				PrivateKey: "${{ secrets.ACTIONS_PRIVATE_KEY }}",
+			},
+			AddComments: &AddCommentsConfig{},
+			AddLabels: &AddLabelsConfig{
+				Allowed: []string{"bug"},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+	require.NoError(t, err, "Should successfully build job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsContent := strings.Join(job.Steps, "")
+	maskIndex := strings.Index(stepsContent, "Mask OTLP telemetry headers")
+	downloadIndex := strings.Index(stepsContent, "Download agent output artifact")
+	setupEnvEchoIndex := strings.Index(stepsContent, "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json")
+	tokenIndex := strings.Index(stepsContent, "Generate GitHub App token")
+
+	require.NotEqual(t, -1, maskIndex, "OTLP headers mask step should be present")
+	require.NotEqual(t, -1, downloadIndex, "agent output download step should be present")
+	require.NotEqual(t, -1, setupEnvEchoIndex, "setup-agent-output-env run command should be present")
+	require.NotEqual(t, -1, tokenIndex, "GitHub App token step should be present")
+
+	assert.Less(t, maskIndex, downloadIndex, "masking should happen before artifact download")
+	assert.Less(t, setupEnvEchoIndex, tokenIndex, "app token step must be inserted after setup-agent-output-env run block")
+	assert.NotContains(t, stepsContent, "with:\n          echo \"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json\" >> \"$GITHUB_OUTPUT\"")
+}
+
 // TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback is a regression test verifying that
 // a safe-output job compiled for a workflow_call trigger uses
 // needs.activation.outputs.target_repo_name (repo name only, no owner prefix) as the repositories

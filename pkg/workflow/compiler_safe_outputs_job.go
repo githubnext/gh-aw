@@ -445,6 +445,14 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			countParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
 			insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
 		}
+		// Keep insertion index aligned with setup steps that may be injected between setup
+		// and artifact downloads (single string entry each).
+		if isOTLPHeadersPresent(data) {
+			insertIndex++
+		}
+		if isOTLPAttributesPresent(data) {
+			insertIndex++
+		}
 
 		// Add artifact download steps count
 		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
@@ -469,6 +477,12 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 
 		// Note: App token step must be inserted BEFORE shared checkout steps
 		// because those steps reference steps.safe-outputs-app-token.outputs.token
+		//
+		// The insertion index is line-oriented; if it lands in the middle of a
+		// multi-line run/with block, move it to the next step boundary.
+		for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], "      - name: ") {
+			insertIndex++
+		}
 
 		// Insert app token steps
 		var newSteps []string
