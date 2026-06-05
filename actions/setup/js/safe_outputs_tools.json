@@ -226,6 +226,10 @@
           "type": ["number", "string"],
           "description": "Pull request number to close. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger)."
         },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

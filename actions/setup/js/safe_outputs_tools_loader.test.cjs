@@ -315,6 +315,76 @@ describe("safe_outputs_tools_loader", () => {
       );
     });
 
+    it("should normalize target_repo alias into repo for strict schema tools", () => {
+      const createIssueHandler = vi.fn();
+      const tools = [
+        {
+          name: "create_issue",
+          description: "Create issue",
+          inputSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              repo: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        createIssueHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({
+        title: "hello",
+        target_repo: "octo/docs",
+      });
+
+      expect(createIssueHandler).toHaveBeenCalledWith({
+        title: "hello",
+        repo: "octo/docs",
+      });
+      expect(createIssueHandler).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          target_repo: expect.anything(),
+        })
+      );
+    });
+
+    it("should keep explicit repo over repo aliases for strict schema tools", () => {
+      const createIssueHandler = vi.fn();
+      const tools = [
+        {
+          name: "create_issue",
+          description: "Create issue",
+          inputSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              repo: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        createIssueHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({
+        title: "hello",
+        repo: "canonical/priority",
+        targetRepo: "alias/value",
+      });
+
+      expect(createIssueHandler).toHaveBeenCalledWith({
+        title: "hello",
+        repo: "canonical/priority",
+      });
+    });
+
     it("should log stripped key names for strict schema tools", () => {
       const createIssueHandler = vi.fn();
       const logger = { debug: vi.fn() };

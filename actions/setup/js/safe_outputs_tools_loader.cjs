@@ -4,6 +4,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 
 const fs = require("fs");
+const REPO_OVERRIDE_KEYS = ["repo", "target-repo", "target_repo", "targetRepo"];
+const REPO_ALIAS_KEYS = new Set(REPO_OVERRIDE_KEYS.filter(key => key !== "repo"));
 
 /**
  * Check whether a schema enforces strict object keys.
@@ -37,11 +39,25 @@ function sanitizeArgsBySchema(args, inputSchema, onUnknownKeysStripped) {
   }
 
   const allowedKeys = new Set(Object.keys(inputSchema.properties));
+  const supportsRepo = allowedKeys.has("repo");
+  let normalizedRepo;
+  if (supportsRepo) {
+    for (const key of REPO_OVERRIDE_KEYS) {
+      if (args[key] != null) {
+        normalizedRepo = args[key];
+        break;
+      }
+    }
+  }
   const sanitizedArgs = {};
   const strippedKeys = [];
   for (const [key, value] of Object.entries(args)) {
     if (allowedKeys.has(key)) {
       sanitizedArgs[key] = value;
+    } else if (supportsRepo && REPO_ALIAS_KEYS.has(key)) {
+      if (sanitizedArgs.repo == null && normalizedRepo != null) {
+        sanitizedArgs.repo = normalizedRepo;
+      }
     } else {
       strippedKeys.push(key);
     }
