@@ -13,6 +13,8 @@ import (
 
 var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_job")
 
+// stepNameLinePrefix matches the canonical YAML line emitted by this compiler for
+// step starts in job.Steps (6-space indent + "- name: ").
 const stepNameLinePrefix = "      - name: "
 
 // buildConsolidatedSafeOutputsJob builds a single job containing all safe output operations

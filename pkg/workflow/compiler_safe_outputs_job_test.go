@@ -852,6 +852,8 @@ func TestGitHubAppTokenStepWithOTLPHeaders(t *testing.T) {
 
 	assert.Less(t, maskIndex, downloadIndex, "masking should happen before artifact download")
 	assert.Less(t, setupEnvEchoIndex, tokenIndex, "app token step must be inserted after setup-agent-output-env run block")
+	// Regression guard: app token insertion must not split setup-agent-output-env and leave
+	// an `echo ...` run line nested under a previous `with:` block.
 	assert.NotContains(t, stepsContent, "with:\n          echo \"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json\" >> \"$GITHUB_OUTPUT\"")
 }
 
