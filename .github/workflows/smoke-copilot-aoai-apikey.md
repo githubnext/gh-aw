@@ -2,6 +2,8 @@
 emoji: "🧪"
 description: Smoke Copilot - AOAI (apikey)
 on: 
+  push:
+    branches: ['**']
   slash_command:
     name: smoke-copilot-aoai-apikey
     strategy: centralized
