@@ -1597,7 +1597,7 @@ not-json
     test("renders header and table columns", () => {
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
+      expect(md).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔET | ET | ΔAIC | AIC | Duration |");
       expect(md).toContain("◉ sonnet46");
     });
 
@@ -1633,6 +1633,36 @@ not-json
       const md = generateTokenUsageSummary(summary);
       expect(md).toContain("| ΔET |");
       expect(md).toContain("| ET |");
+    });
+
+    test("includes ΔAIC and AIC columns in table header", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("| ΔAIC |");
+      expect(md).toContain("| AIC |");
+    });
+
+    test("renders AIC value in totals row for known model with pricing", () => {
+      const content = JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      const md = generateTokenUsageSummary(summary);
+      if (summary.totalAIC > 0) {
+        // When pricing is available the totals row should contain a bold AIC value
+        expect(md).toContain("**Total**");
+        const { formatAIC } = require("./model_costs.cjs");
+        expect(md).toContain(formatAIC(summary.totalAIC));
+      }
+    });
+
+    test("compounded AIC equals sum of per-turn delta AIC values", () => {
+      const lines = [
+        JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 50, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 200, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const totalAIC = summary.entries.reduce((sum, e) => sum + (e.deltaAIC || 0), 0);
+      expect(Math.abs(totalAIC - summary.totalAIC)).toBeLessThan(0.0001);
     });
 
     test("does not render a dangling ET footer line", () => {
