@@ -4,6 +4,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 
 const fs = require("fs");
+// Repo key precedence is intentional and shared with safe-output handlers:
+// repo > target-repo > target_repo > targetRepo.
 const REPO_OVERRIDE_KEYS = ["repo", "target-repo", "target_repo", "targetRepo"];
 const REPO_ALIAS_KEYS = new Set(REPO_OVERRIDE_KEYS.filter(key => key !== "repo"));
 
@@ -58,6 +60,7 @@ function sanitizeArgsBySchema(args, inputSchema, onUnknownKeysStripped) {
       if (sanitizedArgs.repo == null && normalizedRepo != null) {
         sanitizedArgs.repo = normalizedRepo;
       }
+      continue;
     } else {
       strippedKeys.push(key);
     }
