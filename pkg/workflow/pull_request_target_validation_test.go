@@ -71,6 +71,30 @@ Test workflow content.`,
 			warningCount:  2, // 1 for insecure checkout + 1 for sandbox.agent: false
 		},
 		{
+			name: "pull_request_target with trusted checkout - non-strict - no warnings no error",
+			frontmatter: `---
+on:
+  pull_request_target:
+    types: [opened]
+tools:
+  github:
+    toolsets: [pull_requests]
+permissions:
+  pull-requests: read
+checkout:
+  repository: ${{ github.repository }}
+  ref: ${{ github.event.pull_request.base.sha }}
+---
+
+# PR Target Non-Strict Trusted Checkout
+Test workflow content.`,
+			filename:      "prt-checkout-trusted-non-strict.md",
+			strictMode:    false,
+			expectError:   false,
+			expectWarning: false,
+			warningCount:  0,
+		},
+		{
 			name: "pull_request trigger (not target) - non-strict - no diagnostic",
 			frontmatter: `---
 strict: false
@@ -282,6 +306,33 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
+			name: "pull_request_target with mixed trusted and untrusted checkouts - strict - errors",
+			frontmatter: `---
+on:
+  pull_request_target:
+    types: [opened]
+tools:
+  github:
+    toolsets: [pull_requests]
+permissions:
+  pull-requests: read
+checkout:
+  - repository: ${{ github.repository }}
+    ref: ${{ github.event.pull_request.base.sha }}
+  - repository: ${{ github.event.pull_request.head.repo.full_name }}
+    ref: ${{ github.event.pull_request.head.sha }}
+---
+
+# PR Target Mixed Checkouts
+Test workflow content.`,
+			filename:      "prt-checkout-mixed-strict.md",
+			strictMode:    true,
+			expectError:   true,
+			expectWarning: true,
+			errorContains: "pull_request_target trigger with checkout enabled is extremely insecure",
+			warningCount:  1, // dangerous-trigger warning
+		},
+		{
 			name: "pull_request_target with checkout enabled - strict CLI + frontmatter strict false - warning only",
 			frontmatter: `---
 strict: false
@@ -378,6 +429,24 @@ func TestMatchesGitHubExpression(t *testing.T) {
 			value:    "${{github.repository}}",
 			expected: "github.repository",
 			match:    true,
+		},
+		{
+			name:     "base sha expression matches",
+			value:    "${{ github.event.pull_request.base.sha }}",
+			expected: "github.event.pull_request.base.sha",
+			match:    true,
+		},
+		{
+			name:     "base ref expression matches",
+			value:    "${{ github.event.pull_request.base.ref }}",
+			expected: "github.event.pull_request.base.ref",
+			match:    true,
+		},
+		{
+			name:     "head sha expression does not match base sha",
+			value:    "${{ github.event.pull_request.head.sha }}",
+			expected: "github.event.pull_request.base.sha",
+			match:    false,
 		},
 		{
 			name:     "missing closing braces",

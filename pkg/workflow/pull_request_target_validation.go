@@ -43,6 +43,8 @@ import (
 )
 
 var pullRequestTargetLog = newValidationLogger("pull_request_target")
+// [^{}]+? deliberately excludes brace characters so nested expression constructs
+// are never treated as a trusted literal allowlist match.
 var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^{}]+?)\s*\}\}$`)
 
 // validatePullRequestTargetTrigger validates security requirements for pull_request_target triggers.
@@ -184,8 +186,8 @@ func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
 
 	ref := strings.TrimSpace(cfg.Ref)
 	return ref == "" || matchesAnyGitHubExpression(ref,
-		"github.event.pull_request.base.sha",
-		"github.event.pull_request.base.ref",
+		"github.event.pull_request.base.sha", // immutable commit SHA
+		"github.event.pull_request.base.ref", // mutable branch tip, still trusted base code
 	)
 }
 
