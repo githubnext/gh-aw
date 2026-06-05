@@ -283,7 +283,7 @@ to make the guardrail configurable per environment or workflow call:
 
 ```aw wrap
 env:
-  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: ${{ vars.AWF_DAILY_ET_LIMIT }}
+  GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.AWF_DAILY_ET_LIMIT }}
 ```
 
 When the total from the past 24 hours already meets or exceeds this threshold, the activation
@@ -293,9 +293,6 @@ conclusion job report the failure context.
 The guardrail is disabled by default when omitted. Set `-1` to disable
 it explicitly. Positive values accept plain integers or `K`/`M`
 suffixes such as `100M`.
-
-> [!NOTE]
-> `max-daily-effective-tokens` is deprecated. Use `max-daily-ai-credits`.
 
 > [!NOTE]
 > The daily guardrail is skipped for `workflow_call`,
@@ -317,7 +314,7 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 
 ```yaml
 default_max_effective_tokens: "5M"
-default_max_daily_effective_tokens: "15M"
+default_max_daily_ai_credits: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
@@ -332,13 +329,13 @@ Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
 `default_max_turns` / `default_timeout_minutes` must be positive integers, and
-`default_max_effective_tokens` / `default_max_daily_effective_tokens` must be
+`default_max_effective_tokens` / `default_max_daily_ai_credits` must be
 non-zero integers (negative values disable the corresponding guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
 `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
-`GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_TURNS`,
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
 `GH_AW_DEFAULT_DETECTION_MODEL`.

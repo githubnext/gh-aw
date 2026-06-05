@@ -9,7 +9,7 @@ on:
         description: 'GitHub commit URL to analyze changes since (e.g., https://github.com/owner/repo/commit/abc123)'
         required: true
         type: string
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

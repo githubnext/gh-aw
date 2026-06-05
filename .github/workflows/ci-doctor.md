@@ -7,7 +7,7 @@ on:
     events: [pull_request]
     strategy: decentralized
 
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   actions: read         # To query workflow runs, jobs, and logs
   contents: read        # To read repository files

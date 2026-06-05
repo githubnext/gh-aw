@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 tracker-id: daily-ambient-context-optimizer
 strict: true
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 network:
   allowed: [defaults, github]
 tools:

@@ -2,7 +2,7 @@
 emoji: "🎭"
 description: Explores agentic-workflows custom agent behavior by generating software personas and analyzing responses to common automation tasks
 on: daily
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 engine:
   id: copilot
   model: gpt-5.4-mini

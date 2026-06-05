@@ -6,7 +6,7 @@ on:
     max: 3
     query: is:issue is:open in:title "[ab-advisor] " label:experiments
   workflow_dispatch: null
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   actions: read
   contents: read

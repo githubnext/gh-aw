@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "daily around 13:00 on weekdays"  # ~1 PM UTC on weekdays (scattered)
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   actions: read

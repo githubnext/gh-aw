@@ -251,9 +251,6 @@ Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent ru
 
 This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 
-> [!NOTE]
-> `max-daily-effective-tokens` is deprecated. Use `max-daily-ai-credits` instead.
-
 ```yaml wrap
 max-daily-ai-credits: 15M
 ```

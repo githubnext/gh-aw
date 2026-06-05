@@ -3691,12 +3691,6 @@
       "default": 25000000,
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
     },
-    "max-daily-effective-tokens": {
-      "$ref": "#/$defs/max_daily_effective_tokens_limit",
-      "description": "24-hour effective-token guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions.",
-      "deprecated": true,
-      "x-deprecation-message": "'max-daily-effective-tokens' is deprecated. Use 'max-daily-ai-credits' instead."
-    },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
       "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
@@ -10514,22 +10508,6 @@
         {
           "type": "integer",
           "maximum": -1
-        }
-      ]
-    },
-    "max_daily_effective_tokens_limit": {
-      "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable.",
-      "oneOf": [
-        {
-          "$ref": "#/$defs/positive_effective_tokens_limit"
-        },
-        {
-          "type": "integer",
-          "const": -1
-        },
-        {
-          "type": "string",
-          "pattern": "^-1$"
         }
       ]
     },

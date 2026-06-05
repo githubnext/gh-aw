@@ -2,7 +2,7 @@
 emoji: "⚡"
 description: Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
 on: daily
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

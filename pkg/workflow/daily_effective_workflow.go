@@ -13,12 +13,11 @@ import (
 var dailyEffectiveWorkflowLog = logger.New("workflow:daily_effective_workflow")
 
 const maxDailyAICreditsField = "max-daily-ai-credits"
-const maxDailyEffectiveTokensField = "max-daily-effective-tokens" // deprecated
 const maxDailyAICreditsEnvVar = "GH_AW_MAX_DAILY_AI_CREDITS"
 const maxDailyAICreditsConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
 
-// parseMaxDailyEffectiveTokensValue normalizes max-daily-effective-tokens
-// frontmatter values into a runtime-ready string.
+// parseMaxDailyEffectiveTokensValue normalizes max-daily-ai-credits
+// values into a runtime-ready string.
 //
 // Supported inputs:
 //   - positive integers
@@ -75,10 +74,6 @@ func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON str
 		dailyEffectiveWorkflowLog.Print("Resolved max-daily-ai-credits from workflow frontmatter")
 		return value
 	}
-	if value, found := resolveMaxDailyEffectiveTokensFromRaw(frontmatter[maxDailyEffectiveTokensField]); found {
-		dailyEffectiveWorkflowLog.Print("Resolved deprecated max-daily-effective-tokens from workflow frontmatter")
-		return value
-	}
 	if importedJSON == "" {
 		dailyEffectiveWorkflowLog.Print("No frontmatter value and no imported config; falling back to default max-daily-ai-credits")
 		defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
@@ -109,14 +104,11 @@ func hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data *WorkflowData) bool 
 	if data == nil || data.RawFrontmatter == nil {
 		return false
 	}
-	if isMaxDailyEffectiveTokensDisabled(data.RawFrontmatter[maxDailyAICreditsField]) {
-		return true
-	}
-	return isMaxDailyEffectiveTokensDisabled(data.RawFrontmatter[maxDailyEffectiveTokensField])
+	return isMaxDailyEffectiveTokensDisabled(data.RawFrontmatter[maxDailyAICreditsField])
 }
 
 // hasMaxDailyEffectiveTokensFrontmatterConfig reports whether the daily ET threshold
-// is configured via the max-daily-effective-tokens frontmatter/import/default resolution.
+// is configured via the max-daily-ai-credits frontmatter/import/default resolution.
 // The resolved value is propagated to activation job env so runtime expressions can gate
 // setup and guardrail execution consistently.
 func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
@@ -124,7 +116,7 @@ func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
 }
 
 // validateMaxDailyEffectiveTokensFrontmatter returns an error when the
-// max-daily-ai-credits (or deprecated max-daily-effective-tokens) frontmatter field
+// max-daily-ai-credits frontmatter field
 // is set to an integer below -1. Zero, positive values, and -1 (explicit disable)
 // are accepted; GitHub Actions expressions are passed through unchanged for
 // runtime evaluation.
@@ -132,14 +124,12 @@ func validateMaxDailyEffectiveTokensFrontmatter(data *WorkflowData) error {
 	if data == nil || data.RawFrontmatter == nil {
 		return nil
 	}
-	for _, field := range []string{maxDailyAICreditsField, maxDailyEffectiveTokensField} {
-		raw, ok := data.RawFrontmatter[field]
-		if !ok {
-			continue
-		}
-		if val, ok := typeutil.ParseIntValue(raw); ok && val < -1 {
-			return fmt.Errorf("%s must be -1 (disable) or a positive integer, got %d", field, val)
-		}
+	raw, ok := data.RawFrontmatter[maxDailyAICreditsField]
+	if !ok {
+		return nil
+	}
+	if val, ok := typeutil.ParseIntValue(raw); ok && val < -1 {
+		return fmt.Errorf("%s must be -1 (disable) or a positive integer, got %d", maxDailyAICreditsField, val)
 	}
 	return nil
 }

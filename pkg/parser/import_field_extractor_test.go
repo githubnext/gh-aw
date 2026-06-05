@@ -646,32 +646,30 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	acc := newImportAccumulator()
 
 	first := map[string]any{
-		"max-turns":                  10,
-		"max-runs":                   3,
-		"max-effective-tokens":       2048,
-		"max-daily-ai-credits":       4096,
-		"max-daily-effective-tokens": 1111,
-		"mcp-servers":                map[string]any{"server-a": map[string]any{"url": "https://a.example.com"}},
-		"safe-outputs":               map[string]any{"enabled": true},
-		"mcp-scripts":                map[string]any{"setup": "echo first"},
-		"runtimes":                   map[string]any{"node": map[string]any{"version": "20"}},
-		"network":                    map[string]any{"allow": []any{"github.com"}},
-		"permissions":                map[string]any{"contents": "read"},
-		"secret-masking":             map[string]any{"enabled": true},
+		"max-turns":            10,
+		"max-runs":             3,
+		"max-effective-tokens": 2048,
+		"max-daily-ai-credits": 4096,
+		"mcp-servers":          map[string]any{"server-a": map[string]any{"url": "https://a.example.com"}},
+		"safe-outputs":         map[string]any{"enabled": true},
+		"mcp-scripts":          map[string]any{"setup": "echo first"},
+		"runtimes":             map[string]any{"node": map[string]any{"version": "20"}},
+		"network":              map[string]any{"allow": []any{"github.com"}},
+		"permissions":          map[string]any{"contents": "read"},
+		"secret-masking":       map[string]any{"enabled": true},
 	}
 	second := map[string]any{
-		"max-turns":                  99,
-		"max-runs":                   88,
-		"max-effective-tokens":       77,
-		"max-daily-ai-credits":       66,
-		"max-daily-effective-tokens": 66,
-		"mcp-servers":                map[string]any{"server-b": map[string]any{"url": "https://b.example.com"}},
-		"safe-outputs":               map[string]any{"mode": "strict"},
-		"mcp-scripts":                map[string]any{"teardown": "echo second"},
-		"runtimes":                   map[string]any{"python": map[string]any{"version": "3.12"}},
-		"network":                    map[string]any{"allow": []any{"api.github.com"}},
-		"permissions":                map[string]any{"issues": "write"},
-		"secret-masking":             map[string]any{"log-mask": true},
+		"max-turns":            99,
+		"max-runs":             88,
+		"max-effective-tokens": 77,
+		"max-daily-ai-credits": 66,
+		"mcp-servers":          map[string]any{"server-b": map[string]any{"url": "https://b.example.com"}},
+		"safe-outputs":         map[string]any{"mode": "strict"},
+		"mcp-scripts":          map[string]any{"teardown": "echo second"},
+		"runtimes":             map[string]any{"python": map[string]any{"version": "3.12"}},
+		"network":              map[string]any{"allow": []any{"api.github.com"}},
+		"permissions":          map[string]any{"issues": "write"},
+		"secret-masking":       map[string]any{"log-mask": true},
 	}
 
 	acc.extractConfigFields(first, "first.md")
@@ -680,7 +678,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Equal(t, "10", acc.mergedMaxTurns, "max-turns should be first-wins")
 	assert.Equal(t, "3", acc.mergedMaxRuns, "max-runs should be first-wins")
 	assert.Equal(t, "2048", acc.mergedMaxEffectiveTokens, "max-effective-tokens should be first-wins")
-	assert.Equal(t, "4096", acc.mergedMaxDailyEffectiveTokens, "max-daily-ai-credits should be first-wins with deprecated fallback")
+	assert.Equal(t, "4096", acc.mergedMaxDailyEffectiveTokens, "max-daily-ai-credits should be first-wins")
 
 	assert.Len(t, acc.safeOutputs, 2, "safe-outputs should accumulate across imports")
 	assert.Len(t, acc.mcpScripts, 2, "mcp-scripts should accumulate across imports")

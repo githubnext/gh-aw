@@ -31,14 +31,6 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 		}
 	})
 
-	t.Run("supports deprecated field fallback", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": 1234}, "")
-		if got == nil || *got != "1234" {
-			t.Fatalf("expected deprecated field fallback value, got %v", got)
-		}
-	})
-
 	t.Run("uses enterprise default when unset", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
 		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")

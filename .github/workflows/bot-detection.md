@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "every 6h"  # Every ~6 hours (scattered to avoid thundering herd)
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   pull-requests: read

@@ -73,8 +73,7 @@ type importAccumulator struct {
 	// These express a model preference without selecting a specific engine.
 	mergedEngineModel string
 	// First top-level max-turns / max-runs / max-effective-tokens /
-	// max-daily-ai-credits (or deprecated max-daily-effective-tokens)
-	// found across imports (first-wins).
+	// max-daily-ai-credits found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
 	mergedMaxTurns                string
@@ -361,7 +360,6 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-effective-tokens", &acc.mergedMaxEffectiveTokens)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyEffectiveTokens)
-	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-effective-tokens", &acc.mergedMaxDailyEffectiveTokens)
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)

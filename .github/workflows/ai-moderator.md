@@ -18,7 +18,7 @@ on:
     issues: [owner, member, collaborator]
   skip-roles: [admin, maintainer, write, triage]
   skip-bots: [github-actions, copilot, dependabot, renovate, github-copilot-enterprise, copilot-swe-agent]
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 user-rate-limit:
   max-runs-per-window: 5
   window: 60
