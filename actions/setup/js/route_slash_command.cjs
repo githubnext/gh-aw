@@ -90,7 +90,7 @@ function normalizeDispatchRef(ref) {
   return ref.startsWith("refs/") ? ref : `refs/heads/${ref}`;
 }
 
-async function resolveIssuePullRequestHeadRef() {
+async function resolveIssueBackedPRHeadRef() {
   const isIssueBackedPullRequest = context.payload?.issue?.pull_request;
   const pullNumber = context.payload?.issue?.number;
   if (!isIssueBackedPullRequest || !pullNumber) {
@@ -127,7 +127,7 @@ async function resolveDispatchRef() {
     return normalizeDispatchRef(payloadHeadRef);
   }
 
-  const issuePullRequestHeadRef = await resolveIssuePullRequestHeadRef();
+  const issuePullRequestHeadRef = await resolveIssueBackedPRHeadRef();
   if (issuePullRequestHeadRef) {
     return issuePullRequestHeadRef;
   }
