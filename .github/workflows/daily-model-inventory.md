@@ -182,13 +182,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  collect_copilot_billing_multipliers:
+  collect_copilot_billing_models:
     runs-on: ubuntu-latest
     needs: [activation]
     permissions:
       contents: read
     steps:
-      - name: Fetch Copilot billing multipliers
+      - name: Fetch Copilot models and pricing
         id: fetch
         shell: bash
         run: |
@@ -199,7 +199,7 @@ jobs:
           import json, sys, urllib.request, html.parser
 
           # NOTE: If GitHub's documentation URL structure changes, this URL must be updated manually.
-          URL = "https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans"
+          URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
           EXCLUDED_MODELS = {"gpt-4o-mini", "gpt-4.1", "gpt-4o", "gpt-5.4-nano"}
 
           class TableParser(html.parser.HTMLParser):
@@ -245,7 +245,7 @@ jobs:
                   html_content = resp.read().decode("utf-8", errors="replace")
           except Exception as e:
               result = {"source": URL, "error": str(e), "headers": [], "models": []}
-              with open("/tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json", "w") as f:
+              with open("/tmp/gh-aw/agent/model-inventory/copilot-billing/models.json", "w") as f:
                   json.dump(result, f, indent=2)
               print(f"Error fetching page: {e}", file=sys.stderr)
               sys.exit(0)
@@ -264,19 +264,19 @@ jobs:
                       models.append(entry)
 
           result = {"source": URL, "excluded_models": sorted(EXCLUDED_MODELS), "headers": parser.headers, "models": models}
-          out_path = "/tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json"
+          out_path = "/tmp/gh-aw/agent/model-inventory/copilot-billing/models.json"
           with open(out_path, "w") as f:
               json.dump(result, f, indent=2)
-          print(f"Extracted {len(models)} model multiplier entries", file=sys.stderr)
+          print(f"Extracted {len(models)} model pricing entries", file=sys.stderr)
           PYEOF
           echo "status=ok" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Copilot billing multipliers artifact
+      - name: Upload Copilot billing models artifact
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: copilot-billing-multipliers
-          path: /tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json
+          name: copilot-billing-models
+          path: /tmp/gh-aw/agent/model-inventory/copilot-billing/models.json
           if-no-files-found: error
           retention-days: 7
 
@@ -474,55 +474,68 @@ metadata that can improve alias coverage checks when provider APIs are partial.
 Summarize which fields are present and which carry useful data worth including in future cached
 inventories.
 
-### Step 3: Infer Token Multipliers
+### Step 3: Validate models.json pricing data
 
-Read the current built-in multiplier table from `pkg/cli/data/model_multipliers.json`.
+Read the current built-in pricing payloads from:
 
-The pre-job step has also fetched the **official GitHub Copilot billing multipliers** from the
-documentation page and stored them as:
+- `pkg/cli/data/models.json`
+- `actions/setup/js/models.json`
 
-- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json`
+Treat these two files as a mirrored pair: proposed updates must keep them identical.
 
-This file contains the authoritative ET multipliers per model extracted from
-`https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans`,
-with columns `Model`, `Current multiplier`, and `New multiplier`.
+The pre-job step has also fetched the **official GitHub Copilot models/pricing table** from the
+documentation page and stored it as:
 
-**Use the `billing.multiplier` field from the Copilot reflect endpoint as the primary (authoritative) source of ET multipliers.** For each model returned by the Copilot reflect endpoint, the `billing.multiplier` value is the ground truth. If the reflect endpoint is unavailable or a model is absent from the Copilot reflect data, fall back to the docs table (prefer the **New multiplier** column). If the docs table fetch also failed or returned an empty model list, fall back to the heuristics below.
+- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-billing-models/models.json`
+
+This file is extracted from:
+`https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing`.
+
+Use the Copilot reflect endpoint (`billing.multiplier`) and the docs pricing table as validation
+sources for `models.json` pricing fields. Prefer reflect data when available for Copilot model
+multiplier validation, and use docs table values as a secondary cross-check.
 
 Treat `gpt-4o-mini`, `gpt-4.1`, `gpt-4o`, and `gpt-5.4-nano` as intentionally deprecated
 Copilot-facing model IDs. Keep ignoring them even if they appear in the reflect data, docs table,
 `models.dev`, or live provider inventories: do not propose adding or restoring them in
-`pkg/cli/data/model_multipliers.json`, and exclude them from missing/discrepancy tables.
+`pkg/cli/data/models.json` (or `actions/setup/js/models.json`), and exclude them from
+missing/discrepancy tables.
 
-Use `models.dev/api.json` as an additional reference for missing model IDs and family naming, but
-do not treat it as the primary multiplier authority.
+Use `models.dev/api.json` as the refresh source for the baseline `models.json` payload.
+When pricing updates are required, first run:
 
-For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
+```bash
+make refresh-models-json
+```
+
+Then validate/adjust pricing entries against reflect and docs-derived data.
+
+For each provider's enriched data, validate pricing/model coverage for each model:
 
 1. **Copilot reflect data** — use the `copilot` endpoint's `models` list from
    `/tmp/gh-aw/agent/model-inventory/reflect.json` as the primary source. For each model, use
    the `billing.multiplier` field as the authoritative ET multiplier value. Compare against the
-   matching entry in `model_multipliers.json`, and list discrepancies or missing models.
+   matching `github/<model-id>` entry in `models.json`, and list discrepancies or missing models.
    Cross-reference against the docs table as a secondary validation source.
 
 2. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
-   Large-context, high-output-limit models typically correspond to Pro-tier multipliers (~1.0);
-   smaller Flash models to lower multipliers (~0.1–0.2). Flag any models whose limits suggest a
-   tier change versus what is currently in `model_multipliers.json`.
+   Large-context, high-output-limit models typically correspond to higher-priced tiers; smaller
+   Flash models to lower-priced tiers. Flag any models whose limits suggest a pricing-tier change
+   versus what is currently in `models.json`.
 
 3. **OpenAI API** — use `owned_by` and model-ID naming conventions (e.g. `-mini`, `-nano`, `o1`,
-   `o3`) to cross-check current multipliers. Flag missing models or likely mismatches.
+   `o3`) to cross-check current pricing tiers. Flag missing models or likely mismatches.
 
 4. **Anthropic API** — use `display_name` family grouping (haiku/sonnet/opus) to validate
-   current multipliers. Flag any new model IDs not yet in `model_multipliers.json`.
+   current pricing tiers. Flag any new model IDs not yet in `models.json`.
 
-Produce a consolidated multiplier gap table listing:
-- Models present in the live inventory but **missing** from `model_multipliers.json` — include
+Produce a consolidated pricing gap table listing:
+- Models present in the live inventory but **missing** from `models.json` — include
   the provider name for each model (e.g. "openai", "anthropic", "gemini", "copilot")
-- Models in `model_multipliers.json` that are **not currently returned** by live APIs; keep these
+- Models in `models.json` that are **not currently returned** by live APIs; keep these
   in the payload as historical entries (do not propose automatic removals)
-- Models where the **inferred multiplier** differs from the stored one
+- Models where the **inferred pricing tier or multiplier signal** differs from the stored pricing
 
 ### Step 4: Identify New or Updated Model Families
 
@@ -575,7 +588,7 @@ Brief description of what was found.
 - Providers queried: OpenAI, Anthropic, Gemini, Copilot
 - Total models found: <count>
 - Proposed alias changes: <count>
-- Multiplier gaps found: <count>
+- Pricing gaps found: <count>
 
 ### Provider Model Counts
 
@@ -591,25 +604,25 @@ Brief description of what was found.
 For each provider, list noteworthy fields found in the raw response that are now captured
 in the enriched `models.json` artifact (context limits, capabilities, billing fields, etc.).
 
-### Token Multiplier Analysis
+### models.json Pricing Analysis
 
-#### Missing from model_multipliers.json
+#### Missing from models.json
 
-| Model ID | Provider | Inferred Multiplier | Basis |
-|----------|----------|--------------------:|-------|
-| ...      | ...      | ...                 | ...   |
+| Model ID | Provider | Inferred Pricing | Basis |
+|----------|----------|-----------------:|-------|
+| ...      | ...      | ...              | ...   |
 
 #### Historical entries not currently returned
 
-List model IDs that appear in `model_multipliers.json` but are absent from all live inventories.
+List model IDs that appear in `models.json` but are absent from all live inventories.
 Treat these as historical records that should remain in the payload unless a human explicitly
 decides to delete them.
 
-#### Inferred vs stored discrepancies
+#### Inferred vs stored pricing discrepancies
 
-| Model ID | Stored Multiplier | Inferred Multiplier | Inferred From |
-|----------|------------------:|--------------------:|---------------|
-| ...      | ...               | ...                 | ...           |
+| Model ID | Stored Pricing | Inferred Pricing | Inferred From |
+|----------|---------------:|-----------------:|---------------|
+| ...      | ...            | ...              | ...           |
 
 ### Proposed Alias Updates
 
@@ -631,7 +644,7 @@ Any caveats, historical entries retained, or aliases that are already well-cover
 ```
 
 If no updates are needed (all live models are already covered by existing aliases, all
-multipliers are up to date, and no new task-oriented aliases are warranted), create an issue with
+`models.json` pricing entries are up to date, and no new task-oriented aliases are warranted), create an issue with
 title `Model alias inventory - no changes needed - YYYY-MM-DD` and a brief summary confirming
 coverage is up to date.
 
