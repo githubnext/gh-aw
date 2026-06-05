@@ -143,11 +143,8 @@ function getFooterMessage(ctx) {
   // Backward compatibility for generated custom footers that currently include only
   // {effective_tokens_suffix}: when AIC is available, append it immediately after ET
   // unless the template already opts in via {ai_credits_suffix}.
-  const shouldAppendAICToEffectiveTokensSuffix = Boolean(messages?.footer) &&
-    messages.footer.includes("{effective_tokens_suffix}") &&
-    !messages.footer.includes("{ai_credits_suffix}") &&
-    effectiveTokensSuffix.length > 0 &&
-    aiCreditsSuffix.length > 0;
+  const shouldAppendAICToEffectiveTokensSuffix =
+    Boolean(messages?.footer) && messages.footer.includes("{effective_tokens_suffix}") && !messages.footer.includes("{ai_credits_suffix}") && effectiveTokensSuffix.length > 0 && aiCreditsSuffix.length > 0;
   const effectiveTokensSuffixForTemplate = shouldAppendAICToEffectiveTokensSuffix ? `${effectiveTokensSuffix}${aiCreditsSuffix}` : effectiveTokensSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
