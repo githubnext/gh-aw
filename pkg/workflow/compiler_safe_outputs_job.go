@@ -13,6 +13,8 @@ import (
 
 var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_job")
 
+const stepNameLinePrefix = "      - name: "
+
 // buildConsolidatedSafeOutputsJob builds a single job containing all safe output operations
 // as separate steps within that job. This reduces the number of jobs in the workflow
 // while maintaining observability through distinct step names, IDs, and outputs.
@@ -446,7 +448,8 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
 		}
 		// Keep insertion index aligned with setup steps that may be injected between setup
-		// and artifact downloads (single string entry each).
+		// and artifact downloads. Each mask helper currently appends one string entry to
+		// the steps slice (containing the full two-line YAML step).
 		if isOTLPHeadersPresent(data) {
 			insertIndex++
 		}
@@ -480,7 +483,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		//
 		// The insertion index is line-oriented; if it lands in the middle of a
 		// multi-line run/with block, move it to the next step boundary.
-		for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], "      - name: ") {
+		for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], stepNameLinePrefix) {
 			insertIndex++
 		}
 
