@@ -74,6 +74,9 @@ NODE_DRIVER = <<~'JS'
 JS
 
 begin
+  ENV.delete("GITHUB_TOKEN")
+  ENV.delete("COPILOT_GITHUB_TOKEN")
+  ENV.delete("GH_TOKEN")
   stdout_str, stderr_str, status = Open3.capture3("node", "-e", NODE_DRIVER)
   $stdout.write(stdout_str)
   $stderr.write(stderr_str)
