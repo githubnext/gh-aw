@@ -65,6 +65,9 @@ Create an issue.
 	if !strings.Contains(yaml, "detection_reason:") {
 		t.Error("Detection job missing detection_reason output")
 	}
+	if !strings.Contains(yaml, "aic:") {
+		t.Error("Detection job missing aic output")
+	}
 
 	// Check that the detection conclusion step has GH_AW_DETECTION_CONTINUE_ON_ERROR env var
 	if !strings.Contains(detectionSection, "GH_AW_DETECTION_CONTINUE_ON_ERROR:") {
@@ -82,6 +85,15 @@ Create an issue.
 	// Check that the script uses require to load the parse_threat_detection_results.cjs file
 	if !strings.Contains(detectionSection, "require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs')") {
 		t.Error("Detection conclusion step doesn't use require to load parse_threat_detection_results.cjs")
+	}
+	if !strings.Contains(detectionSection, "id: parse_detection_token_usage") {
+		t.Error("Detection job missing parse_detection_token_usage step")
+	}
+	if !strings.Contains(detectionSection, "GH_AW_TOKEN_USAGE_SUMMARY_TITLE: Threat Detection Token Usage") {
+		t.Error("Detection token usage step missing threat detection summary title")
+	}
+	if !strings.Contains(detectionSection, "require('${{ runner.temp }}/gh-aw/actions/parse_token_usage.cjs')") {
+		t.Error("Detection token usage step doesn't use require to load parse_token_usage.cjs")
 	}
 
 	// Check that setupGlobals is called
@@ -146,6 +158,12 @@ Create outputs.
 	// (detection job fails with exit 1 when threats are found, so downstream jobs check job result)
 	if !strings.Contains(yaml, "needs.detection.result == 'success'") {
 		t.Error("Safe output jobs don't check detection result via detection job result")
+	}
+	if !strings.Contains(yaml, "GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}") {
+		t.Error("Safe output jobs should receive agent AI Credits separately")
+	}
+	if !strings.Contains(yaml, "GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}") {
+		t.Error("Safe output jobs should receive threat-detection AI Credits separately")
 	}
 }
 

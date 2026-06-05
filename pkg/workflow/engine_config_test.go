@@ -372,7 +372,19 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "copilot",
-			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+		},
+		{
+			name: "object format - copilot sdk driver implies copilot sdk even when false",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                 "copilot",
+					"copilot-sdk":        false,
+					"copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
 		},
 		{
 			name: "object format - complete with user-agent",
@@ -445,6 +457,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.CopilotSDKDriver != test.expectedConfig.CopilotSDKDriver {
 					t.Errorf("Expected config.CopilotSDKDriver '%s', got '%s'", test.expectedConfig.CopilotSDKDriver, config.CopilotSDKDriver)
+				}
+
+				if config.CopilotSDK != test.expectedConfig.CopilotSDK {
+					t.Errorf("Expected config.CopilotSDK '%v', got '%v'", test.expectedConfig.CopilotSDK, config.CopilotSDK)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

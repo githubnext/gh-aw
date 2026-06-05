@@ -1,21 +1,50 @@
 ---
-title: Assign to Copilot
-description: Programmatically assign GitHub Copilot coding agent to issues and pull requests
+title: Copilot Cloud Agent
+description: Spawn new Copilot cloud agent sessions and assign Copilot to issues and pull requests
 sidebar:
   order: 810
 ---
 
 import Video from '../../../components/Video.astro';
 
-This page describes how to programmatically assign the [GitHub Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) to issues or pull requests using the `assign-to-agent` safe output. This automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
+This page covers two safe outputs for invoking the [GitHub Copilot cloud agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) from workflows:
 
-## When to Use
+- **[`create-agent-session`](#create-agent-session)** — Spawn a new Copilot agent session to work on a task
+- **[`assign-to-agent`](#assign-to-agent)** — Assign Copilot to an existing issue or pull request
 
-Use `assign-to-agent` when you need to programmatically assign Copilot coding agent to **existing** issues or PRs through workflow automation.
+Both safe outputs require a fine-grained PAT — see [Authentication](#authentication) below.
 
-If you're creating new issues and want to assign Copilot coding agent immediately, use `assignees: copilot` in your [`create-issue`](/gh-aw/reference/safe-outputs/#issue-creation-create-issue) configuration instead.
+## Create Agent Session
 
-## Configuration
+Creates a new Copilot coding agent session from workflow output, allowing a workflow to spawn follow-up work autonomously. The agent session appears as a GitHub issue that triggers Copilot to implement the described task and open a pull request.
+
+### Configuration
+
+```yaml wrap
+safe-outputs:
+  create-agent-session:
+    base: "main"                 # base branch for agent session PR
+    max: 1                       # max sessions (default: 1, maximum: 10)
+    target-repo: "owner/repo"    # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }} # token for permissions
+```
+
+### Cross-Repository
+
+`create-agent-session` supports `target-repo` and `allowed-repos` for cross-repository use but does **not** support `target-repo: "*"` — use an explicit `owner/repo` value or `allowed-repos` instead.
+
+## Assign to Agent
+
+Programmatically assigns the GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
+
+### When to Use
+
+Use `assign-to-agent` when you need to programmatically assign Copilot to **existing** issues or PRs.
+
+If you're creating new issues and want to assign Copilot immediately, use `assignees: copilot` in your [`create-issue`](/gh-aw/reference/safe-outputs/#issue-creation-create-issue) configuration instead.
+
+### Configuration
 
 ```yaml wrap
 safe-outputs:
@@ -36,7 +65,7 @@ safe-outputs:
 
 **Supported agents:** `copilot` (`copilot-swe-agent`)
 
-## Target Issue or Pull Request
+### Target Issue or Pull Request
 
 The `target` parameter determines which issue or PR to assign the agent to:
 
@@ -44,19 +73,19 @@ The `target` parameter determines which issue or PR to assign the agent to:
 - `target: "*"` - Requires explicit `issue_number` or `pull_number` in agent output
 - `target: "123"` - Always uses issue/PR #123
 
-## Cross-Repository PR Creation
+### Cross-Repository PR Creation
 
 Use `pull-request-repo` to create pull requests in a different repository than where the issue lives — useful when issues are tracked centrally but code lives elsewhere. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
 
 `pull-request-repo` is automatically included in the allowed list; use `allowed-pull-request-repos` for additional repositories. Use `base-branch` to target a specific branch (defaults to the target repo's default branch).
 
-## Assignee Filtering
+### Assignee Filtering
 
 When an `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.
 
 ## Authentication
 
-This safe output requires a fine-grained PAT to authenticate the agent assignment operation. The default `GITHUB_TOKEN` lacks the necessary permissions.
+Both safe outputs require a fine-grained PAT. The default `GITHUB_TOKEN` lacks the necessary permissions.
 
 ### Using a Personal Access Token (PAT)
 

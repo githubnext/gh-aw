@@ -36,12 +36,17 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/goccy/go-yaml"
 )
 
 var pullRequestTargetLog = newValidationLogger("pull_request_target")
+
+// [^{}]+? deliberately excludes brace characters so nested expression constructs
+// are never treated as a trusted literal allowlist match.
+var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^{}]+?)\s*\}\}$`)
 
 // validatePullRequestTargetTrigger validates security requirements for pull_request_target triggers.
 //
@@ -119,6 +124,13 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		return nil
 	}
 
+	// Explicit checkout configurations that are pinned to the base repository/ref are considered
+	// safe for pull_request_target because they do not execute untrusted PR head code.
+	if hasOnlyTrustedPullRequestTargetCheckouts(workflowData.CheckoutConfigs) {
+		pullRequestTargetLog.Print("checkout config is pinned to trusted base repository/ref, skipping insecure-checkout error")
+		return nil
+	}
+
 	// Checkout is not disabled — the workflow may execute untrusted PR code with elevated privileges.
 	pullRequestTargetLog.Print("checkout is NOT disabled, emitting pull_request_target insecure-checkout diagnostic")
 
@@ -127,9 +139,17 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"but the workflow will check out code from a potentially untrusted PR contributor.\n" +
 		"This is a well-known attack vector: a fork PR can inject malicious code that\n" +
 		"executes with access to your repository's secrets (\"pwn request\" attack).\n\n" +
-		"Suggested fix: Add 'checkout: false' to your workflow frontmatter to prevent\n" +
-		"checking out untrusted PR code:\n" +
+		"Suggested fix: Use one of these safe patterns:\n" +
+		"1) Disable checkout entirely:\n" +
 		"checkout: false\n\n" +
+		"2) Check out only the trusted base repo/ref:\n" +
+		"checkout:\n" +
+		"  repository: ${{ github.repository }}\n" +
+		"  ref: ${{ github.event.pull_request.base.sha }}\n\n" +
+		"3) Check out only the trusted base repository and omit ref:\n" +
+		"checkout:\n" +
+		"  repository: ${{ github.repository }}\n\n" +
+		"You can also use 'ref: ${{ github.event.pull_request.base.ref }}'.\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
 	if effectiveStrictMode {
@@ -141,4 +161,51 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 	c.IncrementWarningCount()
 
 	return nil
+}
+
+func hasOnlyTrustedPullRequestTargetCheckouts(configs []*CheckoutConfig) bool {
+	if len(configs) == 0 {
+		return false
+	}
+	for _, cfg := range configs {
+		if !isTrustedPullRequestTargetCheckout(cfg) {
+			return false
+		}
+	}
+	return true
+}
+
+func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
+	if cfg == nil {
+		return false
+	}
+
+	repository := strings.TrimSpace(cfg.Repository)
+	if repository != "" && !matchesGitHubExpression(repository, "github.repository") {
+		return false
+	}
+
+	ref := strings.TrimSpace(cfg.Ref)
+	return ref == "" || matchesAnyGitHubExpression(ref,
+		"github.event.pull_request.base.sha", // immutable commit SHA
+		"github.event.pull_request.base.ref", // mutable branch tip, still trusted base code
+	)
+}
+
+func matchesAnyGitHubExpression(value string, expectedExpressions ...string) bool {
+	for _, expected := range expectedExpressions {
+		if matchesGitHubExpression(value, expected) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesGitHubExpression(value string, expectedExpression string) bool {
+	trimmed := strings.TrimSpace(value)
+	matches := pullRequestTargetGitHubExpressionPattern.FindStringSubmatch(trimmed)
+	if len(matches) != 2 {
+		return false
+	}
+	return strings.TrimSpace(matches[1]) == expectedExpression
 }

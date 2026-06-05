@@ -91,6 +91,8 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
+    env:
+      GH_AW_MAX_DAILY_AI_CREDITS: "500000"
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -126,7 +128,7 @@ jobs:
           job-name: ${{ github.job }}
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
-          safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
+          safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Mergefest"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/mergefest.lock.yml@${{ github.ref }}
@@ -163,7 +165,7 @@ jobs:
             await main(core, context);
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
-        if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
+        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Mergefest"
@@ -171,6 +173,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
           GH_AW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_MAX_DAILY_AI_CREDITS: "500000"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

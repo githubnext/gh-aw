@@ -195,11 +195,12 @@ security-scan: security-gosec security-govulncheck
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 	@# Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
 	@# Keep this list in sync with .golangci.yml for consistency
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
+		-nosec-require-rules -nosec-require-justification \
 		-exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
 		./...
 	@echo "✓ Gosec scan complete (results in gosec-report.json)"
@@ -390,7 +391,7 @@ check-node-version:
 tools: ## Install build-time tools from tools.go
 	@echo "Installing build tools..."
 	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
-	@go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
+	@go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 	@go install golang.org/x/tools/gopls@v0.21.1
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@echo "✓ Tools installed successfully"

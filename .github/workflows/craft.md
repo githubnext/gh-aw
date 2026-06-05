@@ -6,7 +6,7 @@ on:
     strategy: centralized
     name: craft
     events: [issues]
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

@@ -5,7 +5,7 @@ name: daily-experiment-report
 on:
   schedule: daily around 8:00
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   actions: read

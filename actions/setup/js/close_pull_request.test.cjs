@@ -107,6 +107,16 @@ describe("close_pull_request", () => {
       expect(mockCore.infos.some(msg => msg.includes("bug, automated"))).toBe(true);
       expect(mockCore.infos.some(msg => msg.includes("[bot]"))).toBe(true);
     });
+
+    it("should log configured and effective target repo on initialization", async () => {
+      await main({
+        max: 3,
+        "target-repo": "external-org/external-repo",
+      });
+
+      expect(mockCore.infos).toContain("Configured target repo: external-org/external-repo");
+      expect(mockCore.infos).toContain("Default target repo: external-org/external-repo");
+    });
   });
 
   describe("handleClosePullRequest", () => {
@@ -445,6 +455,191 @@ describe("close_pull_request", () => {
 
       expect(result.success).toBe(false);
       expect(result.error.includes("API Error")).toBe(true);
+    });
+
+    it("should support target-repo from config", async () => {
+      const handler = await main({
+        max: 10,
+        "target-repo": "external-org/external-repo",
+      });
+      const updateCalls = [];
+
+      mockGithub.rest.pulls.get = async params => ({
+        data: {
+          number: params.pull_number,
+          title: "Test PR",
+          labels: [],
+          html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          state: "open",
+        },
+      });
+
+      mockGithub.rest.pulls.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.pull_number,
+            title: "Test PR",
+            html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ pull_request_number: 100, body: "Closing" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].owner).toBe("external-org");
+      expect(updateCalls[0].repo).toBe("external-repo");
+      expect(mockCore.infos).toContain("Target repository: external-org/external-repo");
+      expect(mockCore.infos).toContain("Closing PR #100 in external-org/external-repo");
+    });
+
+    it("should support repo field in message for cross-repository operations", async () => {
+      const handler = await main({
+        max: 10,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["cross-org/cross-repo"],
+      });
+      const updateCalls = [];
+
+      mockGithub.rest.pulls.get = async params => ({
+        data: {
+          number: params.pull_number,
+          title: "Test PR",
+          labels: [],
+          html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          state: "open",
+        },
+      });
+
+      mockGithub.rest.pulls.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.pull_number,
+            title: "Test PR",
+            html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          pull_request_number: 456,
+          repo: "cross-org/cross-repo",
+          body: "Closing cross-repo PR",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].owner).toBe("cross-org");
+      expect(updateCalls[0].repo).toBe("cross-repo");
+    });
+
+    it("should reject repo not in allowed-repos list", async () => {
+      const handler = await main({
+        max: 10,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["allowed-org/allowed-repo"],
+      });
+
+      const result = await handler(
+        {
+          pull_request_number: 100,
+          repo: "unauthorized-org/unauthorized-repo",
+          body: "Trying to close",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+
+    it("should qualify bare repo name with default repo org", async () => {
+      const handler = await main({
+        max: 10,
+        "target-repo": "github/default-repo",
+        allowed_repos: ["github/gh-aw"],
+      });
+      const updateCalls = [];
+
+      mockGithub.rest.pulls.get = async params => ({
+        data: {
+          number: params.pull_number,
+          title: "Test PR",
+          labels: [],
+          html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          state: "open",
+        },
+      });
+
+      mockGithub.rest.pulls.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.pull_number,
+            title: "Test PR",
+            html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          pull_request_number: 100,
+          repo: "gh-aw",
+          body: "Closing",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].owner).toBe("github");
+      expect(updateCalls[0].repo).toBe("gh-aw");
+    });
+
+    it("should close a pull request in any repo when target-repo is wildcard *", async () => {
+      const handler = await main({
+        max: 10,
+        "target-repo": "*",
+      });
+      const updateCalls = [];
+
+      mockGithub.rest.pulls.get = async params => ({
+        data: {
+          number: params.pull_number,
+          title: "Test PR",
+          labels: [],
+          html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          state: "open",
+        },
+      });
+
+      mockGithub.rest.pulls.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.pull_number,
+            title: "Test PR",
+            html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          pull_request_number: 200,
+          repo: "any-org/any-repo",
+          body: "Closing",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].owner).toBe("any-org");
+      expect(updateCalls[0].repo).toBe("any-repo");
     });
   });
 });

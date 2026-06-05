@@ -1383,14 +1383,14 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
 }
 
 /**
- * Build a context string when the 24-hour per-workflow ET guardrail prevented the agent from
+ * Build a context string when the 24-hour per-workflow AIC guardrail prevented the agent from
  * starting in the activation job.
  * @param {boolean} hasDailyEffectiveWorkflowExceeded - Whether the daily workflow quota was exceeded
- * @param {string} totalEffectiveTokens - Aggregated ET usage across the last 24 hours
+ * @param {string} totalAIC - Aggregated AIC usage across the last 24 hours
  * @param {string} threshold - Configured daily workflow threshold
  * @returns {string} Formatted context string, or empty string if no failure
  */
-function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalEffectiveTokens, threshold) {
+function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalAIC, threshold) {
   if (!hasDailyEffectiveWorkflowExceeded) {
     return "";
   }
@@ -1399,7 +1399,7 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
   return (
     "\n" +
     renderTemplateFromFile(templatePath, {
-      total_effective_tokens: totalEffectiveTokens || "unknown",
+      total_effective_tokens: totalAIC || "unknown",
       threshold: threshold || "unknown",
     })
   );
@@ -2111,7 +2111,7 @@ async function main() {
     core.info(`Effective tokens: ${effectiveTokens || "(none)"}`);
     core.info(`Configured max effective tokens: ${maxEffectiveTokens || "(none)"}`);
     core.info(`Effective tokens rate-limit error: ${effectiveTokensRateLimitError}`);
-    core.info(`Daily workflow ET guardrail exceeded: ${hasDailyEffectiveWorkflowExceeded}`);
+    core.info(`Daily workflow AIC guardrail exceeded: ${hasDailyEffectiveWorkflowExceeded}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);

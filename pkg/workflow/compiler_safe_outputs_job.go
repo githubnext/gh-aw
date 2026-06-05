@@ -13,6 +13,10 @@ import (
 
 var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_job")
 
+// stepNameLinePrefix matches the canonical YAML line emitted by this compiler for
+// step starts in job.Steps (6-space indent + "- name: ").
+const stepNameLinePrefix = "      - name: "
+
 // buildConsolidatedSafeOutputsJob builds a single job containing all safe output operations
 // as separate steps within that job. This reduces the number of jobs in the workflow
 // while maintaining observability through distinct step names, IDs, and outputs.
@@ -445,6 +449,15 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			countParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
 			insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
 		}
+		// Keep insertion index aligned with setup steps that may be injected between setup
+		// and artifact downloads. Count the entries each mask helper appends so the index
+		// stays self-consistent if either helper ever emits more than one step.
+		if isOTLPHeadersPresent(data) {
+			insertIndex += strings.Count(generateOTLPHeadersMaskStep(), stepNameLinePrefix)
+		}
+		if isOTLPAttributesPresent(data) {
+			insertIndex += strings.Count(generateOTLPAttributesMaskStep(), stepNameLinePrefix)
+		}
 
 		// Add artifact download steps count
 		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
@@ -469,6 +482,18 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 
 		// Note: App token step must be inserted BEFORE shared checkout steps
 		// because those steps reference steps.safe-outputs-app-token.outputs.token
+		//
+		// The insertion index is line-oriented; if it lands in the middle of a
+		// multi-line run/with block, move it to the next step boundary.
+		for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], stepNameLinePrefix) {
+			insertIndex++
+		}
+		if insertIndex == len(steps) {
+			consolidatedSafeOutputsJobLog.Printf(
+				"WARN: app-token insertion reached end of steps slice (len=%d); step ordering may be incorrect",
+				len(steps),
+			)
+		}
 
 		// Insert app token steps
 		var newSteps []string
@@ -666,6 +691,7 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// An empty/missing value is handled gracefully by getEffectiveTokensFromEnv() in messages_footer.cjs.
 	envVars["GH_AW_EFFECTIVE_TOKENS"] = fmt.Sprintf("${{ needs.%s.outputs.effective_tokens }}", constants.AgentJobName)
 	envVars["GH_AW_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.AgentJobName)
+	envVars["GH_AW_AGENT_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.AgentJobName)
 
 	// Add slash command metadata so safe output handlers can render run-again footer hints.
 	if len(data.Command) > 0 {
@@ -710,6 +736,7 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		envVars["GH_AW_DETECTION_CONCLUSION"] = fmt.Sprintf("${{ needs.%s.outputs.detection_conclusion }}", constants.DetectionJobName)
 		envVars["GH_AW_DETECTION_REASON"] = fmt.Sprintf("${{ needs.%s.outputs.detection_reason }}", constants.DetectionJobName)
+		envVars["GH_AW_THREAT_DETECTION_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.DetectionJobName)
 	}
 
 	return envVars

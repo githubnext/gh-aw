@@ -53,17 +53,65 @@ function getEffectiveTokensFromEnv(modelName) {
 }
 
 /**
- * Read AI Credits from GH_AW_AIC and return the raw value, formatted value, and suffix.
- * @returns {{ aiCredits: number|undefined, aiCreditsFormatted: string|undefined, aiCreditsSuffix: string }}
+ * @param {string|undefined} raw
+ * @returns {number|undefined}
+ */
+function parsePositiveAIC(raw) {
+  const parsed = raw ? Number.parseFloat(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/**
+ * @param {string} label
+ * @param {number|undefined} value
+ * @returns {{ value: number|undefined, formatted: string|undefined, suffix: string }}
+ */
+function buildAICEntry(label, value) {
+  const formatted = typeof value === "number" ? formatAIC(value) : undefined;
+  return {
+    value,
+    formatted,
+    suffix: formatted ? ` · ${label} ${formatted} AIC` : "",
+  };
+}
+
+/**
+ * Read AI Credits from the environment and return the total, separate entries when
+ * threat detection consumed credits, and the pre-formatted footer suffix.
+ * @returns {{
+ *   aiCredits: number|undefined,
+ *   aiCreditsFormatted: string|undefined,
+ *   aiCreditsSuffix: string,
+ *   agentAiCredits: number|undefined,
+ *   agentAiCreditsFormatted: string|undefined,
+ *   agentAiCreditsSuffix: string,
+ *   threatDetectionAiCredits: number|undefined,
+ *   threatDetectionAiCreditsFormatted: string|undefined,
+ *   threatDetectionAiCreditsSuffix: string
+ * }}
  */
 function getAICFromEnv() {
-  const raw = process.env.GH_AW_AIC;
-  const parsed = raw ? Number.parseFloat(raw) : NaN;
-  if (Number.isFinite(parsed) && parsed > 0) {
-    const aiCreditsFormatted = formatAIC(parsed);
-    return { aiCredits: parsed, aiCreditsFormatted, aiCreditsSuffix: aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "" };
-  }
-  return { aiCredits: undefined, aiCreditsFormatted: undefined, aiCreditsSuffix: "" };
+  const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
+  const agentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
+  const threatDetectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
+  const agentEntry = buildAICEntry("agent", agentAIC);
+  const threatDetectionEntry = buildAICEntry("threat-detection", threatDetectionAIC);
+  const useBreakdown = threatDetectionEntry.suffix.length > 0;
+  const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
+  const aiCreditsFormatted = typeof aiCredits === "number" ? formatAIC(aiCredits) : undefined;
+  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}` : aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
+
+  return {
+    aiCredits,
+    aiCreditsFormatted,
+    aiCreditsSuffix,
+    agentAiCredits: agentEntry.value,
+    agentAiCreditsFormatted: agentEntry.formatted,
+    agentAiCreditsSuffix: agentEntry.suffix,
+    threatDetectionAiCredits: threatDetectionEntry.value,
+    threatDetectionAiCreditsFormatted: threatDetectionEntry.formatted,
+    threatDetectionAiCreditsSuffix: threatDetectionEntry.suffix,
+  };
 }
 
 /**
@@ -122,7 +170,17 @@ function getFooterMessage(ctx) {
   // over GH_AW_ENGINE_MODEL, which may be a user-supplied alias (e.g. "agent").
   const resolvedModelName = ctx.model || resolveActualModelName();
   const { effectiveTokens: envEffectiveTokens, effectiveTokensFormatted: envEffectiveTokensFormatted, effectiveTokensSuffix: envEffectiveTokensSuffix } = getEffectiveTokensFromEnv(resolvedModelName);
-  const { aiCredits: envAIC, aiCreditsFormatted: envAICFormatted, aiCreditsSuffix: envAICSuffix } = getAICFromEnv();
+  const {
+    aiCredits: envAIC,
+    aiCreditsFormatted: envAICFormatted,
+    aiCreditsSuffix: envAICSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  } = getAICFromEnv();
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
   const aiCredits = ctx.aiCredits ?? envAIC;
 
@@ -172,6 +230,12 @@ function getFooterMessage(ctx) {
     effectiveTokensSuffix: finalEffectiveTokensSuffix,
     aiCreditsFormatted,
     aiCreditsSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
   });
 
   // Use custom footer template if configured (no automatic suffix appended)

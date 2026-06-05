@@ -1,5 +1,5 @@
 ---
-description: Daily optimizer that identifies a high-token-usage agentic workflow, audits its runs, and recommends efficiency improvements including inline sub-agent refactors when warranted
+description: Daily optimizer that identifies a high-AIC agentic workflow, audits its runs, and recommends efficiency improvements including inline sub-agent refactors when warranted
 on:
   schedule:
     - cron: "daily around 14:00 on weekdays"
@@ -18,7 +18,7 @@ tools:
     - "*"
   repo-memory:
     branch-name: "memory/token-audit"
-    description: "Historical daily workflow token usage snapshots (shared with agentic-token-audit)"
+    description: "Historical daily workflow AIC snapshots (shared with agentic-token-audit)"
     file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
     max-file-size: 102400
     max-patch-size: 51200
@@ -58,7 +58,7 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/all-runs.json
       fi
 
-  - name: Aggregate top workflows by token usage
+  - name: Aggregate top workflows by AIC usage
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/token-audit
@@ -71,7 +71,8 @@ steps:
             | select(.status == "completed")
             | {
                 workflow_name: .workflow_name,
-                tokens: (.token_usage // 0),
+                aic: (.aic // 0),
+                raw_tokens: (.token_usage // 0),
                 turns: (.turns // 0),
                 action_minutes: (.action_minutes // 0)
               }
@@ -80,12 +81,13 @@ steps:
           | map({
               workflow_name: .[0].workflow_name,
               run_count: length,
-              total_tokens: (map(.tokens) | add),
-              avg_tokens: ((map(.tokens) | add) / length),
+              total_aic: (map(.aic) | add),
+              avg_aic: ((map(.aic) | add) / length),
+              total_raw_tokens: (map(.raw_tokens) | add),
               total_turns: (map(.turns) | add),
               total_action_minutes: (map(.action_minutes) | add)
             })
-          | sort_by(.total_tokens)
+          | sort_by(.total_aic)
           | reverse
           | .[:10]
         )
@@ -108,14 +110,14 @@ steps:
 source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 ---
 
-# Agentic Workflow Token Usage Optimizer
+# Agentic Workflow AIC Usage Optimizer
 
-You are the Agentic Workflow Token Optimizer. Pick one high-token workflow, audit recent runs, and create a conservative optimization issue with measurable improvements. Your recommendations may include prompt, tool, reliability, setup-prefix, and inline sub-agent improvements when the evidence supports them.
+You are the Agentic Workflow AIC Optimizer. Pick one high-AIC workflow, audit recent runs, and create a conservative optimization issue with measurable improvements. Your recommendations may include prompt, tool, reliability, setup-prefix, and inline sub-agent improvements when the evidence supports them.
 
 ## Objectives
 
 1. Select one workflow using repo-memory and pre-aggregated data.
-2. Analyze tokens, turns, errors, tool usage patterns, and prompt structure across multiple runs.
+2. Analyze AIC, raw tokens, turns, errors, tool usage patterns, and prompt structure across multiple runs.
 3. Propose safe, high-impact optimizations with evidence, including inline sub-agent refactors only when they are a clear fit.
 4. Publish one issue and update optimization history.
 
@@ -149,24 +151,25 @@ Prefer `--jq` on `gh api` calls over a separate `| jq` step when the filter is s
 ## Data Inputs
 
 - `/tmp/gh-aw/token-audit/all-runs.json`: full 7-day run data (`gh aw logs --json`).
-- `/tmp/gh-aw/token-audit/top-workflows.json`: pre-aggregated top 10 workflows by total tokens.
+- `/tmp/gh-aw/token-audit/top-workflows.json`: pre-aggregated top 10 workflows by total AIC.
 - `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json`: daily audit snapshots.
 - `/tmp/gh-aw/repo-memory/default/optimization-log.json`: prior optimizations (if present).
 
-Treat missing numeric fields (`token_usage`, `turns`, `action_minutes`) as `0`.
+Treat missing numeric fields (`aic`, `token_usage`, `turns`, `action_minutes`) as `0`.
 
 ## Phase 1 — Select Target
 
 - Start from `top-workflows.json`.
 - Exclude workflows optimized in the last 14 days (use `optimization-log.json`).
 - Exclude workflows with "Token" in the name to avoid self-targeting.
-- Choose the highest token workflow that remains.
+- Choose the highest-AIC workflow that remains.
 - If no snapshot/history exists, derive candidates directly from `all-runs.json`.
 
 Then collect run-level data for the selected workflow:
 
 - run count
-- total and average tokens
+- total and average AIC
+- raw token totals for context
 - total and average turns
 - conclusions/error patterns
 
@@ -177,8 +180,8 @@ Use this compact analysis matrix:
 | Area | Required checks | Output |
 |---|---|---|
 | Tool usage | Compare configured tools from workflow source vs observed usage across multiple runs | Keep / Consider removing / Remove |
-| Token efficiency | Evaluate token totals, effective tokens, cache efficiency, turns | Top token waste drivers |
-| Reliability | Repeated errors, warnings, retries, missing tools | Token waste from failures |
+| Cost efficiency | Evaluate AIC, raw token totals, cache efficiency, turns | Top cost waste drivers |
+| Reliability | Repeated errors, warnings, retries, missing tools | Cost waste from failures |
 | Prompt efficiency | Redundant instructions, overlong sections, avoidable iteration | Prompt reduction opportunities |
 | Structural optimization | Repeated setup/tool-call prefixes and sections suited for inline sub-agents | Extract setup / Add sub-agent / Keep in main agent |
 
@@ -280,10 +283,10 @@ Create one issue with:
 
 - **Target workflow + reason selected**
 - **Analysis period + runs analyzed**
-- **Token profile table** (total tokens, avg tokens/run, avg turns/run, cache efficiency)
+- **Cost profile table** (total AIC, avg AIC/run, raw tokens, avg turns/run, cache efficiency)
 - **Ranked recommendations** with:
   - title
-  - estimated token savings per run
+  - estimated AIC savings per run
   - concrete action
   - evidence from observed runs
 - **Optional structural optimizations** for shared setup prefixes and inline sub-agents when supported by the analysis
@@ -292,7 +295,7 @@ Create one issue with:
 ### Report Formatting Requirements
 
 - Use `###` for main sections and `####` for subsections.
-- Keep the selected workflow, token profile summary, and ranked recommendations visible without collapsible sections.
+- Keep the selected workflow, cost profile summary, and ranked recommendations visible without collapsible sections.
 - Use `<details><summary>...</summary>` blocks for long supporting tables, raw run evidence, and lower-priority context.
 - If you cite specific workflow runs, format them as links like `[§12345](https://github.com/${{ github.repository }}/actions/runs/12345)` and include up to 3 under `**References:**`.
 - If you recommend inline sub-agents, include each candidate's task, why a smaller model fits, score breakdown, and the exact invocation change you want made in the main prompt.
@@ -301,7 +304,7 @@ Create one issue with:
 
 Append one entry to `/tmp/gh-aw/repo-memory/default/optimization-log.json`:
 
-`{"date":"YYYY-MM-DD","workflow_name":"...","total_tokens_analyzed":N,"runs_audited":N,"recommendations_count":N,"subagent_candidates":N,"estimated_savings_per_run":N}`
+`{"date":"YYYY-MM-DD","workflow_name":"...","total_aic_analyzed":N,"runs_audited":N,"recommendations_count":N,"subagent_candidates":N,"estimated_aic_savings_per_run":N}`
 
 Use `subagent_candidates` for the count of inline sub-agent candidates you actually recommend in the issue body.
 
