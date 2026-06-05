@@ -82,7 +82,7 @@ async function main() {
 
   const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
   if (!providerBaseUrl) {
-    process.stderr.write("[detection-job-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " + "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n");
+    process.stderr.write("[detection-job-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n");
     process.exit(1);
   }
 
