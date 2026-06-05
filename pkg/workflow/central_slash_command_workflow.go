@@ -309,8 +309,8 @@ jobs:
       - name: Route slash command
         uses: ` + getActionPin("actions/github-script") + `
         env:
-          GH_AW_SLASH_ROUTING: '` + escapeSingleQuotedYAMLString(string(slashRoutesJSON)) + `'
-          GH_AW_LABEL_ROUTING: '` + escapeSingleQuotedYAMLString(string(labelRoutesJSON)) + `'
+          GH_AW_SLASH_ROUTING: '` + escapeYAMLSingleQuoted(string(slashRoutesJSON)) + `'
+          GH_AW_LABEL_ROUTING: '` + escapeYAMLSingleQuoted(string(labelRoutesJSON)) + `'
         with:
           script: |
             const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
@@ -495,8 +495,4 @@ func uniqueSorted(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-func escapeSingleQuotedYAMLString(input string) string {
-	return escapeYAMLSingleQuoted(input)
 }

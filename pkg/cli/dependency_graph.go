@@ -230,36 +230,21 @@ func (g *DependencyGraph) extractImportsFromFrontmatter(workflowPath string, fro
 
 // resolveImportPath resolves an import path to an absolute file path
 func (g *DependencyGraph) resolveImportPath(importPath string, baseDir string) string {
-	// Handle section references (file.md#Section) - strip the section part
-	if strings.Contains(importPath, "#") {
-		parts := strings.SplitN(importPath, "#", 2)
-		importPath = parts[0]
-	}
-
-	// Try to resolve as relative path first
-	if !filepath.IsAbs(importPath) {
-		absPath := filepath.Join(baseDir, importPath)
-		if _, err := os.Stat(absPath); err == nil {
-			depGraphLog.Printf("Resolved import %s to %s", importPath, absPath)
-			return absPath
-		}
-	}
-
-	// If that fails, try resolving with parser's cache-aware resolution
-	// Note: We create a minimal cache here just for resolution
 	gitRoot, err := findGitRootForPath(g.workflowsDir)
 	if err != nil {
 		depGraphLog.Printf("Failed to find git root, using fallback: %v", err)
 		gitRoot = g.workflowsDir
 	}
-	importCache := parser.NewImportCache(gitRoot)
-	fullPath, err := parser.ResolveIncludePath(importPath, baseDir, importCache)
-	if err != nil {
-		depGraphLog.Printf("Failed to resolve import path %s: %v", importPath, err)
-		return ""
+	fullPath := resolveImportPath(importPath, baseDir, importPathResolverOpts{
+		StripSectionRef:   true,
+		UseParserFallback: true,
+		ParserGitRoot:     gitRoot,
+	})
+	if fullPath != "" {
+		depGraphLog.Printf("Resolved import %s to %s", importPath, fullPath)
+	} else {
+		depGraphLog.Printf("Failed to resolve import path %s", importPath)
 	}
-
-	depGraphLog.Printf("Resolved import %s to %s", importPath, fullPath)
 	return fullPath
 }
 

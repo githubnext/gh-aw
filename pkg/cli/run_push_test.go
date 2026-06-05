@@ -165,7 +165,7 @@ on: workflow_dispatch
 	assert.True(t, fileSet[baseSharedPath], "Should include base-shared.md file")
 }
 
-func TestResolveImportPathLocal(t *testing.T) {
+func TestResolveImportPath_RunPushOpts_LocalPathSemantics(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, "workflows")
@@ -206,8 +206,8 @@ func TestResolveImportPathLocal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := resolveImportPathLocal(tt.importPath, tt.baseDir)
-			assert.Equal(t, tt.expected, result, "resolveImportPathLocal(%q, %q) = %v, want %v", tt.importPath, tt.baseDir, result, tt.expected)
+			result := resolveImportPath(tt.importPath, tt.baseDir, importPathRunPushOpts)
+			assert.Equal(t, tt.expected, result, "resolveImportPath(%q, %q, importPathRunPushOpts) = %v, want %v", tt.importPath, tt.baseDir, result, tt.expected)
 		})
 	}
 }

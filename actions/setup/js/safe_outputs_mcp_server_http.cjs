@@ -45,6 +45,7 @@ const { attachHandlers, registerPredefinedTools, registerDynamicTools } = requir
 moduleLogger.debug("Loaded safe_outputs_tools_loader.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { runHttpServer, logStartupError } = require("./mcp_http_server_runner.cjs");
+const { normalizeSafeOutputToolArguments } = require("./safe_outputs_mcp_arguments.cjs");
 moduleLogger.debug("All modules loaded successfully");
 
 /**
@@ -81,6 +82,7 @@ function createMCPServer(options = {}) {
       capabilities: {
         tools: {},
       },
+      normalizeArguments: (toolName, args) => normalizeSafeOutputToolArguments(toolName, args, logger),
     }
   );
 
