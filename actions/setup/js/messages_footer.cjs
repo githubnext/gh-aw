@@ -143,9 +143,14 @@ function getFooterMessage(ctx) {
   // Backward compatibility for generated custom footers that currently include only
   // {effective_tokens_suffix}: when AIC is available, append it immediately after ET
   // unless the template already opts in via {ai_credits_suffix}.
-  const shouldAppendAICToEffectiveTokensSuffix =
-    Boolean(messages?.footer) && messages.footer.includes("{effective_tokens_suffix}") && !messages.footer.includes("{ai_credits_suffix}") && effectiveTokensSuffix.length > 0 && aiCreditsSuffix.length > 0;
-  const effectiveTokensSuffixForTemplate = shouldAppendAICToEffectiveTokensSuffix ? `${effectiveTokensSuffix}${aiCreditsSuffix}` : effectiveTokensSuffix;
+  const hasCustomFooterTemplate = Boolean(messages?.footer);
+  const customFooterTemplate = messages?.footer || "";
+  const customFooterIncludesEffectiveTokensSuffix = customFooterTemplate.includes("{effective_tokens_suffix}");
+  const customFooterIncludesAICSuffix = customFooterTemplate.includes("{ai_credits_suffix}");
+  const hasEffectiveTokensSuffix = effectiveTokensSuffix.length > 0;
+  const hasAICSuffix = aiCreditsSuffix.length > 0;
+  const shouldAppendAICToEffectiveTokensSuffix = hasCustomFooterTemplate && customFooterIncludesEffectiveTokensSuffix && !customFooterIncludesAICSuffix && hasEffectiveTokensSuffix && hasAICSuffix;
+  const finalEffectiveTokensSuffix = shouldAppendAICToEffectiveTokensSuffix ? `${effectiveTokensSuffix}${aiCreditsSuffix}` : effectiveTokensSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -155,7 +160,7 @@ function getFooterMessage(ctx) {
     historyLink,
     agenticWorkflowUrl,
     effectiveTokensFormatted,
-    effectiveTokensSuffix: effectiveTokensSuffixForTemplate,
+    effectiveTokensSuffix: finalEffectiveTokensSuffix,
     aiCreditsFormatted,
     aiCreditsSuffix,
   });
