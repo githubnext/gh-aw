@@ -42,6 +42,7 @@ on: issues
 permissions:
   contents: read
   issues: read
+strict: false
 engine: copilot
 models:
   main-alias:
