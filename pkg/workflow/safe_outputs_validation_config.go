@@ -437,22 +437,28 @@ var ValidationConfig = map[string]TypeValidationConfig{
 // json.MarshalIndent calls on every workflow compilation.
 var validationConfigJSONCache sync.Map // key: string → value: string
 
-// GetValidationConfigJSON returns the validation configuration as indented JSON
-// If enabledTypes is empty or nil, returns all validation configs
-// If enabledTypes is provided, returns only configs for the specified types
-func GetValidationConfigJSON(enabledTypes []string) (string, error) {
-	safeOutputValidationLog.Printf("Getting validation config JSON for %d types", len(enabledTypes))
+// GetValidationConfigJSON returns the validation configuration as indented JSON.
+// If enabledTypes is empty or nil, returns all validation configs.
+// If enabledTypes is provided, returns only configs for the specified types.
+// If mentions is non-empty, a top-level "mentions" key is included in the JSON
+// so that collect_ndjson_output.cjs honours the configured @mention allowlist
+// during the initial sanitization pass (mirroring what the publish-side handlers
+// receive via GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG).
+func GetValidationConfigJSON(enabledTypes []string, mentions map[string]any) (string, error) {
+	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 
-	// Build a stable cache key from the sorted enabled types.
-	cacheKey := buildValidationConfigCacheKey(enabledTypes)
-	if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
-		safeOutputValidationLog.Print("Returning cached validation config JSON")
-		result, ok := cached.(string)
-		if !ok {
-			// The cache exclusively stores string values; a non-string indicates a programmer error.
-			return "", fmt.Errorf("validationConfigJSONCache: unexpected type %T for key %s", cached, cacheKey)
+	// Cache only the schema-only path; mentions are workflow-specific and cheap to remarshal.
+	if len(mentions) == 0 {
+		cacheKey := buildValidationConfigCacheKey(enabledTypes)
+		if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
+			safeOutputValidationLog.Print("Returning cached validation config JSON")
+			result, ok := cached.(string)
+			if !ok {
+				// The cache exclusively stores string values; a non-string indicates a programmer error.
+				return "", fmt.Errorf("validationConfigJSONCache: unexpected type %T for key %s", cached, cacheKey)
+			}
+			return result, nil
 		}
-		return result, nil
 	}
 
 	configToMarshal := ValidationConfig
@@ -468,14 +474,27 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 		safeOutputValidationLog.Print("Returning all validation configs")
 	}
 
-	data, err := json.MarshalIndent(configToMarshal, "", "  ")
+	var data []byte
+	var err error
+	if len(mentions) > 0 {
+		composite := make(map[string]any, len(configToMarshal)+1)
+		for k, v := range configToMarshal {
+			composite[k] = v
+		}
+		composite["mentions"] = mentions
+		data, err = json.MarshalIndent(composite, "", "  ")
+	} else {
+		data, err = json.MarshalIndent(configToMarshal, "", "  ")
+	}
 	if err != nil {
 		safeOutputValidationLog.Printf("Failed to marshal validation config: %v", err)
 		return "", err
 	}
 	result := string(data)
 	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(result))
-	validationConfigJSONCache.Store(cacheKey, result)
+	if len(mentions) == 0 {
+		validationConfigJSONCache.Store(buildValidationConfigCacheKey(enabledTypes), result)
+	}
 	return result, nil
 }
 

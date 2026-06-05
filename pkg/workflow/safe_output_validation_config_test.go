@@ -9,7 +9,7 @@ import (
 
 func TestGetValidationConfigJSON(t *testing.T) {
 	// Test with nil (all types)
-	jsonStr, err := GetValidationConfigJSON(nil)
+	jsonStr, err := GetValidationConfigJSON(nil, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -72,7 +72,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 func TestGetValidationConfigJSONFiltered(t *testing.T) {
 	// Test with filtered types
 	enabledTypes := []string{"create_issue", "add_comment"}
-	jsonStr, err := GetValidationConfigJSON(enabledTypes)
+	jsonStr, err := GetValidationConfigJSON(enabledTypes, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -104,7 +104,7 @@ func TestGetValidationConfigJSONFiltered(t *testing.T) {
 
 func TestGetValidationConfigJSONEmpty(t *testing.T) {
 	// Test with empty slice (should return all types, same as nil)
-	jsonStr, err := GetValidationConfigJSON([]string{})
+	jsonStr, err := GetValidationConfigJSON([]string{}, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -118,6 +118,66 @@ func TestGetValidationConfigJSONEmpty(t *testing.T) {
 	// Empty slice should return all types
 	if len(parsed) != len(ValidationConfig) {
 		t.Errorf("Expected %d types with empty slice, got %d", len(ValidationConfig), len(parsed))
+	}
+}
+
+func TestGetValidationConfigJSONWithMentions(t *testing.T) {
+	mentions := map[string]any{
+		"enabled":          true,
+		"allowTeamMembers": false,
+		"allowContext":     false,
+		"allowed":          []string{"copilot", "github-actions"},
+		"max":              5,
+	}
+
+	jsonStr, err := GetValidationConfigJSON([]string{"add_comment"}, mentions)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	if _, ok := parsed["add_comment"]; !ok {
+		t.Error("Expected add_comment type entry to be present")
+	}
+
+	raw, ok := parsed["mentions"]
+	if !ok {
+		t.Fatal("Expected top-level mentions key to be present in validation JSON")
+	}
+	mentionsParsed, ok := raw.(map[string]any)
+	if !ok {
+		t.Fatalf("Expected mentions to be an object, got %T", raw)
+	}
+
+	allowed, ok := mentionsParsed["allowed"].([]any)
+	if !ok {
+		t.Fatalf("Expected mentions.allowed to be an array, got %T", mentionsParsed["allowed"])
+	}
+	if len(allowed) != 2 || allowed[0] != "copilot" || allowed[1] != "github-actions" {
+		t.Errorf("Unexpected mentions.allowed contents: %v", allowed)
+	}
+	if enabled, _ := mentionsParsed["enabled"].(bool); !enabled {
+		t.Errorf("Expected mentions.enabled to be true, got %v", mentionsParsed["enabled"])
+	}
+	if allowTeam, _ := mentionsParsed["allowTeamMembers"].(bool); allowTeam {
+		t.Errorf("Expected mentions.allowTeamMembers to be false, got %v", mentionsParsed["allowTeamMembers"])
+	}
+
+	// A second call without mentions must not include the key (cache safety).
+	plainJSON, err := GetValidationConfigJSON([]string{"add_comment"}, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+	var plainParsed map[string]any
+	if err := json.Unmarshal([]byte(plainJSON), &plainParsed); err != nil {
+		t.Fatalf("Failed to parse plain validation config JSON: %v", err)
+	}
+	if _, ok := plainParsed["mentions"]; ok {
+		t.Error("Did not expect mentions key in JSON produced without mentions argument")
 	}
 }
 

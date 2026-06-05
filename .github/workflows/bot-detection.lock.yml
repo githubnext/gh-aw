@@ -571,6 +571,11 @@ jobs:
                   }
                 }
               },
+              "mentions": {
+                "allowed": [
+                  "pelikhan"
+                ]
+              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {

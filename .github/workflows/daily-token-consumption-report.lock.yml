@@ -592,6 +592,9 @@ jobs:
                   }
                 }
               },
+              "mentions": {
+                "enabled": false
+              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
