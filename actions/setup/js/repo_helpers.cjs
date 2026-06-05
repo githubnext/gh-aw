@@ -68,7 +68,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  * Message item that may contain a repo field
  * @typedef {Object} MessageItemWithRepo
  * @property {string} [repo] - Optional repository slug override
- * @property {string} [target-repo] - Optional repository slug override (kebab-case alias)
+ * @property {string} ["target-repo"] - Optional repository slug override (kebab-case alias)
  * @property {string} [target_repo] - Optional repository slug override (snake_case alias)
  * @property {string} [targetRepo] - Optional repository slug override (camelCase alias)
  */
@@ -254,6 +254,7 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
   const trimmedDefaultTargetRepo = defaultTargetRepo ? String(defaultTargetRepo).trim() : "";
 
   // Determine target repository for this operation, allowing item.repo to override
+  // Keep "repo" highest priority as the canonical field; aliases are fallback-only.
   const repoOverrideKeys = ["repo", "target-repo", "target_repo", "targetRepo"];
   let repoOverride;
   if (item) {
