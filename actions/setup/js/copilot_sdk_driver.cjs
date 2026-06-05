@@ -55,6 +55,29 @@ const MAX_TOOL_DENIALS_DEFAULT = 5;
  */
 
 /**
+ * Parse a strict positive integer from a number or string.
+ * Returns undefined when the input is not a whole positive integer.
+ *
+ * @param {unknown} value
+ * @returns {number | undefined}
+ */
+function parseStrictPositiveInteger(value) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isSafeInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
  * Parse max tool denials threshold from input.
  * Falls back to MAX_TOOL_DENIALS_DEFAULT when unset/invalid.
  *
@@ -62,19 +85,7 @@ const MAX_TOOL_DENIALS_DEFAULT = 5;
  * @returns {number}
  */
 function parseMaxToolDenialsLimit(value) {
-  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
-    return value;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed) {
-      const parsed = Number.parseInt(trimmed, 10);
-      if (Number.isInteger(parsed) && parsed > 0) {
-        return parsed;
-      }
-    }
-  }
-  return MAX_TOOL_DENIALS_DEFAULT;
+  return parseStrictPositiveInteger(value) ?? MAX_TOOL_DENIALS_DEFAULT;
 }
 
 /**
@@ -85,8 +96,7 @@ function parseMaxToolDenialsLimit(value) {
  * @returns {number}
  */
 function getEnvPositiveIntOrDefault(key, fallback) {
-  const parsed = Number.parseInt(process.env[key] || "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return parseStrictPositiveInteger(process.env[key]) ?? fallback;
 }
 
 /**
@@ -289,10 +299,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
   const log = msg => logger(`[sdk-driver] ${msg}`);
   log(`attempt ${attempt + 1}: connecting to Copilot SDK at ${sdkUri}`);
-  const maxToolDenialsLimit =
-    maxToolDenials === undefined
-      ? getEnvPositiveIntOrDefault("GH_AW_MAX_TOOL_DENIALS", MAX_TOOL_DENIALS_DEFAULT)
-      : parseMaxToolDenialsLimit(maxToolDenials);
+  const maxToolDenialsLimit = maxToolDenials === undefined ? getEnvPositiveIntOrDefault("GH_AW_MAX_TOOL_DENIALS", MAX_TOOL_DENIALS_DEFAULT) : parseMaxToolDenialsLimit(maxToolDenials);
   log(`max-tool-denials threshold: ${maxToolDenialsLimit}`);
 
   // Session state directory — mirrors the target path used by unified_timeline.cjs.
@@ -482,10 +489,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    log(`error: ${err instanceof Error ? err.message : String(err)}`);
+    const failure = catastrophicToolDenialsError ?? (err instanceof Error ? err : new Error(String(err)));
+    log(`error: ${failure.message}`);
     return {
       exitCode: 1,
-      output: err instanceof Error ? err.message : String(err),
+      output: failure.message,
       hasOutput: false,
       durationMs,
     };

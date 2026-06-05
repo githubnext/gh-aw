@@ -270,7 +270,7 @@ In this mode, the harness starts a local sidecar and runs the
 SDK driver process instead of the default CLI-only flow.
 
 Use top-level `max-tool-denials` to stop SDK inference when
-tool requests are repeatedly denied or fail. The default is `5`.
+tool requests are repeatedly denied. The default is `5`.
 This field is only supported when `engine.id: copilot` and
 `engine.copilot-sdk: true`.
 
