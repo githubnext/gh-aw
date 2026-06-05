@@ -206,8 +206,8 @@ func TestResolveImportPathLocal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := resolveImportPathLocal(tt.importPath, tt.baseDir)
-			assert.Equal(t, tt.expected, result, "resolveImportPathLocal(%q, %q) = %v, want %v", tt.importPath, tt.baseDir, result, tt.expected)
+			result := resolveImportPath(tt.importPath, tt.baseDir, importPathRunPushOpts)
+			assert.Equal(t, tt.expected, result, "resolveImportPath(%q, %q, importPathRunPushOpts) = %v, want %v", tt.importPath, tt.baseDir, result, tt.expected)
 		})
 	}
 }
