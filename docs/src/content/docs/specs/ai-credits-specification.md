@@ -11,7 +11,7 @@ sidebar:
 **Status**: Draft  
 **Publication Date**: 2026-06-05  
 **Editor**: GitHub Agentic Workflows Team  
-**This Version**: [ai-credits-specification](/gh-aw/reference/ai-credits-specification/)  
+**This Version**: [ai-credits-specification](/gh-aw/specs/ai-credits-specification/)  
 **Latest Published Version**: This document
 
 ---

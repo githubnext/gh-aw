@@ -146,7 +146,7 @@ gh aw logs --format markdown --repo owner/repo --count 10
 
 - [Cost Management](/gh-aw/reference/cost-management/) — Track AIC-first spend and token usage
 - [Artifacts](/gh-aw/reference/artifacts/) — Artifact names, directory structures, and token usage file locations (`token-usage.jsonl` in `firewall-audit-logs`)
-- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) — Legacy effective token computation details
+- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) — Legacy effective token computation details
 - [Network](/gh-aw/reference/network/) — Firewall and domain allow/deny configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — MCP server health and debugging
 - [CLI Commands](/gh-aw/setup/cli/) — Full CLI reference

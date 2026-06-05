@@ -9,7 +9,7 @@ sidebar:
 
 **Version**: 1.1.0  
 **Status**: Draft Specification  
-**Latest Version**: [mcp-scripts-specification](/gh-aw/reference/mcp-scripts-specification/)  
+**Latest Version**: [mcp-scripts-specification](/gh-aw/specs/mcp-scripts-specification/)  
 **JSON Schema**: [mcp-scripts-config.schema.json](/gh-aw/schemas/mcp-scripts-config.schema.json)  
 **Editor**: GitHub Agentic Workflows Team
 

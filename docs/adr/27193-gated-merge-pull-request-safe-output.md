@@ -46,7 +46,7 @@ Merge could have been treated as a distinct risk tier requiring its own runtime 
 
 #### Neutral
 - The `contents:write` + `pull-requests:write` permission pair must be present in any workflow that uses `merge-pull-request`; this is enforced at compile time but requires authors to explicitly declare permissions.
-- The W3C-style Safe Outputs specification (`docs/src/content/docs/reference/safe-outputs-specification.md`) was updated to include a formal `merge_pull_request` section, continuing the precedent of spec-first documentation for safe-output types.
+- The W3C-style Safe Outputs specification (`docs/src/content/docs/specs/safe-outputs-specification.md`) was updated to include a formal `merge_pull_request` section, continuing the precedent of spec-first documentation for safe-output types.
 - A Go spec-enforcement test (`safe_outputs_specification_merge_pull_request_test.go`) was added to prevent spec drift; this test must be updated if the type name or required policy statements change.
 
 ---
