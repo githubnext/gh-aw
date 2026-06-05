@@ -5300,7 +5300,11 @@ describe("sendJobConclusionSpan", () => {
 
       // Simulate a downstream job (e.g. conclusion, detection, safe_outputs) that
       // has agent_usage.json on disk via artifact download but should NOT emit tokens.
+      // Compiled workflows also propagate GH_AW_EFFECTIVE_TOKENS and GH_AW_AIC from
+      // needs.agent.outputs.* — set them here to guard against unconditional env reads.
       process.env.INPUT_JOB_NAME = "conclusion";
+      process.env.GH_AW_EFFECTIVE_TOKENS = "500";
+      process.env.GH_AW_AIC = "0.05";
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
