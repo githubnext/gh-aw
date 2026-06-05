@@ -43,7 +43,6 @@ import (
 )
 
 var pullRequestTargetLog = newValidationLogger("pull_request_target")
-
 // [^{}]+? deliberately excludes brace characters so nested expression constructs
 // are never treated as a trusted literal allowlist match.
 var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^{}]+?)\s*\}\}$`)
