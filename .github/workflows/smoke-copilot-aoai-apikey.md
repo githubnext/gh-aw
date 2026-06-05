@@ -22,7 +22,7 @@ permissions:
 name: Smoke Copilot - AOAI (apikey)
 engine:
   id: copilot
-  model: gpt-5.4
+  model: o4-mini-aw
   max-continuations: 2
   bare: true
   env:
