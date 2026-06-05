@@ -69,7 +69,24 @@ function extractAwfTokenWarnings(logEntries) {
  * @returns {boolean}
  */
 function isCopilotSdkEventsFormat(logEntries) {
-  return Array.isArray(logEntries) && logEntries.some(entry => typeof entry?.type === "string" && entry.type.includes(".") && typeof entry?.data === "object");
+  if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    return false;
+  }
+
+  const sdkEventTypes = new Set(["user.message", "assistant.message", "tool.execution_start", "tool.execution_complete", "reasoning", "assistant.reasoning"]);
+  let sdkLikeCount = 0;
+
+  for (const entry of logEntries) {
+    if (!entry || typeof entry !== "object") continue;
+    if (entry.type === "assistant" || entry.type === "user" || entry.type === "system" || entry.type === "result") {
+      return false;
+    }
+    if (typeof entry.type === "string" && sdkEventTypes.has(entry.type) && typeof entry.data === "object" && entry.data !== null) {
+      sdkLikeCount++;
+    }
+  }
+
+  return sdkLikeCount > 0;
 }
 
 /**
@@ -102,11 +119,11 @@ function normalizeCopilotSdkEventsToTrace(sdkEntries) {
   const shiftPendingId = toolName => {
     const existing = pendingIdsByToolName.get(toolName);
     if (!existing || existing.length === 0) return null;
-    const toolId = existing.shift() || null;
+    const toolId = existing.shift();
     if (existing.length === 0) {
       pendingIdsByToolName.delete(toolName);
     }
-    return toolId;
+    return toolId || null;
   };
 
   const removePendingId = (toolName, toolId) => {
