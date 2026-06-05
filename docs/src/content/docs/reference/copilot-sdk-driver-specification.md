@@ -7,7 +7,7 @@ sidebar:
 
 # Copilot SDK Driver Specification
 
-**Version**: 1.0.1  
+**Version**: 1.0.2  
 **Status**: Draft Specification  
 **Latest Version**: [copilot-sdk-driver-specification](/gh-aw/reference/copilot-sdk-driver-specification/)  
 **Editor**: GitHub Agentic Workflows Team
@@ -125,6 +125,8 @@ When SDK mode is enabled (`COPILOT_SDK_URI` is set), the harness MUST generate a
 
 The SDK driver MUST treat `COPILOT_CONNECTION_TOKEN` as a required input and MUST fail fast with non-zero exit when it is missing.
 
+The harness MUST NOT propagate platform authentication secrets such as `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, or `GH_TOKEN` into the SDK driver subprocess environment. Driver processes run in a secret-isolated environment and MUST NOT rely on or attempt to read platform authentication tokens.
+
 ---
 
 ## 4. Configuration and Environment Variables
@@ -143,7 +145,9 @@ In standalone mode, the implementation MUST enforce the following contract:
 | `COPILOT_SDK_LOG_LEVEL`       | No       | SDK client log level                                      | gh-aw may set this for driver runtime logging; valid values: `none`, `error`, `warning`, `info`, `debug`, `all`; invalid values MUST fall back to `warning` |
 | `GITHUB_WORKSPACE`            | No       | Working directory hint                                    | SHOULD be used when present                                                                                  |
 
-### 4.2 Connection Token Requirement
+> **Note**: Platform authentication tokens (`GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`) are NOT available in the SDK driver subprocess environment. Driver implementations MUST NOT reference or depend on these variables.
+
+### 4.2 Connection Token Requirement and Token Isolation Policy
 
 `COPILOT_CONNECTION_TOKEN` is a harness-generated per-run secret used by the SDK driver to authenticate to the harness-managed sidecar session.
 
@@ -153,6 +157,13 @@ In SDK mode, a conforming implementation:
 - MUST propagate the same token to sidecar and driver processes for a given run.
 - MUST require the token in the driver process environment before creating `RuntimeConnection`.
 - MUST NOT log the raw token value.
+
+The SDK driver subprocess runs in a secret-isolated environment. As a result:
+
+- `COPILOT_CONNECTION_TOKEN` is the **only** authentication token a driver MUST use.
+- A driver SHOULD NOT attempt to read `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, or `GH_TOKEN` from its environment.
+- A driver MUST NOT use a GitHub platform token as a substitute or supplement for `COPILOT_CONNECTION_TOKEN`.
+- If a driver encounters an absent `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN`, it MUST NOT treat this as an error condition. The absence of these variables is expected and normal.
 
 ### 4.3 Timeout Environment Variable
 
@@ -349,6 +360,7 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 - **T-CSD-005**: Unset `COPILOT_SDK_SEND_TIMEOUT_MS` falls back to default `600000`.
 - **T-CSD-006**: Non-numeric or non-positive `COPILOT_SDK_SEND_TIMEOUT_MS` falls back to default `600000`.
 - **T-CSD-007**: In SDK mode, harness and driver receive the same non-empty `COPILOT_CONNECTION_TOKEN`, and token values are not logged.
+- **T-CSD-008**: Driver does not read, require, or error on absence of `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, or `GH_TOKEN`.
 
 #### 8.1.2 Permission Tests
 
@@ -375,6 +387,7 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 | --------------------------------------------- | -------------------- | ----- | ----------- |
 | Required standalone variables enforced        | T-CSD-001..003       | 1     | Required    |
 | Connection token generation and propagation   | T-CSD-007            | 1     | Required    |
+| Token isolation (no GitHub platform tokens)   | T-CSD-008            | 1     | Required    |
 | Log-level and timeout fallback behavior       | T-CSD-004..006       | 1     | Required    |
 | Default permission delegation                 | T-CSD-101            | 2     | Required    |
 | Allow-all permission behavior                 | T-CSD-102            | 2     | Required    |
@@ -415,6 +428,7 @@ A conforming implementation SHOULD:
 - Apply least-privilege permission rules and avoid broad allow-all configurations unless operationally justified.
 - Preserve auditable denial logs for policy and incident review.
 - Restrict event persistence to non-ephemeral events and avoid writing sensitive transient state.
+- Not attempt to read, fall back to, or check for platform authentication tokens (`GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`). These tokens are not present in the driver subprocess environment by design. Attempting to use them would fail silently or cause unexpected behavior.
 
 ---
 
@@ -435,6 +449,14 @@ A conforming implementation SHOULD:
 ---
 
 ## 11. Change Log
+
+### Version 1.0.2 (Draft Specification)
+
+- Added token isolation policy to Section 3.4: harness MUST NOT propagate `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, or `GH_TOKEN` to driver subprocesses.
+- Expanded Section 4.2 to "Connection Token Requirement and Token Isolation Policy": drivers SHOULD NOT read platform authentication tokens; `COPILOT_CONNECTION_TOKEN` is the sole authentication token for driver use; absence of platform tokens MUST NOT be treated as an error.
+- Added normative note to Section 4.1 table confirming platform authentication tokens are not available in the driver environment.
+- Added compliance test T-CSD-008 for token isolation verification.
+- Updated Appendix C (Security Considerations) with token isolation guidance.
 
 ### Version 1.0.1 (Draft Specification)
 

@@ -185,10 +185,6 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
-  // Append effective tokens when available (compact format, no "ET" label)
-  if (effectiveTokens) {
-    defaultFooter += effectiveTokensSuffix;
-  }
   if (aiCredits) {
     defaultFooter += aiCreditsSuffix;
   }
@@ -328,10 +324,6 @@ function getFooterAgentFailureIssueMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    // Append effective tokens when available (compact format, no "ET" label)
-    if (effectiveTokens) {
-      defaultFooter += `{effective_tokens_suffix}`;
-    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";
@@ -370,10 +362,6 @@ function getFooterAgentFailureCommentMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    // Append effective tokens when available (compact format, no "ET" label)
-    if (effectiveTokens) {
-      defaultFooter += `{effective_tokens_suffix}`;
-    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";
