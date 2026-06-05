@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import safeOutputsMCPServerHTTP from "./safe_outputs_mcp_server_http.cjs";
 
-const { createMCPServer } = require("./safe_outputs_mcp_server_http.cjs");
+const { createMCPServer } = safeOutputsMCPServerHTTP;
 
 describe("safe_outputs_mcp wrapped tool arguments", () => {
   let tempDir;

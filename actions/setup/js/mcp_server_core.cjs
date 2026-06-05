@@ -572,7 +572,7 @@ function normalizeToolArguments(server, toolName, args) {
     return args;
   }
   const normalized = server.normalizeArguments(toolName, args);
-  return normalized === undefined ? args : normalized;
+  return normalized == null ? args : normalized;
 }
 
 /**
