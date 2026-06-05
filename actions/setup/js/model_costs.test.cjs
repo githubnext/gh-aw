@@ -16,28 +16,31 @@ afterEach(async () => {
   }
 });
 
-function writeModelsFixture(data) {
+function writeModelsFixture(providers) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-model-costs-"));
   tmpDirs.push(dir);
   const file = path.join(dir, "models.json");
-  fs.writeFileSync(file, JSON.stringify({ data }, null, 2));
+  fs.writeFileSync(file, JSON.stringify({ providers }, null, 2));
   process.env.GH_AW_MODELS_JSON_PATH = file;
 }
 
 describe("model_costs.cjs", () => {
   it("computes inference AIC using provider-specific pricing", async () => {
-    writeModelsFixture([
-      {
-        id: "anthropic/claude-sonnet-4.6",
-        pricing: {
-          prompt: "0.000003",
-          completion: "0.000015",
-          input_cache_read: "0.0000003",
-          input_cache_write: "0.00000375",
-          internal_reasoning: "0.000015",
+    writeModelsFixture({
+      anthropic: {
+        models: {
+          "claude-sonnet-4.6": {
+            cost: {
+              input: "0.000003",
+              output: "0.000015",
+              cache_read: "0.0000003",
+              cache_write: "0.00000375",
+              reasoning: "0.000015",
+            },
+          },
         },
       },
-    ]);
+    });
 
     const { computeInferenceAIC } = await import("./model_costs.cjs");
     const aic = computeInferenceAIC({

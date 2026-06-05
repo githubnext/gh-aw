@@ -1,658 +1,588 @@
 {
-  "data": [
-    {
-      "id": "anthropic/claude-opus-4.7-fast",
-      "pricing": {
-        "prompt": "0.00003",
-        "completion": "0.00015",
-        "web_search": "0.01",
-        "input_cache_read": "0.000003",
-        "input_cache_write": "0.0000375"
-      }
-    },
-    {
-      "id": "openai/gpt-chat-latest",
-      "pricing": {
-        "prompt": "0.000005",
-        "completion": "0.00003",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005"
-      }
-    },
-    {
-      "id": "openai/gpt-5.5-pro",
-      "pricing": {
-        "prompt": "0.00003",
-        "completion": "0.00018",
-        "web_search": "0.01"
-      }
-    },
-    {
-      "id": "openai/gpt-5.5",
-      "pricing": {
-        "prompt": "0.000005",
-        "completion": "0.00003",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005"
-      }
-    },
-    {
-      "id": "openai/gpt-5.4-image-2",
-      "pricing": {
-        "prompt": "0.000008",
-        "completion": "0.000015",
-        "web_search": "0.01",
-        "input_cache_read": "0.000002"
-      }
-    },
-    {
-      "id": "anthropic/claude-opus-4.7",
-      "pricing": {
-        "prompt": "0.000005",
-        "completion": "0.000025",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005",
-        "input_cache_write": "0.00000625"
-      }
-    },
-    {
-      "id": "anthropic/claude-opus-4.6-fast",
-      "pricing": {
-        "prompt": "0.00003",
-        "completion": "0.00015",
-        "web_search": "0.01",
-        "input_cache_read": "0.000003",
-        "input_cache_write": "0.0000375"
-      }
-    },
-    {
-      "id": "openai/gpt-5.4-nano",
-      "pricing": {
-        "prompt": "0.0000002",
-        "completion": "0.00000125",
-        "web_search": "0.01",
-        "input_cache_read": "0.00000002"
-      }
-    },
-    {
-      "id": "openai/gpt-5.4-mini",
-      "pricing": {
-        "prompt": "0.00000075",
-        "completion": "0.0000045",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000075"
-      }
-    },
-    {
-      "id": "openai/gpt-5.4-pro",
-      "pricing": {
-        "prompt": "0.00003",
-        "completion": "0.00018",
-        "web_search": "0.01"
-      }
-    },
-    {
-      "id": "openai/gpt-5.4",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.000015",
-        "web_search": "0.01",
-        "input_cache_read": "0.00000025"
-      }
-    },
-    {
-      "id": "openai/gpt-5.3-chat",
-      "pricing": {
-        "prompt": "0.00000175",
-        "completion": "0.000014",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000175"
-      }
-    },
-    {
-      "id": "openai/gpt-5.3-codex",
-      "pricing": {
-        "prompt": "0.00000175",
-        "completion": "0.000014",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000175"
-      }
-    },
-    {
-      "id": "anthropic/claude-sonnet-4.6",
-      "pricing": {
-        "prompt": "0.000003",
-        "completion": "0.000015",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000003",
-        "input_cache_write": "0.00000375"
-      }
-    },
-    {
-      "id": "anthropic/claude-opus-4.6",
-      "pricing": {
-        "prompt": "0.000005",
-        "completion": "0.000025",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005",
-        "input_cache_write": "0.00000625"
-      }
-    },
-    {
-      "id": "openai/gpt-audio",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.00001",
-        "audio": "0.000032"
-      }
-    },
-    {
-      "id": "openai/gpt-audio-mini",
-      "pricing": {
-        "prompt": "0.0000006",
-        "completion": "0.0000024",
-        "audio": "0.0000006"
-      }
-    },
-    {
-      "id": "openai/gpt-5.2-codex",
-      "pricing": {
-        "prompt": "0.00000175",
-        "completion": "0.000014",
-        "input_cache_read": "0.000000175"
-      }
-    },
-    {
-      "id": "openai/gpt-5.2-chat",
-      "pricing": {
-        "prompt": "0.00000175",
-        "completion": "0.000014",
-        "input_cache_read": "0.000000175"
-      }
-    },
-    {
-      "id": "openai/gpt-5.2-pro",
-      "pricing": {
-        "prompt": "0.000021",
-        "completion": "0.000168",
-        "web_search": "0.01"
-      }
-    },
-    {
-      "id": "openai/gpt-5.2",
-      "pricing": {
-        "prompt": "0.00000175",
-        "completion": "0.000014",
-        "input_cache_read": "0.000000175"
-      }
-    },
-    {
-      "id": "openai/gpt-5.1-codex-max",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000125"
-      }
-    },
-    {
-      "id": "anthropic/claude-opus-4.5",
-      "pricing": {
-        "prompt": "0.000005",
-        "completion": "0.000025",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005",
-        "input_cache_write": "0.00000625"
-      }
-    },
-    {
-      "id": "openai/gpt-5.1",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "input_cache_read": "0.00000013"
-      }
-    },
-    {
-      "id": "openai/gpt-5.1-chat",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000125"
-      }
-    },
-    {
-      "id": "openai/gpt-5.1-codex",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "input_cache_read": "0.000000125"
-      }
-    },
-    {
-      "id": "openai/gpt-5.1-codex-mini",
-      "pricing": {
-        "prompt": "0.00000025",
-        "completion": "0.000002",
-        "input_cache_read": "0.00000003"
-      }
-    },
-    {
-      "id": "openai/gpt-oss-safeguard-20b",
-      "pricing": {
-        "prompt": "0.000000075",
-        "completion": "0.0000003",
-        "input_cache_read": "0.000000037"
-      }
-    },
-    {
-      "id": "openai/gpt-5-image-mini",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.000002",
-        "web_search": "0.01",
-        "input_cache_read": "0.00000025"
-      }
-    },
-    {
-      "id": "anthropic/claude-haiku-4.5",
-      "pricing": {
-        "prompt": "0.000001",
-        "completion": "0.000005",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000001",
-        "input_cache_write": "0.00000125"
-      }
-    },
-    {
-      "id": "openai/gpt-5-image",
-      "pricing": {
-        "prompt": "0.00001",
-        "completion": "0.00001",
-        "web_search": "0.01",
-        "input_cache_read": "0.00000125"
-      }
-    },
-    {
-      "id": "openai/o3-deep-research",
-      "pricing": {
-        "prompt": "0.00001",
-        "completion": "0.00004",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000025"
-      }
-    },
-    {
-      "id": "openai/o4-mini-deep-research",
-      "pricing": {
-        "prompt": "0.000002",
-        "completion": "0.000008",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005"
-      }
-    },
-    {
-      "id": "openai/gpt-5-pro",
-      "pricing": {
-        "prompt": "0.000015",
-        "completion": "0.00012",
-        "web_search": "0.01"
-      }
-    },
-    {
-      "id": "anthropic/claude-sonnet-4.5",
-      "pricing": {
-        "prompt": "0.000003",
-        "completion": "0.000015",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000003",
-        "input_cache_write": "0.00000375"
-      }
-    },
-    {
-      "id": "openai/gpt-5-codex",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "input_cache_read": "0.000000125"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-audio-preview",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.00001",
-        "audio": "0.00004"
-      }
-    },
-    {
-      "id": "openai/gpt-5-chat",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000125"
-      }
-    },
-    {
-      "id": "openai/gpt-5",
-      "pricing": {
-        "prompt": "0.00000125",
-        "completion": "0.00001",
-        "input_cache_read": "0.000000125"
-      }
-    },
-    {
-      "id": "openai/gpt-5-mini",
-      "pricing": {
-        "prompt": "0.00000025",
-        "completion": "0.000002",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000025"
-      }
-    },
-    {
-      "id": "openai/gpt-5-nano",
-      "pricing": {
-        "prompt": "0.00000005",
-        "completion": "0.0000004",
-        "input_cache_read": "0.00000001"
-      }
-    },
-    {
-      "id": "openai/gpt-oss-120b:free",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      }
-    },
-    {
-      "id": "openai/gpt-oss-120b",
-      "pricing": {
-        "prompt": "0.000000039",
-        "completion": "0.00000018"
-      }
-    },
-    {
-      "id": "openai/gpt-oss-20b:free",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      }
-    },
-    {
-      "id": "openai/gpt-oss-20b",
-      "pricing": {
-        "prompt": "0.00000003",
-        "completion": "0.00000014"
-      }
-    },
-    {
-      "id": "anthropic/claude-opus-4.1",
-      "pricing": {
-        "prompt": "0.000015",
-        "completion": "0.000075",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000015",
-        "input_cache_write": "0.00001875"
-      }
-    },
-    {
-      "id": "openai/o3-pro",
-      "pricing": {
-        "prompt": "0.00002",
-        "completion": "0.00008",
-        "web_search": "0.01"
-      }
-    },
-    {
-      "id": "anthropic/claude-opus-4",
-      "pricing": {
-        "prompt": "0.000015",
-        "completion": "0.000075",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000015",
-        "input_cache_write": "0.00001875"
-      }
-    },
-    {
-      "id": "anthropic/claude-sonnet-4",
-      "pricing": {
-        "prompt": "0.000003",
-        "completion": "0.000015",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000003",
-        "input_cache_write": "0.00000375"
-      }
-    },
-    {
-      "id": "openai/o4-mini-high",
-      "pricing": {
-        "prompt": "0.0000011",
-        "completion": "0.0000044",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000275"
-      }
-    },
-    {
-      "id": "openai/o3",
-      "pricing": {
-        "prompt": "0.000002",
-        "completion": "0.000008",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000005"
-      }
-    },
-    {
-      "id": "openai/o4-mini",
-      "pricing": {
-        "prompt": "0.0000011",
-        "completion": "0.0000044",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000275"
-      }
-    },
-    {
-      "id": "openai/gpt-4.1",
-      "pricing": {
-        "prompt": "0.000002",
-        "completion": "0.000008",
-        "input_cache_read": "0.0000005"
-      }
-    },
-    {
-      "id": "openai/gpt-4.1-mini",
-      "pricing": {
-        "prompt": "0.0000004",
-        "completion": "0.0000016",
-        "web_search": "0.01",
-        "input_cache_read": "0.0000001"
-      }
-    },
-    {
-      "id": "openai/gpt-4.1-nano",
-      "pricing": {
-        "prompt": "0.0000001",
-        "completion": "0.0000004",
-        "web_search": "0.01",
-        "input_cache_read": "0.000000025"
-      }
-    },
-    {
-      "id": "openai/o1-pro",
-      "pricing": {
-        "prompt": "0.00015",
-        "completion": "0.0006"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-mini-search-preview",
-      "pricing": {
-        "prompt": "0.00000015",
-        "completion": "0.0000006",
-        "web_search": "0.0275"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-search-preview",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.00001",
-        "web_search": "0.035"
-      }
-    },
-    {
-      "id": "openai/o3-mini-high",
-      "pricing": {
-        "prompt": "0.0000011",
-        "completion": "0.0000044",
-        "input_cache_read": "0.00000055"
-      }
-    },
-    {
-      "id": "openai/o3-mini",
-      "pricing": {
-        "prompt": "0.0000011",
-        "completion": "0.0000044",
-        "input_cache_read": "0.00000055"
-      }
-    },
-    {
-      "id": "openai/o1",
-      "pricing": {
-        "prompt": "0.000015",
-        "completion": "0.00006",
-        "input_cache_read": "0.0000075"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-2024-11-20",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.00001",
-        "input_cache_read": "0.00000125"
-      }
-    },
-    {
-      "id": "anthropic/claude-3.5-haiku",
-      "pricing": {
-        "prompt": "0.0000008",
-        "completion": "0.000004",
-        "web_search": "0.01",
-        "input_cache_read": "0.00000008",
-        "input_cache_write": "0.000001"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-2024-08-06",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.00001",
-        "input_cache_read": "0.00000125"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-mini-2024-07-18",
-      "pricing": {
-        "prompt": "0.00000015",
-        "completion": "0.0000006",
-        "input_cache_read": "0.000000075"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-mini",
-      "pricing": {
-        "prompt": "0.00000015",
-        "completion": "0.0000006",
-        "input_cache_read": "0.000000075"
-      }
-    },
-    {
-      "id": "openai/gpt-4o",
-      "pricing": {
-        "prompt": "0.0000025",
-        "completion": "0.00001"
-      }
-    },
-    {
-      "id": "openai/gpt-4o-2024-05-13",
-      "pricing": {
-        "prompt": "0.000005",
-        "completion": "0.000015"
-      }
-    },
-    {
-      "id": "openai/gpt-4-turbo",
-      "pricing": {
-        "prompt": "0.00001",
-        "completion": "0.00003"
-      }
-    },
-    {
-      "id": "anthropic/claude-3-haiku",
-      "pricing": {
-        "prompt": "0.00000025",
-        "completion": "0.00000125",
-        "input_cache_read": "0.00000003",
-        "input_cache_write": "0.0000003"
-      }
-    },
-    {
-      "id": "openai/gpt-3.5-turbo-0613",
-      "pricing": {
-        "prompt": "0.000001",
-        "completion": "0.000002"
-      }
-    },
-    {
-      "id": "openai/gpt-4-turbo-preview",
-      "pricing": {
-        "prompt": "0.00001",
-        "completion": "0.00003"
-      }
-    },
-    {
-      "id": "openai/gpt-4-1106-preview",
-      "pricing": {
-        "prompt": "0.00001",
-        "completion": "0.00003"
-      }
-    },
-    {
-      "id": "openai/gpt-3.5-turbo-instruct",
-      "pricing": {
-        "prompt": "0.0000015",
-        "completion": "0.000002"
-      }
-    },
-    {
-      "id": "openai/gpt-3.5-turbo-16k",
-      "pricing": {
-        "prompt": "0.000003",
-        "completion": "0.000004"
-      }
-    },
-    {
-      "id": "openai/gpt-4-0314",
-      "pricing": {
-        "prompt": "0.00003",
-        "completion": "0.00006"
-      }
-    },
-    {
-      "id": "openai/gpt-4",
-      "pricing": {
-        "prompt": "0.00003",
-        "completion": "0.00006"
-      }
-    },
-    {
-      "id": "openai/gpt-3.5-turbo",
-      "pricing": {
-        "prompt": "0.0000005",
-        "completion": "0.0000015"
+  "providers": {
+    "anthropic": {
+      "models": {
+        "claude-opus-4.7-fast": {
+          "cost": {
+            "input": "0.00003",
+            "output": "0.00015",
+            "web_search": "0.01",
+            "cache_read": "0.000003",
+            "cache_write": "0.0000375"
+          }
+        },
+        "claude-opus-4.7": {
+          "cost": {
+            "input": "0.000005",
+            "output": "0.000025",
+            "web_search": "0.01",
+            "cache_read": "0.0000005",
+            "cache_write": "0.00000625"
+          }
+        },
+        "claude-opus-4.6-fast": {
+          "cost": {
+            "input": "0.00003",
+            "output": "0.00015",
+            "web_search": "0.01",
+            "cache_read": "0.000003",
+            "cache_write": "0.0000375"
+          }
+        },
+        "claude-sonnet-4.6": {
+          "cost": {
+            "input": "0.000003",
+            "output": "0.000015",
+            "web_search": "0.01",
+            "cache_read": "0.0000003",
+            "cache_write": "0.00000375"
+          }
+        },
+        "claude-opus-4.6": {
+          "cost": {
+            "input": "0.000005",
+            "output": "0.000025",
+            "web_search": "0.01",
+            "cache_read": "0.0000005",
+            "cache_write": "0.00000625"
+          }
+        },
+        "claude-opus-4.5": {
+          "cost": {
+            "input": "0.000005",
+            "output": "0.000025",
+            "web_search": "0.01",
+            "cache_read": "0.0000005",
+            "cache_write": "0.00000625"
+          }
+        },
+        "claude-haiku-4.5": {
+          "cost": {
+            "input": "0.000001",
+            "output": "0.000005",
+            "web_search": "0.01",
+            "cache_read": "0.0000001",
+            "cache_write": "0.00000125"
+          }
+        },
+        "claude-sonnet-4.5": {
+          "cost": {
+            "input": "0.000003",
+            "output": "0.000015",
+            "web_search": "0.01",
+            "cache_read": "0.0000003",
+            "cache_write": "0.00000375"
+          }
+        },
+        "claude-opus-4.1": {
+          "cost": {
+            "input": "0.000015",
+            "output": "0.000075",
+            "web_search": "0.01",
+            "cache_read": "0.0000015",
+            "cache_write": "0.00001875"
+          }
+        },
+        "claude-opus-4": {
+          "cost": {
+            "input": "0.000015",
+            "output": "0.000075",
+            "web_search": "0.01",
+            "cache_read": "0.0000015",
+            "cache_write": "0.00001875"
+          }
+        },
+        "claude-sonnet-4": {
+          "cost": {
+            "input": "0.000003",
+            "output": "0.000015",
+            "web_search": "0.01",
+            "cache_read": "0.0000003",
+            "cache_write": "0.00000375"
+          }
+        },
+        "claude-3.5-haiku": {
+          "cost": {
+            "input": "0.0000008",
+            "output": "0.000004",
+            "web_search": "0.01",
+            "cache_read": "0.00000008",
+            "cache_write": "0.000001"
+          }
+        },
+        "claude-3-haiku": {
+          "cost": {
+            "input": "0.00000025",
+            "output": "0.00000125",
+            "cache_read": "0.00000003",
+            "cache_write": "0.0000003"
+          }
+        }
+      }
+    },
+    "openai": {
+      "models": {
+        "gpt-chat-latest": {
+          "cost": {
+            "input": "0.000005",
+            "output": "0.00003",
+            "web_search": "0.01",
+            "cache_read": "0.0000005"
+          }
+        },
+        "gpt-5.5-pro": {
+          "cost": {
+            "input": "0.00003",
+            "output": "0.00018",
+            "web_search": "0.01"
+          }
+        },
+        "gpt-5.5": {
+          "cost": {
+            "input": "0.000005",
+            "output": "0.00003",
+            "web_search": "0.01",
+            "cache_read": "0.0000005"
+          }
+        },
+        "gpt-5.4-image-2": {
+          "cost": {
+            "input": "0.000008",
+            "output": "0.000015",
+            "web_search": "0.01",
+            "cache_read": "0.000002"
+          }
+        },
+        "gpt-5.4-nano": {
+          "cost": {
+            "input": "0.0000002",
+            "output": "0.00000125",
+            "web_search": "0.01",
+            "cache_read": "0.00000002"
+          }
+        },
+        "gpt-5.4-mini": {
+          "cost": {
+            "input": "0.00000075",
+            "output": "0.0000045",
+            "web_search": "0.01",
+            "cache_read": "0.000000075"
+          }
+        },
+        "gpt-5.4-pro": {
+          "cost": {
+            "input": "0.00003",
+            "output": "0.00018",
+            "web_search": "0.01"
+          }
+        },
+        "gpt-5.4": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.000015",
+            "web_search": "0.01",
+            "cache_read": "0.00000025"
+          }
+        },
+        "gpt-5.3-chat": {
+          "cost": {
+            "input": "0.00000175",
+            "output": "0.000014",
+            "web_search": "0.01",
+            "cache_read": "0.000000175"
+          }
+        },
+        "gpt-5.3-codex": {
+          "cost": {
+            "input": "0.00000175",
+            "output": "0.000014",
+            "web_search": "0.01",
+            "cache_read": "0.000000175"
+          }
+        },
+        "gpt-audio": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.00001",
+            "audio": "0.000032"
+          }
+        },
+        "gpt-audio-mini": {
+          "cost": {
+            "input": "0.0000006",
+            "output": "0.0000024",
+            "audio": "0.0000006"
+          }
+        },
+        "gpt-5.2-codex": {
+          "cost": {
+            "input": "0.00000175",
+            "output": "0.000014",
+            "cache_read": "0.000000175"
+          }
+        },
+        "gpt-5.2-chat": {
+          "cost": {
+            "input": "0.00000175",
+            "output": "0.000014",
+            "cache_read": "0.000000175"
+          }
+        },
+        "gpt-5.2-pro": {
+          "cost": {
+            "input": "0.000021",
+            "output": "0.000168",
+            "web_search": "0.01"
+          }
+        },
+        "gpt-5.2": {
+          "cost": {
+            "input": "0.00000175",
+            "output": "0.000014",
+            "cache_read": "0.000000175"
+          }
+        },
+        "gpt-5.1-codex-max": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "web_search": "0.01",
+            "cache_read": "0.000000125"
+          }
+        },
+        "gpt-5.1": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "cache_read": "0.00000013"
+          }
+        },
+        "gpt-5.1-chat": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "web_search": "0.01",
+            "cache_read": "0.000000125"
+          }
+        },
+        "gpt-5.1-codex": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "cache_read": "0.000000125"
+          }
+        },
+        "gpt-5.1-codex-mini": {
+          "cost": {
+            "input": "0.00000025",
+            "output": "0.000002",
+            "cache_read": "0.00000003"
+          }
+        },
+        "gpt-oss-safeguard-20b": {
+          "cost": {
+            "input": "0.000000075",
+            "output": "0.0000003",
+            "cache_read": "0.000000037"
+          }
+        },
+        "gpt-5-image-mini": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.000002",
+            "web_search": "0.01",
+            "cache_read": "0.00000025"
+          }
+        },
+        "gpt-5-image": {
+          "cost": {
+            "input": "0.00001",
+            "output": "0.00001",
+            "web_search": "0.01",
+            "cache_read": "0.00000125"
+          }
+        },
+        "o3-deep-research": {
+          "cost": {
+            "input": "0.00001",
+            "output": "0.00004",
+            "web_search": "0.01",
+            "cache_read": "0.0000025"
+          }
+        },
+        "o4-mini-deep-research": {
+          "cost": {
+            "input": "0.000002",
+            "output": "0.000008",
+            "web_search": "0.01",
+            "cache_read": "0.0000005"
+          }
+        },
+        "gpt-5-pro": {
+          "cost": {
+            "input": "0.000015",
+            "output": "0.00012",
+            "web_search": "0.01"
+          }
+        },
+        "gpt-5-codex": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "cache_read": "0.000000125"
+          }
+        },
+        "gpt-4o-audio-preview": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.00001",
+            "audio": "0.00004"
+          }
+        },
+        "gpt-5-chat": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "web_search": "0.01",
+            "cache_read": "0.000000125"
+          }
+        },
+        "gpt-5": {
+          "cost": {
+            "input": "0.00000125",
+            "output": "0.00001",
+            "cache_read": "0.000000125"
+          }
+        },
+        "gpt-5-mini": {
+          "cost": {
+            "input": "0.00000025",
+            "output": "0.000002",
+            "web_search": "0.01",
+            "cache_read": "0.000000025"
+          }
+        },
+        "gpt-5-nano": {
+          "cost": {
+            "input": "0.00000005",
+            "output": "0.0000004",
+            "cache_read": "0.00000001"
+          }
+        },
+        "gpt-oss-120b:free": {
+          "cost": {
+            "input": "0",
+            "output": "0"
+          }
+        },
+        "gpt-oss-120b": {
+          "cost": {
+            "input": "0.000000039",
+            "output": "0.00000018"
+          }
+        },
+        "gpt-oss-20b:free": {
+          "cost": {
+            "input": "0",
+            "output": "0"
+          }
+        },
+        "gpt-oss-20b": {
+          "cost": {
+            "input": "0.00000003",
+            "output": "0.00000014"
+          }
+        },
+        "o3-pro": {
+          "cost": {
+            "input": "0.00002",
+            "output": "0.00008",
+            "web_search": "0.01"
+          }
+        },
+        "o4-mini-high": {
+          "cost": {
+            "input": "0.0000011",
+            "output": "0.0000044",
+            "web_search": "0.01",
+            "cache_read": "0.000000275"
+          }
+        },
+        "o3": {
+          "cost": {
+            "input": "0.000002",
+            "output": "0.000008",
+            "web_search": "0.01",
+            "cache_read": "0.0000005"
+          }
+        },
+        "o4-mini": {
+          "cost": {
+            "input": "0.0000011",
+            "output": "0.0000044",
+            "web_search": "0.01",
+            "cache_read": "0.000000275"
+          }
+        },
+        "gpt-4.1": {
+          "cost": {
+            "input": "0.000002",
+            "output": "0.000008",
+            "cache_read": "0.0000005"
+          }
+        },
+        "gpt-4.1-mini": {
+          "cost": {
+            "input": "0.0000004",
+            "output": "0.0000016",
+            "web_search": "0.01",
+            "cache_read": "0.0000001"
+          }
+        },
+        "gpt-4.1-nano": {
+          "cost": {
+            "input": "0.0000001",
+            "output": "0.0000004",
+            "web_search": "0.01",
+            "cache_read": "0.000000025"
+          }
+        },
+        "o1-pro": {
+          "cost": {
+            "input": "0.00015",
+            "output": "0.0006"
+          }
+        },
+        "gpt-4o-mini-search-preview": {
+          "cost": {
+            "input": "0.00000015",
+            "output": "0.0000006",
+            "web_search": "0.0275"
+          }
+        },
+        "gpt-4o-search-preview": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.00001",
+            "web_search": "0.035"
+          }
+        },
+        "o3-mini-high": {
+          "cost": {
+            "input": "0.0000011",
+            "output": "0.0000044",
+            "cache_read": "0.00000055"
+          }
+        },
+        "o3-mini": {
+          "cost": {
+            "input": "0.0000011",
+            "output": "0.0000044",
+            "cache_read": "0.00000055"
+          }
+        },
+        "o1": {
+          "cost": {
+            "input": "0.000015",
+            "output": "0.00006",
+            "cache_read": "0.0000075"
+          }
+        },
+        "gpt-4o-2024-11-20": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.00001",
+            "cache_read": "0.00000125"
+          }
+        },
+        "gpt-4o-2024-08-06": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.00001",
+            "cache_read": "0.00000125"
+          }
+        },
+        "gpt-4o-mini-2024-07-18": {
+          "cost": {
+            "input": "0.00000015",
+            "output": "0.0000006",
+            "cache_read": "0.000000075"
+          }
+        },
+        "gpt-4o-mini": {
+          "cost": {
+            "input": "0.00000015",
+            "output": "0.0000006",
+            "cache_read": "0.000000075"
+          }
+        },
+        "gpt-4o": {
+          "cost": {
+            "input": "0.0000025",
+            "output": "0.00001"
+          }
+        },
+        "gpt-4o-2024-05-13": {
+          "cost": {
+            "input": "0.000005",
+            "output": "0.000015"
+          }
+        },
+        "gpt-4-turbo": {
+          "cost": {
+            "input": "0.00001",
+            "output": "0.00003"
+          }
+        },
+        "gpt-3.5-turbo-0613": {
+          "cost": {
+            "input": "0.000001",
+            "output": "0.000002"
+          }
+        },
+        "gpt-4-turbo-preview": {
+          "cost": {
+            "input": "0.00001",
+            "output": "0.00003"
+          }
+        },
+        "gpt-4-1106-preview": {
+          "cost": {
+            "input": "0.00001",
+            "output": "0.00003"
+          }
+        },
+        "gpt-3.5-turbo-instruct": {
+          "cost": {
+            "input": "0.0000015",
+            "output": "0.000002"
+          }
+        },
+        "gpt-3.5-turbo-16k": {
+          "cost": {
+            "input": "0.000003",
+            "output": "0.000004"
+          }
+        },
+        "gpt-4-0314": {
+          "cost": {
+            "input": "0.00003",
+            "output": "0.00006"
+          }
+        },
+        "gpt-4": {
+          "cost": {
+            "input": "0.00003",
+            "output": "0.00006"
+          }
+        },
+        "gpt-3.5-turbo": {
+          "cost": {
+            "input": "0.0000005",
+            "output": "0.0000015"
+          }
+        }
       }
     }
-  ]
+  }
 }

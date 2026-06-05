@@ -12,7 +12,7 @@ import (
 func TestFindModelPricing(t *testing.T) {
 	pricing, ok := findModelPricing("anthropic", "claude-sonnet-4.6")
 	require.True(t, ok)
-	assert.InDelta(t, 0.000003, pricing["prompt"], 1e-12)
+	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
 }
 
 func TestComputeModelInferenceAIC(t *testing.T) {

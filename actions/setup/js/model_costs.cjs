@@ -38,21 +38,22 @@ function loadCatalog() {
   try {
     const raw = fs.readFileSync(getModelsPath(), "utf8");
     const parsed = JSON.parse(raw);
-    const data = Array.isArray(parsed?.data) ? parsed.data : [];
-    _catalog = data
-      .filter(entry => entry && typeof entry.id === "string" && entry.id.includes("/"))
-      .map(entry => {
-        const id = String(entry.id).trim().toLowerCase();
-        const slash = id.indexOf("/");
-        const provider = slash >= 0 ? id.slice(0, slash) : "";
-        const model = slash >= 0 ? id.slice(slash + 1) : id;
+    const providers = parsed?.providers && typeof parsed.providers === "object" ? parsed.providers : {};
+    _catalog = Object.entries(providers).flatMap(([providerName, providerData]) => {
+      const provider = normalizeProvider(providerName);
+      if (!provider) return [];
+      const models = providerData?.models && typeof providerData.models === "object" ? providerData.models : {};
+      return Object.entries(models).map(([modelName, modelData]) => {
+        const model = normalizeModel(modelName);
+        const id = `${provider}/${model}`;
         /** @type {Record<string, number>} */
         const pricing = {};
-        for (const [key, value] of Object.entries(entry.pricing || {})) {
+        for (const [key, value] of Object.entries(modelData?.cost || {})) {
           pricing[key] = parsePrice(value);
         }
         return { id, provider, model, pricing };
       });
+    });
   } catch {
     _catalog = null;
   }
@@ -65,9 +66,10 @@ function loadCatalog() {
  * @returns {string}
  */
 function normalizeProvider(provider) {
-  return String(provider || "")
+  const normalized = String(provider || "")
     .trim()
     .toLowerCase();
+  return normalized === "github" ? "github-copilot" : normalized;
 }
 
 /**
@@ -190,11 +192,11 @@ function computeInferenceCostUSD({ provider, model, inputTokens, outputTokens, c
   const reasoning = reasoningTokens || 0;
   const effectiveInput = providerIncludesCacheReadsInInput(provider) ? Math.max(input - cacheRead, 0) : input;
 
-  const promptPrice = pricing.prompt || 0;
-  const completionPrice = pricing.completion || 0;
-  const cacheReadPrice = pricing.input_cache_read || promptPrice;
-  const cacheWritePrice = pricing.input_cache_write || promptPrice;
-  const reasoningPrice = pricing.internal_reasoning || pricing.reasoning || completionPrice;
+  const promptPrice = pricing.input || 0;
+  const completionPrice = pricing.output || 0;
+  const cacheReadPrice = pricing.cache_read || promptPrice;
+  const cacheWritePrice = pricing.cache_write || promptPrice;
+  const reasoningPrice = pricing.reasoning || completionPrice;
 
   return effectiveInput * promptPrice + output * completionPrice + cacheRead * cacheReadPrice + cacheWrite * cacheWritePrice + reasoning * reasoningPrice;
 }
