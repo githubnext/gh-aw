@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"7c27093dcc4254d174ec4d27b22fba54eb59abf71d961ebb609ed74d6af16f54","body_hash":"e020c9ec2815c8a3233a6a59e03be76e1bb1228da68e352455c4c222397aa33c","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.57"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"bc286581efb502b9ed95b2029b5a15def9772046ba18d986eda3046af12a7873","body_hash":"6631d19ff20865a3d71e4440df0bf82b0c2a5b543090ced4084270915d0e7e39","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.57"}}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"safedep/pmg","sha":"46cc70db535107183c9e752bb55d1d5c5f1a9290","version":"v1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.63"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.63"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.63"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.63"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22","digest":"sha256:ce5c6f5461b077af0d8e8eb1763436e85153f8e9531117d58a7bdb23de71f00a","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.22@sha256:ce5c6f5461b077af0d8e8eb1763436e85153f8e9531117d58a7bdb23de71f00a"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -96,12 +96,14 @@ jobs:
       actions: read
       contents: read
     outputs:
+      caveman_mode: ${{ steps.pick-experiment.outputs.caveman_mode }}
       comment_id: ""
       comment_repo: ""
       daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}
       daily_effective_workflow_threshold: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}
       daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}
       engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
+      experiments: ${{ steps.pick-experiment.outputs.experiments }}
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
@@ -215,10 +217,45 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Restore experiment state from git
+        id: restore-experiment-state
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_EXPERIMENT_BRANCH: experiments/dataflowprdiscussiondataset
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/load_experiment_state_from_repo.cjs');
+            await main();
+      - name: Pick experiment variants
+        id: pick-experiment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_EXPERIMENT_SPEC: '{"caveman_mode":{"variants":["no","yes"],"description":"Test whether extreme prompt compression (removing ASCII diagrams, embedded Python scripts, and step-by-step narration) preserves DataFlow dataset quality and run reliability","hypothesis":"H0: no change in input_token_count, retention_rate, or run_success_rate. H1: caveman prompt cuts input tokens ≥30% with retention_rate ≥0.80 and run_success_rate ≥0.90","metric":"input_token_count","secondary_metrics":["run_duration_ms","dataset_record_count","retention_rate"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.9"},{"name":"empty_output_rate","threshold":"==0.0"}],"min_samples":10,"weight":[50,50],"issue":37102,"start_date":"2026-06-05"}}'
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/pick_experiment.cjs');
+            await main();
+      - name: Upload experiment artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dataflowprdiscussiondataset-experiment
+          path: /tmp/gh-aw/experiments
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
+          GH_AW_EXPERIMENTS_CAVEMAN_MODE: ${{ steps.pick-experiment.outputs.caveman_mode }}
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
@@ -233,22 +270,22 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_118d1808beaa0373_EOF'
+          cat << 'GH_AW_PROMPT_68fc67289cf68ea1_EOF'
           <system>
-          GH_AW_PROMPT_118d1808beaa0373_EOF
+          GH_AW_PROMPT_68fc67289cf68ea1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_118d1808beaa0373_EOF'
+          cat << 'GH_AW_PROMPT_68fc67289cf68ea1_EOF'
           <safe-output-tools>
           Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_118d1808beaa0373_EOF
+          GH_AW_PROMPT_68fc67289cf68ea1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_118d1808beaa0373_EOF'
+          cat << 'GH_AW_PROMPT_68fc67289cf68ea1_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -277,9 +314,9 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_118d1808beaa0373_EOF
+          GH_AW_PROMPT_68fc67289cf68ea1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_118d1808beaa0373_EOF'
+          cat << 'GH_AW_PROMPT_68fc67289cf68ea1_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/pmg.md}}
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
@@ -287,7 +324,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/dataflow-pr-discussion-dataset.md}}
-          GH_AW_PROMPT_118d1808beaa0373_EOF
+          GH_AW_PROMPT_68fc67289cf68ea1_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -297,6 +334,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPERIMENTS_CAVEMAN_MODE: ${{ steps.pick-experiment.outputs.caveman_mode }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -310,6 +348,7 @@ jobs:
           GH_AW_ALLOWED_EXTENSIONS: ''
           GH_AW_CACHE_DESCRIPTION: ''
           GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
+          GH_AW_EXPERIMENTS_CAVEMAN_MODE: ${{ steps.pick-experiment.outputs.caveman_mode }}
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
@@ -340,6 +379,7 @@ jobs:
                 GH_AW_ALLOWED_EXTENSIONS: process.env.GH_AW_ALLOWED_EXTENSIONS,
                 GH_AW_CACHE_DESCRIPTION: process.env.GH_AW_CACHE_DESCRIPTION,
                 GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR,
+                GH_AW_EXPERIMENTS_CAVEMAN_MODE: process.env.GH_AW_EXPERIMENTS_CAVEMAN_MODE,
                 GH_AW_EXPR_1A3A194A: process.env.GH_AW_EXPR_1A3A194A,
                 GH_AW_EXPR_463A214A: process.env.GH_AW_EXPR_463A214A,
                 GH_AW_EXPR_802A9F6A: process.env.GH_AW_EXPR_802A9F6A,
@@ -765,9 +805,9 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_1453b3fd387e26db_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_02f15a23e6efbe35_EOF'
           {"create_discussion":{"category":"reports","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1,"title_prefix":"[dataflow-dataset] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":3,"retention-days":30,"skip-archive":false}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_1453b3fd387e26db_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_02f15a23e6efbe35_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -965,7 +1005,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9f189268bd2d980f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_cdd9b5ce481e39f4_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -995,7 +1035,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_9f189268bd2d980f_EOF
+          GH_AW_MCP_CONFIG_cdd9b5ce481e39f4_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1335,6 +1375,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_experiments_state
       - push_repo_memory
       - safe_outputs
       - update_cache_memory
@@ -1559,6 +1600,12 @@ jobs:
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+      - name: Download experiment artifact
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dataflowprdiscussiondataset-experiment
+          path: /tmp/gh-aw/experiments/
       - name: Checkout repository for patch context
         if: needs.agent.outputs.has_patch == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1737,6 +1784,84 @@ jobs:
                 core.setFailed(msg);
               }
             }
+
+  push_experiments_state:
+    needs: activation
+    if: always() && (!cancelled()) && needs.activation.result == 'success'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "DataFlow PR & Discussion Dataset Builder"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dataflow-pr-discussion-dataset.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.57"
+          GH_AW_INFO_AWF_VERSION: "v0.25.63"
+          GH_AW_INFO_ENGINE_ID: "copilot"
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download experiment artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          name: dataflowprdiscussiondataset-experiment
+          path: /tmp/gh-aw/experiments
+      - name: Push experiment state to git
+        id: push_experiments_state
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_EXPERIMENT_BRANCH: experiments/dataflowprdiscussiondataset
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/push_experiment_state.cjs');
+            await main();
+      - name: Restore actions folder
+        if: always()
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions/setup
+          sparse-checkout-cone-mode: true
+          persist-credentials: false
 
   push_repo_memory:
     needs:
