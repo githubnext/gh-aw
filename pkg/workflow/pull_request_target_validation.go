@@ -173,10 +173,24 @@ func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
 	}
 
 	repository := strings.TrimSpace(cfg.Repository)
-	if repository != "" && repository != "${{ github.repository }}" {
+	if repository != "" && !matchesGitHubExpression(repository, "github.repository") {
 		return false
 	}
 
 	ref := strings.TrimSpace(cfg.Ref)
-	return ref == "" || ref == "${{ github.event.pull_request.base.sha }}"
+	return ref == "" || matchesGitHubExpression(ref, "github.event.pull_request.base.sha")
+}
+
+func matchesGitHubExpression(value string, expectedExpression string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == expectedExpression {
+		return true
+	}
+
+	if !strings.HasPrefix(trimmed, "${{") || !strings.HasSuffix(trimmed, "}}") {
+		return false
+	}
+
+	inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "${{"), "}}")
+	return strings.TrimSpace(inner) == expectedExpression
 }
