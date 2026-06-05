@@ -25,6 +25,7 @@ describe("safe_outputs_mcp wrapped tool arguments", () => {
 
   it("logs when wrapped arguments are unwrapped", () => {
     const debug = vi.fn();
+    const payloadKeys = ["create_discussion"];
 
     const normalized = normalizeSafeOutputToolArguments(
       "create_discussion",
@@ -41,7 +42,9 @@ describe("safe_outputs_mcp wrapped tool arguments", () => {
       title: "Wrapped title",
       body: "Wrapped body",
     });
-    expect(debug).toHaveBeenCalledWith("Recovered wrapped safe-output tool arguments for 'create_discussion' by unwrapping key 'create_discussion' from payload keys [\"create_discussion\"]");
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("Recovered wrapped safe-output tool arguments for 'create_discussion'"));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("unwrapping key 'create_discussion'"));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining(JSON.stringify(payloadKeys)));
   });
 
   it("unwraps child arguments that match the tool name", async () => {

@@ -7,7 +7,7 @@ const { normalizeTool } = require("./mcp_server_core.cjs");
  * Applies only when the outer object does not already carry a type.
  * @param {string} toolName
  * @param {any} args
- * @param {{ debug?: Function }} [logger]
+ * @param {{ debug?: (...args: any[]) => void }} [logger]
  * @returns {any}
  */
 function normalizeSafeOutputToolArguments(toolName, args, logger) {
