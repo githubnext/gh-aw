@@ -1227,6 +1227,7 @@ jobs:
       contents: read
       copilot-requests: write
     outputs:
+      aic: ${{ steps.parse_detection_token_usage.outputs.aic }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
@@ -1406,6 +1407,19 @@ jobs:
           RUNNER_TEMP: ${{ runner.temp }}
           S2STOKENS: true
           XDG_CONFIG_HOME: /home/runner
+      - name: Parse threat detection token usage for step summary
+        id: parse_detection_token_usage
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_TOKEN_USAGE_SUMMARY_TITLE: Threat Detection Token Usage
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_token_usage.cjs');
+            await main();
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1460,6 +1474,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/draft-pr-cleanup"
       GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
@@ -1469,6 +1484,7 @@ jobs:
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_ENGINE_VERSION: "1.0.57"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧹 Starting draft PR cleanup... [{workflow_name}]({run_url}) is reviewing draft PRs for staleness\",\"runSuccess\":\"✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts.\",\"runFailure\":\"❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed.\"}"
+      GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_EMOJI: "🧹"
       GH_AW_WORKFLOW_ID: "draft-pr-cleanup"
       GH_AW_WORKFLOW_NAME: "Draft PR Cleanup"
