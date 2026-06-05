@@ -106,7 +106,7 @@ func (c *Compiler) newActivationJobBuildContext(
 	enableArtifactClient := hasMaxDailyEffectiveTokensGuardrail(ctx.data)
 	artifactClientCondition := ""
 	if enableArtifactClient {
-		artifactClientCondition = maxDailyEffectiveTokensConfiguredIfExpr
+		artifactClientCondition = maxDailyAICreditsConfiguredIfExpr
 	}
 	ctx.steps = append(ctx.steps, c.generateSetupStepWithArtifactClientCondition(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
 	ctx.outputs["setup-trace-id"] = "${{ steps.setup.outputs.trace-id }}"
@@ -263,7 +263,7 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	var steps []string
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
+	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
@@ -271,7 +271,7 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	steps = append(steps, "          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveActivationToken(data)))
-	steps = append(steps, buildTemplatableIntEnvVar("GH_AW_MAX_DAILY_EFFECTIVE_TOKENS", data.MaxDailyEffectiveTokens)...)
+	steps = append(steps, buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyEffectiveTokens)...)
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
 	steps = append(steps, "          script: |\n")
@@ -662,7 +662,7 @@ func buildDailyEffectiveWorkflowActivationJobEnv(data *WorkflowData) map[string]
 		return nil
 	}
 	if isExpression(value) {
-		return map[string]string{maxDailyEffectiveTokensEnvVar: value}
+		return map[string]string{maxDailyAICreditsEnvVar: value}
 	}
-	return map[string]string{maxDailyEffectiveTokensEnvVar: strconv.Quote(value)}
+	return map[string]string{maxDailyAICreditsEnvVar: strconv.Quote(value)}
 }

@@ -13,9 +13,9 @@ This page defines the common outcome states, summarizes what `accepted` means ac
 
 ## Outcome Efficiency
 
-Token and cost data are necessary, but they are not enough. A workflow can become cheaper because it became more efficient, or because it simply did less useful work. Outcomes make that difference visible by relating effective tokens to accepted results.
+Token and cost data are necessary, but they are not enough. A workflow can become cheaper because it became more efficient, or because it simply did less useful work. Outcomes make that difference visible by relating AI Credits (AIC) to accepted results.
 
-Outcome efficiency is measured as effective tokens divided by accepted outcomes. Lower is better: a lower value means the workflow spent less effective AI work per accepted result.
+Outcome efficiency is measured as AI Credits (AIC) divided by accepted outcomes. Lower is better: a lower value means the workflow consumed fewer AI Credits per accepted result.
 
 ## Outcome States
 
@@ -89,9 +89,9 @@ For the span-level attribute inventory, see [OpenTelemetry](/gh-aw/reference/ope
 
 ## Cost and Rollups
 
-Outcomes are most useful when read together with cost data. At the workflow level, the basic questions are how many effective tokens a workflow spent, how many accepted outcomes it produced, and how many effective tokens each accepted outcome cost.
+Outcomes are most useful when read together with cost data. At the workflow level, the basic questions are how much AIC a workflow spent, how many accepted outcomes it produced, and how much AIC each accepted outcome cost.
 
-The basic dashboard for outcomes is therefore intentionally small: total effective tokens, total accepted outcomes, effective tokens per accepted outcome, a trend over time, and a workflow ranking by effective tokens per accepted outcome.
+The basic dashboard for outcomes is therefore intentionally small: total AIC, total accepted outcomes, AIC per accepted outcome, a trend over time, and a workflow ranking by AIC per accepted outcome.
 
 For simple workflows, a single run is usually the right unit for outcome measurement.
 

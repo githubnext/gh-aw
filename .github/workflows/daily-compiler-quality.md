@@ -2,7 +2,7 @@
 on:
   schedule: daily
   workflow_dispatch: null
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   discussions: read

@@ -5,7 +5,7 @@ description: Daily DevOps analysis of OpenTelemetry instrumentation in JavaScrip
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

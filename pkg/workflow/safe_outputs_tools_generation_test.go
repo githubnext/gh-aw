@@ -201,6 +201,37 @@ func TestAddRepoParameterIfNeededSpecificTargetRepoNoAllowedRepos(t *testing.T) 
 	assert.False(t, hasRepo, "repo parameter should NOT be added when target-repo is specific and no allowed-repos")
 }
 
+func TestAddRepoParameterIfNeededClosePullRequestWithAllowedRepos(t *testing.T) {
+	tool := map[string]any{
+		"name": "close_pull_request",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"body": map[string]any{"type": "string"},
+			},
+		},
+	}
+
+	safeOutputs := &SafeOutputsConfig{
+		ClosePullRequests: &ClosePullRequestsConfig{
+			SafeOutputTargetConfig: SafeOutputTargetConfig{
+				TargetRepoSlug: "org/default-repo",
+				AllowedRepos:   []string{"org/other-repo"},
+			},
+		},
+	}
+
+	addRepoParameterIfNeeded(tool, "close_pull_request", safeOutputs)
+
+	inputSchema := tool["inputSchema"].(map[string]any)
+	properties := inputSchema["properties"].(map[string]any)
+
+	repoProp, ok := properties["repo"].(map[string]any)
+	require.True(t, ok, "repo property should be added")
+	assert.Equal(t, "string", repoProp["type"], "repo type should be string")
+	assert.Contains(t, repoProp["description"].(string), "org/default-repo", "description should include default repo")
+}
+
 func TestParseUpdateIssuesConfigWithWildcardTargetRepo(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{

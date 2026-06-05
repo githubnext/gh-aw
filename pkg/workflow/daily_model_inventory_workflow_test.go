@@ -34,7 +34,7 @@ func TestDailyModelInventoryWorkflowFetchesReflectInAgentPrompt(t *testing.T) {
 		t.Fatalf("expected workflow prompt to fetch Copilot reflect data from api-proxy")
 	}
 
-	if !strings.Contains(sourceContentStr, "`billing.multiplier` field from the Copilot reflect endpoint as the primary") {
+	if !strings.Contains(sourceContentStr, "the `billing.multiplier` field as the authoritative ET multiplier value") {
 		t.Fatalf("expected workflow prompt to use billing.multiplier from reflect as the primary source of truth")
 	}
 }

@@ -16,7 +16,7 @@ import (
 func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 	t.Run("prefers top-level literal value", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": 1234}, `"999"`)
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": 1234}, `"999"`)
 		if got == nil || *got != "1234" {
 			t.Fatalf("expected literal top-level value, got %v", got)
 		}
@@ -25,31 +25,39 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("falls back to imported expression", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-effective-tokens }}"`)
-		if got == nil || *got != "${{ inputs.max-daily-effective-tokens }}" {
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-ai-credits }}"`)
+		if got == nil || *got != "${{ inputs.max-daily-ai-credits }}" {
 			t.Fatalf("expected imported expression, got %v", got)
 		}
 	})
 
 	t.Run("uses enterprise default when unset", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
 		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
 		if got == nil || *got != "2222" {
 			t.Fatalf("expected enterprise default, got %v", got)
 		}
 	})
 
+	t.Run("uses built-in 500k default when no frontmatter and no env vars", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		if got == nil || *got != "500000" {
+			t.Fatalf("expected built-in 500k default, got %v", got)
+		}
+	})
+
 	t.Run("normalizes suffix strings", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": "100M"}, "")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": "100M"}, "")
 		if got == nil || *got != "100000000" {
 			t.Fatalf("expected normalized suffix string, got %v", got)
 		}
 	})
 
 	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": -1}, "")
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": -1}, "")
 		if got != nil {
 			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
 		}
@@ -64,7 +72,7 @@ func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: 100_000_000
+max-daily-ai-credits: 100_000_000
 safe-outputs:
   add-comment:
     max: 1
@@ -99,13 +107,13 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily workflow ET guardrail step")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail step to use env-based runtime gating")
 	}
 	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
 		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
 	}
-	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "100000000"`) {
+	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_AI_CREDITS: "100000000"`) {
 		t.Fatal("expected activation job env to include normalized guardrail threshold")
 	}
 	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {
@@ -132,7 +140,7 @@ Guardrail test workflow`
 	if strings.Contains(activationSection, "issues: write") {
 		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
 	}
-	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail to gate artifact client installation dynamically")
 	}
 }
@@ -171,13 +179,13 @@ No daily guardrail`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to emit the daily ET guardrail step even when threshold is unset")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected emitted daily ET guardrail step to be dynamically skipped when threshold is unset")
 	}
 	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
 		t.Fatal("expected workflows to continue wiring daily ET outputs when guardrail step is emitted")
 	}
-	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected emitted guardrail to gate artifact client installation dynamically")
 	}
 }
@@ -191,7 +199,7 @@ on:
   workflow_dispatch:
   stale-check: false
 env:
-  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "5000000"
+  GH_AW_MAX_DAILY_AI_CREDITS: "5000000"
 safe-outputs:
   add-comment:
     max: 1
@@ -218,10 +226,10 @@ Daily guardrail via env var`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily ET guardrail step when env var is configured")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
-		t.Fatal("expected daily ET guardrail step to gate execution on GH_AW_MAX_DAILY_EFFECTIVE_TOKENS")
+	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
+		t.Fatal("expected daily ET guardrail step to gate execution on GH_AW_MAX_DAILY_AI_CREDITS")
 	}
-	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected setup step to conditionally install artifact client when daily ET guardrail is env-configured")
 	}
 }
@@ -230,17 +238,18 @@ func TestDailyETGuardrailNegativeValueRejected(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-explicit-disable-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail-explicit-disable.md")
 
+	// -2 is below the minimum of -1 (the explicit disable sentinel) and must be rejected.
 	workflow := `---
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: -1
+max-daily-ai-credits: -2
 safe-outputs:
   add-comment:
     max: 1
 ---
 
-Explicitly disable daily guardrail`
+Invalid negative daily guardrail value`
 
 	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
 		t.Fatalf("failed to write test workflow: %v", err)
@@ -249,9 +258,11 @@ Explicitly disable daily guardrail`
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(workflowFile)
 	if err == nil {
-		t.Fatal("expected compile to fail for negative max-daily-effective-tokens")
+		t.Fatal("expected compile to fail for invalid negative max-daily-ai-credits")
 	}
-	if !strings.Contains(err.Error(), "must be at least 0") {
-		t.Fatalf("expected minimum value validation error, got: %v", err)
+	// Schema validation or frontmatter validation may produce the error; either
+	// correctly rejects values below -1.
+	if !strings.Contains(err.Error(), "must be -1") && !strings.Contains(err.Error(), "minimum") {
+		t.Fatalf("expected validation error rejecting -2, got: %v", err)
 	}
 }

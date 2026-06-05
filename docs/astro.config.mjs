@@ -94,6 +94,7 @@ export default defineConfig({
 		// Reference renames
 		'/reference/custom-agents/': '/gh-aw/reference/copilot-custom-agents/',
 		'/reference/custom-agent/': '/gh-aw/reference/custom-agent-for-aw/',
+		'/reference/assign-to-copilot/': '/gh-aw/reference/copilot-cloud-agent/',
 
 		// Organization Practices moved under Guides
 		'/organization-practices/': '/gh-aw/practices/organization-practices/',
@@ -416,7 +417,7 @@ export default defineConfig({
 						{ label: 'MCP Scripts', link: '/reference/mcp-scripts/' },
 						{ label: 'MCP Scripts (Spec)', link: '/reference/mcp-scripts-specification/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
-						{ label: 'Safe Outputs (Assign to Copilot)', link: '/reference/assign-to-copilot/' },
+						{ label: 'Safe Outputs (Copilot Cloud Agent)', link: '/reference/copilot-cloud-agent/' },
 						{ label: 'Safe Outputs (Custom)', link: '/reference/custom-safe-outputs/' },
 						{ label: 'Safe Outputs (Pull Requests)', link: '/reference/safe-outputs-pull-requests/' },
 						{ label: 'Safe Outputs (Spec)', link: '/reference/safe-outputs-specification/' },

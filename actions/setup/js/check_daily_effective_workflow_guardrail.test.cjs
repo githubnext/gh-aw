@@ -42,16 +42,16 @@ describe("check_daily_effective_workflow_guardrail", () => {
     expect(exports.matchesGuardrailArtifactName("activation")).toBe(false);
   });
 
-  it("sums effective tokens from explicit token-usage entries", () => {
+  it("sums AI Credits from explicit token-usage entries", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-guardrail-token-usage-"));
     const filePath = path.join(tmpDir, "token-usage.jsonl");
-    fs.writeFileSync(filePath, [JSON.stringify({ model: "gpt-5.5", effective_tokens: 125 }), JSON.stringify({ model: "gpt-5.5", effective_tokens: 75 })].join("\n"), "utf8");
+    fs.writeFileSync(filePath, [JSON.stringify({ model: "gpt-5.5", aic: 1.25 }), JSON.stringify({ model: "gpt-5.5", aic: 0.75 })].join("\n"), "utf8");
 
-    expect(exports.sumEffectiveTokensFromTokenUsageFile(filePath)).toBe(200);
+    expect(exports.sumAICFromTokenUsageFile(filePath)).toBe(2);
   });
 
-  it("computes aggregate ET statistics for prior runs", () => {
-    expect(exports.calculateDailyEffectiveWorkflowStats([{ effective_tokens: 100 }, { effective_tokens: 200 }, { effective_tokens: 300 }])).toEqual({
+  it("computes aggregate AIC statistics for prior runs", () => {
+    expect(exports.calculateDailyAICStats([{ aic: 100 }, { aic: 200 }, { aic: 300 }])).toEqual({
       count: 3,
       total: 600,
       average: 200,
@@ -93,14 +93,14 @@ describe("check_daily_effective_workflow_guardrail", () => {
           html_url: "https://example.test/runs/11",
           created_at: "2026-05-31T10:00:00Z",
           conclusion: "success",
-          effective_tokens: 1_200_000,
+          aic: 1_200_000,
         },
         {
           id: 10,
           html_url: "https://example.test/runs/10",
           created_at: "2026-05-31T09:00:00Z",
           conclusion: "failure",
-          effective_tokens: 300_000,
+          aic: 300_000,
         },
       ],
       {
@@ -116,10 +116,10 @@ describe("check_daily_effective_workflow_guardrail", () => {
       }
     );
 
-    expect(markdown).toContain("| 24h total ET | 1.5M |");
+    expect(markdown).toContain("| 24h total AIC | 1.5M |");
     expect(markdown).toContain("| Threshold | 1.5M |");
-    expect(markdown).toContain("| Avg ET / run | 750K |");
-    expect(markdown).toContain("| Std dev ET | 636.4K |");
+    expect(markdown).toContain("| Avg AIC / run | 750K |");
+    expect(markdown).toContain("| Std dev AIC | 636.4K |");
     expect(markdown).toContain("| [#11](https://example.test/runs/11) | 2026-05-31T10:00:00Z | success | 1.2M |");
     expect(markdown).toContain("Stopped early to preserve GitHub API rate limit headroom");
     expect(markdown).not.toContain("Guardrail issue:");
@@ -166,7 +166,7 @@ describe("check_daily_effective_workflow_guardrail", () => {
     global.github = mockGithub;
     global.context = mockContext;
 
-    process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS = "1000000";
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000000";
     process.env.GH_AW_GITHUB_TOKEN = "fake-token";
 
     try {
@@ -180,7 +180,7 @@ describe("check_daily_effective_workflow_guardrail", () => {
       delete global.core;
       delete global.github;
       delete global.context;
-      delete process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
       delete process.env.GH_AW_GITHUB_TOKEN;
     }
   });
