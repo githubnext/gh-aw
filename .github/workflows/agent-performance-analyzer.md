@@ -14,6 +14,8 @@ engine:
   id: copilot
   copilot-sdk: true
 tools:
+  cli-proxy: true
+  bash: [":*"]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: ["*.json", "*.md"]
@@ -715,6 +717,14 @@ Execute all phases systematically and maintain an objective, data-driven approac
 - Stop immediately after `create_discussion` and any issues are filed; no post-report analysis.
 
 {{/if}}
+
+## Access Strategy
+
+- Use `agentic-workflows` to inspect workflow files; do not rely on generic local file-discovery tools for `.github/workflows/`.
+- Use `bash` with `gh` for GitHub reads and to inspect `/tmp/gh-aw/repo-memory/default/` contents.
+- If required data stays inaccessible after 1-2 materially different attempts, call `report_incomplete` with the blocker instead of ending with prose only.
+- If the analysis completes but there is nothing actionable to create or update, call `noop` with a short summary of what you checked.
+
 {{#runtime-import shared/noop-reminder.md}}
 
 ## agent: `metrics-extractor`
