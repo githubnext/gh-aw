@@ -26,6 +26,9 @@ const (
 	// DefaultTimeoutMinutes is the enterprise override for top-level timeout-minutes
 	// when it is not explicitly configured in workflow frontmatter.
 	DefaultTimeoutMinutes = "GH_AW_DEFAULT_TIMEOUT_MINUTES"
+	// DefaultSoftEffectiveTokenCapPercent is the enterprise override for prompt-level
+	// soft ET wrap-up guidance, expressed as a percentage of max-effective-tokens.
+	DefaultSoftEffectiveTokenCapPercent = "GH_AW_DEFAULT_SOFT_EFFECTIVE_TOKEN_CAP_PERCENT"
 	// DefaultDetectionModel is the enterprise override for selecting the detection
 	// job model when threat-detection.engine.model is not set.
 	DefaultDetectionModel = "GH_AW_DEFAULT_DETECTION_MODEL"
@@ -97,6 +100,22 @@ func ResolveDefaultTimeoutMinutes(fallback int) int {
 		return int(parsed)
 	}
 	return fallback
+}
+
+// ResolveDefaultSoftEffectiveTokenCapPercent returns fallback when the env var is
+// unset/invalid, otherwise returns the parsed override in the valid range [1, 99].
+func ResolveDefaultSoftEffectiveTokenCapPercent(fallback int) int {
+	raw := strings.TrimSpace(os.Getenv(DefaultSoftEffectiveTokenCapPercent))
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed < 1 || parsed >= 100 {
+		managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultSoftEffectiveTokenCapPercent, raw, fallback)
+		return fallback
+	}
+	managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultSoftEffectiveTokenCapPercent, parsed, fallback)
+	return parsed
 }
 
 // ResolveDefaultDetectionModel returns fallback when the env var is unset,

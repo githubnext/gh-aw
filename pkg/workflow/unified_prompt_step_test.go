@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -140,6 +142,43 @@ Line 3`,
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestBuildEffectiveTokenSoftCapPromptSection(t *testing.T) {
+	t.Run("includes default 90 percent guidance", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultSoftEffectiveTokenCapPercent, "")
+		section := buildEffectiveTokenSoftCapPromptSection(&WorkflowData{})
+		require.NotNil(t, section)
+		assert.Contains(t, section.Content, "about 90%")
+		assert.Contains(t, section.Content, "22500000")
+		assert.Contains(t, section.Content, "25000000")
+	})
+
+	t.Run("uses configurable soft cap percentage", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultSoftEffectiveTokenCapPercent, "92")
+		section := buildEffectiveTokenSoftCapPromptSection(&WorkflowData{})
+		require.NotNil(t, section)
+		assert.Contains(t, section.Content, "about 92%")
+		assert.Contains(t, section.Content, "23000000")
+		assert.Contains(t, section.Content, "25000000")
+	})
+
+	t.Run("omits guidance when max-effective-tokens is disabled", func(t *testing.T) {
+		section := buildEffectiveTokenSoftCapPromptSection(&WorkflowData{
+			EngineConfig: &EngineConfig{MaxEffectiveTokens: -1},
+		})
+		assert.Nil(t, section)
+	})
+
+	t.Run("uses workflow-specific max-effective-tokens", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultSoftEffectiveTokenCapPercent, "")
+		section := buildEffectiveTokenSoftCapPromptSection(&WorkflowData{
+			EngineConfig: &EngineConfig{MaxEffectiveTokens: constants.DefaultMaxEffectiveTokens / 2},
+		})
+		require.NotNil(t, section)
+		assert.Contains(t, section.Content, "11250000")
+		assert.Contains(t, section.Content, "12500000")
+	})
 }
 
 func TestRemoveConsecutiveEmptyLines(t *testing.T) {

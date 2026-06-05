@@ -129,6 +129,33 @@ func TestResolveDefaultTimeoutMinutes(t *testing.T) {
 	})
 }
 
+func TestResolveDefaultSoftEffectiveTokenCapPercent(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultSoftEffectiveTokenCapPercent, "")
+		assert.Equal(t, 90, ResolveDefaultSoftEffectiveTokenCapPercent(90))
+	})
+
+	t.Run("invalid uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultSoftEffectiveTokenCapPercent, "abc")
+		assert.Equal(t, 90, ResolveDefaultSoftEffectiveTokenCapPercent(90))
+	})
+
+	t.Run("zero uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultSoftEffectiveTokenCapPercent, "0")
+		assert.Equal(t, 90, ResolveDefaultSoftEffectiveTokenCapPercent(90))
+	})
+
+	t.Run("100 uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultSoftEffectiveTokenCapPercent, "100")
+		assert.Equal(t, 90, ResolveDefaultSoftEffectiveTokenCapPercent(90))
+	})
+
+	t.Run("valid value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultSoftEffectiveTokenCapPercent, "92")
+		assert.Equal(t, 92, ResolveDefaultSoftEffectiveTokenCapPercent(90))
+	})
+}
+
 func TestResolveDefaultDetectionModel(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultDetectionModel, "")

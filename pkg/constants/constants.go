@@ -272,6 +272,10 @@ const DefaultHTTPClientTimeout = 30 * time.Second
 // DefaultMaxEffectiveTokens is the default ET budget enforced by the AWF API proxy.
 const DefaultMaxEffectiveTokens int64 = 25000000
 
+// DefaultSoftEffectiveTokenCapPercent is the default soft ET wrap-up threshold
+// (as a percentage of max-effective-tokens) used for prompt-level early wrap-up guidance.
+const DefaultSoftEffectiveTokenCapPercent = 90
+
 // DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy.
 const DefaultMaxRuns = 500
 

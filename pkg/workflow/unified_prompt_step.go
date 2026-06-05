@@ -8,6 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var unifiedPromptLog = logger.New("workflow:unified_prompt_step")
@@ -82,6 +83,12 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		Content: markdownPromptFile,
 		IsFile:  true,
 	})
+
+	// 2a. Effective-token soft cap guidance (when ET budget enforcement is enabled)
+	if section := buildEffectiveTokenSoftCapPromptSection(data); section != nil {
+		unifiedPromptLog.Print("Adding effective-token soft cap guidance section")
+		sections = append(sections, *section)
+	}
 
 	// 3. Playwright instructions (if playwright tool is enabled)
 	if hasPlaywrightTool(data.ParsedTools) {
@@ -252,6 +259,36 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	}
 
 	return sections
+}
+
+func buildEffectiveTokenSoftCapPromptSection(data *WorkflowData) *PromptSection {
+	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
+	if data != nil && data.EngineConfig != nil && data.EngineConfig.MaxEffectiveTokens != 0 {
+		maxEffectiveTokens = data.EngineConfig.MaxEffectiveTokens
+	}
+
+	// Disabled budgets (negative max-effective-tokens) should not emit soft-cap guidance.
+	if maxEffectiveTokens <= 0 {
+		return nil
+	}
+
+	softCapPercent := compilerenv.ResolveDefaultSoftEffectiveTokenCapPercent(constants.DefaultSoftEffectiveTokenCapPercent)
+	softCapTokens := (maxEffectiveTokens * int64(softCapPercent)) / 100
+	if softCapTokens <= 0 || softCapTokens >= maxEffectiveTokens {
+		return nil
+	}
+
+	content := fmt.Sprintf(`## Effective-Token Soft Cap
+If runtime budget signals indicate effective token usage has reached about %d%% of max-effective-tokens (around %d of %d tokens), immediately switch to graceful wrap-up mode:
+- Stop broad exploration and avoid starting new large tasks.
+- Summarize completed findings and partial results.
+- Produce the best complete partial output you can within the remaining budget.
+`, softCapPercent, softCapTokens, maxEffectiveTokens)
+
+	return &PromptSection{
+		Content: content,
+		IsFile:  false,
+	}
 }
 
 // generateUnifiedPromptCreationStep generates a single workflow step (or multiple if needed) that creates
