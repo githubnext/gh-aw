@@ -289,7 +289,7 @@ async function main() {
   core.setOutput("daily_effective_workflow_total_effective_tokens", "");
   core.setOutput("daily_effective_workflow_total_ai_credits", "");
   core.setOutput("daily_effective_workflow_threshold", "");
-  const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
+  const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS || process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
   if (threshold <= 0) {
     return;
   }

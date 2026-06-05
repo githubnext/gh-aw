@@ -127,13 +127,13 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily workflow ET guardrail step")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail step to use env-based runtime gating")
 	}
 	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
 		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
 	}
-	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "100000000"`) {
+	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_AI_CREDITS: "100000000"`) {
 		t.Fatal("expected activation job env to include normalized guardrail threshold")
 	}
 	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {
@@ -160,7 +160,7 @@ Guardrail test workflow`
 	if strings.Contains(activationSection, "issues: write") {
 		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
 	}
-	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail to gate artifact client installation dynamically")
 	}
 }
@@ -199,13 +199,13 @@ No daily guardrail`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to emit the daily ET guardrail step even when threshold is unset")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected emitted daily ET guardrail step to be dynamically skipped when threshold is unset")
 	}
 	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
 		t.Fatal("expected workflows to continue wiring daily ET outputs when guardrail step is emitted")
 	}
-	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected emitted guardrail to gate artifact client installation dynamically")
 	}
 }
@@ -219,7 +219,7 @@ on:
   workflow_dispatch:
   stale-check: false
 env:
-  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "5000000"
+  GH_AW_MAX_DAILY_AI_CREDITS: "5000000"
 safe-outputs:
   add-comment:
     max: 1
@@ -246,10 +246,10 @@ Daily guardrail via env var`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily ET guardrail step when env var is configured")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
-		t.Fatal("expected daily ET guardrail step to gate execution on GH_AW_MAX_DAILY_EFFECTIVE_TOKENS")
+	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
+		t.Fatal("expected daily ET guardrail step to gate execution on GH_AW_MAX_DAILY_AI_CREDITS")
 	}
-	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected setup step to conditionally install artifact client when daily ET guardrail is env-configured")
 	}
 }

@@ -14,8 +14,8 @@ var dailyEffectiveWorkflowLog = logger.New("workflow:daily_effective_workflow")
 
 const maxDailyAICreditsField = "max-daily-ai-credits"
 const maxDailyEffectiveTokensField = "max-daily-effective-tokens" // deprecated
-const maxDailyEffectiveTokensEnvVar = "GH_AW_MAX_DAILY_EFFECTIVE_TOKENS"
-const maxDailyEffectiveTokensConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}"
+const maxDailyAICreditsEnvVar = "GH_AW_MAX_DAILY_AI_CREDITS"
+const maxDailyAICreditsConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
 
 // parseMaxDailyEffectiveTokensValue normalizes max-daily-effective-tokens
 // frontmatter values into a runtime-ready string.

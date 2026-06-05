@@ -166,7 +166,7 @@ describe("check_daily_effective_workflow_guardrail", () => {
     global.github = mockGithub;
     global.context = mockContext;
 
-    process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS = "1000000";
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000000";
     process.env.GH_AW_GITHUB_TOKEN = "fake-token";
 
     try {
@@ -180,7 +180,7 @@ describe("check_daily_effective_workflow_guardrail", () => {
       delete global.core;
       delete global.github;
       delete global.context;
-      delete process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
       delete process.env.GH_AW_GITHUB_TOKEN;
     }
   });
