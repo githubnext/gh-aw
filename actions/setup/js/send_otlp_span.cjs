@@ -1855,7 +1855,12 @@ function readAgentRuntimeMetrics() {
  *                                     the span status is set to STATUS_CODE_ERROR (2)
  * - `GH_AW_DETECTION_CONCLUSION`   – threat-detection scan outcome ("success", "warning",
  *                                     "failure", "skipped"); emitted as
- *                                     `gh-aw.detection.conclusion` when present
+ *                                     `gh-aw.detection.conclusion` when present.
+ *                                     Set via GITHUB_ENV by the detection job itself
+ *                                     (parse_threat_detection_results.cjs) so the
+ *                                     detection conclusion span reports the job's own
+ *                                     result; also injected from
+ *                                     needs.detection.outputs.* in downstream jobs.
  * - `GH_AW_DETECTION_REASON`       – machine-readable reason for the detection conclusion
  *                                     (e.g. "threat_detected", "agent_failure"); emitted as
  *                                     `gh-aw.detection.reason` when present
@@ -1951,8 +1956,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
-  // Detection conclusion and reason are injected from needs.detection.outputs.*
-  // when threat detection is enabled in the compiled workflow.
+  // Detection conclusion and reason: set via GITHUB_ENV by parse_threat_detection_results.cjs
+  // so the detection job's own span includes its result; also injected from
+  // needs.detection.outputs.* in downstream jobs (conclusion, safe_outputs, etc.).
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const runtimeMetrics = readAgentRuntimeMetrics();
