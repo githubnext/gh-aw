@@ -16,10 +16,10 @@ const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
 	// when max-effective-tokens is not explicitly configured in workflow frontmatter.
 	DefaultMaxEffectiveTokens = "GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS"
-	// DefaultMaxDailyEffectiveTokens is the enterprise override for the top-level
-	// max-daily-effective-tokens guardrail when it is not explicitly configured in
+	// DefaultMaxDailyAICredits is the enterprise override for the top-level
+	// max-daily-ai-credits guardrail when it is not explicitly configured in
 	// workflow frontmatter.
-	DefaultMaxDailyEffectiveTokens = "GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS"
+	DefaultMaxDailyAICredits = "GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS"
 	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
@@ -61,23 +61,23 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 	return fallback
 }
 
-// ResolveDefaultMaxDailyEffectiveTokens returns fallback when the env var is
-// unset/invalid, otherwise returns the parsed override as a normalized string.
+// ResolveDefaultMaxDailyAICredits returns the resolved daily AI Credits guardrail
+// default, checking the enterprise env var GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS.
+// Falls back to fallback (built-in default) when the env var is unset or invalid.
+//
 // A value of -1 is preserved to allow explicitly disabling the guardrail.
-func ResolveDefaultMaxDailyEffectiveTokens(fallback string) string {
-	raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyEffectiveTokens))
-	if raw == "" {
-		return fallback
+func ResolveDefaultMaxDailyAICredits(fallback string) string {
+	if raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyAICredits)); raw != "" {
+		if raw == "-1" {
+			managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyAICredits, raw, fallback)
+			return "-1"
+		}
+		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+			managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyAICredits, normalized, fallback)
+			return normalized
+		}
+		managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyAICredits, raw, fallback)
 	}
-	if raw == "-1" {
-		managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, raw, fallback)
-		return "-1"
-	}
-	if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
-		managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, normalized, fallback)
-		return normalized
-	}
-	managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyEffectiveTokens, raw, fallback)
 	return fallback
 }
 

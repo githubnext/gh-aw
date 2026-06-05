@@ -4,7 +4,7 @@ description: Daily audit of all agentic workflow runs from the last 24 hours to 
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   actions: read

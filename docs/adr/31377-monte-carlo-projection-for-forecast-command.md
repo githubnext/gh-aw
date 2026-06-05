@@ -48,7 +48,7 @@ Extend the audit command instead of creating a new top-level command. Rejected b
 
 #### Neutral
 - The `--days` flag is capped at 30, which is a deliberate sampling-window choice; longer windows would require pagination changes in `gh run list`.
-- The W3C-style specification at `docs/src/content/docs/reference/forecast-specification.md` (sidebar order 1355) commits us to keeping spec and implementation in sync while the command is experimental.
+- The W3C-style specification at `docs/src/content/docs/specs/forecast-specification.md` (sidebar order 1355) commits us to keeping spec and implementation in sync while the command is experimental.
 - Trial count (10 000) is currently hardcoded; making it configurable is a future option but not part of this decision.
 
 ---

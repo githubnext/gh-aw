@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Multi-phase', variant: 'caution' }
 ---
 
-ResearchPlanAssignOps is a four-phase development pattern that moves from automated discovery to merged code with human control at every decision point. A research agent surfaces insights, a planning agent converts them into actionable issues, a coding agent implements the work by [assigning issues to GitHub Copilot](/gh-aw/reference/assign-to-copilot/), and a human reviews and merges.
+ResearchPlanAssignOps is a four-phase development pattern that moves from automated discovery to merged code with human control at every decision point. A research agent surfaces insights, a planning agent converts them into actionable issues, a coding agent implements the work by [assigning issues to GitHub Copilot](/gh-aw/reference/copilot-cloud-agent/), and a human reviews and merges.
 
 ## The Four Phases
 
@@ -179,4 +179,4 @@ Prefer a simpler pattern when:
 - [DispatchOps](/gh-aw/patterns/dispatch-ops/) — Manually triggered research and one-off investigations
 - [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing for large backlogs
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
-- [Assign to Copilot](/gh-aw/reference/assign-to-copilot/) — Assigning issues to GitHub Copilot
+- [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/) — Assigning issues to GitHub Copilot

@@ -10,7 +10,7 @@ Use `aw.yml` to describe an installable agentic workflow package.
 `gh aw compile` validates repository-root manifests before compilation.
 
 For the normative file-format definition, see the
-[Package Management (Spec)](/gh-aw/reference/repository-package-manifest-specification/).
+[Package Management (Spec)](/gh-aw/specs/repository-package-manifest-specification/).
 
 ## Package reference formats
 

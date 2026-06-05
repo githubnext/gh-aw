@@ -429,12 +429,15 @@ async function main() {
   function setDetectionFailure(reason, message) {
     const mustFail = detectionExecutionFailed && (reason === "agent_failure" || reason === "parse_error");
     core.setOutput("reason", reason);
+    core.exportVariable("GH_AW_DETECTION_REASON", reason);
     if (isWarnMode && !mustFail) {
       core.warning(`⚠️ ${message}`);
       core.setOutput("conclusion", "warning");
+      core.exportVariable("GH_AW_DETECTION_CONCLUSION", "warning");
       core.setOutput("success", "false");
     } else {
       core.setOutput("conclusion", "failure");
+      core.exportVariable("GH_AW_DETECTION_CONCLUSION", "failure");
       core.setOutput("success", "false");
       core.setFailed(message);
     }
@@ -473,8 +476,10 @@ async function main() {
     } else {
       core.info("✅ No security threats detected. Safe outputs may proceed.");
       core.setOutput("conclusion", "success");
+      core.exportVariable("GH_AW_DETECTION_CONCLUSION", "success");
       core.setOutput("success", "true");
       core.setOutput("reason", "");
+      core.exportVariable("GH_AW_DETECTION_REASON", "");
     }
 
     core.info("════════════════════════════════════════════════════════");
@@ -518,8 +523,10 @@ async function main() {
       core.info("   Reason: no agent output types or patch files were produced.");
       core.info("   Setting conclusion=skipped, success=true.");
       core.setOutput("conclusion", "skipped");
+      core.exportVariable("GH_AW_DETECTION_CONCLUSION", "skipped");
       core.setOutput("success", "true");
       core.setOutput("reason", "");
+      core.exportVariable("GH_AW_DETECTION_REASON", "");
       core.info("✅ Detection skipped — no threats to evaluate.");
       return;
     }

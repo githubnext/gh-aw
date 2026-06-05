@@ -1,17 +1,17 @@
-**⚠️ Daily Workflow ET Guardrail Exceeded**: The agent was not started because the triggering user has already consumed the configured 24-hour effective-token budget for this workflow.
+**⚠️ Daily Workflow AIC Guardrail Exceeded**: The agent was not started because the triggering user has already consumed the configured 24-hour AI Credits budget for this workflow.
 
-- **24h ET usage:** `{total_effective_tokens}` effective tokens
-- **Configured threshold:** `{threshold}` effective tokens
+- **24h AIC usage:** `{total_effective_tokens}` AI Credits
+- **Configured threshold:** `{threshold}` AI Credits
 
 The agent will resume automatically once the 24-hour rolling window resets. No action is required if the current limit is appropriate for your usage.
 
 <details>
 <summary>How to raise the daily limit</summary>
 
-Set `max-daily-effective-tokens` in your workflow frontmatter to a higher value, then recompile:
+Set `max-daily-ai-credits` in your workflow frontmatter to a higher value, then recompile:
 
 ```yaml
-max-daily-effective-tokens: 5M
+max-daily-ai-credits: 5M
 ```
 
 Common suffix shorthands: `K` = thousands, `M` = millions (e.g. `2M` = 2,000,000).
@@ -33,11 +33,11 @@ Commit and push the updated `.lock.yml` file.
 </details>
 
 <details>
-<summary>What is the daily effective token guardrail?</summary>
+<summary>What is the daily AI Credits guardrail?</summary>
 
-The `max-daily-effective-tokens` frontmatter option sets a per-user, per-workflow spending cap measured in *effective tokens* — a normalized unit that accounts for the cost of each model call across the 24-hour window before the current run.
+The `max-daily-ai-credits` frontmatter option sets a per-user, per-workflow spending cap measured in *AI Credits* across the 24-hour window before the current run.
 
-When a triggering user's aggregated effective-token usage across all completed runs of this workflow in the last 24 hours exceeds the threshold, the activation job sets the `daily_effective_workflow_exceeded` output to `true` and the agent job is skipped for that run. The conclusion job still runs and creates this report.
+When a triggering user's aggregated AI Credits usage across all completed runs of this workflow in the last 24 hours exceeds the threshold, the activation job sets the `daily_effective_workflow_exceeded` output to `true` and the agent job is skipped for that run. The conclusion job still runs and creates this report.
 
 The guardrail is evaluated at activation time, not retrospectively, so a single very large run that pushes usage over the threshold only blocks *subsequent* runs in the same window — it does not cancel a run that is already in progress.
 
@@ -48,19 +48,19 @@ The guardrail is evaluated at activation time, not retrospectively, so a single 
 
 > [!CAUTION]
 > Disabling this guardrail removes the per-user spending cap. Only disable it if you have
-> an alternative mechanism for controlling token usage or if the workflow is intentionally
+> an alternative mechanism for controlling AI cost usage or if the workflow is intentionally
 > uncapped.
 
-Set `max-daily-effective-tokens: -1` in the workflow frontmatter to explicitly disable the guardrail, then recompile:
+Set `max-daily-ai-credits: -1` in the workflow frontmatter to explicitly disable the guardrail, then recompile:
 
 ```yaml
-max-daily-effective-tokens: -1
+max-daily-ai-credits: -1
 ```
 
 ```bash
 gh aw compile
 ```
 
-Alternatively, remove the `max-daily-effective-tokens` key entirely to fall back to the enterprise-wide default (if one is configured) or to run with no per-workflow cap.
+Alternatively, remove the `max-daily-ai-credits` key entirely to fall back to the enterprise-wide default (if one is configured) or to run with no per-workflow cap.
 
 </details>

@@ -4,7 +4,7 @@ description: Daily analysis of recent commits and merged PRs for breaking CLI ch
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   actions: read

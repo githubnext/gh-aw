@@ -23,7 +23,7 @@ AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit
 > AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
 
 > [!NOTE]
-> Effective Tokens (ET) remain available for backward compatibility. Prefer AIC for cost monitoring, including Copilot workflows. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the ET definition.
+> Effective Tokens (ET) remain available for backward compatibility. Prefer AIC for cost monitoring, including Copilot workflows. See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) for the ET definition.
 
 ## Cost Components
 
@@ -229,7 +229,7 @@ max-effective-tokens: 5M
 ```
 
 Effective tokens are the normalized usage metric described in the
-[Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) (deprecated in favor of AIC for non-Copilot engines).
+[Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) (deprecated in favor of AIC for non-Copilot engines).
 When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
@@ -268,14 +268,14 @@ environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual
 workflows override this default by setting `max-turns` in
 frontmatter.
 
-### Cap Daily Effective Tokens per Workflow
+### Cap Daily AI Credits per Workflow
 
-Use `max-daily-effective-tokens` to set a 24-hour effective-token
+Use `max-daily-ai-credits` to set a 24-hour AI Credits
 cap for one workflow. The guardrail sums runs from the past 24 hours of the same
 workflow started by the same triggering user.
 
 ```aw wrap
-max-daily-effective-tokens: 15M
+max-daily-ai-credits: 15M
 ```
 
 You can also configure the same threshold via environment variable
@@ -283,7 +283,7 @@ to make the guardrail configurable per environment or workflow call:
 
 ```aw wrap
 env:
-  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: ${{ vars.AWF_DAILY_ET_LIMIT }}
+  GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.AWF_DAILY_ET_LIMIT }}
 ```
 
 When the total from the past 24 hours already meets or exceeds this threshold, the activation
@@ -314,7 +314,7 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 
 ```yaml
 default_max_effective_tokens: "5M"
-default_max_daily_effective_tokens: "15M"
+default_max_daily_ai_credits: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
@@ -329,13 +329,13 @@ Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
 `default_max_turns` / `default_timeout_minutes` must be positive integers, and
-`default_max_effective_tokens` / `default_max_daily_effective_tokens` must be
+`default_max_effective_tokens` / `default_max_daily_ai_credits` must be
 non-zero integers (negative values disable the corresponding guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
 `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
-`GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_TURNS`,
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
 `GH_AW_DEFAULT_DETECTION_MODEL`.
@@ -511,7 +511,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) - How effective token counts are computed (deprecated; AIC is now preferred for non-Copilot engines)
+- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) - How effective token counts are computed (deprecated; AIC is now preferred for non-Copilot engines)
 - [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows

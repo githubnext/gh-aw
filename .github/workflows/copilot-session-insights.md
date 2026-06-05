@@ -8,7 +8,7 @@ on:
     - cron: daily
   workflow_dispatch:
 
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   actions: read

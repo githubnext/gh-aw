@@ -5272,7 +5272,7 @@ describe("sendJobConclusionSpan", () => {
       });
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, cache_write_tokens: 50, effective_tokens: 500 };
+      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, cache_write_tokens: 50, effective_tokens: 500, ai_credits: 0.125 };
       readFileSpy.mockImplementation(filePath => {
         if (filePath === "/tmp/gh-aw/agent_usage.json") {
           return JSON.stringify(usage);
@@ -5300,7 +5300,11 @@ describe("sendJobConclusionSpan", () => {
 
       // Simulate a downstream job (e.g. conclusion, detection, safe_outputs) that
       // has agent_usage.json on disk via artifact download but should NOT emit tokens.
+      // Compiled workflows also propagate GH_AW_EFFECTIVE_TOKENS and GH_AW_AIC from
+      // needs.agent.outputs.* — set them here to guard against unconditional env reads.
       process.env.INPUT_JOB_NAME = "conclusion";
+      process.env.GH_AW_EFFECTIVE_TOKENS = "500";
+      process.env.GH_AW_AIC = "0.05";
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
@@ -5324,19 +5328,22 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.total_tokens");
+      expect(keys).not.toContain("gh-aw.effective_tokens");
+      expect(keys).not.toContain("gh-aw.aic");
     });
 
-    it("omits gen_ai token breakdown from detection job even when agent_usage.json is present", async () => {
+    it("includes detection-job token breakdown and cost attributes when detection writes agent_usage.json", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.INPUT_JOB_NAME = "detection";
+      process.env.GH_AW_DETECTION_CONCLUSION = "success";
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      const usage = { input_tokens: 5000, output_tokens: 200 };
+      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, effective_tokens: 650, ai_credits: 0.125 };
       readFileSpy.mockImplementation(filePath => {
         if (filePath === "/tmp/gh-aw/agent_usage.json") {
           return JSON.stringify(usage);
@@ -5347,10 +5354,60 @@ describe("sendJobConclusionSpan", () => {
       await sendJobConclusionSpan("gh-aw.detection.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      const keys = body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
-      expect(keys).not.toContain("gen_ai.usage.input_tokens");
-      expect(keys).not.toContain("gen_ai.usage.output_tokens");
-      expect(keys).not.toContain("gen_ai.usage.total_tokens");
+      const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(5000);
+      expect(attrs["gen_ai.usage.output_tokens"]).toBe(200);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
+      expect(attrs["gen_ai.usage.total_tokens"]).toBe(5200);
+      expect(attrs["gh-aw.effective_tokens"]).toBe(650);
+      expect(attrs["gh-aw.aic"]).toBe(0.125);
+      expect(attrs["gh-aw.detection.conclusion"]).toBe("success");
+    });
+
+    it("includes detection-job warning result attribute when detection finds threats", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.INPUT_JOB_NAME = "detection";
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GH_AW_DETECTION_REASON = "threat_detected";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      readFileSpy.mockImplementation(filePath => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.detection.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.detection.conclusion"]).toBe("warning");
+      expect(attrs["gh-aw.detection.reason"]).toBe("threat_detected");
+    });
+
+    it("includes skipped detection result attribute on detection span when detection was not needed", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.INPUT_JOB_NAME = "detection";
+      process.env.GH_AW_DETECTION_CONCLUSION = "skipped";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      readFileSpy.mockImplementation(filePath => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.detection.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.detection.conclusion"]).toBe("skipped");
     });
 
     it("omits gen_ai token breakdown when INPUT_JOB_NAME is empty", async () => {

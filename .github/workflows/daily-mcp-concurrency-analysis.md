@@ -3,7 +3,7 @@ on:
   schedule:
   - cron: daily around 9:00 on weekdays
   workflow_dispatch: null
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

@@ -11,7 +11,7 @@ on:
     strategy: centralized
     name: approach-validator
     events: [issue_comment, pull_request_comment]
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

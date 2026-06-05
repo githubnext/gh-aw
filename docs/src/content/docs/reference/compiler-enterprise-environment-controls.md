@@ -12,7 +12,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 | Variable | Source | Purpose | Applies when |
 | --- | --- | --- | --- |
 | `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Compiler process environment | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
-| `GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS` | Compiler process environment | Default `max-daily-effective-tokens` guardrail | `max-daily-effective-tokens` is not set in frontmatter |
+| `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | Compiler process environment | Default `max-daily-ai-credits` guardrail | `max-daily-ai-credits` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
@@ -23,7 +23,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 Use `gh aw env get` and `gh aw env update` to manage these
 variables in batch at repo, org, or enterprise scope. The defaults file uses
-`default_`-prefixed keys such as `default_max_effective_tokens`, `default_max_daily_effective_tokens`, `default_timeout_minutes`,
+`default_`-prefixed keys such as `default_max_effective_tokens`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
 `default_model_copilot`, and `default_utc`.
 
 ## Project Timezone
@@ -65,8 +65,8 @@ Positive values also accept `K`/`M` suffixes such as `100M`.
 
 For daily effective-token workflow guardrails, precedence is:
 
-1. `max-daily-effective-tokens` in workflow frontmatter
-2. `GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS`
+1. `max-daily-ai-credits` in workflow frontmatter
+2. `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`
 
 When both are unset, the daily guardrail stays disabled. A value of `-1`
 explicitly disables the guardrail.
@@ -117,13 +117,13 @@ gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "100M"
 Set an org-wide default daily workflow ET guardrail:
 
 ```bash
-gh variable set GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS --org my-org --body "15M"
+gh variable set GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS --org my-org --body "15M"
 ```
 
 Set compiler process defaults for timeout and max-turns:
 
 ```bash
-export GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS=15M
+export GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS=15M
 export GH_AW_DEFAULT_TIMEOUT_MINUTES=30
 export GH_AW_DEFAULT_MAX_TURNS=12
 export GH_AW_DEFAULT_DETECTION_MODEL=gpt-5.5-mini

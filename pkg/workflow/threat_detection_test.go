@@ -964,6 +964,9 @@ func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testin
 	}
 
 	joined := strings.Join(steps, "")
+	if !strings.Contains(joined, "rm -f /tmp/gh-aw/agent_usage.json") {
+		t.Error("Expected prepare step to remove stale downloaded agent_usage.json before detection writes its own token usage")
+	}
 	if !strings.Contains(joined, "if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then") {
 		t.Error("Expected prepare step to check for missing or empty detection context prompt")
 	}

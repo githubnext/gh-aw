@@ -4,7 +4,7 @@ description: Daily GEO (Generative Engine Optimization) audit of the README and 
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

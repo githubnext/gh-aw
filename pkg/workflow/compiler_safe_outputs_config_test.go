@@ -1419,6 +1419,54 @@ func TestHandlerConfigTargetRepo(t *testing.T) {
 	}
 }
 
+func TestHandlerConfigClosePullRequestTargetRepo(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			ClosePullRequests: &ClosePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "${{ needs.input_parser.outputs.repo }}",
+				},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err)
+
+				closePRConfig, ok := config["close_pull_request"]
+				require.True(t, ok)
+
+				targetRepo, ok := closePRConfig["target-repo"]
+				require.True(t, ok)
+				assert.Equal(t, "${{ needs.input_parser.outputs.repo }}", targetRepo)
+
+				target, ok := closePRConfig["target"]
+				require.True(t, ok)
+				assert.Equal(t, "*", target)
+			}
+		}
+	}
+}
+
 // TestHandlerConfigPatchSize tests max patch size configuration
 func TestHandlerConfigPatchSize(t *testing.T) {
 	tests := []struct {

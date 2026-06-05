@@ -2,7 +2,7 @@
 on:
   schedule: weekly on monday around 03:00
   workflow_dispatch: null
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

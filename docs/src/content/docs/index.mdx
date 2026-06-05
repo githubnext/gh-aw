@@ -99,7 +99,7 @@ See the [Security Architecture](/gh-aw/introduction/architecture/) for a full br
 
 ## Manage Cost and Capacity
 
-Cost control starts with visibility. Use `gh aw logs` and `gh aw audit` to find runs consuming the most time, tokens, and effective tokens, then tighten prompts, triggers, and model choices before spend drifts upward.
+Cost control starts with visibility. Use `gh aw logs` and `gh aw audit` to find runs consuming the most time, tokens, and AI Credits (AIC), then tighten prompts, triggers, and model choices before spend drifts upward.
 
 `max-effective-tokens` gives each run a hard budget, while [OpenTelemetry](/gh-aw/reference/open-telemetry/) exports traces and token data to OTLP backends for dashboards, alerting, and cost analysis. For optimization over time, compare cost with [outcomes](/gh-aw/reference/outcomes/) so lower spend still produces useful accepted results.
 

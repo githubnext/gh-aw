@@ -80,8 +80,10 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const configuredTargetRepo = config["target-repo"] || "";
 
   core.info(`Close pull request configuration: max=${config.max || 10}`);
+  core.info(`Configured target repo: ${configuredTargetRepo || "(unset)"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
@@ -143,7 +145,7 @@ async function main(config = {}) {
       addComment: addPullRequestComment,
 
       closeEntity(github, owner, repo, prNumber) {
-        core.info(`Closing PR #${prNumber}`);
+        core.info(`Closing PR #${prNumber} in ${owner}/${repo}`);
         return closePullRequest(github, owner, repo, prNumber);
       },
 

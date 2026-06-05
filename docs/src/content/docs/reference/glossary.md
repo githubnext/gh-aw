@@ -150,7 +150,7 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 ### Outcome Efficiency
 
-A cost-quality metric computed as effective tokens divided by accepted outcomes. Lower values indicate the workflow spent less AI work per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
+A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
 
 ### Pwn Request
 
@@ -234,11 +234,11 @@ A safe output capability for removing labels from issues or pull requests. Suppo
 
 ### Assign to Agent
 
-A safe output capability (`assign-to-agent:`) that programmatically assigns the GitHub Copilot coding agent to existing issues or pull requests. Automates the standard GitHub workflow for delegating implementation tasks to Copilot. Supports cross-repository PR creation via `pull-request-repo` and agent model selection via `model`. See [Assign to Copilot](/gh-aw/reference/assign-to-copilot/).
+A safe output capability (`assign-to-agent:`) that programmatically assigns the GitHub Copilot coding agent to existing issues or pull requests. Automates the standard GitHub workflow for delegating implementation tasks to Copilot. Supports cross-repository PR creation via `pull-request-repo` and agent model selection via `model`. See [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/).
 
 ### GH_AW_AGENT_TOKEN
 
-A recognized "magic" repository secret name that GitHub Agentic Workflows automatically uses as a fallback Personal Access Token for `assign-to-agent` operations. When set, no explicit `github-token:` reference is needed in workflow frontmatter — the token is injected automatically. Required because GitHub App installation tokens are rejected by the Copilot assignment API. The token fallback chain is: `assign-to-agent.github-token` → `safe-outputs.github-token` → `GH_AW_AGENT_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Assign to Copilot](/gh-aw/reference/assign-to-copilot/).
+A recognized "magic" repository secret name that GitHub Agentic Workflows automatically uses as a fallback Personal Access Token for `assign-to-agent` operations. When set, no explicit `github-token:` reference is needed in workflow frontmatter — the token is injected automatically. Required because GitHub App installation tokens are rejected by the Copilot assignment API. The token fallback chain is: `assign-to-agent.github-token` → `safe-outputs.github-token` → `GH_AW_AGENT_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/).
 
 ### Custom Safe Outputs
 
@@ -270,7 +270,7 @@ A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric chara
 
 ### Merge Pull Request (`merge-pull-request:`)
 
-An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Supports `merge`, `squash`, and `rebase` methods and cross-repository targets. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/#type-merge_pull_request).
+An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Supports `merge`, `squash`, and `rebase` methods and cross-repository targets. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/#type-merge_pull_request).
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -489,7 +489,7 @@ Optional workflow metadata for categorization and organization. Enables filterin
 
 ### Model Alias
 
-A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/reference/model-alias-specification/).
+A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
 
 ### Max Effective Tokens (`max-effective-tokens`)
 
@@ -499,14 +499,14 @@ A top-level frontmatter field that caps the total effective-token (ET) budget th
 max-effective-tokens: 5M
 ```
 
-See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) and [Cost Management](/gh-aw/reference/cost-management/).
+See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) and [Cost Management](/gh-aw/reference/cost-management/).
 
-### Max Daily Effective Tokens (`max-daily-effective-tokens`)
+### Max Daily AI Credits (`max-daily-ai-credits`)
 
-A top-level frontmatter field that sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow triggered by the same user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and reports a specialized failure. Disabled by default when omitted. Set to `-1` to explicitly disable it. Accepts plain integers or `K`/`M` suffixes (e.g., `100M`). Skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs carrying internal `aw_context` dispatch metadata. Example:
+A top-level frontmatter field that sets a 24-hour AI Credits cap for a single workflow, aggregated across recent runs of the same workflow triggered by the same user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and reports a specialized failure. Disabled by default when omitted. Set to `-1` to explicitly disable it. Accepts plain integers or `K`/`M` suffixes (e.g., `100M`). Skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs carrying internal `aw_context` dispatch metadata. Example:
 
 ```aw wrap
-max-daily-effective-tokens: 15M
+max-daily-ai-credits: 15M
 ```
 
 See [Cost Management](/gh-aw/reference/cost-management/) and [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
@@ -695,11 +695,11 @@ A CLI command that orchestrates full workflow rollout to a target repository in 
 
 ### Effective Tokens
 
-A weighted token count that normalizes raw API token usage into a single comparable value for usage monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
+A weighted token count that normalizes raw API token usage into a single comparable value for usage monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/).
 
 ### Forecast (`gh aw forecast`)
 
-An experimental CLI command that projects future Effective Token consumption using a Monte Carlo simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/reference/forecast-specification/).
+An experimental CLI command that projects future Effective Token consumption using a Monte Carlo simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/specs/forecast-specification/).
 
 ### Time Between Turns (TBT)
 
@@ -731,7 +731,7 @@ on:
 
 ### Frontmatter Hash
 
-A deterministic SHA-256 hash of a workflow's frontmatter configuration, including all imported workflow frontmatter collected in breadth-first order. The hash covers security-relevant fields (`engine`, `on`, `permissions`, `tools`, `network`, `safe-outputs`, etc.) while excluding the markdown body. Identical configurations produce identical hashes across the Go and JavaScript compiler implementations, enabling change detection, tamper verification, and reproducibility checks. To also hash the prompt body, use `on.stale-check: "full"` (see [Body Hash](#body-hash)). See [Frontmatter Hash Specification](/gh-aw/reference/frontmatter-hash-specification/).
+A deterministic SHA-256 hash of a workflow's frontmatter configuration, including all imported workflow frontmatter collected in breadth-first order. The hash covers security-relevant fields (`engine`, `on`, `permissions`, `tools`, `network`, `safe-outputs`, etc.) while excluding the markdown body. Identical configurations produce identical hashes across the Go and JavaScript compiler implementations, enabling change detection, tamper verification, and reproducibility checks. To also hash the prompt body, use `on.stale-check: "full"` (see [Body Hash](#body-hash)). See [Frontmatter Hash Specification](/gh-aw/specs/frontmatter-hash-specification/).
 
 ### actionlint
 
@@ -850,7 +850,7 @@ A system-injected environment variable containing the comma-separated list of do
 
 ### `GH_AW_DEFAULT_*`
 
-A family of environment variables set in the compiler process environment or as GitHub Actions `vars.*` to apply organization- or repository-wide defaults without editing individual workflow frontmatter. Compiler-process variables (`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`, `GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS`, `GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_MODEL`) inject defaults at compile time; runtime repository variables (`GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`) provide model fallbacks when per-run model overrides are unset. Frontmatter settings always take precedence over `GH_AW_DEFAULT_*`. Managed in batch via `gh aw env`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
+A family of environment variables set in the compiler process environment or as GitHub Actions `vars.*` to apply organization- or repository-wide defaults without editing individual workflow frontmatter. Compiler-process variables (`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`, `GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_MODEL`) inject defaults at compile time; runtime repository variables (`GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`) provide model fallbacks when per-run model overrides are unset. Frontmatter settings always take precedence over `GH_AW_DEFAULT_*`. Managed in batch via `gh aw env`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
 
 ### `GH_HOST`
 

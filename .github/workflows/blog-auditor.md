@@ -4,7 +4,7 @@ description: Verifies that the GitHub Next Agentic Workflows blog page is access
 on:
   workflow_dispatch:
   schedule: weekly on wednesday around 12:00
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read
