@@ -33,22 +33,22 @@ func TestFormatForecastPercent_OneHundred(t *testing.T) {
 	assert.Equal(t, "100%", formatForecastPercent(1.0, true))
 }
 
-// ── formatForecastTokens ─────────────────────────────────────────────────────
+// ── formatForecastAIC ─────────────────────────────────────────────────────
 
-func TestFormatForecastTokens_Zero(t *testing.T) {
-	assert.Equal(t, "-", formatForecastTokens(0))
+func TestFormatForecastAIC_Zero(t *testing.T) {
+	assert.Equal(t, "-", formatForecastAIC(0))
 }
 
-func TestFormatForecastTokens_SmallInt(t *testing.T) {
-	assert.Equal(t, "500", formatForecastTokens(500))
+func TestFormatForecastAIC_SmallInt(t *testing.T) {
+	assert.Equal(t, "500", formatForecastAIC(500))
 }
 
-func TestFormatForecastTokens_Kilo(t *testing.T) {
-	assert.Equal(t, "12.5K", formatForecastTokens(12500))
+func TestFormatForecastAIC_Kilo(t *testing.T) {
+	assert.Equal(t, "12.5K", formatForecastAIC(12500))
 }
 
-func TestFormatForecastTokens_Mega(t *testing.T) {
-	assert.Equal(t, "1.20M", formatForecastTokens(1_200_000))
+func TestFormatForecastAIC_Mega(t *testing.T) {
+	assert.Equal(t, "1.20M", formatForecastAIC(1_200_000))
 }
 
 // ── extractWorkflowIDFromName ─────────────────────────────────────────────────
@@ -213,11 +213,11 @@ func TestObservedRunsPerPeriodConsistency(t *testing.T) {
 		"ObservedRunsPerPeriod JSON field must equal the λ passed to runMonteCarlo")
 
 	// Sanity-check simulation output is plausible for the given λ.
-	assert.Positive(t, mc.P50ProjectedEffectiveTokens,
+	assert.Positive(t, mc.P50ProjectedAIC,
 		"P50 should be positive when success rate is 100%%")
-	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens,
+	assert.LessOrEqual(t, mc.P10ProjectedAIC, mc.P50ProjectedAIC,
 		"P10 ≤ P50")
-	assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens,
+	assert.LessOrEqual(t, mc.P50ProjectedAIC, mc.P90ProjectedAIC,
 		"P50 ≤ P90")
 }
 
@@ -231,8 +231,10 @@ func TestObservedRunsPerPeriodConsistency(t *testing.T) {
 // same value reported to the caller in either output format.
 func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
+	originalLoadAIC := forecastLoadCachedRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
+		forecastLoadCachedRunAIC = originalLoadAIC
 	})
 
 	const (
@@ -240,11 +242,21 @@ func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
 		projectedDays = 30 // "month" period
 	)
 	completedRuns := []WorkflowRun{
-		{Status: "completed", Conclusion: "success", EffectiveTokens: 10_000, Duration: 5 * time.Minute},
-		{Status: "completed", Conclusion: "success", EffectiveTokens: 12_000, Duration: 6 * time.Minute},
-		{Status: "completed", Conclusion: "failure", EffectiveTokens: 8_000, Duration: 3 * time.Minute},
-		{Status: "completed", Conclusion: "success", EffectiveTokens: 11_000, Duration: 7 * time.Minute},
-		{Status: "completed", Conclusion: "success", EffectiveTokens: 9_500, Duration: 4 * time.Minute},
+		{DatabaseID: 1, Status: "completed", Conclusion: "success", Duration: 5 * time.Minute},
+		{DatabaseID: 2, Status: "completed", Conclusion: "success", Duration: 6 * time.Minute},
+		{DatabaseID: 3, Status: "completed", Conclusion: "failure", Duration: 3 * time.Minute},
+		{DatabaseID: 4, Status: "completed", Conclusion: "success", Duration: 7 * time.Minute},
+		{DatabaseID: 5, Status: "completed", Conclusion: "success", Duration: 4 * time.Minute},
+	}
+	runAIC := map[int64]float64{
+		1: 4.2,
+		2: 5.0,
+		3: 3.4,
+		4: 4.6,
+		5: 4.1,
+	}
+	forecastLoadCachedRunAIC = func(runID int64, _ bool) float64 {
+		return runAIC[runID]
 	}
 	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 		return completedRuns, len(completedRuns), nil
@@ -272,8 +284,8 @@ func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
 
 	// Both JSON output (renderForecastJSON) and table output (renderForecastTable) use the
 	// same ForecastResult, so they are structurally guaranteed to report the same λ.
-	assert.Positive(t, result.MonteCarlo.P50ProjectedEffectiveTokens,
-		"P50 must be positive for positive λ and non-zero ET observations")
+	assert.Positive(t, result.MonteCarlo.P50ProjectedAIC,
+		"P50 must be positive for positive λ and non-zero AIC observations")
 }
 
 func TestForecastRateLimitSleep_ContextCancelled(t *testing.T) {
@@ -291,18 +303,28 @@ func TestForecastRateLimitSleep_CompletesWithoutCancellation(t *testing.T) {
 
 func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
+	originalLoadAIC := forecastLoadCachedRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
+		forecastLoadCachedRunAIC = originalLoadAIC
 	})
 
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 		runs := []WorkflowRun{
-			{Status: "completed", Conclusion: "skipped", EffectiveTokens: 999, Duration: 10 * time.Minute},
-			{Status: "completed", Conclusion: "success", EffectiveTokens: 100, Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
-			{Status: "completed", Conclusion: "failure", EffectiveTokens: 200, Duration: 6 * time.Minute, StartedAt: start.Add(10 * time.Minute), UpdatedAt: start.Add(16 * time.Minute)},
+			{DatabaseID: 11, Status: "completed", Conclusion: "skipped", Duration: 10 * time.Minute},
+			{DatabaseID: 12, Status: "completed", Conclusion: "success", Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
+			{DatabaseID: 13, Status: "completed", Conclusion: "failure", Duration: 6 * time.Minute, StartedAt: start.Add(10 * time.Minute), UpdatedAt: start.Add(16 * time.Minute)},
 		}
 		return runs, len(runs), nil
+	}
+	runAIC := map[int64]float64{
+		11: 9.99, // skipped and ignored
+		12: 1.0,
+		13: 2.0,
+	}
+	forecastLoadCachedRunAIC = func(runID int64, _ bool) float64 {
+		return runAIC[runID]
 	}
 
 	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
@@ -312,7 +334,7 @@ func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	}, 30)
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.SampledRuns, "skipped runs should not be sampled")
-	assert.Equal(t, 150, result.AvgEffectiveTokens, "metrics should ignore skipped runs")
+	assert.InDelta(t, 1.5, result.AvgAIC, 1e-9, "metrics should ignore skipped runs")
 	assert.InEpsilon(t, 0.5, result.SuccessRate, 1e-9)
 }
 
@@ -333,9 +355,9 @@ func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 				SampledRuns: 1,
 				SuccessRate: 1,
 				MonteCarlo: &ForecastMonteCarloSummary{
-					P10ProjectedEffectiveTokens: 0,
-					P50ProjectedEffectiveTokens: 0,
-					P90ProjectedEffectiveTokens: 0,
+					P10ProjectedAIC: 0,
+					P50ProjectedAIC: 0,
+					P90ProjectedAIC: 0,
 				},
 			},
 		},

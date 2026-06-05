@@ -1,7 +1,7 @@
 package cli
 
 // This file implements the `forecast` command, which samples a workflow's recent
-// GitHub Actions run history and projects forward effective token usage (including
+// GitHub Actions run history and projects forward AI Credit (AIC) usage (including
 // Monte Carlo probability distributions) on a per-week or per-month basis.
 //
 // Workflow metadata (trigger types, concurrency, experiments) is read from the
@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +46,7 @@ const (
 var (
 	forecastFetchGitHubWorkflows      = fetchGitHubWorkflows
 	forecastListWorkflowRunsPaginated = listWorkflowRunsWithPagination
+	forecastLoadCachedRunAIC          = loadCachedRunAIC
 	forecastRateLimitSleep            = func(ctx context.Context, delay time.Duration) error {
 		timer := time.NewTimer(delay)
 		defer timer.Stop()
@@ -78,14 +78,14 @@ type ForecastWorkflowResult struct {
 	SuccessRate float64 `json:"success_rate"`
 
 	// Average per-run metrics (from completed runs).
-	AvgEffectiveTokens int     `json:"avg_effective_tokens"`
+	AvgAIC             float64 `json:"avg_aic"`
 	AvgDurationSeconds float64 `json:"avg_duration_seconds"`
 
 	// Projected totals for the period.
-	ProjectedEffectiveTokens int `json:"projected_effective_tokens"`
+	ProjectedAIC float64 `json:"projected_aic"`
 
-	// MonteCarlo contains the probability distribution of projected effective-token
-	// counts derived from a Monte Carlo simulation (10 000 trials).
+	// MonteCarlo contains the probability distribution of projected AIC totals
+	// derived from a Monte Carlo simulation (10 000 trials).
 	// Nil when no completed runs were available.
 	MonteCarlo *ForecastMonteCarloSummary `json:"monte_carlo,omitempty"`
 
@@ -125,17 +125,17 @@ type ForecastEvaluation struct {
 
 	// ActualRuns is the number of completed runs observed in the validation window.
 	ActualRuns int `json:"actual_runs"`
-	// ActualEffectiveTokens is the total effective-token count actually consumed
+	// ActualAIC is the total AIC value actually consumed
 	// in the validation window.
-	ActualEffectiveTokens int `json:"actual_effective_tokens"`
+	ActualAIC float64 `json:"actual_aic"`
 
-	// P50ErrorAbs is the signed difference (actual − P50 forecast) in effective tokens.
+	// P50ErrorAbs is the signed difference (actual − P50 forecast) in AIC.
 	// Positive = actual was higher than forecast; negative = forecast over-estimated.
-	P50ErrorAbs int `json:"p50_error_abs"`
+	P50ErrorAbs float64 `json:"p50_error_abs"`
 	// P50ErrorPct is P50ErrorAbs as a percentage of the P50 forecast.
 	// NaN-safe: 0 when P50 is 0.
 	P50ErrorPct float64 `json:"p50_error_pct"`
-	// InCI is true when ActualEffectiveTokens fell within the P10–P90 confidence
+	// InCI is true when ActualAIC fell within the P10–P90 confidence
 	// interval.  A well-calibrated model should be in-CI ~80% of the time.
 	InCI bool `json:"in_ci"`
 }
@@ -280,13 +280,13 @@ func RunForecast(config ForecastConfig) error {
 
 	// Sort results by Monte Carlo P50 (or point estimate when MC unavailable) descending.
 	sort.Slice(results, func(i, j int) bool {
-		pi := results[i].ProjectedEffectiveTokens
+		pi := results[i].ProjectedAIC
 		if mc := results[i].MonteCarlo; mc != nil {
-			pi = mc.P50ProjectedEffectiveTokens
+			pi = mc.P50ProjectedAIC
 		}
-		pj := results[j].ProjectedEffectiveTokens
+		pj := results[j].ProjectedAIC
 		if mc := results[j].MonteCarlo; mc != nil {
-			pj = mc.P50ProjectedEffectiveTokens
+			pj = mc.P50ProjectedAIC
 		}
 		return pi > pj
 	})
@@ -515,14 +515,6 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 			if r.Duration == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
 				r.Duration = r.UpdatedAt.Sub(r.StartedAt)
 			}
-			// Enrich with ET from a locally-cached run summary when available.
-			// gh run list does not return token-usage fields; they are only stored in
-			// the aw_info.json artifacts downloaded by `gh aw logs`.  Loading the cached
-			// RunSummary avoids re-downloading artifacts while still providing accurate
-			// ET observations for runs that have already been processed locally.
-			if r.EffectiveTokens == 0 {
-				r.EffectiveTokens = loadCachedEffectiveTokens(r.DatabaseID, config.Verbose)
-			}
 			completed = append(completed, r)
 		}
 	}
@@ -534,22 +526,25 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	}
 
 	// Compute per-run averages.
-	var totalET int
+	var totalAIC float64
 	var totalDurSec float64
 	successCount := 0
-	etObservations := make([]int, 0, len(completed))
+	aicObservations := make([]int, 0, len(completed))
 
 	for _, r := range completed {
-		totalET += r.EffectiveTokens
+		runAIC := forecastLoadCachedRunAIC(r.DatabaseID, config.Verbose)
+		totalAIC += runAIC
 		totalDurSec += r.Duration.Seconds()
-		etObservations = append(etObservations, r.EffectiveTokens)
+		// Monte Carlo currently samples integer observations; keep milli-AIC precision
+		// so sub-1 AIC runs are represented without losing granularity.
+		aicObservations = append(aicObservations, int(math.Round(runAIC*1000)))
 		if r.Conclusion == "success" {
 			successCount++
 		}
 	}
 
 	n := len(completed)
-	result.AvgEffectiveTokens = totalET / n
+	result.AvgAIC = roundForecastAIC(totalAIC / float64(n))
 	result.AvgDurationSeconds = totalDurSec / float64(n)
 	result.SuccessRate = float64(successCount) / float64(n)
 
@@ -558,12 +553,12 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	result.ObservedRunsPerPeriod = float64(n) / float64(config.Days) * float64(periodDays)
 
 	// Projected token usage (point estimate using simple means).
-	result.ProjectedEffectiveTokens = int(math.Round(result.ObservedRunsPerPeriod * float64(result.AvgEffectiveTokens)))
+	result.ProjectedAIC = roundForecastAIC(result.ObservedRunsPerPeriod * result.AvgAIC)
 
 	// Monte Carlo simulation: model run-count (Poisson), per-run token usage
 	// (bootstrap), and per-run success (Bernoulli) to produce P10/P50/P90 ranges.
 	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec // non-cryptographic simulation RNG
-	result.MonteCarlo = runMonteCarlo(etObservations, successCount, result.ObservedRunsPerPeriod, rng)
+	result.MonteCarlo = runMonteCarlo(aicObservations, successCount, result.ObservedRunsPerPeriod, rng)
 
 	// Populate experiment variant fractions from run history when metadata has variants.
 	result.ExperimentVariants = computeVariantFractions(result.ExperimentVariants, completed)
@@ -744,27 +739,22 @@ func extractWorkflowIDFromName(name string) string {
 	return name
 }
 
-// loadCachedEffectiveTokens looks up a locally-cached RunSummary for the given
-// run ID and returns the TotalEffectiveTokens from its TokenUsage summary.
-// Returns 0 when no cache exists or the cache does not contain token data.
+// loadCachedRunAIC looks up a locally-cached RunSummary for the given
+// run ID and returns the TotalAIC from its TokenUsage summary.
+// Returns 0 when no cache exists or the cache does not contain AIC data.
 // This avoids re-downloading aw_info.json artifacts for runs already processed by
-// `gh aw logs` while still providing accurate ET observations for the simulation.
+// `gh aw logs` while still providing accurate AIC observations for the simulation.
 //
 // Cache location: <defaultLogsOutputDir>/run-<runID>/run_summary.json
 // (defaultLogsOutputDir is ".github/aw/logs" — defined in logs_models.go)
-func loadCachedEffectiveTokens(runID int64, verbose bool) int {
+func loadCachedRunAIC(runID int64, verbose bool) float64 {
 	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
 	summary, ok := loadRunSummary(dir, verbose)
 	if !ok || summary == nil {
 		return 0
 	}
-	if summary.TokenUsage != nil && summary.TokenUsage.TotalEffectiveTokens > 0 {
-		return summary.TokenUsage.TotalEffectiveTokens
-	}
-	// Fallback: legacy run summaries (written before TokenUsage was a separate
-	// field) may have stored the computed ET directly on the Run struct.
-	if summary.Run.EffectiveTokens > 0 {
-		return summary.Run.EffectiveTokens
+	if summary.TokenUsage != nil && summary.TokenUsage.TotalAIC > 0 {
+		return summary.TokenUsage.TotalAIC
 	}
 	return 0
 }
@@ -832,28 +822,25 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 		if r.StartedAt.Before(validationStart) || r.StartedAt.After(validationEnd) {
 			continue
 		}
-		if r.EffectiveTokens == 0 {
-			r.EffectiveTokens = loadCachedEffectiveTokens(r.DatabaseID, config.Verbose)
-		}
 		eval.ActualRuns++
-		eval.ActualEffectiveTokens += r.EffectiveTokens
+		eval.ActualAIC += forecastLoadCachedRunAIC(r.DatabaseID, config.Verbose)
 	}
 
 	// Compute error metrics against P50 (falls back to point estimate).
-	p50 := forecast.ProjectedEffectiveTokens
-	p10 := forecast.ProjectedEffectiveTokens
-	p90 := forecast.ProjectedEffectiveTokens
+	p50 := forecast.ProjectedAIC
+	p10 := forecast.ProjectedAIC
+	p90 := forecast.ProjectedAIC
 	if mc := forecast.MonteCarlo; mc != nil {
-		p50 = mc.P50ProjectedEffectiveTokens
-		p10 = mc.P10ProjectedEffectiveTokens
-		p90 = mc.P90ProjectedEffectiveTokens
+		p50 = mc.P50ProjectedAIC
+		p10 = mc.P10ProjectedAIC
+		p90 = mc.P90ProjectedAIC
 	}
 
-	eval.P50ErrorAbs = eval.ActualEffectiveTokens - p50
+	eval.P50ErrorAbs = eval.ActualAIC - p50
 	if p50 > 0 {
-		eval.P50ErrorPct = float64(eval.P50ErrorAbs) / float64(p50) * 100
+		eval.P50ErrorPct = eval.P50ErrorAbs / p50 * 100
 	}
-	eval.InCI = eval.ActualEffectiveTokens >= p10 && eval.ActualEffectiveTokens <= p90
+	eval.InCI = eval.ActualAIC >= p10 && eval.ActualAIC <= p90
 
 	return eval
 }
@@ -872,13 +859,13 @@ func renderForecastJSON(output ForecastResult) error {
 
 // forecastTableRow is a flattened struct used for console table rendering.
 type forecastTableRow struct {
-	Workflow           string `json:"workflow"                console:"header:Workflow"`
-	Runs               int    `json:"runs"                    console:"header:Sampled Runs"`
-	SuccessRate        string `json:"success_rate"            console:"header:Success Rate"`
-	AvgEffectiveTokens string `json:"avg_effective_tokens"    console:"header:Avg ET"`
-	ProjectedTokens    string `json:"projected_tokens"        console:"header:Proj. ET (P50)"`
-	ETRange            string `json:"et_range"                console:"header:80% CI (P10–P90)"`
-	Triggers           string `json:"triggers"                console:"header:Triggers"`
+	Workflow     string `json:"workflow"      console:"header:Workflow"`
+	Runs         int    `json:"runs"          console:"header:Sampled Runs"`
+	SuccessRate  string `json:"success_rate"  console:"header:Success Rate"`
+	AvgAIC       string `json:"avg_aic"       console:"header:Avg AIC"`
+	ProjectedAIC string `json:"projected_aic" console:"header:Proj. AIC (P50)"`
+	AICRange     string `json:"aic_range"     console:"header:80% CI (P10–P90)"`
+	Triggers     string `json:"triggers"      console:"header:Triggers"`
 }
 
 // renderForecastTable renders the forecast result as a human-readable table.
@@ -891,18 +878,18 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	anyUnreliable := false
 	rows := make([]forecastTableRow, 0, len(output.Workflows))
 	for _, wf := range output.Workflows {
-		// Use Monte Carlo P50 as the primary ET estimate when available.
-		projETStr := formatForecastTokens(wf.ProjectedEffectiveTokens)
-		etRangeStr := "-"
+		// Use Monte Carlo P50 as the primary AIC estimate when available.
+		projAICStr := formatForecastAIC(wf.ProjectedAIC)
+		aicRangeStr := "-"
 		unreliableMark := ""
 		if mc := wf.MonteCarlo; mc != nil {
-			projETStr = formatForecastTokens(mc.P50ProjectedEffectiveTokens)
-			if mc.P10ProjectedEffectiveTokens == 0 && mc.P90ProjectedEffectiveTokens == 0 {
-				etRangeStr = "-"
+			projAICStr = formatForecastAIC(mc.P50ProjectedAIC)
+			if mc.P10ProjectedAIC == 0 && mc.P90ProjectedAIC == 0 {
+				aicRangeStr = "-"
 			} else {
-				etRangeStr = fmt.Sprintf("%s–%s",
-					formatForecastTokens(mc.P10ProjectedEffectiveTokens),
-					formatForecastTokens(mc.P90ProjectedEffectiveTokens))
+				aicRangeStr = fmt.Sprintf("%s–%s",
+					formatForecastAIC(mc.P10ProjectedAIC),
+					formatForecastAIC(mc.P90ProjectedAIC))
 			}
 			if !mc.IsReliable {
 				anyUnreliable = true
@@ -910,13 +897,13 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 			}
 		}
 		row := forecastTableRow{
-			Workflow:           wf.WorkflowID + unreliableMark,
-			Runs:               wf.SampledRuns,
-			SuccessRate:        formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
-			AvgEffectiveTokens: formatForecastTokens(wf.AvgEffectiveTokens),
-			ProjectedTokens:    projETStr,
-			ETRange:            etRangeStr,
-			Triggers:           formatTriggerList(wf.ActiveTriggers),
+			Workflow:     wf.WorkflowID + unreliableMark,
+			Runs:         wf.SampledRuns,
+			SuccessRate:  formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
+			AvgAIC:       formatForecastAIC(wf.AvgAIC),
+			ProjectedAIC: projAICStr,
+			AICRange:     aicRangeStr,
+			Triggers:     formatTriggerList(wf.ActiveTriggers),
 		}
 		rows = append(rows, row)
 	}
@@ -952,7 +939,7 @@ func printEvalBreakdown(workflows []ForecastWorkflowResult) {
 	type evalRow struct {
 		Workflow    string `json:"workflow"       console:"header:Workflow"`
 		ActualRuns  int    `json:"actual_runs"    console:"header:Actual Runs"`
-		ActualET    string `json:"actual_et"      console:"header:Actual ET"`
+		ActualAIC   string `json:"actual_aic"     console:"header:Actual AIC"`
 		ForecastP50 string `json:"forecast_p50"   console:"header:Forecast P50"`
 		ErrorAbs    string `json:"error_abs"      console:"header:Error (abs)"`
 		ErrorPct    string `json:"error_pct"      console:"header:Error %"`
@@ -966,9 +953,9 @@ func printEvalBreakdown(workflows []ForecastWorkflowResult) {
 		if ev == nil {
 			continue
 		}
-		p50 := wf.ProjectedEffectiveTokens
+		p50 := wf.ProjectedAIC
 		if mc := wf.MonteCarlo; mc != nil {
-			p50 = mc.P50ProjectedEffectiveTokens
+			p50 = mc.P50ProjectedAIC
 		}
 		inCI := "No"
 		if ev.InCI {
@@ -977,9 +964,9 @@ func printEvalBreakdown(workflows []ForecastWorkflowResult) {
 		rows = append(rows, evalRow{
 			Workflow:    wf.WorkflowID,
 			ActualRuns:  ev.ActualRuns,
-			ActualET:    formatForecastTokens(ev.ActualEffectiveTokens),
-			ForecastP50: formatForecastTokens(p50),
-			ErrorAbs:    formatForecastSignedTokens(ev.P50ErrorAbs),
+			ActualAIC:   formatForecastAIC(ev.ActualAIC),
+			ForecastP50: formatForecastAIC(p50),
+			ErrorAbs:    formatForecastSignedAIC(ev.P50ErrorAbs),
 			ErrorPct:    fmt.Sprintf("%.1f%%", ev.P50ErrorPct),
 			InCI:        inCI,
 		})
@@ -1024,32 +1011,42 @@ func formatForecastPercent(v float64, hasData bool) string {
 	return fmt.Sprintf("%.0f%%", v*100)
 }
 
-func formatForecastTokens(n int) string {
-	if n == 0 {
+func formatForecastAIC(value float64) string {
+	if value <= 0 {
 		return "-"
 	}
-	if n < 1000 {
-		return strconv.Itoa(n)
+	if value < 1 {
+		return fmt.Sprintf("%.3f", value)
 	}
-	if n < 1_000_000 {
-		return fmt.Sprintf("%.1fK", float64(n)/1000)
+	if value < 10 {
+		return fmt.Sprintf("%.2f", value)
 	}
-	return fmt.Sprintf("%.2fM", float64(n)/1_000_000)
+	if value < 1000 {
+		return fmt.Sprintf("%.0f", value)
+	}
+	if value < 1_000_000 {
+		return fmt.Sprintf("%.1fK", value/1000)
+	}
+	return fmt.Sprintf("%.2fM", value/1_000_000)
 }
 
-// formatForecastSignedTokens formats a signed integer token count, preserving
+// formatForecastSignedAIC formats a signed AIC value, preserving
 // the sign so callers can display positive/negative deltas (e.g., error abs).
-func formatForecastSignedTokens(n int) string {
-	if n == 0 {
+func formatForecastSignedAIC(value float64) string {
+	if value == 0 {
 		return "0"
 	}
 	sign := ""
-	v := n
-	if n < 0 {
+	v := value
+	if value < 0 {
 		sign = "-"
-		v = -n
+		v = math.Abs(value)
 	}
-	return sign + formatForecastTokens(v)
+	return sign + formatForecastAIC(v)
+}
+
+func roundForecastAIC(value float64) float64 {
+	return math.Round(value*1000) / 1000
 }
 
 func formatTriggerList(triggers []string) string {

@@ -194,21 +194,21 @@ func TestRunMonteCarloBasicProperties(t *testing.T) {
 	require.NotNil(t, mc)
 
 	assert.Equal(t, monteCarloIterations, mc.Iterations)
-	assert.GreaterOrEqual(t, mc.MeanProjectedEffectiveTokens, 0)
-	assert.GreaterOrEqual(t, mc.StdDevEffectiveTokens, 0.0)
-	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens, "ET P10 ≤ P50")
-	assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens, "ET P50 ≤ P90")
+	assert.GreaterOrEqual(t, mc.MeanProjectedAIC, 0.0)
+	assert.GreaterOrEqual(t, mc.StdDevAIC, 0.0)
+	assert.LessOrEqual(t, mc.P10ProjectedAIC, mc.P50ProjectedAIC, "AIC P10 ≤ P50")
+	assert.LessOrEqual(t, mc.P50ProjectedAIC, mc.P90ProjectedAIC, "AIC P50 ≤ P90")
 }
 
-// TestRunMonteCarloZeroSuccessRate verifies that a 0% success rate produces zero ET.
+// TestRunMonteCarloZeroSuccessRate verifies that a 0% success rate produces zero AIC.
 func TestRunMonteCarloZeroSuccessRate(t *testing.T) {
 	rng := deterministicRNG()
-	etObs := []int{1000, 2000, 3000}
+	aicObs := []int{1000, 2000, 3000}
 	// successCount = 0 → successRate = 0/3 = 0.
-	mc := runMonteCarlo(etObs, 0, 5.0, rng)
+	mc := runMonteCarlo(aicObs, 0, 5.0, rng)
 	require.NotNil(t, mc)
-	assert.Equal(t, 0, mc.P50ProjectedEffectiveTokens, "zero success rate → zero ET")
-	assert.Equal(t, 0, mc.P90ProjectedEffectiveTokens, "zero success rate → zero ET P90")
+	assert.InDelta(t, 0.0, mc.P50ProjectedAIC, 1e-12, "zero success rate → zero AIC")
+	assert.InDelta(t, 0.0, mc.P90ProjectedAIC, 1e-12, "zero success rate → zero AIC P90")
 }
 
 // TestRunMonteCarloOrderOfMagnitude checks that the simulation mean is within
@@ -223,25 +223,25 @@ func TestRunMonteCarloOrderOfMagnitude(t *testing.T) {
 	require.NotNil(t, mc)
 
 	// Deterministic point estimate (ET).
-	var totalET int
-	for _, et := range etObs {
-		totalET += et
+	var totalAICMilli int
+	for _, aic := range etObs {
+		totalAICMilli += aic
 	}
-	avgET := totalET / len(etObs)
-	pointEstimate := int(math.Round(observedRunsPerPeriod * float64(avgET)))
+	avgAICMilli := totalAICMilli / len(etObs)
+	pointEstimate := math.Round(observedRunsPerPeriod * (float64(avgAICMilli) / 1000))
 
 	// Simulation mean should be within 20% of point estimate (with 100% success rate
 	// and Poisson lambda = 20, the spread should be small).
-	assert.InEpsilon(t, float64(pointEstimate), float64(mc.MeanProjectedEffectiveTokens), 0.20,
-		"simulation mean ET should be close to point estimate")
+	assert.InEpsilon(t, pointEstimate, mc.MeanProjectedAIC, 0.20,
+		"simulation mean AIC should be close to point estimate")
 
 	// P50 should also be within 20%.
-	assert.InEpsilon(t, float64(pointEstimate), float64(mc.P50ProjectedEffectiveTokens), 0.20,
-		"simulation P50 ET should be close to point estimate")
+	assert.InEpsilon(t, pointEstimate, mc.P50ProjectedAIC, 0.20,
+		"simulation P50 AIC should be close to point estimate")
 
 	// Confidence interval must bracket the mean.
-	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.MeanProjectedEffectiveTokens)
-	assert.GreaterOrEqual(t, mc.P90ProjectedEffectiveTokens, mc.MeanProjectedEffectiveTokens)
+	assert.LessOrEqual(t, mc.P10ProjectedAIC, mc.MeanProjectedAIC)
+	assert.GreaterOrEqual(t, mc.P90ProjectedAIC, mc.MeanProjectedAIC)
 }
 
 // TestRunMonteCarloSortedOutputs verifies CI ordering holds across many random seeds.
@@ -251,8 +251,8 @@ func TestRunMonteCarloSortedOutputs(t *testing.T) {
 		rng := rand.New(rand.NewSource(int64(seed))) //nolint:gosec
 		mc := runMonteCarlo(etObs, len(etObs), 12.0, rng)
 		require.NotNil(t, mc)
-		assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens)
-		assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens)
+		assert.LessOrEqual(t, mc.P10ProjectedAIC, mc.P50ProjectedAIC)
+		assert.LessOrEqual(t, mc.P50ProjectedAIC, mc.P90ProjectedAIC)
 	}
 }
 
@@ -267,8 +267,8 @@ func TestRunMonteCarloDistributionShape(t *testing.T) {
 	mc := runMonteCarlo(etObs, len(etObs), 30.0, rng)
 	require.NotNil(t, mc)
 
-	assert.GreaterOrEqual(t, mc.MeanProjectedEffectiveTokens, mc.P10ProjectedEffectiveTokens, "mean ≥ P10")
-	assert.LessOrEqual(t, mc.MeanProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens, "mean ≤ P90")
+	assert.GreaterOrEqual(t, mc.MeanProjectedAIC, mc.P10ProjectedAIC, "mean ≥ P10")
+	assert.LessOrEqual(t, mc.MeanProjectedAIC, mc.P90ProjectedAIC, "mean ≤ P90")
 }
 
 // TestGammaSampleMeanVariance verifies that gammaSample produces the expected mean
@@ -367,8 +367,8 @@ func TestRunMonteCarloGammaPoissonWiderCI(t *testing.T) {
 	mcLarge := runMonteCarlo(largeObs, len(largeObs), lambda, rngLarge)
 	require.NotNil(t, mcLarge)
 
-	ciSmall := mcSmall.P90ProjectedEffectiveTokens - mcSmall.P10ProjectedEffectiveTokens
-	ciLarge := mcLarge.P90ProjectedEffectiveTokens - mcLarge.P10ProjectedEffectiveTokens
+	ciSmall := mcSmall.P90ProjectedAIC - mcSmall.P10ProjectedAIC
+	ciLarge := mcLarge.P90ProjectedAIC - mcLarge.P10ProjectedAIC
 
 	assert.Greater(t, ciSmall, ciLarge,
 		"small-sample CI (P90-P10=%d) should be wider than large-sample CI (%d)", ciSmall, ciLarge)
@@ -392,14 +392,14 @@ func TestRunMonteCarloFullEpisodePath(t *testing.T) {
 	mc := runMonteCarlo(etObs, successCount, 8.0, rng)
 	require.NotNil(t, mc)
 	assert.Equal(t, monteCarloIterations, mc.Iterations)
-	assert.Greater(t, mc.P90ProjectedEffectiveTokens, mc.P10ProjectedEffectiveTokens, "P90 > P10 for non-trivial inputs")
+	assert.Greater(t, mc.P90ProjectedAIC, mc.P10ProjectedAIC, "P90 > P10 for non-trivial inputs")
 
-	// ET percentiles should already be in ascending order.
-	ets := []int{mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens}
-	sorted := make([]int, len(ets))
-	copy(sorted, ets)
-	sort.Ints(sorted)
-	assert.Equal(t, ets, sorted, "ET percentiles should already be in ascending order")
+	// AIC percentiles should already be in ascending order.
+	aics := []float64{mc.P10ProjectedAIC, mc.P50ProjectedAIC, mc.P90ProjectedAIC}
+	sorted := make([]float64, len(aics))
+	copy(sorted, aics)
+	sort.Float64s(sorted)
+	assert.Equal(t, aics, sorted, "AIC percentiles should already be in ascending order")
 }
 
 func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t *testing.T) {

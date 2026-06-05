@@ -10,7 +10,7 @@ package cli
 //     and 0.5 is the Jeffreys non-informative prior shape.  This Gamma–Poisson
 //     (Negative Binomial) compound model naturally produces wider confidence intervals
 //     when data are sparse and converges to the classical Poisson estimate as n grows.
-//  2. Per-run token usage variability — effective tokens per run are drawn via
+//  2. Per-run AIC variability — AIC per run is drawn via
 //     bootstrap resampling from the historical observations, capturing the empirical
 //     distribution without assuming a parametric form.
 //  3. Per-run success uncertainty — each run independently succeeds with probability
@@ -52,7 +52,7 @@ const poissonNormalApproximationThreshold = 15.0
 const minObservationsForReliableForecast = 10
 
 // ForecastMonteCarloSummary contains the probability distribution of projected
-// effective-token counts derived from a Monte Carlo simulation.
+// AIC totals derived from a Monte Carlo simulation.
 //
 // The simulation models run-count uncertainty via a Gamma–Poisson (Negative
 // Binomial) compound process, per-run token usage via bootstrap resampling of
@@ -62,28 +62,29 @@ const minObservationsForReliableForecast = 10
 type ForecastMonteCarloSummary struct {
 	// Iterations is the number of simulation trials that were run.
 	Iterations int `json:"iterations"`
-	// MeanProjectedEffectiveTokens is the arithmetic mean of simulated ET totals across all trials.
-	MeanProjectedEffectiveTokens int `json:"mean_projected_effective_tokens"`
-	// StdDevEffectiveTokens is the standard deviation of simulated ET totals (spread of distribution).
-	StdDevEffectiveTokens float64 `json:"std_dev_effective_tokens"`
-	// P10ProjectedEffectiveTokens is the 10th-percentile ET count — only 10% of simulated outcomes
+	// MeanProjectedAIC is the arithmetic mean of simulated AIC totals across all trials.
+	MeanProjectedAIC float64 `json:"mean_projected_aic"`
+	// StdDevAIC is the standard deviation of simulated AIC totals (spread of distribution).
+	StdDevAIC float64 `json:"std_dev_aic"`
+	// P10ProjectedAIC is the 10th-percentile AIC total — only 10% of simulated outcomes
 	// fall below this value (optimistic bound).
-	P10ProjectedEffectiveTokens int `json:"p10_projected_effective_tokens"`
-	// P50ProjectedEffectiveTokens is the median simulated ET count.
-	P50ProjectedEffectiveTokens int `json:"p50_projected_effective_tokens"`
-	// P90ProjectedEffectiveTokens is the 90th-percentile ET count — 90% of simulated outcomes fall
+	P10ProjectedAIC float64 `json:"p10_projected_aic"`
+	// P50ProjectedAIC is the median simulated AIC total.
+	P50ProjectedAIC float64 `json:"p50_projected_aic"`
+	// P90ProjectedAIC is the 90th-percentile AIC total — 90% of simulated outcomes fall
 	// below this value (conservative / budget bound).
-	P90ProjectedEffectiveTokens int `json:"p90_projected_effective_tokens"`
+	P90ProjectedAIC float64 `json:"p90_projected_aic"`
 	// IsReliable is true when the simulation was based on at least minObservationsForReliableForecast
 	// completed runs.  When false the confidence intervals may be very wide or unreliable.
 	IsReliable bool `json:"is_reliable"`
 }
 
 // runMonteCarlo runs a Monte Carlo simulation to estimate the probability distribution
-// of projected effective-token usage over the forecast period.
+// of projected AIC usage over the forecast period.
 //
 // Parameters:
-//   - etObservations: per-run effective-token counts from historical completed runs.
+//   - aicObservations: per-run AIC values represented in milli-AIC units from
+//     historical completed runs.
 //   - successCount: number of those runs that concluded "success".
 //   - observedRunsPerPeriod: point estimate of expected runs in the projection period.
 //   - rng: caller-supplied random number generator (allows deterministic testing).
@@ -95,9 +96,9 @@ type ForecastMonteCarloSummary struct {
 // and naturally produces wider confidence intervals for small samples, converging to
 // the classical Poisson(observedRunsPerPeriod) model as n → ∞.
 //
-// Returns nil when etObservations is empty or observedRunsPerPeriod ≤ 0.
-func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod float64, rng *rand.Rand) *ForecastMonteCarloSummary {
-	n := len(etObservations)
+// Returns nil when aicObservations is empty or observedRunsPerPeriod ≤ 0.
+func runMonteCarlo(aicObservations []int, successCount int, observedRunsPerPeriod float64, rng *rand.Rand) *ForecastMonteCarloSummary {
+	n := len(aicObservations)
 	if n == 0 || observedRunsPerPeriod <= 0 || math.IsNaN(observedRunsPerPeriod) || math.IsInf(observedRunsPerPeriod, 0) {
 		forecastMonteCarloLog.Printf("Skipping Monte Carlo: observations=%d, runs_per_period=%.2f", n, observedRunsPerPeriod)
 		return nil
@@ -115,7 +116,7 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 	gammaShape := float64(n) + 0.5
 	gammaScale := observedRunsPerPeriod / float64(n)
 
-	simETs := make([]int, monteCarloIterations)
+	simAICMilli := make([]int, monteCarloIterations)
 
 	for i := range monteCarloIterations {
 		// Draw run-count rate from posterior Gamma (accounts for estimation uncertainty in λ).
@@ -123,35 +124,40 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 		// Draw number of runs from Poisson(λ_trial).
 		numRuns := poissonSample(rng, lambdaTrial)
 
-		var totalET int
+		var totalAICMilli int
 		for range numRuns {
 			// Each run succeeds independently with probability successRate.
 			if rng.Float64() >= successRate {
 				continue
 			}
-			// Bootstrap: sample ET from the empirical distribution.
-			totalET += etObservations[rng.Intn(n)]
+			// Bootstrap: sample AIC from the empirical distribution.
+			totalAICMilli += aicObservations[rng.Intn(n)]
 		}
 
-		simETs[i] = totalET
+		simAICMilli[i] = totalAICMilli
 	}
 
 	// Sort for percentile computation.
-	sort.Ints(simETs)
+	sort.Ints(simAICMilli)
 
-	mean, stddev := meanStdDevInt(simETs)
+	meanMilli, stddevMilli := meanStdDevInt(simAICMilli)
+	mean := roundForecastAIC(float64(meanMilli) / 1000)
+	stddev := roundForecastAIC(stddevMilli / 1000)
+	p10 := roundForecastAIC(float64(percentileInt(simAICMilli, 10)) / 1000)
+	p50 := roundForecastAIC(float64(percentileInt(simAICMilli, 50)) / 1000)
+	p90 := roundForecastAIC(float64(percentileInt(simAICMilli, 90)) / 1000)
 	reliable := n >= minObservationsForReliableForecast
-	forecastMonteCarloLog.Printf("Monte Carlo complete: mean_et=%d, stddev=%.1f, p10=%d, p50=%d, p90=%d, reliable=%v",
-		mean, stddev, percentileInt(simETs, 10), percentileInt(simETs, 50), percentileInt(simETs, 90), reliable)
+	forecastMonteCarloLog.Printf("Monte Carlo complete: mean_aic=%.3f, stddev=%.3f, p10=%.3f, p50=%.3f, p90=%.3f, reliable=%v",
+		mean, stddev, p10, p50, p90, reliable)
 
 	return &ForecastMonteCarloSummary{
-		Iterations:                   monteCarloIterations,
-		MeanProjectedEffectiveTokens: mean,
-		StdDevEffectiveTokens:        stddev,
-		P10ProjectedEffectiveTokens:  percentileInt(simETs, 10),
-		P50ProjectedEffectiveTokens:  percentileInt(simETs, 50),
-		P90ProjectedEffectiveTokens:  percentileInt(simETs, 90),
-		IsReliable:                   reliable,
+		Iterations:       monteCarloIterations,
+		MeanProjectedAIC: mean,
+		StdDevAIC:        stddev,
+		P10ProjectedAIC:  p10,
+		P50ProjectedAIC:  p50,
+		P90ProjectedAIC:  p90,
+		IsReliable:       reliable,
 	}
 }
 
@@ -239,7 +245,7 @@ func gammaSample(rng *rand.Rand, shape float64) float64 {
 // of the int slice xs (assumed non-empty).
 //
 // The mean is returned as an int (truncated toward zero after integer division),
-// which is consistent with the ET token counts throughout the forecast output.
+// which is used for the milli-AIC intermediate representation.
 // The standard deviation uses the full floating-point mean to avoid accumulating
 // rounding error in the variance calculation.
 func meanStdDevInt(xs []int) (mean int, stddev float64) {
