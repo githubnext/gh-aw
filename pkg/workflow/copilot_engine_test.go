@@ -2403,6 +2403,28 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 			t.Errorf("AWF command should not exclude COPILOT_GITHUB_TOKEN in BYOK mode, got:\n%s", stepContent)
 		}
 	})
+
+	t.Run("AWF command omits --exclude-env COPILOT_GITHUB_TOKEN in copilot-sdk mode", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				CopilotSDK: true,
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Errorf("AWF command should not exclude COPILOT_GITHUB_TOKEN in copilot-sdk mode, got:\n%s", stepContent)
+		}
+	})
 }
 
 func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {

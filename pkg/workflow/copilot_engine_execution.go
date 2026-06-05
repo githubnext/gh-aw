@@ -434,8 +434,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// In BYOK mode COPILOT_GITHUB_TOKEN is not injected into the step env at all,
 		// so there is nothing to exclude. Excluding it unconditionally would produce
 		// spurious --exclude-env flags when the token is absent.
+		//
+		// In Copilot SDK mode the driver needs auth tokens inside the sandbox process
+		// environment to create an SDK session. Keep COPILOT_GITHUB_TOKEN available.
 		var copilotCoreSecrets []string
-		if !isBYOKMode {
+		if !isBYOKMode && !isCopilotSDKMode {
 			copilotCoreSecrets = []string{"COPILOT_GITHUB_TOKEN"}
 		}
 		command = BuildAWFCommand(AWFCommandConfig{
