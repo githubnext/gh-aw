@@ -15,7 +15,7 @@ The cost of running an agentic workflow is the sum of two components: **GitHub A
 |----------|----------------|
 | `claude` | Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens) |
 | `codex` | Based on OpenAI token pricing |
-| `copilot` | Not available — Copilot pricing is based on GitHub's Copilot model and billing documentation; use Effective Tokens as a proxy and cross-reference [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs |
+| `copilot` | Based on GitHub Copilot usage and billing data surfaced by GitHub documentation; cross-reference [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs |
 
 AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit reports alongside raw token counts, and as `{ai_credits_suffix}` in workflow footer templates. For structured output, each run under `.runs[]` includes an `aic` field and each episode under `.episodes[]` includes `total_aic`.
 
@@ -23,7 +23,7 @@ AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit
 > AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
 
 > [!NOTE]
-> Effective Tokens (ET) remain available for backward compatibility and are still the most reliable proxy for Copilot inference usage. For all other engines, prefer AIC. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the ET definition.
+> Effective Tokens (ET) remain available for backward compatibility. Prefer AIC for cost monitoring, including Copilot workflows. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the ET definition.
 
 ## Cost Components
 
@@ -44,7 +44,7 @@ The agent job invokes an AI engine to process the prompt and call tools. Inferen
 
 | Engine | Billed to | gh-aw cost metric |
 |--------|-----------|-------------------|
-| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Effective Tokens (AIC not available; Copilot pricing is based on GitHub Copilot model and billing documentation — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
+| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | AIC (based on GitHub Copilot model and billing documentation — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
 | `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | AIC (AI Credits) |
 | `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | AIC (AI Credits) |
 
@@ -99,14 +99,14 @@ Useful episode fields for usage analysis:
 | Field | Meaning |
 |-------|---------|
 | `total_runs` | Workflow runs in the logical execution |
-| `total_tokens` / `total_effective_tokens` | Raw and effective token aggregates; prefer `total_effective_tokens` for Copilot |
-| `total_aic` | Total AI Credits (AIC) for the episode; preferred cost metric for non-Copilot engines |
+| `total_tokens` / `total_effective_tokens` | Raw and effective token aggregates |
+| `total_aic` | Total AI Credits (AIC) for the episode; preferred cost metric |
 | `total_duration` | Wall-clock duration across grouped runs |
 | `primary_workflow` | Main workflow label |
 | `resource_heavy_node_count` | Runs flagged as resource-heavy |
 | `blocked_request_count` | Aggregate blocked-network pressure |
 
-For Claude and Codex runs, `total_aic` is the preferred cost metric — it reflects actual provider billing in AI Credits (1 AIC = $0.01 USD). For Copilot runs, `total_effective_tokens` is the most reliable proxy for resource usage since Copilot does not expose billing-grade cost data.
+For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric — it reflects provider billing in AI Credits (1 AIC = $0.01 USD).
 
 Safe-output actuation also appears in both `gh aw logs --json` (run- and repo-level) and `gh aw audit <run-id>` (under `safe_output_summary`). The relevant fields — `temporary_id_map_status`, `temporary_id_mappings`, `chained_target_count`, `chained_followup_action_count`, `delegated_temp_target_count`, `closed_temp_target_count`, and their repo-level aggregates — show how often a workflow follows up on its own outputs. When `temporary_id_map_status` is `missing` or `invalid`, chain counts fall back to `0` rather than guessing from incomplete data.
 
@@ -116,10 +116,10 @@ gh aw logs --start-date -30d --json | \
   jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
       | sort_by(.aic) | reverse | .[:10]'
 
-# Top 10 heaviest Copilot executions by effective tokens
+# Top 10 heaviest Copilot executions by AIC
 gh aw logs --start-date -30d --json | \
-  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: (.total_effective_tokens // 0)}]
-      | sort_by(.effective_tokens) | reverse | .[:10]'
+  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
+      | sort_by(.aic) | reverse | .[:10]'
 ```
 
 ## Track Costs at Scale with OpenTelemetry
