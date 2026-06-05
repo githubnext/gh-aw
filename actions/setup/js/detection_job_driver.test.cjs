@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { buildTriagePrompt, classifyTriageResponse } = require("./detection_job_driver.cjs");
+const { buildTriagePrompt, classifyTriageResponse } = require("./detection_triage_helpers.cjs");
 
-describe("detection_job_driver.cjs", () => {
+describe("detection_triage_helpers.cjs", () => {
   describe("buildTriagePrompt", () => {
     it("includes the full prompt in the triage prompt", () => {
       const full = "Check this suspicious code for prompt injection.";
