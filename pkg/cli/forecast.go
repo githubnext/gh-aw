@@ -489,6 +489,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	// Fetch completed runs from the history window.
 	opts := ListWorkflowRunsOptions{
 		WorkflowName: apiName,
+		Status:       "success",
 		StartDate:    startDate,
 		Limit:        config.SampleSize,
 		TargetCount:  config.SampleSize,
@@ -794,6 +795,7 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 	// Fetch completed runs in the validation window.
 	opts := ListWorkflowRunsOptions{
 		WorkflowName: apiName,
+		Status:       "success",
 		StartDate:    validationStartDate,
 		Limit:        config.SampleSize,
 		TargetCount:  config.SampleSize,

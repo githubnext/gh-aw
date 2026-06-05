@@ -338,6 +338,39 @@ func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	assert.InEpsilon(t, 0.5, result.SuccessRate, 1e-9)
 }
 
+func TestForecastWorkflow_RequestsSuccessfulRuns(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	originalLoadAIC := forecastLoadCachedRunAIC
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+		forecastLoadCachedRunAIC = originalLoadAIC
+	})
+
+	var capturedOpts ListWorkflowRunsOptions
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	forecastListWorkflowRunsPaginated = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		capturedOpts = opts
+		runs := []WorkflowRun{
+			{DatabaseID: 12, Status: "completed", Conclusion: "success", Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
+		}
+		return runs, len(runs), nil
+	}
+	forecastLoadCachedRunAIC = func(runID int64, _ bool) float64 {
+		if runID == 12 {
+			return 1.0
+		}
+		return 0
+	}
+
+	_, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
+		Days:       30,
+		Period:     "month",
+		SampleSize: 100,
+	}, 30)
+	require.NoError(t, err)
+	assert.Equal(t, "success", capturedOpts.Status)
+}
+
 func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
