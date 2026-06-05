@@ -125,7 +125,7 @@ function parseTokenUsageJsonl(jsonlContent) {
   let totalEffectiveTokens = 0;
   let totalAIC = 0;
   for (const [model, usage] of Object.entries(summary.byModel)) {
-    const et = computeEffectiveTokens(model, usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens);
+    const et = computeEffectiveTokens(model, usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens, usage.reasoningTokens || 0, usage.provider || "");
     const aic = computeInferenceAIC({
       provider: usage.provider || "",
       model,
@@ -145,7 +145,7 @@ function parseTokenUsageJsonl(jsonlContent) {
 
   // Compute per-turn delta ET
   for (const entry of summary.entries) {
-    entry.deltaET = computeEffectiveTokens(entry.model, entry.inputTokens, entry.outputTokens, entry.cacheReadTokens, entry.cacheWriteTokens);
+    entry.deltaET = computeEffectiveTokens(entry.model, entry.inputTokens, entry.outputTokens, entry.cacheReadTokens, entry.cacheWriteTokens, entry.reasoningTokens || 0, entry.provider || "");
     entry.deltaAIC = computeInferenceAIC({
       provider: entry.provider || "",
       model: entry.model,
@@ -720,7 +720,7 @@ function computeToolCallTokenDeltas(tokenUsageContent, requests) {
       if (!entry || typeof entry !== "object" || !entry.timestamp) continue;
       const ts = new Date(entry.timestamp).getTime();
       if (isNaN(ts)) continue;
-      const et = computeEffectiveTokens(entry.model || "", entry.input_tokens || 0, entry.output_tokens || 0, entry.cache_read_tokens || 0, entry.cache_write_tokens || 0);
+      const et = computeEffectiveTokens(entry.model || "", entry.input_tokens || 0, entry.output_tokens || 0, entry.cache_read_tokens || 0, entry.cache_write_tokens || 0, entry.reasoning_tokens || 0, entry.provider || "");
       etEntries.push({ ts, et });
     } catch {
       // skip malformed lines
