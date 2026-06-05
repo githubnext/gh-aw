@@ -37,7 +37,7 @@
 "use strict";
 
 const fs = require("fs");
-const { runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK } = require("./copilot_sdk_runner.cjs");
 const { SAFE_VERDICT, buildTriagePrompt, classifyTriageResponse } = require("./detection_triage_helpers.cjs");
 
 // Default model names for the two detection phases.

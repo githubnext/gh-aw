@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK } = require("./copilot_sdk_runner.cjs");
 
-describe("copilot_sdk_driver.cjs", () => {
+describe("copilot_sdk_runner.cjs", () => {
   describe("runWithCopilotSDK", () => {
     it("disconnects session and stops client on success", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
