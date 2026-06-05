@@ -1955,6 +1955,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const runtimeMetrics = readAgentRuntimeMetrics();
+  // Read once and reuse for both gh-aw.aic and gen_ai.usage.* attributes.
   const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
