@@ -2,7 +2,7 @@ package cli
 
 // This file provides command-line interface functionality for gh-aw.
 // This file (effective_tokens.go) implements the Effective Tokens (ET) specification
-// defined in docs/src/content/docs/reference/effective-tokens-specification.md.
+// defined in docs/src/content/docs/specs/effective-tokens-specification.md.
 //
 // Effective Tokens normalize raw token counts across token classes and model pricing
 // using the formula:

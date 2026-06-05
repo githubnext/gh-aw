@@ -158,7 +158,7 @@ The check [CHECK_ID] should pass without errors.
 
 ### References
 
-- Safe Outputs Specification: docs/src/content/docs/reference/safe-outputs-specification.md
+- Safe Outputs Specification: docs/src/content/docs/specs/safe-outputs-specification.md
 - Conformance Checker: scripts/check-safe-outputs-conformance.sh
 - Run ID: ${{ github.run_id }}
 - Date: $(date +%Y-%m-%d)

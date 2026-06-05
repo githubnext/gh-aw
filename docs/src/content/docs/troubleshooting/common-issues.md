@@ -207,7 +207,7 @@ safe-outputs:
   update-issue:     # no configuration required; uses defaults
 ```
 
-If your operation isn't in the [Safe Outputs reference](/gh-aw/reference/safe-outputs/), it may not be supported yet. See the [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/) for the full list.
+If your operation isn't in the [Safe Outputs reference](/gh-aw/reference/safe-outputs/), it may not be supported yet. See the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/) for the full list.
 
 ### Safe Outputs Not Creating Issues
 

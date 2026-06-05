@@ -4,7 +4,7 @@ This directory contains automated tools for verifying conformance with the Safe 
 
 ## Overview
 
-The conformance checker validates implementations against normative requirements in the [Safe Outputs Specification](/docs/src/content/docs/reference/safe-outputs-specification.md). It runs automated checks across four categories:
+The conformance checker validates implementations against normative requirements in the [Safe Outputs Specification](/docs/src/content/docs/specs/safe-outputs-specification.md). It runs automated checks across four categories:
 
 - **SEC**: Security requirements (privilege separation, validation ordering, sanitization)
 - **USE**: Usability requirements (error codes, footers, staged mode formatting)
@@ -101,7 +101,7 @@ check_new_requirement() {
 
 ## Related Documentation
 
-- [Safe Outputs Specification](/docs/src/content/docs/reference/safe-outputs-specification.md) - Complete normative specification
+- [Safe Outputs Specification](/docs/src/content/docs/specs/safe-outputs-specification.md) - Complete normative specification
 - [Specification Review Findings](/docs/spec-review-findings.md) - Detailed security, usability, and requirements review
 - [Specification Improvements Plan](/docs/spec-improvements-plan.md) - Roadmap for addressing findings
 
