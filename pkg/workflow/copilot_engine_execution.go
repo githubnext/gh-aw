@@ -262,8 +262,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 	sdkDriverScriptName := "copilot_sdk_driver.cjs"
-	// A driver name containing '/' is a workspace-relative path (custom driver).
-	// A bare filename with no '/' is a built-in driver that resolves from the setup action directory.
+	// A driver name containing '/' is a workspace-relative path (custom driver resolved from
+	// ${GITHUB_WORKSPACE}). A bare filename with no '/' is a built-in driver that resolves
+	// from the setup action directory (${RUNNER_TEMP}/gh-aw/actions/).
+	// This distinction lets workflows specify both workspace drivers (.github/drivers/my.cjs)
+	// and built-in drivers (detection_job_driver.cjs) without ambiguity.
 	customSDKDriverConfigured := workflowData.EngineConfig != nil &&
 		workflowData.EngineConfig.CopilotSDKDriver != "" &&
 		strings.Contains(workflowData.EngineConfig.CopilotSDKDriver, "/")

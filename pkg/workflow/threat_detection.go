@@ -756,6 +756,8 @@ func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
 		td := data.SafeOutputs.ThreatDetection
 		// A copilot-sdk-driver implies the copilot engine for the detection job.
+		// The presence of this field alone is sufficient to select the copilot engine,
+		// even if no engine: block is present in the threat-detection config.
 		if td.CopilotSDKDriver != "" {
 			return string(constants.CopilotEngine)
 		}

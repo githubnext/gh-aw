@@ -37,8 +37,16 @@ describe("detection_job_driver.cjs", () => {
       expect(classifyTriageResponse("SAFE")).toBe("safe");
     });
 
-    it('returns "safe" for quoted "safe" response', () => {
+    it('returns "safe" for quoted "safe" response (double quotes)', () => {
       expect(classifyTriageResponse('"safe"')).toBe("safe");
+    });
+
+    it('returns "safe" for single-quoted safe response', () => {
+      expect(classifyTriageResponse("'safe'")).toBe("safe");
+    });
+
+    it('returns "safe" for curly-quoted safe response', () => {
+      expect(classifyTriageResponse("\u201csafe\u201d")).toBe("safe");
     });
 
     it('returns "unsafe" for exact "unsafe" response', () => {

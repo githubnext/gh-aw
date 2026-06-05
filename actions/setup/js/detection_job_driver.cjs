@@ -47,6 +47,9 @@ const DEFAULT_LARGE_MODEL = "claude-sonnet-4-5";
 const THREAT_DETECTION_RESULT_PREFIX = "THREAT_DETECTION_RESULT:";
 
 // Safe verdict emitted when the small model pre-screen returns "safe".
+// NOTE: If new threat type fields are ever added to the THREAT_DETECTION_RESULT schema
+// (e.g., a new `data_exfiltration` flag), this constant must be updated to include them,
+// otherwise parse_threat_detection_results.cjs may produce an incomplete safe verdict.
 const SAFE_VERDICT = `${THREAT_DETECTION_RESULT_PREFIX}{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":["Pre-screening by lightweight model returned safe"]}`;
 
 /**
@@ -74,13 +77,18 @@ function buildTriagePrompt(fullPrompt) {
  * Any response that does not unambiguously say "safe" is treated as "unsafe"
  * to ensure the larger model always runs when there is uncertainty.
  *
+ * Strips ASCII and Unicode quote characters (straight, curly, and prime variants)
+ * from the response before comparing, because models sometimes wrap single-word
+ * answers in quotes (e.g., "safe", 'safe', \u201csafe\u201d).
+ *
  * @param {string} response - The raw response from the small model
  * @returns {"safe" | "unsafe"}
  */
 function classifyTriageResponse(response) {
-  const normalized = response.trim().toLowerCase();
+  // Strip leading/trailing ASCII and common Unicode quote characters.
+  const stripped = response.trim().replace(/^[\u0022\u0027\u2018\u2019\u201c\u201d\u2032\u2033]+|[\u0022\u0027\u2018\u2019\u201c\u201d\u2032\u2033]+$/g, "").toLowerCase();
   // Only accept an unambiguous single-word "safe" response.
-  if (normalized === "safe" || normalized === '"safe"') {
+  if (stripped === "safe") {
     return "safe";
   }
   return "unsafe";
@@ -145,6 +153,9 @@ async function main() {
   }
 
   /** @type {import("@github/copilot-sdk").ProviderConfig} */
+  // "openai" is the SDK's type identifier for BYOK (Bring Your Own Key) OpenAI-compatible
+  // providers. This matches the same provider config used by copilot_sdk_driver.cjs for
+  // BYOK workloads and is not specific to the OpenAI service itself.
   const provider = { type: "openai", baseUrl: providerBaseUrl };
 
   // --- Phase 1: Small model triage ---
