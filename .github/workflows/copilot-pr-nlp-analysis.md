@@ -264,9 +264,11 @@ Post a comprehensive discussion with the following structure:
 
 **Title**: `Copilot PR Conversation NLP Analysis - [DATE]`
 
+Use h3 (`###`) or lower for all headers in the discussion body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the GitHub Discussion title rendered by the platform.
+
 **Content Template** (substitute `[SENTIMENT_DIST_URL]`, `[SENTIMENT_TIME_URL]`, `[TOPIC_FREQ_URL]`, `[TOPICS_CLOUD_URL]`, and `[KEYWORD_TRENDS_URL]` with the literal URL strings read by Python from the files above):
 ````markdown
-# 🤖 Copilot PR Conversation NLP Analysis - [DATE]
+### 🤖 Copilot PR Conversation NLP Analysis - [DATE]
 
 ### Executive Summary
 
