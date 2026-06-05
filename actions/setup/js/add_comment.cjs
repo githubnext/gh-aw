@@ -504,6 +504,15 @@ async function main(config = {}) {
 
         if (!targetResult.success) {
           if (targetResult.shouldFail) {
+            const missingWildcardTarget = commentTarget === "*" && targetResult.error?.startsWith('Target is "*" but no ');
+            if (missingWildcardTarget) {
+              core.warning(targetResult.error);
+              return {
+                success: false,
+                skipped: true,
+                error: targetResult.error,
+              };
+            }
             core.warning(targetResult.error);
             return {
               success: false,

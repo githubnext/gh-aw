@@ -222,7 +222,7 @@ describe("add_comment", () => {
       expect(result.itemNumber).toBe(28912);
     });
 
-    it("should fail when target is '*' but no item_number provided", async () => {
+    it("should skip (not fail) when target is '*' but no item_number provided", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
       const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: '*' }); })()`);
@@ -235,6 +235,7 @@ describe("add_comment", () => {
       const result = await handler(message, {});
 
       expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
       expect(result.error).toMatch(/no.*item_number/i);
     });
 
