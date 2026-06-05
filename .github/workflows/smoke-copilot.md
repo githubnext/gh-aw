@@ -58,6 +58,8 @@ runtimes:
   go:
     version: "1.26"
 safe-outputs:
+    threat-detection:
+      copilot-sdk-driver: detection_job_driver.cjs
     allowed-domains: [default-safe-outputs]
     upload-artifact:
       max-uploads: 1
