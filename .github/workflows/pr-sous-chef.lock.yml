@@ -596,6 +596,11 @@ jobs:
                   }
                 }
               },
+              "mentions": {
+                "allowed": [
+                  "copilot"
+                ]
+              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
