@@ -307,10 +307,13 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
 	}
 
-	// Step 9: Upload detection-artifact
+	// Step 9: Parse threat-detection token usage for step summary and downstream footer rendering.
+	steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
+
+	// Step 10: Upload detection-artifact
 	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
-	// Step 10: Parse results, log extensively, and set job conclusion (single JS step)
+	// Step 11: Parse results, log extensively, and set job conclusion (single JS step)
 	steps = append(steps, c.buildDetectionConclusionStep(data)...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
@@ -503,6 +506,27 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 	steps = append(steps, formattedScript...)
 
 	return steps
+}
+
+// buildDetectionTokenUsageSummaryStep creates a step that parses threat-detection
+// firewall token usage, appends a separate table to the detection job summary,
+// and exposes AI Credits for downstream jobs.
+func (c *Compiler) buildDetectionTokenUsageSummaryStep(data *WorkflowData) []string {
+	return []string{
+		"      - name: Parse threat detection token usage for step summary\n",
+		"        id: parse_detection_token_usage\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		"          GH_AW_TOKEN_USAGE_SUMMARY_TITLE: Threat Detection Token Usage\n",
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/parse_token_usage.cjs');\n",
+		"            await main();\n",
+	}
 }
 
 // buildThreatDetectionAnalysisStep creates the main threat analysis step
@@ -920,6 +944,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		"detection_success":    "${{ steps.detection_conclusion.outputs.success }}",
 		"detection_conclusion": "${{ steps.detection_conclusion.outputs.conclusion }}",
 		"detection_reason":     "${{ steps.detection_conclusion.outputs.reason }}",
+		"aic":                  "${{ steps.parse_detection_token_usage.outputs.aic }}",
 	}
 
 	// Detection job depends on agent job and activation job (for trace ID)
