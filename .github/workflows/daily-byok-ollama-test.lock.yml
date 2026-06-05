@@ -1241,6 +1241,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
           mkdir -p /tmp/gh-aw/threat-detection/aw-prompts
+          rm -f /tmp/gh-aw/agent_usage.json
           cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true
           if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then
             echo "::warning::ERR_VALIDATION: Missing or empty detection context prompt at /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt. Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. Detection will continue with fallback workflow context."

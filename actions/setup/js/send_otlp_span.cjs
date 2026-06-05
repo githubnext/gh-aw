@@ -1628,7 +1628,7 @@ function getErrorMessage(errorEntry) {
  * @property {number | undefined} turns
  * @property {string | undefined} stopReason
  * @property {string | undefined} resolvedModel
- * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, ai_credits?: number} | undefined} tokenUsage
+ * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, ai_credits?: number} | undefined} tokenUsage
  * @property {number} warningCount
  * @property {number} permissionDeniedCount
  * @property {number} steeringEventCount
@@ -1657,16 +1657,16 @@ function normalizeNonNegativeNumber(rawValue) {
  * Normalize token usage counters from an engine result event usage block.
  *
  * @param {unknown} rawUsage
- * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, ai_credits?: number} | undefined}
+ * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, ai_credits?: number} | undefined}
  */
 function normalizeRuntimeTokenUsage(rawUsage) {
   if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
     return undefined;
   }
 
-  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number, ai_credits?: number}} */
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number, effective_tokens?: number, ai_credits?: number}} */
   const usage = rawUsage;
-  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, ai_credits?: number}} */
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, ai_credits?: number}} */
   const normalized = {};
 
   const inputTokens = normalizeNonNegativeNumber(usage.input_tokens);
@@ -1686,6 +1686,11 @@ function normalizeRuntimeTokenUsage(rawUsage) {
   const cacheWriteTokens = normalizeNonNegativeNumber(usage.cache_write_tokens) ?? normalizeNonNegativeNumber(usage.cache_creation_input_tokens);
   if (typeof cacheWriteTokens === "number") {
     normalized.cache_write_tokens = cacheWriteTokens;
+  }
+
+  const effectiveTokens = normalizeNonNegativeNumber(usage.effective_tokens);
+  if (typeof effectiveTokens === "number") {
+    normalized.effective_tokens = effectiveTokens;
   }
 
   const aiCredits = normalizeNonNegativeNumber(usage.ai_credits);
@@ -1850,7 +1855,12 @@ function readAgentRuntimeMetrics() {
  *                                     the span status is set to STATUS_CODE_ERROR (2)
  * - `GH_AW_DETECTION_CONCLUSION`   – threat-detection scan outcome ("success", "warning",
  *                                     "failure", "skipped"); emitted as
- *                                     `gh-aw.detection.conclusion` when present
+ *                                     `gh-aw.detection.conclusion` when present.
+ *                                     Set via GITHUB_ENV by the detection job itself
+ *                                     (parse_threat_detection_results.cjs) so the
+ *                                     detection conclusion span reports the job's own
+ *                                     result; also injected from
+ *                                     needs.detection.outputs.* in downstream jobs.
  * - `GH_AW_DETECTION_REASON`       – machine-readable reason for the detection conclusion
  *                                     (e.g. "threat_detected", "agent_failure"); emitted as
  *                                     `gh-aw.detection.reason` when present
@@ -1885,11 +1895,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // Read workflow metadata from aw_info.json (written by the agent job setup step).
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
-
-  // Effective token count is surfaced by the agent job and passed to downstream jobs
-  // via the GH_AW_EFFECTIVE_TOKENS environment variable.
-  const rawET = process.env.GH_AW_EFFECTIVE_TOKENS || "";
-  const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || awInfo.cli_version || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown";
@@ -1929,6 +1934,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
+  const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
@@ -1950,13 +1956,21 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
-  // Detection conclusion and reason are injected from needs.detection.outputs.*
-  // when threat detection is enabled in the compiled workflow.
+  // Detection conclusion and reason: set via GITHUB_ENV by parse_threat_detection_results.cjs
+  // so the detection job's own span includes its result; also injected from
+  // needs.detection.outputs.* in downstream jobs (conclusion, safe_outputs, etc.).
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const runtimeMetrics = readAgentRuntimeMetrics();
   // Read once and reuse for both gh-aw.aic and gen_ai.usage.* attributes.
   const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
+  // Prefer the per-step export when present, but fall back to agent_usage.json so
+  // agent-like downstream jobs (for example detection) can still report their own
+  // effective tokens even when the post action cannot observe the earlier export.
+  // Gate both sources behind jobEmitsOwnTokenUsage: GH_AW_EFFECTIVE_TOKENS is
+  // propagated to every downstream job via needs.agent.outputs.*, so reading it
+  // unconditionally would re-inflate metrics on conclusion/safe_outputs/etc.
+  const effectiveTokens = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_EFFECTIVE_TOKENS) ?? agentUsage.effective_tokens) : undefined;
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentTimedOut = agentConclusion === "timed_out";
@@ -2051,10 +2065,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
   if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
-  if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
+  if (typeof effectiveTokens === "number" && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
-  const aiCredits = typeof agentUsage.ai_credits === "number" ? agentUsage.ai_credits : normalizeNonNegativeNumber(process.env.GH_AW_AIC);
+  // GH_AW_AIC is propagated to downstream jobs via needs.agent.outputs.*, so gate it
+  // behind jobEmitsOwnTokenUsage to prevent non-agent jobs from re-emitting it.
+  const aiCredits = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits) : undefined;
   if (typeof aiCredits === "number" && aiCredits > 0) {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
@@ -2302,12 +2318,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // Only attach token-usage attributes to the agent job's conclusion span as a
-  // fallback (when no dedicated agent sub-span was emitted).  Non-agent jobs
-  // (conclusion, detection, safe_outputs) also have agent_usage.json on disk
-  // (downloaded via the agent artifact) but must NOT emit token data — otherwise
-  // every sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
-  if (!hasDedicatedAgentSpan && jobName === "agent") {
+  // Only attach token-usage attributes to jobs that actually executed an agent.
+  // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
+  // disk via artifact download but must NOT emit token data — otherwise every
+  // sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
+  if (!hasDedicatedAgentSpan && jobEmitsOwnTokenUsage) {
     attributes.push(...usageAttrs);
   }
 

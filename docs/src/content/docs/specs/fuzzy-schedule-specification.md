@@ -7,7 +7,7 @@ sidebar:
 
 **Version**: 1.2.0
 **Status**: Draft Specification  
-**Latest Version**: [fuzzy-schedule-specification](/gh-aw/reference/fuzzy-schedule-specification/)  
+**Latest Version**: [fuzzy-schedule-specification](/gh-aw/specs/fuzzy-schedule-specification/)  
 **Editor**: GitHub Agentic Workflows Team
 
 ---

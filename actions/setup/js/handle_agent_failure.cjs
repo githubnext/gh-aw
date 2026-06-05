@@ -1323,7 +1323,7 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        et_spec_link: "https://github.github.com/gh-aw/reference/effective-tokens-specification/",
+        et_spec_link: "https://github.github.com/gh-aw/specs/effective-tokens-specification/",
         token_opt_link: "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md",
         usage_line: usageLine,
         budget_line: budgetLine,

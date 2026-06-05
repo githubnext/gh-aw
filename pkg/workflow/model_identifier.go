@@ -1,5 +1,5 @@
 // This file implements the Model Alias Format (MAF) identifier parser as defined in
-// the Model Alias Format Specification (docs/src/content/docs/reference/model-alias-specification.md).
+// the Model Alias Format Specification (docs/src/content/docs/specs/model-alias-specification.md).
 //
 // # Model Identifier Syntax (Section 4)
 //
