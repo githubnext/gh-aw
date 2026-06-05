@@ -382,7 +382,9 @@ func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[stri
 	if mergedEvents["issues"] != nil || mergedEvents["issue_comment"] != nil || mergedEvents["pull_request"] != nil {
 		b.WriteString("      issues: write\n")
 	}
-	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil || mergedEvents["pull_request_review"] != nil {
+	// issue_comment and issues events can target pull requests (issue-backed PR payloads),
+	// and runtime branch resolution uses pulls.get for those cases.
+	if mergedEvents["issues"] != nil || mergedEvents["issue_comment"] != nil || mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil || mergedEvents["pull_request_review"] != nil {
 		b.WriteString("      pull-requests: write\n")
 	}
 	if mergedEvents["discussion"] != nil || mergedEvents["discussion_comment"] != nil {
