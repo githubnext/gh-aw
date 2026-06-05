@@ -11,7 +11,7 @@ The agent will resume automatically once the 24-hour rolling window resets. No a
 Set `max-daily-ai-credits` in your workflow frontmatter to a higher value, then recompile:
 
 ```yaml
-max-daily-ai-credits: 500
+max-daily-ai-credits: 5M
 ```
 
 Common suffix shorthands: `K` = thousands, `M` = millions (e.g. `2K` = 2,000).
