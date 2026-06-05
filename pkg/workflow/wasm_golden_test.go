@@ -28,11 +28,32 @@ func normalizeOutput(content string) string {
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across codex default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CodexDefaultModel), "|| 'default'")
+	// Keep golden fixtures stable across copilot default version updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf(`GH_AW_INFO_VERSION: "%s"`, constants.DefaultCopilotVersion), `GH_AW_INFO_VERSION: "default"`)
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf(`GH_AW_INFO_VERSION: \"%s\"`, constants.DefaultCopilotVersion), `GH_AW_INFO_VERSION: \"default\"`)
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf(`GH_AW_INFO_AGENT_VERSION: "%s"`, constants.DefaultCopilotVersion), `GH_AW_INFO_AGENT_VERSION: "default"`)
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf(`GH_AW_INFO_AGENT_VERSION: \"%s\"`, constants.DefaultCopilotVersion), `GH_AW_INFO_AGENT_VERSION: \"default\"`)
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf(`install_copilot_cli.sh" %s`, constants.DefaultCopilotVersion), `install_copilot_cli.sh" default`)
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf(`install_copilot_cli.sh\" %s`, constants.DefaultCopilotVersion), `install_copilot_cli.sh\" default`)
 	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
 	for _, op := range []string{"Edit", "MultiEdit", "Read", "Write"} {
 		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
 	}
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
+}
+
+func TestNormalizeOutput_NormalizesDefaultCopilotVersion(t *testing.T) {
+	input := fmt.Sprintf(`GH_AW_INFO_VERSION: "%s"
+GH_AW_INFO_AGENT_VERSION: "%s"
+run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" %s
+`, constants.DefaultCopilotVersion, constants.DefaultCopilotVersion, constants.DefaultCopilotVersion)
+
+	normalized := normalizeOutput(input)
+
+	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "default"`)
+	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "default"`)
+	require.Contains(t, normalized, `install_copilot_cli.sh" default`)
+	require.NotContains(t, normalized, string(constants.DefaultCopilotVersion))
 }
 
 // TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API
