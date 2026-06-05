@@ -504,7 +504,8 @@ async function main(config = {}) {
 
         if (!targetResult.success) {
           if (targetResult.shouldFail) {
-            const missingWildcardTarget = commentTarget === "*" && targetResult.error?.startsWith('Target is "*" but no ');
+            const hasExplicitWildcardTargetField = message.item_number != null || message.issue_number != null || message.pull_request_number != null || message.pr_number != null || message.pr != null || message.pull_number != null;
+            const missingWildcardTarget = commentTarget === "*" && !hasExplicitWildcardTargetField;
             if (missingWildcardTarget) {
               core.warning(targetResult.error);
               return {
