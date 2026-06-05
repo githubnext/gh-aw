@@ -97,11 +97,9 @@ function getAICFromEnv() {
   const agentEntry = buildAICEntry("agent", agentAIC);
   const threatDetectionEntry = buildAICEntry("threat-detection", threatDetectionAIC);
   const useBreakdown = threatDetectionEntry.suffix.length > 0;
-  const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) : (typeof totalAIC === "number" ? totalAIC : agentAIC);
+  const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
   const aiCreditsFormatted = typeof aiCredits === "number" ? formatAIC(aiCredits) : undefined;
-  const aiCreditsSuffix = useBreakdown
-    ? `${agentEntry.suffix}${threatDetectionEntry.suffix}`
-    : (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "");
+  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}` : aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
 
   return {
     aiCredits,
