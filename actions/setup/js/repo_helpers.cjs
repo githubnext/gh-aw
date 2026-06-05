@@ -254,7 +254,16 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
   const trimmedDefaultTargetRepo = defaultTargetRepo ? String(defaultTargetRepo).trim() : "";
 
   // Determine target repository for this operation, allowing item.repo to override
-  const repoOverride = item && item.repo != null ? item.repo : item && item["target-repo"] != null ? item["target-repo"] : item && item.target_repo != null ? item.target_repo : item && item.targetRepo != null ? item.targetRepo : undefined;
+  const repoOverrideKeys = ["repo", "target-repo", "target_repo", "targetRepo"];
+  let repoOverride;
+  if (item) {
+    for (const key of repoOverrideKeys) {
+      if (item[key] != null) {
+        repoOverride = item[key];
+        break;
+      }
+    }
+  }
   const rawItemRepo = repoOverride != null ? String(repoOverride).trim() : "";
   const itemRepo = rawItemRepo || trimmedDefaultTargetRepo;
 
