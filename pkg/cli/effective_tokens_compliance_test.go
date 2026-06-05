@@ -3,7 +3,7 @@
 // Package cli compliance test stubs for the Effective Tokens (ET) specification.
 //
 // This file contains Go test stubs for compliance test IDs T-ET-001 through T-ET-031
-// as defined in docs/src/content/docs/reference/effective-tokens-specification.md
+// as defined in docs/src/content/docs/specs/effective-tokens-specification.md
 // Section 10 (Compliance Testing).
 //
 // Stub tests are intentionally minimal. Each test is tagged with its compliance ID

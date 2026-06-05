@@ -11,7 +11,7 @@ publication_date: 2026-05-07
 **Version**: 1.0.0  
 **Status**: Draft  
 **Publication Date**: 2026-05-07  
-**Latest Version**: [frontmatter-hash-specification](/gh-aw/reference/frontmatter-hash-specification/)  
+**Latest Version**: [frontmatter-hash-specification](/gh-aw/specs/frontmatter-hash-specification/)  
 **Editor**: GitHub Agentic Workflows Team
 
 ---

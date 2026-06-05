@@ -23,7 +23,7 @@ AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit
 > AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
 
 > [!NOTE]
-> Effective Tokens (ET) remain available for backward compatibility. Prefer AIC for cost monitoring, including Copilot workflows. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the ET definition.
+> Effective Tokens (ET) remain available for backward compatibility. Prefer AIC for cost monitoring, including Copilot workflows. See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) for the ET definition.
 
 ## Cost Components
 
@@ -229,7 +229,7 @@ max-effective-tokens: 5M
 ```
 
 Effective tokens are the normalized usage metric described in the
-[Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) (deprecated in favor of AIC for non-Copilot engines).
+[Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) (deprecated in favor of AIC for non-Copilot engines).
 When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
@@ -511,7 +511,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) - How effective token counts are computed (deprecated; AIC is now preferred for non-Copilot engines)
+- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) - How effective token counts are computed (deprecated; AIC is now preferred for non-Copilot engines)
 - [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows

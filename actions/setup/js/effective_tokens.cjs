@@ -9,7 +9,7 @@ const { TMP_GH_AW_PATH } = require("./constants.cjs");
  * Effective Tokens (ET) computation module.
  *
  * Implements the Effective Tokens specification defined in
- * docs/src/content/docs/reference/effective-tokens-specification.md.
+ * docs/src/content/docs/specs/effective-tokens-specification.md.
  *
  * Formula:
  *   effective_input_tokens = max(I - C, 0)

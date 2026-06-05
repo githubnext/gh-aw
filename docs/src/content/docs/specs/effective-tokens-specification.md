@@ -12,7 +12,7 @@ sidebar:
 **Publication Date**: 2026-04-02
 **Deprecation Date**: 2026-06-05
 **Editor**: GitHub Agentic Workflows Team
-**This Version**: [effective-tokens-specification](/gh-aw/reference/effective-tokens-specification/)
+**This Version**: [effective-tokens-specification](/gh-aw/specs/effective-tokens-specification/)
 **Latest Published Version**: This document
 
 ---

@@ -11,7 +11,7 @@ sidebar:
 **Status**: Draft  
 **Publication Date**: 2026-05-03  
 **Editor**: GitHub Agentic Workflows Team  
-**This Version**: [model-alias-specification](/gh-aw/reference/model-alias-specification/)  
+**This Version**: [model-alias-specification](/gh-aw/specs/model-alias-specification/)  
 **Latest Published Version**: This document
 
 ---
@@ -74,7 +74,7 @@ This specification covers:
 This specification does NOT cover:
 
 - Engine-specific API call construction (how parameters are forwarded to the provider REST API)
-- Token budgets, cost accounting, or the Effective Tokens metric (see [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/))
+- Token budgets, cost accounting, or the Effective Tokens metric (see [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/))
 - Model capability detection at runtime
 - Model routing logic within the Copilot gateway
 

@@ -10,8 +10,8 @@ sidebar:
 > This scratchpad file (v1.1.0) is significantly outdated relative to the canonical specification.
 > **Do not use this document for implementation reference.**
 >
-> **Canonical version**: [Safe Outputs MCP Gateway Specification v1.21.0](/gh-aw/reference/safe-outputs-specification/)
-> (`docs/src/content/docs/reference/safe-outputs-specification.md`)
+> **Canonical version**: [Safe Outputs MCP Gateway Specification v1.21.0](/gh-aw/specs/safe-outputs-specification/)
+> (`docs/src/content/docs/specs/safe-outputs-specification.md`)
 >
 > This file is retained for historical reference only. It documents the original v1.x architecture
 > prior to the MCP Gateway refactor. For all normative requirements, conformance testing, and

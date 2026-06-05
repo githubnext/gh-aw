@@ -1,7 +1,7 @@
 # Forecast Compliance Fixtures
 
 This directory contains fixture files for bootstrapping the Section 12 compliance tests of the
-[Forecast Specification](../../docs/src/content/docs/reference/forecast-specification.md).
+[Forecast Specification](../../docs/src/content/docs/specs/forecast-specification.md).
 
 ## Fixture Files
 

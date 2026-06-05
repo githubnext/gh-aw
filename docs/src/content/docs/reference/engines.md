@@ -287,7 +287,7 @@ engine:
 - bare command names without an extension (resolved from
   `PATH`)
 
-See [Copilot SDK Driver Specification](/gh-aw/reference/copilot-sdk-driver-specification/)
+See [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/)
 for the full driver contract.
 
 #### SDK driver environment variables
@@ -353,7 +353,7 @@ Defaults to `false`.
 
 ### Custom Token Weights (`token-weights`)
 
-Override the built-in token cost multipliers used when computing [Effective Tokens](/gh-aw/reference/effective-tokens-specification/). Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
+Override the built-in token cost multipliers used when computing [Effective Tokens](/gh-aw/specs/effective-tokens-specification/). Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
 
 ```yaml wrap
 engine:
