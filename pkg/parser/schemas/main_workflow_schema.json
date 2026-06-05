@@ -2728,7 +2728,9 @@
       ]
     },
     "models": {
-      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
+      "description": "DEPRECATED: Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
+      "deprecated": true,
+      "x-deprecation-message": "Frontmatter 'models' is deprecated and no longer needed. Remove this field from workflow frontmatter.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
