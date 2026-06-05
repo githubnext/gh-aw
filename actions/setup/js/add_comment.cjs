@@ -30,6 +30,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
+const WILDCARD_TARGET_FIELDS = ["item_number", "issue_number", "pull_request_number", "pr_number", "pr", "pull_number"];
 
 /**
  * Deduplicate an array of strings using case-insensitive comparison, preserving original casing and order.
@@ -504,17 +505,16 @@ async function main(config = {}) {
 
         if (!targetResult.success) {
           if (targetResult.shouldFail) {
-            const hasExplicitWildcardTargetField = message.item_number != null || message.issue_number != null || message.pull_request_number != null || message.pr_number != null || message.pr != null || message.pull_number != null;
+            const hasExplicitWildcardTargetField = WILDCARD_TARGET_FIELDS.some(field => message[field] != null);
             const missingWildcardTarget = commentTarget === "*" && !hasExplicitWildcardTargetField;
+            core.warning(targetResult.error);
             if (missingWildcardTarget) {
-              core.warning(targetResult.error);
               return {
                 success: false,
                 skipped: true,
                 error: targetResult.error,
               };
             }
-            core.warning(targetResult.error);
             return {
               success: false,
               error: targetResult.error,
