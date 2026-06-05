@@ -132,7 +132,24 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		result["permissions"] = fc.Permissions
 	}
 	if fc.Concurrency != nil {
-		result["concurrency"] = fc.Concurrency
+		if fc.Concurrency.isStringForm && fc.Concurrency.Group != "" && fc.Concurrency.CancelInProgress == nil && fc.Concurrency.Queue == "" && fc.Concurrency.JobDiscriminator == "" {
+			result["concurrency"] = fc.Concurrency.Group
+		} else {
+			concurrency := make(map[string]any)
+			if fc.Concurrency.Group != "" {
+				concurrency["group"] = fc.Concurrency.Group
+			}
+			if fc.Concurrency.CancelInProgress != nil {
+				concurrency["cancel-in-progress"] = *fc.Concurrency.CancelInProgress
+			}
+			if fc.Concurrency.Queue != "" {
+				concurrency["queue"] = fc.Concurrency.Queue
+			}
+			if fc.Concurrency.JobDiscriminator != "" {
+				concurrency["job-discriminator"] = fc.Concurrency.JobDiscriminator
+			}
+			result["concurrency"] = concurrency
+		}
 	}
 	if fc.If != "" {
 		result["if"] = fc.If
@@ -204,7 +221,39 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		result["environment"] = fc.Environment
 	}
 	if fc.Container != nil {
-		result["container"] = fc.Container
+		if fc.Container.isStringForm && fc.Container.Image != "" && fc.Container.Credentials == nil && len(fc.Container.Env) == 0 && len(fc.Container.Ports) == 0 && len(fc.Container.Volumes) == 0 && fc.Container.Options == "" {
+			result["container"] = fc.Container.Image
+		} else {
+			container := make(map[string]any)
+			if fc.Container.Image != "" {
+				container["image"] = fc.Container.Image
+			}
+			if fc.Container.Credentials != nil {
+				credentials := make(map[string]any)
+				if fc.Container.Credentials.Username != "" {
+					credentials["username"] = fc.Container.Credentials.Username
+				}
+				if fc.Container.Credentials.Password != "" {
+					credentials["password"] = fc.Container.Credentials.Password
+				}
+				if len(credentials) > 0 {
+					container["credentials"] = credentials
+				}
+			}
+			if len(fc.Container.Env) > 0 {
+				container["env"] = fc.Container.Env
+			}
+			if len(fc.Container.Ports) > 0 {
+				container["ports"] = fc.Container.Ports
+			}
+			if len(fc.Container.Volumes) > 0 {
+				container["volumes"] = fc.Container.Volumes
+			}
+			if fc.Container.Options != "" {
+				container["options"] = fc.Container.Options
+			}
+			result["container"] = container
+		}
 	}
 	if fc.Services != nil {
 		result["services"] = fc.Services

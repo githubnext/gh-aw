@@ -445,6 +445,103 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		assert.False(t, ok)
 	})
 
+	t.Run("parses and serializes typed concurrency config", func(t *testing.T) {
+		cancelInProgress := false
+		frontmatter := map[string]any{
+			"concurrency": map[string]any{
+				"group":              "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}",
+				"cancel-in-progress": cancelInProgress,
+				"queue":              "single",
+				"job-discriminator":  "${{ inputs.finding_id }}",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+		require.NotNil(t, config.Concurrency)
+		assert.Equal(t, "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}", config.Concurrency.Group)
+		require.NotNil(t, config.Concurrency.CancelInProgress)
+		assert.False(t, *config.Concurrency.CancelInProgress)
+		assert.Equal(t, "single", config.Concurrency.Queue)
+		assert.Equal(t, "${{ inputs.finding_id }}", config.Concurrency.JobDiscriminator)
+
+		reconstructed := config.ToMap()
+		assert.Equal(t, frontmatter["concurrency"], reconstructed["concurrency"])
+	})
+
+	t.Run("parses and serializes string concurrency shorthand", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"concurrency": "workflow-${{ github.ref }}",
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+		require.NotNil(t, config.Concurrency)
+		assert.Equal(t, "workflow-${{ github.ref }}", config.Concurrency.Group)
+
+		reconstructed := config.ToMap()
+		assert.Equal(t, "workflow-${{ github.ref }}", reconstructed["concurrency"])
+	})
+
+	t.Run("parses and serializes typed container config", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"container": map[string]any{
+				"image": "ghcr.io/githubnext/mcp-gateway",
+				"credentials": map[string]any{
+					"username": "${{ github.actor }}",
+					"password": "${{ secrets.GITHUB_TOKEN }}",
+				},
+				"env": map[string]any{
+					"NODE_ENV": "test",
+				},
+				"ports":   []any{"8080", "9000"},
+				"volumes": []any{"/data:/data"},
+				"options": "--cpus 1",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+		require.NotNil(t, config.Container)
+		assert.Equal(t, "ghcr.io/githubnext/mcp-gateway", config.Container.Image)
+		require.NotNil(t, config.Container.Credentials)
+		assert.Equal(t, "${{ github.actor }}", config.Container.Credentials.Username)
+		assert.Equal(t, "${{ secrets.GITHUB_TOKEN }}", config.Container.Credentials.Password)
+		assert.Equal(t, map[string]string{"NODE_ENV": "test"}, config.Container.Env)
+		assert.Equal(t, []string{"8080", "9000"}, config.Container.Ports)
+		assert.Equal(t, []string{"/data:/data"}, config.Container.Volumes)
+		assert.Equal(t, "--cpus 1", config.Container.Options)
+
+		reconstructed := config.ToMap()
+		assert.Equal(t, map[string]any{
+			"image": "ghcr.io/githubnext/mcp-gateway",
+			"credentials": map[string]any{
+				"username": "${{ github.actor }}",
+				"password": "${{ secrets.GITHUB_TOKEN }}",
+			},
+			"env": map[string]string{
+				"NODE_ENV": "test",
+			},
+			"ports":   []string{"8080", "9000"},
+			"volumes": []string{"/data:/data"},
+			"options": "--cpus 1",
+		}, reconstructed["container"])
+	})
+
+	t.Run("parses and serializes string container shorthand", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"container": "node:20",
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+		require.NotNil(t, config.Container)
+		assert.Equal(t, "node:20", config.Container.Image)
+
+		reconstructed := config.ToMap()
+		assert.Equal(t, "node:20", reconstructed["container"])
+	})
+
 	t.Run("preserves complex nested structures", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"safe-outputs": map[string]any{

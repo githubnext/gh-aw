@@ -662,14 +662,12 @@ func extractConcurrencyLimit(cfg *workflow.FrontmatterConfig) int {
 		return 0
 	}
 	// When concurrency is configured with cancel-in-progress: true, effective concurrency = 1.
-	if v, ok := cfg.Concurrency["cancel-in-progress"]; ok {
-		if b, _ := v.(bool); b {
-			return 1
-		}
+	if cfg.Concurrency.CancelInProgress != nil && *cfg.Concurrency.CancelInProgress {
+		return 1
 	}
 	// When there's a concurrency group without cancel-in-progress, runs queue up; treat as 1
 	// active at a time by convention (GitHub Actions queues at most one pending run).
-	if _, hasGroup := cfg.Concurrency["group"]; hasGroup {
+	if cfg.Concurrency.Group != "" {
 		return 1
 	}
 	return 0
