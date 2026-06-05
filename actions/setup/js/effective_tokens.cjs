@@ -43,7 +43,7 @@ function getTokenClassWeights() {
 /**
  * Compatibility helper retained for older callers.
  * Model multiplier data is no longer used for ET computation.
- * @param {string} model - Model name
+ * @param {string} _model - Model name
  * @returns {number}
  */
 function getModelMultiplier(_model) {
@@ -100,7 +100,7 @@ function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadToken
     reasoningTokens,
   });
   if (!Number.isFinite(costUSD) || costUSD <= 0) {
-    return 0;
+    return computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens);
   }
   return costUSD / USD_PER_EFFECTIVE_TOKEN;
 }
