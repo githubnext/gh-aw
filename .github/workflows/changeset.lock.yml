@@ -1327,6 +1327,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/changeset"
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
