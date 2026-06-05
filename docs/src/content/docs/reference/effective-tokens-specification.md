@@ -7,12 +7,18 @@ sidebar:
 
 # Effective Tokens Specification
 
-**Version**: 0.3.0
-**Status**: Draft
+**Version**: 0.4.0
+**Status**: Deprecated
 **Publication Date**: 2026-04-02
+**Deprecation Date**: 2026-06-05
 **Editor**: GitHub Agentic Workflows Team
 **This Version**: [effective-tokens-specification](/gh-aw/reference/effective-tokens-specification/)
 **Latest Published Version**: This document
+
+---
+
+> [!CAUTION]
+> **Deprecated.** The Effective Tokens (ET) metric is deprecated and is superseded by **AI Credits (AIC)**. AIC is a direct monetary metric (1 AIC = $0.01 USD) derived from actual provider pricing and provides a more actionable measure of inference cost. Effective Tokens remain available in `gh aw logs` and `gh aw audit` output for backward compatibility, but AIC is now the preferred metric for monitoring and budgeting. See [Cost Management](/gh-aw/reference/cost-management/) for AIC usage examples.
 
 ---
 
@@ -987,6 +993,11 @@ This section provides a normative reference table for all `R-OTL-*`, `R-SAFE-*`,
 ---
 
 ## Change Log
+
+### Version 0.4.0 (Deprecated)
+
+- **Status**: Marked as Deprecated. Effective Tokens (ET) is superseded by AI Credits (AIC) as the preferred cost metric for agentic workflows. 1 AIC = $0.01 USD. AIC is computed directly from provider pricing and is exposed in `gh aw logs`, `gh aw audit`, and workflow footers.
+- **Added**: Deprecation notice banner pointing to Cost Management documentation.
 
 ### Version 0.3.0 (Draft)
 
