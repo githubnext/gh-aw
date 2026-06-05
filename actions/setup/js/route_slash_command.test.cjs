@@ -296,34 +296,6 @@ describe("route_slash_command", () => {
       "ci-doctor": [{ workflow: "ci-doctor", events: ["pull_request"], ai_reaction: "eyes" }],
     });
 
-    it("dispatches decentralized label routes on issue-backed PR labels to the PR head branch", async () => {
-      globals.context.eventName = "issues";
-      globals.context.payload = {
-        action: "labeled",
-        label: { name: "ci-doctor" },
-        issue: {
-          number: 23,
-          pull_request: { url: "https://example.test/pr/23" },
-        },
-      };
-      process.env.GH_AW_LABEL_ROUTING = JSON.stringify({
-        "ci-doctor": [{ workflow: "ci-doctor", events: ["issues"], ai_reaction: "eyes" }],
-      });
-
-      await main();
-
-      expect(globals.github.rest.pulls.get).toHaveBeenCalledWith({
-        owner: "github",
-        repo: "gh-aw",
-        pull_number: 23,
-        headers: {
-          "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        },
-      });
-      expect(dispatchCalls).toHaveLength(1);
-      expect(dispatchCalls[0].ref).toBe("refs/heads/feature/pr-branch");
-    });
-
     await main();
 
     expect(dispatchCalls).toHaveLength(1);
@@ -333,6 +305,34 @@ describe("route_slash_command", () => {
     expect(awContext.command_name).toBe("");
     expect(awContext.trigger_label).toBe("ci-doctor");
     expect(awContext.desired_ai_reaction).toBe("eyes");
+  });
+
+  it("dispatches decentralized label routes on issue-backed PR labels to the PR head branch", async () => {
+    globals.context.eventName = "issues";
+    globals.context.payload = {
+      action: "labeled",
+      label: { name: "ci-doctor" },
+      issue: {
+        number: 23,
+        pull_request: { url: "https://example.test/pr/23" },
+      },
+    };
+    process.env.GH_AW_LABEL_ROUTING = JSON.stringify({
+      "ci-doctor": [{ workflow: "ci-doctor", events: ["issues"], ai_reaction: "eyes" }],
+    });
+
+    await main();
+
+    expect(globals.github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "github",
+      repo: "gh-aw",
+      pull_number: 23,
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      },
+    });
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].ref).toBe("refs/heads/feature/pr-branch");
   });
 
   it("skips labeled events when label name is missing", async () => {
