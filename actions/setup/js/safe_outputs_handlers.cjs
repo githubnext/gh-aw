@@ -45,6 +45,14 @@ function buildIntentErrorResponse(error) {
 }
 
 /**
+ * @param {Record<string, any>} entry
+ * @returns {boolean}
+ */
+function hasExplicitAddCommentTargetNumber(entry) {
+  return ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+}
+
+/**
  * Returns true if `args` contains at least one meaningful field for update_pull_request:
  * a string `title`, a string `body`, or `update_branch === true`.
  * Mirrors the downstream requiresOneOf:title,body,update_branch validation in
@@ -130,6 +138,8 @@ function resolvePatchWorkspacePath(workspacePath) {
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
+  const addCommentConfig = config.add_comment || config["add-comment"] || {};
+  const wildcardAddCommentTargetRequiresItemNumber = addCommentConfig.target === "*";
 
   /**
    * Detect and offload large string fields to files.
@@ -1482,6 +1492,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
+    if (wildcardAddCommentTargetRequiresItemNumber) {
+      if (!hasExplicitAddCommentTargetNumber(entry)) {
+        return buildIntentErrorResponse("add_comment requires item_number when safe-outputs.add-comment.target is '*'. Provide item_number (or pr_number/pr alias).");
+      }
+    }
     const intentValidationError = validateAddCommentIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
