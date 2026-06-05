@@ -143,8 +143,10 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"checkout:\n" +
 		"  repository: ${{ github.repository }}\n" +
 		"  ref: ${{ github.event.pull_request.base.sha }}\n\n" +
+		"3) Check out only the trusted base repository and omit ref:\n" +
+		"checkout:\n" +
+		"  repository: ${{ github.repository }}\n\n" +
 		"You can also use 'ref: ${{ github.event.pull_request.base.ref }}'.\n" +
-		"If you omit ref with pull_request_target, checkout defaults to the base branch.\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
 	if effectiveStrictMode {
