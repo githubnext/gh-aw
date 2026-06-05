@@ -2716,15 +2716,6 @@
     "features": {
       "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only).",
       "type": "object",
-      "properties": {
-        "inline-agents": {
-          "type": "boolean",
-          "deprecated": true,
-          "x-deprecation-message": "'features.inline-agents' is deprecated. Inline sub-agents are now enabled by default. Remove this field from workflow frontmatter or run 'gh aw fix' to automatically migrate.",
-          "description": "Deprecated no-op switch for inline sub-agent support. Inline sub-agents are now enabled by default, so this field no longer has any effect.",
-          "examples": [true, false]
-        }
-      },
       "additionalProperties": true,
       "examples": [
         {
@@ -9811,16 +9802,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "rate-limit": {
-      "description": "Legacy alias for user-rate-limit. Use 'user-rate-limit' instead. This alias is kept for backward compatibility and may be removed in a future major version.",
-      "deprecated": true,
-      "x-deprecation-message": "'rate-limit' is deprecated. Use 'user-rate-limit' instead. Run 'gh aw fix' to automatically migrate.",
-      "allOf": [
-        {
-          "$ref": "#/properties/user-rate-limit"
-        }
-      ]
     },
     "user-rate-limit": {
       "type": "object",
