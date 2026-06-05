@@ -233,6 +233,55 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
+			name: "pull_request_target with explicit checkout pinned to base ref expression - strict - warning only",
+			frontmatter: `---
+on:
+  pull_request_target:
+    types: [opened]
+tools:
+  github:
+    toolsets: [pull_requests]
+permissions:
+  pull-requests: read
+checkout:
+  repository: ${{ github.repository }}
+  ref: ${{ github.event.pull_request.base.ref }}
+---
+
+# PR Target Strict Trusted Base Ref
+Test workflow content.`,
+			filename:      "prt-checkout-base-ref-strict.md",
+			strictMode:    true,
+			expectError:   false,
+			expectWarning: true,
+			warningCount:  1, // dangerous-trigger warning
+		},
+		{
+			name: "pull_request_target with unwrapped trusted-looking ref string - strict - still errors",
+			frontmatter: `---
+on:
+  pull_request_target:
+    types: [opened]
+tools:
+  github:
+    toolsets: [pull_requests]
+permissions:
+  pull-requests: read
+checkout:
+  repository: ${{ github.repository }}
+  ref: github.event.pull_request.base.sha
+---
+
+# PR Target Strict Unwrapped Ref String
+Test workflow content.`,
+			filename:      "prt-checkout-unwrapped-ref-string-strict.md",
+			strictMode:    true,
+			expectError:   true,
+			expectWarning: true,
+			errorContains: "pull_request_target trigger with checkout enabled is extremely insecure",
+			warningCount:  1, // dangerous-trigger warning
+		},
+		{
 			name: "pull_request_target with checkout enabled - strict CLI + frontmatter strict false - warning only",
 			frontmatter: `---
 strict: false

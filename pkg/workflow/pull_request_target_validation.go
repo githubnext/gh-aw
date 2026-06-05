@@ -141,7 +141,7 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"checkout:\n" +
 		"  repository: ${{ github.repository }}\n" +
 		"  ref: ${{ github.event.pull_request.base.sha }}\n\n" +
-		"If you omit ref, checkout defaults to the trigger ref for pull_request_target.\n" +
+		"If you omit ref with pull_request_target, checkout defaults to the base branch.\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
 	if effectiveStrictMode {
@@ -178,15 +178,24 @@ func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
 	}
 
 	ref := strings.TrimSpace(cfg.Ref)
-	return ref == "" || matchesGitHubExpression(ref, "github.event.pull_request.base.sha")
+	return ref == "" || matchesAnyGitHubExpression(ref,
+		"github.event.pull_request.base.sha",
+		"github.event.pull_request.base.ref",
+		"github.ref",
+	)
+}
+
+func matchesAnyGitHubExpression(value string, expectedExpressions ...string) bool {
+	for _, expected := range expectedExpressions {
+		if matchesGitHubExpression(value, expected) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchesGitHubExpression(value string, expectedExpression string) bool {
 	trimmed := strings.TrimSpace(value)
-	if trimmed == expectedExpression {
-		return true
-	}
-
 	if !strings.HasPrefix(trimmed, "${{") || !strings.HasSuffix(trimmed, "}}") {
 		return false
 	}
