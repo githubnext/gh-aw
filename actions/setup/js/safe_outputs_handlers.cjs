@@ -45,6 +45,14 @@ function buildIntentErrorResponse(error) {
 }
 
 /**
+ * @param {Record<string, any>} entry
+ * @returns {boolean}
+ */
+function hasExplicitAddCommentTargetNumber(entry) {
+  return ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+}
+
+/**
  * Returns true if `args` contains at least one meaningful field for update_pull_request:
  * a string `title`, a string `body`, or `update_branch === true`.
  * Mirrors the downstream requiresOneOf:title,body,update_branch validation in
@@ -1485,8 +1493,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
     if (wildcardAddCommentTargetRequiresItemNumber) {
-      const hasExplicitItemNumber = ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
-      if (!hasExplicitItemNumber) {
+      if (!hasExplicitAddCommentTargetNumber(entry)) {
         return buildIntentErrorResponse("add_comment requires item_number when safe-outputs.add-comment.target is '*'. Provide item_number (or pr_number/pr alias).");
       }
     }
