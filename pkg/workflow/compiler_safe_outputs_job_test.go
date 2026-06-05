@@ -948,6 +948,7 @@ func TestGitHubAppTokenStepWithOTLPHeadersAndAttributes(t *testing.T) {
 	assert.NotContains(t, stepsContent, "with:\n          echo \"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json\" >> \"$GITHUB_OUTPUT\"",
 		"app token step must not split setup-agent-output-env into a nested echo under with:")
 }
+
 // a safe-output job compiled for a workflow_call trigger uses
 // needs.activation.outputs.target_repo_name (repo name only, no owner prefix) as the repositories
 // fallback for the GitHub App token mint step, instead of the full target_repo slug.
