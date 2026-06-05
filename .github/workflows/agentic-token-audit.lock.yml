@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"f600be7439ee23787b9bfd8dcdc326c301130e9bdbcdc0edc999472273fba226","body_hash":"0580623bb3b02abff477a929b5852e12a965c62e3a6280969de86486de2d8f10","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.57"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"694d3215fb3d93a3860b3a3507ad4ced97afe10fc3b3a63eb2ac56ad89ebd911","body_hash":"92dd93b43b051024c84af94d95b0f5a16dca1748837c2cd700cb8e33e9c7c66b","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.57"}}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"f9f3042f7e2789586610d6e8b85c8f03e5195baf","version":"v7.2.0"},{"repo":"docker/setup-buildx-action","sha":"d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5","version":"v4.1.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.63"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.63"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.63"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22","digest":"sha256:ce5c6f5461b077af0d8e8eb1763436e85153f8e9531117d58a7bdb23de71f00a","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.22@sha256:ce5c6f5461b077af0d8e8eb1763436e85153f8e9531117d58a7bdb23de71f00a"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -22,7 +22,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Daily audit of token usage across all agentic workflows with historical trend tracking
+# Daily audit of AI Credit (AIC) usage across all agentic workflows with historical trend tracking
 #
 # Source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 #
@@ -52,7 +52,7 @@
 #   - ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c
 #   - node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
 
-name: "Daily Agentic Workflow Token Usage Audit"
+name: "Daily Agentic Workflow AIC Usage Audit"
 on:
   schedule:
   - cron: "30 11 * * 1-5"
@@ -70,7 +70,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Agentic Workflow Token Usage Audit"
+run-name: "Daily Agentic Workflow AIC Usage Audit"
 
 jobs:
   activation:
@@ -108,7 +108,7 @@ jobs:
           job-name: ${{ github.job }}
           safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -122,7 +122,7 @@ jobs:
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AGENT_VERSION: "1.0.57"
-          GH_AW_INFO_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_INFO_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -146,7 +146,7 @@ jobs:
         if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_ID: "agentic-token-audit"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
@@ -215,23 +215,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_ed963cc0e333ff2b_EOF'
+          cat << 'GH_AW_PROMPT_da6f2d81b47483a0_EOF'
           <system>
-          GH_AW_PROMPT_ed963cc0e333ff2b_EOF
+          GH_AW_PROMPT_da6f2d81b47483a0_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_ed963cc0e333ff2b_EOF'
+          cat << 'GH_AW_PROMPT_da6f2d81b47483a0_EOF'
           <safe-output-tools>
           Tools: create_issue, upload_asset(max:5), missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
-          GH_AW_PROMPT_ed963cc0e333ff2b_EOF
+          GH_AW_PROMPT_da6f2d81b47483a0_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_ed963cc0e333ff2b_EOF'
+          cat << 'GH_AW_PROMPT_da6f2d81b47483a0_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -260,12 +260,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_ed963cc0e333ff2b_EOF
+          GH_AW_PROMPT_da6f2d81b47483a0_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_ed963cc0e333ff2b_EOF'
+          cat << 'GH_AW_PROMPT_da6f2d81b47483a0_EOF'
           </system>
           {{#runtime-import .github/workflows/agentic-token-audit.md}}
-          GH_AW_PROMPT_ed963cc0e333ff2b_EOF
+          GH_AW_PROMPT_da6f2d81b47483a0_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -294,7 +294,7 @@ jobs:
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_MEMORY_BRANCH_NAME: 'memory/token-audit'
           GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 51200 bytes (50 KB) total per push (max: 1024 KB)\n"
-          GH_AW_MEMORY_DESCRIPTION: ' Historical daily workflow token usage snapshots (shared with agentic-token-optimizer)'
+          GH_AW_MEMORY_DESCRIPTION: ' Historical daily workflow AIC snapshots (shared with agentic-token-optimizer)'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
           GH_AW_WIKI_NOTE: ''
@@ -407,7 +407,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -598,9 +598,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_0805b3213a84efee_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_07fdc291c425aae0_EOF'
           {"create_issue":{"close_older_issues":true,"expires":72,"max":1,"title_prefix":"[agentic-token-audit] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":51200}]},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_0805b3213a84efee_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_07fdc291c425aae0_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -824,7 +824,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_8a4e07470a8674a8_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_10bd1a76fa5f0967_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -884,7 +884,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_8a4e07470a8674a8_EOF
+          GH_AW_MCP_CONFIG_10bd1a76fa5f0967_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1195,7 +1195,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -1221,7 +1221,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_TRACKER_ID: "agentic-token-audit"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -1239,7 +1239,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_TRACKER_ID: "agentic-token-audit"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -1258,7 +1258,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_TRACKER_ID: "agentic-token-audit"
         with:
@@ -1274,7 +1274,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_TRACKER_ID: "agentic-token-audit"
         with:
@@ -1290,7 +1290,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_TRACKER_ID: "agentic-token-audit"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -1360,7 +1360,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -1433,8 +1433,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
-          WORKFLOW_DESCRIPTION: "Daily audit of token usage across all agentic workflows with historical trend tracking"
+          WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
+          WORKFLOW_DESCRIPTION: "Daily audit of AI Credit (AIC) usage across all agentic workflows with historical trend tracking"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1594,7 +1594,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -1679,7 +1679,7 @@ jobs:
       GH_AW_ENGINE_VERSION: "1.0.57"
       GH_AW_TRACKER_ID: "agentic-token-audit"
       GH_AW_WORKFLOW_ID: "agentic-token-audit"
-      GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+      GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
       GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
@@ -1707,7 +1707,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -1792,7 +1792,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.63"
@@ -1849,7 +1849,7 @@ jobs:
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg,.svg"
-          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
+          GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow AIC Usage Audit"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_TRACKER_ID: "agentic-token-audit"
           GH_AW_ENGINE_ID: "copilot"
