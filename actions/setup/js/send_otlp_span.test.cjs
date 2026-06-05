@@ -2521,6 +2521,7 @@ describe("sendJobConclusionSpan", () => {
     "GH_AW_OTLP_ENDPOINTS",
     "OTEL_SERVICE_NAME",
     "GH_AW_EFFECTIVE_TOKENS",
+    "GH_AW_AIC",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_CLI_VERSION",
     "GITHUB_AW_OTEL_TRACE_ID",
@@ -3490,6 +3491,22 @@ describe("sendJobConclusionSpan", () => {
     const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
     expect(etAttr).toBeDefined();
     expect(etAttr.value.intValue).toBe(5000);
+  });
+
+  it("includes gh-aw.aic when GH_AW_AIC is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_AIC = "0.125";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const aicAttr = span.attributes.find(a => a.key === "gh-aw.aic");
+    expect(aicAttr).toBeDefined();
+    expect(aicAttr.value.doubleValue).toBe(0.125);
   });
 
   it("emits dashboard metrics and aliases on the conclusion span", async () => {
@@ -5076,7 +5093,7 @@ describe("sendJobConclusionSpan", () => {
 
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      const usage = { input_tokens: 48200, output_tokens: 1350, cache_read_tokens: 41000, cache_write_tokens: 3100, effective_tokens: 9800 };
+      const usage = { input_tokens: 48200, output_tokens: 1350, cache_read_tokens: 41000, cache_write_tokens: 3100, effective_tokens: 9800, ai_credits: 0.125 };
       readFileSpy.mockImplementation(filePath => {
         if (filePath === "/tmp/gh-aw/agent_usage.json") {
           return JSON.stringify(usage);
@@ -5088,13 +5105,14 @@ describe("sendJobConclusionSpan", () => {
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
       expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
       expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
       expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
       expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
       // total_tokens = input + output (cache tokens excluded per OTel GenAI spec)
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(48200 + 1350);
+      expect(attrs["gh-aw.aic"]).toBe(0.125);
     });
 
     it("normalizes string token counters from agent_usage.json on the agent span", async () => {

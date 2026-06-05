@@ -1628,59 +1628,69 @@ function getErrorMessage(errorEntry) {
  * @property {number | undefined} turns
  * @property {string | undefined} stopReason
  * @property {string | undefined} resolvedModel
- * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
+ * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, ai_credits?: number} | undefined} tokenUsage
  * @property {number} warningCount
  * @property {number} permissionDeniedCount
  * @property {number} steeringEventCount
  */
 
 /**
+ * Normalize a non-negative numeric counter or cost value.
+ *
+ * @param {unknown} rawValue
+ * @returns {number | undefined}
+ */
+function normalizeNonNegativeNumber(rawValue) {
+  if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue >= 0) {
+    return rawValue;
+  }
+  if (typeof rawValue === "string" && rawValue.trim()) {
+    const parsed = Number(rawValue.trim());
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Normalize token usage counters from an engine result event usage block.
  *
  * @param {unknown} rawUsage
- * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined}
+ * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, ai_credits?: number} | undefined}
  */
 function normalizeRuntimeTokenUsage(rawUsage) {
   if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
     return undefined;
   }
 
-  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number}} */
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number, ai_credits?: number}} */
   const usage = rawUsage;
-  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number}} */
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, ai_credits?: number}} */
   const normalized = {};
 
-  const normalizeTokenCounter = rawValue => {
-    if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue >= 0) {
-      return rawValue;
-    }
-    if (typeof rawValue === "string" && rawValue.trim()) {
-      const trimmed = rawValue.trim();
-      const parsed = Number(trimmed);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        return parsed;
-      }
-    }
-    return undefined;
-  };
-
-  const inputTokens = normalizeTokenCounter(usage.input_tokens);
+  const inputTokens = normalizeNonNegativeNumber(usage.input_tokens);
   if (typeof inputTokens === "number") {
     normalized.input_tokens = inputTokens;
   }
-  const outputTokens = normalizeTokenCounter(usage.output_tokens);
+  const outputTokens = normalizeNonNegativeNumber(usage.output_tokens);
   if (typeof outputTokens === "number") {
     normalized.output_tokens = outputTokens;
   }
 
-  const cacheReadTokens = normalizeTokenCounter(usage.cache_read_tokens) ?? normalizeTokenCounter(usage.cache_read_input_tokens);
+  const cacheReadTokens = normalizeNonNegativeNumber(usage.cache_read_tokens) ?? normalizeNonNegativeNumber(usage.cache_read_input_tokens);
   if (typeof cacheReadTokens === "number") {
     normalized.cache_read_tokens = cacheReadTokens;
   }
 
-  const cacheWriteTokens = normalizeTokenCounter(usage.cache_write_tokens) ?? normalizeTokenCounter(usage.cache_creation_input_tokens);
+  const cacheWriteTokens = normalizeNonNegativeNumber(usage.cache_write_tokens) ?? normalizeNonNegativeNumber(usage.cache_creation_input_tokens);
   if (typeof cacheWriteTokens === "number") {
     normalized.cache_write_tokens = cacheWriteTokens;
+  }
+
+  const aiCredits = normalizeNonNegativeNumber(usage.ai_credits);
+  if (typeof aiCredits === "number") {
+    normalized.ai_credits = aiCredits;
   }
 
   return Object.keys(normalized).length > 0 ? normalized : undefined;
@@ -1945,6 +1955,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const runtimeMetrics = readAgentRuntimeMetrics();
+  const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentTimedOut = agentConclusion === "timed_out";
@@ -2041,6 +2052,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
+  }
+  const aiCredits =
+    (typeof agentUsage?.ai_credits === "number" ? agentUsage.ai_credits : undefined) ?? normalizeNonNegativeNumber(process.env.GH_AW_AIC);
+  if (typeof aiCredits === "number" && aiCredits > 0) {
+    attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
@@ -2226,7 +2242,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // to avoid double-counting in backends that sum gen_ai.usage.* across all spans.
   // When no agent span is emitted the attributes fall through to the conclusion span
   // so a single query is still sufficient for observability.
-  const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
   const usageAttrs = [];
   if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
