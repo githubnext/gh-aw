@@ -15,6 +15,8 @@ imports:
     title-prefix: "[compiler-threat-spec] "
 - shared/otlp.md
 safe-outputs:
+  threat-detection:
+    copilot-sdk-driver: detection_job_driver.cjs
   create-pull-request:
     draft: false
     expires: 7d

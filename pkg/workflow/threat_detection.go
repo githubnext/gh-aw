@@ -16,15 +16,16 @@ var threatLog = logger.New("workflow:threat_detection")
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Prompt              string        `yaml:"prompt,omitempty"`            // Additional custom prompt instructions to append
-	Steps               []any         `yaml:"steps,omitempty"`             // Array of extra job steps to run before engine execution
-	PostSteps           []any         `yaml:"post-steps,omitempty"`        // Array of extra job steps to run after engine execution
-	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
-	EngineDisabled      bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
-	RunsOn              string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
-	ContinueOnError     *bool         `yaml:"continue-on-error,omitempty"` // When true (default), detection failures produce warnings instead of blocking safe outputs
-	EnabledExpr         *string       `yaml:"-"`                           // Expression form of the enabled flag, e.g. "${{ inputs.enable-threat-detection }}"
-	ContinueOnErrorExpr *string       `yaml:"-"`                           // Expression form of continue-on-error, e.g. "${{ inputs.coe }}"
+	Prompt              string        `yaml:"prompt,omitempty"`              // Additional custom prompt instructions to append
+	Steps               []any         `yaml:"steps,omitempty"`               // Array of extra job steps to run before engine execution
+	PostSteps           []any         `yaml:"post-steps,omitempty"`          // Array of extra job steps to run after engine execution
+	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`       // Extended engine configuration for threat detection
+	EngineDisabled      bool          `yaml:"-"`                             // Internal flag: true when engine is explicitly set to false
+	RunsOn              string        `yaml:"runs-on,omitempty"`             // Runner override for the detection job
+	ContinueOnError     *bool         `yaml:"continue-on-error,omitempty"`   // When true (default), detection failures produce warnings instead of blocking safe outputs
+	EnabledExpr         *string       `yaml:"-"`                             // Expression form of the enabled flag, e.g. "${{ inputs.enable-threat-detection }}"
+	ContinueOnErrorExpr *string       `yaml:"-"`                             // Expression form of continue-on-error, e.g. "${{ inputs.coe }}"
+	CopilotSDKDriver    string        `yaml:"copilot-sdk-driver,omitempty"`  // Copilot SDK driver script for the detection job
 }
 
 // IsContinueOnError reports whether detection failures should produce warnings instead of errors.
@@ -235,6 +236,15 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 	}
 
 	threatLog.Printf("Threat detection configured with custom prompt: %v, custom pre-steps: %v, custom post-steps: %v", threatConfig.Prompt != "", len(threatConfig.Steps) > 0, len(threatConfig.PostSteps) > 0)
+
+	// Parse copilot-sdk-driver field
+	if sdkDriver, exists := configMap["copilot-sdk-driver"]; exists {
+		if sdkDriverStr, ok := sdkDriver.(string); ok && sdkDriverStr != "" {
+			threatConfig.CopilotSDKDriver = sdkDriverStr
+			threatLog.Printf("Threat detection copilot-sdk-driver set to: %s", sdkDriverStr)
+		}
+	}
+
 	return threatConfig
 }
 
@@ -621,6 +631,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig.ID = engineSetting
 	}
 
+	// When a copilot-sdk-driver is configured for the detection job, enable SDK mode
+	// and set the driver on the detection engine config. This overrides the inherited
+	// CopilotSDKDriver (if any) from the main engine config with the detection-specific one.
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.CopilotSDKDriver != "" {
+		detectionEngineConfig.CopilotSDK = true
+		detectionEngineConfig.CopilotSDKDriver = data.SafeOutputs.ThreatDetection.CopilotSDKDriver
+	}
+
 	// Apply enterprise and engine default detection models when no model was explicitly configured.
 	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
 	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
@@ -734,10 +753,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 // getThreatDetectionEngineID returns the effective engine ID for the detection job.
 // It mirrors threat-detection engine resolution: threat-detection.engine overrides main engine.
 func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
-		return data.SafeOutputs.ThreatDetection.EngineConfig.ID
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		td := data.SafeOutputs.ThreatDetection
+		// A copilot-sdk-driver implies the copilot engine for the detection job.
+		if td.CopilotSDKDriver != "" {
+			return string(constants.CopilotEngine)
+		}
+		if td.EngineConfig != nil && td.EngineConfig.ID != "" {
+			return td.EngineConfig.ID
+		}
 	}
 
 	mainEngineID := data.AI

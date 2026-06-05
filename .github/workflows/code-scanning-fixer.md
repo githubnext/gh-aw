@@ -39,6 +39,8 @@ tools:
   edit:
   cache-memory:
 safe-outputs:
+  threat-detection:
+    copilot-sdk-driver: detection_job_driver.cjs
   add-labels:
     allowed:
       - agentic-campaign

@@ -14,6 +14,8 @@ imports:
     title-prefix: "[safe-output-integrator] "
 - shared/otlp.md
 safe-outputs:
+  threat-detection:
+    copilot-sdk-driver: detection_job_driver.cjs
   create-pull-request:
     draft: false
     expires: 3d

@@ -9049,6 +9049,10 @@
                 "continue-on-error": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true (default), detection failures produce warnings and allow safe outputs to proceed with a caution notice and 'needs-review' label. When false, detection failures block safe outputs entirely. Accepts a boolean literal or a GitHub Actions expression."
+                },
+                "copilot-sdk-driver": {
+                  "type": "string",
+                  "description": "Custom Copilot SDK driver script for the detection job. Bare filenames (e.g. 'detection_job_driver.cjs') resolve to the built-in setup action directory. Paths containing '/' (e.g. '.github/drivers/my_driver.cjs') resolve relative to GITHUB_WORKSPACE."
                 }
               },
               "additionalProperties": false

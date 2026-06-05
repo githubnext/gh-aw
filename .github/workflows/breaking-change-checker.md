@@ -37,6 +37,8 @@ imports:
       assignees: [copilot]
   - shared/otlp.md
 safe-outputs:
+  threat-detection:
+    copilot-sdk-driver: detection_job_driver.cjs
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"

@@ -304,6 +304,7 @@ interface LinkSubIssueConfig extends SafeOutputConfig {
 interface ThreatDetectionConfig extends SafeOutputConfig {
   enabled?: boolean;
   steps?: any[];
+  "copilot-sdk-driver"?: string;
 }
 
 // === Safe Job Configuration Interfaces ===

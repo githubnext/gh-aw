@@ -234,7 +234,14 @@ func isCopilotSDKEnabledForActiveEngine(data *WorkflowData, mainEngineID string)
 		return false
 	}
 
-	detectionConfig := data.SafeOutputs.ThreatDetection.EngineConfig
+	td := data.SafeOutputs.ThreatDetection
+
+	// A copilot-sdk-driver on the threat-detection config implies Copilot SDK mode for the detection job.
+	if td.CopilotSDKDriver != "" {
+		return true
+	}
+
+	detectionConfig := td.EngineConfig
 	if detectionConfig == nil {
 		return false
 	}
