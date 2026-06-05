@@ -377,6 +377,32 @@ describe("repo_helpers", () => {
       expect(result.repoParts).toEqual({ owner: "org", repo: "other-repo" });
     });
 
+    it("should resolve and validate repo from item.target_repo alias", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { target_repo: "org/other-repo" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/other-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/other-repo");
+      expect(result.repoParts).toEqual({ owner: "org", repo: "other-repo" });
+    });
+
+    it("should resolve and validate repo from item.targetRepo alias", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { targetRepo: "org/other-repo" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/other-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/other-repo");
+      expect(result.repoParts).toEqual({ owner: "org", repo: "other-repo" });
+    });
+
     it("should fail when repo not in allowed list", async () => {
       const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
       const item = { repo: "org/unauthorized-repo" };

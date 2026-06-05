@@ -140,6 +140,37 @@ describe("close_pull_request", () => {
       expect(updateCalls[0].state).toBe("closed");
     });
 
+    it("should close a pull request in item.target_repo", async () => {
+      const handler = await main({ max: 10, allowed_repos: ["external-owner/external-repo"] });
+      const updateCalls = [];
+
+      mockGithub.rest.pulls.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.pull_number,
+            title: "Test PR",
+            html_url: `https://github.com/${params.owner}/${params.repo}/pull/${params.pull_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          pull_request_number: 790,
+          target_repo: "external-owner/external-repo",
+          body: "Closing PR",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateCalls.length).toBe(1);
+      expect(updateCalls[0].owner).toBe("external-owner");
+      expect(updateCalls[0].repo).toBe("external-repo");
+      expect(updateCalls[0].pull_number).toBe(790);
+    });
+
     it("should close a PR from context when pull_request_number not provided", async () => {
       const handler = await main({ max: 10 });
       const updateCalls = [];

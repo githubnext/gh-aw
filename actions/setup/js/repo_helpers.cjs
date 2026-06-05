@@ -68,6 +68,9 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  * Message item that may contain a repo field
  * @typedef {Object} MessageItemWithRepo
  * @property {string} [repo] - Optional repository slug override
+ * @property {string} [target-repo] - Optional repository slug override (kebab-case alias)
+ * @property {string} [target_repo] - Optional repository slug override (snake_case alias)
+ * @property {string} [targetRepo] - Optional repository slug override (camelCase alias)
  */
 
 // ============================================================================
@@ -251,7 +254,8 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
   const trimmedDefaultTargetRepo = defaultTargetRepo ? String(defaultTargetRepo).trim() : "";
 
   // Determine target repository for this operation, allowing item.repo to override
-  const rawItemRepo = item && item.repo != null ? String(item.repo).trim() : "";
+  const repoOverride = item && item.repo != null ? item.repo : item && item["target-repo"] != null ? item["target-repo"] : item && item.target_repo != null ? item.target_repo : item && item.targetRepo != null ? item.targetRepo : undefined;
+  const rawItemRepo = repoOverride != null ? String(repoOverride).trim() : "";
   const itemRepo = rawItemRepo || trimmedDefaultTargetRepo;
 
   // If we still don't have a repo after considering overrides, treat as configuration/environment issue
