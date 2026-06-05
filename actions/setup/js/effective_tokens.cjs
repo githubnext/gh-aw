@@ -2,8 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
-const path = require("path");
-const { TMP_GH_AW_PATH } = require("./constants.cjs");
+const { computeInferenceCostUSD } = require("./model_costs.cjs");
 
 /**
  * Effective Tokens (ET) computation module.
@@ -11,38 +10,12 @@ const { TMP_GH_AW_PATH } = require("./constants.cjs");
  * Implements the Effective Tokens specification defined in
  * docs/src/content/docs/specs/effective-tokens-specification.md.
  *
- * Formula:
- *   effective_input_tokens = max(I - C, 0)
- *   base_weighted_tokens = (w_in × effective_input_tokens) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
- *   effective_tokens     = m × base_weighted_tokens
- *
- * Token class default weights (from spec Section 4.2):
- *   Input          (I):  w_in         = 1.0
- *   Cached Input   (C):  w_cache      = 0.1
- *   Output         (O):  w_out        = 4.0
- *   Reasoning      (R):  w_reason     = 4.0
- *   Cache Write    (W):  w_cache_write = 1.0 (implementation extension)
- *
- * The per-model multiplier (m) is loaded from model_multipliers.json data.
- * Lookup order:
- *   1. /tmp/gh-aw/model_multipliers.json (merged in activation job)
- *   2. GH_AW_MODEL_MULTIPLIERS env var (compatibility fallback)
- *   3. Built-in model_multipliers.json in the setup action folder
- * Falls back to m=1.0 (reference baseline) for unknown models.
+ * Effective token values are normalized from model inference cost (USD).
+ * Cost is computed using the same pricing logic used by AI Credits and then
+ * converted to an ET-like token unit using a dedicated USD-per-token factor.
  */
 
-/** @type {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined} */
-let _parsedMultipliers = undefined; // undefined = not yet parsed; null = parsed but unavailable
-const DEFAULT_MERGED_MULTIPLIERS_PATH = `${TMP_GH_AW_PATH}/model_multipliers.json`;
-const BUILTIN_MULTIPLIERS_PATH = path.join(__dirname, "model_multipliers.json");
-
-/**
- * @returns {string}
- */
-function getMergedMultipliersPath() {
-  const override = process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH;
-  return override && override.trim() ? override : DEFAULT_MERGED_MULTIPLIERS_PATH;
-}
+const USD_PER_EFFECTIVE_TOKEN = 0.000003;
 
 /**
  * Default token class weights from the ET specification (Section 4.2).
@@ -59,153 +32,22 @@ function defaultTokenClassWeights() {
 }
 
 /**
- * Loads and parses model multipliers from file-based sources or env fallback.
- * Caches the result after first parse (including null when unavailable). Returns null if not available or invalid.
- * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined}
- */
-function getMultipliersData() {
-  if (_parsedMultipliers !== undefined) {
-    return _parsedMultipliers;
-  }
-
-  const parsedFromMergedFile = parseMultipliersFile(getMergedMultipliersPath());
-  if (parsedFromMergedFile) {
-    _parsedMultipliers = parsedFromMergedFile;
-    return _parsedMultipliers;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(process.env, "GH_AW_MODEL_MULTIPLIERS")) {
-    const raw = process.env.GH_AW_MODEL_MULTIPLIERS;
-    if (raw && raw.trim()) {
-      const parsedFromEnv = parseMultipliersJSON(raw);
-      if (parsedFromEnv) {
-        _parsedMultipliers = parsedFromEnv;
-        return _parsedMultipliers;
-      }
-    }
-  }
-
-  const parsedFromBuiltinFile = parseMultipliersFile(BUILTIN_MULTIPLIERS_PATH);
-  if (parsedFromBuiltinFile) {
-    _parsedMultipliers = parsedFromBuiltinFile;
-    return _parsedMultipliers;
-  }
-
-  _parsedMultipliers = null;
-  return null;
-}
-
-/**
- * @param {string} filePath
- * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null}
- */
-function parseMultipliersFile(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
-    const raw = fs.readFileSync(filePath, "utf8");
-    return parseMultipliersJSON(raw);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * @param {string} raw
- * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null}
- */
-function parseMultipliersJSON(raw) {
-  try {
-    const parsed = JSON.parse(raw);
-    if (!isPlainObject(parsed)) {
-      return null;
-    }
-
-    const defaults = defaultTokenClassWeights();
-    const rawWeights = isPlainObject(parsed.token_class_weights) ? parsed.token_class_weights : {};
-    const weights = { ...defaults, ...rawWeights };
-
-    for (const key of Object.keys(defaults)) {
-      const value = weights[key];
-      if (value == null || !Number.isFinite(value)) {
-        weights[key] = defaults[key];
-      }
-    }
-
-    /** @type {Record<string, number>} */
-    const multipliers = {};
-    if (isPlainObject(parsed.multipliers)) {
-      for (const [model, mult] of Object.entries(parsed.multipliers)) {
-        multipliers[model.toLowerCase()] = Number(mult);
-      }
-    }
-
-    return { token_class_weights: weights, multipliers };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-function isPlainObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-/**
  * Returns the token class weights in use.
- * Uses values from merged/built-in model_multipliers.json when available,
- * otherwise falls back to defaults.
+ * Uses the built-in defaults.
  * @returns {{ input: number, cached_input: number, output: number, reasoning: number, cache_write: number }}
  */
 function getTokenClassWeights() {
-  const data = getMultipliersData();
-  return data ? data.token_class_weights : defaultTokenClassWeights();
+  return defaultTokenClassWeights();
 }
 
 /**
- * Returns the per-model cost multiplier for the given model name.
- *
- * Lookup order:
- * 1. Exact case-insensitive match in loaded model multipliers
- * 2. Longest prefix match (e.g. "claude-sonnet-4.6-preview" → "claude-sonnet-4.6")
- * 3. Default: 1.0 (unknown model treated as reference baseline)
- *
- * @param {string} model - Model name
- * @returns {number} Copilot multiplier for the model
+ * Compatibility helper retained for older callers.
+ * Model multiplier data is no longer used for ET computation.
+ * @param {string} _model - Model name
+ * @returns {number}
  */
-function getModelMultiplier(model) {
-  const data = getMultipliersData();
-  if (!data) {
-    return 1.0;
-  }
-
-  const key = model?.toLowerCase().trim();
-  if (!key) {
-    return 1.0;
-  }
-
-  const { multipliers } = data;
-
-  // Exact match
-  if (key in multipliers) {
-    return multipliers[key];
-  }
-
-  // Longest prefix match
-  let longestMatch = "";
-  let longestMatchMultiplier = 1.0;
-  for (const [name, mult] of Object.entries(multipliers)) {
-    if (key.startsWith(name) && name.length > longestMatch.length) {
-      longestMatch = name;
-      longestMatchMultiplier = mult;
-    }
-  }
-
-  return longestMatchMultiplier;
+function getModelMultiplier(_model) {
+  return 1.0;
 }
 
 /**
@@ -235,13 +77,8 @@ function computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, c
 }
 
 /**
- * Computes the effective token count for a single model invocation.
- *
- * Formula (ET specification Section 4.4):
- *   effective_tokens = m × base_weighted_tokens
- *
- * Returns the exact real-valued product. Round only at presentation boundaries
- * (e.g., when displaying in a step summary or exporting to an env var).
+ * Converts inference cost in USD to normalized effective tokens.
+ * Uses the same model/provider pricing calculation as AI Credits.
  *
  * @param {string} model - Model name used for the invocation
  * @param {number} inputTokens - Raw input tokens (I)
@@ -249,15 +86,23 @@ function computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, c
  * @param {number} cacheReadTokens - Cached input tokens (C)
  * @param {number} cacheWriteTokens - Cache write tokens (W)
  * @param {number} [reasoningTokens=0] - Reasoning tokens (R)
+ * @param {string} [provider=""] - Provider name
  * @returns {number} Effective token count (exact real value)
  */
-function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens = 0) {
-  const base = computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens);
-  if (base === 0) {
-    return 0;
+function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens = 0, provider = "") {
+  const costUSD = computeInferenceCostUSD({
+    provider: provider || "",
+    model,
+    inputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    reasoningTokens,
+  });
+  if (!Number.isFinite(costUSD) || costUSD <= 0) {
+    return computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens);
   }
-  const m = getModelMultiplier(model);
-  return base * m;
+  return costUSD / USD_PER_EFFECTIVE_TOKEN;
 }
 
 /**
@@ -487,7 +332,7 @@ function buildFallbackModelIdentifier(normalizedModelName, fallbackLetterLength,
  * @internal
  */
 function _resetCache() {
-  _parsedMultipliers = undefined;
+  // No-op: retained for test compatibility.
 }
 
 /**
@@ -564,7 +409,7 @@ function readAgentUsage() {
  */
 function buildETComputationTable(effectiveTokens, tokenUsageDetails = null) {
   const w = getTokenClassWeights();
-  const formula = `${w.input}×max(input-cached,0) + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier`;
+  const formula = `inference_cost_usd ÷ ${USD_PER_EFFECTIVE_TOKEN}`;
   const tokenUsageMarkdown = tokenUsageDetails?.markdown || null;
   const modelAliasLegend = formatModelEmojiAliasLegend(tokenUsageDetails?.modelNames || []);
 
@@ -601,9 +446,8 @@ function buildETComputationTable(effectiveTokens, tokenUsageDetails = null) {
       lines.push(`| **Base weighted** | | | **${Math.round(baseWeighted).toLocaleString()}** |`);
 
       const etVal = Number.parseInt(effectiveTokens || "", 10);
-      if (Number.isInteger(etVal) && etVal > 0 && baseWeighted > 0) {
-        const multiplier = etVal / baseWeighted;
-        lines.push(`| **Model multiplier** | | ×${multiplier.toFixed(2)} | **${etVal.toLocaleString()}** |`);
+      if (Number.isInteger(etVal) && etVal > 0) {
+        lines.push(`| **Effective tokens** | | | **${etVal.toLocaleString()}** |`);
       }
     } else {
       lines.push("| Token class | Weight |");
