@@ -450,13 +450,13 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
 		}
 		// Keep insertion index aligned with setup steps that may be injected between setup
-		// and artifact downloads. Each mask helper currently appends one string entry to
-		// the steps slice (containing the full two-line YAML step).
+		// and artifact downloads. Count the entries each mask helper appends so the index
+		// stays self-consistent if either helper ever emits more than one step.
 		if isOTLPHeadersPresent(data) {
-			insertIndex++
+			insertIndex += strings.Count(generateOTLPHeadersMaskStep(), stepNameLinePrefix)
 		}
 		if isOTLPAttributesPresent(data) {
-			insertIndex++
+			insertIndex += strings.Count(generateOTLPAttributesMaskStep(), stepNameLinePrefix)
 		}
 
 		// Add artifact download steps count
@@ -487,6 +487,12 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		// multi-line run/with block, move it to the next step boundary.
 		for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], stepNameLinePrefix) {
 			insertIndex++
+		}
+		if insertIndex == len(steps) {
+			consolidatedSafeOutputsJobLog.Printf(
+				"WARN: app-token insertion reached end of steps slice (len=%d); step ordering may be incorrect",
+				len(steps),
+			)
 		}
 
 		// Insert app token steps
