@@ -165,7 +165,7 @@ on: workflow_dispatch
 	assert.True(t, fileSet[baseSharedPath], "Should include base-shared.md file")
 }
 
-func TestResolveImportPathLocal(t *testing.T) {
+func TestResolveImportPath_RunPushOpts_LocalPathSemantics(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, "workflows")

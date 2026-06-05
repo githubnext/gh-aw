@@ -45,6 +45,7 @@ const os = require("os");
 // timeouts for individual tool calls and model inference.
 // Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
 const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
+const MAX_TOOL_DENIALS_DEFAULT = 5;
 
 /**
  * @typedef {{
@@ -52,6 +53,51 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  *   allowedTools?: string[],
  * }} CopilotSDKPermissionConfig
  */
+
+/**
+ * Parse a strict positive integer from a number or string.
+ * Returns undefined when the input is not a whole positive integer.
+ *
+ * @param {unknown} value
+ * @returns {number | undefined}
+ */
+function parseStrictPositiveInteger(value) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isSafeInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Parse max tool denials threshold from input.
+ * Falls back to MAX_TOOL_DENIALS_DEFAULT when unset/invalid.
+ *
+ * @param {unknown} value
+ * @returns {number}
+ */
+function parseMaxToolDenialsLimit(value) {
+  return parseStrictPositiveInteger(value) ?? MAX_TOOL_DENIALS_DEFAULT;
+}
+
+/**
+ * Read a positive integer from an environment variable with fallback.
+ *
+ * @param {string} key
+ * @param {number} fallback
+ * @returns {number}
+ */
+function getEnvPositiveIntOrDefault(key, fallback) {
+  return parseStrictPositiveInteger(process.env[key]) ?? fallback;
+}
 
 /**
  * @typedef {{
@@ -110,7 +156,7 @@ function logPermissionDenied(coreLogger, logger, request) {
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
- * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void}=} logOptions
+ * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void, onDenied?: (requestSummary: string) => void}=} logOptions
  * @returns {import("@github/copilot-sdk").PermissionHandler | undefined}
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptions) {
@@ -184,7 +230,11 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
     if (isAllowed(request)) {
       return { kind: "approve-once" };
     }
+    const requestSummary = summarizePermissionRequest(request);
     logPermissionDenied(logOptions?.coreLogger, logger, request);
+    if (logOptions?.onDenied) {
+      logOptions.onDenied(requestSummary);
+    }
     return { kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." };
   };
 }
@@ -224,6 +274,7 @@ function extractPromptFromArgs(args) {
  *   model?: string,
  *   connectionToken?: string,
  *   provider?: import("@github/copilot-sdk").ProviderConfig,
+ *   maxToolDenials?: number | string,
  *   permissionConfig?: {
  *     allowAllTools?: boolean,
  *     allowedTools?: string[],
@@ -237,7 +288,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, permissionConfig, coreLogger, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolDenials, permissionConfig, coreLogger, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -248,6 +299,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
   const log = msg => logger(`[sdk-driver] ${msg}`);
   log(`attempt ${attempt + 1}: connecting to Copilot SDK at ${sdkUri}`);
+  let maxToolDenialsLimit = MAX_TOOL_DENIALS_DEFAULT;
+  if (maxToolDenials === undefined) {
+    maxToolDenialsLimit = getEnvPositiveIntOrDefault("GH_AW_MAX_TOOL_DENIALS", MAX_TOOL_DENIALS_DEFAULT);
+  } else {
+    maxToolDenialsLimit = parseMaxToolDenialsLimit(maxToolDenials);
+  }
+  log(`max-tool-denials threshold: ${maxToolDenialsLimit}`);
 
   // Session state directory — mirrors the target path used by unified_timeline.cjs.
   // /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
@@ -280,6 +338,28 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   /** @type {fs.WriteStream | null} */
   let eventsStream = null;
   let clientStarted = false;
+  let toolDenialCount = 0;
+  let catastrophicToolDenialsError = null;
+  let catastrophicToolDenialsTriggered = false;
+
+  /**
+   * @param {string} reason
+   */
+  function recordToolDenial(reason) {
+    toolDenialCount += 1;
+    log(`tool denial ${toolDenialCount}/${maxToolDenialsLimit}: ${reason}`);
+    if (catastrophicToolDenialsTriggered || toolDenialCount < maxToolDenialsLimit) {
+      return;
+    }
+    catastrophicToolDenialsTriggered = true;
+    catastrophicToolDenialsError = new Error(`max tool denials threshold reached (${toolDenialCount}/${maxToolDenialsLimit})`);
+    log(`${catastrophicToolDenialsError.message}; stopping SDK session early`);
+    if (session) {
+      void session.disconnect().catch(() => {
+        // best-effort early stop
+      });
+    }
+  }
 
   try {
     await client.start();
@@ -294,6 +374,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll, {
       coreLogger,
       logger: log,
+      onDenied: requestSummary => recordToolDenial(`permission denied: ${requestSummary}`),
     });
 
     /** @type {import("@github/copilot-sdk").SessionConfig} */
@@ -367,6 +448,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           const mcpServerName = pending?.mcpServerName ?? "";
           if (toolCallId) pendingToolCalls.delete(toolCallId);
           const success = event.data?.success ?? !event.data?.error;
+          // max-tool-denials intentionally tracks permission denials only.
+          // Tool execution failures are still logged, but do not increment the guardrail counter.
           writeEvent("tool.execution_complete", { toolName, mcpServerName, success }, event.timestamp);
           break;
         }
@@ -388,8 +471,12 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     });
 
     log("sending prompt...");
-    const sendTimeoutMs = Number(process.env.COPILOT_SDK_SEND_TIMEOUT_MS) || SDK_SEND_TIMEOUT_MS_DEFAULT;
+    const sendTimeoutMs = getEnvPositiveIntOrDefault("COPILOT_SDK_SEND_TIMEOUT_MS", SDK_SEND_TIMEOUT_MS_DEFAULT);
     const result = await session.sendAndWait({ prompt }, sendTimeoutMs);
+
+    if (catastrophicToolDenialsError) {
+      throw catastrophicToolDenialsError;
+    }
 
     // sendAndWait returns the last assistant.message event; capture its content
     // as a fallback in case the on() handler missed it.
@@ -407,10 +494,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    log(`error: ${err instanceof Error ? err.message : String(err)}`);
+    const failure = catastrophicToolDenialsError ?? (err instanceof Error ? err : new Error(String(err)));
+    log(`error: ${failure.message}`);
     return {
       exitCode: 1,
-      output: err instanceof Error ? err.message : String(err),
+      output: failure.message,
       hasOutput: false,
       durationMs,
     };

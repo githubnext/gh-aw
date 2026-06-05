@@ -223,6 +223,7 @@ function computeInferenceAIC(params) {
 function formatAIC(value) {
   if (!Number.isFinite(value) || value <= 0) return "";
   if (value >= 1000) {
+    /** @type {[number, string][]} */
     const units = [
       [1_000_000, "M"],
       [1_000, "K"],

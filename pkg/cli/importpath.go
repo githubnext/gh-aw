@@ -94,10 +94,10 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 	}
 
 	// 3. Absolute paths (starting with "/").
-	if strings.HasPrefix(importPath, "/") {
+	if withoutLeadingSlash, hasLeadingSlash := strings.CutPrefix(importPath, "/"); hasLeadingSlash {
 		if opts.RepoRelativeAbsolute {
 			// Strip "/" and return as a repo-relative string (no disk lookup).
-			return strings.TrimPrefix(importPath, "/")
+			return withoutLeadingSlash
 		}
 		if !opts.UseParserFallback {
 			// Resolve against the git root on disk.
@@ -109,7 +109,7 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 					return ""
 				}
 			}
-			return filepath.Join(gitRoot, strings.TrimPrefix(importPath, "/"))
+			return filepath.Join(gitRoot, withoutLeadingSlash)
 		}
 		// UseParserFallback=true: fall through to parser resolution below.
 	}

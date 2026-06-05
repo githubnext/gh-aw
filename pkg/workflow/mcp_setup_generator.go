@@ -295,7 +295,13 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 			}
 		}
 	}
-	validationConfigJSON, err := GetValidationConfigJSON(enabledTypes)
+	// Propagate mentions config to the collection pass so that allowed @-mentions
+	// (e.g. "@copilot") are not backtick-escaped before publish-side handlers run.
+	var mentionsBlock map[string]any
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.Mentions != nil {
+		mentionsBlock = buildMentionsHandlerConfig(workflowData.SafeOutputs.Mentions)
+	}
+	validationConfigJSON, err := GetValidationConfigJSON(enabledTypes, mentionsBlock)
 	if err != nil {
 		mcpSetupGeneratorLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 		validationConfigJSON = "{}"

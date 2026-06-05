@@ -63,6 +63,26 @@ func parseMaxTurnsValue(raw any) string {
 	return ""
 }
 
+func parseMaxToolDenialsValue(raw any) string {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
+		return strconv.Itoa(val)
+	}
+	if rawStr, ok := raw.(string); ok {
+		trimmed := strings.TrimSpace(rawStr)
+		if trimmed == "" {
+			return ""
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
+			return strconv.Itoa(parsed)
+		}
+		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
+			return trimmed
+		}
+		engineLog.Printf("Ignoring invalid max-tool-denials value: %q", rawStr)
+	}
+	return ""
+}
+
 // parseAuthDefinition converts a raw auth config map (from engine.provider.auth) into
 // an AuthDefinition. It is backward-compatible: a map with only a "secret" key produces
 // an AuthDefinition with Strategy="" and Secret set (callers normalise Strategy to api-key).

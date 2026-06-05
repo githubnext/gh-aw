@@ -32,6 +32,7 @@ type EngineConfig struct {
 	Model              string
 	PermissionMode     string
 	MaxTurns           string
+	MaxToolDenials     string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
 	MaxRuns            int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
 	MaxContinuations   int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
 	MaxEffectiveTokens int64  // Maximum allowed effective tokens (ET) budget for AWF apiProxy firewall enforcement
@@ -160,6 +161,7 @@ func (e *EngineConfig) GetMaxRuns() int {
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
 	topLevelMaxTurns := parseMaxTurnsValue(frontmatter["max-turns"])
+	topLevelMaxToolDenials := parseMaxToolDenialsValue(frontmatter["max-tool-denials"])
 	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
 	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-runs"])
 
@@ -172,6 +174,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			return engineStr, &EngineConfig{
 				ID:                 engineStr,
 				MaxTurns:           topLevelMaxTurns,
+				MaxToolDenials:     topLevelMaxToolDenials,
 				MaxRuns:            topLevelMaxRuns,
 				MaxEffectiveTokens: topLevelMaxEffectiveTokens,
 			}
@@ -246,6 +249,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				if topLevelMaxTurns != "" {
 					config.MaxTurns = topLevelMaxTurns
 				}
+				if topLevelMaxToolDenials != "" {
+					config.MaxToolDenials = topLevelMaxToolDenials
+				}
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
@@ -287,6 +293,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 			if topLevelMaxTurns != "" {
 				config.MaxTurns = topLevelMaxTurns
+			}
+			if topLevelMaxToolDenials != "" {
+				config.MaxToolDenials = topLevelMaxToolDenials
 			}
 
 			// Extract optional 'max-continuations' field
@@ -502,9 +511,10 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		}
 	}
 
-	if topLevelMaxTurns != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxRuns > 0 {
+	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxRuns > 0 {
 		return "", &EngineConfig{
 			MaxTurns:           topLevelMaxTurns,
+			MaxToolDenials:     topLevelMaxToolDenials,
 			MaxRuns:            topLevelMaxRuns,
 			MaxEffectiveTokens: topLevelMaxEffectiveTokens,
 		}
