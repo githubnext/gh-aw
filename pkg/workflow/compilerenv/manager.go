@@ -68,10 +68,8 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 }
 
 // ResolveDefaultMaxDailyAICredits returns the resolved daily AI Credits guardrail
-// default, checking enterprise env vars in order of precedence:
-//  1. GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS (preferred)
-//  2. GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS (deprecated; accepted with a warning)
-//  3. fallback (built-in default when neither env var is set)
+// default, checking the enterprise env var GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS.
+// Falls back to fallback (built-in default) when the env var is unset or invalid.
 //
 // A value of -1 is preserved to allow explicitly disabling the guardrail.
 func ResolveDefaultMaxDailyAICredits(fallback string) string {
@@ -85,19 +83,6 @@ func ResolveDefaultMaxDailyAICredits(fallback string) string {
 			return normalized
 		}
 		managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyAICredits, raw, fallback)
-		return fallback
-	}
-	if raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyEffectiveTokens)); raw != "" {
-		managerLog.Printf("WARNING: %s is deprecated; use %s instead", DefaultMaxDailyEffectiveTokens, DefaultMaxDailyAICredits)
-		if raw == "-1" {
-			managerLog.Printf("Applying deprecated enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, raw, fallback)
-			return "-1"
-		}
-		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
-			managerLog.Printf("Applying deprecated enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, normalized, fallback)
-			return normalized
-		}
-		managerLog.Printf("Invalid deprecated %s=%q, using fallback=%q", DefaultMaxDailyEffectiveTokens, raw, fallback)
 	}
 	return fallback
 }
