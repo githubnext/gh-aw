@@ -2,449 +2,560 @@
   "providers": {
     "anthropic": {
       "models": {
-        "claude-opus-4.7-fast": {
+        "claude-opus-4-5": {
           "cost": {
-            "input": "0.00003",
-            "output": "0.00015",
-            "web_search": "0.01",
-            "cache_read": "0.000003",
-            "cache_write": "0.0000375"
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
           }
         },
-        "claude-opus-4.7": {
+        "claude-sonnet-4-6": {
           "cost": {
-            "input": "0.000005",
-            "output": "0.000025",
-            "web_search": "0.01",
-            "cache_read": "0.0000005",
-            "cache_write": "0.00000625"
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
           }
         },
-        "claude-opus-4.6-fast": {
+        "claude-haiku-4-5-20251001": {
           "cost": {
-            "input": "0.00003",
-            "output": "0.00015",
-            "web_search": "0.01",
-            "cache_read": "0.000003",
-            "cache_write": "0.0000375"
+            "input": "1e-06",
+            "output": "5e-06",
+            "cache_read": "1.0000000000000001e-07",
+            "cache_write": "1.25e-06"
           }
         },
-        "claude-sonnet-4.6": {
+        "claude-sonnet-4-0": {
           "cost": {
-            "input": "0.000003",
-            "output": "0.000015",
-            "web_search": "0.01",
-            "cache_read": "0.0000003",
-            "cache_write": "0.00000375"
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
           }
         },
-        "claude-opus-4.6": {
+        "claude-haiku-4-5": {
           "cost": {
-            "input": "0.000005",
-            "output": "0.000025",
-            "web_search": "0.01",
-            "cache_read": "0.0000005",
-            "cache_write": "0.00000625"
+            "input": "1e-06",
+            "output": "5e-06",
+            "cache_read": "1.0000000000000001e-07",
+            "cache_write": "1.25e-06"
           }
         },
-        "claude-opus-4.5": {
+        "claude-opus-4-20250514": {
           "cost": {
-            "input": "0.000005",
-            "output": "0.000025",
-            "web_search": "0.01",
-            "cache_read": "0.0000005",
-            "cache_write": "0.00000625"
+            "input": "1.5e-05",
+            "output": "7.5e-05",
+            "cache_read": "1.5e-06",
+            "cache_write": "1.875e-05"
           }
         },
-        "claude-haiku-4.5": {
+        "claude-opus-4-1": {
           "cost": {
-            "input": "0.000001",
-            "output": "0.000005",
-            "web_search": "0.01",
-            "cache_read": "0.0000001",
-            "cache_write": "0.00000125"
+            "input": "1.5e-05",
+            "output": "7.5e-05",
+            "cache_read": "1.5e-06",
+            "cache_write": "1.875e-05"
           }
         },
-        "claude-sonnet-4.5": {
+        "claude-3-opus-20240229": {
           "cost": {
-            "input": "0.000003",
-            "output": "0.000015",
-            "web_search": "0.01",
-            "cache_read": "0.0000003",
-            "cache_write": "0.00000375"
+            "input": "1.5e-05",
+            "output": "7.5e-05",
+            "cache_read": "1.5e-06",
+            "cache_write": "1.875e-05"
           }
         },
-        "claude-opus-4.1": {
+        "claude-3-5-haiku-latest": {
           "cost": {
-            "input": "0.000015",
-            "output": "0.000075",
-            "web_search": "0.01",
-            "cache_read": "0.0000015",
-            "cache_write": "0.00001875"
+            "input": "8.000000000000001e-07",
+            "output": "4e-06",
+            "cache_read": "8e-08",
+            "cache_write": "1e-06"
           }
         },
-        "claude-opus-4": {
+        "claude-sonnet-4-5-20250929": {
           "cost": {
-            "input": "0.000015",
-            "output": "0.000075",
-            "web_search": "0.01",
-            "cache_read": "0.0000015",
-            "cache_write": "0.00001875"
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "claude-3-5-haiku-20241022": {
+          "cost": {
+            "input": "8.000000000000001e-07",
+            "output": "4e-06",
+            "cache_read": "8e-08",
+            "cache_write": "1e-06"
+          }
+        },
+        "claude-opus-4-1-20250805": {
+          "cost": {
+            "input": "1.5e-05",
+            "output": "7.5e-05",
+            "cache_read": "1.5e-06",
+            "cache_write": "1.875e-05"
+          }
+        },
+        "claude-3-7-sonnet-20250219": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "claude-3-5-sonnet-20240620": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "claude-3-5-sonnet-20241022": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "claude-opus-4-5-20251101": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "claude-opus-4-8": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "claude-3-haiku-20240307": {
+          "cost": {
+            "input": "2.5e-07",
+            "output": "1.25e-06",
+            "cache_read": "3e-08",
+            "cache_write": "3e-07"
+          }
+        },
+        "claude-sonnet-4-20250514": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "claude-sonnet-4-5": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "claude-opus-4-6": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "claude-opus-4-7": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "claude-3-sonnet-20240229": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3e-07"
+          }
+        },
+        "claude-opus-4-0": {
+          "cost": {
+            "input": "1.5e-05",
+            "output": "7.5e-05",
+            "cache_read": "1.5e-06",
+            "cache_write": "1.875e-05"
+          }
+        }
+      }
+    },
+    "github-copilot": {
+      "models": {
+        "raptor-mini": {
+          "cost": {
+            "input": "2.5e-07",
+            "output": "2e-06",
+            "cache_read": "2.5000000000000002e-08"
           }
         },
         "claude-sonnet-4": {
           "cost": {
-            "input": "0.000003",
-            "output": "0.000015",
-            "web_search": "0.01",
-            "cache_read": "0.0000003",
-            "cache_write": "0.00000375"
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
           }
         },
-        "claude-3.5-haiku": {
+        "gpt-5-mini": {
           "cost": {
-            "input": "0.0000008",
-            "output": "0.000004",
-            "web_search": "0.01",
-            "cache_read": "0.00000008",
-            "cache_write": "0.000001"
+            "input": "2.5e-07",
+            "output": "2e-06",
+            "cache_read": "2.5000000000000002e-08"
           }
         },
-        "claude-3-haiku": {
+        "gpt-5.2": {
           "cost": {
-            "input": "0.00000025",
-            "output": "0.00000125",
-            "cache_read": "0.00000003",
-            "cache_write": "0.0000003"
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
+          }
+        },
+        "claude-sonnet-4.6": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "gpt-5.4": {
+          "cost": {
+            "input": "2.5e-06",
+            "output": "1.5e-05",
+            "cache_read": "2.5e-07"
+          }
+        },
+        "gemini-3-flash-preview": {
+          "cost": {
+            "input": "5e-07",
+            "output": "3e-06",
+            "cache_read": "5.0000000000000004e-08",
+            "input_audio": "1e-06"
+          }
+        },
+        "gpt-5.5": {
+          "cost": {
+            "input": "5e-06",
+            "output": "3e-05",
+            "cache_read": "5e-07"
+          }
+        },
+        "claude-opus-4.5": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "claude-opus-4.7": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "gemini-2.5-pro": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
+        "gpt-4.1": {
+          "cost": {
+            "input": "2e-06",
+            "output": "8e-06",
+            "cache_read": "5e-07"
+          }
+        },
+        "gpt-5.4-nano": {
+          "cost": {
+            "input": "2.0000000000000002e-07",
+            "output": "1.25e-06",
+            "cache_read": "2e-08"
+          }
+        },
+        "gemini-3.1-pro-preview": {
+          "cost": {
+            "input": "2e-06",
+            "output": "1.2e-05",
+            "cache_read": "2.0000000000000002e-07"
+          }
+        },
+        "gpt-5.3-codex": {
+          "cost": {
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
+          }
+        },
+        "gemini-3.5-flash": {
+          "cost": {
+            "input": "1.5e-06",
+            "output": "9e-06",
+            "cache_read": "1.5e-07",
+            "input_audio": "1.5e-06"
+          }
+        },
+        "claude-sonnet-4.5": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          }
+        },
+        "gpt-5.2-codex": {
+          "cost": {
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
+          }
+        },
+        "claude-opus-4.6": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "claude-haiku-4.5": {
+          "cost": {
+            "input": "1e-06",
+            "output": "5e-06",
+            "cache_read": "1.0000000000000001e-07",
+            "cache_write": "1.25e-06"
+          }
+        },
+        "claude-opus-4.8": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          }
+        },
+        "gpt-5.4-mini": {
+          "cost": {
+            "input": "7.5e-07",
+            "output": "4.5e-06",
+            "cache_read": "7.5e-08"
           }
         }
       }
     },
     "openai": {
       "models": {
-        "gpt-chat-latest": {
+        "gpt-4o-2024-08-06": {
           "cost": {
-            "input": "0.000005",
-            "output": "0.00003",
-            "web_search": "0.01",
-            "cache_read": "0.0000005"
-          }
-        },
-        "gpt-5.5-pro": {
-          "cost": {
-            "input": "0.00003",
-            "output": "0.00018",
-            "web_search": "0.01"
-          }
-        },
-        "gpt-5.5": {
-          "cost": {
-            "input": "0.000005",
-            "output": "0.00003",
-            "web_search": "0.01",
-            "cache_read": "0.0000005"
-          }
-        },
-        "gpt-5.4-image-2": {
-          "cost": {
-            "input": "0.000008",
-            "output": "0.000015",
-            "web_search": "0.01",
-            "cache_read": "0.000002"
-          }
-        },
-        "gpt-5.4-nano": {
-          "cost": {
-            "input": "0.0000002",
-            "output": "0.00000125",
-            "web_search": "0.01",
-            "cache_read": "0.00000002"
-          }
-        },
-        "gpt-5.4-mini": {
-          "cost": {
-            "input": "0.00000075",
-            "output": "0.0000045",
-            "web_search": "0.01",
-            "cache_read": "0.000000075"
-          }
-        },
-        "gpt-5.4-pro": {
-          "cost": {
-            "input": "0.00003",
-            "output": "0.00018",
-            "web_search": "0.01"
-          }
-        },
-        "gpt-5.4": {
-          "cost": {
-            "input": "0.0000025",
-            "output": "0.000015",
-            "web_search": "0.01",
-            "cache_read": "0.00000025"
-          }
-        },
-        "gpt-5.3-chat": {
-          "cost": {
-            "input": "0.00000175",
-            "output": "0.000014",
-            "web_search": "0.01",
-            "cache_read": "0.000000175"
-          }
-        },
-        "gpt-5.3-codex": {
-          "cost": {
-            "input": "0.00000175",
-            "output": "0.000014",
-            "web_search": "0.01",
-            "cache_read": "0.000000175"
-          }
-        },
-        "gpt-audio": {
-          "cost": {
-            "input": "0.0000025",
-            "output": "0.00001",
-            "audio": "0.000032"
-          }
-        },
-        "gpt-audio-mini": {
-          "cost": {
-            "input": "0.0000006",
-            "output": "0.0000024",
-            "audio": "0.0000006"
-          }
-        },
-        "gpt-5.2-codex": {
-          "cost": {
-            "input": "0.00000175",
-            "output": "0.000014",
-            "cache_read": "0.000000175"
-          }
-        },
-        "gpt-5.2-chat": {
-          "cost": {
-            "input": "0.00000175",
-            "output": "0.000014",
-            "cache_read": "0.000000175"
-          }
-        },
-        "gpt-5.2-pro": {
-          "cost": {
-            "input": "0.000021",
-            "output": "0.000168",
-            "web_search": "0.01"
-          }
-        },
-        "gpt-5.2": {
-          "cost": {
-            "input": "0.00000175",
-            "output": "0.000014",
-            "cache_read": "0.000000175"
-          }
-        },
-        "gpt-5.1-codex-max": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "web_search": "0.01",
-            "cache_read": "0.000000125"
-          }
-        },
-        "gpt-5.1": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "cache_read": "0.00000013"
-          }
-        },
-        "gpt-5.1-chat": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "web_search": "0.01",
-            "cache_read": "0.000000125"
-          }
-        },
-        "gpt-5.1-codex": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "cache_read": "0.000000125"
-          }
-        },
-        "gpt-5.1-codex-mini": {
-          "cost": {
-            "input": "0.00000025",
-            "output": "0.000002",
-            "cache_read": "0.00000003"
-          }
-        },
-        "gpt-oss-safeguard-20b": {
-          "cost": {
-            "input": "0.000000075",
-            "output": "0.0000003",
-            "cache_read": "0.000000037"
-          }
-        },
-        "gpt-5-image-mini": {
-          "cost": {
-            "input": "0.0000025",
-            "output": "0.000002",
-            "web_search": "0.01",
-            "cache_read": "0.00000025"
-          }
-        },
-        "gpt-5-image": {
-          "cost": {
-            "input": "0.00001",
-            "output": "0.00001",
-            "web_search": "0.01",
-            "cache_read": "0.00000125"
-          }
-        },
-        "o3-deep-research": {
-          "cost": {
-            "input": "0.00001",
-            "output": "0.00004",
-            "web_search": "0.01",
-            "cache_read": "0.0000025"
-          }
-        },
-        "o4-mini-deep-research": {
-          "cost": {
-            "input": "0.000002",
-            "output": "0.000008",
-            "web_search": "0.01",
-            "cache_read": "0.0000005"
+            "input": "2.5e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-06"
           }
         },
         "gpt-5-pro": {
           "cost": {
-            "input": "0.000015",
-            "output": "0.00012",
-            "web_search": "0.01"
-          }
-        },
-        "gpt-5-codex": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "cache_read": "0.000000125"
-          }
-        },
-        "gpt-4o-audio-preview": {
-          "cost": {
-            "input": "0.0000025",
-            "output": "0.00001",
-            "audio": "0.00004"
-          }
-        },
-        "gpt-5-chat": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "web_search": "0.01",
-            "cache_read": "0.000000125"
-          }
-        },
-        "gpt-5": {
-          "cost": {
-            "input": "0.00000125",
-            "output": "0.00001",
-            "cache_read": "0.000000125"
+            "input": "1.5e-05",
+            "output": "0.00012"
           }
         },
         "gpt-5-mini": {
           "cost": {
-            "input": "0.00000025",
-            "output": "0.000002",
-            "web_search": "0.01",
-            "cache_read": "0.000000025"
+            "input": "2.5e-07",
+            "output": "2e-06",
+            "cache_read": "2.5000000000000002e-08"
           }
         },
-        "gpt-5-nano": {
+        "gpt-image-1": {
+          "cost": {}
+        },
+        "gpt-4o": {
           "cost": {
-            "input": "0.00000005",
-            "output": "0.0000004",
-            "cache_read": "0.00000001"
+            "input": "2.5e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-06"
           }
         },
-        "gpt-oss-120b:free": {
+        "gpt-5.2": {
           "cost": {
-            "input": "0",
-            "output": "0"
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
           }
         },
-        "gpt-oss-120b": {
+        "gpt-5-chat-latest": {
           "cost": {
-            "input": "0.000000039",
-            "output": "0.00000018"
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
           }
         },
-        "gpt-oss-20b:free": {
+        "gpt-5-codex": {
           "cost": {
-            "input": "0",
-            "output": "0"
-          }
-        },
-        "gpt-oss-20b": {
-          "cost": {
-            "input": "0.00000003",
-            "output": "0.00000014"
-          }
-        },
-        "o3-pro": {
-          "cost": {
-            "input": "0.00002",
-            "output": "0.00008",
-            "web_search": "0.01"
-          }
-        },
-        "o4-mini-high": {
-          "cost": {
-            "input": "0.0000011",
-            "output": "0.0000044",
-            "web_search": "0.01",
-            "cache_read": "0.000000275"
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
           }
         },
         "o3": {
           "cost": {
-            "input": "0.000002",
-            "output": "0.000008",
-            "web_search": "0.01",
-            "cache_read": "0.0000005"
+            "input": "2e-06",
+            "output": "8e-06",
+            "cache_read": "5e-07"
           }
         },
-        "o4-mini": {
+        "gpt-5.3-chat-latest": {
           "cost": {
-            "input": "0.0000011",
-            "output": "0.0000044",
-            "web_search": "0.01",
-            "cache_read": "0.000000275"
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
           }
         },
-        "gpt-4.1": {
+        "text-embedding-3-small": {
           "cost": {
-            "input": "0.000002",
-            "output": "0.000008",
-            "cache_read": "0.0000005"
+            "input": "2e-08",
+            "output": "0"
+          }
+        },
+        "gpt-4o-2024-11-20": {
+          "cost": {
+            "input": "2.5e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-06"
+          }
+        },
+        "gpt-5": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
+        "gpt-image-1-mini": {
+          "cost": {}
+        },
+        "gpt-5.4-pro": {
+          "cost": {
+            "input": "3e-05",
+            "output": "0.00018"
           }
         },
         "gpt-4.1-mini": {
           "cost": {
-            "input": "0.0000004",
-            "output": "0.0000016",
-            "web_search": "0.01",
-            "cache_read": "0.0000001"
+            "input": "4.0000000000000003e-07",
+            "output": "1.6000000000000001e-06",
+            "cache_read": "1.0000000000000001e-07"
           }
         },
-        "gpt-4.1-nano": {
+        "text-embedding-3-large": {
           "cost": {
-            "input": "0.0000001",
-            "output": "0.0000004",
-            "web_search": "0.01",
-            "cache_read": "0.000000025"
+            "input": "1.3e-07",
+            "output": "0"
+          }
+        },
+        "gpt-5.2-pro": {
+          "cost": {
+            "input": "2.1e-05",
+            "output": "0.000168"
+          }
+        },
+        "o3-pro": {
+          "cost": {
+            "input": "2e-05",
+            "output": "8e-05"
+          }
+        },
+        "o4-mini": {
+          "cost": {
+            "input": "1.1e-06",
+            "output": "4.4e-06",
+            "cache_read": "2.75e-07"
+          }
+        },
+        "gpt-5.4": {
+          "cost": {
+            "input": "2.5e-06",
+            "output": "1.5e-05",
+            "cache_read": "2.5e-07"
+          }
+        },
+        "o3-mini": {
+          "cost": {
+            "input": "1.1e-06",
+            "output": "4.4e-06",
+            "cache_read": "5.5e-07"
+          }
+        },
+        "gpt-5.5": {
+          "cost": {
+            "input": "5e-06",
+            "output": "3e-05",
+            "cache_read": "5e-07"
+          }
+        },
+        "gpt-5.2-chat-latest": {
+          "cost": {
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
+          }
+        },
+        "gpt-5.1": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
+        "gpt-5-nano": {
+          "cost": {
+            "input": "5.0000000000000004e-08",
+            "output": "4.0000000000000003e-07",
+            "cache_read": "5e-09"
+          }
+        },
+        "gpt-4o-mini": {
+          "cost": {
+            "input": "1.5e-07",
+            "output": "6e-07",
+            "cache_read": "7.5e-08"
+          }
+        },
+        "chatgpt-image-latest": {
+          "cost": {}
+        },
+        "gpt-5.1-codex-max": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
+        "gpt-5.1-codex-mini": {
+          "cost": {
+            "input": "2.5e-07",
+            "output": "2e-06",
+            "cache_read": "2.5000000000000002e-08"
           }
         },
         "o1-pro": {
@@ -453,133 +564,142 @@
             "output": "0.0006"
           }
         },
-        "gpt-4o-mini-search-preview": {
+        "text-embedding-ada-002": {
           "cost": {
-            "input": "0.00000015",
-            "output": "0.0000006",
-            "web_search": "0.0275"
+            "input": "1.0000000000000001e-07",
+            "output": "0"
           }
         },
-        "gpt-4o-search-preview": {
+        "o3-deep-research": {
           "cost": {
-            "input": "0.0000025",
-            "output": "0.00001",
-            "web_search": "0.035"
+            "input": "1e-05",
+            "output": "4e-05",
+            "cache_read": "2.5e-06"
           }
         },
-        "o3-mini-high": {
+        "gpt-4.1": {
           "cost": {
-            "input": "0.0000011",
-            "output": "0.0000044",
-            "cache_read": "0.00000055"
+            "input": "2e-06",
+            "output": "8e-06",
+            "cache_read": "5e-07"
           }
         },
-        "o3-mini": {
+        "gpt-5.4-nano": {
           "cost": {
-            "input": "0.0000011",
-            "output": "0.0000044",
-            "cache_read": "0.00000055"
+            "input": "2.0000000000000002e-07",
+            "output": "1.25e-06",
+            "cache_read": "2e-08"
           }
         },
-        "o1": {
+        "gpt-5.3-codex": {
           "cost": {
-            "input": "0.000015",
-            "output": "0.00006",
-            "cache_read": "0.0000075"
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
           }
         },
-        "gpt-4o-2024-11-20": {
+        "gpt-5.3-codex-spark": {
           "cost": {
-            "input": "0.0000025",
-            "output": "0.00001",
-            "cache_read": "0.00000125"
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
           }
         },
-        "gpt-4o-2024-08-06": {
+        "gpt-5.5-pro": {
           "cost": {
-            "input": "0.0000025",
-            "output": "0.00001",
-            "cache_read": "0.00000125"
+            "input": "3e-05",
+            "output": "0.00018"
           }
         },
-        "gpt-4o-mini-2024-07-18": {
+        "o4-mini-deep-research": {
           "cost": {
-            "input": "0.00000015",
-            "output": "0.0000006",
-            "cache_read": "0.000000075"
-          }
-        },
-        "gpt-4o-mini": {
-          "cost": {
-            "input": "0.00000015",
-            "output": "0.0000006",
-            "cache_read": "0.000000075"
-          }
-        },
-        "gpt-4o": {
-          "cost": {
-            "input": "0.0000025",
-            "output": "0.00001"
-          }
-        },
-        "gpt-4o-2024-05-13": {
-          "cost": {
-            "input": "0.000005",
-            "output": "0.000015"
-          }
-        },
-        "gpt-4-turbo": {
-          "cost": {
-            "input": "0.00001",
-            "output": "0.00003"
-          }
-        },
-        "gpt-3.5-turbo-0613": {
-          "cost": {
-            "input": "0.000001",
-            "output": "0.000002"
-          }
-        },
-        "gpt-4-turbo-preview": {
-          "cost": {
-            "input": "0.00001",
-            "output": "0.00003"
-          }
-        },
-        "gpt-4-1106-preview": {
-          "cost": {
-            "input": "0.00001",
-            "output": "0.00003"
-          }
-        },
-        "gpt-3.5-turbo-instruct": {
-          "cost": {
-            "input": "0.0000015",
-            "output": "0.000002"
-          }
-        },
-        "gpt-3.5-turbo-16k": {
-          "cost": {
-            "input": "0.000003",
-            "output": "0.000004"
-          }
-        },
-        "gpt-4-0314": {
-          "cost": {
-            "input": "0.00003",
-            "output": "0.00006"
-          }
-        },
-        "gpt-4": {
-          "cost": {
-            "input": "0.00003",
-            "output": "0.00006"
+            "input": "2e-06",
+            "output": "8e-06",
+            "cache_read": "5e-07"
           }
         },
         "gpt-3.5-turbo": {
           "cost": {
-            "input": "0.0000005",
-            "output": "0.0000015"
+            "input": "5e-07",
+            "output": "1.5e-06",
+            "cache_read": "0"
+          }
+        },
+        "gpt-5.2-codex": {
+          "cost": {
+            "input": "1.75e-06",
+            "output": "1.4e-05",
+            "cache_read": "1.75e-07"
+          }
+        },
+        "o1-mini": {
+          "cost": {
+            "input": "1.1e-06",
+            "output": "4.4e-06",
+            "cache_read": "5.5e-07"
+          }
+        },
+        "gpt-5.1-codex": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
+        "gpt-4o-2024-05-13": {
+          "cost": {
+            "input": "5e-06",
+            "output": "1.5e-05"
+          }
+        },
+        "o1-preview": {
+          "cost": {
+            "input": "1.5e-05",
+            "output": "6e-05",
+            "cache_read": "7.5e-06"
+          }
+        },
+        "gpt-5.4-mini": {
+          "cost": {
+            "input": "7.5e-07",
+            "output": "4.5e-06",
+            "cache_read": "7.5e-08"
+          }
+        },
+        "gpt-4-turbo": {
+          "cost": {
+            "input": "1e-05",
+            "output": "3e-05"
+          }
+        },
+        "gpt-5.1-chat-latest": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
+        "o1": {
+          "cost": {
+            "input": "1.5e-05",
+            "output": "6e-05",
+            "cache_read": "7.5e-06"
+          }
+        },
+        "gpt-4": {
+          "cost": {
+            "input": "3e-05",
+            "output": "6e-05"
+          }
+        },
+        "gpt-image-1.5": {
+          "cost": {}
+        },
+        "gpt-4.1-nano": {
+          "cost": {
+            "input": "1.0000000000000001e-07",
+            "output": "4.0000000000000003e-07",
+            "cache_read": "2.5000000000000002e-08"
           }
         }
       }
