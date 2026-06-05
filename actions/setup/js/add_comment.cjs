@@ -30,6 +30,8 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
+// Keep the full list of accepted explicit wildcard target fields (including aliases
+// pre-handled by resolveSafeOutputIssueTarget) to preserve a defensive boundary check.
 const WILDCARD_TARGET_FIELDS = ["item_number", "issue_number", "pull_request_number", "pr_number", "pr", "pull_number"];
 
 /**
@@ -507,14 +509,15 @@ async function main(config = {}) {
           if (targetResult.shouldFail) {
             const hasExplicitWildcardTargetField = WILDCARD_TARGET_FIELDS.some(field => message[field] != null);
             const missingWildcardTarget = commentTarget === "*" && !hasExplicitWildcardTargetField;
-            core.warning(targetResult.error);
             if (missingWildcardTarget) {
+              core.info(targetResult.error);
               return {
                 success: false,
                 skipped: true,
                 error: targetResult.error,
               };
             }
+            core.warning(targetResult.error);
             return {
               success: false,
               error: targetResult.error,
