@@ -946,7 +946,7 @@ Model parameters are compile-time configuration values and are not derived from 
 ### Informative References
 
 - **[AWF-ENGINES]** GitHub Agentic Workflows — AI Engines reference. <https://gh-aw.pages.dev/reference/engines/>
-- **[AWF-ET-SPEC]** GitHub Agentic Workflows — Effective Tokens Specification. <https://gh-aw.pages.dev/reference/effective-tokens-specification/>
+- **[AWF-ET-SPEC]** GitHub Agentic Workflows — Effective Tokens Specification. <https://gh-aw.pages.dev/specs/effective-tokens-specification/>
 - **[ANTHROPIC-THINKING]** Anthropic — Extended Thinking documentation. <https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking>
 - **[OPENAI-REASONING]** OpenAI — Reasoning models guide. <https://platform.openai.com/docs/guides/reasoning>
 
