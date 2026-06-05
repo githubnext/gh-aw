@@ -14,6 +14,12 @@ def read_required_env(name: str) -> str:
     return value
 
 
+def clear_platform_auth_tokens() -> None:
+    os.environ.pop("GITHUB_TOKEN", None)
+    os.environ.pop("COPILOT_GITHUB_TOKEN", None)
+    os.environ.pop("GH_TOKEN", None)
+
+
 def extract_assistant_content(message: object) -> str:
     data = getattr(message, "data", None)
     content = getattr(data, "content", None)
@@ -26,6 +32,7 @@ def extract_assistant_content(message: object) -> str:
 
 
 async def main() -> int:
+    clear_platform_auth_tokens()
     prompt_path = read_required_env("GH_AW_PROMPT")
     sdk_uri = read_required_env("COPILOT_SDK_URI")
     connection_token = read_required_env("COPILOT_CONNECTION_TOKEN")

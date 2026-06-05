@@ -12,6 +12,12 @@ function readRequiredEnv(name) {
   return value;
 }
 
+function clearPlatformAuthTokens() {
+  delete process.env.GITHUB_TOKEN;
+  delete process.env.COPILOT_GITHUB_TOKEN;
+  delete process.env.GH_TOKEN;
+}
+
 function extractAssistantContent(message) {
   if (!message || typeof message !== "object") {
     return "";
@@ -27,6 +33,7 @@ function extractAssistantContent(message) {
 }
 
 async function main() {
+  clearPlatformAuthTokens();
   const promptPath = readRequiredEnv("GH_AW_PROMPT");
   const sdkUri = readRequiredEnv("COPILOT_SDK_URI");
   const connectionToken = readRequiredEnv("COPILOT_CONNECTION_TOKEN");

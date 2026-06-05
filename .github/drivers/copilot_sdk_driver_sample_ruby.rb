@@ -14,6 +14,12 @@ NODE_DRIVER = <<~'JS'
     return value;
   }
 
+  function clearPlatformAuthTokens() {
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.COPILOT_GITHUB_TOKEN;
+    delete process.env.GH_TOKEN;
+  }
+
   function extractAssistantContent(message) {
     if (!message || typeof message !== "object") {
       return "";
@@ -29,6 +35,7 @@ NODE_DRIVER = <<~'JS'
   }
 
   async function main() {
+    clearPlatformAuthTokens();
     const promptPath = requiredEnv("GH_AW_PROMPT");
     const sdkUri = requiredEnv("COPILOT_SDK_URI");
     const connectionToken = requiredEnv("COPILOT_CONNECTION_TOKEN");
