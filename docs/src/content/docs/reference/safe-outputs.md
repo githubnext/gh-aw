@@ -72,7 +72,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Dispatch Repository Event**](#repository-dispatch-dispatch_repository) (`dispatch_repository`) - Trigger `repository_dispatch` events in external repositories, experimental (cross-repo)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) - Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) - Create automated fixes for code scanning alerts (max: 10, same-repo only)
-- [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
+- [**Create Agent Session**](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
 
 ### System Types (Auto-Enabled)
 
@@ -1311,6 +1311,8 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
+See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#create-agent-session)** for full details and authentication setup.
+
 ### Assign to Agent (`assign-to-agent:`)
 
 Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
@@ -1332,7 +1334,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-See **[Assign to Copilot](/gh-aw/reference/assign-to-copilot/)** for complete configuration options and authorization setup.
+See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#assign-to-agent)** for complete configuration options and authorization setup.
 
 If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
 
