@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateMaxToolFailureSupport(t *testing.T) {
+func TestValidateMaxToolDenialsSupport(t *testing.T) {
 	t.Parallel()
 
 	compiler := NewCompiler()
@@ -27,49 +27,49 @@ func TestValidateMaxToolFailureSupport(t *testing.T) {
 		expectError string
 	}{
 		{
-			name: "no max-tool-failure",
+			name: "no max-tool-denials",
 			frontmatter: map[string]any{
 				"engine": "claude",
 			},
 			engine: claudeEngine,
 		},
 		{
-			name: "copilot sdk with max-tool-failure",
+			name: "copilot sdk with max-tool-denials",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id":          "copilot",
 					"copilot-sdk": true,
 				},
-				"max-tool-failure": 6,
+				"max-tool-denials": 6,
 			},
 			engine: copilotEngine,
 		},
 		{
-			name: "copilot without sdk rejects max-tool-failure",
+			name: "copilot without sdk rejects max-tool-denials",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id": "copilot",
 				},
-				"max-tool-failure": 6,
+				"max-tool-denials": 6,
 			},
 			engine:      copilotEngine,
 			expectError: "requires Copilot SDK mode",
 		},
 		{
-			name: "non-copilot rejects max-tool-failure",
+			name: "non-copilot rejects max-tool-denials",
 			frontmatter: map[string]any{
 				"engine":           "claude",
-				"max-tool-failure": 6,
+				"max-tool-denials": 6,
 			},
 			engine:      claudeEngine,
-			expectError: "does not support max-tool-failure",
+			expectError: "does not support max-tool-denials",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := compiler.validateMaxToolFailureSupport(tt.frontmatter, tt.engine)
+			err := compiler.validateMaxToolDenialsSupport(tt.frontmatter, tt.engine)
 			if tt.expectError == "" {
 				require.NoError(t, err)
 				return

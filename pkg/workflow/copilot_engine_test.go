@@ -297,9 +297,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, expectedURI) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
 	}
-	expectedMaxToolFailure := constants.EnvVarMaxToolFailure + ": " + strconv.Itoa(constants.DefaultMaxToolFailure)
-	if !strings.Contains(stepContent, expectedMaxToolFailure) {
-		t.Fatalf("Expected %s in step env, got:\n%s", expectedMaxToolFailure, stepContent)
+	expectedMaxToolDenials := constants.EnvVarMaxToolDenials + ": " + strconv.Itoa(constants.DefaultMaxToolDenials)
+	if !strings.Contains(stepContent, expectedMaxToolDenials) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedMaxToolDenials, stepContent)
 	}
 	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from npm global root, got:\n%s", stepContent)
@@ -386,13 +386,13 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineExecutionStepsWithCopilotSDKMaxToolFailureOverride(t *testing.T) {
+func TestCopilotEngineExecutionStepsWithCopilotSDKMaxToolDenialsOverride(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
 			CopilotSDK:     true,
-			MaxToolFailure: "${{ inputs.max-tool-failure }}",
+			MaxToolDenials: "${{ inputs.max-tool-denials }}",
 		},
 	}
 
@@ -402,9 +402,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKMaxToolFailureOverride(t *test
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, constants.EnvVarMaxToolFailure+": ${{ inputs.max-tool-failure }}") &&
-		!strings.Contains(stepContent, constants.EnvVarMaxToolFailure+`: "${{ inputs.max-tool-failure }}"`) {
-		t.Fatalf("Expected %s to include workflow expression override, got:\n%s", constants.EnvVarMaxToolFailure, stepContent)
+	if !strings.Contains(stepContent, constants.EnvVarMaxToolDenials+": ${{ inputs.max-tool-denials }}") &&
+		!strings.Contains(stepContent, constants.EnvVarMaxToolDenials+`: "${{ inputs.max-tool-denials }}"`) {
+		t.Fatalf("Expected %s to include workflow expression override, got:\n%s", constants.EnvVarMaxToolDenials, stepContent)
 	}
 }
 

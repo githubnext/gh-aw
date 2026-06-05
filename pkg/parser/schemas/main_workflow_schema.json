@@ -3686,11 +3686,11 @@
       "description": "AWF turn cap (`max_turns`) applied consistently across all agentic engines. Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for reusable workflow_call workflows.",
       "examples": [15, "${{ inputs.max-turns }}"]
     },
-    "max-tool-failure": {
+    "max-tool-denials": {
       "$ref": "#/$defs/templatable_integer",
-      "description": "Copilot SDK safeguard threshold for repeated tool refusals/failures before stopping inference. Defaults to 5 when omitted. Supports GitHub Actions expressions (for example, '${{ inputs.max-tool-failure }}'). Supported only with engine 'copilot' and engine.copilot-sdk: true.",
+      "description": "Copilot SDK safeguard threshold for repeated tool denials before stopping inference. Defaults to 5 when omitted. Supports GitHub Actions expressions (for example, '${{ inputs.max-tool-denials }}'). Supported only with engine 'copilot' and engine.copilot-sdk: true.",
       "default": 5,
-      "examples": [5, "${{ inputs.max-tool-failure }}"]
+      "examples": [5, "${{ inputs.max-tool-denials }}"]
     },
     "max-effective-tokens": {
       "$ref": "#/$defs/max_effective_tokens_limit",

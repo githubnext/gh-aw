@@ -345,12 +345,12 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(approveAll).not.toHaveBeenCalled();
     });
 
-    it("stops session when permission-denied failures reach max-tool-failure threshold", async () => {
+    it("stops session when permission denials reach max-tool-denials threshold", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
       let sessionConfig;
       const session = {
-        sessionId: "session-max-tool-failure",
+        sessionId: "session-max-tool-denials",
         on: () => {},
         sendAndWait: vi.fn().mockImplementation(async () => {
           const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
@@ -370,8 +370,8 @@ describe("copilot_sdk_driver.cjs", () => {
         stop = stop;
       }
 
-      const oldMaxToolFailure = process.env.GH_AW_MAX_TOOL_FAILURE;
-      process.env.GH_AW_MAX_TOOL_FAILURE = "3";
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "3";
       try {
         const result = await runWithCopilotSDK({
           sdkUri: "http://127.0.0.1:3002",
@@ -388,13 +388,13 @@ describe("copilot_sdk_driver.cjs", () => {
         });
 
         expect(result.exitCode).toBe(1);
-        expect(result.output).toContain("max tool failure threshold reached");
+        expect(result.output).toContain("max tool denials threshold reached");
         expect(disconnect).toHaveBeenCalled();
       } finally {
-        if (oldMaxToolFailure === undefined) {
-          delete process.env.GH_AW_MAX_TOOL_FAILURE;
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
         } else {
-          process.env.GH_AW_MAX_TOOL_FAILURE = oldMaxToolFailure;
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
         }
       }
     });

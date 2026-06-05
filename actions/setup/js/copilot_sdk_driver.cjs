@@ -45,7 +45,7 @@ const os = require("os");
 // timeouts for individual tool calls and model inference.
 // Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
 const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
-const MAX_TOOL_FAILURE_DEFAULT = 5;
+const MAX_TOOL_DENIALS_DEFAULT = 5;
 
 /**
  * @typedef {{
@@ -55,13 +55,13 @@ const MAX_TOOL_FAILURE_DEFAULT = 5;
  */
 
 /**
- * Parse max tool failure threshold from input.
- * Falls back to MAX_TOOL_FAILURE_DEFAULT when unset/invalid.
+ * Parse max tool denials threshold from input.
+ * Falls back to MAX_TOOL_DENIALS_DEFAULT when unset/invalid.
  *
  * @param {unknown} value
  * @returns {number}
  */
-function parseMaxToolFailureLimit(value) {
+function parseMaxToolDenialsLimit(value) {
   if (typeof value === "number" && Number.isInteger(value) && value > 0) {
     return value;
   }
@@ -74,7 +74,19 @@ function parseMaxToolFailureLimit(value) {
       }
     }
   }
-  return MAX_TOOL_FAILURE_DEFAULT;
+  return MAX_TOOL_DENIALS_DEFAULT;
+}
+
+/**
+ * Read a positive integer from an environment variable with fallback.
+ *
+ * @param {string} key
+ * @param {number} fallback
+ * @returns {number}
+ */
+function getEnvPositiveIntOrDefault(key, fallback) {
+  const parsed = Number.parseInt(process.env[key] || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 /**
@@ -252,7 +264,7 @@ function extractPromptFromArgs(args) {
  *   model?: string,
  *   connectionToken?: string,
  *   provider?: import("@github/copilot-sdk").ProviderConfig,
- *   maxToolFailure?: number | string,
+ *   maxToolDenials?: number | string,
  *   permissionConfig?: {
  *     allowAllTools?: boolean,
  *     allowedTools?: string[],
@@ -266,7 +278,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolFailure, permissionConfig, coreLogger, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolDenials, permissionConfig, coreLogger, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -277,8 +289,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
   const log = msg => logger(`[sdk-driver] ${msg}`);
   log(`attempt ${attempt + 1}: connecting to Copilot SDK at ${sdkUri}`);
-  const maxToolFailureLimit = parseMaxToolFailureLimit(maxToolFailure ?? process.env.GH_AW_MAX_TOOL_FAILURE);
-  log(`max-tool-failure threshold: ${maxToolFailureLimit}`);
+  const maxToolDenialsLimit =
+    maxToolDenials === undefined
+      ? getEnvPositiveIntOrDefault("GH_AW_MAX_TOOL_DENIALS", MAX_TOOL_DENIALS_DEFAULT)
+      : parseMaxToolDenialsLimit(maxToolDenials);
+  log(`max-tool-denials threshold: ${maxToolDenialsLimit}`);
 
   // Session state directory — mirrors the target path used by unified_timeline.cjs.
   // /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
@@ -311,22 +326,22 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   /** @type {fs.WriteStream | null} */
   let eventsStream = null;
   let clientStarted = false;
-  let toolFailureCount = 0;
-  let catastrophicToolFailureError = null;
-  let catastrophicToolFailureTriggered = false;
+  let toolDenialCount = 0;
+  let catastrophicToolDenialsError = null;
+  let catastrophicToolDenialsTriggered = false;
 
   /**
    * @param {string} reason
    */
-  function recordToolFailure(reason) {
-    toolFailureCount += 1;
-    log(`tool failure ${toolFailureCount}/${maxToolFailureLimit}: ${reason}`);
-    if (catastrophicToolFailureTriggered || toolFailureCount < maxToolFailureLimit) {
+  function recordToolDenial(reason) {
+    toolDenialCount += 1;
+    log(`tool denial ${toolDenialCount}/${maxToolDenialsLimit}: ${reason}`);
+    if (catastrophicToolDenialsTriggered || toolDenialCount < maxToolDenialsLimit) {
       return;
     }
-    catastrophicToolFailureTriggered = true;
-    catastrophicToolFailureError = new Error(`max tool failure threshold reached (${toolFailureCount}/${maxToolFailureLimit})`);
-    log(`${catastrophicToolFailureError.message}; stopping SDK session early`);
+    catastrophicToolDenialsTriggered = true;
+    catastrophicToolDenialsError = new Error(`max tool denials threshold reached (${toolDenialCount}/${maxToolDenialsLimit})`);
+    log(`${catastrophicToolDenialsError.message}; stopping SDK session early`);
     if (session) {
       void session.disconnect().catch(() => {
         // best-effort early stop
@@ -347,7 +362,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll, {
       coreLogger,
       logger: log,
-      onDenied: requestSummary => recordToolFailure(`permission denied: ${requestSummary}`),
+      onDenied: requestSummary => recordToolDenial(`permission denied: ${requestSummary}`),
     });
 
     /** @type {import("@github/copilot-sdk").SessionConfig} */
@@ -422,9 +437,6 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           if (toolCallId) pendingToolCalls.delete(toolCallId);
           const success = event.data?.success ?? !event.data?.error;
           writeEvent("tool.execution_complete", { toolName, mcpServerName, success }, event.timestamp);
-          if (!success) {
-            recordToolFailure(`tool execution failed: ${toolName}`);
-          }
           break;
         }
 
@@ -445,11 +457,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     });
 
     log("sending prompt...");
-    const sendTimeoutMs = Number(process.env.COPILOT_SDK_SEND_TIMEOUT_MS) || SDK_SEND_TIMEOUT_MS_DEFAULT;
+    const sendTimeoutMs = getEnvPositiveIntOrDefault("COPILOT_SDK_SEND_TIMEOUT_MS", SDK_SEND_TIMEOUT_MS_DEFAULT);
     const result = await session.sendAndWait({ prompt }, sendTimeoutMs);
 
-    if (catastrophicToolFailureError) {
-      throw catastrophicToolFailureError;
+    if (catastrophicToolDenialsError) {
+      throw catastrophicToolDenialsError;
     }
 
     // sendAndWait returns the last assistant.message event; capture its content

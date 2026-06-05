@@ -269,7 +269,7 @@ Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.
 In this mode, the harness starts a local sidecar and runs the
 SDK driver process instead of the default CLI-only flow.
 
-Use top-level `max-tool-failure` to stop SDK inference when
+Use top-level `max-tool-denials` to stop SDK inference when
 tool requests are repeatedly denied or fail. The default is `5`.
 This field is only supported when `engine.id: copilot` and
 `engine.copilot-sdk: true`.
@@ -282,7 +282,7 @@ engine:
   id: copilot
   copilot-sdk: true
   copilot-sdk-driver: .github/drivers/custom-copilot-driver.js
-max-tool-failure: 8
+max-tool-denials: 8
 ```
 
 `copilot-sdk-driver` must be a **relative path from the workspace root**

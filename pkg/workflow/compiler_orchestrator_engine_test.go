@@ -231,14 +231,14 @@ imports:
 	assert.Equal(t, "4", result.engineConfig.MaxTurns)
 }
 
-func TestSetupEngineAndImports_ImportedTopLevelMaxToolFailure(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "engine-imported-max-tool-failure")
+func TestSetupEngineAndImports_ImportedTopLevelMaxToolDenials(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-max-tool-denials")
 
 	sharedContent := `---
 engine:
   id: copilot
   copilot-sdk: true
-max-tool-failure: 9
+max-tool-denials: 9
 ---
 
 # Shared Workflow
@@ -268,7 +268,7 @@ imports:
 	require.NotNil(t, result)
 	require.NotNil(t, result.engineConfig)
 	assert.Equal(t, "copilot", result.engineSetting)
-	assert.Equal(t, "9", result.engineConfig.MaxToolFailure)
+	assert.Equal(t, "9", result.engineConfig.MaxToolDenials)
 }
 
 // TestSetupEngineAndImports_EngineOverride tests command-line engine override

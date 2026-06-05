@@ -603,10 +603,10 @@ touch %s
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
-		if workflowData.EngineConfig.MaxToolFailure != "" {
-			env[constants.EnvVarMaxToolFailure] = workflowData.EngineConfig.MaxToolFailure
+		if workflowData.EngineConfig.MaxToolDenials != "" {
+			env[constants.EnvVarMaxToolDenials] = workflowData.EngineConfig.MaxToolDenials
 		} else {
-			env[constants.EnvVarMaxToolFailure] = strconv.Itoa(constants.DefaultMaxToolFailure)
+			env[constants.EnvVarMaxToolDenials] = strconv.Itoa(constants.DefaultMaxToolDenials)
 		}
 	}
 

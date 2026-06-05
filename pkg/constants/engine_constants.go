@@ -348,9 +348,9 @@ const (
 	// EnvVarMaxTurns is the maximum number of turns for agent execution
 	EnvVarMaxTurns = "GH_AW_MAX_TURNS"
 
-	// EnvVarMaxToolFailure is the maximum number of repeated tool refusals/failures
+	// EnvVarMaxToolDenials is the maximum number of repeated tool denials
 	// allowed in Copilot SDK driver mode before inference is stopped.
-	EnvVarMaxToolFailure = "GH_AW_MAX_TOOL_FAILURE"
+	EnvVarMaxToolDenials = "GH_AW_MAX_TOOL_DENIALS"
 
 	// EnvVarStartupTimeout is the tool startup timeout in seconds
 	EnvVarStartupTimeout = "GH_AW_STARTUP_TIMEOUT"
@@ -381,9 +381,9 @@ const (
 )
 
 const (
-	// DefaultMaxToolFailure is the default maximum number of repeated tool
-	// refusals/failures allowed in Copilot SDK mode before stopping inference.
-	DefaultMaxToolFailure = 5
+	// DefaultMaxToolDenials is the default maximum number of repeated tool
+	// denials allowed in Copilot SDK mode before stopping inference.
+	DefaultMaxToolDenials = 5
 )
 
 // CopilotStemCommands defines commands that Copilot CLI treats as "stem" commands

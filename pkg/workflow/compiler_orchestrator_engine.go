@@ -315,12 +315,12 @@ func (c *Compiler) applyEngineImportDefaults(
 			}
 		}
 	}
-	if engineConfig.MaxToolFailure == "" && importsResult.MergedMaxToolFailure != "" {
-		var importedMaxToolFailure any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxToolFailure), &importedMaxToolFailure); err == nil {
-			if parsed := parseMaxToolFailureValue(importedMaxToolFailure); parsed != "" {
-				engineConfig.MaxToolFailure = parsed
-				orchestratorEngineLog.Printf("Applied max-tool-failure from import")
+	if engineConfig.MaxToolDenials == "" && importsResult.MergedMaxToolDenials != "" {
+		var importedMaxToolDenials any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxToolDenials), &importedMaxToolDenials); err == nil {
+			if parsed := parseMaxToolDenialsValue(importedMaxToolDenials); parsed != "" {
+				engineConfig.MaxToolDenials = parsed
+				orchestratorEngineLog.Printf("Applied max-tool-denials from import")
 			}
 		}
 	}
