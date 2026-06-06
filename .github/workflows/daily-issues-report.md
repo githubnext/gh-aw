@@ -13,7 +13,7 @@ engine:
   id: copilot
   copilot-sdk: true
   copilot-sdk-driver: .github/drivers/copilot_sdk_driver_sample_python.py
-runs-on: aw-gpu-runner-T4
+runs-on: ubuntu-latest
 strict: true
 tracker-id: daily-issues-report
 tools:
