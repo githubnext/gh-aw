@@ -27,7 +27,7 @@ const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
 const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
-const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 5;
+const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 25;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 // Engine-side 429/rate-limit signatures:
