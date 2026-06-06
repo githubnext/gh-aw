@@ -80,7 +80,7 @@ function execGitSync(args, options = {}) {
     ...callerEnv,
     GIT_TERMINAL_PROMPT: "0",
     GCM_INTERACTIVE: "Never",
-    GIT_ASKPASS: callerEnv.GIT_ASKPASS || "/bin/echo",
+    GIT_ASKPASS: "/bin/echo",
   };
   const defaultTimeoutMs = 60_000;
 
