@@ -27,7 +27,7 @@ const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
 const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
-const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 25;
+const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 // Engine-side 429/rate-limit signatures:
@@ -1871,6 +1871,9 @@ const CASCADE_THRESHOLD = 10;
 const CASCADE_ROLLUP_TITLE = "[aw] Failure cascade detected";
 const CASCADE_LABEL = "cascade-suspected";
 const CASCADE_ROLLUP_LABEL = "cascade-rollup";
+/** Daily-cap rollup constants */
+const DAILY_CAP_ROLLUP_TITLE = "[aw] Daily failure issue cap exceeded";
+const DAILY_CAP_ROLLUP_LABEL = "daily-cap-exceeded";
 /** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
 const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
 
@@ -1968,6 +1971,62 @@ async function findExistingCascadeRollupIssue(owner, repo) {
     core.warning(`Could not search for cascade rollup issue: ${getErrorMessage(err)}`);
   }
   return null;
+}
+
+/**
+ * Find an existing open daily-cap rollup issue, or create one.
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<{number: number, html_url: string} | null>}
+ */
+async function findOrCreateDailyCapRollupIssue(owner, repo) {
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${DAILY_CAP_ROLLUP_TITLE}"`;
+  try {
+    const result = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 1,
+    });
+    if (result.data.total_count > 0) {
+      const item = result.data.items[0];
+      core.info(`Found existing daily cap rollup issue #${item.number}: ${item.html_url}`);
+      return { number: item.number, html_url: item.html_url };
+    }
+  } catch (err) {
+    core.warning(`Could not search for daily cap rollup issue: ${getErrorMessage(err)}`);
+  }
+
+  // No existing issue found — create one
+  const body = [
+    `This issue tracks agentic workflow failures that were suppressed because the per-category daily issue cap of **${FAILURE_ISSUE_CATEGORY_DAILY_CAP} issues per ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS} hours** was reached.`,
+    ``,
+    `When a workflow repeatedly fails with the same category, new issues are no longer created once the cap is reached. Instead, a comment is added here to record each suppressed occurrence.`,
+    ``,
+    `### What to Do`,
+    ``,
+    `1. Review the comments below to identify the workflow(s) failing at a high rate.`,
+    `2. Investigate and fix the underlying cause to reduce the failure rate.`,
+    `3. Once the failure rate returns to normal, this issue can be closed.`,
+    ``,
+    `---`,
+    ``,
+    `> This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`,
+  ].join("\n");
+
+  try {
+    await ensureLabelExists(owner, repo, DAILY_CAP_ROLLUP_LABEL);
+    const newIssue = await github.rest.issues.create({
+      owner,
+      repo,
+      title: DAILY_CAP_ROLLUP_TITLE,
+      body,
+      labels: ["agentic-workflows", DAILY_CAP_ROLLUP_LABEL],
+    });
+    core.info(`✓ Created daily cap rollup issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+    return { number: newIssue.data.number, html_url: newIssue.data.html_url };
+  } catch (err) {
+    core.warning(`Could not create daily cap rollup issue: ${getErrorMessage(err)}`);
+    return null;
+  }
 }
 
 /**
@@ -2640,6 +2699,37 @@ async function main() {
           const summary = cappedCategories.map(({ category, count }) => `${category} (${count}/${FAILURE_ISSUE_CATEGORY_DAILY_CAP})`).join(", ");
           core.warning(`Daily per-category issue cap reached for ${summary}.`);
           core.info(`Summarize-and-stop: skipping new issue creation because category cap was reached in the last ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS}h.`);
+
+          // Create or reuse a centralized rollup issue and add a comment so the failure is
+          // still tracked rather than silently dropped.
+          try {
+            const rollupIssue = await findOrCreateDailyCapRollupIssue(owner, repo);
+            if (rollupIssue) {
+              const commentBody = sanitizeContent(
+                [
+                  `## Failure suppressed by daily cap`,
+                  ``,
+                  `**Workflow:** ${workflowName}`,
+                  `**Run:** [${runUrl}](${runUrl})`,
+                  `**Capped categories:** ${summary}`,
+                  ``,
+                  `A new failure issue was not created because the per-category cap of **${FAILURE_ISSUE_CATEGORY_DAILY_CAP} issues per ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS}h** has been reached.`,
+                  ``,
+                  `Consider investigating why this workflow is failing repeatedly.`,
+                ].join("\n"),
+                { maxLength: 65000 }
+              );
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: rollupIssue.number,
+                body: commentBody,
+              });
+              core.info(`✓ Added cap-exceeded comment to rollup issue #${rollupIssue.number}: ${rollupIssue.html_url}`);
+            }
+          } catch (err) {
+            core.warning(`Could not update daily cap rollup issue: ${getErrorMessage(err)}`);
+          }
           return;
         }
 
