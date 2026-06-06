@@ -1381,16 +1381,15 @@ function readTokenUsageMarkdown() {
  * @param {string} runUrl
  * @returns {string}
  */
-function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl) {
+function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, _effectiveTokens, maxEffectiveTokens, _runUrl) {
   if (!hasEffectiveTokensRateLimitError) {
     return "";
   }
 
+  const EFFECTIVE_TOKENS_PER_AI_CREDIT = 10000;
   const legacyBudgetET = Number.parseInt(maxEffectiveTokens || "", 10);
-  const budgetLine = Number.isInteger(legacyBudgetET) && legacyBudgetET > 0 && Math.floor(legacyBudgetET / 10000) > 0 ? `\n- Suggested \`max-ai-credits\`: \`${Math.floor(legacyBudgetET / 10000).toLocaleString("en-US")}\`` : "";
-
-  void effectiveTokens;
-  void runUrl;
+  const suggestedAICredits = Number.isInteger(legacyBudgetET) && legacyBudgetET > 0 ? Math.floor(legacyBudgetET / EFFECTIVE_TOKENS_PER_AI_CREDIT) : 0;
+  const budgetLine = suggestedAICredits > 0 ? `\n- Suggested \`max-ai-credits\`: \`${suggestedAICredits.toLocaleString("en-US")}\`` : "";
   const templateName = "effective_tokens_rate_limit_error.md";
   let templatePath = "";
   try {
