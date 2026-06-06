@@ -105,8 +105,9 @@ function execGitSync(args, options = {}) {
       throw bufferError;
     }
     if (spawnError.code === "ETIMEDOUT") {
+      /** @type {NodeJS.ErrnoException} */
       const timeoutError = new Error(`${ERR_SYSTEM}: Git command timed out after ${spawnOptions.timeout || defaultTimeoutMs}ms: ${gitCommand}`);
-      /** @type {NodeJS.ErrnoException} */ timeoutError.code = "ETIMEDOUT";
+      timeoutError.code = "ETIMEDOUT";
       core.error(`Git command timed out: ${gitCommand}`);
       throw timeoutError;
     }
@@ -118,8 +119,9 @@ function execGitSync(args, options = {}) {
 
   // spawnSync sets signal when the process was killed (including by the timeout).
   if (result.signal === "SIGKILL" || result.signal === "SIGTERM") {
+    /** @type {NodeJS.ErrnoException} */
     const timeoutError = new Error(`${ERR_SYSTEM}: Git command killed (${result.signal}), likely due to timeout (${spawnOptions.timeout || defaultTimeoutMs}ms): ${gitCommand}`);
-    /** @type {NodeJS.ErrnoException} */ timeoutError.code = "ETIMEDOUT";
+    timeoutError.code = "ETIMEDOUT";
     core.error(`Git command killed by signal ${result.signal}: ${gitCommand}`);
     throw timeoutError;
   }
@@ -189,7 +191,7 @@ function ensureOriginRemoteTrackingRef(branch, options) {
       });
       return { exists: true, fetched: true };
     } catch (fetchError) {
-      return { exists: false, fetched: false, fetchError: /** @type {Error} */ fetchError };
+      return { exists: false, fetched: false, fetchError: /** @type {Error} */ (fetchError) };
     }
   }
 }

@@ -44,6 +44,7 @@ REQUIRED_DEPS=(
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
   "safe_outputs_config_redact.cjs"
+  "checkout_manifest.cjs"
 )
 
 MISSING_FILES=()
