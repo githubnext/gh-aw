@@ -348,8 +348,8 @@ describe("parse_token_usage", () => {
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
       expect(summaryCall[0]).toContain("### Token Usage");
-      expect(summaryCall[0]).toContain("◉ sonnet46");
-      expect(summaryCall[0]).toContain("■ gpt40");
+      expect(summaryCall[0]).toContain("| 1 | sonnet46 |");
+      expect(summaryCall[0]).toContain("| 2 | gpt40 |");
       expect(summaryCall[0]).toContain("**Total**");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
@@ -386,8 +386,8 @@ describe("parse_token_usage", () => {
       await main();
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(summaryCall[0]).toContain("◉ sonnet46");
-      expect(summaryCall[0]).toContain("■ gpt40");
+      expect(summaryCall[0]).toContain("| 1 | sonnet46 |");
+      expect(summaryCall[0]).toContain("| 2 | gpt40 |");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(150);
@@ -452,9 +452,9 @@ describe("parse_token_usage", () => {
       await main();
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(summaryCall[0]).toContain("◉ sonnet46");
-      expect(summaryCall[0]).toContain("▲ haiku45");
-      expect(summaryCall[0]).toContain("■ gpt40");
+      expect(summaryCall[0]).toContain("| 1 | sonnet46 |");
+      expect(summaryCall[0]).toContain("| 2 | haiku45 |");
+      expect(summaryCall[0]).toContain("| 3 | gpt40 |");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(170);
