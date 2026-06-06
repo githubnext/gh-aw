@@ -76,7 +76,7 @@ This issue helps you:
 
 {message}
 
-> Generated from [{workflow_name}]({run_url}){effective_tokens_suffix}`;
+> Generated from [{workflow_name}]({run_url})`;
       }
       return originalReadFileSync.call(fs, filePath, encoding);
     });
@@ -670,7 +670,7 @@ This issue helps you:
     expect(commentCall.body).not.toContain("<script>");
   });
 
-  it("should include effective token count in footer when GH_AW_EFFECTIVE_TOKENS is set", async () => {
+  it("should not include effective token count in footer when GH_AW_EFFECTIVE_TOKENS is set", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Token Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test/test/actions/runs/123";
     process.env.GH_AW_AGENT_CONCLUSION = "success";
@@ -696,7 +696,7 @@ This issue helps you:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("· 12.5K");
+    expect(commentCall.body).not.toContain("12.5K");
   });
 
   it("should not include effective token count in footer when GH_AW_EFFECTIVE_TOKENS is not set", async () => {
