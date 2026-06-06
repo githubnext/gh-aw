@@ -204,7 +204,7 @@ function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
     if (normalizedRequestedPath === normalizedPattern) {
       return true;
     }
-    return /[*?[\]{}]/.test(normalizedPattern) && minimatch(normalizedRequestedPath, normalizedPattern, { dot: true });
+    return minimatch(normalizedRequestedPath, normalizedPattern, { dot: true });
   });
 }
 
