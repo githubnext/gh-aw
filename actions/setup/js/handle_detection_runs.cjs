@@ -7,7 +7,6 @@ const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
-
 /**
  * Search for or create the parent issue for all agentic workflow detection runs.
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -107,7 +106,6 @@ async function main() {
 
     // Load and render comment template from file
     const commentTemplatePath = getPromptPath("detection_runs_comment.md");
-
     const commentBody = renderTemplateFromFile(commentTemplatePath, {
       workflow_name: workflowName,
       conclusion: detectionConclusion,

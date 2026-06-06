@@ -9,7 +9,6 @@ const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
-
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -184,7 +183,6 @@ async function main() {
 
     // Load and render comment template from file
     const commentTemplatePath = getPromptPath("noop_comment.md");
-
     const commentBody = renderTemplateFromFile(commentTemplatePath, {
       workflow_name: workflowName,
       message: noopMessage,
