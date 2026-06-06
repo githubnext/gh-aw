@@ -2908,7 +2908,7 @@ describe("handle_agent_failure", () => {
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [effective tokens]({et_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
-          "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
+          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
           "{et_table_section}\n" +
           "- To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).\n" +
           "</details>\n"

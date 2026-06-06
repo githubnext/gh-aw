@@ -491,15 +491,13 @@ Optional workflow metadata for categorization and organization. Enables filterin
 
 A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
 
-### Max Effective Tokens (`max-effective-tokens`)
+### Max AI Credits (`max-ai-credits`)
 
-A top-level frontmatter field that caps the total effective-token (ET) budget the AWF proxy will spend within a single workflow run. Effective tokens are weighted by model multipliers and are the primary cost proxy for Copilot. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25M` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
+A top-level frontmatter field that caps the total AI credits budget the AWF proxy will spend within a single workflow run. Effective tokens are weighted by model multipliers and are the primary cost proxy for Copilot. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25M` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
-max-effective-tokens: 5M
+max-ai-credits: 5M
 ```
-
-See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) and [Cost Management](/gh-aw/reference/cost-management/).
 
 ### Max Daily AI Credits (`max-daily-ai-credits`)
 

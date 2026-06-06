@@ -11,7 +11,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 | Variable | Source | Purpose | Applies when |
 | --- | --- | --- | --- |
-| `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Compiler process environment | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
+| `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Compiler process environment | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-ai-credits` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | Compiler process environment | Default `max-daily-ai-credits` guardrail | `max-daily-ai-credits` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
