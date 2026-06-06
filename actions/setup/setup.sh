@@ -354,20 +354,6 @@ for file in "${SAFE_OUTPUTS_FILES[@]}"; do
   fi
 done
 
-# Ensure the HTTP safe-outputs MCP server dependency is always present.
-# This guards against list drift in SAFE_OUTPUTS_FILES causing runtime startup failures.
-if [ ! -f "${SAFE_OUTPUTS_DEST}/safe_outputs_mcp_arguments.cjs" ]; then
-  if [ -f "${JS_SOURCE_DIR}/safe_outputs_mcp_arguments.cjs" ]; then
-    cp "${JS_SOURCE_DIR}/safe_outputs_mcp_arguments.cjs" "${SAFE_OUTPUTS_DEST}/safe_outputs_mcp_arguments.cjs"
-    debug_log "Backfilled safe-outputs dependency: safe_outputs_mcp_arguments.cjs"
-    SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
-  elif [ -f "${DESTINATION}/safe_outputs_mcp_arguments.cjs" ]; then
-    cp "${DESTINATION}/safe_outputs_mcp_arguments.cjs" "${SAFE_OUTPUTS_DEST}/safe_outputs_mcp_arguments.cjs"
-    debug_log "Backfilled safe-outputs dependency (from destination): safe_outputs_mcp_arguments.cjs"
-    SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
-  fi
-fi
-
 if [ ${#SAFE_OUTPUTS_MISSING[@]} -gt 0 ]; then
   echo "::error::Failed to copy ${#SAFE_OUTPUTS_MISSING[@]} required safe-outputs files:"
   for missing_file in "${SAFE_OUTPUTS_MISSING[@]}"; do
