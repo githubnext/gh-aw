@@ -244,6 +244,7 @@ Applied **`/tdd`** and **`/zoom-out`** — requesting changes on test coverage g
 ### Step 7: Post a Summary Comment (optional)
 
 If the review is complex or the overall findings are significant, post a single `add-comment` with a concise summary for the author. Apply progressive disclosure: one-line outcome visible, details in `<details>` blocks.
+Use `###` or lower for any headers — never `#` or `##`.
 
 ## Scope Rules
 
