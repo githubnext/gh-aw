@@ -457,9 +457,8 @@ func listRunsWithBackoff(ctx context.Context, opts ListWorkflowRunsOptions, work
 // best matches id. Matching is tried against the file-based key (e.g. "ci-doctor") and the
 // display name (e.g. "CI Failure Doctor"), both case-insensitively. Returns "" on no match.
 func matchRemoteWorkflowName(id string, workflows map[string]*GitHubWorkflow) string {
-	lowerID := strings.ToLower(id)
 	for key, wf := range workflows {
-		if strings.ToLower(key) == lowerID || strings.ToLower(wf.Name) == lowerID {
+		if strings.EqualFold(key, id) || strings.EqualFold(wf.Name, id) {
 			return wf.Name
 		}
 	}

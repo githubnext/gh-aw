@@ -157,9 +157,6 @@ func FindWorkflowName(input string) (string, error) {
 
 	// Normalize input for matching
 	normalizedInput := stringutil.NormalizeWorkflowName(input)
-	lowerInput := strings.ToLower(input)
-	lowerNormalizedInput := strings.ToLower(normalizedInput)
-
 	// Strategy 2: Try exact match with workflow ID (case-sensitive)
 	for _, wf := range workflows {
 		if wf.WorkflowID == input || wf.WorkflowID == normalizedInput {
@@ -170,7 +167,7 @@ func FindWorkflowName(input string) (string, error) {
 
 	// Strategy 3: Try case-insensitive match with workflow ID
 	for _, wf := range workflows {
-		if strings.ToLower(wf.WorkflowID) == lowerInput || strings.ToLower(wf.WorkflowID) == lowerNormalizedInput {
+		if strings.EqualFold(wf.WorkflowID, input) || strings.EqualFold(wf.WorkflowID, normalizedInput) {
 			resolveLog.Printf("Found case-insensitive workflow ID match: %s -> %s", input, wf.DisplayName)
 			return wf.DisplayName, nil
 		}
@@ -186,7 +183,7 @@ func FindWorkflowName(input string) (string, error) {
 
 	// Strategy 5: Try case-insensitive match with display name
 	for _, wf := range workflows {
-		if strings.ToLower(wf.DisplayName) == lowerInput {
+		if strings.EqualFold(wf.DisplayName, input) {
 			resolveLog.Printf("Found case-insensitive display name match: %s -> %s", input, wf.DisplayName)
 			return wf.DisplayName, nil
 		}
@@ -222,9 +219,8 @@ func GetWorkflowLockFileName(input string) (string, error) {
 		return "", fmt.Errorf("failed to get workflows: %w", err)
 	}
 
-	lowerInput := strings.ToLower(input)
 	for _, wf := range workflows {
-		if strings.ToLower(wf.DisplayName) == lowerInput {
+		if strings.EqualFold(wf.DisplayName, input) {
 			return wf.WorkflowID + ".lock.yml", nil
 		}
 	}
