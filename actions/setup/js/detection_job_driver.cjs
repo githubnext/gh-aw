@@ -5,13 +5,13 @@
  *
  * A dedicated two-phase Copilot SDK driver for the threat-detection job.
  *
- * Phase 1 — Pre-screening (claude-haiku):
+ * Phase 1 — Pre-screening (small model):
  *   Sends a lightweight triage prompt to the small model asking it to reply
  *   with exactly one word: "safe" or "unsafe". This lets the majority of benign
  *   runs skip the heavier analysis step entirely.
  *
- * Phase 2 — Full analysis (claude-sonnet), only when Phase 1 returns "unsafe":
- *   Runs the complete threat-detection prompt through the larger model and
+ * Phase 2 — Full analysis (large model), only when Phase 1 returns "unsafe":
+ *   Runs the complete threat-detection prompt through the large model and
  *   writes its response to stdout. The response is expected to contain a
  *   THREAT_DETECTION_RESULT:{...} line that parse_threat_detection_results.cjs
  *   parses with its existing logic.
@@ -55,9 +55,9 @@ function log(msg) {
 /**
  * Entry point for the detection job driver.
  *
- * Reads the full prompt from GH_AW_PROMPT, runs Phase 1 (haiku triage), and
- * conditionally runs Phase 2 (sonnet full analysis), then exits with the
- * appropriate code.
+ * Reads the full prompt from GH_AW_PROMPT, runs the small-model triage (Phase 1),
+ * and conditionally runs the large-model full analysis (Phase 2), then exits with
+ * the appropriate code.
  */
 async function main() {
   // --- Read configuration from environment ---
@@ -108,9 +108,9 @@ async function main() {
   // BYOK workloads and is not specific to the OpenAI service itself.
   const provider = { type: "openai", baseUrl: providerBaseUrl };
 
-  // --- Phase 1: Small model triage ---
+  // --- Small model triage ---
 
-  log(`Phase 1: running triage with small model (${smallModel})`);
+  log(`small: running triage (model=${smallModel})`);
 
   const triageResult = await runWithCopilotSDK({
     sdkUri,
@@ -123,24 +123,24 @@ async function main() {
   });
 
   if (triageResult.exitCode !== 0) {
-    log(`Phase 1 failed (exitCode=${triageResult.exitCode}); falling back to full analysis`);
-    // Treat any Phase 1 failure as "unsafe" so the full analysis always runs.
+    log(`small: triage failed (exitCode=${triageResult.exitCode}); falling back to full analysis`);
+    // Treat any small-model failure as "unsafe" so the full analysis always runs.
   } else {
     const classification = classifyTriageResponse(triageResult.output);
-    log(`Phase 1 result: "${triageResult.output.trim()}" → classified as "${classification}"`);
+    log(`small: result="${triageResult.output.trim()}" classification="${classification}"`);
 
     if (classification === "safe") {
-      log("Phase 1 returned safe — skipping full analysis");
+      log("small: returned safe — skipping full analysis");
       process.stdout.write(SAFE_VERDICT + "\n");
       process.exit(0);
     }
 
-    log("Phase 1 returned unsafe — proceeding to full analysis");
+    log("small: returned unsafe — proceeding to full analysis");
   }
 
-  // --- Phase 2: Full analysis with large model ---
+  // --- Large model full analysis ---
 
-  log(`Phase 2: running full analysis with large model (${largeModel})`);
+  log(`large: running full analysis (model=${largeModel})`);
 
   const analysisResult = await runWithCopilotSDK({
     sdkUri,
@@ -153,7 +153,7 @@ async function main() {
   });
 
   if (analysisResult.exitCode !== 0) {
-    log(`Phase 2 failed (exitCode=${analysisResult.exitCode})`);
+    log(`large: full analysis failed (exitCode=${analysisResult.exitCode})`);
     process.exit(analysisResult.exitCode);
   }
 
@@ -164,7 +164,7 @@ async function main() {
     process.stdout.write("\n");
   }
 
-  log(`Phase 2 completed: hasOutput=${analysisResult.hasOutput} durationMs=${analysisResult.durationMs}`);
+  log(`large: completed hasOutput=${analysisResult.hasOutput} durationMs=${analysisResult.durationMs}`);
   process.exit(0);
 }
 
