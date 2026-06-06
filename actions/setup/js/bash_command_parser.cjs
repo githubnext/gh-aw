@@ -157,7 +157,10 @@ function splitOnPipelineOperators(commandText) {
 
 /**
  * Shell flow-control keywords that can appear as the first word of a segment
- * but do not represent an executable command.
+ * but do not represent an executable command.  They must be excluded so the
+ * permission checker does not attempt to look up keywords like "then" or "fi"
+ * as command names and incorrectly deny (or allow) a pipeline that contains
+ * them as part of a compound statement (e.g. `if …; then cat …; fi`).
  */
 const SHELL_KEYWORDS = new Set(["then", "else", "elif", "fi", "do", "done", "esac", "in", "function", "time", "coproc"]);
 

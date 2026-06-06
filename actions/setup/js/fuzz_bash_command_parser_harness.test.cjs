@@ -287,7 +287,18 @@ describe("fuzz_bash_command_parser – correctness: redirection-only segments", 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("fuzz_bash_command_parser – exhaustive operator × command-pair matrix", () => {
-  const cmdPairs = SAFE_COMMANDS.slice(0, 4).flatMap(a => SAFE_COMMANDS.slice(0, 4).filter(b => b !== a).map(b => [a, b]));
+  /** Build every ordered pair (a, b) of distinct commands from the first N items. */
+  function generateCommandPairs(commands, limit) {
+    const pairs = [];
+    for (const a of commands) {
+      for (const b of commands) {
+        if (a !== b) pairs.push([a, b]);
+      }
+    }
+    return limit ? pairs.slice(0, limit) : pairs;
+  }
+
+  const cmdPairs = generateCommandPairs(SAFE_COMMANDS.slice(0, 4), 8);
 
   for (const op of OPERATORS) {
     for (const [a, b] of cmdPairs.slice(0, 8)) {

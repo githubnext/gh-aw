@@ -303,6 +303,11 @@ def is_identifier_allowed_by_shell_rules(identifier: str, shell_rules: list[str]
     full-command rules (rules that contain a space) are intentionally skipped
     because they are not meaningful for individual pipeline stages.
 
+    The rule list is iterated linearly on each call.  This is intentional:
+    allow-lists are small (typically < 50 rules) and this function is called
+    once per pipeline stage per agent permission request, so the overhead is
+    negligible compared to the cost of spawning the agent itself.
+
     Parameters
     ----------
     identifier:

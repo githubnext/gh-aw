@@ -243,12 +243,19 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
 
   /**
    * Returns true if a single command identifier matches any of the shell rules.
-   * Only single-word and :* wildcard rules are tested — exact full-command rules
-   * (rules that contain a space) are intentionally skipped because they are not
-   * meaningful for individual pipeline stages.
+   *
+   * Three rule formats are recognised:
+   *  - **Wildcard** (`cmd:*`)  — the identifier must equal the prefix before `:*`.
+   *    Example: rule `"safeoutputs:*"` matches identifier `"safeoutputs"`.
+   *  - **Single-word** (`cmd`) — the identifier must equal the rule exactly.
+   *    Example: rule `"ls"` matches identifier `"ls"` only.
+   *  - **Full-command** (`cmd arg …`) — rules that contain a space are intentionally
+   *    **not** tested here.  They represent exact full-command constraints and are
+   *    only meaningful when compared against the whole command text, not against
+   *    individual pipeline stages.
    *
    * @param {string} identifier - A single command name (e.g. "ls", "git", "safeoutputs")
-   * @returns {boolean}
+   * @returns {boolean} True when any shell rule permits the identifier
    */
   function isIdentifierAllowedByShellRules(identifier) {
     return shellRules.some(rule => {
