@@ -149,20 +149,16 @@ function logPermissionDenied(coreLogger, logger, request) {
 }
 
 /**
- * Build a scoped SDK permission handler from Copilot CLI allow-tool rules.
- * When no explicit permission rules exist, return undefined so the SDK applies
- * its built-in policy instead of an AWF override. This mirrors CLI mode where
- * no --allow-tool/--allow-all-tools flags are emitted when no toolsets are configured.
+ * Build an SDK on-permission handler from Copilot CLI allow-tool rules.
+ * A handler is always returned so session creation consistently wires explicit
+ * permission behavior derived from configuration input.
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
  * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void, onDenied?: (requestSummary: string) => void}=} logOptions
- * @returns {import("@github/copilot-sdk").PermissionHandler | undefined}
+ * @returns {import("@github/copilot-sdk").PermissionHandler}
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptions) {
-  if (!permissionConfig) {
-    return undefined;
-  }
   const logger = logOptions?.logger ?? (() => {});
 
   const allowAll = permissionConfig?.allowAllTools === true;
@@ -173,14 +169,9 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
     .filter(tool => tool.length > 0);
   const allowedToolEntries = new Set(normalizedAllowedTools);
 
-  // Keep explicit allow-all behavior when requested by the engine config.
-  if (allowAll) {
+  // Keep explicit allow-all behavior when requested by config input.
+  if (allowAll || allowedToolEntries.size === 0) {
     return approveAll;
-  }
-
-  // No explicit rules: use SDK defaults to mirror CLI behavior when no toolsets are set.
-  if (allowedToolEntries.size === 0) {
-    return undefined;
   }
 
   const shellRules = [...allowedToolEntries]
@@ -367,9 +358,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     log("client started");
 
     /**
-     * Build a scoped permission handler from allow-tool entries.
-     * Leaves permissions to SDK defaults when no explicit rules were generated.
-     * @type {import("@github/copilot-sdk").PermissionHandler | undefined}
+     * Build the session on-permission handler from configuration input.
+     * @type {import("@github/copilot-sdk").PermissionHandler}
      */
     const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll, {
       coreLogger,
@@ -381,10 +371,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const sessionConfig = {
       model: model || process.env.COPILOT_MODEL || undefined,
       provider,
+      onPermissionRequest,
     };
-    if (onPermissionRequest) {
-      sessionConfig.onPermissionRequest = onPermissionRequest;
-    }
     session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
 
@@ -529,9 +517,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
  * Parse a CopilotSDKPermissionConfig from a JSON-encoded sidecar args array.
  *
  * Extracts --allow-tool values and the --allow-all-tools flag from the raw
- * GH_AW_COPILOT_SDK_SERVER_ARGS string that the Go engine writes.  Returns
- * undefined when no permission-related flags are present so that the SDK
- * continues to apply its own built-in policy in the unrestricted case.
+ * GH_AW_COPILOT_SDK_SERVER_ARGS string that the Go engine writes. Returns
+ * undefined when no permission-related flags are present so the session
+ * on-permission handler can interpret config absence as unrestricted behavior.
  *
  * @param {string | undefined} serverArgsJson - Raw JSON value of GH_AW_COPILOT_SDK_SERVER_ARGS
  * @returns {CopilotSDKPermissionConfig | undefined}
@@ -654,7 +642,7 @@ async function main() {
       log(`permission config: ${(permissionConfig.allowedTools ?? []).length} allow-tool entries from GH_AW_COPILOT_SDK_SERVER_ARGS`);
     }
   } else {
-    log("permission config: none (SDK default permission behavior)");
+    log("permission config: none (onPermissionRequest will use unrestricted behavior)");
   }
 
   // --- Run SDK session -------------------------------------------------

@@ -245,11 +245,15 @@ In scoped allowlist mode, `read` is treated as a configured permission and MUST 
 
 ### 5.2 Handler Resolution
 
-The permission handler MUST resolve as follows:
+The driver MUST always configure an `onPermissionRequest` handler when creating
+an SDK session. The handler MUST consume the effective permission configuration
+input and resolve as follows:
 
-1. If effective permission configuration is absent, the driver MUST defer to SDK default policy.
-2. If `allowAllTools` is `true`, the driver MUST approve all permission requests.
-3. If `allowedTools` is empty after normalization, the driver MUST defer to SDK default policy.
+1. If `allowAllTools` is `true`, the driver MUST approve all permission requests.
+2. If effective permission configuration is absent, the driver MUST treat the
+   session as unrestricted and approve all permission requests.
+3. If `allowedTools` is empty after normalization, the driver MUST treat the
+   session as unrestricted and approve all permission requests.
 4. Otherwise, the driver MUST enforce the scoped allow rules below.
 
 ### 5.3 Scoped Allow Rules
