@@ -757,6 +757,12 @@ func loadCachedRunAIC(runID int64, verbose bool) float64 {
 	}
 
 	if err := forecastDownloadRunArtifacts(context.Background(), runID, dir, verbose, "", "", "", []string{"usage"}); err != nil {
+		if !errors.Is(err, ErrNoArtifacts) {
+			forecastRunLog.Printf("Failed to download usage artifact for run %d: %v", runID, err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to download usage artifact for run %d: %v", runID, err)))
+			}
+		}
 		return 0
 	}
 
