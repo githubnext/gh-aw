@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
+const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
@@ -21,41 +21,6 @@ function debugLog(message) {
   const debug = process.env.DEBUG || "";
   if (debug === "*" || debug.includes("generate_git_bundle") || debug.includes("bundle")) {
     console.error(`[generate_git_bundle] ${message}`);
-  }
-}
-
-/**
- * Ensure refs/remotes/origin/<branch> is available locally.
- * Returns whether the ref exists and whether a fetch was required.
- *
- * @param {string} branch - Branch name (without origin/ prefix)
- * @param {Object} options
- * @param {string} options.cwd - Working directory for git commands
- * @param {string} [options.token] - Optional auth token used for fetch
- * @param {boolean} [options.suppressLogs=false] - Whether to suppress execGitSync error logs
- * @returns {{ exists: boolean, fetched: boolean, fetchError?: Error }}
- *   fetchError is populated only when exists=false after a failed fetch attempt.
- */
-function ensureOriginRemoteTrackingRef(branch, options) {
-  const ref = `refs/remotes/origin/${branch}`;
-  try {
-    execGitSync(["show-ref", "--verify", "--quiet", ref], {
-      cwd: options.cwd,
-      suppressLogs: options.suppressLogs || false,
-    });
-    return { exists: true, fetched: false };
-  } catch {
-    try {
-      const fetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-      execGitSync(["fetch", "origin", "--", branch], {
-        cwd: options.cwd,
-        env: fetchEnv,
-        suppressLogs: options.suppressLogs || false,
-      });
-      return { exists: true, fetched: true };
-    } catch (fetchError) {
-      return { exists: false, fetched: false, fetchError };
-    }
   }
 }
 
@@ -184,28 +149,30 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
         if (mode === "incremental") {
           // INCREMENTAL MODE (for push_to_pull_request_branch):
           // Only include commits that are new since origin/branchName.
-          debugLog(`Strategy 1 (incremental): Fetching origin/${branchName}`);
-          const fetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-
-          try {
-            execGitSync(["fetch", "origin", "--", `${branchName}:refs/remotes/origin/${branchName}`], { cwd, env: fetchEnv });
+          // Tries a local-only check first, then a single network fetch attempt.
+          // The fetch will succeed for public repos (no credentials needed) and
+          // fail fast for private repos without credentials (execGitSync runs
+          // git with GIT_TERMINAL_PROMPT=0 and a 60s timeout).
+          debugLog(`Strategy 1 (incremental): Resolving origin/${branchName}`);
+          const incrementalRefResult = ensureOriginRemoteTrackingRef(branchName, { cwd, token: options.token, suppressLogs: true });
+          if (incrementalRefResult.exists) {
             baseRef = `origin/${branchName}`;
-            debugLog(`Strategy 1 (incremental): Successfully fetched, baseRef=${baseRef}`);
-          } catch (fetchError) {
-            debugLog(`Strategy 1 (incremental): Fetch failed - ${getErrorMessage(fetchError)}, checking for existing remote tracking ref`);
-            try {
-              execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd });
-              baseRef = `origin/${branchName}`;
-              debugLog(`Strategy 1 (incremental): Using existing remote tracking ref as fallback, baseRef=${baseRef}`);
-            } catch (refCheckError) {
-              debugLog(`Strategy 1 (incremental): No existing remote tracking ref found (${getErrorMessage(refCheckError)}), failing`);
-              errorMessage = `Cannot generate incremental bundle: failed to fetch origin/${branchName} and no existing remote tracking ref found. Fetch error: ${getErrorMessage(fetchError)}`;
-              return {
-                success: false,
-                error: errorMessage,
-                bundlePath,
-              };
+            if (incrementalRefResult.fetched) {
+              debugLog(`Strategy 1 (incremental): Fetched origin/${branchName} from remote, baseRef=${baseRef}`);
+            } else {
+              debugLog(`Strategy 1 (incremental): Using existing remote tracking ref, baseRef=${baseRef}`);
             }
+          } else {
+            debugLog(`Strategy 1 (incremental): origin/${branchName} not present locally and remote fetch failed (${incrementalRefResult.fetchError ? getErrorMessage(incrementalRefResult.fetchError) : "no error"}), failing`);
+            errorMessage =
+              `Cannot generate incremental bundle: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
+              `(the safe-outputs MCP server has no credentials for private repositories). ` +
+              `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
+            return {
+              success: false,
+              error: errorMessage,
+              bundlePath,
+            };
           }
         } else {
           // FULL MODE (for create_pull_request):
@@ -217,17 +184,18 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             debugLog(`Strategy 1 (full): Using existing origin/${branchName} as baseRef`);
           } catch {
             debugLog(`Strategy 1 (full): origin/${branchName} not found, trying merge-base with ${defaultBranch}`);
-            const defaultBranchRefResult = ensureOriginRemoteTrackingRef(defaultBranch, { cwd, token: options.token });
+            const defaultBranchRefResult = ensureOriginRemoteTrackingRef(defaultBranch, { cwd, token: options.token, suppressLogs: true });
             const hasLocalDefaultBranch = defaultBranchRefResult.exists;
             if (hasLocalDefaultBranch) {
               if (defaultBranchRefResult.fetched) {
-                debugLog(`Strategy 1 (full): Successfully fetched origin/${defaultBranch}`);
+                debugLog(`Strategy 1 (full): fetched origin/${defaultBranch} from remote`);
               } else {
                 debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
               }
             } else {
-              debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
-              debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(defaultBranchRefResult.fetchError || new Error("Unknown fetch error"))} (will try other strategies)`);
+              debugLog(
+                `Strategy 1 (full): origin/${defaultBranch} not present locally and remote fetch failed (likely private repo without credentials in MCP server). Add ${JSON.stringify(defaultBranch)} to checkout.fetch to enable this strategy. Falling through to Strategy 2.`
+              );
             }
 
             if (hasLocalDefaultBranch) {
@@ -262,13 +230,10 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
               suppressLogs: true,
             });
             if (defaultBranchRefResult.exists) {
-              if (defaultBranchRefResult.fetched) {
-                debugLog(`Strategy 1 (incremental): fetched origin/${defaultBranch} for bundle exclusions`);
-              }
               bundleCreateArgs.push(`^origin/${defaultBranch}`);
               debugLog(`Strategy 1 (incremental): excluding origin/${defaultBranch} from bundle prerequisites`);
             } else {
-              const warningMessage = `Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(defaultBranchRefResult.fetchError || new Error("Unknown fetch error"))}. Bundle will include base-branch history.`;
+              const warningMessage = `Strategy 1 (incremental): origin/${defaultBranch} not present locally and remote fetch failed (likely private repo without credentials in MCP server); bundle will include base-branch history. Add ${JSON.stringify(defaultBranch)} to checkout.fetch to enable this optimisation.`;
               debugLog(warningMessage);
               core.warning(warningMessage);
             }
