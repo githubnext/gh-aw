@@ -344,25 +344,25 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_0615b82f3f878597_EOF'
+          cat << 'GH_AW_PROMPT_94c6730f305898ca_EOF'
           <system>
-          GH_AW_PROMPT_0615b82f3f878597_EOF
+          GH_AW_PROMPT_94c6730f305898ca_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0615b82f3f878597_EOF'
+          cat << 'GH_AW_PROMPT_94c6730f305898ca_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, create_discussion, create_pull_request_review_comment(max:5), submit_pull_request_review, reply_to_pull_request_review_comment(max:5), add_labels, remove_labels, create_check_run, set_issue_type, dispatch_workflow, missing_tool, missing_data, noop, send_slack_message
-          GH_AW_PROMPT_0615b82f3f878597_EOF
+          GH_AW_PROMPT_94c6730f305898ca_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_0615b82f3f878597_EOF'
+          cat << 'GH_AW_PROMPT_94c6730f305898ca_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_0615b82f3f878597_EOF
+          GH_AW_PROMPT_94c6730f305898ca_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_0615b82f3f878597_EOF'
+          cat << 'GH_AW_PROMPT_94c6730f305898ca_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -391,12 +391,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_0615b82f3f878597_EOF
+          GH_AW_PROMPT_94c6730f305898ca_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_0615b82f3f878597_EOF'
+          cat << 'GH_AW_PROMPT_94c6730f305898ca_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/gh.md}}
@@ -435,7 +435,7 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-copilot.md}}
-          GH_AW_PROMPT_0615b82f3f878597_EOF
+          GH_AW_PROMPT_94c6730f305898ca_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -784,9 +784,9 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_8e27f952b1220c28_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_2f2ebc5159973ed6_EOF'
           {"add_comment":{"allowed_repos":["github/gh-aw"],"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-copilot"],"allowed_repos":["github/gh-aw"]},"comment_memory":{"max":1,"memory_id":"default"},"create_check_run":{"max":1,"name":"Smoke Copilot"},"create_discussion":{"category":"announcements","close_older_discussions":true,"close_older_key":"smoke-copilot","expires":2,"fallback_to_issue":true,"labels":["ai-generated"],"max":1},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-copilot","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT"},"create_report_incomplete_issue":{},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"reply_to_pull_request_review_comment":{"max":5},"report_incomplete":{},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"description":"The message to send","required":false,"type":"string"}},"output":"Slack message stub executed!"},"set_issue_type":{},"submit_pull_request_review":{"max":1},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":1,"skip-archive":true}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_8e27f952b1220c28_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_2f2ebc5159973ed6_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1224,7 +1224,7 @@ jobs:
       - name: Write MCP Scripts Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_bc9c8072071ce290_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_1ef8dcb7d1f5422f_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -1318,8 +1318,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_bc9c8072071ce290_EOF
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_863ed157f4520919_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_1ef8dcb7d1f5422f_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_5818b5ebd87c75d8_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -1333,12 +1333,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_863ed157f4520919_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_5818b5ebd87c75d8_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_6e200b0def5134db_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_8dff7ffbc34a3811_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-discussion-query
           # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1475,9 +1475,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_6e200b0def5134db_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_8dff7ffbc34a3811_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_0e5a17de0f27ed9e_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_57526bb6e0f58069_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-issue-query
           # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1557,9 +1557,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_0e5a17de0f27ed9e_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_57526bb6e0f58069_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_73c00761f5ca3837_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_b42a10602816e154_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-pr-query
           # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1645,7 +1645,7 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_73c00761f5ca3837_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_b42a10602816e154_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh"
           
       - name: Generate MCP Scripts Server Config
@@ -1722,7 +1722,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_a43cae605b53d554_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_51d567a2fd4f7ca5_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -1814,7 +1814,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_a43cae605b53d554_EOF
+          GH_AW_MCP_CONFIG_51d567a2fd4f7ca5_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

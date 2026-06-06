@@ -276,23 +276,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_f902aae9eb568685_EOF'
+          cat << 'GH_AW_PROMPT_a65d2c5788adf62f_EOF'
           <system>
-          GH_AW_PROMPT_f902aae9eb568685_EOF
+          GH_AW_PROMPT_a65d2c5788adf62f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_f902aae9eb568685_EOF'
+          cat << 'GH_AW_PROMPT_a65d2c5788adf62f_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_f902aae9eb568685_EOF
+          GH_AW_PROMPT_a65d2c5788adf62f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_f902aae9eb568685_EOF'
+          cat << 'GH_AW_PROMPT_a65d2c5788adf62f_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_f902aae9eb568685_EOF
+          GH_AW_PROMPT_a65d2c5788adf62f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_f902aae9eb568685_EOF'
+          cat << 'GH_AW_PROMPT_a65d2c5788adf62f_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -334,16 +334,16 @@ jobs:
               stop immediately and report the limitation rather than spending turns trying to work around it.
           </github-context>
           
-          GH_AW_PROMPT_f902aae9eb568685_EOF
+          GH_AW_PROMPT_a65d2c5788adf62f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_f902aae9eb568685_EOF'
+          cat << 'GH_AW_PROMPT_a65d2c5788adf62f_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/smoke-create-cross-repo-pr.md}}
-          GH_AW_PROMPT_f902aae9eb568685_EOF
+          GH_AW_PROMPT_a65d2c5788adf62f_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -505,6 +505,33 @@ jobs:
           persist-credentials: false
           repository: github/gh-aw-side-repo
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+      - name: Build checkout manifest for safe-outputs handlers
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/gh-aw"
+          manifest="${RUNNER_TEMP}/gh-aw/checkout-manifest.json"
+          printf '{}' > "$manifest"
+          resolve_default_branch() {
+            local repo="$1" path="$2" db=""
+            if [ -d "${GITHUB_WORKSPACE}/${path}/.git" ]; then
+              db=$(git -C "${GITHUB_WORKSPACE}/${path}" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+            fi
+            if [ -z "$db" ]; then
+              db=$(gh api "repos/${repo}" --jq '.default_branch' 2>/dev/null || true)
+            fi
+            printf '%s' "$db"
+          }
+          repo='github/gh-aw-side-repo'
+          path=''
+          db=$(resolve_default_branch "$repo" "$path")
+          tmp=$(mktemp)
+          jq --arg repo "$repo" --arg path "$path" --arg db "$db" \
+            '.[($repo | ascii_downcase)] = {repository: $repo, path: $path, default_branch: $db}' \
+            "$manifest" > "$tmp" && mv "$tmp" "$manifest"
+          echo "checkout-manifest: ${repo} -> path=${path} default_branch=${db:-<unresolved>}"
+          cat "$manifest"
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
@@ -583,9 +610,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_2ff020be753e589e_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_66bfdd3c3b66c832_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"create_issue":{"close_older_issues":true,"expires":2,"labels":["automation","testing"],"max":1},"create_pull_request":{"draft":true,"expires":24,"fallback_as_issue":false,"github-token":"${GH_AW_SECRET_GH_AW_SIDE_REPO_PAT}","if_no_changes":"error","labels":["smoke-test"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_files_policy":"request_review","target-repo":"github/gh-aw-side-repo","title_prefix":"[smoke] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_2ff020be753e589e_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_66bfdd3c3b66c832_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -860,7 +887,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_52deed54d8423b54_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_47abdffabf02619d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -906,7 +933,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_52deed54d8423b54_EOF
+          GH_AW_MCP_CONFIG_47abdffabf02619d_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
