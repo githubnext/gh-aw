@@ -36,6 +36,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 
 const encoder = new TextEncoder();
+const PARAMETER_SIMILARITY_DISTANCE_BONUS = 2;
+const UNKNOWN_PARAMETER_LIST_PREVIEW_MAX = 10;
 
 /**
  * @typedef {Object} ServerInfo
@@ -548,7 +550,9 @@ function findSimilarParameters(requestedParameter, availableParameters, maxSugge
   }));
 
   suggestions.sort((a, b) => a.distance - b.distance);
-  const maxDistance = Math.floor(normalizedRequested.length / 2) + 2;
+  // Parameter names are typically short; use a slightly tighter threshold than tool names
+  // so only clearly related misspellings are suggested.
+  const maxDistance = Math.floor(normalizedRequested.length / 2) + PARAMETER_SIMILARITY_DISTANCE_BONUS;
   return suggestions.filter(s => s.distance <= maxDistance).slice(0, maxSuggestions);
 }
 
@@ -593,7 +597,12 @@ function buildUnknownParameterError(unknownParameters, inputSchema) {
     return `'${parameterName}' (closest: ${similar.map(s => `'${s.name}'`).join(", ")})`;
   });
 
-  const suffix = allowedParameters.length > 0 ? ` Supported parameters for this tool: ${allowedParameters.map(name => `'${name}'`).join(", ")}.` : "";
+  const preview = allowedParameters
+    .slice(0, UNKNOWN_PARAMETER_LIST_PREVIEW_MAX)
+    .map(name => `'${name}'`)
+    .join(", ");
+  const remainingCount = Math.max(allowedParameters.length - UNKNOWN_PARAMETER_LIST_PREVIEW_MAX, 0);
+  const suffix = allowedParameters.length > 0 ? ` Supported parameters for this tool: ${preview}${remainingCount > 0 ? `, ... (+${remainingCount} more)` : ""}.` : "";
   return `Invalid arguments: unknown parameter${unknownParameters.length === 1 ? "" : "s"} ${unknownDetails.join(", ")}.${suffix}`;
 }
 
