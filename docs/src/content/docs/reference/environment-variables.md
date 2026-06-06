@@ -280,7 +280,7 @@ jobs:
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
 - [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
-- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Enterprise defaults for timeout, max-turns, detection model, model fallback, and max-effective-tokens guardrails
+- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Enterprise defaults for timeout, max-turns, detection model, model fallback, and max-ai-credits guardrails
 - [Cost Management](/gh-aw/reference/cost-management/) - Practical model and token guardrail rollout guidance
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration

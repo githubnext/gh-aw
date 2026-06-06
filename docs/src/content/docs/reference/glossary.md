@@ -493,7 +493,7 @@ A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to 
 
 ### Max AI Credits (`max-ai-credits`)
 
-A top-level frontmatter field that caps the total AI credits budget the AWF proxy will spend within a single workflow run. Effective tokens are weighted by model multipliers and are the primary cost proxy for Copilot. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25M` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
+A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25M` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
 max-ai-credits: 5M
@@ -691,13 +691,9 @@ A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across
 
 A CLI command that orchestrates full workflow rollout to a target repository in a single invocation. `gh aw deploy` clones the target repository, runs `update` to refresh any sourced workflows, runs `add` to install the requested workflows, runs `compile --purge` to regenerate lock files and remove stale outputs, then opens a pull request with all changes for review. Replaces the manual sequence of `clone → update → add → compile → pr` commands and skips the add phase for workflows that already carry a `source:` frontmatter field to prevent duplicate installations. Accepts `--repo` to specify the target repository and `--cool-down` to set the default scheduling interval. See [CLI Reference](/gh-aw/setup/cli/).
 
-### Effective Tokens
-
-A weighted token count that normalizes raw API token usage into a single comparable value for usage monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/).
-
 ### Forecast (`gh aw forecast`)
 
-An experimental CLI command that projects future Effective Token consumption using a Monte Carlo simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/specs/forecast-specification/).
+An experimental CLI command that projects future AI Credits (AIC) consumption using a Monte Carlo simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/specs/forecast-specification/).
 
 ### Time Between Turns (TBT)
 
@@ -757,11 +753,11 @@ The causal graph of edges between workflow runs computed by `gh aw logs --json`.
 
 ### Episode
 
-A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_effective_tokens`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For Copilot usage analysis, prefer `total_effective_tokens`.
+A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_aic`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For cost analysis, prefer `total_aic` (AI Credits).
 
 ```bash
 gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, effective_tokens: .total_effective_tokens}'
+  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, aic: .total_aic}'
 ```
 
 ### WebAssembly (Wasm)
