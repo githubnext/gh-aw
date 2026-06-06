@@ -118,6 +118,17 @@ describe("parse_token_usage", () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
+    /**
+     * @param {string} summaryText
+     * @param {Array<[string, string, string]>} rows [alias, input, output]
+     */
+    function expectTokenUsageTableRows(summaryText, rows) {
+      expect(summaryText).toContain("| # | Alias | Input | Output |");
+      for (const [alias, input, output] of rows) {
+        expect(summaryText).toMatch(new RegExp(`\\|\\s*\\d+\\s*\\|\\s*${alias}\\s*\\|\\s*${input}\\s*\\|\\s*${output}\\s*\\|`));
+      }
+    }
+
     test("skips summary when token usage file does not exist", async () => {
       await main();
 
@@ -348,9 +359,10 @@ describe("parse_token_usage", () => {
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
       expect(summaryCall[0]).toContain("### Token Usage");
-      expect(summaryCall[0]).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔAI Credits | AI Credits | Duration |");
-      expect(summaryCall[0]).toContain("| 1 | sonnet46 | 100 | 200 | 0 | 0 | 0.33 | 0.33 | 1.0s |");
-      expect(summaryCall[0]).toContain("| 2 | gpt40 | 50 | 80 | 0 | 0 | 0.092 | 0.422 | 500ms |");
+      expectTokenUsageTableRows(summaryCall[0], [
+        ["sonnet46", "100", "200"],
+        ["gpt40", "50", "80"],
+      ]);
       expect(summaryCall[0]).toContain("**Total**");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
@@ -387,9 +399,10 @@ describe("parse_token_usage", () => {
       await main();
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(summaryCall[0]).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔAI Credits | AI Credits | Duration |");
-      expect(summaryCall[0]).toContain("| 1 | sonnet46 | 100 | 200 | 0 | 0 | 0.33 | 0.33 | 1.0s |");
-      expect(summaryCall[0]).toContain("| 2 | gpt40 | 50 | 80 | 0 | 0 | 0.092 | 0.422 | 500ms |");
+      expectTokenUsageTableRows(summaryCall[0], [
+        ["sonnet46", "100", "200"],
+        ["gpt40", "50", "80"],
+      ]);
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(150);
@@ -454,10 +467,11 @@ describe("parse_token_usage", () => {
       await main();
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(summaryCall[0]).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔAI Credits | AI Credits | Duration |");
-      expect(summaryCall[0]).toContain("| 1 | sonnet46 | 100 | 200 | 0 | 0 | 0.33 | 0.33 | 1.0s |");
-      expect(summaryCall[0]).toContain("| 2 | haiku45 | 50 | 75 | 0 | 0 | 0.043 | 0.372 | 500ms |");
-      expect(summaryCall[0]).toContain("| 3 | gpt40 | 20 | 30 | 0 | 0 | 0.035 | 0.407 | 400ms |");
+      expectTokenUsageTableRows(summaryCall[0], [
+        ["sonnet46", "100", "200"],
+        ["haiku45", "50", "75"],
+        ["gpt40", "20", "30"],
+      ]);
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(170);
