@@ -29,6 +29,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
@@ -55,7 +56,7 @@ function loadSamples() {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${/** @type {Error} */ err.message}`);
+    throw new Error(`apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${getErrorMessage(err)}`);
   }
   // Tolerate a literal JSON `null` payload (older compiler emitted it for
   // workflows with --use-samples but no `samples:` entries). Treat as empty.
@@ -131,7 +132,7 @@ function preStagePatch(entry, index, workspace) {
   try {
     runGit(["checkout", DEFAULT_BASE_BRANCH], workspace);
   } catch (err) {
-    console.error(`apply_samples: could not check out base branch ${DEFAULT_BASE_BRANCH}: ${/** @type {Error} */ err.message}; staying on current HEAD`);
+    console.error(`apply_samples: could not check out base branch ${DEFAULT_BASE_BRANCH}: ${getErrorMessage(err)}; staying on current HEAD`);
   }
 
   // Create the branch (or check it out if it already exists from a previous sample).
@@ -159,7 +160,7 @@ function preStagePatch(entry, index, workspace) {
 /**
  * Send a single JSON-RPC request to the MCP server child process and resolve
  * with the parsed JSON response (or reject on timeout).
- * @param {import("child_process").ChildProcessWithoutNullStreams} child
+ * @param {import("child_process").ChildProcess} child
  * @param {NodeJS.WritableStream} stdin
  * @param {object} request
  * @param {AsyncIterableIterator<string>} responseIterator

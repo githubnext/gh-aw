@@ -144,11 +144,9 @@ func validateSamplesForTool(toolName string, samples []map[string]any) error {
 }
 
 // stripSidecarFields returns a shallow copy of sample with sidecar keys removed.
-// The original map is not modified.
+// The original map is never modified, even when no sidecars are configured —
+// callers may mutate the returned map without affecting the caller's input.
 func stripSidecarFields(sample map[string]any, sidecars map[string]bool) map[string]any {
-	if len(sidecars) == 0 {
-		return sample
-	}
 	out := make(map[string]any, len(sample))
 	for k, v := range sample {
 		if sidecars[k] {

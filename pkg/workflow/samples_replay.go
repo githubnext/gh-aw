@@ -99,7 +99,7 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        id: agentic_execution\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAMPLES: |\n")
-	for _, line := range strings.Split(string(payload), "\n") {
+	for line := range strings.SplitSeq(string(payload), "\n") {
 		fmt.Fprintf(yaml, "            %s\n", line)
 	}
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_STDIO_LOG: %s\n", logFile)

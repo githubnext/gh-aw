@@ -9,7 +9,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/typeutil"
-	"go.yaml.in/yaml/v3"
 )
 
 var safeOutputsConfigLog = logger.New("workflow:safe_outputs_config")
@@ -767,8 +766,8 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 
 	// Parse samples list (hidden feature: deterministic replay samples for --use-samples).
 	// Accepts either a YAML list of objects, or a single object that is auto-wrapped
-	// into a one-element list, or a YAML string scalar containing a list (for
-	// authoring convenience with `|` block scalars in frontmatter).
+	// into a one-element list. The JSON schema rejects scalar/string shapes so we
+	// don't need a defensive YAML-string branch here.
 	if samples, exists := configMap["samples"]; exists {
 		parsed := parseSamplesValue(samples)
 		if len(parsed) > 0 {
@@ -779,14 +778,12 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 }
 
 // parseSamplesValue normalizes a `samples` frontmatter value into a list of
-// objects. Accepted shapes (most-permissive first):
+// objects. Accepted shapes:
 //   - YAML list of mappings: returned as-is
 //   - single YAML mapping: wrapped into a one-element list
-//   - YAML string containing a list/mapping (authoring with `|` block scalar):
-//     parsed as YAML and re-normalized
 //
-// Any other shape returns an empty slice — schema validation will then report
-// "no samples found".
+// Any other shape returns an empty slice — schema validation rejects those
+// shapes upstream and we keep this parser strict to match.
 func parseSamplesValue(samples any) []map[string]any {
 	switch v := samples.(type) {
 	case []any:
@@ -805,17 +802,6 @@ func parseSamplesValue(samples any) []map[string]any {
 		return out
 	case map[string]any:
 		return []map[string]any{v}
-	case string:
-		trimmed := strings.TrimSpace(v)
-		if trimmed == "" {
-			return nil
-		}
-		var nested any
-		if err := yaml.Unmarshal([]byte(trimmed), &nested); err != nil {
-			safeOutputsConfigLog.Printf("Failed to parse samples string as YAML: %v", err)
-			return nil
-		}
-		return parseSamplesValue(nested)
 	default:
 		return nil
 	}

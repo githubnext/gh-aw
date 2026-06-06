@@ -75,7 +75,10 @@ Trivial workflow whose only job is to be compiled with --use-samples.
 		}
 		lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
 		defer os.Remove(lockPath)
-		b, _ := os.ReadFile(lockPath)
+		b, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("read lock: %v", err)
+		}
 		lockContent := string(b)
 		if !strings.Contains(lockContent, "Replay safe-outputs samples (deterministic)") {
 			t.Error("Expected `Replay safe-outputs samples (deterministic)` step in lock file")
