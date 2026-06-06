@@ -97,11 +97,12 @@
         },
         "body": {
           "type": "string",
-          "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions."
+          "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions. Maximum 10 KB (10240 bytes). If your content is larger, trim it, link to an external artifact (for example a gist), or upload content via upload_asset instead of inlining."
         },
         "category": {
           "type": "string",
-          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository. NOTE: the field is named category (not categoryId or category_id as in the GitHub GraphQL API) \u2014 alternate spellings are silently stripped."
+          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository. NOTE: the field is named category (not categoryId or category_id as in the GitHub GraphQL API).",
+          "x-synonyms": ["categoryId", "category_id"]
         },
         "secrecy": {
           "type": "string",
@@ -252,7 +253,8 @@
         },
         "item_number": {
           "type": ["number", "string"],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error. Required when safe-outputs.add-comment.target is '*' (any item): calls without item_number (or pr_number/pr alias) are rejected. NOTE: this field is named item_number, NOT issue_number \u2014 issue_number is silently stripped."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error. Required when safe-outputs.add-comment.target is '*' (any item): calls without item_number (or pr_number/pr alias) are rejected. NOTE: this field is named item_number, NOT issue_number.",
+          "x-synonyms": ["issue_number"]
         },
         "pr_number": {
           "type": ["number", "string"],
@@ -497,7 +499,8 @@
         "severity": {
           "type": "string",
           "enum": ["error", "warning", "info", "note"],
-          "description": "Alert severity level: 'error' (critical security issues), 'warning' (potential problems), 'info' (informational), or 'note' (minor observations)."
+          "description": "Alert severity level: 'error' (critical security issues), 'warning' (potential problems), 'info' (informational), or 'note' (minor observations). This field is named severity, NOT level.",
+          "x-synonyms": ["level"]
         },
         "message": {
           "type": "string",
@@ -918,7 +921,8 @@
         },
         "message": {
           "type": "string",
-          "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits)."
+          "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits). This field is named message, NOT commit_message.",
+          "x-synonyms": ["commit_message"]
         },
         "pull_request_number": {
           "type": ["number", "string"],
@@ -1079,7 +1083,7 @@
       "properties": {
         "message": {
           "type": "string",
-          "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing')."
+          "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing'). This is the only content field noop accepts. Serialize any metrics or structured run summary into this single string; additional named fields (for example processed, skipped) are not accepted and cause a missing-message error."
         },
         "secrecy": {
           "type": "string",
@@ -1545,7 +1549,7 @@
   },
   {
     "name": "create_check_run",
-    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name, it will be silently stripped.",
+    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name.",
     "inputSchema": {
       "type": "object",
       "required": ["conclusion", "title", "summary"],

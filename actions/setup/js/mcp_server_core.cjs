@@ -66,7 +66,7 @@ const encoder = new TextEncoder();
  * @property {string} [logDir] - Optional log directory
  * @property {string} [logFilePath] - Optional log file path
  * @property {boolean} logFileInitialized - Whether log file has been initialized
- * @property {(toolName: string, args: any) => any} [normalizeArguments] - Optional tool argument normalizer
+ * @property {(toolName: string, args: any, tool?: Tool) => any} [normalizeArguments] - Optional tool argument normalizer
  */
 
 /**
@@ -188,7 +188,7 @@ function createReplyErrorFunction(server) {
  * @param {ServerInfo} serverInfo - Server information (name and version)
  * @param {Object} [options] - Optional server configuration
  * @param {string} [options.logDir] - Directory for log file (optional)
- * @param {(toolName: string, args: any) => any} [options.normalizeArguments] - Optional tool argument normalizer
+ * @param {(toolName: string, args: any, tool?: Tool) => any} [options.normalizeArguments] - Optional tool argument normalizer
  * @returns {MCPServer} The MCP server instance
  */
 function createServer(serverInfo, options = {}) {
@@ -534,6 +534,70 @@ function findSimilarTools(requestedTool, availableTools, maxSuggestions = 3) {
 }
 
 /**
+ * Find similar parameter names from available input schema properties.
+ * @param {string} requestedParameter - The parameter name that was provided
+ * @param {string[]} availableParameters - Available parameter names
+ * @param {number} maxSuggestions - Maximum number of suggestions to return
+ * @returns {Array<{name: string, distance: number}>} Similar parameter names
+ */
+function findSimilarParameters(requestedParameter, availableParameters, maxSuggestions = 3) {
+  const normalizedRequested = normalizeTool(requestedParameter);
+  const suggestions = availableParameters.map(parameterName => ({
+    name: parameterName,
+    distance: levenshteinDistance(normalizedRequested, normalizeTool(parameterName)),
+  }));
+
+  suggestions.sort((a, b) => a.distance - b.distance);
+  const maxDistance = Math.floor(normalizedRequested.length / 2) + 2;
+  return suggestions.filter(s => s.distance <= maxDistance).slice(0, maxSuggestions);
+}
+
+/**
+ * Validate unknown arguments against strict input schemas.
+ * @param {any} args
+ * @param {any} inputSchema
+ * @returns {string[]} Unknown parameter names
+ */
+function validateUnknownParameters(args, inputSchema) {
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    return [];
+  }
+  if (!inputSchema || typeof inputSchema !== "object") {
+    return [];
+  }
+  if (inputSchema.additionalProperties !== false) {
+    return [];
+  }
+  if (!inputSchema.properties || typeof inputSchema.properties !== "object" || Array.isArray(inputSchema.properties)) {
+    return [];
+  }
+
+  const allowed = new Set(Object.keys(inputSchema.properties));
+  return Object.keys(args).filter(key => !allowed.has(key));
+}
+
+/**
+ * Build a strict unknown-parameter validation error.
+ * @param {string[]} unknownParameters
+ * @param {any} inputSchema
+ * @returns {string}
+ */
+function buildUnknownParameterError(unknownParameters, inputSchema) {
+  const allowedParameters = inputSchema && inputSchema.properties && typeof inputSchema.properties === "object" ? Object.keys(inputSchema.properties) : [];
+
+  const unknownDetails = unknownParameters.map(parameterName => {
+    const similar = findSimilarParameters(parameterName, allowedParameters);
+    if (!similar.length) {
+      return `'${parameterName}'`;
+    }
+    return `'${parameterName}' (closest: ${similar.map(s => `'${s.name}'`).join(", ")})`;
+  });
+
+  const suffix = allowedParameters.length > 0 ? ` Supported parameters for this tool: ${allowedParameters.map(name => `'${name}'`).join(", ")}.` : "";
+  return `Invalid arguments: unknown parameter${unknownParameters.length === 1 ? "" : "s"} ${unknownDetails.join(", ")}.${suffix}`;
+}
+
+/**
  * Normalize a tool name (convert dashes to underscores, lowercase)
  * @param {string} name - The tool name to normalize
  * @returns {string} Normalized tool name
@@ -567,11 +631,11 @@ function containsAtFilepathReference(value) {
  * @param {any} args
  * @returns {any}
  */
-function normalizeToolArguments(server, toolName, args) {
+function normalizeToolArguments(server, toolName, args, tool) {
   if (typeof server.normalizeArguments !== "function") {
     return args;
   }
-  const normalized = server.normalizeArguments(toolName, args);
+  const normalized = server.normalizeArguments(toolName, args, tool);
   return normalized == null ? args : normalized;
 }
 
@@ -657,11 +721,19 @@ async function handleRequest(server, request, defaultHandler) {
         };
       }
 
-      const args = normalizeToolArguments(server, tool.name, rawArgs);
+      const args = normalizeToolArguments(server, tool.name, rawArgs, tool);
       if (containsAtFilepathReference(args)) {
         throw {
           code: -32602,
           message: "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
+        };
+      }
+
+      const unknownParameters = validateUnknownParameters(args, tool.inputSchema);
+      if (unknownParameters.length) {
+        throw {
+          code: -32602,
+          message: buildUnknownParameterError(unknownParameters, tool.inputSchema),
         };
       }
 
@@ -810,9 +882,15 @@ async function handleMessage(server, req, defaultHandler) {
         return;
       }
 
-      const args = normalizeToolArguments(server, tool.name, rawArgs);
+      const args = normalizeToolArguments(server, tool.name, rawArgs, tool);
       if (containsAtFilepathReference(args)) {
         server.replyError(id, -32602, "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.");
+        return;
+      }
+
+      const unknownParameters = validateUnknownParameters(args, tool.inputSchema);
+      if (unknownParameters.length) {
+        server.replyError(id, -32602, buildUnknownParameterError(unknownParameters, tool.inputSchema));
         return;
       }
 

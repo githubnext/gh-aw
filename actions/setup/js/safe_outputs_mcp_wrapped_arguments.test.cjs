@@ -42,9 +42,41 @@ describe("safe_outputs_mcp wrapped tool arguments", () => {
       title: "Wrapped title",
       body: "Wrapped body",
     });
+
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("Recovered wrapped safe-output tool arguments for 'create_discussion'"));
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("unwrapping key 'create_discussion'"));
     expect(debug).toHaveBeenCalledWith(expect.stringContaining(JSON.stringify(payloadKeys)));
+  });
+
+  it("maps configured parameter synonyms to canonical field names", () => {
+    const debug = vi.fn();
+    const normalized = normalizeSafeOutputToolArguments(
+      "create_code_scanning_alert",
+      {
+        file: "README.md",
+        line: 1,
+        level: "warning",
+        message: "test",
+      },
+      { debug },
+      {
+        type: "object",
+        properties: {
+          file: { type: "string" },
+          line: { type: ["number", "string"] },
+          severity: { type: "string", "x-synonyms": ["level"] },
+          message: { type: "string" },
+        },
+      }
+    );
+
+    expect(normalized).toEqual({
+      file: "README.md",
+      line: 1,
+      severity: "warning",
+      message: "test",
+    });
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("Recovered safe-output parameter synonyms"));
   });
 
   it("unwraps child arguments that match the tool name", async () => {

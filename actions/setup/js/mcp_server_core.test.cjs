@@ -131,6 +131,7 @@ describe("mcp_server_core.cjs", () => {
           type: "object",
           properties: { input: { type: "string", description: "Input text to process" } },
           required: ["input"],
+          additionalProperties: false,
         },
         handler: args => ({
           content: [{ type: "text", text: `received: ${args.input}` }],
@@ -344,6 +345,27 @@ describe("mcp_server_core.cjs", () => {
       // Verify enhanced error message includes guidance
       expect(results[0].error.message).toContain("Required parameter");
       expect(results[0].error.message).toContain("Example:");
+    });
+
+    it("should reject unknown parameters with closest valid suggestions", async () => {
+      const { handleMessage } = await import("./mcp_server_core.cjs");
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: { inpt: "hello" },
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+      expect(results[0].error.message).toContain("unknown parameter");
+      expect(results[0].error.message).toContain("'inpt'");
+      expect(results[0].error.message).toContain("'input'");
+      expect(results[0].error.message).toContain("Supported parameters for this tool");
     });
 
     it("should return error for unknown method", async () => {

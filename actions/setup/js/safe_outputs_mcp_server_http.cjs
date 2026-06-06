@@ -82,7 +82,7 @@ function createMCPServer(options = {}) {
       capabilities: {
         tools: {},
       },
-      normalizeArguments: (toolName, args) => normalizeSafeOutputToolArguments(toolName, args, logger),
+      normalizeArguments: (toolName, args, tool) => normalizeSafeOutputToolArguments(toolName, args, logger, tool?.inputSchema),
     }
   );
 

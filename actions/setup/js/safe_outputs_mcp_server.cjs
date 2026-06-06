@@ -35,10 +35,15 @@ function startSafeOutputsServer(options = {}) {
   const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
   const server = createServer(SERVER_INFO, {
     logDir: MCP_LOG_DIR,
-    normalizeArguments: (toolName, args) =>
-      normalizeSafeOutputToolArguments(toolName, args, {
-        debug: message => server.debug(message),
-      }),
+    normalizeArguments: (toolName, args, tool) =>
+      normalizeSafeOutputToolArguments(
+        toolName,
+        args,
+        {
+          debug: message => server.debug(message),
+        },
+        tool?.inputSchema
+      ),
   });
 
   // Bootstrap: load configuration and tools using shared logic
