@@ -542,6 +542,7 @@ func listRunArtifactNames(ctx context.Context, runID int64, owner, repo, hostnam
 // only a subset of the run's artifacts should be downloaded.
 func downloadArtifactsByName(ctx context.Context, runID int64, outputDir string, names []string, verbose bool, owner, repo, hostname string) error {
 	var repoFlag string
+	shouldLogProgress := IsRunningInCI() || verbose
 	if owner != "" && repo != "" {
 		if hostname != "" && hostname != "github.com" {
 			repoFlag = hostname + "/" + owner + "/" + repo
@@ -557,7 +558,7 @@ func downloadArtifactsByName(ctx context.Context, runID int64, outputDir string,
 		}
 
 		logsDownloadLog.Printf("Downloading artifact %q individually: gh %s", name, strings.Join(args, " "))
-		if verbose || IsRunningInCI() {
+		if shouldLogProgress {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Downloading artifact: "+name))
 		}
 
@@ -639,6 +640,7 @@ func retryCriticalArtifacts(ctx context.Context, runID int64, outputDir string, 
 // artifactFilter is a list of artifact base names to download; nil means download all.
 func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) error {
 	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", runID, outputDir, owner, repo, artifactFilter)
+	shouldLogProgress := IsRunningInCI() || verbose
 
 	// Check if artifacts already exist on disk (since they're immutable)
 	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
@@ -650,14 +652,14 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			missing := findMissingFilterEntries(artifactFilter, outputDir)
 			if len(missing) == 0 {
 				logsDownloadLog.Printf("All requested artifacts already on disk for run %d", runID)
-				if verbose || IsRunningInCI() {
+				if shouldLogProgress {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", runID)))
 				}
 				return nil
 			}
 			// Restrict the download to only the artifacts that are not yet on disk.
 			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", runID, missing, artifactFilter)
-			if verbose || IsRunningInCI() {
+			if shouldLogProgress {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading missing artifacts for run %d: %v", runID, missing)))
 			}
 			artifactFilter = missing
