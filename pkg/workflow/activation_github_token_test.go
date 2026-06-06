@@ -228,6 +228,86 @@ func TestActivationGitHubApp(t *testing.T) {
 	})
 }
 
+func TestActivationJobNeedsAppToken(t *testing.T) {
+	newCtx := func(app *GitHubAppConfig) *activationJobBuildContext {
+		return &activationJobBuildContext{data: &WorkflowData{
+			ActivationGitHubApp: app,
+			RawFrontmatter:      map[string]any{maxDailyAICreditsField: -1},
+		}}
+	}
+	app := &GitHubAppConfig{AppID: "1", PrivateKey: "key"}
+
+	tests := []struct {
+		name   string
+		ctx    *activationJobBuildContext
+		config func(*activationJobBuildContext)
+		want   bool
+	}{
+		{
+			name: "no app configured",
+			ctx:  newCtx(nil),
+			config: func(ctx *activationJobBuildContext) {
+				ctx.hasReaction = true
+			},
+			want: false,
+		},
+		{
+			name: "reaction triggers app token",
+			ctx:  newCtx(app),
+			config: func(ctx *activationJobBuildContext) {
+				ctx.hasReaction = true
+			},
+			want: true,
+		},
+		{
+			name: "status comment triggers app token",
+			ctx:  newCtx(app),
+			config: func(ctx *activationJobBuildContext) {
+				ctx.hasStatusComment = true
+			},
+			want: true,
+		},
+		{
+			name: "remove label triggers app token",
+			ctx:  newCtx(app),
+			config: func(ctx *activationJobBuildContext) {
+				ctx.shouldRemoveLabel = true
+			},
+			want: true,
+		},
+		{
+			name: "access requirement triggers app token",
+			ctx:  newCtx(app),
+			config: func(ctx *activationJobBuildContext) {
+				ctx.needsAppTokenForAccess = true
+			},
+			want: true,
+		},
+		{
+			name: "no triggers with app",
+			ctx:  newCtx(app),
+			config: func(_ *activationJobBuildContext) {
+			},
+			want: false,
+		},
+		{
+			name: "daily guardrail triggers app token",
+			ctx:  newCtx(app),
+			config: func(ctx *activationJobBuildContext) {
+				ctx.data.RawFrontmatter = nil
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.config(tt.ctx)
+			assert.Equal(t, tt.want, activationJobNeedsAppToken(tt.ctx))
+		})
+	}
+}
+
 func TestActivationGitHubTokenExtraction(t *testing.T) {
 	compiler := NewCompiler()
 

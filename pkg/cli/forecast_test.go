@@ -7,9 +7,11 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -401,4 +403,58 @@ func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 	out, readErr := io.ReadAll(reader)
 	require.NoError(t, readErr)
 	assert.NotContains(t, string(out), "-–-")
+}
+
+func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
+	originalDownload := forecastDownloadRunArtifacts
+	originalAnalyze := forecastAnalyzeTokenUsage
+	t.Cleanup(func() {
+		forecastDownloadRunArtifacts = originalDownload
+		forecastAnalyzeTokenUsage = originalAnalyze
+	})
+
+	var downloaded []string
+	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
+		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
+		return nil
+	}
+	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
+		return &TokenUsageSummary{TotalAIC: 12.34}, nil
+	}
+
+	aic := loadCachedRunAIC(999_000_001, false)
+	require.InDelta(t, 12.34, aic, 1e-9)
+	require.Equal(t, []string{"usage"}, downloaded)
+}
+
+func TestLoadCachedRunAIC_FallsBackToLegacyAgentArtifacts(t *testing.T) {
+	originalDownload := forecastDownloadRunArtifacts
+	originalAnalyze := forecastAnalyzeTokenUsage
+	t.Cleanup(func() {
+		forecastDownloadRunArtifacts = originalDownload
+		forecastAnalyzeTokenUsage = originalAnalyze
+	})
+
+	var downloaded []string
+	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
+		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
+		return nil
+	}
+	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
+		if len(downloaded) == 0 {
+			return &TokenUsageSummary{}, nil
+		}
+		last := downloaded[len(downloaded)-1]
+		if last == "usage" {
+			return &TokenUsageSummary{}, nil
+		}
+		if last == constants.AgentArtifactName {
+			return &TokenUsageSummary{TotalAIC: 4.56}, nil
+		}
+		return &TokenUsageSummary{}, nil
+	}
+
+	aic := loadCachedRunAIC(999_000_002, false)
+	require.InDelta(t, 4.56, aic, 1e-9)
+	require.Equal(t, []string{"usage", constants.AgentArtifactName}, downloaded)
 }

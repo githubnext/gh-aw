@@ -153,6 +153,25 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesForDecentralizedLabelsOnly
 	require.Contains(t, text, "#     ci-doctor -> ci-doctor [pull_request]")
 }
 
+func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestsPermissionForIssueCommentRoutes(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-issue-comment-perms")
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	text := string(content)
+	require.Contains(t, text, "issue_comment:")
+	require.Contains(t, text, "pull-requests: write")
+}
+
 func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(t *testing.T) {
 	data := []*WorkflowData{
 		{

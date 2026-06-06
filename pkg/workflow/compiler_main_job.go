@@ -215,6 +215,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// aic is the total AI Credits cost for the run (1 AIC == 0.01 USD), captured by the
 		// MCP gateway log parser step and passed to downstream jobs for footer rendering.
 		"aic": fmt.Sprintf("${{ steps.%s.outputs.aic }}", constants.ParseMCPGatewayStepID),
+		// ambient_context is the first-request context size metric:
+		// input_tokens + (cache_tokens / 10), where cache tokens are normalized as 10x cheaper.
+		"ambient_context": fmt.Sprintf("${{ steps.%s.outputs.ambient_context }}", constants.ParseMCPGatewayStepID),
 		// effective_tokens_rate_limit_error is true when MCP gateway logs indicate ET budget
 		// exhaustion or API rate limiting attributable to ET constraints.
 		"effective_tokens_rate_limit_error": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens_rate_limit_error || 'false' }}", constants.ParseMCPGatewayStepID),
@@ -356,7 +359,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	//
 	// Top-level frontmatter sections (pre-steps, steps, pre-agent-steps, post-steps) are
 	// all applied to the agent job and must be fully scanned.
-	// For jobs.agent.* sections, only jobs.agent.pre-steps is actually injected by
+	// For jobs.agent.* sections, only jobs.agent.setup-steps / jobs.agent.pre-steps are actually injected by
 	// applyBuiltinJobPreSteps; jobs.agent.steps, jobs.agent.pre-agent-steps, and
 	// jobs.agent.post-steps are ignored for built-in jobs, so they are intentionally
 	// excluded to avoid false-positive errors or unneeded permission grants.
@@ -366,6 +369,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PreAgentSteps, "pre-agent-steps")...)
 	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PostSteps, "post-steps")...)
 	if data.Jobs != nil {
+		agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, "setup-steps")...)
 		agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, "pre-steps")...)
 	}
 	if len(agentAllScripts) > 0 {

@@ -85,11 +85,11 @@ var EngineOptions = []EngineOption{
 	},
 	{
 		Value:       string(GeminiEngine),
-		Label:       "Gemini (deprecated)",
-		Description: "Google Gemini CLI coding agent (deprecated; prefer Antigravity)",
+		Label:       "Gemini",
+		Description: "Google Gemini CLI coding agent",
 		SecretName:  "GEMINI_API_KEY",
 		KeyURL:      "https://aistudio.google.com/app/apikey",
-		WhenNeeded:  "Legacy Gemini engine workflows",
+		WhenNeeded:  "Gemini engine workflows",
 	},
 	{
 		Value:       string(AntigravityEngine),

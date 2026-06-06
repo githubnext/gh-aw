@@ -74,6 +74,8 @@ describe("handle_agent_failure", () => {
       // Minimal templates used by main()
       fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
       fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
 
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
@@ -225,6 +227,8 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
       fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
 
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
@@ -689,9 +693,11 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
     });
 
-    it("skips new issue creation when per-category daily cap is reached", async () => {
-      const createCommentMock = vi.fn();
-      const createIssueMock = vi.fn();
+    it("creates a centralized rollup issue and adds a comment when per-category daily cap is reached", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 2001 } }));
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 999, html_url: "https://github.com/owner/repo/issues/999", node_id: "I_999" },
+      }));
       const now = new Date().toISOString();
 
       global.github = {
@@ -707,8 +713,8 @@ describe("handle_agent_failure", () => {
               if (q.includes('"gh-aw-failure-issue:"') && q.includes('"failure_categories:"')) {
                 return {
                   data: {
-                    total_count: 25,
-                    items: Array.from({ length: 25 }, (_, index) => ({
+                    total_count: 50,
+                    items: Array.from({ length: 50 }, (_, index) => ({
                       number: index + 1,
                       html_url: `https://github.com/owner/repo/issues/${index + 1}`,
                       created_at: now,
@@ -736,11 +742,73 @@ describe("handle_agent_failure", () => {
 
       await main();
 
-      expect(createCommentMock).not.toHaveBeenCalled();
-      expect(createIssueMock).not.toHaveBeenCalled();
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Daily per-category issue cap reached"));
       expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Summarize-and-stop"));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Daily failure issue cap exceeded" }));
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createCommentMock).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 999 }));
       expect(global.github.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining("is:open") }));
+    });
+
+    it("reuses an existing rollup issue when per-category daily cap is reached", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 2002 } }));
+      const createIssueMock = vi.fn();
+      const now = new Date().toISOString();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              if (q.includes('"workflow_id: test-workflow" in:body')) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              if (q.includes('"gh-aw-failure-issue:"') && q.includes('"failure_categories:"')) {
+                return {
+                  data: {
+                    total_count: 50,
+                    items: Array.from({ length: 50 }, (_, index) => ({
+                      number: index + 1,
+                      html_url: `https://github.com/owner/repo/issues/${index + 1}`,
+                      created_at: now,
+                      body: buildExistingIssueBody({
+                        branch: `feature/any-${index + 1}`,
+                        categories: ["missing_safe_outputs"],
+                      }),
+                    })),
+                  },
+                };
+              }
+              if (q.includes("[aw] Daily failure issue cap exceeded")) {
+                return {
+                  data: {
+                    total_count: 1,
+                    items: [{ number: 888, html_url: "https://github.com/owner/repo/issues/888" }],
+                  },
+                };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Daily per-category issue cap reached"));
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createCommentMock).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 888 }));
     });
   });
 
@@ -778,6 +846,7 @@ describe("handle_agent_failure", () => {
         missing_data_context: "",
         missing_tool_context: "",
         permission_denied_context: "",
+        tool_denials_exceeded_context: "",
         report_incomplete_context: reportIncompleteContext,
         missing_safe_outputs_context: "",
         engine_failure_context: "",
@@ -2071,6 +2140,67 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("tool_denials_exceeded context", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+    let loadToolDenialsExceededEvents;
+    let buildToolDenialsExceededContext;
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      try {
+        fs.rmSync(path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state"), { recursive: true, force: true });
+      } catch {}
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-tool-denials-exceeded-"));
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ loadToolDenialsExceededEvents, buildToolDenialsExceededContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+      try {
+        fs.rmSync(path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state"), { recursive: true, force: true });
+      } catch {}
+    });
+
+    it("loads guard.tool_denials_exceeded events from copilot session events.jsonl", () => {
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({ type: "assistant.message", timestamp: "2026-06-06T00:00:00Z", data: { content: "" } }),
+          JSON.stringify({
+            type: "guard.tool_denials_exceeded",
+            timestamp: "2026-06-06T00:00:01Z",
+            data: { denialCount: 5, threshold: 5, reason: "permission denied: read" },
+          }),
+        ].join("\n") + "\n"
+      );
+
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }]);
+    });
+
+    it("renders dedicated context for tool denial threshold events", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
+
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }], "daily-spdd-spec-planner");
+      expect(result).toContain("Excessive Tool Denials");
+      expect(result).toContain("5/5");
+      expect(result).toContain("guard.tool_denials_exceeded");
+      expect(result).toContain("daily-spdd-spec-planner");
+    });
+  });
+
   // ──────────────────────────────────────────────────────
   // report-as-failure feature flags (GH_AW_MISSING_TOOL_REPORT_AS_FAILURE / GH_AW_MISSING_DATA_REPORT_AS_FAILURE)
   // ──────────────────────────────────────────────────────
@@ -2903,14 +3033,19 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(
         path.join(promptsDir, "effective_tokens_rate_limit_error.md"),
-        "**AI Credits Budget Guidance**: The run hit a legacy effective-token rate-limit signal from the API proxy. gh-aw now uses AI Credits (AIC) as the primary cost metric, so migrate per-run budgeting to `max-ai-credits`.\n\n" +
+        "> [!WARNING]\n" +
+          "> **AI Credits Budget Guidance**: The run hit a legacy effective-token rate-limit signal from the API proxy. gh-aw now uses AI Credits (AIC) as the primary cost metric, so migrate per-run budgeting to `max-ai-credits`.\n\n" +
           "<details>\n" +
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [AI Credits]({ai_credits_spec_link}).\n" +
-          "{usage_line}{budget_line}{run_line}\n" +
-          "- `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.\n\n" +
-          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
-          "{et_table_section}\n" +
+          "{budget_line}\n" +
+          "- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):\n" +
+          "  ```yaml\n" +
+          "  # before\n" +
+          "  max-effective-tokens: 5000000\n" +
+          "  # after\n" +
+          "  max-ai-credits: 500\n" +
+          "  ```\n\n" +
           "- To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).\n" +
           "</details>\n"
       );
@@ -2933,59 +3068,55 @@ describe("handle_agent_failure", () => {
       }
     });
 
-    it("formats effective token values in friendly compact form", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "2500000", "https://example.com/run/1");
-      expect(result).toContain("Effective tokens used: `10M`");
-      expect(result).toContain("Configured ET budget: `2.5M`");
+    it("converts legacy ET budget to max-ai-credits guidance", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "2500000");
+      expect(result).toContain("Suggested `max-ai-credits`: `250`");
     });
 
     it("returns empty string when rate-limit error is not set", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(false, "10000000", "2500000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(false, "2500000");
       expect(result).toBe("");
     });
 
-    it("falls back to raw values when effective token values are not numeric", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "unknown", "n/a", "https://example.com/run/1");
-      expect(result).toContain("Effective tokens used: `unknown`");
-      expect(result).toContain("Configured ET budget: `n/a`");
+    it("omits suggested AI credits when legacy ET budget is not numeric", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "n/a");
+      expect(result).not.toContain("Suggested `max-ai-credits`:");
     });
 
     it("omits optional lines when values are missing", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "", "", "");
-      expect(result).not.toContain("Effective tokens used:");
-      expect(result).not.toContain("Configured ET budget:");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "");
+      expect(result).not.toContain("Suggested `max-ai-credits`:");
       expect(result).not.toContain("- Run:");
     });
 
     it("includes a link to the AI Credits specification docs", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("https://github.github.com/gh-aw/specs/ai-credits-specification/");
     });
 
     it("includes a link to the cost management guide", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("https://github.github.com/gh-aw/reference/cost-management/");
     });
 
-    it("formats the run URL as a markdown link", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
-      expect(result).toContain("- Run: [https://example.com/run/1](https://example.com/run/1)");
+    it("uses GitHub alert syntax for AI credits budget guidance", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("> **AI Credits Budget Guidance**");
     });
 
     it("wraps ET guidance in a collapsible details section", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("<summary>Why this happened and how to optimize</summary>");
       expect(result).toContain("cost management guidance");
       expect(result).toContain("max-ai-credits");
     });
 
-    it("includes a collapsible details section for ET computation", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
-      expect(result).toContain("<details>");
-      expect(result).toContain("</details>");
-      expect(result).toContain("ET computation details");
-      expect(result).not.toContain("<summary>ET computation details (formula:");
-      expect(result).toContain("<sub>ET formula:");
+    it("does not include ET computation details", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
+      expect(result).not.toContain("Effective tokens used:");
+      expect(result).not.toContain("- Run:");
+      expect(result).not.toContain("<sub>ET formula:");
     });
   });
 
@@ -3022,7 +3153,7 @@ describe("handle_agent_failure", () => {
         ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
         const result = readTokenUsageMarkdown();
         expect(result).not.toBeNull();
-        expect(result.markdown).toContain("◉ sonnet45");
+        expect(result.markdown).toContain("sonnet45");
         expect(result.markdown).toContain("1,000");
         expect(result.markdown).toContain("Alias");
         expect(result.modelNames).toEqual(["claude-sonnet-4.5"]);

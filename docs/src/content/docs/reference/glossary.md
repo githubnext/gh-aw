@@ -558,9 +558,13 @@ semantics.
 
 Controls behavior when OTLP endpoint or header values resolve to empty at runtime. Accepts `error` (default — fails startup), `warn` (logs a warning and skips MCP gateway OTLP configuration), or `ignore` (silently skips MCP gateway OTLP configuration). Useful in shared imports where OTLP secrets may be absent in some repositories — set to `ignore` to make observability opt-in without breaking workflows that lack the secrets. See [OpenTelemetry Reference](/gh-aw/reference/open-telemetry/#fields).
 
+### Setup-Steps (`jobs.<job-id>.setup-steps`)
+
+Steps injected immediately after the compiler-generated `actions/setup` step for a custom or built-in job. Defined under `jobs.<job-id>.setup-steps` in workflow frontmatter. When both a main workflow and an imported workflow define `setup-steps` for the same job, imported setup-steps run first. `setup-steps` remain distinct from `pre-steps` and are not merged across keys. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
+
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 
-Steps injected at a specific lifecycle position within a custom or built-in job's step sequence: after the compiler-generated setup step and before the first checkout or regular `steps`. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. For built-in jobs (`activation`, `pre_activation`), pre-steps are inserted after the `setup` step and before the first `actions/checkout` step. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/steps-jobs/#custom-jobs-jobs).
+Steps injected after any compiler setup scaffolding and job-level `setup-steps`, but before the main work for that job. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from both `jobs.<job-id>.setup-steps` and the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
 
 ### Pre-Activation Dependencies (`on.needs:`)
 

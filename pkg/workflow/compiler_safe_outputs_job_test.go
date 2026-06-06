@@ -813,6 +813,50 @@ func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 	assert.Contains(t, stepsContent, "id: safe-outputs-app-token")
 }
 
+func TestBuildSafeOutputJobPreStepsRunBeforeGitHubAppToken(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.ACTIONS_APP_ID }}",
+				PrivateKey: "${{ secrets.ACTIONS_PRIVATE_KEY }}",
+			},
+		},
+	}
+
+	job, err := compiler.buildSafeOutputJob(workflowData, SafeOutputJobConfig{
+		JobName:     "add_comment",
+		StepName:    "Add Comment",
+		StepID:      "add_comment",
+		MainJobName: string(constants.AgentJobName),
+		Script:      "console.log('test')",
+		Permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+			PermissionIssues: PermissionWrite,
+		}),
+		PreSteps: []string{
+			"      - name: Pre setup\n",
+			"        run: echo \"pre\"\n",
+		},
+	})
+
+	require.NoError(t, err, "Should successfully build safe output job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsContent := strings.Join(job.Steps, "")
+	preIdx := strings.Index(stepsContent, "Pre setup")
+	tokenIdx := strings.Index(stepsContent, "Generate GitHub App token")
+	scriptIdx := strings.Index(stepsContent, "Add Comment")
+
+	require.NotEqual(t, -1, preIdx, "Pre-step should be present")
+	require.NotEqual(t, -1, tokenIdx, "GitHub App token step should be present")
+	require.NotEqual(t, -1, scriptIdx, "Main safe-output step should be present")
+
+	assert.Less(t, preIdx, tokenIdx, "Pre-steps should run before GitHub App token minting")
+	assert.Less(t, tokenIdx, scriptIdx, "GitHub App token minting should still happen before the main safe-output step")
+}
+
 // TestGitHubAppTokenStepWithOTLPHeaders ensures the app token step insertion point
 // stays aligned when OTLP header masking steps are present.
 func TestGitHubAppTokenStepWithOTLPHeaders(t *testing.T) {
@@ -1201,6 +1245,8 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 					"Upload job must only run when sarif_file is non-empty")
 				assert.Contains(t, uploadJob.If, string(constants.SafeOutputsJobName),
 					"Upload job if-condition must reference safe_outputs outputs")
+				assert.Contains(t, uploadJob.Permissions, "actions: read",
+					"Upload job permissions must include actions: read for private-repo SARIF uploads")
 
 				uploadSteps := strings.Join(uploadJob.Steps, "")
 

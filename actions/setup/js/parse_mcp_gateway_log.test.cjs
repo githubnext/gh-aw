@@ -406,6 +406,7 @@ Some content here.`;
         expect(mockCore.summary.addDetails).not.toHaveBeenCalledWith("Token Usage", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", expect.any(String));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AMBIENT_CONTEXT", expect.any(String));
         expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;
@@ -1512,6 +1513,7 @@ Some content here.`;
       expect(summary.totalCacheWriteTokens).toBe(3000);
       expect(summary.totalRequests).toBe(1);
       expect(summary.totalDurationMs).toBe(2500);
+      expect(summary.ambientContextTokens).toBe(900);
     });
 
     test("aggregates multiple entries across models", () => {
@@ -1531,6 +1533,7 @@ Some content here.`;
       expect(summary.byModel["claude-sonnet-4-6"].requests).toBe(2);
       expect(summary.byModel["claude-sonnet-4-6"].inputTokens).toBe(15);
       expect(summary.byModel["gpt-4o"].requests).toBe(1);
+      expect(summary.ambientContextTokens).toBe(25);
     });
 
     test("skips malformed lines and still parses valid ones", () => {
@@ -1597,8 +1600,8 @@ not-json
     test("renders header and table columns", () => {
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔET | ET | ΔAIC | AIC | Duration |");
-      expect(md).toContain("◉ sonnet46");
+      expect(md).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔAI Credits | AI Credits | Duration |");
+      expect(md).toContain("sonnet46");
     });
 
     test("includes totals row", () => {
@@ -1627,20 +1630,21 @@ not-json
       expect(firstIdx).toBeLessThan(secondIdx);
     });
 
-    test("includes ΔET and ET columns in table", () => {
+    test("does not include effective token columns in table", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| ΔET |");
-      expect(md).toContain("| ET |");
+      expect(md).not.toContain("| ΔET |");
+      expect(md).not.toContain("| ET |");
     });
 
-    test("includes ΔAIC and AIC columns in table header", () => {
+    test("includes AI credits columns in table header", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| ΔAIC |");
-      expect(md).toContain("| AIC |");
+      expect(md).toContain("| ΔAI Credits |");
+      expect(md).toContain("| AI Credits |");
+      expect(md).not.toContain("effective token");
     });
 
     test("renders AIC value in totals row for known model with pricing", () => {
@@ -1665,21 +1669,23 @@ not-json
       expect(Math.abs(totalAIC - summary.totalAIC)).toBeLessThan(0.0001);
     });
 
-    test("does not render a dangling ET footer line", () => {
+    test("includes an AI credits legend", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| ET |");
-      expect(md).not.toContain("●");
+      expect(md).toContain("Legend:");
+      expect(md).toContain("current AI credits pricing model");
+      expect(md).not.toContain("effective token");
     });
 
-    test("does not include cache efficiency or an ET footer line", () => {
+    test("does not include cache efficiency or effective token wording", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
       expect(md).not.toContain("●");
       expect(md).not.toContain("Cache efficiency");
+      expect(md).not.toContain("effective token");
     });
 
     test("compounded ET equals sum of per-turn delta ET values", () => {

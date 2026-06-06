@@ -30,7 +30,7 @@
     "large": ["sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"],
     "any": ["copilot/*", "anthropic/*", "openai/*", "google/*", "gemini/*"],
     "agent": ["sonnet-6x", "gpt-5.4", "gpt-5.3", "gemini-pro", "any"],
-    "small-agent": ["haiku", "gpt-5-mini", "gemini-flash", "any"],
+    "small-agent": ["haiku", "gpt-5-mini", "gemini-flash"],
     "copilot": ["agent"],
     "claude": ["agent"],
     "codex": ["agent"],

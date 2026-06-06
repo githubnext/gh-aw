@@ -382,12 +382,24 @@ func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[stri
 	if mergedEvents["issues"] != nil || mergedEvents["issue_comment"] != nil || mergedEvents["pull_request"] != nil {
 		b.WriteString("      issues: write\n")
 	}
-	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil || mergedEvents["pull_request_review"] != nil {
+	if needsPullRequestsPermission(mergedEvents) {
 		b.WriteString("      pull-requests: write\n")
 	}
 	if mergedEvents["discussion"] != nil || mergedEvents["discussion_comment"] != nil {
 		b.WriteString("      discussions: write\n")
 	}
+}
+
+func needsPullRequestsPermission(mergedEvents map[string]map[string]bool) bool {
+	// issue_comment and issues events can target pull requests (issue-backed PR payloads),
+	// and runtime branch resolution uses pulls.get for those cases.
+	pullRequestEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_comment", "pull_request_review"}
+	for _, eventName := range pullRequestEvents {
+		if mergedEvents[eventName] != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func buildCommandsHeaderMetadata(slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute) commandsHeaderMetadata {

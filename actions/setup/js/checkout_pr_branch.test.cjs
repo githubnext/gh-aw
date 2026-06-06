@@ -31,12 +31,16 @@ describe("checkout_pr_branch.cjs", () => {
     // Mock context
     mockContext = {
       eventName: "pull_request",
+      actor: "test-actor",
       sha: "abc123def456",
       repo: {
         owner: "test-owner",
         repo: "test-repo",
       },
       payload: {
+        repository: {
+          fork: false,
+        },
         pull_request: {
           number: 123,
           state: "open",
@@ -71,6 +75,13 @@ describe("checkout_pr_branch.cjs", () => {
     // Mock GitHub API for fetchPRDetails (used in the else branch for non-fork PR events)
     mockGithub = {
       rest: {
+        repos: {
+          getCollaboratorPermissionLevel: vi.fn().mockResolvedValue({
+            data: {
+              permission: "write",
+            },
+          }),
+        },
         pulls: {
           get: vi.fn().mockResolvedValue({
             data: {
@@ -218,6 +229,34 @@ If the pull request is still open, verify that:
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out branch: feature-branch");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    describe("runtime checkout safety assertions", () => {
+      it("should fail when runtime repository context is a fork", async () => {
+        mockContext.payload.repository.fork = true;
+
+        await runScript();
+
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Refusing PR checkout in forked repository runtime context"));
+      });
+
+      it("should fail when actor does not have write-or-higher permission", async () => {
+        mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+          data: {
+            permission: "triage",
+          },
+        });
+
+        await runScript();
+
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("requires write or higher"));
+      });
     });
 
     it("should handle git fetch errors", async () => {

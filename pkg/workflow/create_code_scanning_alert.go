@@ -158,8 +158,9 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	// The job only runs when the safe_outputs job exported a non-empty SARIF file path.
 	jobCondition := fmt.Sprintf("needs.%s.outputs.sarif_file != ''", constants.SafeOutputsJobName)
 
-	// Permissions: contents:read to checkout, security-events:write to upload SARIF
-	permissions := NewPermissionsContentsReadSecurityEventsWrite()
+	// Permissions: contents:read to checkout, security-events:write to upload SARIF,
+	// actions:read for upload-sarif workflow run lookup in private repos
+	permissions := NewPermissionsContentsReadSecurityEventsWriteActionsRead()
 
 	job := &Job{
 		Name:           string(constants.UploadCodeScanningJobName),

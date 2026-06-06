@@ -12,18 +12,19 @@ const { formatMissingData, formatMissingTools } = require("./missing_info_format
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
-const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
 const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
-const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 25;
+const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded
@@ -162,6 +163,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasMissingSafeOutputs) categories.push("missing_safe_outputs");
   if (options.hasReportIncomplete) categories.push("report_incomplete");
   if (options.hasMissingTool) categories.push("missing_tool");
+  if (options.hasToolDenialsExceeded) categories.push("tool_denials_exceeded");
   if (options.hasMissingData) categories.push("missing_data");
   if (options.hasCacheMissMisconfiguration) categories.push("cache_miss_misconfiguration");
   if (options.secretVerificationFailed) categories.push("secret_verification_failed");
@@ -1065,6 +1067,90 @@ function buildPermissionDeniedContext(items, workflowId) {
 }
 
 /**
+ * Load max-tool-denials guard events from Copilot SDK session events.jsonl files.
+ * @returns {Array<{denialCount: number, threshold: number, reason: string}>}
+ */
+function loadToolDenialsExceededEvents() {
+  try {
+    if (!fs.existsSync(COPILOT_SESSION_STATE_DIR)) {
+      return [];
+    }
+
+    const events = [];
+    const sessionDirs = fs.readdirSync(COPILOT_SESSION_STATE_DIR, { withFileTypes: true });
+    for (const entry of sessionDirs) {
+      if (!entry.isDirectory()) continue;
+      const eventsPath = path.join(COPILOT_SESSION_STATE_DIR, entry.name, "events.jsonl");
+      if (!fs.existsSync(eventsPath)) continue;
+      const content = fs.readFileSync(eventsPath, "utf8");
+      const lines = content.split("\n");
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type !== "guard.tool_denials_exceeded" || !parsed.data || typeof parsed.data !== "object") {
+            continue;
+          }
+          const denialCount = Number.parseInt(String(parsed.data.denialCount), 10);
+          const threshold = Number.parseInt(String(parsed.data.threshold), 10);
+          if (!Number.isFinite(denialCount) || !Number.isFinite(threshold)) {
+            continue;
+          }
+          events.push({
+            denialCount,
+            threshold,
+            reason: typeof parsed.data.reason === "string" ? parsed.data.reason.trim() : "",
+          });
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+    return events;
+  } catch (error) {
+    core.warning(`Failed to load tool-denials-exceeded events: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Build context for max-tool-denials guardrail failures from Copilot SDK events.
+ * @param {Array<{denialCount: number, threshold: number, reason: string}>} events
+ * @param {string} [workflowId]
+ * @returns {string}
+ */
+function buildToolDenialsExceededContext(events, workflowId) {
+  if (!Array.isArray(events) || events.length === 0) {
+    return "";
+  }
+  const latestEvent = events[events.length - 1];
+  const denialCount = String(latestEvent.denialCount);
+  const threshold = String(latestEvent.threshold);
+  const reason = latestEvent.reason || "permission denied by workflow tool permissions";
+
+  try {
+    const templatePath = getPromptPath("tool_denials_exceeded_context.md");
+    const template = fs.readFileSync(templatePath, "utf8");
+    return (
+      "\n" +
+      renderTemplate(template, {
+        denial_count: denialCount,
+        threshold,
+        reason: `\`${reason}\``,
+        workflow_id: workflowId || "the workflow",
+      })
+    );
+  } catch {
+    return (
+      `\n**⚠️ Excessive Tool Denials**: The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.\n\n` +
+      `**Last denied request:** \`${reason}\`\n\n` +
+      "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
+    );
+  }
+}
+
+/**
  * Load report_incomplete messages from agent output
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{reason: string, details?: string}>} Array of report_incomplete messages
@@ -1290,28 +1376,18 @@ function readTokenUsageMarkdown() {
 /**
  * Build a context string when ET budget exhaustion/rate-limit is detected from gateway logs.
  * @param {boolean} hasEffectiveTokensRateLimitError
- * @param {string} effectiveTokens
  * @param {string} maxEffectiveTokens
- * @param {string} runUrl
  * @returns {string}
  */
-function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl) {
+function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, maxEffectiveTokens) {
   if (!hasEffectiveTokensRateLimitError) {
     return "";
   }
 
-  const formatEffectiveTokensForMessage = value => {
-    const parsed = Number.parseInt(value || "", 10);
-    if (Number.isInteger(parsed) && parsed > 0) {
-      return formatET(parsed);
-    }
-    return value;
-  };
-  const usageLine = effectiveTokens ? `\n- Effective tokens used: \`${formatEffectiveTokensForMessage(effectiveTokens)}\`` : "";
-  const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${formatEffectiveTokensForMessage(maxEffectiveTokens)}\`` : "";
-  const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
-
-  const etTableSection = buildETComputationTable(effectiveTokens, readTokenUsageMarkdown());
+  const EFFECTIVE_TOKENS_PER_AI_CREDIT = 10000;
+  const legacyBudgetET = Number.parseInt(maxEffectiveTokens || "", 10);
+  const suggestedAICredits = Number.isInteger(legacyBudgetET) && legacyBudgetET > 0 ? Math.floor(legacyBudgetET / EFFECTIVE_TOKENS_PER_AI_CREDIT) : 0;
+  const budgetLine = suggestedAICredits > 0 ? `\n- Suggested \`max-ai-credits\`: \`${suggestedAICredits.toLocaleString("en-US")}\`` : "";
   const templateName = "effective_tokens_rate_limit_error.md";
   let templatePath = "";
   try {
@@ -1326,16 +1402,11 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
       renderTemplateFromFile(templatePath, {
         ai_credits_spec_link: "https://github.github.com/gh-aw/specs/ai-credits-specification/",
         cost_management_link: "https://github.github.com/gh-aw/reference/cost-management/",
-        usage_line: usageLine,
         budget_line: budgetLine,
-        run_line: runLine,
-        et_table_section: etTableSection,
       })
     );
   } catch (error) {
-    throw new Error(
-      `failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "ai_credits_spec_link, cost_management_link, usage_line, budget_line, run_line, et_table_section"
-    );
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "{ai_credits_spec_link}, {cost_management_link}, {budget_line}");
   }
 }
 
@@ -1867,6 +1938,9 @@ const CASCADE_THRESHOLD = 10;
 const CASCADE_ROLLUP_TITLE = "[aw] Failure cascade detected";
 const CASCADE_LABEL = "cascade-suspected";
 const CASCADE_ROLLUP_LABEL = "cascade-rollup";
+/** Daily-cap rollup constants */
+const DAILY_CAP_ROLLUP_TITLE = "[aw] Daily failure issue cap exceeded";
+const DAILY_CAP_ROLLUP_LABEL = "daily-cap-exceeded";
 /** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
 const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
 
@@ -1964,6 +2038,51 @@ async function findExistingCascadeRollupIssue(owner, repo) {
     core.warning(`Could not search for cascade rollup issue: ${getErrorMessage(err)}`);
   }
   return null;
+}
+
+/**
+ * Find an existing open daily-cap rollup issue, or create one.
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<{number: number, html_url: string} | null>}
+ */
+async function findOrCreateDailyCapRollupIssue(owner, repo) {
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${DAILY_CAP_ROLLUP_TITLE}"`;
+  try {
+    const result = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 1,
+    });
+    if (result.data.total_count > 0) {
+      const item = result.data.items[0];
+      core.info(`Found existing daily cap rollup issue #${item.number}: ${item.html_url}`);
+      return { number: item.number, html_url: item.html_url };
+    }
+  } catch (err) {
+    core.warning(`Could not search for daily cap rollup issue: ${getErrorMessage(err)}`);
+  }
+
+  // No existing issue found — create one
+  const body = renderTemplateFromFile(getPromptPath("daily_cap_rollup_issue.md"), {
+    cap: FAILURE_ISSUE_CATEGORY_DAILY_CAP,
+    window_hours: FAILURE_ISSUE_DEDUP_WINDOW_HOURS,
+  });
+
+  try {
+    await ensureLabelExists(owner, repo, DAILY_CAP_ROLLUP_LABEL);
+    const newIssue = await github.rest.issues.create({
+      owner,
+      repo,
+      title: DAILY_CAP_ROLLUP_TITLE,
+      body,
+      labels: ["agentic-workflows", DAILY_CAP_ROLLUP_LABEL],
+    });
+    core.info(`✓ Created daily cap rollup issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+    return { number: newIssue.data.number, html_url: newIssue.data.html_url };
+  } catch (err) {
+    core.warning(`Could not create daily cap rollup issue: ${getErrorMessage(err)}`);
+    return null;
+  }
 }
 
 /**
@@ -2278,6 +2397,15 @@ async function main() {
       core.info("Missing data report-as-failure is disabled - missing_data signals will not trigger failure handling");
     }
 
+    const engineId = String(process.env.GH_AW_ENGINE_ID || "")
+      .trim()
+      .toLowerCase();
+    const toolDenialsExceededEvents = engineId === "copilot" ? loadToolDenialsExceededEvents() : [];
+    const hasToolDenialsExceeded = toolDenialsExceededEvents.length > 0;
+    if (hasToolDenialsExceeded) {
+      core.info(`Detected ${toolDenialsExceededEvents.length} guard.tool_denials_exceeded event(s) from Copilot SDK events.jsonl`);
+    }
+
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
     // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
     // prompt is referencing an incorrect path inside the cache directory.
@@ -2317,16 +2445,17 @@ async function main() {
       !effectiveTokensRateLimitError &&
       !aiCreditsRateLimitError &&
       !hasMissingTool &&
-      !hasMissingData
+      !hasMissingData &&
+      !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-et/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-et/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
 
-    // If we only have noop outputs (and no report_incomplete or cache-miss or missing-tool/data), skip failure handling
-    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData) {
+    // If we only have noop outputs (and no report_incomplete/cache-miss/missing-tool/data/tool-denials-exceeded), skip failure handling
+    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData && !hasToolDenialsExceeded) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -2415,6 +2544,7 @@ async function main() {
       hasMissingSafeOutputs,
       hasReportIncomplete,
       hasMissingTool,
+      hasToolDenialsExceeded,
       hasMissingData,
       hasCacheMissMisconfiguration,
       secretVerificationFailed: secretVerificationResult === "failed",
@@ -2503,6 +2633,8 @@ async function main() {
 
         // Build permission denied context (denied commands list + fix prompt)
         const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
+        // Build tool-denials-exceeded guard context from events.jsonl
+        const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
@@ -2536,7 +2668,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
@@ -2577,6 +2709,7 @@ async function main() {
           missing_data_context: missingDataContext,
           missing_tool_context: missingToolContext,
           permission_denied_context: permissionDeniedContext,
+          tool_denials_exceeded_context: toolDenialsExceededContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -2636,6 +2769,33 @@ async function main() {
           const summary = cappedCategories.map(({ category, count }) => `${category} (${count}/${FAILURE_ISSUE_CATEGORY_DAILY_CAP})`).join(", ");
           core.warning(`Daily per-category issue cap reached for ${summary}.`);
           core.info(`Summarize-and-stop: skipping new issue creation because category cap was reached in the last ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS}h.`);
+
+          // Create or reuse a centralized rollup issue and add a comment so the failure is
+          // still tracked rather than silently dropped.
+          try {
+            const rollupIssue = await findOrCreateDailyCapRollupIssue(owner, repo);
+            if (rollupIssue) {
+              const commentBody = sanitizeContent(
+                renderTemplateFromFile(getPromptPath("daily_cap_rollup_comment.md"), {
+                  workflow_name: workflowName,
+                  run_url: runUrl,
+                  summary,
+                  cap: FAILURE_ISSUE_CATEGORY_DAILY_CAP,
+                  window_hours: FAILURE_ISSUE_DEDUP_WINDOW_HOURS,
+                }),
+                { maxLength: 65000 }
+              );
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: rollupIssue.number,
+                body: commentBody,
+              });
+              core.info(`✓ Added cap-exceeded comment to rollup issue #${rollupIssue.number}: ${rollupIssue.html_url}`);
+            }
+          } catch (err) {
+            core.warning(`Could not update daily cap rollup issue: ${getErrorMessage(err)}`);
+          }
           return;
         }
 
@@ -2695,6 +2855,8 @@ async function main() {
 
         // Build permission denied context (denied commands list + fix prompt)
         const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
+        // Build tool-denials-exceeded guard context from events.jsonl
+        const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
@@ -2726,7 +2888,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
@@ -2768,6 +2930,7 @@ async function main() {
           missing_data_context: missingDataContext,
           missing_tool_context: missingToolContext,
           permission_denied_context: permissionDeniedContext,
+          tool_denials_exceeded_context: toolDenialsExceededContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -2867,6 +3030,8 @@ module.exports = {
   buildMissingDataContext,
   buildMissingToolContext,
   buildPermissionDeniedContext,
+  loadToolDenialsExceededEvents,
+  buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
   hasEngineRateLimit429Signal,

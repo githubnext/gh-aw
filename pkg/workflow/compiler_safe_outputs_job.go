@@ -691,6 +691,7 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// An empty/missing value is handled gracefully by getEffectiveTokensFromEnv() in messages_footer.cjs.
 	envVars["GH_AW_EFFECTIVE_TOKENS"] = fmt.Sprintf("${{ needs.%s.outputs.effective_tokens }}", constants.AgentJobName)
 	envVars["GH_AW_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.AgentJobName)
+	envVars["GH_AW_AMBIENT_CONTEXT"] = fmt.Sprintf("${{ needs.%s.outputs.ambient_context }}", constants.AgentJobName)
 	envVars["GH_AW_AGENT_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.AgentJobName)
 
 	// Add slash command metadata so safe output handlers can render run-again footer hints.

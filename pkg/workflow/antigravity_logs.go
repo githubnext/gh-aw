@@ -38,39 +38,12 @@ func (e *AntigravityEngine) ParseLogMetrics(logContent string, verbose bool) Log
 			continue
 		}
 
-		// Try to parse as JSON
-		var response AntigravityResponse
-		if err := json.Unmarshal([]byte(line), &response); err != nil {
+		response, ok := parseAntigravityResponseLine(line)
+		if !ok {
 			continue
 		}
 
-		// Successfully parsed JSON response - use the last valid response for turn count
-		if response.Response != "" {
-			metrics.Turns = 1 // At least one turn if we got a response
-		}
-
-		// Extract token usage from stats if available
-		if response.Stats != nil {
-			if models, ok := response.Stats["models"].(map[string]any); ok {
-				for _, modelStats := range models {
-					if stats, ok := modelStats.(map[string]any); ok {
-						if inputTokens, ok := stats["input_tokens"].(float64); ok {
-							metrics.TokenUsage += int(inputTokens)
-						}
-						if outputTokens, ok := stats["output_tokens"].(float64); ok {
-							metrics.TokenUsage += int(outputTokens)
-						}
-					}
-				}
-			}
-
-			// Aggregate tool calls using a map to avoid duplicates
-			if tools, ok := response.Stats["tools"].(map[string]any); ok {
-				for toolName := range tools {
-					toolCallCounts[toolName]++
-				}
-			}
-		}
+		applyAntigravityResponseMetrics(response, &metrics, toolCallCounts)
 
 		antigravityLogsLog.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
 	}
@@ -87,6 +60,47 @@ func (e *AntigravityEngine) ParseLogMetrics(logContent string, verbose bool) Log
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
 
 	return metrics
+}
+
+func parseAntigravityResponseLine(line string) (AntigravityResponse, bool) {
+	var response AntigravityResponse
+	if err := json.Unmarshal([]byte(line), &response); err != nil {
+		return AntigravityResponse{}, false
+	}
+
+	return response, true
+}
+
+func applyAntigravityResponseMetrics(response AntigravityResponse, metrics *LogMetrics, toolCallCounts map[string]int) {
+	if response.Response != "" {
+		metrics.Turns = 1 // At least one turn if we got a response
+	}
+
+	if response.Stats == nil {
+		return
+	}
+
+	if models, ok := response.Stats["models"].(map[string]any); ok {
+		for _, modelStats := range models {
+			stats, ok := modelStats.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			if inputTokens, ok := stats["input_tokens"].(float64); ok {
+				metrics.TokenUsage += int(inputTokens)
+			}
+			if outputTokens, ok := stats["output_tokens"].(float64); ok {
+				metrics.TokenUsage += int(outputTokens)
+			}
+		}
+	}
+
+	if tools, ok := response.Stats["tools"].(map[string]any); ok {
+		for toolName := range tools {
+			toolCallCounts[toolName]++
+		}
+	}
 }
 
 // GetLogParserScriptId returns the script ID for parsing Antigravity logs

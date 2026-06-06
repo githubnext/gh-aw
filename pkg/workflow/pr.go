@@ -75,9 +75,19 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	// OR github.event.issue.pull_request exists (for issue_comment events on PRs).
 	// Note: issue_comment events on PRs do NOT set github.event.pull_request; instead
 	// github.event.issue.pull_request is set to indicate the issue is a PR.
+	dispatchPRContextCondition := BuildAnd(
+		BuildEventTypeEquals("workflow_dispatch"),
+		BuildEquals(
+			BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').item_type"),
+			BuildStringLiteral("pull_request"),
+		),
+	)
 	condition := BuildOr(
-		BuildPropertyAccess("github.event.pull_request"),
-		BuildPropertyAccess("github.event.issue.pull_request"),
+		BuildOr(
+			BuildPropertyAccess("github.event.pull_request"),
+			BuildPropertyAccess("github.event.issue.pull_request"),
+		),
+		dispatchPRContextCondition,
 	)
 	RenderConditionAsIf(yaml, condition, "          ")
 

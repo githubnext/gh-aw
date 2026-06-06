@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "spec": "docs/src/content/docs/specs/bash-command-parser-specification.md",
+    "description": "Language-agnostic conformance vectors for the bash command parser",
+    "sources": ["model-based", "verification"]
+  },
+  "vectors": {
+    "splitOnPipelineOperators": [
+      {
+        "id": "BP-SP-101",
+        "source": "model-based",
+        "input": "ls&&cat",
+        "expected": ["ls", "cat"]
+      },
+      {
+        "id": "BP-SP-102",
+        "source": "model-based",
+        "input": "echo \"a && b\" && echo c",
+        "expected": ["echo \"a && b\"", "echo c"]
+      },
+      {
+        "id": "BP-SP-103",
+        "source": "model-based",
+        "input": "echo 'x|y' | cat",
+        "expected": ["echo 'x|y'", "cat"]
+      },
+      {
+        "id": "BP-SP-104",
+        "source": "model-based",
+        "input": "echo $(printf \"x;y\") ; date",
+        "expected": ["echo $(printf \"x;y\")", "date"]
+      },
+      {
+        "id": "BP-SP-105",
+        "source": "model-based",
+        "input": "echo $(echo $(ls && pwd)) && date",
+        "expected": ["echo $(echo $(ls && pwd))", "date"]
+      },
+      {
+        "id": "BP-SP-106",
+        "source": "model-based",
+        "input": "cat file.json||echo missing",
+        "expected": ["cat file.json", "echo missing"]
+      },
+      {
+        "id": "BP-SP-151",
+        "source": "verification",
+        "input": " echo a ;;; echo b ",
+        "expected": ["echo a", "echo b"]
+      },
+      {
+        "id": "BP-SP-152",
+        "source": "verification",
+        "input": " ! ls /tmp &&  echo done ",
+        "expected": ["! ls /tmp", "echo done"]
+      }
+    ],
+    "extractCommandName": [
+      {
+        "id": "BP-EC-101",
+        "source": "model-based",
+        "input": "FOO=1 BAR=2 env | grep FOO",
+        "expected": "env"
+      },
+      {
+        "id": "BP-EC-102",
+        "source": "model-based",
+        "input": "! printf '%s' ok",
+        "expected": "printf"
+      },
+      {
+        "id": "BP-EC-103",
+        "source": "model-based",
+        "input": "{ jq '.a' data.json; }",
+        "expected": "jq"
+      },
+      {
+        "id": "BP-EC-104",
+        "source": "model-based",
+        "input": "2>&1",
+        "expected": null
+      },
+      {
+        "id": "BP-EC-105",
+        "source": "model-based",
+        "input": "then cat file",
+        "expected": null
+      },
+      {
+        "id": "BP-EC-151",
+        "source": "verification",
+        "input": " VERBOSE=1 make build ",
+        "expected": "make"
+      },
+      {
+        "id": "BP-EC-152",
+        "source": "verification",
+        "input": ">out.txt",
+        "expected": null
+      },
+      {
+        "id": "BP-EC-153",
+        "source": "verification",
+        "input": "coproc",
+        "expected": null
+      }
+    ],
+    "extractCommandNamesFromPipeline": [
+      {
+        "id": "BP-EP-101",
+        "source": "model-based",
+        "input": "echo \"a && b\" && echo c",
+        "expected": ["echo"]
+      },
+      {
+        "id": "BP-EP-102",
+        "source": "model-based",
+        "input": "FOO=1 BAR=2 env | grep FOO",
+        "expected": ["env", "grep"]
+      },
+      {
+        "id": "BP-EP-103",
+        "source": "model-based",
+        "input": "{ ls /tmp; } && echo done",
+        "expected": ["ls", "echo"]
+      },
+      {
+        "id": "BP-EP-104",
+        "source": "model-based",
+        "input": "safeoutputs --help || safeoutputs missing_data",
+        "expected": ["safeoutputs"]
+      },
+      {
+        "id": "BP-EP-151",
+        "source": "verification",
+        "input": "pwd; ls; pwd; ls; echo done",
+        "expected": ["pwd", "ls", "echo"]
+      },
+      {
+        "id": "BP-EP-152",
+        "source": "verification",
+        "input": "do && ls /tmp",
+        "expected": ["ls"]
+      },
+      {
+        "id": "BP-EP-153",
+        "source": "verification",
+        "input": "cat $(ls /tmp)",
+        "expected": ["cat"]
+      }
+    ]
+  },
+  "metamorphic": [
+    {
+      "id": "BP-MR-001",
+      "function": "splitOnPipelineOperators",
+      "relation": "whitespace-invariance",
+      "left": "ls /tmp&&cat file",
+      "right": "  ls /tmp  &&  cat file  ",
+      "expected": ["ls /tmp", "cat file"]
+    },
+    {
+      "id": "BP-MR-002",
+      "function": "extractCommandName",
+      "relation": "env-prefix-invariance",
+      "left": "ls /tmp",
+      "right": "FOO=1 BAR=2 ls /tmp",
+      "expected": "ls"
+    },
+    {
+      "id": "BP-MR-003",
+      "function": "extractCommandName",
+      "relation": "redirection-suffix-invariance",
+      "left": "jq '.x' results.json",
+      "right": "jq '.x' results.json 2>/dev/null",
+      "expected": "jq"
+    },
+    {
+      "id": "BP-MR-004",
+      "function": "extractCommandNamesFromPipeline",
+      "relation": "duplicate-collapse",
+      "left": "echo a && cat b && echo c",
+      "right": "echo a && cat b",
+      "expected": ["echo", "cat"]
+    },
+    {
+      "id": "BP-MR-005",
+      "function": "extractCommandNamesFromPipeline",
+      "relation": "quoted-operator-shielding",
+      "left": "echo \"a && b\"",
+      "right": "echo 'a && b'",
+      "expected": ["echo"]
+    }
+  ]
+}

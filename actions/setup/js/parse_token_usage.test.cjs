@@ -5,7 +5,19 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { main, getReadableTokenUsagePaths, extractRequestId, readDedupedTokenUsage, getSummaryTitle, TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH, TOKEN_USAGE_PATHS, AGENT_USAGE_PATH, DEFAULT_SUMMARY_TITLE } = require("./parse_token_usage.cjs");
+const {
+  main,
+  getReadableTokenUsagePaths,
+  extractRequestId,
+  readDedupedTokenUsage,
+  getSummaryTitle,
+  buildStepSummarySection,
+  TOKEN_USAGE_AUDIT_PATH,
+  TOKEN_USAGE_PATH,
+  TOKEN_USAGE_PATHS,
+  AGENT_USAGE_PATH,
+  DEFAULT_SUMMARY_TITLE,
+} = require("./parse_token_usage.cjs");
 
 describe("parse_token_usage", () => {
   const singleEntry = JSON.stringify({
@@ -48,6 +60,7 @@ describe("parse_token_usage", () => {
   describe("main function", () => {
     let tmpDir;
     let mockCore;
+    let originalAppendFileSync;
     let originalExistsSync;
     let originalStatSync;
     let originalReadFileSync;
@@ -56,6 +69,7 @@ describe("parse_token_usage", () => {
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "parse-token-usage-test-"));
       delete process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE;
+      process.env.GITHUB_STEP_SUMMARY = "";
 
       mockCore = {
         info: vi.fn(),
@@ -74,6 +88,7 @@ describe("parse_token_usage", () => {
 
       global.core = mockCore;
 
+      originalAppendFileSync = fs.appendFileSync;
       originalExistsSync = fs.existsSync;
       originalStatSync = fs.statSync;
       originalReadFileSync = fs.readFileSync;
@@ -94,6 +109,7 @@ describe("parse_token_usage", () => {
     });
 
     afterEach(() => {
+      fs.appendFileSync = originalAppendFileSync;
       fs.existsSync = originalExistsSync;
       fs.statSync = originalStatSync;
       fs.readFileSync = originalReadFileSync;
@@ -101,6 +117,21 @@ describe("parse_token_usage", () => {
       delete global.core;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
+
+    /**
+     * @param {string} summaryText
+     * @param {Array<[string, string, string]>} rows [alias, input, output]
+     */
+    function expectTokenUsageTableRows(summaryText, rows) {
+      const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(summaryText).toContain("| # | Alias | Input | Output |");
+      for (const [alias, input, output] of rows) {
+        const aliasPattern = escapeRegex(alias);
+        const inputPattern = escapeRegex(input);
+        const outputPattern = escapeRegex(output);
+        expect(summaryText).toMatch(new RegExp(`\\|\\s*\\d+\\s*\\|\\s*${aliasPattern}\\s*\\|\\s*${inputPattern}\\s*\\|\\s*${outputPattern}\\s*\\|`));
+      }
+    }
 
     test("skips summary when token usage file does not exist", async () => {
       await main();
@@ -159,7 +190,8 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      expect(mockCore.summary.addDetails).toHaveBeenCalledWith("Token Usage", expect.stringContaining("| Alias |"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Token Usage"), true);
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("| Alias |"), true);
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
     });
@@ -185,7 +217,39 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      expect(mockCore.summary.addDetails).toHaveBeenCalledWith("Threat Detection Token Usage", expect.stringContaining("| Alias |"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Threat Detection Token Usage"), true);
+    });
+
+    test("appends token usage section to GITHUB_STEP_SUMMARY when configured", async () => {
+      const stepSummaryPath = path.join(tmpDir, "step-summary.md");
+      process.env.GITHUB_STEP_SUMMARY = stepSummaryPath;
+      fs.appendFileSync = vi.fn((...args) => originalAppendFileSync(...args));
+
+      fs.existsSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_PATH) return true;
+        if (p === TOKEN_USAGE_AUDIT_PATH) return false;
+        return originalExistsSync(p);
+      });
+      fs.statSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_PATH) return { size: singleEntry.length };
+        if (p === TOKEN_USAGE_AUDIT_PATH) return { size: 0 };
+        return originalStatSync(p);
+      });
+      fs.readFileSync = vi.fn((p, enc) => {
+        if (p === TOKEN_USAGE_PATH) return singleEntry;
+        if (p === TOKEN_USAGE_AUDIT_PATH) return "";
+        return originalReadFileSync(p, enc);
+      });
+
+      await main();
+
+      const stepSummary = originalReadFileSync(stepSummaryPath, "utf8");
+      expect(stepSummary).toContain("### Token Usage");
+      expect(stepSummary).toContain("<summary>Per-request AI credits and token totals</summary>");
+      expect(stepSummary).toContain("| ΔAI Credits | AI Credits |");
+      expect(fs.appendFileSync).toHaveBeenCalledWith(stepSummaryPath, expect.any(String), "utf8");
+      expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
+      expect(mockCore.summary.write).not.toHaveBeenCalled();
     });
 
     test("writes agent_usage.json with aggregated token totals including effective_tokens and primary_model", async () => {
@@ -222,6 +286,7 @@ describe("parse_token_usage", () => {
       expect(agentUsage.output_tokens).toBe(200);
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
+      expect(agentUsage.ambient_context).toBe(900);
       expect(typeof agentUsage.effective_tokens).toBe("number");
       expect(typeof agentUsage.ai_credits).toBe("number");
       // primary_model is the actual model from token-usage data (not a user alias)
@@ -262,6 +327,10 @@ describe("parse_token_usage", () => {
         expect(mockCore.setOutput).toHaveBeenCalledWith("aic", agentUsage.ai_credits.toFixed(3));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", agentUsage.ai_credits.toFixed(3));
       }
+      if (agentUsage.ambient_context > 0) {
+        expect(mockCore.setOutput).toHaveBeenCalledWith("ambient_context", String(agentUsage.ambient_context));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AMBIENT_CONTEXT", String(agentUsage.ambient_context));
+      }
     });
 
     test("handles multiple model entries", async () => {
@@ -292,11 +361,13 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      const detailsCall = mockCore.summary.addDetails.mock.calls[0];
-      expect(detailsCall[0]).toBe("Token Usage");
-      expect(detailsCall[1]).toContain("◉ sonnet46");
-      expect(detailsCall[1]).toContain("■ gpt40");
-      expect(detailsCall[1]).toContain("**Total**");
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+      expect(summaryCall[0]).toContain("### Token Usage");
+      expectTokenUsageTableRows(summaryCall[0], [
+        ["sonnet46", "100", "200"],
+        ["gpt40", "50", "80"],
+      ]);
+      expect(summaryCall[0]).toContain("**Total**");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(150);
@@ -331,9 +402,11 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      const detailsCall = mockCore.summary.addDetails.mock.calls[0];
-      expect(detailsCall[1]).toContain("◉ sonnet46");
-      expect(detailsCall[1]).toContain("■ gpt40");
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+      expectTokenUsageTableRows(summaryCall[0], [
+        ["sonnet46", "100", "200"],
+        ["gpt40", "50", "80"],
+      ]);
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(150);
@@ -397,10 +470,12 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      const detailsCall = mockCore.summary.addDetails.mock.calls[0];
-      expect(detailsCall[1]).toContain("◉ sonnet46");
-      expect(detailsCall[1]).toContain("▲ haiku45");
-      expect(detailsCall[1]).toContain("■ gpt40");
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+      expectTokenUsageTableRows(summaryCall[0], [
+        ["sonnet46", "100", "200"],
+        ["haiku45", "50", "75"],
+        ["gpt40", "20", "30"],
+      ]);
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(170);
@@ -494,6 +569,13 @@ describe("parse_token_usage", () => {
     test("getSummaryTitle falls back to default title", () => {
       delete process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE;
       expect(getSummaryTitle()).toBe("Token Usage");
+    });
+
+    test("buildStepSummarySection wraps markdown in a heading and details block", () => {
+      const section = buildStepSummarySection("Token Usage", "| Alias |\n| --- |");
+      expect(section).toContain("### Token Usage");
+      expect(section).toContain("<details>");
+      expect(section).toContain("<summary>Per-request AI credits and token totals</summary>");
     });
   });
 });

@@ -67,6 +67,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Package a compact usage artifact so forecasting/analytics commands can fetch
+	// token usage and aw_info without downloading full agent artifacts.
+	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
 
 	// Add noop processing step if noop is configured.
 	// This single step replaces the former two-step "Process No-Op Messages" + "Handle No-Op Message"
@@ -610,6 +613,35 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	return job, nil
+}
+
+// buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
+// The artifact includes aw_info.json and agent/detection token usage JSONL files (when present).
+func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string) []string {
+	usageArtifactName := prefix + "usage"
+	return []string{
+		"      - name: Collect usage artifact files\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		"        run: |\n",
+		"          mkdir -p /tmp/gh-aw/usage/agent /tmp/gh-aw/usage/detection\n",
+		"          [ -f /tmp/gh-aw/aw_info.json ] && cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/usage/aw_info.json || true\n",
+		"          [ -f /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
+		"          [ -f /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
+		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
+		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
+		"      - name: Upload usage artifact\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/upload-artifact")),
+		"        with:\n",
+		fmt.Sprintf("          name: %s\n", usageArtifactName),
+		"          path: |\n",
+		"            /tmp/gh-aw/usage/aw_info.json\n",
+		"            /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
+		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
+		"          if-no-files-found: ignore\n",
+	}
 }
 
 // isGroupConcurrencyQueueEnabled reports whether compiler-generated concurrency groups
