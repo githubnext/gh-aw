@@ -24,62 +24,74 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Issues & Discussions
 
-- [**Create Issue**](#issue-creation-create-issue) (`create-issue`) - Create GitHub issues (max: 1)
-- [**Update Issue**](#issue-updates-update-issue) (`update-issue`) - Update issue status, title, or body (max: 1)
-- [**Close Issue**](#close-issue-close-issue) (`close-issue`) - Close issues with comment (max: 1)
-- [**Link Sub-Issue**](#link-sub-issue-link-sub-issue) (`link-sub-issue`) - Link issues as sub-issues (max: 1)
-- [**Create Discussion**](#discussion-creation-create-discussion) (`create-discussion`) - Create GitHub discussions (max: 1)
-- [**Update Discussion**](#discussion-updates-update-discussion) (`update-discussion`) - Update discussion title, body, or labels (max: 1)
-- [**Close Discussion**](#close-discussion-close-discussion) (`close-discussion`) - Close discussions with comment and resolution (max: 1)
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Create Issue](#issue-creation-create-issue) | `create-issue` | Create GitHub issues (max: 1) |
+| [Update Issue](#issue-updates-update-issue) | `update-issue` | Update issue status, title, or body (max: 1) |
+| [Close Issue](#close-issue-close-issue) | `close-issue` | Close issues with comment (max: 1) |
+| [Link Sub-Issue](#link-sub-issue-link-sub-issue) | `link-sub-issue` | Link issues as sub-issues (max: 1) |
+| [Create Discussion](#discussion-creation-create-discussion) | `create-discussion` | Create GitHub discussions (max: 1) |
+| [Update Discussion](#discussion-updates-update-discussion) | `update-discussion` | Update discussion title, body, or labels (max: 1) |
+| [Close Discussion](#close-discussion-close-discussion) | `close-discussion` | Close discussions with comment and resolution (max: 1) |
 
 ### Pull Requests
 
-- [**Create PR**](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
-- [**Update PR**](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
-- [**Close PR**](/gh-aw/reference/safe-outputs-pull-requests/#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
-- [**PR Review Comments**](/gh-aw/reference/safe-outputs-pull-requests/#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
-- [**Reply to PR Review Comment**](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
-- [**Resolve PR Review Thread**](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
-- [**Add Reviewer**](/gh-aw/reference/safe-outputs-pull-requests/#add-reviewer-add-reviewer) (`add-reviewer`) - Add reviewers to pull requests (max: 3)
-- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable; cross-repo supported via `target-repo` when the target repository is checked out)
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Create PR](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request) | `create-pull-request` | Create pull requests with code changes (default max: 1, configurable) |
+| [Update PR](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request) | `update-pull-request` | Update PR title or body (max: 1) |
+| [Close PR](/gh-aw/reference/safe-outputs-pull-requests/#close-pull-request-close-pull-request) | `close-pull-request` | Close pull requests without merging (max: 10) |
+| [PR Review Comments](/gh-aw/reference/safe-outputs-pull-requests/#pr-review-comments-create-pull-request-review-comment) | `create-pull-request-review-comment` | Create review comments on code lines (max: 10) |
+| [Reply to PR Review Comment](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment) | `reply-to-pull-request-review-comment` | Reply to existing review comments (max: 10) |
+| [Resolve PR Review Thread](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread) | `resolve-pull-request-review-thread` | Resolve review threads after addressing feedback (max: 10) |
+| [Add Reviewer](/gh-aw/reference/safe-outputs-pull-requests/#add-reviewer-add-reviewer) | `add-reviewer` | Add reviewers to pull requests (max: 3) |
+| [Push to PR Branch](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) | `push-to-pull-request-branch` | Push changes to PR branch (default max: 1, configurable; cross-repo supported via `target-repo` when the target repository is checked out) |
 
 ### Labels, Assignments & Reviews
 
-- [**Add Comment**](#comment-creation-add-comment) (`add-comment`) - Post comments on issues, PRs, or discussions (max: 1)
-- [**Hide Comment**](#hide-comment-hide-comment) (`hide-comment`) - Hide comments on issues, PRs, or discussions (max: 5)
-- [**Add Labels**](#add-labels-add-labels) (`add-labels`) - Add labels to issues or PRs (max: 3)
-- [**Remove Labels**](#remove-labels-remove-labels) (`remove-labels`) - Remove labels from issues or PRs (max: 3)
-- [**Assign Milestone**](#assign-milestone-assign-milestone) (`assign-milestone`) - Assign issues to milestones (max: 1)
-- [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) - Assign Copilot coding agent to issues or PRs (max: 1)
-- [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) - Assign users to issues (max: 1)
-- [**Unassign from User**](#unassign-from-user-unassign-from-user) (`unassign-from-user`) - Remove user assignments from issues or PRs (max: 1)
-- [**Set Issue Type**](#set-issue-type-set-issue-type) (`set-issue-type`) - Set or clear the type of GitHub issues (max: 5)
-- [**Set Issue Field**](#set-issue-field-set-issue-field) (`set-issue-field`) - Set one issue field value by name/value (max: 5)
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Add Comment](#comment-creation-add-comment) | `add-comment` | Post comments on issues, PRs, or discussions (max: 1) |
+| [Hide Comment](#hide-comment-hide-comment) | `hide-comment` | Hide comments on issues, PRs, or discussions (max: 5) |
+| [Add Labels](#add-labels-add-labels) | `add-labels` | Add labels to issues or PRs (max: 3) |
+| [Remove Labels](#remove-labels-remove-labels) | `remove-labels` | Remove labels from issues or PRs (max: 3) |
+| [Assign Milestone](#assign-milestone-assign-milestone) | `assign-milestone` | Assign issues to milestones (max: 1) |
+| [Assign to Agent](#assign-to-agent-assign-to-agent) | `assign-to-agent` | Assign Copilot coding agent to issues or PRs (max: 1) |
+| [Assign to User](#assign-to-user-assign-to-user) | `assign-to-user` | Assign users to issues (max: 1) |
+| [Unassign from User](#unassign-from-user-unassign-from-user) | `unassign-from-user` | Remove user assignments from issues or PRs (max: 1) |
+| [Set Issue Type](#set-issue-type-set-issue-type) | `set-issue-type` | Set or clear the type of GitHub issues (max: 5) |
+| [Set Issue Field](#set-issue-field-set-issue-field) | `set-issue-field` | Set one issue field value by name/value (max: 5) |
 
 ### Projects, Releases & Assets
 
-- [**Create Project**](#project-creation-create-project) (`create-project`) - Create new GitHub Projects boards (max: 1, cross-repo)
-- [**Update Project**](#project-board-updates-update-project) (`update-project`) - Manage GitHub Projects boards (max: 10, same-repo only)
-- [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) - Create project status updates
-- [**Update Release**](#release-updates-update-release) (`update-release`) - Update GitHub release descriptions (max: 1)
-- [**Upload Artifact**](#artifact-uploads-upload-artifact) (`upload-artifact`) - Upload files as run-scoped GitHub Actions artifacts (max: 1 by default)
-- [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) - Upload files to orphaned git branch (max: 10, same-repo only). **Prefer `upload-artifact` with `skip-archive` instead.**
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Create Project](#project-creation-create-project) | `create-project` | Create new GitHub Projects boards (max: 1, cross-repo) |
+| [Update Project](#project-board-updates-update-project) | `update-project` | Manage GitHub Projects boards (max: 10, same-repo only) |
+| [Create Project Status Update](#project-status-updates-create-project-status-update) | `create-project-status-update` | Create project status updates |
+| [Update Release](#release-updates-update-release) | `update-release` | Update GitHub release descriptions (max: 1) |
+| [Upload Artifact](#artifact-uploads-upload-artifact) | `upload-artifact` | Upload files as run-scoped GitHub Actions artifacts (max: 1 by default) |
+| [Upload Assets](#asset-uploads-upload-asset) | `upload-asset` | Upload files to orphaned git branch (max: 10, same-repo only). **Prefer `upload-artifact` with `skip-archive` instead.** |
 
 ### Security & Agent Tasks
 
-- [**Dispatch Workflow**](#workflow-dispatch-dispatch-workflow) (`dispatch-workflow`) - Trigger other workflows with inputs (max: 3, same-repo only)
-- [**Call Workflow**](#workflow-call-call-workflow) (`call-workflow`) - Call reusable workflows via compile-time fan-out (max: 1, same-repo only)
-- [**Dispatch Repository Event**](#repository-dispatch-dispatch_repository) (`dispatch_repository`) - Trigger `repository_dispatch` events in external repositories, experimental (cross-repo)
-- [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) - Generate SARIF security advisories (max: unlimited, same-repo only)
-- [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) - Create automated fixes for code scanning alerts (max: 10, same-repo only)
-- [**Create Agent Session**](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Dispatch Workflow](#workflow-dispatch-dispatch-workflow) | `dispatch-workflow` | Trigger other workflows with inputs (max: 3, same-repo only) |
+| [Call Workflow](#workflow-call-call-workflow) | `call-workflow` | Call reusable workflows via compile-time fan-out (max: 1, same-repo only) |
+| [Dispatch Repository Event](#repository-dispatch-dispatch_repository) | `dispatch_repository` | Trigger `repository_dispatch` events in external repositories, experimental (cross-repo) |
+| [Code Scanning Alerts](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert` | Generate SARIF security advisories (max: unlimited, same-repo only) |
+| [Autofix Code Scanning Alerts](#autofix-code-scanning-alerts-autofix-code-scanning-alert) | `autofix-code-scanning-alert` | Create automated fixes for code scanning alerts (max: 10, same-repo only) |
+| [Create Agent Session](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) | `create-agent-session` | Create Copilot coding agent sessions (max: 1) |
 
 ### System Types (Auto-Enabled)
 
-- [**No-Op**](#no-op-logging-noop) (`noop`) - Log completion message for transparency (max: 1, same-repo only)
-- [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) - Report missing tools (max: unlimited, same-repo only)
-- [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) - Report missing data required to achieve goals (max: unlimited, same-repo only)
-- [**Create Issue**](#issue-creation-create-issue) (`create-issue`) - Auto-injected when no `safe-outputs:` section is present or when only system types (`noop`, `missing-tool`, `missing-data`) are configured (max: 1, labels and title-prefix set to workflow ID).
+| Output | Key | Description |
+|--------|-----|-------------|
+| [No-Op](#no-op-logging-noop) | `noop` | Log completion message for transparency (max: 1, same-repo only) |
+| [Missing Tool](#missing-tool-reporting-missing-tool) | `missing-tool` | Report missing tools (max: unlimited, same-repo only) |
+| [Missing Data](#missing-data-reporting-missing-data) | `missing-data` | Report missing data required to achieve goals (max: unlimited, same-repo only) |
+| [Create Issue](#issue-creation-create-issue) | `create-issue` | Auto-injected when no `safe-outputs:` section is present or when only system types (`noop`, `missing-tool`, `missing-data`) are configured (max: 1, labels and title-prefix set to workflow ID). |
 
 ### Custom Safe Output Jobs (`jobs:`)
 
