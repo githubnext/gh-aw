@@ -1078,6 +1078,11 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	return nil
 }
 
+// insertSetupStepsAfterSetupStep places setup-steps immediately after the
+// compiler-generated setup step when present. If a job has no setup step (for
+// example, in tests or future callers), it falls back to the same earliest
+// token/checkout boundary used for pre-steps so setup-steps still run before the
+// main job work begins.
 func insertSetupStepsAfterSetupStep(steps []string, setupSteps []string) []string {
 	if len(setupSteps) == 0 {
 		return steps
