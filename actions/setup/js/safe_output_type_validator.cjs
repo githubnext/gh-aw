@@ -545,12 +545,6 @@ function validateItem(item, itemType, lineNum, options) {
   }
 
   const normalizedItem = { ...item };
-  // SECURITY: Strip path fields. The privileged safe_outputs job re-derives the
-  // patch/bundle paths from the (validated) branch name via resolve_transport_paths,
-  // so agent-supplied values here would only be used to point the handler at an
-  // attacker-controlled file outside /tmp/gh-aw/aw-<sanitized-branch>.
-  delete normalizedItem.patch_path;
-  delete normalizedItem.bundle_path;
   const errors = [];
 
   // Run custom validation first if defined

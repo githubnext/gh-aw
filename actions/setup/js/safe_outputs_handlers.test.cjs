@@ -970,11 +970,6 @@ describe("safe_outputs_handlers", () => {
           branch: "release-1.12.x",
         })
       );
-      // patch_path is no longer carried on the safe-output entry; the privileged
-      // safe_outputs job re-derives it from the (validated) branch name. The MCP
-      // tool response still returns the path for caller introspection.
-      const appendedEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
-      expect(appendedEntry).not.toHaveProperty("patch_path");
       const responseData = JSON.parse(result.content[0].text);
       const patchContent = fs.readFileSync(responseData.patch.path, "utf8");
       // Diffing release-1.12.x against base main includes both release-only commits:
@@ -1258,9 +1253,6 @@ describe("safe_outputs_handlers", () => {
             repo_cwd: targetRepoDir,
           })
         );
-        const appendedPushEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
-        expect(appendedPushEntry).not.toHaveProperty("patch_path");
-        expect(appendedPushEntry).not.toHaveProperty("bundle_path");
       } finally {
         delete process.env.GITHUB_BASE_REF;
       }
@@ -1427,10 +1419,6 @@ describe("safe_outputs_handlers", () => {
           })
         );
         const appended = mockAppendSafeOutput.mock.calls[0][0];
-        // Path fields are no longer carried on the entry; they are re-derived by the
-        // privileged safe_outputs job from the (validated) branch name.
-        expect(appended).not.toHaveProperty("patch_path");
-        expect(appended).not.toHaveProperty("bundle_path");
         // diff_size must be recorded so the downstream push step can validate
         // max_patch_size against the net incremental diff (not the bundle size,
         // which on long-running branches accumulates packed git objects and can

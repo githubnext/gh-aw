@@ -323,10 +323,8 @@ async function main() {
             }
             continue;
           }
-          // SECURITY: Use normalizedItem (which strips infrastructure-only fields
-          // like patch_path, bundle_path, base_commit, diff_size) instead of the
-          // original item, to prevent agent-injected transport metadata from
-          // reaching the privileged handler.
+          // Use the normalized item (with sanitized/validated fields) rather
+          // than the raw input, so downstream consumers see the canonical form.
           core.info(`Line ${i + 1}: Valid ${itemType} item`);
           parsedItems.push(validationResult.normalizedItem);
         } else {

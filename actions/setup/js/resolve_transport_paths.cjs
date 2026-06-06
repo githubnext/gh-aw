@@ -6,20 +6,13 @@ const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_pa
 const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
 
 /**
- * Re-derive patch and bundle file paths for a safe-output message from the
+ * Derive patch and bundle file paths for a safe-output message from the
  * validated `branch` (and optional `repo`) fields.
  *
- * The MCP server sets `patch_path` and `bundle_path` on entries it appends to
- * the safe-outputs NDJSON, but the validation step in collect_ndjson_output
- * unconditionally strips these infrastructure fields from every entry as a
- * defense against agents forging file paths via raw NDJSON. By the time the
- * privileged handler runs, any `patch_path`/`bundle_path` still on the
- * message would be agent-controlled, so we ignore them and always re-derive
- * from `branch` (and `repo`).
- *
- * Sanitization in getPatchPathForBranch / getBundlePathForBranch constrains
- * the result to /tmp/gh-aw/aw-<sanitized>.{patch,bundle}, so a malicious
- * `branch` cannot escape that prefix.
+ * Paths are always re-derived from `branch` so that even a malicious agent
+ * cannot point the privileged handler at a file outside the canonical
+ * `/tmp/gh-aw/aw-<sanitized-branch>.{patch,bundle}` prefix. Sanitization in
+ * `getPatchPathForBranch` / `getBundlePathForBranch` enforces that prefix.
  *
  * @param {Object} message - The safe-output message
  * @param {string} [defaultTargetRepo] - Default target repo slug used as a fallback

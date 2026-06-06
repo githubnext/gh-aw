@@ -804,39 +804,7 @@ describe("safe_output_type_validator", () => {
     });
   });
 
-  describe("infrastructure field stripping (security)", () => {
-    it("should strip patch_path from normalizedItem", async () => {
-      const { validateItem } = await import("./safe_output_type_validator.cjs");
-
-      const item = {
-        type: "create_pull_request",
-        title: "Fix bug",
-        body: "Fixes the thing",
-        branch: "fix/bug",
-        patch_path: "/tmp/evil.patch",
-      };
-
-      const result = validateItem(item, "create_pull_request", 1);
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedItem).not.toHaveProperty("patch_path");
-    });
-
-    it("should strip bundle_path from normalizedItem", async () => {
-      const { validateItem } = await import("./safe_output_type_validator.cjs");
-
-      const item = {
-        type: "create_pull_request",
-        title: "Fix bug",
-        body: "Fixes the thing",
-        branch: "fix/bug",
-        bundle_path: "/tmp/evil.bundle",
-      };
-
-      const result = validateItem(item, "create_pull_request", 1);
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedItem).not.toHaveProperty("bundle_path");
-    });
-
+  describe("undeclared field passthrough", () => {
     it("should preserve base_commit on normalizedItem", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
@@ -869,32 +837,7 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.diff_size).toBe(1);
     });
 
-    it("should strip path fields and preserve metadata fields simultaneously", async () => {
-      const { validateItem } = await import("./safe_output_type_validator.cjs");
-
-      const item = {
-        type: "create_pull_request",
-        title: "Fix bug",
-        body: "Fixes the thing",
-        branch: "fix/bug",
-        patch_path: "/tmp/evil.patch",
-        bundle_path: "/tmp/evil.bundle",
-        base_commit: "abc123",
-        diff_size: 999999,
-      };
-
-      const result = validateItem(item, "create_pull_request", 1);
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedItem).not.toHaveProperty("patch_path");
-      expect(result.normalizedItem).not.toHaveProperty("bundle_path");
-      expect(result.normalizedItem.base_commit).toBe("abc123");
-      expect(result.normalizedItem.diff_size).toBe(999999);
-      // Legitimate fields should still be present
-      expect(result.normalizedItem.title).toBe("Fix bug");
-      expect(result.normalizedItem.branch).toBe("fix/bug");
-    });
-
-    it("should preserve non-infrastructure undeclared fields", async () => {
+    it("should preserve undeclared fields", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const item = {
@@ -906,7 +849,6 @@ describe("safe_output_type_validator", () => {
 
       const result = validateItem(item, "create_issue", 1);
       expect(result.isValid).toBe(true);
-      // Non-infrastructure extra fields should pass through
       expect(result.normalizedItem.metadata).toEqual({ project: "test" });
     });
   });

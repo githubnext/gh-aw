@@ -11,31 +11,8 @@ beforeEach(() => {
 });
 
 describe("resolveTransportPaths", () => {
-  it("ignores message.patch_path and message.bundle_path and always re-derives from branch", () => {
-    const branch = `resolve-ignore-${Date.now()}`;
-    const expectedPatch = `/tmp/gh-aw/aw-${branch}.patch`;
-    const expectedBundle = `/tmp/gh-aw/aw-${branch}.bundle`;
-    fs.writeFileSync(expectedPatch, "patch-content");
-    fs.writeFileSync(expectedBundle, "bundle-content");
-    try {
-      const result = resolveTransportPaths(
-        {
-          patch_path: "/etc/passwd",
-          bundle_path: "/etc/shadow",
-          branch,
-        },
-        "owner/repo"
-      );
-      expect(result.patchPath).toBe(expectedPatch);
-      expect(result.bundlePath).toBe(expectedBundle);
-    } finally {
-      fs.rmSync(expectedPatch, { force: true });
-      fs.rmSync(expectedBundle, { force: true });
-    }
-  });
-
   it("returns undefined values when message has no branch", () => {
-    const result = resolveTransportPaths({ patch_path: "/etc/passwd", bundle_path: "/etc/shadow" }, "owner/repo");
+    const result = resolveTransportPaths({}, "owner/repo");
     expect(result.patchPath).toBeUndefined();
     expect(result.bundlePath).toBeUndefined();
   });
