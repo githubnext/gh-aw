@@ -509,6 +509,16 @@ jobs:
       - name: Build gh-aw
         run: make build
 
+      - name: Restore forecast report logs cache
+        id: forecast_report_logs_cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ./.github/aw/logs
+          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-forecast-report-logs-
+
       - name: Generate forecast report
         id: generate_forecast_report
         shell: bash
@@ -531,6 +541,13 @@ jobs:
             echo "::error::Forecast computation failed with exit code ${forecast_exit_code}."
             exit 1
           fi
+
+      - name: Save forecast report logs cache
+        if: ${{ always() }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ./.github/aw/logs
+          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Generate forecast issue
         if: ${{ always() }}
