@@ -230,7 +230,7 @@ describe("extractCommandNamesFromPipeline", () => {
   });
 
   it("handles the GEO optimizer failed command 2 (safeoutputs || echo)", () => {
-    const cmd = "safeoutputs missing_data --help 2>/dev/null || echo \"unavailable\"";
+    const cmd = 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"';
     expect(extractCommandNamesFromPipeline(cmd)).toEqual(["safeoutputs", "echo"]);
   });
 
@@ -279,5 +279,145 @@ describe("extractCommandNamesFromPipeline", () => {
 
   it("handles date with flags", () => {
     expect(extractCommandNamesFromPipeline("date +%Y-%m-%d && echo done")).toEqual(["date", "echo"]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Extensive vector coverage (requested in PR feedback)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("splitOnPipelineOperators – extensive vectors", () => {
+  it.each([
+    {
+      id: "BP-SP-001",
+      input: 'echo "a && b" && echo c',
+      expected: ['echo "a && b"', "echo c"],
+    },
+    {
+      id: "BP-SP-002",
+      input: "echo 'x|y' | cat",
+      expected: ["echo 'x|y'", "cat"],
+    },
+    {
+      id: "BP-SP-003",
+      input: 'echo $(printf "x;y") ; date',
+      expected: ['echo $(printf "x;y")', "date"],
+    },
+    {
+      id: "BP-SP-004",
+      input: "FOO=1 BAR=2 env | grep FOO",
+      expected: ["FOO=1 BAR=2 env", "grep FOO"],
+    },
+    {
+      id: "BP-SP-005",
+      input: "ls&&cat",
+      expected: ["ls", "cat"],
+    },
+    {
+      id: "BP-SP-006",
+      input: "echo a;;;echo b",
+      expected: ["echo a", "echo b"],
+    },
+    {
+      id: "BP-SP-007",
+      input: "echo $(echo $(printf '%s' hi)) && pwd",
+      expected: ["echo $(echo $(printf '%s' hi))", "pwd"],
+    },
+    {
+      id: "BP-SP-008",
+      input: " ! ls /tmp &&  echo done ",
+      expected: ["! ls /tmp", "echo done"],
+    },
+    {
+      id: "BP-SP-009",
+      input: "{ ls /tmp; } && echo done",
+      expected: ["{ ls /tmp", "}", "echo done"],
+    },
+    {
+      id: "BP-SP-010",
+      input: "cat file.json||echo missing",
+      expected: ["cat file.json", "echo missing"],
+    },
+  ])("matches vector $id", ({ input, expected }) => {
+    expect(splitOnPipelineOperators(input)).toEqual(expected);
+  });
+});
+
+describe("extractCommandName – extensive vectors", () => {
+  it.each([
+    { id: "BP-EC-001", segment: "FOO=bar BAR=baz grep foo file.txt", expected: "grep" },
+    { id: "BP-EC-002", segment: "! printf '%s' ok", expected: "printf" },
+    { id: "BP-EC-003", segment: "{ jq '.a' data.json; }", expected: "jq" },
+    { id: "BP-EC-004", segment: "2>&1", expected: null },
+    { id: "BP-EC-005", segment: ">out.txt", expected: null },
+    { id: "BP-EC-006", segment: "A=1 B=2 safeoutputs missing_data", expected: "safeoutputs" },
+    { id: "BP-EC-007", segment: "then cat file", expected: null },
+    { id: "BP-EC-008", segment: "fi", expected: null },
+    { id: "BP-EC-009", segment: "do", expected: null },
+    { id: "BP-EC-010", segment: "done", expected: null },
+    { id: "BP-EC-011", segment: "esac", expected: null },
+    { id: "BP-EC-012", segment: "in", expected: null },
+    { id: "BP-EC-013", segment: "function", expected: null },
+    { id: "BP-EC-014", segment: "time", expected: null },
+    { id: "BP-EC-015", segment: "coproc", expected: null },
+  ])("matches vector $id", ({ segment, expected }) => {
+    expect(extractCommandName(segment)).toBe(expected);
+  });
+});
+
+describe("extractCommandNamesFromPipeline – extensive vectors", () => {
+  it.each([
+    {
+      id: "BP-EP-001",
+      input: 'echo "a && b" && echo c',
+      expected: ["echo"],
+    },
+    {
+      id: "BP-EP-002",
+      input: "echo 'x|y' | cat",
+      expected: ["echo", "cat"],
+    },
+    {
+      id: "BP-EP-003",
+      input: 'echo $(printf "x;y") ; date',
+      expected: ["echo", "date"],
+    },
+    {
+      id: "BP-EP-004",
+      input: "FOO=1 BAR=2 env | grep FOO",
+      expected: ["env", "grep"],
+    },
+    {
+      id: "BP-EP-005",
+      input: "{ ls /tmp; } && echo done",
+      expected: ["ls", "echo"],
+    },
+    {
+      id: "BP-EP-006",
+      input: "! { echo hi; }",
+      expected: ["echo"],
+    },
+    {
+      id: "BP-EP-007",
+      input: "do && ls /tmp",
+      expected: ["ls"],
+    },
+    {
+      id: "BP-EP-008",
+      input: "safeoutputs --help || safeoutputs missing_data",
+      expected: ["safeoutputs"],
+    },
+    {
+      id: "BP-EP-009",
+      input: "pwd; ls; pwd; ls; echo done",
+      expected: ["pwd", "ls", "echo"],
+    },
+    {
+      id: "BP-EP-010",
+      input: "cat file.json||echo missing",
+      expected: ["cat", "echo"],
+    },
+  ])("matches vector $id", ({ input, expected }) => {
+    expect(extractCommandNamesFromPipeline(input)).toEqual(expected);
   });
 });
