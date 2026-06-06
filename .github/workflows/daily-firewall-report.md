@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 max-daily-ai-credits: 100M
+max-effective-tokens: 25000000
 permissions:
   contents: read
   actions: read
