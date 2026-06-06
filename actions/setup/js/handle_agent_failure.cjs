@@ -12,7 +12,6 @@ const { formatMissingData, formatMissingTools } = require("./missing_info_format
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
-const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
@@ -1387,18 +1386,11 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
     return "";
   }
 
-  const formatEffectiveTokensForMessage = value => {
-    const parsed = Number.parseInt(value || "", 10);
-    if (Number.isInteger(parsed) && parsed > 0) {
-      return formatET(parsed);
-    }
-    return value;
-  };
-  const usageLine = effectiveTokens ? `\n- Effective tokens used: \`${formatEffectiveTokensForMessage(effectiveTokens)}\`` : "";
-  const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${formatEffectiveTokensForMessage(maxEffectiveTokens)}\`` : "";
-  const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
+  const legacyBudgetET = Number.parseInt(maxEffectiveTokens || "", 10);
+  const budgetLine = Number.isInteger(legacyBudgetET) && legacyBudgetET > 0 && Math.floor(legacyBudgetET / 10000) > 0 ? `\n- Suggested \`max-ai-credits\`: \`${Math.floor(legacyBudgetET / 10000).toLocaleString("en-US")}\`` : "";
 
-  const etTableSection = buildETComputationTable(effectiveTokens, readTokenUsageMarkdown());
+  void effectiveTokens;
+  void runUrl;
   const templateName = "effective_tokens_rate_limit_error.md";
   let templatePath = "";
   try {
@@ -1413,16 +1405,11 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
       renderTemplateFromFile(templatePath, {
         ai_credits_spec_link: "https://github.github.com/gh-aw/specs/ai-credits-specification/",
         cost_management_link: "https://github.github.com/gh-aw/reference/cost-management/",
-        usage_line: usageLine,
         budget_line: budgetLine,
-        run_line: runLine,
-        et_table_section: etTableSection,
       })
     );
   } catch (error) {
-    throw new Error(
-      `failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "ai_credits_spec_link, cost_management_link, usage_line, budget_line, run_line, et_table_section"
-    );
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "ai_credits_spec_link, cost_management_link, budget_line");
   }
 }
 
