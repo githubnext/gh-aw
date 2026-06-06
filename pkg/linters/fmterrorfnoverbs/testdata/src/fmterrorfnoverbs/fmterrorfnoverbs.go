@@ -25,3 +25,12 @@ func goodWithVerb(name string) error {
 func goodWithWrap(err error) error {
 	return fmt.Errorf("wrapper: %w", err)
 }
+
+func suppressedPreviousLine() error {
+	//nolint:fmterrorfnoverbs
+	return fmt.Errorf("this is intentionally static")
+}
+
+func suppressedSameLine() error {
+	return fmt.Errorf("this is intentionally static") //nolint:fmterrorfnoverbs
+}

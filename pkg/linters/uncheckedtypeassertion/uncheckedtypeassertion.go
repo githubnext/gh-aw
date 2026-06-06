@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the unchecked-type-assertion analysis pass.
@@ -28,6 +29,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "uncheckedtypeassertion")
 
 	// Build a parent map for each file so we can detect the two-value form.
 	fileParents := make(map[*ast.File]map[ast.Node]ast.Node)
@@ -40,13 +42,13 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectTypeAssertExpr(pass, fileParents, n)
+		inspectTypeAssertExpr(pass, noLintLinesByFile, fileParents, n)
 	})
 
 	return nil, nil
 }
 
-func inspectTypeAssertExpr(pass *analysis.Pass, fileParents map[*ast.File]map[ast.Node]ast.Node, n ast.Node) {
+func inspectTypeAssertExpr(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, fileParents map[*ast.File]map[ast.Node]ast.Node, n ast.Node) {
 	typeAssert, ok := n.(*ast.TypeAssertExpr)
 	if !ok {
 		return
@@ -82,6 +84,9 @@ func inspectTypeAssertExpr(pass *analysis.Pass, fileParents map[*ast.File]map[as
 
 	t := pass.TypesInfo.TypeOf(typeAssert.Type)
 	if t == nil {
+		return
+	}
+	if nolint.HasDirective(pos, noLintLinesByFile) {
 		return
 	}
 

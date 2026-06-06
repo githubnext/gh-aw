@@ -16,3 +16,9 @@ func notFlagged(name string) {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "hello %s\n", name)
 }
+
+func suppressed(name string) {
+	//nolint:fprintlnsprintf
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name))
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name)) //nolint:fprintlnsprintf
+}

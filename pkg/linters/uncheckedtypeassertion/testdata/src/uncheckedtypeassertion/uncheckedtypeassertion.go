@@ -34,3 +34,12 @@ func GoodTwoValueBlankOk(v interface{}) string {
 	s, _ := v.(string)
 	return s
 }
+
+func SuppressedPreviousLine(v interface{}) string {
+	//nolint:uncheckedtypeassertion
+	return v.(string)
+}
+
+func SuppressedSameLine(v interface{}) string {
+	return v.(string) //nolint:uncheckedtypeassertion
+}

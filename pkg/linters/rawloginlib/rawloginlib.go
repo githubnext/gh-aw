@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -39,6 +40,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "rawloginlib")
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 
@@ -59,6 +61,10 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		if ident.Name == "log" && rawLogFuncs[sel.Sel.Name] {
+			position := pass.Fset.PositionFor(call.Pos(), false)
+			if nolint.HasDirective(position, noLintLinesByFile) {
+				return
+			}
 			pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
 		}
 	})

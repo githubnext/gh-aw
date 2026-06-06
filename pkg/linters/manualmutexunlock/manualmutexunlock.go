@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the manual-mutex-unlock analysis pass.
@@ -30,19 +31,20 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "manualmutexunlock")
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectMutexFuncDecl(pass, n)
+		inspectMutexFuncDecl(pass, noLintLinesByFile, n)
 	})
 
 	return nil, nil
 }
 
-func inspectMutexFuncDecl(pass *analysis.Pass, n ast.Node) {
+func inspectMutexFuncDecl(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, n ast.Node) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok || fn.Body == nil {
 		return
@@ -58,12 +60,16 @@ func inspectMutexFuncDecl(pass *analysis.Pass, n ast.Node) {
 
 	// Walk all statements in the function body
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		return inspectMutexNode(pass, mutexVars, node)
+		return inspectMutexNode(pass, noLintLinesByFile, mutexVars, node)
 	})
 
 	// Report mutexes with manual unlock but no defer
 	for _, state := range mutexVars {
 		if state.hasManualUnlock && !state.hasDefer {
+			position := pass.Fset.PositionFor(state.lockPos, false)
+			if nolint.HasDirective(position, noLintLinesByFile) {
+				continue
+			}
 			pass.Report(analysis.Diagnostic{
 				Pos:     state.lockPos,
 				Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
@@ -72,7 +78,7 @@ func inspectMutexFuncDecl(pass *analysis.Pass, n ast.Node) {
 	}
 }
 
-func inspectMutexNode(pass *analysis.Pass, mutexVars map[types.Object]*mutexVarState, node ast.Node) bool {
+func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, mutexVars map[types.Object]*mutexVarState, node ast.Node) bool {
 	if node == nil {
 		return false
 	}
@@ -89,6 +95,13 @@ func inspectMutexNode(pass *analysis.Pass, mutexVars map[types.Object]*mutexVarS
 				// If this mutex was already tracked from a prior lock on the same
 				// binding, report any unresolved violation before overwriting state.
 				if prev, exists := mutexVars[obj]; exists && prev.hasManualUnlock && !prev.hasDefer {
+					position := pass.Fset.PositionFor(prev.lockPos, false)
+					if nolint.HasDirective(position, noLintLinesByFile) {
+						mutexVars[obj] = &mutexVarState{
+							lockPos: call.Pos(),
+						}
+						return true
+					}
 					pass.Report(analysis.Diagnostic{
 						Pos:     prev.lockPos,
 						Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",

@@ -13,6 +13,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the fmterrorfnoverbs analysis pass.
@@ -29,6 +31,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "fmterrorfnoverbs")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -60,6 +63,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if !strings.Contains(val, "%") {
+			position := pass.Fset.PositionFor(call.Pos(), false)
+			if nolint.HasDirective(position, noLintLinesByFile) {
+				return
+			}
 			pass.ReportRangef(call, "fmt.Errorf called with no format verbs; use errors.New(%s) instead", lit.Value)
 		}
 	})
