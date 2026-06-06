@@ -39,7 +39,6 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { minimatch } = require("minimatch");
 const { extractCommandNamesFromPipeline } = require("./bash_command_parser.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
@@ -205,7 +204,7 @@ function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
     if (normalizedRequestedPath === normalizedPattern) {
       return true;
     }
-    return minimatch(normalizedRequestedPath, normalizedPattern, { dot: true });
+    return path.posix.matchesGlob(normalizedRequestedPath, normalizedPattern);
   });
 }
 

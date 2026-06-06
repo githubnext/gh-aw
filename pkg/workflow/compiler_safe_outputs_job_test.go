@@ -1201,6 +1201,8 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 					"Upload job must only run when sarif_file is non-empty")
 				assert.Contains(t, uploadJob.If, string(constants.SafeOutputsJobName),
 					"Upload job if-condition must reference safe_outputs outputs")
+				assert.Contains(t, uploadJob.Permissions, "actions: read",
+					"Upload job permissions must include actions: read for private-repo SARIF uploads")
 
 				uploadSteps := strings.Join(uploadJob.Steps, "")
 
