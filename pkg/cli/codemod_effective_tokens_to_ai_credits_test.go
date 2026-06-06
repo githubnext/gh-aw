@@ -39,8 +39,8 @@ on: workflow_dispatch
 	result, applied, err := codemod.Apply(content, frontmatter)
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "max-ai-credits: 5000000 # run budget")
-	assert.Contains(t, result, "max-daily-ai-credits: 10000  # daily budget")
+	assert.Contains(t, result, "max-ai-credits: 500 # run budget")
+	assert.Contains(t, result, "max-daily-ai-credits: 1  # daily budget")
 	assert.NotContains(t, result, "max-effective-tokens:")
 	assert.NotContains(t, result, "max-daily-effective-tokens:")
 	assert.Contains(t, result, "\n# Workflow")
@@ -69,13 +69,13 @@ func TestEffectiveTokensToAICreditsCodemod_IdempotentAfterMigration(t *testing.T
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
-max-ai-credits: 5000000
-max-daily-ai-credits: 10000
+max-ai-credits: 500
+max-daily-ai-credits: 1
 ---`
 
 	frontmatter := map[string]any{
-		"max-ai-credits":       5000000,
-		"max-daily-ai-credits": 10000,
+		"max-ai-credits":       500,
+		"max-daily-ai-credits": 1,
 	}
 
 	result, applied, err := codemod.Apply(content, frontmatter)
@@ -101,7 +101,7 @@ max-daily-effective-tokens: 4M
 	require.NoError(t, err)
 	assert.True(t, applied)
 	assert.Contains(t, result, "max-effective-tokens: ${{ inputs.max-effective-tokens }}")
-	assert.Contains(t, result, "max-daily-ai-credits: 4000000")
+	assert.Contains(t, result, "max-daily-ai-credits: 400")
 	assert.NotContains(t, result, "max-daily-effective-tokens:")
 }
 
@@ -140,4 +140,23 @@ max-daily-effective-tokens: -1 # disabled
 	assert.True(t, applied)
 	assert.Contains(t, result, "max-daily-ai-credits: -1 # disabled")
 	assert.NotContains(t, result, "max-daily-effective-tokens:")
+}
+
+func TestEffectiveTokensToAICreditsCodemod_SkipsValuesBelowOneCredit(t *testing.T) {
+	codemod := getEffectiveTokensToAICreditsCodemod()
+
+	content := `---
+max-effective-tokens: 9999
+max-daily-effective-tokens: 5000
+---`
+
+	frontmatter := map[string]any{
+		"max-effective-tokens":       9999,
+		"max-daily-effective-tokens": 5000,
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+	require.NoError(t, err)
+	assert.False(t, applied)
+	assert.Equal(t, content, result)
 }

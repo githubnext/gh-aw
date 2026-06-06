@@ -96,7 +96,7 @@ func getEffectiveTokensToAICreditsCodemod() Codemod {
 func normalizeLegacyBudgetValue(raw any, allowNegativeOne bool) (string, bool) {
 	if value, ok := typeutil.ParseIntValue(raw); ok {
 		if value > 0 {
-			return strconv.Itoa(value), true
+			return convertEffectiveTokensToAICredits(value)
 		}
 		if allowNegativeOne && value == -1 {
 			return "-1", true
@@ -117,10 +117,22 @@ func normalizeLegacyBudgetValue(raw any, allowNegativeOne bool) (string, bool) {
 		return "-1", true
 	}
 	if normalized, ok := typeutil.NormalizeInt64KMSuffix(trimmed); ok {
-		return normalized, true
+		parsed, err := strconv.Atoi(normalized)
+		if err != nil {
+			return "", false
+		}
+		return convertEffectiveTokensToAICredits(parsed)
 	}
 
 	return "", false
+}
+
+func convertEffectiveTokensToAICredits(effectiveTokens int) (string, bool) {
+	aiCredits := effectiveTokens / 10000
+	if aiCredits <= 0 {
+		return "", false
+	}
+	return strconv.Itoa(aiCredits), true
 }
 
 func isExpressionValue(value string) bool {
