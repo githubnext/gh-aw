@@ -190,6 +190,25 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 	return "GH_AW_" + upperName + "_" + tag + "_EOF"
 }
 
+// GenerateHeredocDelimiterFromContent creates a stable heredoc delimiter derived from the
+// content it wraps. The 16-character hex tag is the first 8 bytes of SHA-256 of the content,
+// so the delimiter is identical across builds whenever the content is unchanged and changes
+// only when the content changes — reducing unnecessary diff noise and merge conflicts.
+//
+// The name prefix (e.g. "PROMPT", "MCP_CONFIG") is included for readability and to ensure
+// that two different heredocs wrapping identical content still produce distinct delimiters.
+func GenerateHeredocDelimiterFromContent(name string, content string) string {
+	h := sha256.New()
+	h.Write([]byte(strings.ToUpper(name)))
+	h.Write([]byte(content))
+	tag := hex.EncodeToString(h.Sum(nil)[:8])
+	upperName := strings.ToUpper(name)
+	if name == "" {
+		return "GH_AW_" + tag + "_EOF"
+	}
+	return "GH_AW_" + upperName + "_" + tag + "_EOF"
+}
+
 // heredocDelimiterRE matches randomized heredoc delimiters of the form GH_AW_<NAME>_<16hexchars>_EOF.
 // Used to normalize delimiters when comparing compiled output to skip unnecessary writes.
 var heredocDelimiterRE = regexp.MustCompile(`GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF`)

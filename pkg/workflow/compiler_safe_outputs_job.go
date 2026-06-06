@@ -237,7 +237,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 	// This must run before the handler manager step so the files are available for require()
 	if len(data.SafeOutputs.Scripts) > 0 {
 		consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
-		scriptSetupSteps, err := buildCustomScriptFilesStep(data.SafeOutputs.Scripts, data.FrontmatterHash)
+		scriptSetupSteps, err := buildCustomScriptFilesStep(data.SafeOutputs.Scripts)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to build custom script files step: %w", err)
 		}
@@ -874,7 +874,7 @@ func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScript
 // Users write only the handler body; the compiler wraps it with config destructuring,
 // the handler function, and module.exports boilerplate.
 // Each script is written using a heredoc to avoid shell quoting issues.
-func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatterHash string) ([]string, error) {
+func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) ([]string, error) {
 	if len(scripts) == 0 {
 		return nil, nil
 	}
@@ -895,8 +895,8 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatte
 		normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
 		filename := safeOutputScriptFilename(normalizedName)
 		filePath := SetupActionDestinationShell + "/" + filename
-		delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUT_SCRIPT_"+strings.ToUpper(normalizedName), frontmatterHash)
 		scriptContent := generateSafeOutputScriptContent(scriptName, scriptConfig)
+		delimiter := GenerateHeredocDelimiterFromContent("SAFE_OUTPUT_SCRIPT_"+strings.ToUpper(normalizedName), scriptContent)
 
 		if err := ValidateHeredocContent(scriptContent, delimiter); err != nil {
 			return nil, fmt.Errorf("safe-output script %q: %w", scriptName, err)
