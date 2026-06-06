@@ -67,6 +67,25 @@ safe-outputs:
       run-failure: "❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details."
 timeout-minutes: 15
 strict: true
+experiments:
+  prompt_style_test:
+    variants: [detailed, concise, step_by_step]
+    description: "Test whether reducing prompt verbosity preserves project-operation success rate"
+    hypothesis: "H0: no change in run_success_rate. H1: concise/step_by_step achieve ≥90% success rate with ≥30% fewer prompt tokens"
+    metric: run_success_rate
+    secondary_metrics: [run_duration_ms, prompt_token_count, ops_completed_count]
+    analysis_type: proportion_test
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "<=0.05"
+      - name: missing_ops_rate
+        threshold: "<=0.10"
+    min_samples: 20
+    weight: [34, 33, 33]
+    start_date: "2026-06-06"
+    tags: [smoke-test, prompt-engineering, verbosity]
+    notify:
+      issue: 37302
 imports:
   - shared/otlp.md
 ---
@@ -74,11 +93,31 @@ imports:
 # Smoke Test: Project Operations Validation
 
 Default status field for any created items: "Todo".
-Do the following operations EXACTLY in this order.
 Do not re-create draft items but use their returned temporary-ids for the update operations.
 
 ## Test Requirements
 
+{{#if experiments.prompt_style_test == "concise" }}
+Run the following project operations against `https://github.com/orgs/github/projects/24068`:
+
+1. Add a draft issue titled "Test *draft issue* for `smoke-project`" (temporary_id: draft-1, Status: Todo, Priority: High)
+2. Add PR github/gh-aw#14477 (Status: Todo, Priority: High)
+3. Add issue github/gh-aw#14478 (Status: Todo, Priority: High)
+4. Update the draft issue from step 1 to Status: In Progress
+5. Update PR github/gh-aw#14477 to Status: In Progress
+6. Update issue github/gh-aw#14478 to Status: In Progress
+7. Post a project status update with a markdown checklist of all operations performed.
+{{else if experiments.prompt_style_test == "step_by_step" }}
+Execute each step in order:
+
+1. `update_project` — draft_issue, title="Test *draft issue* for `smoke-project`", temporary_id=draft-1, Status=Todo, Priority=High
+2. `update_project` — pull_request github/gh-aw#14477, Status=Todo, Priority=High
+3. `update_project` — issue github/gh-aw#14478, Status=Todo, Priority=High
+4. `update_project` — draft_issue using temporary-id from step 1, Status=In Progress
+5. `update_project` — pull_request github/gh-aw#14477, Status=In Progress
+6. `update_project` — issue github/gh-aw#14478, Status=In Progress
+7. `create_project_status_update` — post a markdown pass/fail checklist covering all 6 operations above
+{{else}}
 1. **Add items**: Create items in the project using different content types:
 
    a. **Draft Issue Creation**:
@@ -147,5 +186,6 @@ Do not re-create draft items but use their returned temporary-ids for the update
     - `status`: "ON_TRACK" | "AT_RISK" | "OFF_TRACK" | "COMPLETE" | "INACTIVE"
     - `start_date`: Optional date in "YYYY-MM-DD" format (if you want to represent the run start)
     - `target_date`: Optional date in "YYYY-MM-DD" format (if you want to represent the run target/end)
+{{/if}}
 
 {{#runtime-import shared/noop-reminder.md}}

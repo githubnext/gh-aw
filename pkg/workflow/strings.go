@@ -79,8 +79,6 @@
 package workflow
 
 import (
-	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -154,40 +152,6 @@ func ShortenCommand(command string) string {
 // apostrophe per YAML 1.2.
 func escapeYAMLSingleQuoted(value string) string {
 	return strings.ReplaceAll(value, "'", "''")
-}
-
-// GenerateHeredocDelimiterFromSeed creates a stable heredoc delimiter derived from a seed
-// (typically the workflow frontmatter hash hex string) so that repeated compilations of the
-// same workflow produce identical lock files.
-//
-// When seed is non-empty, the 16-character hex tag is derived deterministically via
-// HMAC-SHA256(key=seed, data=UPPER(name)), taking the first 8 bytes of the MAC.
-// Using HMAC (with the seed as the key and the name as the message) avoids any
-// length-extension or concatenation-collision concerns. This preserves the
-// injection-resistance guarantee (an attacker who cannot control the frontmatter hash
-// cannot predict the delimiter) while also making the compiled output stable.
-//
-// When seed is empty, the function falls back to crypto/rand — the same behaviour as
-// GenerateHeredocDelimiter — so callers that lack a hash continue to work correctly.
-// Panics on crypto/rand failure when no seed is provided.
-func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
-	upperName := strings.ToUpper(name)
-	var tag string
-	if seed != "" {
-		mac := hmac.New(sha256.New, []byte(seed))
-		mac.Write([]byte(upperName))
-		tag = hex.EncodeToString(mac.Sum(nil)[:8]) // first 8 bytes → 16 hex chars
-	} else {
-		b := make([]byte, 8)
-		if _, err := rand.Read(b); err != nil {
-			panic("BUG: crypto/rand failed: " + err.Error())
-		}
-		tag = hex.EncodeToString(b)
-	}
-	if name == "" {
-		return "GH_AW_" + tag + "_EOF"
-	}
-	return "GH_AW_" + upperName + "_" + tag + "_EOF"
 }
 
 // GenerateHeredocDelimiterFromContent creates a stable heredoc delimiter derived from the
