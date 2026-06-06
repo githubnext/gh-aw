@@ -74,6 +74,30 @@ function normalizeSafeOutputToolArguments(toolName, args, logger, inputSchema) {
   return remappedArgs;
 }
 
+/**
+ * Remove internal safe-output schema metadata before exposing schemas to LLMs.
+ * @param {any} schema
+ * @returns {any}
+ */
+function stripInternalSafeOutputSchemaMetadata(schema) {
+  if (!schema || typeof schema !== "object") {
+    return schema;
+  }
+  if (Array.isArray(schema)) {
+    return schema.map(stripInternalSafeOutputSchemaMetadata);
+  }
+
+  const cleaned = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "x-synonyms") {
+      continue;
+    }
+    cleaned[key] = stripInternalSafeOutputSchemaMetadata(value);
+  }
+  return cleaned;
+}
+
 module.exports = {
   normalizeSafeOutputToolArguments,
+  stripInternalSafeOutputSchemaMetadata,
 };

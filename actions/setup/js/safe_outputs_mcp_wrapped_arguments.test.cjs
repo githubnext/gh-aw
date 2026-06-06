@@ -156,4 +156,69 @@ describe("safe_outputs_mcp wrapped tool arguments", () => {
       body: "Wrapped body",
     });
   });
+
+  it("keeps synonym metadata internal while still accepting synonym arguments", async () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    fs.writeFileSync(configPath, JSON.stringify({ create_code_scanning_alert: { enabled: true } }));
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "create_code_scanning_alert",
+          description: "Create a code scanning alert",
+          inputSchema: {
+            type: "object",
+            properties: {
+              severity: { type: "string", "x-synonyms": ["level"] },
+              message: { type: "string" },
+            },
+            required: ["severity", "message"],
+            additionalProperties: false,
+          },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+    const listResponse = await server.handleRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {},
+    });
+
+    const listedTool = listResponse?.result?.tools?.find(t => t.name === "create_code_scanning_alert");
+    expect(listedTool).toBeTruthy();
+    expect(listedTool.inputSchema.properties.severity["x-synonyms"]).toBeUndefined();
+
+    const callResponse = await server.handleRequest({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: "create_code_scanning_alert",
+        arguments: {
+          level: "warning",
+          message: "test",
+        },
+      },
+    });
+
+    expect(callResponse.error).toBeUndefined();
+    expect(callResponse.result.isError).toBe(false);
+
+    const written = fs.readFileSync(outputPath, "utf8");
+    expect(JSON.parse(written.trim())).toMatchObject({
+      type: "create_code_scanning_alert",
+      severity: "warning",
+      message: "test",
+    });
+  });
 });

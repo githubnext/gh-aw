@@ -19,7 +19,7 @@ const { attachHandlers, registerPredefinedTools, registerDynamicTools } = requir
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { normalizeSafeOutputToolArguments } = require("./safe_outputs_mcp_arguments.cjs");
+const { normalizeSafeOutputToolArguments, stripInternalSafeOutputSchemaMetadata } = require("./safe_outputs_mcp_arguments.cjs");
 
 /**
  * Start the safe-outputs MCP server
@@ -30,6 +30,8 @@ const { normalizeSafeOutputToolArguments } = require("./safe_outputs_mcp_argumen
 function startSafeOutputsServer(options = {}) {
   // Server info for safe outputs MCP server
   const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
+
+  const normalizationSchemas = new Map();
 
   // Create the server instance with optional log directory
   const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
@@ -42,7 +44,7 @@ function startSafeOutputsServer(options = {}) {
         {
           debug: message => server.debug(message),
         },
-        tool?.inputSchema
+        normalizationSchemas.get(normalizeTool(toolName)) || tool?.inputSchema
       ),
   });
 
@@ -58,6 +60,12 @@ function startSafeOutputsServer(options = {}) {
 
   // Attach handlers to tools
   const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers, server);
+  for (const tool of toolsWithHandlers) {
+    if (tool?.name && tool?.inputSchema) {
+      normalizationSchemas.set(normalizeTool(tool.name), tool.inputSchema);
+      tool.inputSchema = stripInternalSafeOutputSchemaMetadata(tool.inputSchema);
+    }
+  }
 
   server.debug(`  output file: ${outputFile}`);
   server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);

@@ -41,11 +41,12 @@ const { createAppendFunction } = require("./safe_outputs_append.cjs");
 moduleLogger.debug("Loaded safe_outputs_append.cjs");
 const { createHandlers } = require("./safe_outputs_handlers.cjs");
 moduleLogger.debug("Loaded safe_outputs_handlers.cjs");
+const { normalizeTool } = require("./mcp_server_core.cjs");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
 moduleLogger.debug("Loaded safe_outputs_tools_loader.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { runHttpServer, logStartupError } = require("./mcp_http_server_runner.cjs");
-const { normalizeSafeOutputToolArguments } = require("./safe_outputs_mcp_arguments.cjs");
+const { normalizeSafeOutputToolArguments, stripInternalSafeOutputSchemaMetadata } = require("./safe_outputs_mcp_arguments.cjs");
 moduleLogger.debug("All modules loaded successfully");
 
 /**
@@ -66,6 +67,7 @@ function createMCPServer(options = {}) {
   // Create server with configuration
   const serverName = "safeoutputs";
   const version = "1.0.0";
+  const normalizationSchemas = new Map();
 
   logger.debug(`Server name: ${serverName}`);
   logger.debug(`Server version: ${version}`);
@@ -82,7 +84,7 @@ function createMCPServer(options = {}) {
       capabilities: {
         tools: {},
       },
-      normalizeArguments: (toolName, args, tool) => normalizeSafeOutputToolArguments(toolName, args, logger, tool?.inputSchema),
+      normalizeArguments: (toolName, args, tool) => normalizeSafeOutputToolArguments(toolName, args, logger, normalizationSchemas.get(normalizeTool(toolName)) || tool?.inputSchema),
     }
   );
 
@@ -95,6 +97,12 @@ function createMCPServer(options = {}) {
 
   // Attach handlers to tools
   const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers, logger);
+  for (const tool of toolsWithHandlers) {
+    if (tool?.name && tool?.inputSchema) {
+      normalizationSchemas.set(normalizeTool(tool.name), tool.inputSchema);
+      tool.inputSchema = stripInternalSafeOutputSchemaMetadata(tool.inputSchema);
+    }
+  }
 
   // Register predefined tools that are enabled in configuration
   logger.debug(`Registering predefined tools...`);
