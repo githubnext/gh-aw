@@ -2903,14 +2903,15 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(
         path.join(promptsDir, "effective_tokens_rate_limit_error.md"),
-        "**Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
+        "**AI Credits Budget Guidance**: The run hit a legacy effective-token rate-limit signal from the API proxy. gh-aw now uses AI Credits (AIC) as the primary cost metric, so migrate per-run budgeting to `max-ai-credits`.\n\n" +
           "<details>\n" +
           "<summary>Why this happened and how to optimize</summary>\n\n" +
-          "- Learn about [effective tokens]({et_spec_link}).\n" +
+          "- Learn about [AI Credits]({ai_credits_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
+          "- `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.\n\n" +
           "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
           "{et_table_section}\n" +
-          "- To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).\n" +
+          "- To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).\n" +
           "</details>\n"
       );
       process.env.RUNNER_TEMP = tmpDir;
@@ -2956,14 +2957,14 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("- Run:");
     });
 
-    it("includes a link to the ET specification docs", () => {
+    it("includes a link to the AI Credits specification docs", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
-      expect(result).toContain("https://github.github.com/gh-aw/specs/effective-tokens-specification/");
+      expect(result).toContain("https://github.github.com/gh-aw/specs/ai-credits-specification/");
     });
 
-    it("includes a link to the token optimization guide", () => {
+    it("includes a link to the cost management guide", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
-      expect(result).toContain("https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/cost-management/");
     });
 
     it("formats the run URL as a markdown link", () => {
@@ -2974,7 +2975,8 @@ describe("handle_agent_failure", () => {
     it("wraps ET guidance in a collapsible details section", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
       expect(result).toContain("<summary>Why this happened and how to optimize</summary>");
-      expect(result).toContain("token optimization instructions");
+      expect(result).toContain("cost management guidance");
+      expect(result).toContain("max-ai-credits");
     });
 
     it("includes a collapsible details section for ET computation", () => {

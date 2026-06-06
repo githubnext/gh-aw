@@ -1324,8 +1324,8 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        et_spec_link: "https://github.github.com/gh-aw/specs/effective-tokens-specification/",
-        token_opt_link: "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md",
+        ai_credits_spec_link: "https://github.github.com/gh-aw/specs/ai-credits-specification/",
+        cost_management_link: "https://github.github.com/gh-aw/reference/cost-management/",
         usage_line: usageLine,
         budget_line: budgetLine,
         run_line: runLine,
@@ -1333,7 +1333,9 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "et_spec_link, token_opt_link, usage_line, budget_line, run_line, et_table_section");
+    throw new Error(
+      `failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "ai_credits_spec_link, cost_management_link, usage_line, budget_line, run_line, et_table_section"
+    );
   }
 }
 

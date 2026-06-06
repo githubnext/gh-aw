@@ -27,6 +27,7 @@ safe-outputs:
 
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   github:
     mode: gh-proxy

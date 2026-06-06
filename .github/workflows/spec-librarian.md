@@ -92,24 +92,23 @@ Perform a comprehensive daily audit of all Go package specifications under `pkg/
 
 **🚨 MANDATORY: You MUST call either `noop` or `create_issue` before exiting, regardless of outcome.**
 This workflow has `strict: true` and `create-issue` as its only write safe output. If no issue is needed, call `noop` as your LAST action before finishing.
+Do not use background sub-agents for this workflow. Run checks directly with shell commands, keep intermediate output concise, and reserve enough time to emit a final safe output.
 
 ## Phase 1: Inventory All Packages and Specifications
 
-Use the `coverage-checker` agent. It returns JSON with `total_packages`, `packages_with_specs`,
-`coverage_pct`, `all_pkgs`, `has_spec`, and `missing_specs`. Use this output for all subsequent phases.
+Run direct shell commands to compute `total_packages`, `packages_with_specs`,
+`coverage_pct`, `all_pkgs`, `has_spec`, and `missing_specs`. Use these values for all subsequent phases.
 
 ## Phase 2: Staleness Detection
 
-Use the `staleness-detector` agent, passing the `has_spec` list from Phase 1.
-It returns stale packages with `spec_date`, `source_date`, `days_behind`, `undocumented_funcs`,
-and `phantom_funcs`.
+Run direct shell commands for each package in `has_spec` to detect stale specifications with
+`spec_date`, `source_date`, `days_behind`, `undocumented_funcs`, and `phantom_funcs`.
 
 ## Phase 3: Cross-Package Consistency Checks
 
-Use the `consistency-checker` agent to validate import paths, naming conventions,
-and dependency graphs. It returns `import_issues`, `naming_issues`, and `dependency_issues`.
-Perform terminology consistency analysis (Check 3) yourself using the spec content
-collected in Phase 1.
+Run direct shell commands to validate import paths, naming conventions, and dependency graphs.
+Produce `import_issues`, `naming_issues`, and `dependency_issues`.
+Perform terminology consistency analysis (Check 3) using the spec content collected in Phase 1.
 
 ### Check 3: Terminology Consistency
 
@@ -142,7 +141,7 @@ For each specification, assess quality on these dimensions:
 Call the `noop` safe-output tool:
 
 ```json
-{"noop": {"message": "All package specifications are consistent and up-to-date. Coverage: N/20 packages. No issues found."}}
+{"message":"All package specifications are consistent and up-to-date. Coverage: N/20 packages. No issues found."}
 ```
 
 ### If issues ARE found
@@ -267,117 +266,3 @@ The following specifications are outdated:
 - ✅ Issue created if problems found, or noop if all is well
 
 {{#runtime-import shared/noop-reminder.md}}
-
-## agent: `coverage-checker`
----
-model: small
-description: Lists all pkg/ packages and reports README.md coverage metrics as JSON
----
-You are a coverage auditor for a Go repository. Your task is to enumerate all packages
-under `pkg/` and check which ones have a `README.md` specification file.
-
-Run the following commands and collect the results:
-
-```bash
-find pkg/* -maxdepth 0 -type d | sort
-```
-
-```bash
-find pkg -name 'README.md' -type f | sort
-```
-
-From the output, compute:
-- `total_packages`: count of directories under `pkg/`
-- `packages_with_specs`: count of `pkg/*/README.md` files found
-- `coverage_pct`: `packages_with_specs / total_packages * 100` (rounded to one decimal)
-- `all_pkgs`: sorted list of all package names (basename only)
-- `has_spec`: sorted list of package names that have a `README.md`
-- `missing_specs`: sorted list of package names that are missing a `README.md`
-
-Return ONLY a JSON object with these six fields and no additional text.
-
-## agent: `staleness-detector`
----
-model: small
-description: Compares git timestamps for each package's source vs spec and detects API drift
----
-You are a staleness detector for Go package specifications. You receive a list of packages
-that have a `README.md` (`has_spec`). For each package, determine whether its specification
-is stale and whether there is API drift.
-
-For each package in the `has_spec` list:
-
-1. Compare git timestamps:
-
-```bash
-git log -1 --format=%ci -- pkg/<package>/README.md
-git log -1 --format=%ci -- "pkg/<package>/*.go"
-```
-
-A specification is **stale** if the source was modified more than 7 days after the README.md.
-
-2. Check for API drift:
-
-```bash
-grep -h "^func [A-Z]" pkg/<package>/*.go 2>/dev/null | sed 's/(.*//' | sort
-grep -h "| \`[A-Z]" pkg/<package>/README.md 2>/dev/null | sort
-```
-
-Return a JSON object with a single key `stale_packages` — an array of objects, one per stale
-package. Each object has:
-- `package`: package name
-- `spec_date`: ISO date of last README.md commit
-- `source_date`: ISO date of last source commit
-- `days_behind`: integer days the spec lags behind the source
-- `undocumented_funcs`: list of exported functions present in source but absent from spec
-- `phantom_funcs`: list of exported functions present in spec but absent from source
-
-Return ONLY the JSON object and no additional text.
-
-## agent: `consistency-checker`
----
-model: small
-description: Validates import paths, naming conventions, and dependency declarations across all specs
----
-You are a cross-package consistency checker for Go package specifications. Your task is to
-validate three aspects across all `pkg/*/README.md` files.
-
-**Check 1 — Import Path Consistency**
-
-```bash
-grep -rn 'github.com/github/gh-aw/pkg/' pkg --include='*.go' | grep -v _test.go
-```
-
-For each cross-package reference found, verify:
-- The referenced package directory exists under `pkg/`
-- The import path is well-formed (no typos)
-
-**Check 2 — Naming Convention Consistency**
-
-For each `pkg/*/README.md`, verify:
-- Title line matches `# <Name> Package`
-- Sections present: Overview, Public API, Usage Examples
-- API table uses markdown table format
-- Footer contains attribution to spec-extractor workflow
-
-**Check 4 — Dependency Graph Validation**
-
-```bash
-for dir in $(find pkg/* -maxdepth 0 -type d | sort); do
-  pkg=$(basename "$dir")
-  if [ -f "$dir/README.md" ]; then
-    echo "=== $pkg ==="
-    grep -h "import" "$dir"/*.go 2>/dev/null | grep "gh-aw/pkg/" | sort -u
-  fi
-done
-```
-
-For each package, compare the internal imports found in source code against any dependency
-references documented in `README.md`.
-
-Return a JSON object with three keys:
-- `import_issues`: list of objects with `package`, `issue` for each import path problem
-- `naming_issues`: list of objects with `package`, `issue` for each naming convention violation
-- `dependency_issues`: list of objects with `package`, `documented`, `actual` for each mismatch
-
-Return ONLY the JSON object and no additional text.

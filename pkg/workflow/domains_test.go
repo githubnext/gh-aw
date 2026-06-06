@@ -1295,17 +1295,17 @@ func TestMergeAPITargetDomains(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := mergeAPITargetDomains(tt.domainsStr, tt.apiTarget)
 			domains := strings.Split(result, ",")
-			domainSet := make(map[string]bool)
+			domainSet := make(map[string]struct{})
 			for _, d := range domains {
-				domainSet[d] = true
+				domainSet[d] = struct{}{}
 			}
 			for _, want := range tt.wantIn {
-				if !domainSet[want] {
+				if _, ok := domainSet[want]; !ok {
 					t.Errorf("Expected domain %q in result %q, but not found", want, result)
 				}
 			}
 			for _, notWant := range tt.wantNotIn {
-				if domainSet[notWant] {
+				if _, ok := domainSet[notWant]; ok {
 					t.Errorf("Did not expect domain %q in result %q", notWant, result)
 				}
 			}

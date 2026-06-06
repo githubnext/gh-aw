@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -238,6 +239,45 @@ func TestDailyFunctionNamerColdStartHandling(t *testing.T) {
 	stepFiveGuidance := "If the state file was missing at the start of the run, initialize it from scratch here instead of reporting missing cache data."
 	if !strings.Contains(workflow, stepFiveGuidance) {
 		t.Fatal("Expected daily-function-namer workflow to initialize missing cold-start state instead of reporting missing data")
+	}
+}
+
+func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-function-namer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	parsed, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		t.Fatalf("Failed to parse workflow frontmatter: %v", err)
+	}
+
+	experiments, ok := parsed.Frontmatter["experiments"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-function-namer workflow to define experiments")
+	}
+	modelSize, ok := experiments["model_size"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-function-namer workflow to define experiments.model_size")
+	}
+	variants, ok := modelSize["variants"].([]any)
+	if !ok {
+		t.Fatal("Expected daily-function-namer workflow to define experiments.model_size.variants")
+	}
+	if len(variants) != 2 || variants[0] != "claude-sonnet-4-6" || variants[1] != "claude-haiku-4-5-20251001" {
+		t.Fatalf("Expected concrete Claude variants [claude-sonnet-4-6, claude-haiku-4-5-20251001], got %#v", variants)
+	}
+	for _, variant := range variants {
+		if variant == "agent" || variant == "small-agent" {
+			t.Fatalf("Expected concrete model variants, found alias %q", variant)
+		}
 	}
 }
 

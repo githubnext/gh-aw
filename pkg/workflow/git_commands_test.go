@@ -206,14 +206,14 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 			}
 
 			// Check if we have the expected editing tools
-			foundEditingTools := make(map[string]bool)
+			foundEditingTools := make(map[string]struct{})
 			hasWriteTool := false
 
 			for _, tool := range resultTools {
 				tool = strings.TrimSpace(tool)
 				for _, expectedTool := range expectedEditingTools {
 					if tool == expectedTool {
-						foundEditingTools[expectedTool] = true
+						foundEditingTools[expectedTool] = struct{}{}
 					}
 				}
 				if tool == expectedWriteTool {
@@ -231,7 +231,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 				// Only check if we started with empty tools - if there were pre-existing tools, they should remain
 				if len(tt.tools) == 0 {
 					for _, tool := range expectedEditingTools {
-						if foundEditingTools[tool] {
+						if _, ok := foundEditingTools[tool]; ok {
 							t.Errorf("Unexpected editing tool %s found when not expected", tool)
 						}
 					}
@@ -241,7 +241,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 
 			// Check that all expected editing tools are present (not including Write, which is handled separately)
 			for _, expectedTool := range expectedEditingTools {
-				if !foundEditingTools[expectedTool] {
+				if _, ok := foundEditingTools[expectedTool]; !ok {
 					t.Errorf("Expected editing tool %s to be present", expectedTool)
 				}
 			}

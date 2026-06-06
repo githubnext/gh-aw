@@ -195,7 +195,7 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 
 5. **`gh-proxy` and `cli-proxy` always on.** GitHub and other MCP server tools are available to the agent as CLI commands on `PATH` (via `cli-proxy`) and via the pre-authenticated `gh` binary (via `gh-proxy`). A conforming implementation **MUST** enable both `gh-proxy` and `cli-proxy` when `engine: aw` is selected. A conforming implementation **MUST NOT** honor attempts to disable these features for `engine: aw`, regardless of the values specified in the workflow frontmatter (see [Section 6.2](#62-overrides-and-fixed-settings)).
 
-6. **TypeScript → Node 24.** Source **MUST** be TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Leverages Node 24 features (native fetch, `structuredClone`, `AbortSignal.any`).
+6. **TypeScript → Node 24.** Source **MUST** be TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Uses Node 24 features (native fetch, `structuredClone`, `AbortSignal.any`).
 
 7. **Output in `actions/setup/js/`.** The bundled `aw_harness.cjs` **MUST** be placed in `actions/setup/js/aw_harness.cjs`, alongside `copilot_harness.cjs` and `claude_harness.cjs`. The same deployment mechanism and runtime contract apply.
 

@@ -336,17 +336,17 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig, nil, nil)
 
 			// Parse expected and actual results into sets for comparison
-			expectedTools := make(map[string]bool)
+			expectedTools := make(map[string]struct{})
 			if tt.expected != "" {
 				for tool := range strings.SplitSeq(tt.expected, ",") {
-					expectedTools[strings.TrimSpace(tool)] = true
+					expectedTools[strings.TrimSpace(tool)] = struct{}{}
 				}
 			}
 
-			actualTools := make(map[string]bool)
+			actualTools := make(map[string]struct{})
 			if result != "" {
 				for tool := range strings.SplitSeq(result, ",") {
-					actualTools[strings.TrimSpace(tool)] = true
+					actualTools[strings.TrimSpace(tool)] = struct{}{}
 				}
 			}
 
@@ -358,13 +358,13 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			}
 
 			for expectedTool := range expectedTools {
-				if !actualTools[expectedTool] {
+				if _, ok := actualTools[expectedTool]; !ok {
 					t.Errorf("Expected tool '%s' not found in result: '%s'", expectedTool, result)
 				}
 			}
 
 			for actualTool := range actualTools {
-				if !expectedTools[actualTool] {
+				if _, ok := expectedTools[actualTool]; !ok {
 					t.Errorf("Unexpected tool '%s' found in result: '%s'", actualTool, result)
 				}
 			}
