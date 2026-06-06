@@ -43,7 +43,7 @@ safe-outputs:
     run-failure: "❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged."
 timeout-minutes: 30
 # PR triage does classification work; 10M is a firm ceiling for this 6-hourly workflow.
-max-effective-tokens: 10000000
+max-ai-credits: 10000000
 
 
 ---

@@ -15,7 +15,7 @@ import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
 
-import { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPath, getPatchPathForRepo, buildExcludePathspecs, computeIncrementalDiffSize } from "./git_patch_utils.cjs";
+import { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPathForBranch, getPatchPathForBranchInRepo, buildExcludePathspecs, computeIncrementalDiffSize } from "./git_patch_utils.cjs";
 
 // computeIncrementalDiffSize delegates to execGitSync from git_helpers.cjs,
 // which calls the GitHub Actions `core.debug` / `core.error` globals. Stub
@@ -89,12 +89,12 @@ describe("git_patch_utils - pure helpers", () => {
     });
   });
 
-  describe("getPatchPath / getPatchPathForRepo", () => {
+  describe("getPatchPathForBranch / getPatchPathForBranchInRepo", () => {
     it("returns the /tmp/gh-aw path with the sanitized branch name", () => {
-      expect(getPatchPath("feat/foo")).toBe("/tmp/gh-aw/aw-feat-foo.patch");
+      expect(getPatchPathForBranch("feat/foo")).toBe("/tmp/gh-aw/aw-feat-foo.patch");
     });
     it("includes a sanitized repo slug for multi-repo scenarios", () => {
-      expect(getPatchPathForRepo("feat/foo", "github/gh-aw")).toBe("/tmp/gh-aw/aw-github-gh-aw-feat-foo.patch");
+      expect(getPatchPathForBranchInRepo("feat/foo", "github/gh-aw")).toBe("/tmp/gh-aw/aw-github-gh-aw-feat-foo.patch");
     });
   });
 

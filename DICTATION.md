@@ -150,7 +150,7 @@ lockfile
 manifest
 markdown
 max-continuations
-max-effective-tokens
+max-ai-credits
 max-patch-size
 max-runs
 max-turns

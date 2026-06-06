@@ -227,7 +227,7 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 |---|---|---|
 | `description` | string | Human-readable explanation of what the experiment tests. |
 | `hypothesis` | string | Null and alternative hypothesis statements. |
-| `metric` | string | Primary metric name to observe (e.g., `effective_tokens`). |
+| `metric` | string | Primary metric name to observe (e.g., `aic`). |
 | `secondary_metrics` | string[] | Additional metrics to collect. |
 | `guardrail_metrics` | object[] | Thresholds that must not degrade (see §4.4). |
 | `min_samples` | integer ≥ 1 | Minimum runs per variant before analysis is reliable. Defaults to 20. |
@@ -951,8 +951,8 @@ experiments:
   prompt_style:
     variants: [concise, detailed, step_by_step]
     description: "Test whether verbosity level affects output quality"
-    hypothesis: "H0: no change in effective_tokens. H1: concise reduces by >=15%"
-    metric: effective_tokens
+    hypothesis: "H0: no change in aic. H1: concise reduces by >=15%"
+    metric: aic
     secondary_metrics: [duration_ms, discussion_word_count]
     guardrail_metrics:
       - name: success_rate
