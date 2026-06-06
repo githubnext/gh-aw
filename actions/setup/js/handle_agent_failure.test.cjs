@@ -3041,9 +3041,9 @@ describe("handle_agent_failure", () => {
           "- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):\n" +
           "  ```yaml\n" +
           "  # before\n" +
-          "  max-effective-tokens: 500000\n" +
+          "  max-effective-tokens: 5000000\n" +
           "  # after\n" +
-          "  max-ai-credits: 50\n" +
+          "  max-ai-credits: 500\n" +
           "  ```\n\n" +
           "{et_table_section}\n" +
           "- To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).\n" +
@@ -3118,7 +3118,7 @@ describe("handle_agent_failure", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
-      expect(result).toContain("ET computation details");
+      expect(result).toContain("AIC computation details");
       expect(result).not.toContain("<summary>ET computation details (formula:");
       expect(result).toContain("<sub>ET formula:");
     });

@@ -8,9 +8,9 @@
 - `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):
   ```yaml
   # before
-  max-effective-tokens: 500000
+  max-effective-tokens: 5000000
   # after
-  max-ai-credits: 50
+  max-ai-credits: 500
   ```
 
 {et_table_section}

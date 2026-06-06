@@ -575,7 +575,7 @@ describe("effective_tokens", () => {
       const result = buildETComputationTable("10000000");
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
-      expect(result).toContain("ET computation details");
+      expect(result).toContain("AIC computation details");
       expect(result).not.toContain("<summary>ET computation details (formula:");
       expect(result).toContain("Input");
       expect(result).toContain("Output");
@@ -615,7 +615,7 @@ describe("effective_tokens", () => {
         modelNames: ["claude-sonnet-4.5"],
       });
       expect(result).toContain("<details>");
-      expect(result).toContain("ET computation details");
+      expect(result).toContain("AIC computation details");
       expect(result).toContain("◉ sonnet45");
       expect(result).toContain("100,000");
       // Should not include the fallback aggregated table headers

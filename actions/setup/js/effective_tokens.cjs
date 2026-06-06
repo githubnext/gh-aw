@@ -392,7 +392,7 @@ function buildETComputationTable(effectiveTokens, tokenUsageDetails = null) {
 
   const lines = [];
   lines.push("<details>");
-  lines.push("<summary>AIC/ET computation details</summary>");
+  lines.push("<summary>AIC computation details</summary>");
   lines.push("");
 
   if (tokenUsageMarkdown) {
