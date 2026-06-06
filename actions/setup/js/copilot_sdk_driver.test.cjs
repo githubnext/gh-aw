@@ -220,7 +220,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(onPermissionRequest({ kind: "mcp", serverName: "github", toolName: "get_file_contents" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "url", url: "https://example.com" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "write", fileName: "a.txt", diff: "", intention: "" })).toEqual({ kind: "approve-once" });
-      expect(onPermissionRequest({ kind: "read", fileName: "a.txt" })).toEqual({
+      expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({
         kind: "reject",
         feedback: "Tool invocation is not allowed by workflow tool permissions.",
       });
@@ -262,7 +262,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result.exitCode).toBe(0);
       const sessionConfig = createSession.mock.calls[0][0];
       const onPermissionRequest = sessionConfig.onPermissionRequest;
-      expect(onPermissionRequest({ kind: "read", fileName: "a.txt" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({ kind: "approve-once" });
     });
 
     it("allows read requests when shell access is allowlisted", async () => {
@@ -297,7 +297,48 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result.exitCode).toBe(0);
       const sessionConfig = createSession.mock.calls[0][0];
       const onPermissionRequest = sessionConfig.onPermissionRequest;
-      expect(onPermissionRequest({ kind: "read", fileName: "a.txt" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({ kind: "approve-once" });
+    });
+
+    it("allows read requests that match read-only shell path rules", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const createSession = vi.fn().mockResolvedValue({
+        sessionId: "session-read-via-shell-paths",
+        on: () => {},
+        sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+        disconnect,
+      });
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = createSession;
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        permissionConfig: {
+          allowedTools: ["shell(cat /tmp/gh-aw/agent/*)", "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)", "shell(ls /tmp/gh-aw/repo-memory/default/)"],
+        },
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => ({ kind: "approve-once" }),
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      const sessionConfig = createSession.mock.calls[0][0];
+      const onPermissionRequest = sessionConfig.onPermissionRequest;
+      expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/doc-samples.txt", intention: "" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/previous-findings.json", intention: "" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/repo-memory/default", intention: "" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
+        kind: "reject",
+        feedback: "Tool invocation is not allowed by workflow tool permissions.",
+      });
     });
 
     it("logs permission-denied SDK requests as core warnings", async () => {
@@ -375,7 +416,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result.exitCode).toBe(0);
       const sessionConfig = createSession.mock.calls[0][0];
       expect(sessionConfig).toHaveProperty("onPermissionRequest");
-      const decision = sessionConfig.onPermissionRequest({ kind: "read", fileName: "a.txt" });
+      const decision = sessionConfig.onPermissionRequest({ kind: "read", path: "a.txt", intention: "" });
       expect(decision).toEqual({ kind: "approve-once" });
       expect(approveAll).toHaveBeenCalledTimes(1);
     });

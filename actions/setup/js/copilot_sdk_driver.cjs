@@ -39,6 +39,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { minimatch } = require("minimatch");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -124,7 +125,7 @@ function summarizePermissionRequest(request) {
     case "write":
       return `write(${request.fileName || "unknown"})`;
     case "read":
-      return "read";
+      return `read(${request.path || "unknown"})`;
     case "custom-tool":
       return `custom-tool(${request.toolName || "unknown"})`;
     default:
@@ -146,6 +147,65 @@ function logPermissionDenied(coreLogger, logger, request) {
   if (coreLogger?.warning) {
     coreLogger.warning(`Copilot SDK permission denied by workflow tool permissions: ${requestSummary}`);
   }
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function normalizePermissionPath(value) {
+  return (
+    String(value || "")
+      .trim()
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "") || "/"
+  );
+}
+
+/**
+ * @param {string} shellRule
+ * @returns {string[]}
+ */
+function extractReadablePathPatternsFromShellRule(shellRule) {
+  const trimmed = String(shellRule || "").trim();
+  if (!trimmed) return [];
+
+  if (trimmed.startsWith("cat ")) {
+    return [trimmed.slice("cat ".length).trim()];
+  }
+
+  const xargsCatMatch = trimmed.match(/^xargs\s+-a\s+(\S+)\s+cat(?:\s|$)/);
+  if (xargsCatMatch) {
+    return [xargsCatMatch[1]];
+  }
+
+  const lsMatch = trimmed.match(/^ls\s+(\S+)(?:\s|$)/);
+  if (lsMatch) {
+    return [lsMatch[1]];
+  }
+
+  return [];
+}
+
+/**
+ * @param {string | undefined} requestedPath
+ * @param {string[]} allowedPathPatterns
+ * @returns {boolean}
+ */
+function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
+  if (typeof requestedPath !== "string" || requestedPath.trim().length === 0) {
+    return false;
+  }
+
+  const normalizedRequestedPath = normalizePermissionPath(requestedPath);
+
+  return allowedPathPatterns.some(pattern => {
+    const normalizedPattern = normalizePermissionPath(pattern);
+    if (normalizedRequestedPath === normalizedPattern) {
+      return true;
+    }
+    return /[*?[\]{}]/.test(normalizedPattern) && minimatch(normalizedRequestedPath, normalizedPattern, { dot: true });
+  });
 }
 
 /**
@@ -178,6 +238,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
     .filter(tool => tool.startsWith("shell(") && tool.endsWith(")"))
     .map(tool => tool.slice("shell(".length, -1).trim())
     .filter(Boolean);
+  const readablePathPatterns = shellRules.flatMap(extractReadablePathPatternsFromShellRule);
 
   /**
    * @param {import("@github/copilot-sdk").PermissionRequest} request
@@ -203,7 +264,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
       case "write":
         return allowedToolEntries.has("write");
       case "read":
-        return allowedToolEntries.has("read") || allowedToolEntries.has("shell");
+        return allowedToolEntries.has("read") || allowedToolEntries.has("shell") || isReadPathAllowedByShellRules(request.path, readablePathPatterns);
       case "url":
         return allowedToolEntries.has("web_fetch");
       case "mcp":
