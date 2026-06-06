@@ -1,6 +1,6 @@
 ---
 title: Bash Command Parser Specification
-description: W3C-style specification for the copilot SDK driver bash command parser and conformance test generation
+description: W3C-style specification for the Copilot SDK bash command parser and conformance test generation
 sidebar:
   order: 1370
 ---
@@ -16,17 +16,11 @@ sidebar:
 
 ## Abstract
 
-This specification defines the behavior of the bash command parser used by `actions/setup/js/copilot_sdk_driver.cjs` via `actions/setup/js/bash_command_parser.cjs`. It formalizes segment splitting, command-name extraction, deduplicated pipeline extraction, and conformance testing. It also defines a language-agnostic method for generating and verifying parser test suites.
+This specification defines the behavior of the bash command parser used by the Copilot SDK permission integration. It formalizes segment splitting, command-name extraction, deduplicated pipeline extraction, and conformance testing. It also defines a language-agnostic method for generating and verifying parser test suites.
 
 ## Status of This Document
 
-This document is a draft extracted from the implementation and tests in:
-
-- `actions/setup/js/bash_command_parser.cjs`
-- `actions/setup/js/bash_command_parser.test.cjs`
-- `actions/setup/js/fuzz_bash_command_parser_harness.cjs`
-- `actions/setup/js/fuzz_bash_command_parser_harness.test.cjs`
-- `actions/setup/js/copilot_sdk_driver.cjs`
+This document is a draft extracted from the current production parser behavior and repository conformance tests.
 
 ## Table of Contents
 
@@ -39,8 +33,9 @@ This document is a draft extracted from the implementation and tests in:
 7. [Model-Based Test Generation](#7-model-based-test-generation)
 8. [Verification-Based Test Generation](#8-verification-based-test-generation)
 9. [Machine-Readable Test Vectors](#9-machine-readable-test-vectors)
-10. [Security Considerations](#10-security-considerations)
-11. [References](#11-references)
+10. [Testing Strategies](#10-testing-strategies)
+11. [Security Considerations](#11-security-considerations)
+12. [References](#12-references)
 
 ---
 
@@ -77,6 +72,25 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 - **Class I (Integration Consumer)**: Implements driver behavior in §5.
 
 A conforming implementation MUST satisfy all applicable MUST-level requirements for its class.
+
+### 2.3 Language-Neutral Type Contract
+
+Conforming implementations MUST expose semantics equivalent to the following total functions:
+
+```text
+splitOnPipelineOperators(commandText: StringLike) -> List<Segment>
+extractCommandName(segment: StringLike) -> Option<CommandName>
+extractCommandNamesFromPipeline(commandText: StringLike) -> List<CommandName>
+```
+
+Where:
+
+- `StringLike` includes any runtime value accepted by the host language.
+- `Segment` and `CommandName` are textual values.
+- `Option<T>` is either `None` (no command identified) or `Some(T)`.
+- `List<T>` preserves element order.
+
+For any `StringLike` input, each function MUST return a value in its codomain and MUST NOT fail with an uncaught exception.
 
 ---
 
@@ -167,7 +181,7 @@ letter         = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
 
 ## 5. Driver Integration Semantics
 
-The parser output is consumed by `copilot_sdk_driver.cjs` in fallback shell-permission logic:
+The parser output is consumed by fallback shell-permission logic:
 
 1. If multiple names are extracted (`length > 1`), **all** names MUST satisfy shell identifier rules.
 2. If one name is extracted (`length === 1`), normal single-command matching applies, including exact full-command matching for literal shell rules that contain spaces (for example `ls /tmp`).
@@ -186,6 +200,32 @@ A language-independent test suite MUST contain:
 - **Integration tests** for fallback behavior in §5.
 
 Implementations SHOULD consume machine-readable vectors and run identical assertions in each target language.
+
+### 6.1 Minimal Conformance Suite
+
+A minimal suite MUST include all categories below:
+
+- **S-CORE (4 tests)**:
+  1. top-level split on each operator `&&`, `||`, `|`, `;`
+  2. no split when operators occur in single quotes
+  3. no split when operators occur in double quotes
+  4. no split when operators occur inside `$(` `)`
+- **E-CORE (5 tests)**:
+  1. simple word returns command name
+  2. leading environment assignments are stripped
+  3. redirection-first segment returns null/none
+  4. keyword-first segment returns null/none
+  5. recursive skip for `!`, `{`, and `}`
+- **P-CORE (4 tests)**:
+  1. split + extract composition over multi-operator pipeline
+  2. null/none extraction results are ignored
+  3. deduplication keeps first occurrence only
+  4. non-string and blank input returns empty list
+- **R-CORE (2 tests)**:
+  1. unbalanced quote input is non-throwing
+  2. unbalanced subshell input is non-throwing
+
+The minimal suite therefore contains **15 required tests**.
 
 ---
 
@@ -223,36 +263,47 @@ Verification MUST include metamorphic/property-derived vectors:
 
 ## 9. Machine-Readable Test Vectors
 
-Conforming projects SHOULD publish vectors in JSON with stable IDs and source tags:
+Conforming projects SHOULD publish vectors in JSON (or equivalent structured data) with stable IDs and source tags:
 
 - `source = "model-based"` for state-model-derived vectors
 - `source = "verification"` for metamorphic/property-derived vectors
 
-Reference vectors are provided in:
-
-- `actions/setup/js/bash_command_parser_spec_vectors.json`
-
-These vectors are executable in JavaScript via:
-
-- `actions/setup/js/bash_command_parser_spec_vectors.test.cjs`
+Reference vectors SHOULD be stored in repository-owned, language-neutral artifacts and consumed by each implementation's native test runner.
 
 ---
 
-## 10. Security Considerations
+## 10. Testing Strategies
+
+Conforming projects SHOULD apply all of the following:
+
+1. **Deterministic vector conformance**  
+   Run stable, versioned vectors in every language binding and compare exact outputs.
+2. **Metamorphic verification**  
+   Generate follow-up inputs from seed vectors using relations from §8 and assert relation-preserving behavior.
+3. **State-space coverage tracking**  
+   Track model transition coverage for `TopLevel`, quote states, and subshell depth.
+4. **Typed oracle validation**  
+   Validate that every observed output satisfies the type contract in §2.3 (including null/none cases).
+5. **Negative robustness testing**  
+   Exercise malformed inputs (unbalanced quotes, trailing operators, nested partial subshells) and assert non-throwing behavior.
+6. **Differential replay across implementations**  
+   Replay the same vector corpus against each implementation and require identical semantic outcomes.
+
+---
+
+## 11. Security Considerations
 
 This parser is not a shell sandbox and MUST NOT be treated as proof of command safety. Consumers MUST keep permission checks default-deny when command identification fails. Ambiguous/unparseable input SHOULD result in deny behavior at integration layer.
 
 ---
 
-## 11. References
+## 12. References
 
-### 11.1 Normative
+### 12.1 Normative
 
 - RFC 2119: Key words for use in RFCs to Indicate Requirement Levels
 
-### 11.2 Informative
+### 12.2 Informative
 
-- `actions/setup/js/bash_command_parser.cjs`
-- `actions/setup/js/bash_command_parser.test.cjs`
-- `actions/setup/js/fuzz_bash_command_parser_harness.cjs`
-- `actions/setup/js/copilot_sdk_driver.cjs`
+- Copilot SDK Shell Permission Integration (implementation-defined binding)
+- Repository Conformance Vectors (implementation-defined location)
