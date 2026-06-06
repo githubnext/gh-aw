@@ -99,6 +99,16 @@ Analyze new and changed tests in this PR to produce a **Test Quality Score** (0�
 
 High test counts can create an illusion of safety. The real signal is whether tests cover behavioral contracts and design invariants — not just happy-path implementations.
 
+## Safe Output Requirements
+
+- You MUST always call at least one safe output tool.
+- Use `add-comment` for the analysis summary, then `submit-pull-request-review` for the verdict.
+- If no tests were found or no action is needed, call:
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}
+```
+
 ## Step 1: Load Pre-fetched PR Data and Identify Test Files
 
 PR data has already been fetched before the agent started. Read the pre-fetched files:
@@ -304,93 +314,31 @@ Guideline violations always trigger `REQUEST_CHANGES` regardless of the quality 
 
 Post a comment to the pull request with the full analysis using `add-comment`.
 
-**Comment format:**
+Use this compact skeleton and fill in real values:
 
 ```markdown
 ### 🧪 Test Quality Sentinel Report
 
 {SCORE_EMOJI} **Test Quality Score: {SCORE}/100 — {SCORE_LABEL}**
+> {One-sentence summary of totals, implementation-test ratio, and guideline violations.}
 
-> {One-sentence summary: e.g. "Analyzed {TOTAL} test(s): {DESIGN_COUNT} design, {IMPL_COUNT} implementation, {VIOLATIONS} guideline violation(s)."}
-
-<details>
-<summary>📊 Metrics & Test Classification ({TOTAL} tests analyzed)</summary>
+<details><summary>📊 Metrics & Classification</summary>
 
 | Metric | Value |
-|--------|-------|
-| New/modified tests analyzed | {TOTAL} |
-| ✅ Design tests (behavioral contracts) | {DESIGN_COUNT} ({DESIGN_PCT}%) |
-| ⚠️ Implementation tests (low value) | {IMPL_COUNT} ({IMPL_PCT}%) |
-| Tests with error/edge cases | {EDGE_COUNT} ({EDGE_PCT}%) |
-| Duplicate test clusters | {DUP_COUNT} |
-| Test inflation detected | {YES/NO} |
-| 🚨 Coding-guideline violations | {VIOLATIONS} (Go mock libraries / missing build tags / no assertion messages) |
+|---|---|
+| Tests analyzed | {TOTAL} |
+| Design tests | {DESIGN_COUNT} ({DESIGN_PCT}%) |
+| Implementation tests | {IMPL_COUNT} ({IMPL_PCT}%) |
+| Edge/error coverage | {EDGE_COUNT} ({EDGE_PCT}%) |
+| Duplicate clusters | {DUP_COUNT} |
+| Guideline violations | {VIOLATIONS} |
 
-### Test Classification Details
-
-{For each test, one row:}
-
-| Test | File | Classification | Issues Detected |
-|------|------|----------------|----------------|
-| `TestProcessData_MockCalls` | `pkg/processor/processor_test.go:42` | ⚠️ Implementation | No error case; only asserts mock was called |
-| `TestBarHappyPath` | `pkg/bar/bar_test.go:18` | ✅ Design | Verifies observable output |
-
-### Language Support
-
-Tests analyzed:
-- 🐹 Go (`*_test.go`): {GO_COUNT} tests — unit (`//go:build !integration`) and integration (`//go:build integration`)
-- 🟨 JavaScript (`*.test.cjs`, `*.test.js`): {JS_COUNT} tests (vitest)
-
-{If other languages detected:}
-> ℹ️ Tests in other languages were found but are outside the current analysis scope (Go and JavaScript supported).
-
+{Classification table and language support notes.}
 </details>
 
-{If flagged tests exist:}
-<details>
-<summary>⚠️ Flagged Tests — Requires Review ({FLAGGED_COUNT} issue(s))</summary>
+{Optional <details> section for flagged tests with concrete improvements.}
 
-{List each flagged test with AI-generated improvement suggestion:}
-
-#### ⚠️ `test_process_data_mock_calls` (`src/processor_test.go:87`)
-**Classification**: Implementation test
-**Issue**: Only asserts that internal function `processItem()` was called N times, not that the result matches the expected output.
-**What design invariant does this test enforce?** None — it verifies internal call count, not observable behavior.
-**What would break if deleted?** Only if the internal implementation changed. A behavioral regression (wrong output) would not be caught.
-**Suggested improvement**: Replace the call-count assertion with an end-to-end assertion on the function's return value or side effects. Example: assert the output slice has the expected elements after calling `ProcessData()`.
-
----
-
-{Repeat for each flagged test}
-
-</details>
-
-### Verdict
-
-{If PASS:}
-> ✅ **Check passed.** {IMPL_PCT}% of new tests are implementation tests (threshold: 30%).
-
-{If FAIL:}
-> ❌ **Check failed.** {IMPL_PCT}% of new tests are classified as low-value implementation tests (threshold: 30%). Expand the sections above to review flagged tests and improve behavioral coverage before merging.
-
-<details>
-<summary>📖 Understanding Test Classifications</summary>
-
-**Design Tests (High Value)** verify *what* the system does:
-- Assert on observable outputs, return values, or state changes
-- Cover error paths and boundary conditions
-- Would catch a behavioral regression if deleted
-- Remain valid even after internal refactoring
-
-**Implementation Tests (Low Value)** verify *how* the system does it:
-- Assert on internal function calls (mocking internals)
-- Only test the happy path with typical inputs
-- Break during legitimate refactoring even when behavior is correct
-- Give false assurance: they pass even when the system is wrong
-
-**Goal**: Shift toward tests that describe the system's behavioral contract — the promises it makes to its users and collaborators.
-
-</details>
+> {PASS/FAIL verdict sentence with threshold context.}
 ```
 
 ## Step 8: Submit PR Review Based on Result
@@ -422,14 +370,6 @@ After posting the comment, submit a pull request review based on the verdict:
   "event": "REQUEST_CHANGES",
   "body": "❌ Test Quality Sentinel: Coding-guideline violation detected. {VIOLATION_SUMMARY} Please review the flagged files in the comment above."
 }
-```
-
-## Important: Always Call a Safe Output
-
-**You MUST always call at least one safe output tool.** If no tests were found or no action is needed, call `noop`:
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}
 ```
 
 ## Guidelines

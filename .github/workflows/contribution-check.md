@@ -139,6 +139,13 @@ A `pre-agent` step has already queried and filtered PRs from `${{ env.TARGET_REP
 If `pr_numbers` is empty, create a report stating no PRs matched the filters and skip dispatch.
 Do **not** emit one `noop` per PR slot or placeholder. If you need a noop, emit exactly **one** consolidated noop for the entire run.
 
+## Safe Output Requirements
+
+- Use safe output tools for all writes (`create_issue`, `add_comment`, `add_labels`) and never use `gh` CLI or direct API calls for writes.
+- `noop` is global, not per-PR. Emit at most one consolidated noop for the entire workflow run.
+- If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
+- For `add_comment`, include a numeric target field (`issue_number`, `item_number`, or `pull_request_number`) on every item.
+
 ## Step 1: Dispatch to Subagent
 
 For each PR number in the comma-separated list, delegate evaluation to the **contribution-checker** subagent (`.github/agents/contribution-checker.agent.md`).
@@ -177,7 +184,7 @@ Gather all returned JSON objects. If a subagent call fails, record the PR with v
 
 ### Posting comments
 
-Use the `comment-dispatcher` agent on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post.
+Use the `comment-dispatcher` agent (`.github/agents/comment-dispatcher.agent.md`) on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post.
 
 For each returned `{issue_number, body}` payload, emit one `add_comment` safe output that includes **both fields verbatim** — `issue_number` is required.
 The safe-output validator rejects `add_comment` items that omit `item_number` / `issue_number` / `pull_request_number` (for example: `Target is "*" but no item_number/...`) and fails the entire `safe_outputs` job.
@@ -197,7 +204,7 @@ Keep a running count of actions taken (each tool call or subagent dispatch count
 
 ## Step 2: Compile Report
 
-Use the `report-formatter` agent, passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the run URL (constructed as `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`), to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
+Use the `report-formatter` agent (`.github/agents/report-formatter.agent.md`), passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the run URL (constructed as `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`), to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
 
 ## Step 3: Label the Report Issue
 
@@ -216,60 +223,11 @@ For example, if the batch contains rows with `lgtm`, `spam`, and `needs-work` qu
 
 If any subagent call failed (❓), also apply `outdated`.
 
-## Important
+## Notes
 
-- **You are the orchestrator** — you dispatch and compile. You do NOT run the checklist yourself.
-- **PR fetching and filtering is pre-computed** — a `pre-agent` step writes `pr-filter-results.json`. Read it at the start.
-- **Subagent does the analysis** — `.github/agents/contribution-checker.agent.md` handles all per-PR evaluation logic.
-- **Read from `${{ env.TARGET_REPOSITORY }}`** — read-only access via GitHub MCP tools.
-- **Write to `${{ github.repository }}`** — reports go here as issues.
-- **Use safe output tools for target repository interactions** — use `add-comment` and `add-labels` safe output tools to post comments and labels to PRs in the target repository `${{ env.TARGET_REPOSITORY }}`. Never use `gh` CLI or direct API calls for writes.
-- Close the previous report issue when creating a new one (`close-older-issues: true`).
+- You are the orchestrator: dispatch and compile; do not run the checklist yourself.
+- PR fetching and filtering is pre-computed in `pr-filter-results.json`.
+- `.github/agents/contribution-checker.agent.md` performs per-PR evaluation.
+- Read from `${{ env.TARGET_REPOSITORY }}` and write report issues to `${{ github.repository }}`.
+- Close older report issues when creating a new one (`close-older-issues: true`).
 - Be constructive in assessments — these reports help maintainers prioritize, not gatekeep.
-- `noop` is global, not per-PR. Emit at most one consolidated noop for the entire workflow run.
-- If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
-
-## agent: `report-formatter`
----
-description: Groups PR verdict JSONs into Ready/Needs-look/Off-guidelines tables and returns the markdown body for the contribution check report issue
-model: small
----
-You receive a JSON array of PR verdict objects (each with fields: `number`, `title`, `author`, `lines`, `quality`, `comment`) plus a `skipped_count` integer and a `run_url` string.
-
-Produce the markdown body for a contribution check report issue. Follow these rules exactly:
-
-1. **Lead with the takeaway.** Open with a single-sentence human-readable summary: *"We looked at {evaluated} new PRs — {n} look great, {n} need a closer look, and {n} don't fit the project guidelines."*
-
-2. **Group by action.** Organize results into these groups (omit any with zero items):
-   - **Ready to review** 🟢 — PRs where `quality == "lgtm"`
-   - **Needs a closer look** 🟡 — PRs where `quality == "needs-work"`
-   - **Off-guidelines** 🔴 — PRs where `quality == "spam"` or `quality == "outdated"`
-   - **Triage needed** ❓ — PRs where `quality` starts with `"triage"` or is unknown
-
-3. **One table per group.** Columns: PR (linked as `#number`), Title (truncated to ~50 chars), Author (with `@`), Lines changed, Quality signal. Do NOT include boolean checklist columns.
-
-4. **Wrap Off-guidelines in `<details>`** if it has more than 2 items.
-
-5. **End with**: `Evaluated: {n} · Skipped: {skipped_count} · Run: {run_url}`
-
-6. Use h3 (###) or lower for all headers. Use `---` between groups. Tone: warm and constructive.
-
-Return ONLY the markdown body string — no JSON wrapper, no explanation.
-
-## agent: `comment-dispatcher`
----
-description: Filters PR verdict array to entries needing maintainer comments and returns the comment payloads
-model: small
----
-You receive a JSON array of PR verdict objects. Each object has at minimum these fields: `number` (integer PR number) and `comment` (string, may be empty) and `quality` (string).
-
-Return a JSON array of comment payloads for PRs that need a comment posted. Include an entry only when ALL of these conditions are true:
-- `comment` is non-empty (not null, not `""`)
-- `quality` is NOT `"lgtm"`
-
-Each entry in the output array must have exactly these fields:
-```json
-{"issue_number": <number>, "body": "<comment>"}
-```
-
-Return an empty array `[]` if no entries qualify. Return ONLY the JSON array — no explanation, no markdown.

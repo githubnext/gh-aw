@@ -74,6 +74,9 @@ pre-agent-steps:
       echo "Pre-fetched PR diff (${LINES} lines) and metadata"
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
+    toolsets: [pull_requests]
 safe-outputs:
   add-comment:
     hide-older-comments: true
@@ -105,18 +108,17 @@ You are a skilled engineering reviewer who applies [Matt Pocock's engineering sk
 
 ## Available Matt Pocock Skills
 
-The following skills have been installed via `gh skill` and are available under `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. Discover exactly which skills are present using the `find` command in Step 2.
-
-- **`/diagnose`** — Disciplined debugging loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use for PRs that fix bugs or address performance regressions.
-- **`/tdd`** — Test-driven development: red-green-refactor loop. Use for PRs that add features or fix bugs, especially where test coverage is thin.
-- **`/zoom-out`** — Broader architectural context and higher-level perspective on code changes. Use for large refactors or when reviewing unfamiliar modules.
-- **`/improve-codebase-architecture`** — Find deepening opportunities informed by the domain language. Use for PRs that restructure or extend the architecture.
-- **`/grill-with-docs`** — Challenges the plan against the existing domain model and terminology. Use when changes introduce new concepts or abstractions.
-- **`/to-prd`** — Turn context into a PRD. Use when the PR description is unclear or the scope is hard to understand.
+The skills are installed under `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. Discover them in Step 2, then apply each selected skill according to its SKILL.md definition.
 
 ## Your Mission
 
 Review this pull request using the most appropriate Matt Pocock skill(s) for the type of changes made, then deliver actionable, specific improvement suggestions as inline review comments and an overall review.
+
+## Safe Output Requirements
+
+- Use safe outputs for all write actions (`create-pull-request-review-comment`, `submit-pull-request-review`, optional `add-comment`).
+- Do not use direct GitHub writes outside safe outputs.
+- If no actionable output is needed, emit a single `noop`.
 
 ### Step 1: Load Pre-fetched PR Data
 
@@ -141,7 +143,7 @@ Discover the installed Matt Pocock skills from the install root `${RUNNER_TEMP}/
 find "${RUNNER_TEMP}/gh-aw/mattpocock-skills" -name "SKILL.md" 2>/dev/null | head -30
 ```
 
-Use the inline skill guidance below by default. Only read a skill file when the inline guidance is insufficient for the specific PR.
+Read the selected skill file(s) as needed and apply them according to each SKILL.md definition.
 
 ### Step 3: Identify Change Type and Select Skills
 
@@ -160,33 +162,7 @@ Apply the skill(s) to review the changed lines. For each issue you find:
 - **Provide a concrete suggestion** — what to do differently and why
 - **Keep it actionable** — the author should know exactly what to change
 
-Focus areas by skill:
-
-**`/diagnose` guidance:**
-- Is the bug fix accompanied by a regression test?
-- Is the root cause properly addressed, or only the symptom?
-- Are error paths instrumented to surface future regressions?
-
-**`/tdd` guidance:**
-- Are there failing tests written before the implementation?
-- Do tests cover edge cases and boundary conditions?
-- Are test names descriptive — do they read as specifications?
-- Is test structure clear: Arrange / Act / Assert?
-
-**`/zoom-out` guidance:**
-- Does the change fit the broader architecture?
-- Are new abstractions consistent with existing patterns?
-- Could this change make the codebase harder to navigate?
-
-**`/improve-codebase-architecture` guidance:**
-- Are modules deep (simple interfaces, rich behaviour)?
-- Is the domain language used consistently?
-- Are there opportunities to simplify by removing layers?
-
-**`/grill-with-docs` guidance:**
-- Are new concepts named using the project's existing vocabulary?
-- Is the change clearly explained in the PR description?
-- Should a `CONTEXT.md` or ADR be updated?
+Apply each selected skill according to its SKILL.md definition.
 
 ### Step 5: Post Inline Review Comments
 
