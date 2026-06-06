@@ -75,18 +75,18 @@ This workflow uses Codex.`,
 		assert.True(t, hasSystemSecret, "Should include system secret GH_AW_GITHUB_TOKEN")
 
 		// Should include engine secrets for copilot, claude, and codex
-		engineSecrets := make(map[string]bool)
+		engineSecrets := make(map[string]struct{})
 		for _, req := range requirements {
 			if req.IsEngineSecret {
-				engineSecrets[req.Name] = true
+				engineSecrets[req.Name] = struct{}{}
 				assert.NotEmpty(t, req.EngineName, "Engine secret should have engine name")
 				assert.False(t, req.Optional, "Engine secret %s should be required", req.Name)
 			}
 		}
 
-		assert.True(t, engineSecrets["COPILOT_GITHUB_TOKEN"], "Should include COPILOT_GITHUB_TOKEN")
-		assert.True(t, engineSecrets["ANTHROPIC_API_KEY"], "Should include ANTHROPIC_API_KEY")
-		assert.True(t, engineSecrets["OPENAI_API_KEY"], "Should include OPENAI_API_KEY")
+		assert.Contains(t, engineSecrets, "COPILOT_GITHUB_TOKEN", "Should include COPILOT_GITHUB_TOKEN")
+		assert.Contains(t, engineSecrets, "ANTHROPIC_API_KEY", "Should include ANTHROPIC_API_KEY")
+		assert.Contains(t, engineSecrets, "OPENAI_API_KEY", "Should include OPENAI_API_KEY")
 	})
 
 	t.Run("filters by engine", func(t *testing.T) {

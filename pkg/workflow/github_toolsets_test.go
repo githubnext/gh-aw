@@ -118,12 +118,12 @@ func TestParseGitHubToolsets(t *testing.T) {
 					t.Errorf("Expected %d toolsets for 'all', got %d: %v", expectedCount, len(result), result)
 				}
 				// Verify excluded toolsets are not present
-				resultMap := make(map[string]bool)
+				resultMap := make(map[string]struct{})
 				for _, ts := range result {
-					resultMap[ts] = true
+					resultMap[ts] = struct{}{}
 				}
 				for _, ex := range GitHubToolsetsExcludedFromAll {
-					if resultMap[ex] {
+					if _, ok := resultMap[ex]; ok {
 						t.Errorf("Excluded toolset %q should not be present in 'all' expansion", ex)
 					}
 				}
@@ -136,13 +136,13 @@ func TestParseGitHubToolsets(t *testing.T) {
 			}
 
 			// Check that all expected toolsets are present (order doesn't matter for some tests)
-			resultMap := make(map[string]bool)
+			resultMap := make(map[string]struct{})
 			for _, ts := range result {
-				resultMap[ts] = true
+				resultMap[ts] = struct{}{}
 			}
 
 			for _, expected := range tt.expected {
-				if !resultMap[expected] {
+				if _, ok := resultMap[expected]; !ok {
 					t.Errorf("Expected toolset %s not found in result: %v", expected, result)
 				}
 			}
@@ -198,12 +198,12 @@ func TestParseGitHubToolsetsDeduplication(t *testing.T) {
 			}
 
 			// Verify no duplicates
-			seen := make(map[string]bool)
+			seen := make(map[string]struct{})
 			for _, toolset := range result {
-				if seen[toolset] {
+				if _, ok := seen[toolset]; ok {
 					t.Errorf("Found duplicate toolset: %s", toolset)
 				}
-				seen[toolset] = true
+				seen[toolset] = struct{}{}
 			}
 		})
 	}

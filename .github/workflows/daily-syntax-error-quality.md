@@ -16,13 +16,7 @@ engine:
   copilot-sdk: true
 tools:
   cli-proxy: true
-  bash:
-    - "gh aw compile *"
-    - "gh aw compile /tmp/gh-aw/agent/syntax-error-tests/*.md"
-    - "head -n 30 /tmp/gh-aw/agent/candidates/"
-    - "cp /tmp/gh-aw/agent/candidates/"
-    - "cat /tmp/gh-aw/agent/syntax-error-tests/*.md"
-    - "mkdir -p /tmp/gh-aw/agent/syntax-error-tests"
+  bash: true
 safe-outputs:
   create-issue:
     expires: 3d

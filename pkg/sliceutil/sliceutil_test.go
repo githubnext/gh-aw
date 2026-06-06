@@ -167,7 +167,7 @@ func TestMapKeys(t *testing.T) {
 	})
 
 	t.Run("single entry map", func(t *testing.T) {
-		m := map[string]bool{"only": true}
+		m := map[string]struct{}{"only": {}}
 		result := MapKeys(m)
 		assert.Equal(t, []string{"only"}, result,
 			"MapKeys should return the single key from a one-entry map")

@@ -835,13 +835,13 @@ func TestParseMCPConfig(t *testing.T) {
 			// due to map iteration order, so check for presence rather than exact order
 			if result.Container != "" {
 				// Check that all expected elements are present in args
-				expectedElements := make(map[string]bool)
+				expectedElements := make(map[string]struct{})
 				for _, arg := range tt.expected.Args {
-					expectedElements[arg] = true
+					expectedElements[arg] = struct{}{}
 				}
-				actualElements := make(map[string]bool)
+				actualElements := make(map[string]struct{})
 				for _, arg := range result.Args {
-					actualElements[arg] = true
+					actualElements[arg] = struct{}{}
 				}
 				if !reflect.DeepEqual(expectedElements, actualElements) {
 					t.Errorf("Expected args elements %v, got %v", tt.expected.Args, result.Args)

@@ -123,15 +123,15 @@ description: Standalone workflow
 		}
 
 		// Check that both importers are in the list
-		affectedMap := make(map[string]bool)
+		affectedMap := make(map[string]struct{})
 		for _, w := range affected {
-			affectedMap[w] = true
+			affectedMap[w] = struct{}{}
 		}
 
-		if !affectedMap[topWorkflow1] {
+		if _, ok := affectedMap[topWorkflow1]; !ok {
 			t.Errorf("GetAffectedWorkflows() should include %s", topWorkflow1)
 		}
-		if !affectedMap[topWorkflow2] {
+		if _, ok := affectedMap[topWorkflow2]; !ok {
 			t.Errorf("GetAffectedWorkflows() should include %s", topWorkflow2)
 		}
 	})
@@ -353,13 +353,13 @@ imports:
 	}
 
 	// Verify all three workflows are in the affected list
-	affectedMap := make(map[string]bool)
+	affectedMap := make(map[string]struct{})
 	for _, w := range affected {
-		affectedMap[w] = true
+		affectedMap[w] = struct{}{}
 	}
 
 	for i, wf := range workflows {
-		if !affectedMap[wf] {
+		if _, ok := affectedMap[wf]; !ok {
 			t.Errorf("GetAffectedWorkflows() should include workflow%d.md", i)
 		}
 	}
@@ -662,12 +662,18 @@ imports:
 			t.Errorf("GetAffectedWorkflows(C) returned %d workflows, want 3", len(affected))
 		}
 
-		affectedMap := make(map[string]bool)
+		affectedMap := make(map[string]struct{})
 		for _, w := range affected {
-			affectedMap[w] = true
+			affectedMap[w] = struct{}{}
 		}
 
-		if !affectedMap[top1] || !affectedMap[top2] || !affectedMap[top3] {
+		if _, ok := affectedMap[top1]; !ok {
+			t.Errorf("GetAffectedWorkflows(C) should include top1, top2, and top3")
+		}
+		if _, ok := affectedMap[top2]; !ok {
+			t.Errorf("GetAffectedWorkflows(C) should include top1, top2, and top3")
+		}
+		if _, ok := affectedMap[top3]; !ok {
 			t.Errorf("GetAffectedWorkflows(C) should include top1, top2, and top3")
 		}
 	})
@@ -680,12 +686,18 @@ imports:
 			t.Errorf("GetAffectedWorkflows(B) returned %d workflows, want 3", len(affected))
 		}
 
-		affectedMap := make(map[string]bool)
+		affectedMap := make(map[string]struct{})
 		for _, w := range affected {
-			affectedMap[w] = true
+			affectedMap[w] = struct{}{}
 		}
 
-		if !affectedMap[top1] || !affectedMap[top2] || !affectedMap[top3] {
+		if _, ok := affectedMap[top1]; !ok {
+			t.Errorf("GetAffectedWorkflows(B) should include top1, top2, and top3")
+		}
+		if _, ok := affectedMap[top2]; !ok {
+			t.Errorf("GetAffectedWorkflows(B) should include top1, top2, and top3")
+		}
+		if _, ok := affectedMap[top3]; !ok {
 			t.Errorf("GetAffectedWorkflows(B) should include top1, top2, and top3")
 		}
 	})
@@ -698,16 +710,19 @@ imports:
 			t.Errorf("GetAffectedWorkflows(A) returned %d workflows, want 2", len(affected))
 		}
 
-		affectedMap := make(map[string]bool)
+		affectedMap := make(map[string]struct{})
 		for _, w := range affected {
-			affectedMap[w] = true
+			affectedMap[w] = struct{}{}
 		}
 
-		if !affectedMap[top1] || !affectedMap[top2] {
+		if _, ok := affectedMap[top1]; !ok {
+			t.Errorf("GetAffectedWorkflows(A) should include top1 and top2")
+		}
+		if _, ok := affectedMap[top2]; !ok {
 			t.Errorf("GetAffectedWorkflows(A) should include top1 and top2")
 		}
 
-		if affectedMap[top3] {
+		if _, ok := affectedMap[top3]; ok {
 			t.Errorf("GetAffectedWorkflows(A) should NOT include top3")
 		}
 	})

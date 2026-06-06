@@ -174,6 +174,18 @@ func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets
 	return missing
 }
 
+func stringSetToBoolMap(set map[string]struct{}) map[string]bool {
+	if len(set) == 0 {
+		return map[string]bool{}
+	}
+
+	result := make(map[string]bool, len(set))
+	for item := range set {
+		result[item] = true
+	}
+	return result
+}
+
 // ctx returns the context from the config, defaulting to background if nil
 func (c EngineSecretConfig) ctx() context.Context {
 	if c.Ctx != nil {

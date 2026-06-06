@@ -179,10 +179,10 @@ func TestEngineRegistry_GetAllAgentManifestFolders(t *testing.T) {
 	t.Run("no duplicates in result", func(t *testing.T) {
 		registry := NewEngineRegistry()
 		folders := registry.GetAllAgentManifestFolders()
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, folder := range folders {
-			assert.False(t, seen[folder], "manifest folders should not contain duplicates, found %q twice", folder)
-			seen[folder] = true
+			assert.NotContains(t, seen, folder, "manifest folders should not contain duplicates, found %q twice", folder)
+			seen[folder] = struct{}{}
 		}
 	})
 
@@ -217,10 +217,10 @@ func TestEngineRegistry_GetAllAgentManifestFiles(t *testing.T) {
 	t.Run("no duplicates in result", func(t *testing.T) {
 		registry := NewEngineRegistry()
 		files := registry.GetAllAgentManifestFiles()
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, file := range files {
-			assert.False(t, seen[file], "manifest files should not contain duplicates, found %q twice", file)
-			seen[file] = true
+			assert.NotContains(t, seen, file, "manifest files should not contain duplicates, found %q twice", file)
+			seen[file] = struct{}{}
 		}
 	})
 

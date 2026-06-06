@@ -213,13 +213,13 @@ func TestGetCustomJobsDependingOnPreActivation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := c.getCustomJobsDependingOnPreActivation(tt.customJobs)
 			// Convert to maps for easier comparison (order doesn't matter)
-			resultMap := make(map[string]bool)
+			resultMap := make(map[string]struct{})
 			for _, r := range result {
-				resultMap[r] = true
+				resultMap[r] = struct{}{}
 			}
-			expectedMap := make(map[string]bool)
+			expectedMap := make(map[string]struct{})
 			for _, e := range tt.expected {
-				expectedMap[e] = true
+				expectedMap[e] = struct{}{}
 			}
 
 			if len(resultMap) != len(expectedMap) {
@@ -227,7 +227,7 @@ func TestGetCustomJobsDependingOnPreActivation(t *testing.T) {
 				return
 			}
 			for k := range expectedMap {
-				if !resultMap[k] {
+				if _, ok := resultMap[k]; !ok {
 					t.Errorf("getCustomJobsDependingOnPreActivation() returned %v, want %v", result, tt.expected)
 					return
 				}

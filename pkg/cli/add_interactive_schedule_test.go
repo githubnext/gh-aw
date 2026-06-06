@@ -407,15 +407,15 @@ func TestBuildScheduleOptions(t *testing.T) {
 	t.Run("includes all standard frequencies", func(t *testing.T) {
 		opts := buildScheduleOptions("daily", "daily")
 		require.NotEmpty(t, opts, "options should not be empty")
-		values := make(map[string]bool)
+		values := make(map[string]struct{})
 		for _, o := range opts {
-			values[o.Value] = true
+			values[o.Value] = struct{}{}
 		}
-		assert.True(t, values["hourly"], "hourly should be included")
-		assert.True(t, values["3-hourly"], "3-hourly should be included")
-		assert.True(t, values["daily"], "daily should be included")
-		assert.True(t, values["weekly"], "weekly should be included")
-		assert.True(t, values["monthly"], "monthly should be included")
+		assert.Contains(t, values, "hourly", "hourly should be included")
+		assert.Contains(t, values, "3-hourly", "3-hourly should be included")
+		assert.Contains(t, values, "daily", "daily should be included")
+		assert.Contains(t, values, "weekly", "weekly should be included")
+		assert.Contains(t, values, "monthly", "monthly should be included")
 	})
 
 	t.Run("custom schedule has no duplicate custom option", func(t *testing.T) {

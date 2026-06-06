@@ -1784,12 +1784,12 @@ func TestCollectSideRepoTargets(t *testing.T) {
 				return
 			}
 			// Use a set-based comparison so the test is not sensitive to ordering.
-			gotSet := make(map[string]bool, len(got))
+			gotSet := make(map[string]struct{}, len(got))
 			for _, r := range got {
-				gotSet[r] = true
+				gotSet[r] = struct{}{}
 			}
 			for _, repo := range tt.expectedRepos {
-				if !gotSet[repo] {
+				if _, ok := gotSet[repo]; !ok {
 					t.Errorf("expected target %q not found in results %v", repo, got)
 				}
 			}

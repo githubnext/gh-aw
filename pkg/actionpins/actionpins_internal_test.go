@@ -53,13 +53,19 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 	})
 
 	t.Run("preserves existing warnings map", func(t *testing.T) {
-		existing := map[string]bool{"actions/checkout@v5": true}
-		ctx := &PinContext{Warnings: existing}
+		existing := map[string]struct{}{"actions/checkout@v5": {}}
+		ctx := &PinContext{Warnings: make(map[string]bool, len(existing))}
+		for warning := range existing {
+			ctx.Warnings[warning] = true
+		}
 
 		initWarnings(ctx)
 
 		require.NotNil(t, ctx.Warnings, "Expected warnings map to remain initialized")
-		assert.Equal(t, existing, ctx.Warnings, "Expected existing warnings entries to be preserved")
+		assert.Len(t, ctx.Warnings, len(existing), "Expected existing warnings entries to be preserved")
+		for warning := range existing {
+			assert.True(t, ctx.Warnings[warning], "Expected warning %q to be preserved", warning)
+		}
 	})
 }
 

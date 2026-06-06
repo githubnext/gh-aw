@@ -42,6 +42,7 @@ tools:
     - "cat /tmp/gh-aw/code-simplifier/recent-commits.jsonl"
     - "cat /tmp/gh-aw/code-simplifier/history-summary.json"
     - "ls /tmp/gh-aw/code-simplifier"
+    - "jq *"
     - "make test-unit"
     - "make lint"
     - "make build"
@@ -61,7 +62,7 @@ steps:
       echo "$YESTERDAY" > /tmp/gh-aw/code-simplifier/yesterday.txt
 
       git log --since='24 hours ago' --no-merges --pretty=format:'%H%x09%s' \
-        | jq -R 'select(length > 0) | split("\t"; 2) | {sha: .[0], subject: (.[1] // "")}' \
+        | jq -R 'select(length > 0) | split("\t") | {sha: .[0], subject: (.[1] // "")}' \
         > /tmp/gh-aw/code-simplifier/recent-commits.jsonl || true
 
       git log --since='24 hours ago' --name-only --pretty=format:'' --no-merges \
@@ -161,9 +162,11 @@ Do **not** re-fetch these datasets with GitHub tools unless a required file is m
 
 ## Command Guardrails (Required)
 
+- Do **NOT** use `python3` for JSON parsing; use `jq`, `cat`, or `head` instead.
 - Do **NOT** repeatedly retry variations of the same blocked command.
 - If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
 - If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
+- If you encounter 3 or more consecutive `Permission denied` errors for the same type of command, stop immediately and call `report_incomplete`.
 
 ## Phase 1 — Determine Scope
 

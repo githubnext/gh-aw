@@ -583,17 +583,17 @@ func TestFilterExpressionsForActivation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := filterExpressionsForActivation(tt.mappings, tt.customJobs, tt.beforeActivationJobs)
 
-			resultSet := make(map[string]bool, len(result))
+			resultSet := make(map[string]struct{}, len(result))
 			for _, m := range result {
-				resultSet[m.Content] = true
+				resultSet[m.Content] = struct{}{}
 			}
 
 			for _, expected := range tt.expectedContents {
-				assert.True(t, resultSet[expected],
+				assert.Contains(t, resultSet, expected,
 					"Expected expression %q to be kept in result, got: %v", expected, resultSet)
 			}
 			for _, excluded := range tt.excludedContents {
-				assert.False(t, resultSet[excluded],
+				assert.NotContains(t, resultSet, excluded,
 					"Expected expression %q to be filtered out of result, got: %v", excluded, resultSet)
 			}
 		})

@@ -203,7 +203,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
       case "write":
         return allowedToolEntries.has("write");
       case "read":
-        return allowedToolEntries.has("read");
+        return allowedToolEntries.has("read") || allowedToolEntries.has("shell");
       case "url":
         return allowedToolEntries.has("web_fetch");
       case "mcp":
