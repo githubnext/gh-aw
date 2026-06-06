@@ -137,7 +137,7 @@ func (c *Compiler) addActivationSetupAndWorkflowCallSteps(ctx *activationJobBuil
 	c.addActivationWorkflowCallResolutionSteps(ctx)
 }
 
-func buildActivationSetupParentSpans(preActivationJobCreated bool) (string, string) {
+func buildActivationSetupParentSpans(preActivationJobCreated bool) (traceID string, parentSpanID string) {
 	if !preActivationJobCreated {
 		return "", ""
 	}
@@ -207,18 +207,24 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 }
 
 func (c *Compiler) maybeAddActivationAppTokenMintStep(ctx *activationJobBuildContext) {
-	if ctx.data.ActivationGitHubApp == nil {
-		return
-	}
 	if !activationJobNeedsAppToken(ctx) {
 		return
 	}
-	appPerms := c.buildActivationAppTokenPermissions(ctx)
+	appPerms := buildActivationAppTokenPermissions(ctx)
 	ctx.steps = append(ctx.steps, c.buildActivationAppTokenMintStep(ctx.data.ActivationGitHubApp, appPerms)...)
 	ctx.outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
 }
 
+// activationJobNeedsAppToken gates app-token minting and must stay in sync with
+// buildActivationAppTokenPermissions. Any new trigger added here (reaction,
+// status-comment, remove-label, repo-access, guardrail) must also add the
+// corresponding permission grants there; drift causes either unnecessary minting
+// or runtime 403s from missing scopes. TestActivationJobNeedsAppToken locks the
+// gate behavior for these triggers.
 func activationJobNeedsAppToken(ctx *activationJobBuildContext) bool {
+	if ctx.data.ActivationGitHubApp == nil {
+		return false
+	}
 	return ctx.hasReaction ||
 		ctx.hasStatusComment ||
 		ctx.shouldRemoveLabel ||
@@ -226,7 +232,7 @@ func activationJobNeedsAppToken(ctx *activationJobBuildContext) bool {
 		hasMaxDailyEffectiveTokensGuardrail(ctx.data)
 }
 
-func (c *Compiler) buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permissions {
+func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permissions {
 	appPerms := NewPermissions()
 	addActivationInteractionPermissions(
 		appPerms,
@@ -242,6 +248,13 @@ func (c *Compiler) buildActivationAppTokenPermissions(ctx *activationJobBuildCon
 			statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 		},
 	)
+	// Keep this aligned with addActivationLabelPermissions: app-token scopes are
+	// computed separately from GITHUB_TOKEN scopes because app-token permissions
+	// only apply to steps using the minted app token, while label permissions in
+	// addActivationLabelPermissions are only for GITHUB_TOKEN execution paths.
+	// This intentionally mirrors addActivationLabelPermissions without the
+	// ActivationGitHubApp == nil guard because this function runs only when
+	// activationJobNeedsAppToken confirms app-token minting is enabled.
 	if ctx.shouldRemoveLabel {
 		if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
 			appPerms.Set(PermissionIssues, PermissionWrite)
@@ -471,7 +484,7 @@ func (c *Compiler) addActivationStatusCommentStep(ctx *activationJobBuildContext
 	if ctx.data.LockForAgent {
 		ctx.steps = append(ctx.steps, "          GH_AW_LOCK_FOR_AGENT: \"true\"\n")
 	}
-	if err := appendActivationSafeOutputMessagesEnv(ctx); err != nil {
+	if err := addActivationSafeOutputMessagesEnv(ctx); err != nil {
 		return err
 	}
 	ctx.steps = append(ctx.steps, "        with:\n")
@@ -487,7 +500,7 @@ func (c *Compiler) addActivationStatusCommentStep(ctx *activationJobBuildContext
 	return nil
 }
 
-func appendActivationSafeOutputMessagesEnv(ctx *activationJobBuildContext) error {
+func addActivationSafeOutputMessagesEnv(ctx *activationJobBuildContext) error {
 	if ctx.data.SafeOutputs == nil || ctx.data.SafeOutputs.Messages == nil {
 		return nil
 	}
@@ -673,9 +686,6 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (string, error) {
 	permsMap := c.buildActivationBasePermissions(ctx)
 	c.addCentralizedCommandActivationPermissions(permsMap, ctx)
-	if ctx.data.LockForAgent {
-		permsMap[PermissionIssues] = PermissionWrite
-	}
 	c.addActivationLabelPermissions(permsMap, ctx)
 	if err := c.addActivationScriptPermissions(permsMap, ctx); err != nil {
 		return "", err
@@ -728,6 +738,9 @@ func (c *Compiler) addCentralizedCommandActivationPermissions(permsMap map[Permi
 }
 
 func (c *Compiler) addActivationLabelPermissions(permsMap map[PermissionScope]PermissionLevel, ctx *activationJobBuildContext) {
+	if ctx.data.LockForAgent {
+		permsMap[PermissionIssues] = PermissionWrite
+	}
 	if ctx.shouldRemoveLabel && ctx.data.ActivationGitHubApp == nil {
 		if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
 			permsMap[PermissionIssues] = PermissionWrite
