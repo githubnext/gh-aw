@@ -60,6 +60,7 @@ describe("parse_token_usage", () => {
   describe("main function", () => {
     let tmpDir;
     let mockCore;
+    let originalAppendFileSync;
     let originalExistsSync;
     let originalStatSync;
     let originalReadFileSync;
@@ -68,7 +69,7 @@ describe("parse_token_usage", () => {
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "parse-token-usage-test-"));
       delete process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE;
-      delete process.env.GITHUB_STEP_SUMMARY;
+      process.env.GITHUB_STEP_SUMMARY = "";
 
       mockCore = {
         info: vi.fn(),
@@ -87,6 +88,7 @@ describe("parse_token_usage", () => {
 
       global.core = mockCore;
 
+      originalAppendFileSync = fs.appendFileSync;
       originalExistsSync = fs.existsSync;
       originalStatSync = fs.statSync;
       originalReadFileSync = fs.readFileSync;
@@ -107,6 +109,7 @@ describe("parse_token_usage", () => {
     });
 
     afterEach(() => {
+      fs.appendFileSync = originalAppendFileSync;
       fs.existsSync = originalExistsSync;
       fs.statSync = originalStatSync;
       fs.readFileSync = originalReadFileSync;
@@ -205,6 +208,7 @@ describe("parse_token_usage", () => {
     test("appends token usage section to GITHUB_STEP_SUMMARY when configured", async () => {
       const stepSummaryPath = path.join(tmpDir, "step-summary.md");
       process.env.GITHUB_STEP_SUMMARY = stepSummaryPath;
+      fs.appendFileSync = vi.fn((...args) => originalAppendFileSync(...args));
 
       fs.existsSync = vi.fn(p => {
         if (p === TOKEN_USAGE_PATH) return true;
@@ -228,6 +232,7 @@ describe("parse_token_usage", () => {
       expect(stepSummary).toContain("### Token Usage");
       expect(stepSummary).toContain("<summary>Per-request AI credits and token totals</summary>");
       expect(stepSummary).toContain("| ΔAI Credits | AI Credits |");
+      expect(fs.appendFileSync).toHaveBeenCalledWith(stepSummaryPath, expect.any(String), "utf8");
       expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
       expect(mockCore.summary.write).not.toHaveBeenCalled();
     });

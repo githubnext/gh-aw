@@ -142,8 +142,7 @@ async function main() {
     }
     const markdown = generateTokenUsageSummary(summary);
     if (markdown.length > 0) {
-    if (markdown.length > 0) {
-    }
+      await appendStepSummarySection(getSummaryTitle(), markdown);
     }
 
     core.info("Token usage summary appended to step summary");
