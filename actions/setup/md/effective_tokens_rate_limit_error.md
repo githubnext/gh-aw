@@ -5,7 +5,7 @@
 
 - Learn about [AI Credits]({ai_credits_spec_link}).
 {usage_line}{budget_line}{run_line}
-- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (divide by 10,000):
+- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):
   ```yaml
   # before
   max-effective-tokens: 500000

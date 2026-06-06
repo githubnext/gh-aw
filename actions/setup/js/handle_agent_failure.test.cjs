@@ -3038,7 +3038,7 @@ describe("handle_agent_failure", () => {
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [AI Credits]({ai_credits_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
-          "- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (divide by 10,000):\n" +
+          "- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):\n" +
           "  ```yaml\n" +
           "  # before\n" +
           "  max-effective-tokens: 500000\n" +
