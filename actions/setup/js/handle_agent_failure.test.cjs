@@ -3038,8 +3038,13 @@ describe("handle_agent_failure", () => {
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [AI Credits]({ai_credits_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
-          "- `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.\n\n" +
-          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
+          "- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):\n" +
+          "  ```yaml\n" +
+          "  # before\n" +
+          "  max-effective-tokens: 5000000\n" +
+          "  # after\n" +
+          "  max-ai-credits: 500\n" +
+          "  ```\n\n" +
           "{et_table_section}\n" +
           "- To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).\n" +
           "</details>\n"
@@ -3113,7 +3118,7 @@ describe("handle_agent_failure", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
-      expect(result).toContain("ET computation details");
+      expect(result).toContain("AIC computation details");
       expect(result).not.toContain("<summary>ET computation details (formula:");
       expect(result).toContain("<sub>ET formula:");
     });
@@ -3152,7 +3157,7 @@ describe("handle_agent_failure", () => {
         ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
         const result = readTokenUsageMarkdown();
         expect(result).not.toBeNull();
-        expect(result.markdown).toContain("◉ sonnet45");
+        expect(result.markdown).toContain("sonnet45");
         expect(result.markdown).toContain("1,000");
         expect(result.markdown).toContain("Alias");
         expect(result.modelNames).toEqual(["claude-sonnet-4.5"]);

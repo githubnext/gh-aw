@@ -959,13 +959,23 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
 	// Add basic steps if specified (only for non-reusable workflow jobs).
-	// `pre-steps` are inserted after setup-injected steps and before the
-	// regular `steps` list (including any checkout step it may contain).
+	// `setup-steps` and `pre-steps` stay distinct so setup-steps can remain the
+	// first injected steps in the job, followed by compiler scaffolding,
+	// `pre-steps`, and the regular `steps` list.
+	var setupSteps []string
 	var preSteps []string
 	var regularSteps []string
+	_, hasSetupStepsField := configMap["setup-steps"]
 	_, hasPreStepsField := configMap["pre-steps"]
 	_, hasStepsField := configMap["steps"]
 
+	if hasSetupStepsField {
+		var err error
+		setupSteps, err = c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
+		if err != nil {
+			return fmt.Errorf("failed to process setup-steps for job '%s': %w", jobName, err)
+		}
+	}
 	if hasPreStepsField {
 		var err error
 		preSteps, err = c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
@@ -981,7 +991,8 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		}
 	}
 
-	if hasPreStepsField || hasStepsField {
+	if hasSetupStepsField || hasPreStepsField || hasStepsField {
+		job.Steps = append(job.Steps, setupSteps...)
 		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
 		// Custom frontmatter jobs run as independent GitHub Actions jobs that
 		// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
@@ -1034,31 +1045,60 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		if !ok {
 			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
 		}
-		if _, hasPreSteps := configMap["pre-steps"]; !hasPreSteps {
+		_, hasSetupSteps := configMap["setup-steps"]
+		_, hasPreSteps := configMap["pre-steps"]
+		if !hasSetupSteps && !hasPreSteps {
 			continue
 		}
 
-		preSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
-		if err != nil {
-			return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
+		var setupSteps []string
+		var preSteps []string
+		if hasSetupSteps {
+			steps, err := c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
+			if err != nil {
+				return fmt.Errorf("failed to process setup-steps for built-in job '%s': %w", jobName, err)
+			}
+			setupSteps = append(setupSteps, steps...)
 		}
-		if len(preSteps) == 0 {
+		if hasPreSteps {
+			steps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
+			if err != nil {
+				return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
+			}
+			preSteps = append(preSteps, steps...)
+		}
+		if len(setupSteps) == 0 && len(preSteps) == 0 {
 			continue
 		}
 
-		job.Steps = insertPreStepsAfterSetupBeforeCheckout(job.Steps, preSteps)
-		compilerJobsLog.Printf("Inserted %d pre-steps into built-in job '%s'", len(preSteps), targetJobName)
+		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
+		job.Steps = insertSetupStepsAtStart(job.Steps, setupSteps)
+		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
 	}
 
 	return nil
 }
 
-func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) []string {
+// insertSetupStepsAtStart places setup-steps at the start of the job so they
+// run before any compiler-generated setup, checkout, or token-mint steps.
+func insertSetupStepsAtStart(steps []string, setupSteps []string) []string {
+	if len(setupSteps) == 0 {
+		return steps
+	}
+
+	result := make([]string, 0, safeAllocationCapacity(len(steps), len(setupSteps)))
+	result = append(result, setupSteps...)
+	result = append(result, steps...)
+	return result
+}
+
+func insertPreStepsAtEarliestBoundary(steps []string, preSteps []string) []string {
 	if len(preSteps) == 0 {
 		return steps
 	}
 
 	firstCheckoutIdx := -1
+	firstTokenMintIdx := -1
 	lastSetupIdx := -1
 	for i, step := range steps {
 		if firstCheckoutIdx == -1 && strings.Contains(step, "uses: actions/checkout@") {
@@ -1074,6 +1114,19 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 				}
 			}
 		}
+		if firstTokenMintIdx == -1 && strings.Contains(step, "uses: actions/create-github-app-token@") {
+			firstTokenMintIdx = i
+			// Walk backward to the token-mint step's list-item boundary ("- ").
+			// If no boundary is found, keep the current index so insertion still
+			// occurs before the token-mint uses-line.
+			for j := i; j >= 0; j-- {
+				trimmed := strings.TrimLeft(steps[j], " ")
+				if strings.HasPrefix(trimmed, "- ") {
+					firstTokenMintIdx = j
+					break
+				}
+			}
+		}
 		if exactSetupStepIDPattern.MatchString(step) {
 			lastSetupIdx = i
 		}
@@ -1081,12 +1134,6 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 
 	insertIdx := len(steps)
 	if lastSetupIdx >= 0 {
-		// Setup step may be emitted as multiple []string entries (one line per entry).
-		// Insert after the full setup step by finding the next step boundary.
-		// A step boundary is identified by the YAML list-item prefix ("- ") after
-		// indentation trimming, which marks the beginning of the next step block.
-		// If no boundary is found (e.g. setup is the final step), insertIdx stays len(steps)
-		// and pre-steps are appended by the slice insertion logic below.
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
 			trimmed := strings.TrimLeft(steps[i], " ")
 			if strings.HasPrefix(trimmed, "- ") {
@@ -1096,6 +1143,13 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 		}
 		if insertIdx == len(steps) {
 			compilerJobsLog.Print("No step boundary found after setup step; appending pre-steps at end")
+		}
+	} else if firstTokenMintIdx >= 0 {
+		insertIdx = firstTokenMintIdx
+		if firstCheckoutIdx >= 0 {
+			if firstCheckoutIdx < insertIdx {
+				insertIdx = firstCheckoutIdx
+			}
 		}
 	} else if firstCheckoutIdx >= 0 {
 		insertIdx = firstCheckoutIdx

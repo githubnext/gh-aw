@@ -406,23 +406,23 @@ describe("effective_tokens", () => {
     });
 
     describe("formatModelEmojiAlias", () => {
-      test("uses a distinct monochrome symbol for sonnet models", () => {
-        expect(formatModelEmojiAlias("claude-sonnet-4.6")).toBe("◉ sonnet46");
+      test("returns compact identifier for sonnet models", () => {
+        expect(formatModelEmojiAlias("claude-sonnet-4.6")).toBe("sonnet46");
       });
 
-      test("uses distinct monochrome symbols for OpenAI model kinds", () => {
-        expect(formatModelEmojiAlias("gpt-5.5")).toBe("■ gpt55");
-        expect(formatModelEmojiAlias("o3")).toBe("● o30");
+      test("returns compact identifiers for OpenAI model kinds", () => {
+        expect(formatModelEmojiAlias("gpt-5.5")).toBe("gpt55");
+        expect(formatModelEmojiAlias("o3")).toBe("o30");
       });
 
-      test("uses distinct monochrome symbols across compact model kinds", () => {
-        expect(formatModelEmojiAlias("claude-opus-4.7")).toBe("◆ opus47");
-        expect(formatModelEmojiAlias("claude-haiku-4.5")).toBe("▲ haiku45");
-        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("★ gem25pro");
+      test("returns compact identifiers for various model families", () => {
+        expect(formatModelEmojiAlias("claude-opus-4.7")).toBe("opus47");
+        expect(formatModelEmojiAlias("claude-haiku-4.5")).toBe("haiku45");
+        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("gem25pro");
       });
 
-      test("uses a monochrome fallback symbol for unknown models", () => {
-        expect(formatModelEmojiAlias("my-custom-engine-v2")).toBe("○ myc20");
+      test("returns compact fallback identifier for unknown models", () => {
+        expect(formatModelEmojiAlias("my-custom-engine-v2")).toBe("myc20");
       });
     });
 
@@ -575,7 +575,7 @@ describe("effective_tokens", () => {
       const result = buildETComputationTable("10000000");
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
-      expect(result).toContain("ET computation details");
+      expect(result).toContain("AIC computation details");
       expect(result).not.toContain("<summary>ET computation details (formula:");
       expect(result).toContain("Input");
       expect(result).toContain("Output");
@@ -615,13 +615,13 @@ describe("effective_tokens", () => {
         modelNames: ["claude-sonnet-4.5"],
       });
       expect(result).toContain("<details>");
-      expect(result).toContain("ET computation details");
+      expect(result).toContain("AIC computation details");
       expect(result).toContain("◉ sonnet45");
       expect(result).toContain("100,000");
       // Should not include the fallback aggregated table headers
       expect(result).not.toContain("Token class");
       expect(result).not.toContain("Weighted tokens");
-      expect(result).toContain("Model aliases: ◉ sonnet45=claude-sonnet-4.5");
+      expect(result).toContain("Model aliases: sonnet45=claude-sonnet-4.5");
     });
   });
 });

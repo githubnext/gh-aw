@@ -1601,7 +1601,7 @@ not-json
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
       expect(md).toContain("| # | Alias | Input | Output | Cache Read | Cache Write | ΔAI Credits | AI Credits | Duration |");
-      expect(md).toContain("◉ sonnet46");
+      expect(md).toContain("sonnet46");
     });
 
     test("includes totals row", () => {

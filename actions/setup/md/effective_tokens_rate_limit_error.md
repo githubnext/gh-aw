@@ -5,8 +5,13 @@
 
 - Learn about [AI Credits]({ai_credits_spec_link}).
 {usage_line}{budget_line}{run_line}
-- `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.
-You can tune this limit with `max-ai-credits` in workflow frontmatter.
+- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (1 AIC = 10,000 ET):
+  ```yaml
+  # before
+  max-effective-tokens: 5000000
+  # after
+  max-ai-credits: 500
+  ```
 
 {et_table_section}
 - To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).

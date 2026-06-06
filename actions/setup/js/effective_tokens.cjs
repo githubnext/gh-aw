@@ -169,41 +169,18 @@ function reduceModelNameToIdentifier(modelName) {
 }
 
 /**
- * Returns a compact monochrome Unicode symbol-prefixed alias for a model name.
- * Uses distinct symbols for each compact model kind so aliases remain scannable.
+ * Returns a compact alias for a model name (the simplified identifier without a symbol prefix).
  *
  * Examples:
- * - claude-sonnet-4.6 -> ◉ sonnet46
- * - gpt-5.5 -> ■ gpt55
- * - gemini-2.5-pro -> ★ gem25pro
+ * - claude-sonnet-4.6 -> sonnet46
+ * - gpt-5.5 -> gpt55
+ * - gemini-2.5-pro -> gem25pro
  *
  * @param {string|undefined|null} modelName
  * @returns {string}
  */
 function formatModelEmojiAlias(modelName) {
-  const identifier = reduceModelNameToIdentifier(modelName);
-  if (!identifier) return "";
-
-  const normalized = String(modelName || "")
-    .trim()
-    .toLowerCase();
-
-  let emoji = "○";
-  if (/sonnet/.test(normalized)) {
-    emoji = "◉";
-  } else if (/opus/.test(normalized)) {
-    emoji = "◆";
-  } else if (/haiku/.test(normalized)) {
-    emoji = "▲";
-  } else if (/^o[0-9](?:$|[-_])/.test(normalized)) {
-    emoji = "●";
-  } else if (/gpt|openai/.test(normalized)) {
-    emoji = "■";
-  } else if (/gemini|gemma|google|^gem[0-9]/.test(normalized)) {
-    emoji = "★";
-  }
-
-  return `${emoji} ${identifier}`;
+  return reduceModelNameToIdentifier(modelName);
 }
 
 /**
@@ -415,7 +392,7 @@ function buildETComputationTable(effectiveTokens, tokenUsageDetails = null) {
 
   const lines = [];
   lines.push("<details>");
-  lines.push("<summary>ET computation details</summary>");
+  lines.push("<summary>AIC computation details</summary>");
   lines.push("");
 
   if (tokenUsageMarkdown) {
