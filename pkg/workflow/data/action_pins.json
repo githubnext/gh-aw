@@ -173,20 +173,10 @@
       "version": "v4.36.0",
       "sha": "7211b7c8077ea37d8641b6271f6a365a22a5fbfa"
     },
-    "github/gh-aw-actions/setup-cli@v0.78.2": {
-      "repo": "github/gh-aw-actions/setup-cli",
-      "version": "v0.78.2",
-      "sha": "268bf92726cb8153337c07166f382ee46e4fd897"
-    },
-    "github/gh-aw-actions/setup@v0.78.2": {
+    "github/gh-aw-actions/setup@v0.76.1": {
       "repo": "github/gh-aw-actions/setup",
-      "version": "v0.78.2",
-      "sha": "268bf92726cb8153337c07166f382ee46e4fd897"
-    },
-    "github/gh-aw/actions/setup-cli@v0.78.2": {
-      "repo": "github/gh-aw/actions/setup-cli",
-      "version": "v0.78.2",
-      "sha": "a7d4043a8224182262356a32931099b76fd332eb"
+      "version": "v0.76.1",
+      "sha": "46d564922b082d0db93244972e8005ea6904ee5f"
     },
     "github/stale-repos@v9.0.14": {
       "repo": "github/stale-repos",
