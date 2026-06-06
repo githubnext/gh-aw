@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
+const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPath, getPatchPathForRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
 
@@ -159,50 +159,31 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         if (mode === "incremental") {
           // INCREMENTAL MODE (for push_to_pull_request_branch):
           // Only include commits that are new since origin/branchName.
-          // This prevents including commits that already exist on the PR branch.
-          // Prefer a fresh fetch of origin/branchName; fall back to the existing
-          // remote tracking ref (set up by the initial shallow checkout) when the
-          // fetch fails (e.g. due to shallow clone limitations or missing credentials).
+          // Tries a local-only check first, then a single network fetch attempt.
+          // The fetch will succeed for public repos (no credentials needed) and
+          // fail fast for private repos without credentials (execGitSync runs
+          // git with GIT_TERMINAL_PROMPT=0 and a 60s timeout).
 
-          debugLog(`Strategy 1 (incremental): Fetching origin/${branchName}`);
-          // Configure git authentication via GIT_CONFIG_* environment variables.
-          // This ensures the fetch works when .git/config credentials are unavailable
-          // (e.g. after clean_git_credentials.sh) and on GitHub Enterprise Server (GHES).
-          // Use options.token when provided (cross-repo PAT), falling back to GITHUB_TOKEN.
-          // SECURITY: The auth header is passed via env vars so it is never written to
-          // .git/config on disk, preventing file-monitoring attacks.
-          const fetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-
-          try {
-            // Explicitly fetch origin/branchName to ensure we have the latest
-            // Use "--" to prevent branch names starting with "-" from being interpreted as options
-            execGitSync(["fetch", "origin", "--", `${branchName}:refs/remotes/origin/${branchName}`], { cwd, env: fetchEnv });
+          debugLog(`Strategy 1 (incremental): Resolving origin/${branchName}`);
+          const incrementalRefResult = ensureOriginRemoteTrackingRef(branchName, { cwd, token: options.token, suppressLogs: true });
+          if (incrementalRefResult.exists) {
             baseRef = `origin/${branchName}`;
-            debugLog(`Strategy 1 (incremental): Successfully fetched, baseRef=${baseRef}`);
-          } catch (fetchError) {
-            // Fetch failed. Check if origin/branchName already exists from the initial shallow checkout.
-            // This handles cases where git fetch fails due to shallow clone limitations or when
-            // GITHUB_TOKEN is unavailable in the MCP server process (e.g. after clean_git_credentials.sh).
-            // Using the existing remote tracking ref as a fallback is safe: it represents the state
-            // of the branch at checkout time, so the incremental patch will include all commits
-            // made by the agent since then.
-            debugLog(`Strategy 1 (incremental): Fetch failed - ${getErrorMessage(fetchError)}, checking for existing remote tracking ref`);
-            try {
-              execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd });
-              // Remote tracking ref exists from initial shallow checkout — use it as base
-              baseRef = `origin/${branchName}`;
-              debugLog(`Strategy 1 (incremental): Using existing remote tracking ref as fallback, baseRef=${baseRef}`);
-            } catch (refCheckError) {
-              // No remote tracking ref at all — cannot safely generate an incremental patch.
-              // Report both errors: the original fetch failure and the missing ref.
-              debugLog(`Strategy 1 (incremental): No existing remote tracking ref found (${getErrorMessage(refCheckError)}), failing`);
-              errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName} and no existing remote tracking ref found. This typically happens when the remote branch doesn't exist yet or was force-pushed. Fetch error: ${getErrorMessage(fetchError)}`;
-              return {
-                success: false,
-                error: errorMessage,
-                patchPath: patchPath,
-              };
+            if (incrementalRefResult.fetched) {
+              debugLog(`Strategy 1 (incremental): Fetched origin/${branchName} from remote, baseRef=${baseRef}`);
+            } else {
+              debugLog(`Strategy 1 (incremental): Using existing remote tracking ref, baseRef=${baseRef}`);
             }
+          } else {
+            debugLog(`Strategy 1 (incremental): origin/${branchName} not present locally and remote fetch failed (${incrementalRefResult.fetchError ? getErrorMessage(incrementalRefResult.fetchError) : "no error"}), failing`);
+            errorMessage =
+              `Cannot generate incremental patch: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
+              `(the safe-outputs MCP server has no credentials for private repositories). ` +
+              `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
+            return {
+              success: false,
+              error: errorMessage,
+              patchPath: patchPath,
+            };
           }
         } else {
           // FULL MODE (for create_pull_request):
@@ -219,33 +200,21 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // never made. Always compute the merge-base with the default branch so the patch
           // contains exactly the agent's changes.
           debugLog(`Strategy 1 (full): Computing merge-base with ${defaultBranch} (ignoring any stale origin/${branchName})`);
-          // Check if origin/<defaultBranch> already exists locally (e.g., from checkout with fetch-depth: 0)
-          // This is important for cross-repo checkouts where persist-credentials: false prevents fetching
-          let hasLocalDefaultBranch = false;
-          try {
-            execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
-            hasLocalDefaultBranch = true;
-            debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
-          } catch {
-            // origin/<defaultBranch> doesn't exist locally, try to fetch it
-            debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
-            try {
-              // Configure git authentication via GIT_CONFIG_* environment variables.
-              // This ensures the fetch works when .git/config credentials are unavailable
-              // (e.g. after clean_git_credentials.sh) and on GitHub Enterprise Server (GHES).
-              // Use options.token when provided (cross-repo PAT), falling back to GITHUB_TOKEN.
-              // SECURITY: The auth header is passed via env vars so it is never written to
-              // .git/config on disk, preventing file-monitoring attacks.
-              const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-              // Use "--" to prevent branch names starting with "-" from being interpreted as options
-              execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv });
-              hasLocalDefaultBranch = true;
-              debugLog(`Strategy 1 (full): Successfully fetched origin/${defaultBranch}`);
-            } catch (fetchErr) {
-              // Fetch failed (likely due to persist-credentials: false in cross-repo checkout)
-              // We'll try other strategies below
-              debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(fetchErr)} (will try other strategies)`);
+          // Check if origin/<defaultBranch> already exists locally (e.g., from checkout with fetch-depth: 0).
+          // When missing, try a single network fetch — succeeds for public repos and
+          // fails fast for private repos without credentials.
+          const defaultBranchRefResult = ensureOriginRemoteTrackingRef(defaultBranch, { cwd, token: options.token, suppressLogs: true });
+          const hasLocalDefaultBranch = defaultBranchRefResult.exists;
+          if (hasLocalDefaultBranch) {
+            if (defaultBranchRefResult.fetched) {
+              debugLog(`Strategy 1 (full): fetched origin/${defaultBranch} from remote`);
+            } else {
+              debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
             }
+          } else {
+            debugLog(
+              `Strategy 1 (full): origin/${defaultBranch} not present locally and remote fetch failed (likely private repo without credentials in MCP server). Add ${JSON.stringify(defaultBranch)} to checkout.fetch to enable this strategy.`
+            );
           }
 
           // If origin/<defaultBranch> is unavailable (e.g. credentials were cleaned),
