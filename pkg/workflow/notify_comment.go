@@ -90,6 +90,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			noopEnvVars = append(noopEnvVars, "          GH_AW_NOOP_REPORT_AS_ISSUE: \"true\"\n")
 		}
 
+		// AIC, ambient context, and workflow ID are used to enrich noop comments with
+		// AI Credits cost, context size metrics, and a history search link.
+		noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_AIC: ${{ needs.%s.outputs.aic }}\n", mainJobName))
+		noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_AMBIENT_CONTEXT: ${{ needs.%s.outputs.ambient_context }}\n", mainJobName))
+		if data.WorkflowID != "" {
+			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
+		}
+
 		// Build the merged noop step (without artifact downloads - already added above)
 		noopSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 			StepName:      "Process no-op messages",
