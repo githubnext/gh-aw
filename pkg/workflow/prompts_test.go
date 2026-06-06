@@ -241,6 +241,24 @@ func TestDailyFunctionNamerColdStartHandling(t *testing.T) {
 	}
 }
 
+func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-function-namer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "variants: [claude-sonnet-4-6, claude-haiku-4-5-20251001]") {
+		t.Fatal("Expected daily-function-namer workflow to use concrete Claude models in model_size experiment variants")
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
