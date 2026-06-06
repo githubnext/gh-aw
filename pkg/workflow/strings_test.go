@@ -638,7 +638,6 @@ func TestGenerateHeredocDelimiterFromContent_NameCaseNormalized(t *testing.T) {
 	assert.Equal(t, lower, upper, "Name casing should be normalised to uppercase")
 }
 
-
 func TestValidateHeredocContent(t *testing.T) {
 	tests := []struct {
 		name      string
