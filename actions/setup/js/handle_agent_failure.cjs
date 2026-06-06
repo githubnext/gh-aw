@@ -1376,12 +1376,10 @@ function readTokenUsageMarkdown() {
 /**
  * Build a context string when ET budget exhaustion/rate-limit is detected from gateway logs.
  * @param {boolean} hasEffectiveTokensRateLimitError
- * @param {string} effectiveTokens
  * @param {string} maxEffectiveTokens
- * @param {string} runUrl
  * @returns {string}
  */
-function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, _effectiveTokens, maxEffectiveTokens, _runUrl) {
+function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, maxEffectiveTokens) {
   if (!hasEffectiveTokensRateLimitError) {
     return "";
   }
@@ -2670,7 +2668,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
@@ -2890,7 +2888,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context

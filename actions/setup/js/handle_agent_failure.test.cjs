@@ -3069,52 +3069,51 @@ describe("handle_agent_failure", () => {
     });
 
     it("converts legacy ET budget to max-ai-credits guidance", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "2500000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "2500000");
       expect(result).toContain("Suggested `max-ai-credits`: `250`");
     });
 
     it("returns empty string when rate-limit error is not set", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(false, "10000000", "2500000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(false, "2500000");
       expect(result).toBe("");
     });
 
     it("omits suggested AI credits when legacy ET budget is not numeric", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "unknown", "n/a", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "n/a");
       expect(result).not.toContain("Suggested `max-ai-credits`:");
     });
 
     it("omits optional lines when values are missing", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "", "", "");
-      expect(result).not.toContain("Effective tokens used:");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "");
       expect(result).not.toContain("Suggested `max-ai-credits`:");
       expect(result).not.toContain("- Run:");
     });
 
     it("includes a link to the AI Credits specification docs", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("https://github.github.com/gh-aw/specs/ai-credits-specification/");
     });
 
     it("includes a link to the cost management guide", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("https://github.github.com/gh-aw/reference/cost-management/");
     });
 
     it("uses GitHub alert syntax for AI credits budget guidance", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("> **AI Credits Budget Guidance**");
     });
 
     it("wraps ET guidance in a collapsible details section", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).toContain("<summary>Why this happened and how to optimize</summary>");
       expect(result).toContain("cost management guidance");
       expect(result).toContain("max-ai-credits");
     });
 
     it("does not include ET computation details", () => {
-      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "25000000");
       expect(result).not.toContain("Effective tokens used:");
       expect(result).not.toContain("- Run:");
       expect(result).not.toContain("<sub>ET formula:");
