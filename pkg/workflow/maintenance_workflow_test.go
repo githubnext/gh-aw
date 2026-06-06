@@ -495,20 +495,17 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "Generate forecast report") {
 		t.Errorf("Job forecast_report should include forecast generation step in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "Restore forecast report logs cache") {
-		t.Errorf("Job forecast_report should restore logs cache before warm-up in:\n%s", yaml)
-	}
-	if !strings.Contains(yaml, "Save forecast report logs cache") {
-		t.Errorf("Job forecast_report should save logs cache after forecast generation in:\n%s", yaml)
-	}
 	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500 --artifacts agent") {
-		t.Errorf("Job forecast_report should warm logs cache with 30-day lookback, expanded count, and only the agent artifact in:\n%s", yaml)
+	if strings.Contains(yaml, "Restore forecast report logs cache") {
+		t.Errorf("Job forecast_report should not restore logs cache before running forecast in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast.") {
-		t.Errorf("Job forecast_report should fail when run summary cache is missing after warm-up in:\n%s", yaml)
+	if strings.Contains(yaml, "Save forecast report logs cache") {
+		t.Errorf("Job forecast_report should not save logs cache after running forecast in:\n%s", yaml)
+	}
+	if strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500 --artifacts agent") {
+		t.Errorf("Job forecast_report should not pre-download logs before running forecast in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --timeout 30 --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo, --timeout, and --json in:\n%s", yaml)

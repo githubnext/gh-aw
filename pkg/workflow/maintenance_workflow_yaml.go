@@ -589,17 +589,7 @@ jobs:
 `)
 
 	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
-	yaml.WriteString(`      - name: Restore forecast report logs cache
-        id: forecast_report_logs_cache
-        uses: ` + getActionPin("actions/cache/restore") + `
-        with:
-          path: .github/aw/logs
-          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-
-            ${{ runner.os }}-forecast-report-logs-
-
-      - name: Generate forecast report
+	yaml.WriteString(`      - name: Generate forecast report
         id: generate_forecast_report
         shell: bash
         env:
@@ -607,11 +597,6 @@ jobs:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         run: |
           mkdir -p ./.cache/gh-aw/forecast
-          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --start-date -30d --count 1500 --artifacts agent > /dev/null
-          if ! compgen -G ".github/aw/logs/run-*/run_summary.json" > /dev/null; then
-            echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
-            exit 1
-          fi
           set +e
           ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 30 --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
           forecast_exit_code=$?
@@ -626,13 +611,6 @@ jobs:
             echo "::error::Forecast computation failed with exit code ${forecast_exit_code}."
             exit 1
           fi
-
-      - name: Save forecast report logs cache
-        if: ${{ always() }}
-        uses: ` + getActionPin("actions/cache/save") + `
-        with:
-          path: .github/aw/logs
-          key: ${{ steps.forecast_report_logs_cache.outputs.cache-primary-key }}
 
       - name: Generate forecast issue
         if: ${{ always() }}
