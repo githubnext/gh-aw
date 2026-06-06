@@ -837,7 +837,7 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem).not.toHaveProperty("bundle_path");
     });
 
-    it("should strip base_commit from normalizedItem", async () => {
+    it("should preserve base_commit on normalizedItem", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const item = {
@@ -850,10 +850,10 @@ describe("safe_output_type_validator", () => {
 
       const result = validateItem(item, "create_pull_request", 1);
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem).not.toHaveProperty("base_commit");
+      expect(result.normalizedItem.base_commit).toBe("abc123deadbeef");
     });
 
-    it("should strip diff_size from normalizedItem", async () => {
+    it("should preserve diff_size on normalizedItem", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const item = {
@@ -866,10 +866,10 @@ describe("safe_output_type_validator", () => {
 
       const result = validateItem(item, "create_pull_request", 1);
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem).not.toHaveProperty("diff_size");
+      expect(result.normalizedItem.diff_size).toBe(1);
     });
 
-    it("should strip all infrastructure fields simultaneously", async () => {
+    it("should strip path fields and preserve metadata fields simultaneously", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const item = {
@@ -887,8 +887,8 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem).not.toHaveProperty("patch_path");
       expect(result.normalizedItem).not.toHaveProperty("bundle_path");
-      expect(result.normalizedItem).not.toHaveProperty("base_commit");
-      expect(result.normalizedItem).not.toHaveProperty("diff_size");
+      expect(result.normalizedItem.base_commit).toBe("abc123");
+      expect(result.normalizedItem.diff_size).toBe(999999);
       // Legitimate fields should still be present
       expect(result.normalizedItem.title).toBe("Fix bug");
       expect(result.normalizedItem.branch).toBe("fix/bug");

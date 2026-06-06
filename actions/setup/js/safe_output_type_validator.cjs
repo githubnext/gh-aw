@@ -545,14 +545,12 @@ function validateItem(item, itemType, lineNum, options) {
   }
 
   const normalizedItem = { ...item };
-  // SECURITY: Strip infrastructure fields that must only be set by the MCP handler,
-  // never by the agent. If an agent injects these via NDJSON output, it could bypass
-  // file-protection policy (patch_path/bundle_path point to attacker-controlled files)
-  // or circumvent size limits (diff_size).
+  // SECURITY: Strip path fields. The privileged safe_outputs job re-derives the
+  // patch/bundle paths from the (validated) branch name via resolve_transport_paths,
+  // so agent-supplied values here would only be used to point the handler at an
+  // attacker-controlled file outside /tmp/gh-aw/aw-<sanitized-branch>.
   delete normalizedItem.patch_path;
   delete normalizedItem.bundle_path;
-  delete normalizedItem.base_commit;
-  delete normalizedItem.diff_size;
   const errors = [];
 
   // Run custom validation first if defined
