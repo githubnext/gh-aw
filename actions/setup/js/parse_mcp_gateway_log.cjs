@@ -5,7 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
-const { computeEffectiveTokens, formatET, formatModelEmojiAlias } = require("./effective_tokens.cjs");
+const { computeEffectiveTokens, formatModelEmojiAlias } = require("./effective_tokens.cjs");
 const { computeInferenceAIC, formatAIC } = require("./model_costs.cjs");
 const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
 
@@ -162,9 +162,8 @@ function parseTokenUsageJsonl(jsonlContent) {
 
 /**
  * Generates a markdown summary section for token usage data.
- * Renders one row per turn in chronological order with per-turn delta ET (ΔET),
- * a running compounded ET total (ET), per-turn delta AIC (ΔAIC), a running
- * compounded AIC total (AIC), followed by an aggregate totals row.
+ * Renders one row per request in chronological order with per-request AI credits,
+ * a running AI credits total, followed by an aggregate totals row and legend.
  * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, byModel: Object, entries: Array} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
@@ -172,29 +171,27 @@ function generateTokenUsageSummary(summary) {
   if (!summary || summary.totalRequests === 0) return "";
 
   const lines = [];
-  lines.push("| # | Alias | Input | Output | Cache Read | Cache Write | ΔET | ET | ΔAIC | AIC | Duration |");
-  lines.push("|--:|-------|------:|-------:|-----------:|------------:|----:|---:|-----:|----:|---------:|");
+  lines.push("| # | Alias | Input | Output | Cache Read | Cache Write | ΔAI Credits | AI Credits | Duration |");
+  lines.push("|--:|-------|------:|-------:|-----------:|------------:|-------------:|-----------:|---------:|");
 
   const entries = summary.entries || [];
-  let compoundedET = 0;
   let compoundedAIC = 0;
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
-    const deltaET = Math.round(entry.deltaET || 0);
-    compoundedET += deltaET;
     const deltaAIC = entry.deltaAIC || 0;
     compoundedAIC += deltaAIC;
     lines.push(
-      `| ${i + 1} | ${formatModelEmojiAlias(entry.model) || entry.model} | ${entry.inputTokens.toLocaleString()} | ${entry.outputTokens.toLocaleString()} | ${entry.cacheReadTokens.toLocaleString()} | ${entry.cacheWriteTokens.toLocaleString()} | ${formatET(deltaET)} | ${formatET(compoundedET)} | ${formatAIC(deltaAIC)} | ${formatAIC(compoundedAIC)} | ${formatDurationMs(entry.durationMs)} |`
+      `| ${i + 1} | ${formatModelEmojiAlias(entry.model) || entry.model} | ${entry.inputTokens.toLocaleString()} | ${entry.outputTokens.toLocaleString()} | ${entry.cacheReadTokens.toLocaleString()} | ${entry.cacheWriteTokens.toLocaleString()} | ${formatAIC(deltaAIC)} | ${formatAIC(compoundedAIC)} | ${formatDurationMs(entry.durationMs)} |`
     );
   }
 
-  const totalET = formatET(Math.round(summary.totalEffectiveTokens || 0));
   const totalAIC = formatAIC(summary.totalAIC || 0);
   lines.push(
-    `| **Total** | | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | | **${totalET}** | | **${totalAIC}** | **${formatDurationMs(summary.totalDurationMs)}** |`
+    `| **Total** | | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | | **${totalAIC}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
 
+  lines.push("");
+  lines.push("Legend: `Alias` shows the model shorthand used in the table. `ΔAI Credits` is the per-request cost, and `AI Credits` is the running total computed with the current AI credits pricing model.");
   lines.push("");
 
   return lines.join("\n") + "\n";

@@ -93,6 +93,35 @@ function getSummaryTitle() {
 }
 
 /**
+ * Builds the token usage section for the GitHub step summary.
+ * @param {string} title
+ * @param {string} markdown
+ * @returns {string}
+ */
+function buildStepSummarySection(title, markdown) {
+  return `### ${title}\n\n<details>\n<summary>Per-request AI credits and token totals</summary>\n\n${markdown}</details>\n\n`;
+}
+
+/**
+ * Appends the token usage section to GITHUB_STEP_SUMMARY when available.
+ * Falls back to the Actions summary API when the summary path is unavailable.
+ * @param {string} title
+ * @param {string} markdown
+ * @returns {Promise<void>}
+ */
+async function appendStepSummarySection(title, markdown) {
+  const section = buildStepSummarySection(title, markdown);
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (summaryPath) {
+    fs.appendFileSync(summaryPath, section, "utf8");
+    return;
+  }
+
+  core.summary.addRaw(section, true);
+  await core.summary.write();
+}
+
+/**
  * Main function to parse token usage and write the step summary.
  */
 async function main() {
@@ -111,13 +140,12 @@ async function main() {
       core.info("Token usage file contained no valid entries");
       return;
     }
-
     const markdown = generateTokenUsageSummary(summary);
     if (markdown.length > 0) {
-      core.summary.addDetails(getSummaryTitle(), "\n\n" + markdown);
+    if (markdown.length > 0) {
+    }
     }
 
-    await core.summary.write();
     core.info("Token usage summary appended to step summary");
 
     // Write agent_usage.json so the aggregated totals are bundled in the agent
@@ -173,6 +201,8 @@ if (typeof module !== "undefined" && module.exports) {
     extractRequestId,
     readDedupedTokenUsage,
     getSummaryTitle,
+    buildStepSummarySection,
+    appendStepSummarySection,
     TOKEN_USAGE_AUDIT_PATH,
     TOKEN_USAGE_PATH,
     TOKEN_USAGE_PATHS,
