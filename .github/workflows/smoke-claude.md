@@ -236,8 +236,8 @@ For tests below, mark a test as passed only if the required tool call succeeds.
    - Test results for PR review tests #13-19 (✅, ❌, or ⚠️)
    - Overall status: PASS, PARTIAL, or FAIL
 
-3. Use the `add_comment` tool with `item_number` set to the discussion number you extracted in step 9 to add a **fun comic-book style comment** to that discussion - be playful and use comic-book language like "💥 WHOOSH!"
-   - If step 9 failed to extract a discussion number, skip this step
+3. Use the `add_comment` tool with `item_number` set to the discussion number you extracted in step 8 to add a **fun comic-book style comment** to that discussion - be playful and use comic-book language like "💥 WHOOSH!"
+   - If step 8 failed to extract a discussion number, skip this step
 
 If all non-skipped tests pass, use the `add_labels` tool to add the label `smoke-claude` to the pull request (omit the `item_number` parameter to auto-target the triggering PR if this workflow was triggered by a pull_request event).
 
