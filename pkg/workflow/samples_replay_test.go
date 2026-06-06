@@ -94,5 +94,10 @@ Trivial workflow whose only job is to be compiled with --use-samples.
 		if !strings.Contains(lockContent, "id: agentic_execution") {
 			t.Error("Expected id: agentic_execution on the replay step")
 		}
+		// Threat detection must be force-disabled under --use-samples so the
+		// deterministic replay isn't perturbed by an LLM-backed detection job.
+		if strings.Contains(lockContent, "\n  detection:\n") {
+			t.Error("Expected no `detection:` job under --use-samples")
+		}
 	})
 }
