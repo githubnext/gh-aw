@@ -335,7 +335,7 @@ const canWriteDefault = canWriteToDefaultPath();
             }, 5e3),
             child = spawn("node", [serverPath], {
               stdio: ["pipe", "pipe", "pipe"],
-              env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl", GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath },
+              env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl", GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath, GH_AW_TARGET_REPO_SLUG: "test-owner/test-repo" },
             });
           let receivedMessages = [];
           (child.stdout.on("data", data => {
