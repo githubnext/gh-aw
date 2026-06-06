@@ -36,6 +36,10 @@ tools:
     mode: gh-proxy
     toolsets: [default, issues, pull_requests]
   cache-memory: true
+  repo-memory:
+    branch-name: memory/formal-spec-verifier
+    file-glob: ["*.md", "*.json"]
+    max-file-size: 65536
   bash:
     - "find specs -type f -name \"*.md\" | sort"
     - "cat specs/*.md"
@@ -79,6 +83,34 @@ Schema:
 - Run `find specs -type f -name '*.md' | sort` to get the full list.
 - Select the spec at `(last_index + 1) % len(specs)` that is **not** in `processed` from the last 14 days.
 - If all specs were processed within the last 14 days, reset `processed` to `[]` and start from `last_index 0`.
+
+---
+
+## Step 1b — Load Prior Notes (repo-memory)
+
+Before analyzing the selected spec, check for existing notes from previous runs:
+
+- Notes directory: `/tmp/gh-aw/repo-memory/default/formal-spec-verifier/`
+- Notes index: `/tmp/gh-aw/repo-memory/default/formal-spec-verifier/notes-index.json`
+- Per-spec note files: `/tmp/gh-aw/repo-memory/default/formal-spec-verifier/<spec-slug>.md`
+
+`notes-index.json` schema:
+
+```json
+{
+  "specs": {
+    "specs/foo.md": {
+      "slug": "foo",
+      "last_formalized": "2026-01-01-12-00-00",
+      "notation": "TLA+",
+      "predicate_count": 8,
+      "issue_number": 1234
+    }
+  }
+}
+```
+
+If a note file exists for the selected spec, read it and use the prior predicate list as a starting point, extending or refining it rather than starting from scratch. If no prior notes exist, proceed fresh.
 
 ---
 
@@ -218,6 +250,50 @@ After `create_issue` succeeds, write updated `rotation.json` to
 - Set `last_run` to the current timestamp in `YYYY-MM-DD-HH-MM-SS` format (no colons, no `T`, no `Z`).
 
 Use the `write` tool (not shell redirection) to persist the file.
+
+---
+
+## Step 7 — Persist Formal Notes (repo-memory)
+
+After writing the rotation state, save the formal model notes for this run so future runs
+can build on them.
+
+### Per-spec note file
+
+Write `/tmp/gh-aw/repo-memory/default/formal-spec-verifier/<spec-slug>.md`:
+
+```markdown
+# Formal Notes: <SpecFileName>
+
+**Last formalized**: <YYYY-MM-DD-HH-MM-SS>
+**Notation**: <TLA+ / Lean 4 / Z3 / F* / mixed>
+**Issue**: #<number>
+
+## Predicates
+
+| ID | Predicate | Description |
+|---|---|---|
+| P1 | `<name>` | <what it asserts> |
+...
+
+## Key Invariants
+
+<bullet list of invariants>
+
+## Edge Cases Identified
+
+<bullet list of edge cases>
+
+## Notes for Future Runs
+
+<any observations about gaps, areas that need deeper formalization, or cross-spec dependencies>
+```
+
+### Update notes index
+
+Read `/tmp/gh-aw/repo-memory/default/formal-spec-verifier/notes-index.json` (or initialize
+`{"specs": {}}` if absent), add or update the entry for the selected spec, and write the
+file back.
 
 ---
 
