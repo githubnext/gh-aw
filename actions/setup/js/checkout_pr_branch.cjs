@@ -110,6 +110,37 @@ function logCheckoutStrategy(eventName, strategy, reason) {
   core.endGroup();
 }
 
+/**
+ * Ensure checkout step only runs in trusted runtime contexts.
+ * - repository must not be a fork
+ * - triggering actor must have write-or-higher repository permission
+ */
+async function assertTrustedCheckoutRuntime() {
+  const repository = context.payload.repository;
+  if (repository?.fork === true) {
+    throw new Error("Refusing PR checkout in forked repository runtime context");
+  }
+
+  const actor = context.actor || context.payload.sender?.login || process.env.GITHUB_ACTOR;
+  if (!actor) {
+    throw new Error("Refusing PR checkout: unable to determine triggering actor");
+  }
+
+  const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    username: actor,
+  });
+
+  const permission = permissionData?.permission || "none";
+  const hasWriteOrHigher = permission === "write" || permission === "maintain" || permission === "admin";
+  if (!hasWriteOrHigher) {
+    throw new Error(`Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
+  }
+
+  core.info(`Runtime safety check passed for actor '${actor}' with '${permission}' permission`);
+}
+
 async function main() {
   const eventName = context.eventName;
   // For pull_request events, the PR context is in context.payload.pull_request.
@@ -142,6 +173,8 @@ async function main() {
   }
 
   try {
+    await assertTrustedCheckoutRuntime();
+
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
 
