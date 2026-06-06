@@ -1115,6 +1115,10 @@ func TestConclusionJobWorkflowCallArtifactPrefix(t *testing.T) {
 	if !strings.Contains(allSteps, prefixedArtifactName) {
 		t.Errorf("Expected conclusion job download step to use prefixed artifact name %q in workflow_call context, but it was not found.\nGenerated steps:\n%s", prefixedArtifactName, allSteps)
 	}
+	prefixedUsageArtifactName := "${{ needs.activation.outputs.artifact_prefix }}usage"
+	if !strings.Contains(allSteps, prefixedUsageArtifactName) {
+		t.Errorf("Expected conclusion job usage artifact upload to use prefixed artifact name %q in workflow_call context, but it was not found.\nGenerated steps:\n%s", prefixedUsageArtifactName, allSteps)
+	}
 
 	// Ensure the unprefixed artifact name is not used
 	if strings.Contains(allSteps, "name: agent\n") {
@@ -1148,5 +1152,44 @@ func TestConclusionJobNonWorkflowCallNoArtifactPrefix(t *testing.T) {
 	// In non-workflow_call context, the artifact download should use the plain (unprefixed) name.
 	if strings.Contains(allSteps, "needs.activation.outputs.artifact_prefix") {
 		t.Errorf("Expected conclusion job NOT to use artifact_prefix in non-workflow_call context.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "name: usage") {
+		t.Errorf("Expected conclusion job to upload unprefixed usage artifact name in non-workflow_call context.\nGenerated steps:\n%s", allSteps)
+	}
+}
+
+func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "issues",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+	if !strings.Contains(allSteps, "Collect usage artifact files") {
+		t.Errorf("Expected conclusion job to collect usage artifact files.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "Upload usage artifact") {
+		t.Errorf("Expected conclusion job to upload usage artifact.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/aw_info.json") {
+		t.Errorf("Expected usage artifact to include aw_info.json path.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/agent/token_usage.jsonl") {
+		t.Errorf("Expected usage artifact to include agent token usage path.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/detection/token_usage.jsonl") {
+		t.Errorf("Expected usage artifact to include detection token usage path.\nGenerated steps:\n%s", allSteps)
 	}
 }
