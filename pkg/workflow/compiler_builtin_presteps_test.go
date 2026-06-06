@@ -159,3 +159,80 @@ jobs:
 		"- name: Generate GitHub App token",
 	)
 }
+
+func TestImportedBuiltinJobSetupStepsMergeBeforeTokenMinting(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "imported-builtin-setup-steps")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sharedWorkflowContent := `---
+jobs:
+  safe_outputs:
+    setup-steps:
+      - name: Imported safe outputs setup-step
+        run: echo "imported-safe-outputs-setup"
+---
+
+# Shared setup steps
+`
+	sharedWorkflowFile := filepath.Join(workflowsDir, "shared-safe-outputs.md")
+	if err := os.WriteFile(sharedWorkflowFile, []byte(sharedWorkflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mainWorkflowContent := `---
+on:
+  issue_comment:
+    types: [created]
+  roles: [admin]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+imports:
+  - ./shared-safe-outputs.md
+safe-outputs:
+  github-app:
+    app-id: "${{ vars.ACTIONS_APP_ID }}"
+    private-key: "${{ secrets.ACTIONS_PRIVATE_KEY }}"
+  add-comment:
+jobs:
+  safe_outputs:
+    setup-steps:
+      - name: Main safe outputs setup-step
+        run: echo "main-safe-outputs-setup"
+---
+
+# Imported builtin setup-steps ordering
+`
+	mainWorkflowFile := filepath.Join(workflowsDir, "main.md")
+	if err := os.WriteFile(mainWorkflowFile, []byte(mainWorkflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mainWorkflowFile); err != nil {
+		t.Fatalf("CompileWorkflow() returned error: %v", err)
+	}
+
+	lockFile := filepath.Join(workflowsDir, "main.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockYAML := string(lockContent)
+
+	safeOutputsSection := extractJobSection(lockYAML, "safe_outputs")
+	if safeOutputsSection == "" {
+		t.Fatal("Expected safe_outputs job section")
+	}
+	assertStepOrderInSection(t, safeOutputsSection,
+		"- name: Imported safe outputs setup-step",
+		"- name: Main safe outputs setup-step",
+		"- name: Generate GitHub App token",
+	)
+}
