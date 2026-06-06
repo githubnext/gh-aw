@@ -359,7 +359,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	//
 	// Top-level frontmatter sections (pre-steps, steps, pre-agent-steps, post-steps) are
 	// all applied to the agent job and must be fully scanned.
-	// For jobs.agent.* sections, only jobs.agent.pre-steps is actually injected by
+	// For jobs.agent.* sections, only jobs.agent.setup-steps / jobs.agent.pre-steps are actually injected by
 	// applyBuiltinJobPreSteps; jobs.agent.steps, jobs.agent.pre-agent-steps, and
 	// jobs.agent.post-steps are ignored for built-in jobs, so they are intentionally
 	// excluded to avoid false-positive errors or unneeded permission grants.
@@ -369,6 +369,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PreAgentSteps, "pre-agent-steps")...)
 	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PostSteps, "post-steps")...)
 	if data.Jobs != nil {
+		agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, "setup-steps")...)
 		agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, "pre-steps")...)
 	}
 	if len(agentAllScripts) > 0 {

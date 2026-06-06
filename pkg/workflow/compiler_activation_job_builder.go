@@ -100,15 +100,16 @@ func newActivationBuildContext(data *WorkflowData, preActivationJobCreated bool,
 }
 
 func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) {
-	// Cache scripts from pre-steps and inferred permissions once to avoid redundant
+	// Cache scripts from setup/pre-steps and inferred permissions once to avoid redundant
 	// extraction and inference calls in buildActivationPermissions and
 	// addActivationFeedbackAndValidationSteps.
-	// Only pre-steps are honored for built-in jobs: applyBuiltinJobPreSteps (compiler_jobs.go)
-	// inserts only jobs.<name>.pre-steps; jobs.<name>.steps and jobs.<name>.post-steps are
+	// Only setup/pre-steps are honored for built-in jobs: applyBuiltinJobPreSteps (compiler_jobs.go)
+	// inserts only jobs.<name>.setup-steps / jobs.<name>.pre-steps; jobs.<name>.steps and jobs.<name>.post-steps are
 	// ignored for built-in jobs, so scanning them would cause false-positive errors or
 	// unneeded permission grants.
 	activationJobName := string(constants.ActivationJobName)
-	ctx.activationAllScripts = extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "pre-steps")
+	ctx.activationAllScripts = extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "setup-steps")
+	ctx.activationAllScripts = append(ctx.activationAllScripts, extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "pre-steps")...)
 	if len(ctx.activationAllScripts) > 0 {
 		ctx.activationInferredPerms = inferPermissionsFromShellScripts(ctx.activationAllScripts)
 	}
