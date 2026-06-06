@@ -11,6 +11,8 @@ import (
 
 var effectiveTokensToAICreditsCodemodLog = logger.New("cli:codemod_effective_tokens_to_ai_credits")
 
+const effectiveTokensPerAICredit = 10000
+
 // getEffectiveTokensToAICreditsCodemod migrates obsolete ET-based budget fields
 // to AI Credits equivalents:
 //   - max-effective-tokens -> max-ai-credits
@@ -128,8 +130,8 @@ func normalizeLegacyBudgetValue(raw any, allowNegativeOne bool) (string, bool) {
 }
 
 func convertEffectiveTokensToAICredits(effectiveTokens int) (string, bool) {
-	aiCredits := effectiveTokens / 10000
-	if aiCredits <= 0 {
+	aiCredits := effectiveTokens / effectiveTokensPerAICredit
+	if aiCredits == 0 {
 		return "", false
 	}
 	return strconv.Itoa(aiCredits), true

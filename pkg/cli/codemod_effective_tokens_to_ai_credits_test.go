@@ -160,3 +160,42 @@ max-daily-effective-tokens: 5000
 	assert.False(t, applied)
 	assert.Equal(t, content, result)
 }
+
+func TestEffectiveTokensToAICreditsCodemod_PartialMigrationWhenOnlyOneValueConverts(t *testing.T) {
+	codemod := getEffectiveTokensToAICreditsCodemod()
+
+	content := `---
+max-effective-tokens: 5000
+max-daily-effective-tokens: 10k
+---`
+
+	frontmatter := map[string]any{
+		"max-effective-tokens":       5000,
+		"max-daily-effective-tokens": "10k",
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "max-effective-tokens: 5000")
+	assert.Contains(t, result, "max-daily-ai-credits: 1")
+	assert.NotContains(t, result, "max-daily-effective-tokens:")
+}
+
+func TestEffectiveTokensToAICreditsCodemod_MigratesThresholdValue(t *testing.T) {
+	codemod := getEffectiveTokensToAICreditsCodemod()
+
+	content := `---
+max-effective-tokens: 10000
+---`
+
+	frontmatter := map[string]any{
+		"max-effective-tokens": 10000,
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "max-ai-credits: 1")
+	assert.NotContains(t, result, "max-effective-tokens:")
+}
