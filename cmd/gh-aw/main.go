@@ -265,6 +265,14 @@ Examples:
 		actionMode, _ := cmd.Flags().GetString("action-mode")
 		actionTag, _ := cmd.Flags().GetString("action-tag")
 		actionsRepo, _ := cmd.Flags().GetString("actions-repo")
+		ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
+		if ghAwRef != "" {
+			// --gh-aw-ref is a convenience alias: emit refs like
+			// `github/gh-aw/actions/setup@<ref>` so external e2e harnesses can
+			// test the compiled workflows against a specific gh-aw branch/SHA.
+			actionMode = string(workflow.ActionModeRelease)
+			actionTag = ghAwRef
+		}
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
 		dir, _ := cmd.Flags().GetString("dir")
@@ -684,6 +692,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().String("action-mode", "", "Action script inlining mode (inline, dev, release). Auto-detected if not specified")
 	compileCmd.Flags().String("action-tag", "", "Override action SHA or tag for actions/setup (overrides action-mode to release). Accepts full SHA or tag name")
 	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions)")
+	compileCmd.Flags().String("gh-aw-ref", "", "Compile workflows to reference github/gh-aw at the given branch, tag, or SHA (e.g. main, my-feature, abc123). Convenience alias for --action-mode release --action-tag <ref>. Use this to E2E-test workflows compiled by an external repo against a specific gh-aw revision.")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
