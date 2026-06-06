@@ -59,6 +59,7 @@ func GetAllCodemods() []Codemod {
 		getSafeOutputAddReviewerAllowlistsCodemod(),     // Rename deprecated add-reviewer reviewers/team-reviewers
 		getSafeInputsToMCPScriptsCodemod(),              // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),            // Rename rate-limit to user-rate-limit with max key migration
+		getEffectiveTokensToAICreditsCodemod(),          // Migrate obsolete effective-token budget keys to AI credits keys
 		getSerenaToSharedImportCodemod(),                // Migrate removed tools.serena to shared/mcp/serena.md import
 		getWorkflowRunBranchesCodemod(),                 // Add default branches to bare on.workflow_run trigger
 		getCheckoutPersistCredentialsFalseCodemod(),     // Add with.persist-credentials: false to actions/checkout steps

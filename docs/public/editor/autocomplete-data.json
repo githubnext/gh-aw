@@ -1100,12 +1100,19 @@
     },
     "max-effective-tokens": {
       "type": "integer|string",
-      "desc": "Explicit ET budget control for firewall cost enforcement.",
+      "desc": "OBSOLETE: Use `max-ai-credits` instead. Legacy ET budget control for firewall cost enforcement.",
+      "deprecated": true,
       "leaf": true
     },
     "max-ai-credits": {
       "type": "integer|string",
       "desc": "Per-run AI credits budget control for firewall cost enforcement.",
+      "leaf": true
+    },
+    "max-daily-effective-tokens": {
+      "type": "integer|string",
+      "desc": "OBSOLETE: Use `max-daily-ai-credits` instead. Legacy 24-hour ET guardrail.",
+      "deprecated": true,
       "leaf": true
     },
     "max-runs": {
