@@ -76,7 +76,7 @@ pre-agent-steps:
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       npm install
-  - name: Start documentation server
+  - name: Start docs server
     env:
       EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
