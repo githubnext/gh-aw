@@ -79,6 +79,29 @@ describe("safe_outputs_mcp wrapped tool arguments", () => {
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("Recovered safe-output parameter synonyms"));
   });
 
+  it("maps likely LLM camelCase parameter mistakes", () => {
+    const normalized = normalizeSafeOutputToolArguments(
+      "close_issue",
+      {
+        issueNumber: 42,
+        body: "done",
+      },
+      undefined,
+      {
+        type: "object",
+        properties: {
+          issue_number: { type: "number", "x-synonyms": ["issueNumber"] },
+          body: { type: "string" },
+        },
+      }
+    );
+
+    expect(normalized).toEqual({
+      issue_number: 42,
+      body: "done",
+    });
+  });
+
   it("unwraps child arguments that match the tool name", async () => {
     const configPath = path.join(tempDir, "config.json");
     const toolsPath = path.join(tempDir, "tools.json");
