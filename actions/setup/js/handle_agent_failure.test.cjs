@@ -707,8 +707,8 @@ describe("handle_agent_failure", () => {
               if (q.includes('"gh-aw-failure-issue:"') && q.includes('"failure_categories:"')) {
                 return {
                   data: {
-                    total_count: 5,
-                    items: Array.from({ length: 5 }, (_, index) => ({
+                    total_count: 25,
+                    items: Array.from({ length: 25 }, (_, index) => ({
                       number: index + 1,
                       html_url: `https://github.com/owner/repo/issues/${index + 1}`,
                       created_at: now,
