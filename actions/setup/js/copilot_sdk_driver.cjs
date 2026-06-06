@@ -166,7 +166,7 @@ function normalizePermissionPath(value) {
  * @returns {string}
  */
 function escapeRegexLiteral(value) {
-  return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+  return value.replace(/[|\\{}()[\]^$+*?.-]/g, "\\$&");
 }
 
 /**
