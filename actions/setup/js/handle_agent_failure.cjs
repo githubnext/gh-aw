@@ -11,7 +11,13 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
+const {
+  resolveFirewallAuditLogPath,
+  parseMaxEffectiveTokensFromAuditLog,
+  parseEffectiveTokensErrorInfoFromAuditLog,
+  resolveEffectiveTokensFailureState,
+  resolveAICreditsFailureState,
+} = require("./effective_tokens_context.cjs");
 const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
@@ -1990,21 +1996,10 @@ async function findOrCreateDailyCapRollupIssue(owner, repo) {
   }
 
   // No existing issue found — create one
-  const body = [
-    `This issue tracks agentic workflow failures that were suppressed because the per-category daily issue cap of **${FAILURE_ISSUE_CATEGORY_DAILY_CAP} issues per ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS} hours** was reached.`,
-    ``,
-    `When a workflow repeatedly fails with the same category, new issues are no longer created once the cap is reached. Instead, a comment is added here to record each suppressed occurrence.`,
-    ``,
-    `### What to Do`,
-    ``,
-    `1. Review the comments below to identify the workflow(s) failing at a high rate.`,
-    `2. Investigate and fix the underlying cause to reduce the failure rate.`,
-    `3. Once the failure rate returns to normal, this issue can be closed.`,
-    ``,
-    `---`,
-    ``,
-    `> This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`,
-  ].join("\n");
+  const body = renderTemplateFromFile(getPromptPath("daily_cap_rollup_issue.md"), {
+    cap: FAILURE_ISSUE_CATEGORY_DAILY_CAP,
+    window_hours: FAILURE_ISSUE_DEDUP_WINDOW_HOURS,
+  });
 
   try {
     await ensureLabelExists(owner, repo, DAILY_CAP_ROLLUP_LABEL);
@@ -2700,17 +2695,13 @@ async function main() {
             const rollupIssue = await findOrCreateDailyCapRollupIssue(owner, repo);
             if (rollupIssue) {
               const commentBody = sanitizeContent(
-                [
-                  `## Failure suppressed by daily cap`,
-                  ``,
-                  `**Workflow:** ${workflowName}`,
-                  `**Run:** [${runUrl}](${runUrl})`,
-                  `**Capped categories:** ${summary}`,
-                  ``,
-                  `A new failure issue was not created because the per-category cap of **${FAILURE_ISSUE_CATEGORY_DAILY_CAP} issues per ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS}h** has been reached.`,
-                  ``,
-                  `Consider investigating why this workflow is failing repeatedly.`,
-                ].join("\n"),
+                renderTemplateFromFile(getPromptPath("daily_cap_rollup_comment.md"), {
+                  workflow_name: workflowName,
+                  run_url: runUrl,
+                  summary,
+                  cap: FAILURE_ISSUE_CATEGORY_DAILY_CAP,
+                  window_hours: FAILURE_ISSUE_DEDUP_WINDOW_HOURS,
+                }),
                 { maxLength: 65000 }
               );
               await github.rest.issues.createComment({
