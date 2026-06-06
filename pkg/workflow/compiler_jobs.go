@@ -976,11 +976,11 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 	}
 	if hasPreStepsField {
 		var err error
-		preSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
+		extractedPreSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
 		if err != nil {
 			return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
 		}
-		setupSteps = append(setupSteps, preSteps...)
+		setupSteps = append(setupSteps, extractedPreSteps...)
 	}
 	if hasStepsField {
 		var err error
@@ -1133,10 +1133,13 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 		if insertIdx == len(steps) {
 			compilerJobsLog.Print("No step boundary found after setup step; appending pre-steps at end")
 		}
-	} else if firstTokenMintIdx >= 0 && firstCheckoutIdx >= 0 {
-		insertIdx = min(firstTokenMintIdx, firstCheckoutIdx)
 	} else if firstTokenMintIdx >= 0 {
 		insertIdx = firstTokenMintIdx
+		if firstCheckoutIdx >= 0 {
+			if firstCheckoutIdx < insertIdx {
+				insertIdx = firstCheckoutIdx
+			}
+		}
 	} else if firstCheckoutIdx >= 0 {
 		insertIdx = firstCheckoutIdx
 	}

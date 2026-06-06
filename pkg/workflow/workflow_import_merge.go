@@ -137,8 +137,8 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 		return nil, false
 	}
 
-	mainPreSteps, mainKey, okMain := extractJobPreSteps(mainMap)
-	importedPreSteps, _, okImported := extractJobPreSteps(importedMap)
+	mainPreSteps, mainFieldKey, okMain := extractJobPreSteps(mainMap)
+	importedPreSteps, importedFieldKey, okImported := extractJobPreSteps(importedMap)
 	if !okMain || !okImported {
 		return nil, false
 	}
@@ -152,11 +152,14 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	mergedPreSteps := make([]any, 0, safeAllocationCapacity(len(importedPreSteps), len(mainPreSteps)))
 	mergedPreSteps = append(mergedPreSteps, importedPreSteps...)
 	mergedPreSteps = append(mergedPreSteps, mainPreSteps...)
-	if mainKey == "" {
-		mainKey = "setup-steps"
+	if mainFieldKey == "" {
+		mainFieldKey = importedFieldKey
+		if mainFieldKey == "" {
+			mainFieldKey = "setup-steps"
+		}
 	}
-	merged[mainKey] = mergedPreSteps
-	if mainKey == "setup-steps" {
+	merged[mainFieldKey] = mergedPreSteps
+	if mainFieldKey == "setup-steps" {
 		delete(merged, "pre-steps")
 	} else {
 		delete(merged, "setup-steps")
