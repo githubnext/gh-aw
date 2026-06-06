@@ -59,3 +59,41 @@ describe("bash_command_parser specification metamorphic relations", () => {
     });
   }
 });
+
+describe("bash_command_parser specification type contract", () => {
+  it("splitOnPipelineOperators accepts StringLike input without throwing", () => {
+    const values = [null, undefined, 0, 1, true, false, {}, [], Symbol("x")];
+    for (const value of values) {
+      expect(() => splitOnPipelineOperators(value)).not.toThrow();
+      expect(splitOnPipelineOperators(value)).toEqual([]);
+    }
+  });
+
+  it("extractCommandName accepts StringLike input without throwing", () => {
+    const values = [null, undefined, 0, 1, true, false, {}, [], Symbol("x")];
+    for (const value of values) {
+      expect(() => extractCommandName(value)).not.toThrow();
+      expect(extractCommandName(value)).toBeNull();
+    }
+  });
+
+  it("extractCommandNamesFromPipeline accepts StringLike input without throwing", () => {
+    const values = [null, undefined, 0, 1, true, false, {}, [], Symbol("x")];
+    for (const value of values) {
+      expect(() => extractCommandNamesFromPipeline(value)).not.toThrow();
+      expect(extractCommandNamesFromPipeline(value)).toEqual([]);
+    }
+  });
+
+  it("extractCommandName does not overflow stack with long negation/group prefixes", () => {
+    const input = `${"! ".repeat(20000)}ls /tmp`;
+    expect(() => extractCommandName(input)).not.toThrow();
+    expect(extractCommandName(input)).toBe("ls");
+  });
+
+  it("extractCommandName handles moderate negation/group prefixes correctly", () => {
+    const input = `${"! ".repeat(64)}{ { ls /tmp; } }`;
+    expect(() => extractCommandName(input)).not.toThrow();
+    expect(extractCommandName(input)).toBe("ls");
+  });
+});
