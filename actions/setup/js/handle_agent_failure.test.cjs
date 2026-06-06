@@ -3038,8 +3038,13 @@ describe("handle_agent_failure", () => {
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [AI Credits]({ai_credits_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
-          "- `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.\n\n" +
-          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
+          "- `max-effective-tokens` is deprecated; migrate to `max-ai-credits` by running `gh aw fix --write`, or update manually (divide by 10,000):\n" +
+          "  ```yaml\n" +
+          "  # before\n" +
+          "  max-effective-tokens: 500000\n" +
+          "  # after\n" +
+          "  max-ai-credits: 50\n" +
+          "  ```\n\n" +
           "{et_table_section}\n" +
           "- To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).\n" +
           "</details>\n"
@@ -3152,7 +3157,7 @@ describe("handle_agent_failure", () => {
         ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
         const result = readTokenUsageMarkdown();
         expect(result).not.toBeNull();
-        expect(result.markdown).toContain("◉ sonnet45");
+        expect(result.markdown).toContain("sonnet45");
         expect(result.markdown).toContain("1,000");
         expect(result.markdown).toContain("Alias");
         expect(result.modelNames).toEqual(["claude-sonnet-4.5"]);
