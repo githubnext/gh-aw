@@ -346,17 +346,17 @@ func TestGetCustomJobsDependingOnPreActivationExcludesActivationDependents(t *te
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := compiler.getCustomJobsDependingOnPreActivation(tt.customJobs)
-			resultSet := make(map[string]bool, len(result))
+			resultSet := make(map[string]struct{}, len(result))
 			for _, j := range result {
-				resultSet[j] = true
+				resultSet[j] = struct{}{}
 			}
 			for _, expected := range tt.expectedJobs {
-				if !resultSet[expected] {
+				if _, ok := resultSet[expected]; !ok {
 					t.Errorf("Expected job %q in result, got: %v", expected, result)
 				}
 			}
 			for _, excluded := range tt.excludedJobs {
-				if resultSet[excluded] {
+				if _, ok := resultSet[excluded]; ok {
 					t.Errorf("Job %q should be excluded from result, got: %v", excluded, result)
 				}
 			}

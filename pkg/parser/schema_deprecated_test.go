@@ -79,13 +79,13 @@ func TestFindDeprecatedFieldsInFrontmatter(t *testing.T) {
 			}
 
 			// Check that all expected fields were found
-			foundMap := make(map[string]bool)
+			foundMap := make(map[string]struct{})
 			for _, field := range found {
-				foundMap[field.Name] = true
+				foundMap[field.Name] = struct{}{}
 			}
 
 			for _, wantField := range tt.want {
-				if !foundMap[wantField] {
+				if _, ok := foundMap[wantField]; !ok {
 					t.Errorf("Expected to find deprecated field '%s', but it was not found", wantField)
 				}
 			}
@@ -348,9 +348,9 @@ func TestFindDeprecatedFieldsInFrontmatterDeep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			found := FindDeprecatedFieldsInFrontmatterDeep(tt.frontmatter, fields)
 
-			foundPaths := make(map[string]bool)
+			foundPaths := make(map[string]struct{})
 			for _, f := range found {
-				foundPaths[f.Path] = true
+				foundPaths[f.Path] = struct{}{}
 			}
 
 			if len(found) != len(tt.wantPaths) {
@@ -358,7 +358,7 @@ func TestFindDeprecatedFieldsInFrontmatterDeep(t *testing.T) {
 					len(found), len(tt.wantPaths), foundPaths, tt.wantPaths)
 			}
 			for _, p := range tt.wantPaths {
-				if !foundPaths[p] {
+				if _, ok := foundPaths[p]; !ok {
 					t.Errorf("expected path %q to be found, got %v", p, foundPaths)
 				}
 			}

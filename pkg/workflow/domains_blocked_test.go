@@ -62,11 +62,11 @@ func TestGetBlockedDomains(t *testing.T) {
 			},
 			expected: func() []string {
 				// Get python ecosystem domains and add custom domain
-				domainMap := make(map[string]bool)
+				domainMap := make(map[string]struct{})
 				for _, d := range getEcosystemDomains("python") {
-					domainMap[d] = true
+					domainMap[d] = struct{}{}
 				}
-				domainMap["tracker.example.com"] = true
+				domainMap["tracker.example.com"] = struct{}{}
 
 				domains := make([]string, 0, len(domainMap))
 				for d := range domainMap {

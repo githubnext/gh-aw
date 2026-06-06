@@ -172,12 +172,12 @@ func TestParseEventsJSONLFile(t *testing.T) {
 			}
 
 			// Verify each expected tool name appears in ToolCalls
-			toolNames := make(map[string]bool)
+			toolNames := make(map[string]struct{})
 			for _, tc := range metrics.ToolCalls {
-				toolNames[tc.Name] = true
+				toolNames[tc.Name] = struct{}{}
 			}
 			for _, expectedTool := range tt.wantToolCalls {
-				assert.True(t, toolNames[expectedTool], "tool %q should be in ToolCalls", expectedTool)
+				assert.Contains(t, toolNames, expectedTool, "tool %q should be in ToolCalls", expectedTool)
 			}
 		})
 	}

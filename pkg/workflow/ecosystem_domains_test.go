@@ -492,13 +492,13 @@ func TestEcosystemDomainsUniqueness(t *testing.T) {
 	for _, category := range ecosystemCategories {
 		t.Run("getEcosystemDomains_"+category+"_uniqueness", func(t *testing.T) {
 			domains := getEcosystemDomains(category)
-			seen := make(map[string]bool)
+			seen := make(map[string]struct{})
 
 			for _, domain := range domains {
-				if seen[domain] {
+				if _, ok := seen[domain]; ok {
 					t.Errorf("getEcosystemDomains(%q) returned duplicate domain: %s", category, domain)
 				}
-				seen[domain] = true
+				seen[domain] = struct{}{}
 			}
 		})
 	}

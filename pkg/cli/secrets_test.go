@@ -127,25 +127,25 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 			}
 
 			// Create a map of expected secrets for easier lookup
-			expectedMap := make(map[string]bool)
+			expectedMap := make(map[string]struct{})
 			for _, name := range tt.expectedSecrets {
-				expectedMap[name] = true
+				expectedMap[name] = struct{}{}
 			}
 
 			// Check that all extracted secrets are expected
 			for _, secret := range secrets {
-				if !expectedMap[secret.Name] {
+				if _, ok := expectedMap[secret.Name]; !ok {
 					t.Errorf("Unexpected secret: %s", secret.Name)
 				}
 			}
 
 			// Check that all expected secrets were extracted
-			actualMap := make(map[string]bool)
+			actualMap := make(map[string]struct{})
 			for _, secret := range secrets {
-				actualMap[secret.Name] = true
+				actualMap[secret.Name] = struct{}{}
 			}
 			for _, expected := range tt.expectedSecrets {
-				if !actualMap[expected] {
+				if _, ok := actualMap[expected]; !ok {
 					t.Errorf("Missing expected secret: %s", expected)
 				}
 			}

@@ -120,13 +120,13 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 			}
 
 			// Check all expected tools are present
-			actualMap := make(map[string]bool)
+			actualMap := make(map[string]struct{})
 			for _, tool := range actual {
-				actualMap[tool] = true
+				actualMap[tool] = struct{}{}
 			}
 
 			for _, expected := range tt.expected {
-				if !actualMap[expected] {
+				if _, ok := actualMap[expected]; !ok {
 					t.Errorf("Expected tool '%s' not found in actual tools: %v", expected, actual)
 				}
 			}

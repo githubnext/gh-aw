@@ -82,12 +82,12 @@ func FuzzExtractTerminalSubExpressions(f *testing.F) {
 		}
 
 		// No duplicate tokens.
-		seen := make(map[string]bool, len(result))
+		seen := make(map[string]struct{}, len(result))
 		for _, tok := range result {
-			if seen[tok] {
+			if _, ok := seen[tok]; ok {
 				t.Errorf("extractTerminalSubExpressions(%q) returned duplicate token %q", expr, tok)
 			}
-			seen[tok] = true
+			seen[tok] = struct{}{}
 		}
 	})
 }
@@ -269,7 +269,7 @@ func FuzzExtractExpressions(f *testing.F) {
 		}
 
 		// Every mapping must have non-empty fields and a valid env var.
-		envVarSeen := make(map[string]bool, len(mappings))
+		envVarSeen := make(map[string]struct{}, len(mappings))
 		for _, m := range mappings {
 			if m.Original == "" {
 				t.Errorf("ExtractExpressions(%q) returned mapping with empty Original", markdown)
@@ -286,10 +286,10 @@ func FuzzExtractExpressions(f *testing.F) {
 			if m.EnvVar != strings.ToUpper(m.EnvVar) {
 				t.Errorf("ExtractExpressions(%q): EnvVar %q is not uppercase", markdown, m.EnvVar)
 			}
-			if envVarSeen[m.EnvVar] {
+			if _, ok := envVarSeen[m.EnvVar]; ok {
 				t.Errorf("ExtractExpressions(%q): duplicate EnvVar %q", markdown, m.EnvVar)
 			}
-			envVarSeen[m.EnvVar] = true
+			envVarSeen[m.EnvVar] = struct{}{}
 		}
 
 		// For each compound mapping, every qualifying leaf sub-expression must have
