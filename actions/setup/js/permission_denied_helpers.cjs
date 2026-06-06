@@ -38,7 +38,25 @@ function extractDeniedCommands(output) {
   if (!output) return [];
   const lines = output.split("\n");
   const deniedCommands = new Set();
+  const permissionSummaryPatterns = [
+    /permission denied by workflow tool permissions:\s*(.+?)\s*$/i,
+    /tool denial \d+\/\d+:\s*permission denied:\s*(.+?)\s*$/i,
+  ];
   for (let i = 0; i < lines.length; i++) {
+    let capturedFromLine = false;
+    for (const pattern of permissionSummaryPatterns) {
+      const summaryMatch = lines[i].match(pattern);
+      if (summaryMatch && summaryMatch[1] && summaryMatch[1].trim()) {
+        deniedCommands.add(summaryMatch[1].trim());
+        capturedFromLine = true;
+        break;
+      }
+    }
+
+    if (capturedFromLine) {
+      continue;
+    }
+
     if (/\bpermission denied\b/i.test(lines[i])) {
       // Look back up to 3 lines for a command displayed with the
       // box-drawing pipe marker (│ U+2502) or plain pipe (|).
