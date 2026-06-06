@@ -272,6 +272,9 @@ const DefaultHTTPClientTimeout = 30 * time.Second
 // DefaultMaxEffectiveTokens is the default ET budget enforced by the AWF API proxy.
 const DefaultMaxEffectiveTokens int64 = 25000000
 
+// DefaultMaxAICredits is the default AI Credits budget enforced by the AWF API proxy.
+const DefaultMaxAICredits int64 = 1000
+
 // DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy.
 const DefaultMaxRuns = 500
 

@@ -72,7 +72,7 @@ type importAccumulator struct {
 	// First engine.model found in imports that have no engine.id (first-wins strategy).
 	// These express a model preference without selecting a specific engine.
 	mergedEngineModel string
-	// First top-level max-turns / max-runs / max-effective-tokens /
+	// First top-level max-turns / max-runs / max-effective-tokens / max-ai-credits /
 	// max-daily-ai-credits found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
@@ -80,6 +80,7 @@ type importAccumulator struct {
 	mergedMaxToolDenials          string
 	mergedMaxRuns                 string
 	mergedMaxEffectiveTokens      string
+	mergedMaxAICredits            string
 	mergedMaxDailyEffectiveTokens string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
@@ -352,6 +353,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // frontmatter map and writes them into the appropriate accumulator builders and slices.
 //
 // Side effects: acc.mergedMaxTurns, acc.mergedMaxToolDenials, acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
+// acc.mergedMaxAICredits,
 // acc.mergedMaxDailyEffectiveTokens, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
@@ -361,6 +363,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-tool-denials", &acc.mergedMaxToolDenials)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-effective-tokens", &acc.mergedMaxEffectiveTokens)
+	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyEffectiveTokens)
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
@@ -739,6 +742,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMaxToolDenials:          acc.mergedMaxToolDenials,
 		MergedMaxRuns:                 acc.mergedMaxRuns,
 		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
+		MergedMaxAICredits:            acc.mergedMaxAICredits,
 		MergedMaxDailyEffectiveTokens: acc.mergedMaxDailyEffectiveTokens,
 		Warnings:                      acc.warnings,
 	}

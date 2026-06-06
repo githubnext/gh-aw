@@ -1103,6 +1103,11 @@
       "desc": "Explicit ET budget control for firewall cost enforcement.",
       "leaf": true
     },
+    "max-ai-credits": {
+      "type": "integer|string",
+      "desc": "Per-run AI credits budget control for firewall cost enforcement.",
+      "leaf": true
+    },
     "max-runs": {
       "type": "integer|string",
       "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.",

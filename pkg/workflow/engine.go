@@ -36,6 +36,7 @@ type EngineConfig struct {
 	MaxRuns            int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
 	MaxContinuations   int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
 	MaxEffectiveTokens int64  // Maximum allowed effective tokens (ET) budget for AWF apiProxy firewall enforcement
+	MaxAICredits       int64  // Maximum allowed AI credits per run for AWF apiProxy firewall enforcement
 	Concurrency        string // Agent job-level concurrency configuration (YAML format)
 	UserAgent          string
 	Command            string // Custom executable path (when set, skip installation steps)
@@ -150,6 +151,14 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 	return e.MaxEffectiveTokens
 }
 
+// GetMaxAICredits returns the configured engine AI credits budget, falling back to the default.
+func (e *EngineConfig) GetMaxAICredits() int64 {
+	if e == nil || e.MaxAICredits == 0 {
+		return constants.DefaultMaxAICredits
+	}
+	return e.MaxAICredits
+}
+
 // GetMaxRuns returns the configured AWF max-runs value, falling back to the default.
 func (e *EngineConfig) GetMaxRuns() int {
 	if e == nil || e.MaxRuns <= 0 {
@@ -163,6 +172,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 	topLevelMaxTurns := parseMaxTurnsValue(frontmatter["max-turns"])
 	topLevelMaxToolDenials := parseMaxToolDenialsValue(frontmatter["max-tool-denials"])
 	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
+	topLevelMaxAICredits := parseMaxAICreditsValue(frontmatter["max-ai-credits"])
 	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-runs"])
 
 	if engine, exists := frontmatter["engine"]; exists {
@@ -177,6 +187,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				MaxToolDenials:     topLevelMaxToolDenials,
 				MaxRuns:            topLevelMaxRuns,
 				MaxEffectiveTokens: topLevelMaxEffectiveTokens,
+				MaxAICredits:       topLevelMaxAICredits,
 			}
 		}
 
@@ -254,6 +265,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
+				config.MaxAICredits = topLevelMaxAICredits
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
 				return config.ID, config
@@ -493,6 +505,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 			config.MaxRuns = topLevelMaxRuns
 			config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
+			config.MaxAICredits = topLevelMaxAICredits
 
 			// Extract optional 'copilot-sdk' field (bool; copilot engine only)
 			if sdkVal, hasSDK := engineObj["copilot-sdk"]; hasSDK {
@@ -511,12 +524,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		}
 	}
 
-	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxRuns > 0 {
+	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxAICredits > 0 || topLevelMaxRuns > 0 {
 		return "", &EngineConfig{
 			MaxTurns:           topLevelMaxTurns,
 			MaxToolDenials:     topLevelMaxToolDenials,
 			MaxRuns:            topLevelMaxRuns,
 			MaxEffectiveTokens: topLevelMaxEffectiveTokens,
+			MaxAICredits:       topLevelMaxAICredits,
 		}
 	}
 

@@ -20,6 +20,9 @@ const (
 	// max-daily-ai-credits guardrail when it is not explicitly configured in
 	// workflow frontmatter.
 	DefaultMaxDailyAICredits = "GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS"
+	// DefaultMaxAICredits is the enterprise override for AWF apiProxy.maxAiCredits
+	// when max-ai-credits is not explicitly configured in workflow frontmatter.
+	DefaultMaxAICredits = "GH_AW_DEFAULT_MAX_AI_CREDITS"
 	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
@@ -77,6 +80,23 @@ func ResolveDefaultMaxDailyAICredits(fallback string) string {
 			return normalized
 		}
 		managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyAICredits, raw, fallback)
+	}
+	return fallback
+}
+
+// ResolveDefaultMaxAICredits returns the resolved max AI credits default, checking
+// the enterprise env var GH_AW_DEFAULT_MAX_AI_CREDITS.
+// Falls back to fallback (built-in default) when the env var is unset or invalid.
+func ResolveDefaultMaxAICredits(fallback int64) int64 {
+	if raw := strings.TrimSpace(os.Getenv(DefaultMaxAICredits)); raw != "" {
+		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+			parsed, err := strconv.ParseInt(normalized, 10, 64)
+			if err == nil && parsed > 0 {
+				managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxAICredits, parsed, fallback)
+				return parsed
+			}
+		}
+		managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxAICredits, raw, fallback)
 	}
 	return fallback
 }

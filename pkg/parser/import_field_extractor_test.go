@@ -650,6 +650,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 		"max-tool-denials":     5,
 		"max-runs":             3,
 		"max-effective-tokens": 2048,
+		"max-ai-credits":       1234,
 		"max-daily-ai-credits": 4096,
 		"mcp-servers":          map[string]any{"server-a": map[string]any{"url": "https://a.example.com"}},
 		"safe-outputs":         map[string]any{"enabled": true},
@@ -664,6 +665,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 		"max-tool-denials":     11,
 		"max-runs":             88,
 		"max-effective-tokens": 77,
+		"max-ai-credits":       55,
 		"max-daily-ai-credits": 66,
 		"mcp-servers":          map[string]any{"server-b": map[string]any{"url": "https://b.example.com"}},
 		"safe-outputs":         map[string]any{"mode": "strict"},
@@ -681,6 +683,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Equal(t, "5", acc.mergedMaxToolDenials, "max-tool-denials should be first-wins")
 	assert.Equal(t, "3", acc.mergedMaxRuns, "max-runs should be first-wins")
 	assert.Equal(t, "2048", acc.mergedMaxEffectiveTokens, "max-effective-tokens should be first-wins")
+	assert.Equal(t, "1234", acc.mergedMaxAICredits, "max-ai-credits should be first-wins")
 	assert.Equal(t, "4096", acc.mergedMaxDailyEffectiveTokens, "max-daily-ai-credits should be first-wins")
 
 	assert.Len(t, acc.safeOutputs, 2, "safe-outputs should accumulate across imports")

@@ -163,6 +163,9 @@ type AWFAPIProxyConfig struct {
 	// MaxEffectiveTokens is the explicit ET budget enforced by the API proxy.
 	MaxEffectiveTokens int64 `json:"maxEffectiveTokens,omitempty"`
 
+	// MaxAICredits is the explicit per-run AI credits budget enforced by the API proxy.
+	MaxAICredits int64 `json:"maxAiCredits,omitempty"`
+
 	// ModelFallback configures the model fallback policy for unresolved model selections.
 	// When nil, the AWF default (enabled=true, strategy=middle_power) is used.
 	// Set enabled=false to prevent AWF from silently rewriting deployment names, which
@@ -279,10 +282,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── API proxy section ─────────────────────────────────────────────────────
 	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
+	maxAICredits := compilerenv.ResolveDefaultMaxAICredits(constants.DefaultMaxAICredits)
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		if config.WorkflowData.EngineConfig.MaxEffectiveTokens != 0 {
 			maxEffectiveTokens = config.WorkflowData.EngineConfig.MaxEffectiveTokens
+		}
+		if config.WorkflowData.EngineConfig.MaxAICredits > 0 {
+			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
 		}
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
@@ -299,6 +306,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		Enabled:             true,
 		MaxRuns:             maxRuns,
 		MaxEffectiveTokens:  maxEffectiveTokens,
+		MaxAICredits:        maxAICredits,
 		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
 	}
 

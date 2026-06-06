@@ -36,7 +36,7 @@ type engineSetupResult struct {
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
-	preservedMaxTurns, preservedMaxEffectiveTokens, preservedMaxRuns := extractEngineBudgetLimits(engineConfig)
+	preservedMaxTurns, preservedMaxEffectiveTokens, preservedMaxAICredits, preservedMaxRuns := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		return nil, err
 	}
-	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxTurns, preservedMaxEffectiveTokens, preservedMaxRuns)
+	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxTurns, preservedMaxEffectiveTokens, preservedMaxAICredits, preservedMaxRuns)
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
 		return nil, err
@@ -74,11 +74,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}, nil
 }
 
-func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int) {
+func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int64, int) {
 	if engineConfig == nil {
-		return "", 0, 0
+		return "", 0, 0, 0
 	}
-	return engineConfig.MaxTurns, engineConfig.MaxEffectiveTokens, engineConfig.MaxRuns
+	return engineConfig.MaxTurns, engineConfig.MaxEffectiveTokens, engineConfig.MaxAICredits, engineConfig.MaxRuns
 }
 
 func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {
@@ -292,6 +292,7 @@ func (c *Compiler) applyEngineImportDefaults(
 	importsResult *parser.ImportsResult,
 	preservedMaxTurns string,
 	preservedMaxEffectiveTokens int64,
+	preservedMaxAICredits int64,
 	preservedMaxRuns int,
 ) *EngineConfig {
 	if engineConfig == nil {
@@ -302,6 +303,9 @@ func (c *Compiler) applyEngineImportDefaults(
 	}
 	if preservedMaxEffectiveTokens != 0 {
 		engineConfig.MaxEffectiveTokens = preservedMaxEffectiveTokens
+	}
+	if preservedMaxAICredits > 0 {
+		engineConfig.MaxAICredits = preservedMaxAICredits
 	}
 	if preservedMaxRuns > 0 {
 		engineConfig.MaxRuns = preservedMaxRuns
@@ -339,6 +343,15 @@ func (c *Compiler) applyEngineImportDefaults(
 			if parsed := parseMaxEffectiveTokensValue(importedMaxTokens); parsed != 0 {
 				engineConfig.MaxEffectiveTokens = parsed
 				orchestratorEngineLog.Printf("Applied max-effective-tokens from import")
+			}
+		}
+	}
+	if engineConfig.MaxAICredits <= 0 && importsResult.MergedMaxAICredits != "" {
+		var importedMaxAICredits any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxAICredits), &importedMaxAICredits); err == nil {
+			if parsed := parseMaxAICreditsValue(importedMaxAICredits); parsed > 0 {
+				engineConfig.MaxAICredits = parsed
+				orchestratorEngineLog.Printf("Applied max-ai-credits from import")
 			}
 		}
 	}
