@@ -67,6 +67,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		ToolsStartupTimeout:     toolsResult.toolsStartupTimeout,
 		TrialMode:               c.trialMode,
 		TrialLogicalRepo:        c.trialLogicalRepoSlug,
+		UseSamples:              c.useSamples,
 		StrictMode:              c.strictMode,
 		AllowActionRefs:         c.allowActionRefs,
 		ValidateAWFConfig:       !c.skipValidation,

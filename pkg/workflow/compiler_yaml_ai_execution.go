@@ -9,6 +9,14 @@ import (
 
 // generateEngineExecutionSteps generates the GitHub Actions steps for executing the AI engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
+	// --use-samples (hidden) replaces the agent step with a deterministic driver
+	// that replays the workflow's safe-outputs `samples` frontmatter entries
+	// through the safe-outputs MCP server. The engine is never invoked.
+	if data.UseSamples {
+		compilerYamlLog.Printf("Replacing engine execution with samples replay driver: engine=%s", engine.GetID())
+		c.generateSamplesReplayStep(yaml, data, logFile)
+		return
+	}
 
 	steps := engine.GetExecutionSteps(data, logFile)
 	compilerYamlLog.Printf("Generating engine execution steps: engine=%s, steps=%d", engine.GetID(), len(steps))

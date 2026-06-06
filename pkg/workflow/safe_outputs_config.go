@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/typeutil"
+	"go.yaml.in/yaml/v3"
 )
 
 var safeOutputsConfigLog = logger.New("workflow:safe_outputs_config")
@@ -754,6 +755,61 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 			safeOutputsConfigLog.Printf("Parsed staged flag: %t", stagedBool)
 			config.Staged = stagedBool
 		}
+	}
+
+	// Parse samples list (hidden feature: deterministic replay samples for --use-samples).
+	// Accepts either a YAML list of objects, or a single object that is auto-wrapped
+	// into a one-element list, or a YAML string scalar containing a list (for
+	// authoring convenience with `|` block scalars in frontmatter).
+	if samples, exists := configMap["samples"]; exists {
+		parsed := parseSamplesValue(samples)
+		if len(parsed) > 0 {
+			safeOutputsConfigLog.Printf("Parsed %d samples entries", len(parsed))
+			config.Samples = parsed
+		}
+	}
+}
+
+// parseSamplesValue normalizes a `samples` frontmatter value into a list of
+// objects. Accepted shapes (most-permissive first):
+//   - YAML list of mappings: returned as-is
+//   - single YAML mapping: wrapped into a one-element list
+//   - YAML string containing a list/mapping (authoring with `|` block scalar):
+//     parsed as YAML and re-normalized
+//
+// Any other shape returns an empty slice — schema validation will then report
+// "no samples found".
+func parseSamplesValue(samples any) []map[string]any {
+	switch v := samples.(type) {
+	case []any:
+		out := make([]map[string]any, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]any); ok {
+				out = append(out, m)
+			} else if mStr, ok := item.(map[string]string); ok {
+				converted := make(map[string]any, len(mStr))
+				for k, s := range mStr {
+					converted[k] = s
+				}
+				out = append(out, converted)
+			}
+		}
+		return out
+	case map[string]any:
+		return []map[string]any{v}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return nil
+		}
+		var nested any
+		if err := yaml.Unmarshal([]byte(trimmed), &nested); err != nil {
+			safeOutputsConfigLog.Printf("Failed to parse samples string as YAML: %v", err)
+			return nil
+		}
+		return parseSamplesValue(nested)
+	default:
+		return nil
 	}
 }
 

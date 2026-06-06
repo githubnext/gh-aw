@@ -147,6 +147,12 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 		}
 	}
 
+	// Replace the agentic step with a deterministic samples replay driver when requested (hidden feature).
+	if config.UseSamples {
+		compileCompilerSetupLog.Print("Enabling --use-samples: agentic step will be replaced by a deterministic replay driver")
+		compiler.SetUseSamples(true)
+	}
+
 	// Set refresh stop time flag
 	compiler.SetRefreshStopTime(config.RefreshStopTime)
 	if config.RefreshStopTime {

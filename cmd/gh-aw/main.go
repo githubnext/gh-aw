@@ -304,6 +304,7 @@ Examples:
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		ghes, _ := cmd.Flags().GetBool("ghes")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+		useSamples, _ := cmd.Flags().GetBool("use-samples")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
 		}
@@ -364,6 +365,7 @@ Examples:
 			ValidateImages:         validateImages,
 			PriorManifestFile:      priorManifestFile,
 			GHESCompat:             ghes,
+			UseSamples:             useSamples,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			// Return error as-is without additional formatting
@@ -703,6 +705,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
 	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
+	compileCmd.Flags().Bool("use-samples", false, "Hidden: replace the agentic 'Execute coding agent' step with a deterministic driver that replays the workflow's safe-outputs `samples` frontmatter entries through the safe-outputs MCP server. Used to make end-to-end tests deterministic.")
+	_ = compileCmd.Flags().MarkHidden("use-samples")
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
 	compileCmd.Flags().Bool("force", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")

@@ -70,6 +70,7 @@ type Compiler struct {
 	forceStaged             bool                     // If true, force all safe-outputs into staged mode
 	trialMode               bool                     // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug    string                   // If set in trial mode, the logical repository to checkout
+	useSamples              bool                     // If true, replace the agentic step with a deterministic samples replay driver (hidden feature)
 	refreshStopTime         bool                     // If true, regenerate stop-after times instead of preserving existing ones
 	forceRefreshActionPins  bool                     // If true, clear action cache and resolve all actions from GitHub API
 	failFast                bool                     // If true, stop at first validation error instead of collecting all errors
@@ -201,6 +202,14 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 // SetTrialLogicalRepoSlug configures the target repository for trial mode
 func (c *Compiler) SetTrialLogicalRepoSlug(repo string) {
 	c.trialLogicalRepoSlug = repo
+}
+
+// SetUseSamples configures whether to replace the agentic step with a
+// deterministic replay driver that feeds `samples` entries to the safe-outputs
+// MCP server via real `tools/call` JSON-RPC. Hidden feature used by
+// `gh aw compile --use-samples`.
+func (c *Compiler) SetUseSamples(use bool) {
+	c.useSamples = use
 }
 
 // SetStrictMode configures whether to enable strict validation mode
@@ -446,6 +455,7 @@ type WorkflowData struct {
 	WorkflowID                     string         // workflow identifier derived from markdown filename (basename without extension)
 	TrialMode                      bool           // whether the workflow is running in trial mode
 	TrialLogicalRepo               string         // target repository slug for trial mode (owner/repo)
+	UseSamples                     bool           // whether the agentic step should be replaced by a deterministic samples replay driver (hidden feature)
 	FrontmatterName                string         // name field from frontmatter (for code scanning alert driver default)
 	FrontmatterEmoji               string         // emoji field from frontmatter (for display in footers and UI)
 	FrontmatterYAML                string         // raw frontmatter YAML content (rendered as comment in lock file for reference)
@@ -627,6 +637,8 @@ type BaseSafeOutputConfig struct {
 	GitHubApp                *GitHubAppConfig `yaml:"github-app,omitempty"`                 // GitHub App credentials for minting a per-handler installation access token
 	Staged                   bool             `yaml:"staged,omitempty"`                     // If true, emit step summary messages instead of making GitHub API calls for this specific output type
 	NormalizeClosingKeywords *bool            `yaml:"normalize-closing-keywords,omitempty"` // When true for this output type, strip backticks from recognized issue-closing keywords in body fields.
+	// Samples carries deterministic replay samples for the hidden `gh aw compile --use-samples` flag. Each entry is the JSON object passed to the corresponding MCP tool's `tools/call` arguments. Sample-only sidecar fields (e.g. `patch` for create_pull_request) are stripped before the call and used by the replay driver.
+	Samples []map[string]any `yaml:"samples,omitempty"`
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes

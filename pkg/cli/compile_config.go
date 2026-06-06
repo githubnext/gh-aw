@@ -13,6 +13,7 @@ type CompileConfig struct {
 	Purge                  bool     // Remove orphaned lock files
 	TrialMode              bool     // Enable trial mode (suppress safe outputs)
 	TrialLogicalRepoSlug   string   // Target repository for trial mode
+	UseSamples             bool     // Hidden: replace agentic step with a deterministic samples replay driver
 	Strict                 bool     // Enable strict mode validation
 	Dependabot             bool     // Generate Dependabot manifests for npm dependencies
 	ForceOverwrite         bool     // Force overwrite of existing files (dependabot.yml)
