@@ -496,6 +496,10 @@ touch %s
 	} else {
 		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
+	timeoutValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	if workflowData.TimeoutMinutes != "" {
+		timeoutValue = strings.TrimSpace(strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: "))
+	}
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -504,11 +508,12 @@ touch %s
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real
 		// $GITHUB_STEP_SUMMARY after secret redaction.
-		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
-		"GITHUB_HEAD_REF":     "${{ github.head_ref }}",
-		"GITHUB_REF_NAME":     "${{ github.ref_name }}",
-		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
-		"RUNNER_TEMP":         "${{ runner.temp }}",
+		"GITHUB_STEP_SUMMARY":   AgentStepSummaryPath,
+		"GITHUB_HEAD_REF":       "${{ github.head_ref }}",
+		"GITHUB_REF_NAME":       "${{ github.ref_name }}",
+		"GITHUB_WORKSPACE":      "${{ github.workspace }}",
+		"RUNNER_TEMP":           "${{ runner.temp }}",
+		"GH_AW_TIMEOUT_MINUTES": timeoutValue,
 		// Pass GitHub server URL and API URL for GitHub Enterprise compatibility.
 		// In standard GitHub.com environments these resolve to https://github.com and
 		// https://api.github.com. In GitHub Enterprise they resolve to the enterprise
@@ -710,13 +715,7 @@ touch %s
 	}
 
 	// Add timeout at step level (GitHub Actions standard)
-	if workflowData.TimeoutMinutes != "" {
-		// Strip timeout-minutes prefix
-		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
-	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
-	}
+	stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
 
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container

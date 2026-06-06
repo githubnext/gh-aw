@@ -538,7 +538,7 @@ function parsePermissionConfigFromServerArgs(serverArgsJson) {
   if (!Array.isArray(parsed)) {
     return undefined;
   }
-  const args = /** @type {unknown[]} */ (parsed);
+  const args = /** @type {unknown[]} */ parsed;
 
   // --allow-all-tools takes precedence: the sidecar was launched with blanket
   // tool approval, so the driver should mirror that policy.
@@ -551,7 +551,7 @@ function parsePermissionConfigFromServerArgs(serverArgsJson) {
   const allowedTools = [];
   for (let i = 0; i < args.length - 1; i++) {
     if (args[i] === "--allow-tool" && typeof args[i + 1] === "string") {
-      allowedTools.push(/** @type {string} */ (args[i + 1]));
+      allowedTools.push(/** @type {string} */ args[i + 1]);
       i += 1; // consume the value so it is not re-examined as a flag
     }
   }
