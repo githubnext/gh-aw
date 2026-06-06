@@ -84,12 +84,7 @@ function quotedOperatorIsNotSplit(operator) {
   const singleResult = testSplitOnPipelineOperators(singleQuoted);
   const doubleResult = testSplitOnPipelineOperators(doubleQuoted);
 
-  return (
-    singleResult.error === null &&
-    singleResult.segments.length === 1 &&
-    doubleResult.error === null &&
-    doubleResult.segments.length === 1
-  );
+  return singleResult.error === null && singleResult.segments.length === 1 && doubleResult.error === null && doubleResult.segments.length === 1;
 }
 
 /**
@@ -104,13 +99,7 @@ function noThrowInvariant(input) {
   const name = testExtractCommandName(input);
   const names = testExtractCommandNamesFromPipeline(input);
 
-  return (
-    split.error === null &&
-    Array.isArray(split.segments) &&
-    name.error === null &&
-    names.error === null &&
-    Array.isArray(names.names)
-  );
+  return split.error === null && Array.isArray(split.segments) && name.error === null && names.error === null && Array.isArray(names.names);
 }
 
 /**

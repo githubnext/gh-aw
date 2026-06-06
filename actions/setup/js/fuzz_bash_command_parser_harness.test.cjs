@@ -26,14 +26,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const {
-  testSplitOnPipelineOperators,
-  testExtractCommandName,
-  testExtractCommandNamesFromPipeline,
-  quotedOperatorIsNotSplit,
-  noThrowInvariant,
-  emptyInputYieldsEmptyArrays,
-} = require("./fuzz_bash_command_parser_harness.cjs");
+const { testSplitOnPipelineOperators, testExtractCommandName, testExtractCommandNamesFromPipeline, quotedOperatorIsNotSplit, noThrowInvariant, emptyInputYieldsEmptyArrays } = require("./fuzz_bash_command_parser_harness.cjs");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixtures
