@@ -142,15 +142,6 @@ type EngineNetworkConfig struct {
 	Network *NetworkPermissions
 }
 
-// GetMaxEffectiveTokens returns the configured engine ET budget, falling back to the default.
-// A negative value means "disabled" (no budget enforcement, no token steering).
-func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
-	if e == nil || e.MaxEffectiveTokens == 0 {
-		return constants.DefaultMaxEffectiveTokens
-	}
-	return e.MaxEffectiveTokens
-}
-
 // GetMaxAICredits returns the configured engine AI credits budget, falling back to the default.
 func (e *EngineConfig) GetMaxAICredits() int64 {
 	if e == nil || e.MaxAICredits == 0 {

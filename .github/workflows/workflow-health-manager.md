@@ -32,7 +32,7 @@ safe-outputs:
     max: 5
 timeout-minutes: 30
 # Raised above 25M default: meta-orchestrator monitors all workflows; set ceiling to catch runaway health checks.
-max-effective-tokens: 30000000
+max-ai-credits: 30000000
 imports:
   - shared/reporting.md
   - shared/otlp.md

@@ -5,7 +5,7 @@
 
 - Learn about [effective tokens]({et_spec_link}).
 {usage_line}{budget_line}{run_line}
-You can tune this limit with `max-effective-tokens` in workflow frontmatter.
+You can tune this limit with `max-ai-credits` in workflow frontmatter.
 
 {et_table_section}
 - To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).

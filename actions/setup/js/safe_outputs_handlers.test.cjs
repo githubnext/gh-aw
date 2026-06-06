@@ -968,12 +968,10 @@ describe("safe_outputs_handlers", () => {
           type: "create_pull_request",
           base_branch: "main",
           branch: "release-1.12.x",
-          patch_path: expect.any(String),
         })
       );
-
-      const appendedEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
-      const patchContent = fs.readFileSync(appendedEntry.patch_path, "utf8");
+      const responseData = JSON.parse(result.content[0].text);
+      const patchContent = fs.readFileSync(responseData.patch.path, "utf8");
       // Diffing release-1.12.x against base main includes both release-only commits:
       // the tracked release commit and the local-only fix.
       expect(patchContent).toContain("local only fix");
@@ -1253,8 +1251,6 @@ describe("safe_outputs_handlers", () => {
           expect.objectContaining({
             type: "push_to_pull_request_branch",
             repo_cwd: targetRepoDir,
-            patch_path: expect.stringContaining("aw-test-owner-test-repo-feature-test-change.patch"),
-            bundle_path: expect.stringContaining("aw-test-owner-test-repo-feature-test-change.bundle"),
           })
         );
       } finally {
@@ -1420,13 +1416,9 @@ describe("safe_outputs_handlers", () => {
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "push_to_pull_request_branch",
-            patch_path: expect.stringMatching(/\.patch$/),
-            bundle_path: expect.stringMatching(/\.bundle$/),
           })
         );
-        // Bundle mode should still include patch_path for policy enforcement checks
         const appended = mockAppendSafeOutput.mock.calls[0][0];
-        expect(appended.patch_path).toMatch(/\.patch$/);
         // diff_size must be recorded so the downstream push step can validate
         // max_patch_size against the net incremental diff (not the bundle size,
         // which on long-running branches accumulates packed git objects and can

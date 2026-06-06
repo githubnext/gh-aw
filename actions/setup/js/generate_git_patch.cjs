@@ -12,7 +12,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
-const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPath, getPatchPathForRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
+const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPathForBranch, getPatchPathForBranchInRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
 
 // sanitizeForFilename is re-exported below for backward compatibility with
 // existing callers that imported it from this module.
@@ -73,7 +73,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   function excludeArgs() {
     return excludeArgsArr;
   }
-  const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
+  const patchPath = options.repoSlug ? getPatchPathForBranchInRepo(branchName, options.repoSlug) : getPatchPathForBranch(branchName);
 
   if (options.workspacePath !== undefined && options.workspacePath !== null && String(options.workspacePath).trim() !== "") {
     const root = path.resolve(workspaceRoot);
@@ -585,8 +585,8 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
 module.exports = {
   generateGitPatch,
-  getPatchPath,
-  getPatchPathForRepo,
+  getPatchPathForBranch,
+  getPatchPathForBranchInRepo,
   sanitizeBranchNameForPatch,
   sanitizeRepoSlugForPatch,
 };

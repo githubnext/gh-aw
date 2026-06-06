@@ -46,9 +46,9 @@ engine: copilot
 experiments:
   prompt_style:
     variants: [concise, detailed]
-    description: "Test whether a concise prompt reduces token cost without quality loss"
-    hypothesis: "H0: no change in effective_tokens. H1: concise reduces tokens by >=15%"
-    metric: effective_tokens
+    description: "Test whether a concise prompt reduces cost without quality loss"
+    hypothesis: "H0: no change in aic. H1: concise reduces AIC by >=15%"
+    metric: aic
     secondary_metrics: [duration_ms, discussion_word_count]
     guardrail_metrics:
       - name: success_rate
@@ -170,9 +170,9 @@ prompt_style (target: 25 per variant)
 
 **prompt_style**
 
-> Test whether a concise prompt reduces token cost without quality loss
+> Test whether a concise prompt reduces cost without quality loss
 
-**Hypothesis:** H0: no change in effective_tokens. H1: concise reduces tokens by >=15%
+**Hypothesis:** H0: no change in aic. H1: concise reduces AIC by >=15%
 
 **Guardrail metrics:**
 - `success_rate` >=0.95
@@ -196,8 +196,8 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 |---|---|---|---|
 | `variants` | `string[]` | ✅ | Array of two or more variant strings |
 | `description` | `string` | | Human-readable explanation of what the experiment tests |
-| `hypothesis` | `string` | | Null and alternative hypothesis (e.g. `"H0: no change. H1: concise reduces tokens by >=15%"`) |
-| `metric` | `string` | | Primary metric to observe (e.g. `effective_tokens`, `duration_ms`) |
+| `hypothesis` | `string` | | Null and alternative hypothesis (e.g. `"H0: no change. H1: concise reduces AIC by >=15%"`) |
+| `metric` | `string` | | Primary metric to observe (e.g. `aic`, `duration_ms`) |
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
 | `guardrail_metrics` | `object[]` | | List of `{name, threshold}` pairs that must not degrade. Threshold is a comparison expression like `>=0.95` or `==0` |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |

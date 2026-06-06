@@ -22,9 +22,6 @@ AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit
 > [!NOTE]
 > AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
 
-> [!NOTE]
-> Effective Tokens (ET) remain available for backward compatibility. Prefer AIC for cost monitoring, including Copilot workflows. See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) for the ET definition.
-
 ## Cost Components
 
 ### GitHub Actions Minutes
@@ -99,7 +96,7 @@ Useful episode fields for usage analysis:
 | Field | Meaning |
 |-------|---------|
 | `total_runs` | Workflow runs in the logical execution |
-| `total_tokens` / `total_effective_tokens` | Raw and effective token aggregates |
+| `total_tokens` | Raw token aggregate across grouped runs |
 | `total_aic` | Total AI Credits (AIC) for the episode; preferred cost metric |
 | `total_duration` | Wall-clock duration across grouped runs |
 | `primary_workflow` | Main workflow label |
@@ -143,9 +140,8 @@ The exported spans include workflow and model metadata such as
 `gen_ai.usage.input_tokens`, and
 `gen_ai.usage.output_tokens`. Use these attributes to group usage
 by workflow, engine, model, repository, or team in the backend of
-your choice. For inference cost, the `llm.token.effective_total`
-span attribute carries Effective Tokens; AIC is derived from the
-raw token counts in your observability backend using provider
+your choice. For inference cost, AIC is derived from the raw
+token counts in your observability backend using provider
 pricing.
 
 OpenTelemetry is most useful for answering questions such as:
@@ -216,20 +212,18 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 
 Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
 
-### Cap Effective Tokens per Run
+### Cap AI Credits per Run
 
-Use the top-level `max-effective-tokens` frontmatter field to cap
-the effective-token budget for a single workflow run. This provides
-a hard stop for unusually expensive runs and a consistent cost
-guardrail across all supported engines. The field accepts plain
-integers or `K`/`M` suffixes such as `100M`.
+Use the top-level `max-ai-credits` frontmatter field to cap
+the AI Credits (AIC) budget for a single workflow run. This
+provides a hard stop for unusually expensive runs and a consistent
+cost guardrail across all supported engines. The field accepts
+plain integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
-max-effective-tokens: 5M
+max-ai-credits: 5M
 ```
 
-Effective tokens are the normalized usage metric described in the
-[Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) (deprecated in favor of AIC for non-Copilot engines).
 When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
@@ -313,7 +307,7 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 2. Update and apply shared defaults in batch:
 
 ```yaml
-default_max_effective_tokens: "5M"
+default_max_ai_credits: "5M"
 default_max_daily_ai_credits: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
@@ -328,13 +322,14 @@ gh aw env update defaults.yml --scope org --org MY_ORG
 Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
-`default_max_turns` / `default_timeout_minutes` must be positive integers, and
-`default_max_effective_tokens` / `default_max_daily_ai_credits` must be
-non-zero integers (negative values disable the corresponding guardrail).
+`default_max_turns` / `default_timeout_minutes` must be positive integers,
+`default_max_ai_credits` must be a positive integer, and
+`default_max_daily_ai_credits` must be a non-zero integer
+(a negative value disables the daily guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
-`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_TURNS`,
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
@@ -382,7 +377,7 @@ See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy sche
 
 ### Batch Instead of Reacting to Events
 
-Reactive triggers like `issues` or `pull_request` launch one agent run per event. When many events arrive in a short window, that adds up quickly. A scheduled batch run groups all pending items into a single invocation — and because the shared system prompt and instructions are sent once for the whole batch, AI providers can cache that context across items, further reducing effective token usage.
+Reactive triggers like `issues` or `pull_request` launch one agent run per event. When many events arrive in a short window, that adds up quickly. A scheduled batch run groups all pending items into a single invocation — and because the shared system prompt and instructions are sent once for the whole batch, AI providers can cache that context across items, further reducing AI Credits consumption.
 
 ```aw wrap
 description: Nightly issue triage (replaces reactive issues trigger)
@@ -480,7 +475,7 @@ tools:
 | Signal | Automatic action |
 |--------|-----------------|
 | High AIC per run (Claude/Codex) | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
-| High effective tokens per run (Copilot) | Switch to a smaller model or reduce context size |
+| High AIC per run (Copilot) | Switch to a smaller model or reduce context size |
 | High turn count per run | Set `max-turns` to cap iterations and prevent runaway loops |
 | Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
 | Long queue times due to concurrency | Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group |
@@ -511,7 +506,6 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) - How effective token counts are computed (deprecated; AIC is now preferred for non-Copilot engines)
 - [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows

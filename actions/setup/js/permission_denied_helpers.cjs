@@ -38,10 +38,7 @@ function extractDeniedCommands(output) {
   if (!output) return [];
   const lines = output.split("\n");
   const deniedCommands = new Set();
-  const permissionSummaryPatterns = [
-    /permission denied by workflow tool permissions:\s*(.+?)\s*$/i,
-    /tool denial \d+\/\d+:\s*permission denied:\s*(.+?)\s*$/i,
-  ];
+  const permissionSummaryPatterns = [/permission denied by workflow tool permissions:\s*(.+?)\s*$/i, /tool denial \d+\/\d+:\s*permission denied:\s*(.+?)\s*$/i];
   for (let i = 0; i < lines.length; i++) {
     let capturedFromLine = false;
     for (const pattern of permissionSummaryPatterns) {
