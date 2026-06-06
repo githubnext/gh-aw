@@ -62,6 +62,8 @@ Use repo-memory as the authoritative cross-run state in:
 - `/tmp/gh-aw/repo-memory/default/awf-feature-surfacing/progress.json`
 - `/tmp/gh-aw/repo-memory/default/awf-feature-surfacing/latest-review.md`
 
+`default` is the repo-memory instance directory; `awf-feature-surfacing/` is this workflow's owned subdirectory.
+
 `progress.json` schema:
 
 ```json
@@ -93,7 +95,7 @@ Focus on additions/semantic changes affecting users:
 - new compiler behavior that enables previously unsupported syntax
 - new directives or frontmatter behavior
 
-Use `schema-change-detector` for candidate extraction from schema/compiler diffs.
+Use `awf-change-detector` for candidate extraction from schema/compiler diffs.
 
 ### 3) Evaluate surfacing gaps
 
@@ -135,7 +137,7 @@ Before finishing, write:
 
 {{#runtime-import shared/noop-reminder.md}}
 
-## agent: `schema-change-detector`
+## agent: `awf-change-detector`
 ---
 description: Extracts user-relevant feature candidates from schema/compiler diffs
 model: small
@@ -148,7 +150,7 @@ Return strict JSON only:
 Rules:
 - include only user-visible behavior changes
 - prefer stable IDs based on schema key path + behavior
-- max 12 candidates
+- max 12 candidates (keeps review sets compact and avoids token-heavy low-signal tails)
 
 ## agent: `surfacing-gap-evaluator`
 ---
