@@ -247,7 +247,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **Security Notice**: Custom jobs run OUTSIDE the firewall sandbox. Execute with standard GitHub Actions security but NO network egress controls. Use only for deterministic preprocessing, data fetching, or static analysis—not agentic compute or untrusted AI execution.
   - **`setup-steps:`** - Steps injected before compiler-generated setup, GitHub App token minting, and checkout in a custom or built-in job (array). Use this for OIDC login, secret fetch, and credential bootstrap that must happen before framework token/checkout steps. Imported `setup-steps` run before main workflow `setup-steps`.
   - **`pre-steps:`** - Steps injected after compiler-generated setup and before any `steps:` in a custom or built-in job (array). For built-in jobs (`activation`, `pre_activation`), injected after the `id: setup` step and before the first checkout. Imported `pre-steps` run before main workflow `pre-steps`.
-  - **`setup-steps` vs `pre-steps`** - Use `setup-steps` for pre-token bootstrap work (OIDC/secret retrieval). Use `pre-steps` for steps that should run after compiler setup but before main job work.
+  - **`setup-steps` vs `pre-steps`** - Use `setup-steps` for work that must run before framework GitHub App token minting and checkout (for example OIDC/secret bootstrap). Use `pre-steps` for work that should run after compiler-generated setup and before the job's main `steps:`.
   - Example:
 
     ```yaml
