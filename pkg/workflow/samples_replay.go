@@ -75,6 +75,15 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	entries := collectSampleEntries(data.SafeOutputs)
 	compilerYamlLog.Printf("Generating samples replay step: entries=%d", len(entries))
 
+	// Normalize a nil slice to an empty slice so json.Marshal emits "[]" not "null".
+	// The driver rejects anything that isn't a JSON array; emitting "null" here
+	// would crash the replay step with `GH_AW_SAMPLES must be a JSON array` for
+	// workflows that opt into --use-samples but configure no samples (or whose
+	// configured samples all live on disabled handlers).
+	if entries == nil {
+		entries = []SampleEntry{}
+	}
+
 	// Serialize entries to JSON for the driver. Always emit valid JSON even when
 	// empty so the driver can produce a clear `no samples configured` message
 	// rather than crashing on an empty env var.

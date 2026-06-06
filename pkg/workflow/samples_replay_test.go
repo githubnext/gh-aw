@@ -274,3 +274,65 @@ func extractGHAWSamplesJSON(t *testing.T, lock string) string {
 	}
 	return strings.TrimSpace(out.String())
 }
+
+// TestUseSamplesEmitsEmptyArrayWhenNoSamplesConfigured guards against a
+// regression where compiling with --use-samples but no `samples:` entries on
+// any enabled handler caused json.Marshal of a nil Go slice to emit the
+// literal string "null" into GH_AW_SAMPLES, which the driver rightly
+// rejected with `GH_AW_SAMPLES must be a JSON array`. The compiler must
+// emit "[]" instead so the driver can exit cleanly with `no samples to
+// replay`.
+func TestUseSamplesEmitsEmptyArrayWhenNoSamplesConfigured(t *testing.T) {
+	// Workflow opts into --use-samples and configures safe-outputs but has
+	// no `samples:` entries on the create-issue handler.
+	const md = `---
+on:
+  workflow_dispatch:
+permissions: read-all
+engine:
+  id: claude
+safe-outputs:
+  create-issue:
+    title-prefix: "[no-samples] "
+---
+
+Workflow with safe-outputs but no samples — should still compile and
+emit a valid empty-array GH_AW_SAMPLES under --use-samples.
+`
+
+	tmpFile, err := os.CreateTemp("", "use-samples-empty-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(md); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetUseSamples(true)
+	if err := compiler.CompileWorkflow(tmpFile.Name()); err != nil {
+		t.Fatalf("compile failed: %v", err)
+	}
+	lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	defer os.Remove(lockPath)
+	b, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("read lock: %v", err)
+	}
+	lock := string(b)
+
+	// Must still emit the replay step.
+	if !strings.Contains(lock, "Replay safe-outputs samples (deterministic)") {
+		t.Fatal("Expected replay step in lock file even with no samples configured")
+	}
+
+	samplesJSON := extractGHAWSamplesJSON(t, lock)
+	if samplesJSON == "null" {
+		t.Fatalf("GH_AW_SAMPLES must not be the literal `null` (driver would reject it); got %q", samplesJSON)
+	}
+	if samplesJSON != "[]" {
+		t.Fatalf("GH_AW_SAMPLES = %q, want %q", samplesJSON, "[]")
+	}
+}

@@ -57,6 +57,12 @@ function loadSamples() {
   } catch (err) {
     throw new Error(`apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${/** @type {Error} */ err.message}`);
   }
+  // Tolerate a literal JSON `null` payload (older compiler emitted it for
+  // workflows with --use-samples but no `samples:` entries). Treat as empty.
+  if (parsed === null) {
+    console.error("apply_samples: GH_AW_SAMPLES is null — treating as no samples to replay.");
+    return [];
+  }
   if (!Array.isArray(parsed)) {
     throw new Error("apply_samples: GH_AW_SAMPLES must be a JSON array");
   }

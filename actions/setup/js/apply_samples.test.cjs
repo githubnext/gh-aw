@@ -131,6 +131,31 @@ describe.sequential("apply_samples.cjs", () => {
     const logText = fs.readFileSync(path.join(tempDir, "empty-log.log"), "utf8");
     expect(logText).toContain("terminal_reason");
   });
+
+  // Defense in depth: an older compiler that marshaled a nil Go slice would
+  // emit `null` into GH_AW_SAMPLES. Newer drivers must tolerate that and
+  // treat it as "no samples", not crash with `must be a JSON array`.
+  it("exits cleanly when GH_AW_SAMPLES is the literal `null`", () => {
+    const logPath = path.join(tempDir, "null-log.log");
+    const result = spawnSync(process.execPath, [driverPath], {
+      env: {
+        ...process.env,
+        GH_AW_SAMPLES: "null",
+        GH_AW_SAFE_OUTPUTS_CONFIG_PATH: configPath,
+        GH_AW_SAFE_OUTPUTS: outputsPath,
+        GH_AW_AGENT_STDIO_LOG: logPath,
+      },
+      encoding: "utf8",
+      timeout: 10000,
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`driver exited with status ${result.status}\nstderr:\n${result.stderr}\nstdout:\n${result.stdout}`);
+    }
+    expect(result.stderr).toContain("GH_AW_SAMPLES is null");
+    const logText = fs.readFileSync(logPath, "utf8");
+    expect(logText).toContain("terminal_reason");
+  });
 });
 
 describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_request_branch)", () => {
