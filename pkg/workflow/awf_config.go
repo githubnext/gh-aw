@@ -294,9 +294,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 
-	// Token steering is enabled by default; a negative max-effective-tokens
-	// or max-ai-credits value disables both budget enforcement and token
-	// steering.
+	// Token steering is enabled by default. Setting either max-effective-tokens or
+	// max-ai-credits to a negative value (-1) omits that budget from the AWF config
+	// and disables token steering.
 	enableTokenSteering := maxEffectiveTokens >= 0 && maxAICredits >= 0
 	if maxEffectiveTokens < 0 {
 		// Negative signals "disabled" — omit the budget from the AWF config.
