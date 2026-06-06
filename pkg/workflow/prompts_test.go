@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -253,9 +254,30 @@ func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
 		t.Fatalf("Failed to read workflow file: %v", err)
 	}
 
-	workflow := string(content)
-	if !strings.Contains(workflow, "variants: [claude-sonnet-4-6, claude-haiku-4-5-20251001]") {
-		t.Fatal("Expected daily-function-namer workflow to use concrete Claude models in model_size experiment variants")
+	parsed, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		t.Fatalf("Failed to parse workflow frontmatter: %v", err)
+	}
+
+	experiments, ok := parsed.Frontmatter["experiments"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-function-namer workflow to define experiments")
+	}
+	modelSize, ok := experiments["model_size"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-function-namer workflow to define experiments.model_size")
+	}
+	variants, ok := modelSize["variants"].([]any)
+	if !ok {
+		t.Fatal("Expected daily-function-namer workflow to define experiments.model_size.variants")
+	}
+	if len(variants) != 2 || variants[0] != "claude-sonnet-4-6" || variants[1] != "claude-haiku-4-5-20251001" {
+		t.Fatalf("Expected concrete Claude variants [claude-sonnet-4-6, claude-haiku-4-5-20251001], got %#v", variants)
+	}
+	for _, variant := range variants {
+		if variant == "agent" || variant == "small-agent" {
+			t.Fatalf("Expected concrete model variants, found alias %q", variant)
+		}
 	}
 }
 
