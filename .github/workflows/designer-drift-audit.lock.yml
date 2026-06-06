@@ -1127,7 +1127,6 @@ jobs:
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
           GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "20"
-          GH_AW_MAX_EFFECTIVE_TOKENS: "0"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
