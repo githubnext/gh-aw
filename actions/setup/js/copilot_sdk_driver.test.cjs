@@ -320,12 +320,7 @@ describe("copilot_sdk_driver.cjs", () => {
         prompt: "test prompt",
         logger: () => {},
         permissionConfig: {
-          allowedTools: [
-            "shell(cat /tmp/gh-aw/agent/*)",
-            "shell(cat /tmp/gh-aw/agent/**/*.txt)",
-            "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)",
-            "shell(ls /tmp/gh-aw/repo-memory/default/)",
-          ],
+          allowedTools: ["shell(cat /tmp/gh-aw/agent/*)", "shell(cat /tmp/gh-aw/agent/**/*.txt)", "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)", "shell(ls /tmp/gh-aw/repo-memory/default/)"],
         },
         sdkModule: {
           CopilotClient: FakeCopilotClient,
@@ -799,12 +794,7 @@ describe("copilot_sdk_driver.cjs", () => {
     });
 
     it("allows a pwd && ls && safeoutputs && printf pipeline when all are allowed", async () => {
-      const handler = await makePermissionHandlerViaSDK([
-        "shell(pwd)",
-        "shell(ls)",
-        "shell(safeoutputs:*)",
-        "shell(printf)",
-      ]);
+      const handler = await makePermissionHandlerViaSDK(["shell(pwd)", "shell(ls)", "shell(safeoutputs:*)", "shell(printf)"]);
       const result = handler({
         kind: "shell",
         commands: [],
