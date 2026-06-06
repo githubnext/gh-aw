@@ -499,8 +499,8 @@ touch %s
 	timeoutValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData.TimeoutMinutes != "" {
 		rawTimeoutValue := strings.TrimSpace(workflowData.TimeoutMinutes)
-		if strings.HasPrefix(rawTimeoutValue, "timeout-minutes:") {
-			rawTimeoutValue = strings.TrimSpace(strings.TrimPrefix(rawTimeoutValue, "timeout-minutes:"))
+		if after, ok := strings.CutPrefix(rawTimeoutValue, "timeout-minutes:"); ok {
+			rawTimeoutValue = strings.TrimSpace(after)
 		}
 		if rawTimeoutValue != "" {
 			timeoutValue = rawTimeoutValue

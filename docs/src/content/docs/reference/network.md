@@ -60,12 +60,6 @@ network:
     - "https://*.api.example.com"        # HTTPS wildcard
 ```
 
-**Compiled to AWF:**
-
-```bash
---allow-domains ...,example.org,http://legacy.example.com,https://secure.api.example.com,...
-```
-
 ## Content Sanitization
 
 The `network:` configuration also controls which domains are allowed in sanitized content. URLs from domains not in the allowed list are replaced with `(redacted)` to prevent potential data exfiltration through untrusted links.
@@ -218,18 +212,6 @@ network:
 ```
 
 **Security**: SSL bump intercepts and decrypts HTTPS as a man-in-the-middle — only enable when URL-level filtering is necessary, and craft `allow-urls` patterns carefully to avoid breaking legitimate connections. Requires AWF v0.9.0+ and does not apply to Sandbox Runtime (SRT). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for full AWF options.
-
-### Effective Token Steering
-
-The AWF API proxy automatically injects budget-warning system messages as the run approaches its effective-token budget. Warnings fire at 80%, 90%, 95%, and 99% of the configured `max-effective-tokens`, giving the agent a chance to wrap up work before the budget is exhausted. Token steering requires AWF `v0.25.44` or later; for older pinned versions the setting is silently dropped at compile time.
-
-To disable token steering (and budget enforcement entirely), set `max-effective-tokens` to a negative value:
-
-```yaml wrap
-max-effective-tokens: -1
-```
-
-See [Max Effective Tokens](/gh-aw/reference/glossary/#max-effective-tokens-max-effective-tokens) for budget configuration.
 
 ### Disabling the Firewall
 
