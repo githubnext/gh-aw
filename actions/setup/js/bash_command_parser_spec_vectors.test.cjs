@@ -90,4 +90,10 @@ describe("bash_command_parser specification type contract", () => {
     expect(() => extractCommandName(input)).not.toThrow();
     expect(extractCommandName(input)).toBe("ls");
   });
+
+  it("extractCommandName handles moderate negation/group prefixes correctly", () => {
+    const input = `${"! ".repeat(64)}{ { ls /tmp; } }`;
+    expect(() => extractCommandName(input)).not.toThrow();
+    expect(extractCommandName(input)).toBe("ls");
+  });
 });
