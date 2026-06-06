@@ -17,6 +17,7 @@ const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_r
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
@@ -24,7 +25,7 @@ const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
-const COPILOT_SESSION_STATE_DIR = "/tmp/gh-aw/sandbox/agent/logs/copilot-session-state";
+const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded

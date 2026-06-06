@@ -2152,7 +2152,7 @@ describe("handle_agent_failure", () => {
     beforeEach(() => {
       vi.resetModules();
       try {
-        fs.rmSync("/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", { recursive: true, force: true });
+        fs.rmSync(path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state"), { recursive: true, force: true });
       } catch {}
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-tool-denials-exceeded-"));
       process.env.RUNNER_TEMP = tmpDir;
@@ -2165,12 +2165,12 @@ describe("handle_agent_failure", () => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
       try {
-        fs.rmSync("/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", { recursive: true, force: true });
+        fs.rmSync(path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state"), { recursive: true, force: true });
       } catch {}
     });
 
     it("loads guard.tool_denials_exceeded events from copilot session events.jsonl", () => {
-      const sessionDir = "/tmp/gh-aw/sandbox/agent/logs/copilot-session-state/session-1";
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
       fs.mkdirSync(sessionDir, { recursive: true });
       fs.writeFileSync(
         path.join(sessionDir, "events.jsonl"),
