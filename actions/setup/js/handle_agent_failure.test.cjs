@@ -2909,6 +2909,7 @@ describe("handle_agent_failure", () => {
           "- Learn about [AI Credits]({ai_credits_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
           "- `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.\n\n" +
+          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
           "{et_table_section}\n" +
           "- To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).\n" +
           "</details>\n"

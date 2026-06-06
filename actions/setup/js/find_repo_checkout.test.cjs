@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { extractRepoSlugFromUrl, normalizeRepoSlug, findGitDirectories, findRepoCheckout, buildRepoCheckoutMap } = require("./find_repo_checkout.cjs");
-const { getPatchPathForRepo, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch } = require("./generate_git_patch.cjs");
+const { getPatchPathForBranchInRepo, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch } = require("./generate_git_patch.cjs");
 
 describe("find_repo_checkout", () => {
   describe("extractRepoSlugFromUrl", () => {
@@ -212,29 +212,29 @@ describe("find_repo_checkout", () => {
 });
 
 describe("generate_git_patch multi-repo support", () => {
-  describe("getPatchPathForRepo", () => {
+  describe("getPatchPathForBranchInRepo", () => {
     it("should include repo slug in path", () => {
-      const filePath = getPatchPathForRepo("feature-branch", "owner/repo");
+      const filePath = getPatchPathForBranchInRepo("feature-branch", "owner/repo");
       expect(filePath).toBe("/tmp/gh-aw/aw-owner-repo-feature-branch.patch");
     });
 
     it("should sanitize repo slug", () => {
-      const filePath = getPatchPathForRepo("main", "org/my-project");
+      const filePath = getPatchPathForBranchInRepo("main", "org/my-project");
       expect(filePath).toBe("/tmp/gh-aw/aw-org-my-project-main.patch");
     });
 
     it("should sanitize branch name", () => {
-      const filePath = getPatchPathForRepo("feature/add-login", "owner/repo");
+      const filePath = getPatchPathForBranchInRepo("feature/add-login", "owner/repo");
       expect(filePath).toBe("/tmp/gh-aw/aw-owner-repo-feature-add-login.patch");
     });
 
     it("should handle complex repo names", () => {
-      const filePath = getPatchPathForRepo("main", "github/gh-aw");
+      const filePath = getPatchPathForBranchInRepo("main", "github/gh-aw");
       expect(filePath).toBe("/tmp/gh-aw/aw-github-gh-aw-main.patch");
     });
 
     it("should handle uppercase input", () => {
-      const filePath = getPatchPathForRepo("Feature-Branch", "Owner/Repo");
+      const filePath = getPatchPathForBranchInRepo("Feature-Branch", "Owner/Repo");
       expect(filePath).toBe("/tmp/gh-aw/aw-owner-repo-feature-branch.patch");
     });
   });

@@ -6,6 +6,7 @@
 - Learn about [AI Credits]({ai_credits_spec_link}).
 {usage_line}{budget_line}{run_line}
 - `max-effective-tokens` is deprecated; use `max-ai-credits` in workflow frontmatter.
+You can tune this limit with `max-ai-credits` in workflow frontmatter.
 
 {et_table_section}
 - To budget and optimize this workflow, follow the [cost management guidance]({cost_management_link}).
