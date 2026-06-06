@@ -30,7 +30,7 @@ safe-outputs:
     max: 1
   threat-detection: false
 timeout-minutes: 30
-max-ai-credits: 1200
+max-ai-credits: 1500
 steps:
   - name: Download recent agentic workflow logs
     env:
