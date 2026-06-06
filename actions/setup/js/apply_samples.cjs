@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+/// <reference types="@actions/github-script" />
 
 // apply_samples.cjs
 //
@@ -25,6 +26,8 @@
 //   GITHUB_WORKSPACE          — git working directory for pre-staging (optional;
 //                               falls back to cwd)
 
+require("./shim.cjs");
+
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -49,7 +52,7 @@ const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_reques
 function loadSamples() {
   const raw = process.env.GH_AW_SAMPLES;
   if (!raw || !raw.trim()) {
-    console.error("apply_samples: GH_AW_SAMPLES is empty — no samples to replay.");
+    core.warning("apply_samples: GH_AW_SAMPLES is empty — no samples to replay.");
     return [];
   }
   let parsed;
@@ -61,7 +64,7 @@ function loadSamples() {
   // Tolerate a literal JSON `null` payload (older compiler emitted it for
   // workflows with --use-samples but no `samples:` entries). Treat as empty.
   if (parsed === null) {
-    console.error("apply_samples: GH_AW_SAMPLES is null — treating as no samples to replay.");
+    core.warning("apply_samples: GH_AW_SAMPLES is null — treating as no samples to replay.");
     return [];
   }
   if (!Array.isArray(parsed)) {
@@ -132,7 +135,7 @@ function preStagePatch(entry, index, workspace) {
   try {
     runGit(["checkout", DEFAULT_BASE_BRANCH], workspace);
   } catch (err) {
-    console.error(`apply_samples: could not check out base branch ${DEFAULT_BASE_BRANCH}: ${getErrorMessage(err)}; staying on current HEAD`);
+    core.warning(`apply_samples: could not check out base branch ${DEFAULT_BASE_BRANCH}: ${getErrorMessage(err)}; staying on current HEAD`);
   }
 
   // Create the branch (or check it out if it already exists from a previous sample).
@@ -258,13 +261,13 @@ async function main() {
   });
 
   if (samples.length === 0) {
-    console.error("apply_samples: nothing to replay; exiting cleanly.");
+    core.info("apply_samples: nothing to replay; exiting cleanly.");
     writeSyntheticStdioLog(logPath, 0);
     return;
   }
 
   const serverPath = resolveMcpServerPath();
-  console.error(`apply_samples: spawning MCP server ${serverPath}`);
+  core.info(`apply_samples: spawning MCP server ${serverPath}`);
   const child = spawn(process.execPath, [serverPath], {
     stdio: ["pipe", "pipe", "inherit"],
     env: process.env,
@@ -317,7 +320,7 @@ async function main() {
         const text = result.content && result.content[0] && result.content[0].text;
         failures.push(`sample[${i}] (tool=${sample.tool}): ${text || JSON.stringify(result)}`);
       } else {
-        console.error(`apply_samples: sample[${i}] (tool=${sample.tool}) ok`);
+        core.info(`apply_samples: sample[${i}] (tool=${sample.tool}) ok`);
       }
     }
   } finally {
@@ -348,13 +351,12 @@ async function main() {
   if (failures.length > 0) {
     throw new Error(`apply_samples: ${failures.length} sample(s) failed:\n  - ${failures.join("\n  - ")}`);
   }
-  console.error(`apply_samples: ${samples.length} sample(s) replayed successfully.`);
+  core.info(`apply_samples: ${samples.length} sample(s) replayed successfully.`);
 }
 
 if (require.main === module) {
   main().catch(err => {
-    console.error(err && err.stack ? err.stack : String(err));
-    process.exit(1);
+    core.setFailed(err && err.stack ? err.stack : String(err));
   });
 }
 
