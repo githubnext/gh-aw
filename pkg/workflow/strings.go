@@ -240,7 +240,7 @@ func PrettifyToolName(toolName string) string {
 	}
 
 	// Handle bash specially - keep as "bash"
-	if strings.ToLower(toolName) == "bash" {
+	if strings.EqualFold(toolName, "bash") {
 		return "bash"
 	}
 

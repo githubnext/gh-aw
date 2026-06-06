@@ -19,11 +19,7 @@ const MAX_AI_CREDITS_FIELDS = new Set(["max_ai_credits", "maxAiCredits"]);
 const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
 const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error", "aiCreditsRateLimitError"]);
 const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
-const AI_CREDITS_RATE_LIMIT_PATTERNS = [
-  /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
-  /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i,
-  /\bai_credits_limit_exceeded\b/i,
-];
+const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
 
 const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
@@ -331,8 +327,7 @@ function resolveEffectiveTokensFailureState() {
   const envMaxEffectiveTokens = parsePositiveEffectiveTokenLimitString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
-  const rawEffectiveTokensRateLimitError =
-    parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
+  const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
   return { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError };
 }

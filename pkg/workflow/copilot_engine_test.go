@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -15,6 +16,11 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
+
+func containsEnvValue(stepContent, key, value string) bool {
+	return strings.Contains(stepContent, key+": "+value) ||
+		strings.Contains(stepContent, key+`: "`+value+`"`)
+}
 
 func TestCopilotEngine(t *testing.T) {
 	engine := NewCopilotEngine()
@@ -301,6 +307,11 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, expectedMaxToolDenials) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedMaxToolDenials, stepContent)
 	}
+	defaultTimeoutMinutes := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	expectedTimeoutEnv := "GH_AW_TIMEOUT_MINUTES: " + defaultTimeoutMinutes
+	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", defaultTimeoutMinutes) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedTimeoutEnv, stepContent)
+	}
 	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from npm global root, got:\n%s", stepContent)
 	}
@@ -356,6 +367,30 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	// The promptFile JSON field must not appear (old stdin-payload format is gone).
 	if strings.Contains(stepContent, `"promptFile"`) {
 		t.Fatalf("Expected SDK driver mode to not embed promptFile JSON (old stdin format), got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKTimeoutExpression(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name:           "test-workflow",
+		TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "timeout-minutes: ${{ inputs.timeout }}") {
+		t.Fatalf("Expected timeout-minutes expression in step, got:\n%s", stepContent)
+	}
+	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", "${{ inputs.timeout }}") {
+		t.Fatalf("Expected GH_AW_TIMEOUT_MINUTES expression in step env, got:\n%s", stepContent)
 	}
 }
 

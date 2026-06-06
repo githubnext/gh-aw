@@ -44,7 +44,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 
-`max-runs` (default `500`) and `max-effective-tokens` (default `25M`) are top-level frontmatter fields supported by all engines. `max-turns` limits Claude iterations per run; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
+`max-runs` (default `500`) and `max-ai-credits` (default `25M`) are top-level frontmatter fields supported by all engines. `max-turns` limits Claude iterations per run; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
 
 ## Extended Coding Agent Configuration
 
@@ -359,7 +359,7 @@ Defaults to `false`.
 
 ### Custom Token Weights (`token-weights`)
 
-Override the built-in token cost multipliers used when computing [Effective Tokens](/gh-aw/specs/effective-tokens-specification/). Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
+Override the built-in token cost multipliers used when computing the AI Credits (AIC) cost for a run. Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
 
 ```yaml wrap
 engine:

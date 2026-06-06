@@ -227,22 +227,22 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 >
 > Use engine-specific secret configuration instead of the `env:` section to pass secrets securely.
 
-### Effective Token Budget (`max-effective-tokens:`)
+### AI Credits Guardrail (`max-ai-credits:`)
 
-Sets the AWF effective-token budget used for cost enforcement. Defaults to `25M` when omitted. Token steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and token steering.
+Sets the AWF AI Credits budget used for cost enforcement. Defaults to `25M` when omitted. Steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and steering.
 
 ```yaml wrap
-max-effective-tokens: 5M
+max-ai-credits: 5M
 ```
 
 ```yaml wrap
 # Equivalent shorthand
-max-effective-tokens: 100M
+max-ai-credits: 100M
 ```
 
 ```yaml wrap
-# Disable budget enforcement and token steering
-max-effective-tokens: -1
+# Disable budget enforcement and steering
+max-ai-credits: -1
 ```
 
 ### Daily Per-Workflow AI Credits Guardrail (`max-daily-ai-credits:`)

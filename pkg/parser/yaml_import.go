@@ -36,7 +36,7 @@ func isYAMLWorkflowFile(filePath string) bool {
 func isActionDefinitionFile(filePath string, content []byte) (bool, error) {
 	// Quick check: action.yml or action.yaml filename
 	base := filepath.Base(filePath)
-	if strings.ToLower(base) == "action.yml" || strings.ToLower(base) == "action.yaml" {
+	if strings.EqualFold(base, "action.yml") || strings.EqualFold(base, "action.yaml") {
 		return true, nil
 	}
 

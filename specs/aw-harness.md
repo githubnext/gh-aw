@@ -305,7 +305,7 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 > # ── Harness config (optional) ───────────────────────────────
 > harness:
 >   budget:
->     max-effective-tokens: 100000
+>     max-ai-credits: 100000
 >
 >   context:
 >     compaction: summarize

@@ -20,6 +20,16 @@ describe("permission_denied_helpers.cjs", () => {
     expect(extractDeniedCommands(output)).toEqual(["go version 2>&1", "ls /usr/local/go"]);
   });
 
+  it("extracts denied commands from Copilot SDK driver tool denial logs", () => {
+    const output = [
+      "[copilot-sdk-driver] [sdk-driver] permission denied by workflow tool permissions: shell(agenticworkflows --help 2>&1 | head -60)",
+      "[copilot-sdk-driver] [sdk-driver] tool denial 1/5: permission denied: shell(agenticworkflows --help 2>&1 | head -60)",
+      "[copilot-sdk-driver] [sdk-driver] permission denied by workflow tool permissions: read",
+      "[copilot-sdk-driver] [sdk-driver] tool denial 3/5: permission denied: read",
+    ].join("\n");
+    expect(extractDeniedCommands(output)).toEqual(["shell(agenticworkflows --help 2>&1 | head -60)", "read"]);
+  });
+
   it("builds missing_tool payload with default denied commands", () => {
     const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
     expect(payload).toEqual({

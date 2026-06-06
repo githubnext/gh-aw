@@ -648,8 +648,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
-    // Store the patch path in the entry so consumers know which file to use
-    entry.patch_path = patchResult.patchPath;
+    // Patch/bundle paths are not transmitted via the safe-output entry: the
+    // privileged safe_outputs job re-derives them from the (validated) branch name
+    // using resolve_transport_paths.
 
     // Store the base commit SHA so the create_pull_request handler can use it
     // directly in the fallback path (the From <sha> header in format-patch output
@@ -724,8 +725,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         }
       }
 
-      // Store the bundle path in the entry so consumers know which file to use
-      entry.bundle_path = bundleResult.bundlePath;
+      // Bundle path is not transmitted via the safe-output entry: the privileged
+      // safe_outputs job re-derives it from the (validated) branch name using
+      // resolve_transport_paths.
 
       // Prefer the base_commit captured from format-patch generation (used by
       // patch-based fallback/apply paths). Only fall back to bundle base commit
@@ -1061,8 +1063,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines, diffSize=${patchResult.diffSize ?? "(n/a)"} bytes)`);
 
-    // Store the patch path in the entry so consumers know which file to use
-    entry.patch_path = patchResult.patchPath;
+    // Patch/bundle paths are not transmitted via the safe-output entry: the
+    // privileged safe_outputs job re-derives them from the (validated) branch name
+    // using resolve_transport_paths.
 
     // Store the base commit SHA so the push handler can use it directly
     if (patchResult.baseCommit) {
@@ -1144,8 +1147,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         }
       }
 
-      // Store the bundle path in the entry so consumers know which file to use
-      entry.bundle_path = bundleResult.bundlePath;
+      // Bundle path is not transmitted via the safe-output entry: the privileged
+      // safe_outputs job re-derives it from the (validated) branch name using
+      // resolve_transport_paths.
 
       // Prefer the base_commit captured from format-patch generation (used by
       // patch-based fallback/apply paths). Only fall back to bundle base commit

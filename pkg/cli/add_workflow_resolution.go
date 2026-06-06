@@ -456,7 +456,7 @@ func checkWorkflowHasDispatchFromContent(content string) bool {
 		return strings.Contains(strings.ToLower(on), "workflow_dispatch")
 	case []any:
 		for _, item := range on {
-			if str, ok := item.(string); ok && strings.ToLower(str) == "workflow_dispatch" {
+			if str, ok := item.(string); ok && strings.EqualFold(str, "workflow_dispatch") {
 				return true
 			}
 		}

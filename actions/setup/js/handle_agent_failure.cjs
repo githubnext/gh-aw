@@ -11,13 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const {
-  resolveFirewallAuditLogPath,
-  parseMaxEffectiveTokensFromAuditLog,
-  parseEffectiveTokensErrorInfoFromAuditLog,
-  resolveEffectiveTokensFailureState,
-  resolveAICreditsFailureState,
-} = require("./effective_tokens_context.cjs");
+const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
 const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");

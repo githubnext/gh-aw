@@ -663,7 +663,7 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 		}
 		seen[key] = true
 
-		if strings.ToLower(loc.FieldName) == targetLower {
+		if strings.EqualFold(loc.FieldName, targetField) {
 			loc.Distance = 0
 			exactMatches = append(exactMatches, loc)
 		}

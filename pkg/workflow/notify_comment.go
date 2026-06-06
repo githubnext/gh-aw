@@ -619,7 +619,7 @@ func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
 	flag := strings.ToLower(strings.TrimSpace(string(constants.GroupConcurrencyQueueFeatureFlag)))
 	if data != nil && data.Features != nil {
 		for key, value := range data.Features {
-			if strings.ToLower(key) == flag {
+			if strings.EqualFold(key, flag) {
 				return parseGroupConcurrencyQueueFeatureValue(value)
 			}
 		}
