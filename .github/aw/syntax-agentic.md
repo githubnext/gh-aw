@@ -266,7 +266,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
             run: echo "Custom job"
     ```
 
-  - Built-in job example (OIDC/secret bootstrap before token minting):
+  - Built-in job example (OIDC/secret bootstrap before token minting). Replace the placeholder fetch command with your real secret manager/API call:
 
     ```yaml
     jobs:
