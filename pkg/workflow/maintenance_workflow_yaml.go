@@ -607,18 +607,18 @@ jobs:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         run: |
           mkdir -p ./.cache/gh-aw/forecast
-          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --start-date -30d --count 1500 > /dev/null
+          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --start-date -30d --count 1500 --artifacts agent > /dev/null
           if ! compgen -G ".github/aw/logs/run-*/run_summary.json" > /dev/null; then
             echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
             exit 1
           fi
           set +e
-          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 10 --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 30 --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
           forecast_exit_code=$?
           set -e
           if [ "${forecast_exit_code}" -eq 124 ]; then
-            echo '{"outcome":"timeout","message":"Forecast computation timed out after 10 minutes."}' > ./.cache/gh-aw/forecast/error.json
-            echo "::error::Forecast computation timed out after 10 minutes."
+            echo '{"outcome":"timeout","message":"Forecast computation timed out after 30 minutes."}' > ./.cache/gh-aw/forecast/error.json
+            echo "::error::Forecast computation timed out after 30 minutes."
             exit 1
           fi
           if [ "${forecast_exit_code}" -ne 0 ]; then
