@@ -22,7 +22,7 @@ function escapeCell(value) {
  * @param {unknown} value
  * @returns {string}
  */
-function formatET(value) {
+function formatAIC(value) {
   const n = Number(value ?? 0);
   if (!Number.isFinite(n) || n <= 0) {
     return "0";
@@ -38,7 +38,7 @@ function formatET(value) {
 function buildForecastIssueBody(report, options) {
   const workflows = Array.isArray(report?.workflows) ? report.workflows : [];
   const rows = workflows.map(workflow => {
-    const p50 = workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
+    const p50 = workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
     return [escapeCell(workflow.workflow_id), workflow.sampled_runs ?? 0, Number(p50)];
   });
 
@@ -48,7 +48,7 @@ function buildForecastIssueBody(report, options) {
   const zeroWorkflowVerb = zeroProjectedWithSamples === 1 ? "has" : "have";
   const reportTable =
     rows.length > 0
-      ? ["| Workflow | Sampled runs | Forecast ET (P50) |", "| --- | ---: | ---: |", ...rows.map(([workflowID, sampledRuns, p50]) => `| ${workflowID} | ${sampledRuns} | ${formatET(p50)} |`)].join("\n")
+      ? ["| Workflow | Sampled runs | Forecast AIC (P50) |", "| --- | ---: | ---: |", ...rows.map(([workflowID, sampledRuns, p50]) => `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50)} |`)].join("\n")
       : "_No forecast rows were produced._";
 
   const repoSlug = `${options.owner}/${options.repo}`;
@@ -60,7 +60,7 @@ function buildForecastIssueBody(report, options) {
   const allProjectedZeroNote = allProjectedZero
     ? [
         "> [!NOTE]",
-        "> All projected ET values are 0 even after cache warm-up. This usually means cached run summaries do not include token usage for sampled runs.",
+        "> All projected AIC values are 0 even after cache warm-up. This usually means cached run summaries do not include token usage for sampled runs.",
         "> Verify gh aw logs fetched recent runs and that run_summary.json files include token usage.",
         "",
       ].join("\n")
@@ -69,7 +69,7 @@ function buildForecastIssueBody(report, options) {
     zeroProjectedWithSamples > 0
       ? [
           "> [!TIP]",
-          `> ${zeroProjectedWithSamples} ${zeroWorkflowWord} ${zeroWorkflowVerb} sampled runs but forecast ET is 0. This usually indicates missing token usage in cached run summaries for sampled runs.`,
+          `> ${zeroProjectedWithSamples} ${zeroWorkflowWord} ${zeroWorkflowVerb} sampled runs but forecast AIC is 0. This usually indicates missing token usage in cached run summaries for sampled runs.`,
           "> Increase the warm-up scope with `gh aw logs --start-date -30d --count <larger value>` if this persists.",
           "",
         ].join("\n")
@@ -172,7 +172,7 @@ async function main() {
 module.exports = {
   main,
   buildForecastIssueBody,
-  formatET,
+  formatAIC,
   escapeCell,
   FORECAST_REPORT_PATH,
   FORECAST_ERROR_PATH,
