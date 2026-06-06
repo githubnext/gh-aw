@@ -47,6 +47,16 @@ function getActionFailureIssueExpiresHours() {
 }
 
 /**
+ * Build a GitHub markdown warning alert line.
+ * @param {string} title
+ * @param {string} message
+ * @returns {string}
+ */
+function buildWarningAlertLine(title, message) {
+  return `\n> [!WARNING]\n> **${title}**: ${message}\n`;
+}
+
+/**
  * Attempt to find a pull request for the current branch
  * @returns {Promise<{number: number, html_url: string, head_sha: string, mergeable: boolean | null, mergeable_state: string, updated_at: string} | null>} PR info or null if not found
  */
@@ -615,7 +625,7 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
     return "";
   }
 
-  let context = "\n**⚠️ Create Discussion Failed**: Failed to create one or more discussions.\n\n**Discussion Errors:**\n";
+  let context = buildWarningAlertLine("Create Discussion Failed", "Failed to create one or more discussions.") + "\n**Discussion Errors:**\n";
   const errorLines = createDiscussionErrors.split("\n").filter(line => line.trim());
   for (const errorLine of errorLines) {
     const parts = errorLine.split(":");
@@ -788,9 +798,9 @@ ${runUrl ? `\nThe patch artifact is available at: [View run and download artifac
 
   // Generic code-push failure section
   if (otherErrors.length > 0) {
-    context += "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.";
+    context += buildWarningAlertLine("Code Push Failed", "A code push safe output failed, and subsequent safe outputs were cancelled.");
     if (pullRequest) {
-      context += `\n\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+      context += `\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
 
       // Add PR state diagnostics
       const workflowSha = process.env.GITHUB_SHA || "";
@@ -802,14 +812,14 @@ ${runUrl ? `\nThe patch artifact is available at: [View run and download artifac
       } else if (pullRequest.mergeable_state === "dirty") {
         prDetails.push("❌ **PR is in dirty state** - likely has merge conflicts");
       } else if (pullRequest.mergeable_state === "blocked") {
-        prDetails.push("⚠️ **PR is blocked** - required status checks or reviews may be missing");
+        prDetails.push("**PR is blocked** - required status checks or reviews may be missing");
       } else if (pullRequest.mergeable_state === "behind") {
-        prDetails.push("⚠️ **PR is behind base branch** - may need to be updated");
+        prDetails.push("**PR is behind base branch** - may need to be updated");
       }
 
       // Check if branch was updated since workflow started
       if (workflowSha && pullRequest.head_sha && workflowSha !== pullRequest.head_sha) {
-        prDetails.push(`⚠️ **Branch was updated** - workflow started at \`${workflowSha.substring(0, 7)}\`, PR head is now \`${pullRequest.head_sha.substring(0, 7)}\``);
+        prDetails.push(`**Branch was updated** - workflow started at \`${workflowSha.substring(0, 7)}\`, PR head is now \`${pullRequest.head_sha.substring(0, 7)}\``);
       }
 
       // Add SHA info for debugging
@@ -866,9 +876,10 @@ function buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryP
     return context;
   }
   return (
-    "\n**⚠️ Repo-Memory Push Failed**: The push-repo-memory job failed to write memory back to the repository. This may indicate a permission issue, a configuration error, or a network problem. Check the [workflow run](" +
-    runUrl +
-    ") for details.\n\n"
+    buildWarningAlertLine(
+      "Repo-Memory Push Failed",
+      "The push-repo-memory job failed to write memory back to the repository. This may indicate a permission issue, a configuration error, or a network problem. Check the [workflow run](" + runUrl + ") for details."
+    ) + "\n"
   );
 }
 
@@ -932,7 +943,7 @@ function buildMissingDataContext(cacheMemoryEnabled, items) {
   // Format the missing data using the existing formatter
   const formattedList = formatMissingData(missingDataMessages);
 
-  let context = "\n**⚠️ Missing Data Reported**: The agent reported missing data during execution.\n\n**Missing Data:**\n";
+  let context = buildWarningAlertLine("Missing Data Reported", "The agent reported missing data during execution.") + "\n**Missing Data:**\n";
   context += formattedList;
   context += "\n\n";
 
@@ -1003,7 +1014,7 @@ function buildMissingToolContext(items) {
 
   const formattedList = formatMissingTools(missingToolMessages);
 
-  let context = "\n**⚠️ Missing Tools Reported**: The agent reported missing tools during execution.\n\n**Missing Tools:**\n";
+  let context = buildWarningAlertLine("Missing Tools Reported", "The agent reported missing tools during execution.") + "\n**Missing Tools:**\n";
   context += formattedList;
   context += "\n\n";
 
@@ -1143,7 +1154,7 @@ function buildToolDenialsExceededContext(events, workflowId) {
     );
   } catch {
     return (
-      `\n**⚠️ Excessive Tool Denials**: The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.\n\n` +
+      buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
       `**Last denied request:** \`${reason}\`\n\n` +
       "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
     );
@@ -1200,7 +1211,7 @@ function buildReportIncompleteContext(items) {
 
   core.info(`Found ${messages.length} report_incomplete signal(s)`);
 
-  let context = "\n**⚠️ Task Could Not Be Completed**: The agent reported that the task could not be performed due to an infrastructure or tool failure.\n\n**Reasons:**\n";
+  let context = buildWarningAlertLine("Task Could Not Be Completed", "The agent reported that the task could not be performed due to an infrastructure or tool failure.") + "\n**Reasons:**\n";
   for (const msg of messages) {
     context += `- ${msg.reason}\n`;
     if (msg.details) {
@@ -1877,7 +1888,7 @@ function buildEngineFailureContext() {
         }
       }
 
-      let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated before producing output.\n\n**Error details:**\n`;
+      let context = buildWarningAlertLine("Engine Failure", `The${engineLabel} engine terminated before producing output.`) + "\n**Error details:**\n";
       for (const message of errorMessages) {
         context += `- ${message}\n`;
       }
@@ -1913,7 +1924,7 @@ function buildEngineFailureContext() {
         process.env.GH_AW_ENGINE_ID === "copilot"
           ? "If this failure recurs, check the GitHub Copilot status page and review the firewall audit logs.\n\n"
           : "If this failure recurs, check the provider status page (if available) and review the firewall audit logs.\n\n";
-      let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated before producing output.\n\n`;
+      let context = buildWarningAlertLine("Engine Failure", `The${engineLabel} engine terminated before producing output.`) + "\n";
       context += "The engine exited immediately without producing any output. This often indicates a transient infrastructure issue (e.g., service unavailable, API rate limiting). " + recurringFailureGuidance;
       return context;
     }
@@ -1921,7 +1932,7 @@ function buildEngineFailureContext() {
     const tailLines = agentLines.slice(-TAIL_LINES);
     core.info(`No specific error patterns found; including last ${tailLines.length} line(s) of agent-stdio.log as fallback`);
 
-    let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated unexpectedly.\n\n**Last agent output:**\n\`\`\`\n`;
+    let context = buildWarningAlertLine("Engine Failure", `The${engineLabel} engine terminated unexpectedly.`) + "\n**Last agent output:**\n\`\`\`\n";
     context += tailLines.join("\n");
     context += "\n```\n\n";
     return context;
@@ -2587,7 +2598,7 @@ async function main() {
         // Build assignment errors context
         let assignmentErrorsContext = "";
         if (hasAssignmentErrors && assignmentErrors) {
-          assignmentErrorsContext = "\n**⚠️ Agent Assignment Failed**: Failed to assign agent to issues due to insufficient permissions or missing token.\n\n**Assignment Errors:**\n";
+          assignmentErrorsContext = buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues due to insufficient permissions or missing token.") + "\n**Assignment Errors:**\n";
           const errorLines = assignmentErrors.split("\n").filter(line => line.trim());
           for (const errorLine of errorLines) {
             const parts = errorLine.split(":");
@@ -2611,7 +2622,7 @@ async function main() {
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
-          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.";
+          repoMemoryValidationContext = buildWarningAlertLine("Repo-Memory Validation Failed", "Invalid file types detected in repo-memory.");
           if (pullRequest) {
             repoMemoryValidationContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
           }
@@ -2641,7 +2652,7 @@ async function main() {
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
-          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs.";
+          missingSafeOutputsContext = buildWarningAlertLine("No Safe Outputs Generated", "The agent job succeeded but did not produce any safe outputs.");
           if (pullRequest) {
             missingSafeOutputsContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
           }
@@ -2697,7 +2708,8 @@ async function main() {
           secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed"
-              ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
+              ? buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
+                "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
@@ -2806,7 +2818,7 @@ async function main() {
         // Build assignment errors context
         let assignmentErrorsContext = "";
         if (hasAssignmentErrors && assignmentErrors) {
-          assignmentErrorsContext = "\n**⚠️ Agent Assignment Failed**: Failed to assign agent to issues due to insufficient permissions or missing token.\n\n**Assignment Errors:**\n";
+          assignmentErrorsContext = buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues due to insufficient permissions or missing token.") + "\n**Assignment Errors:**\n";
           const errorLines = assignmentErrors.split("\n").filter(line => line.trim());
           for (const errorLine of errorLines) {
             const parts = errorLine.split(":");
@@ -2830,7 +2842,7 @@ async function main() {
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
-          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.";
+          repoMemoryValidationContext = buildWarningAlertLine("Repo-Memory Validation Failed", "Invalid file types detected in repo-memory.");
           if (pullRequest) {
             repoMemoryValidationContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
           }
@@ -2861,7 +2873,7 @@ async function main() {
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
-          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs.";
+          missingSafeOutputsContext = buildWarningAlertLine("No Safe Outputs Generated", "The agent job succeeded but did not produce any safe outputs.");
           if (pullRequest) {
             missingSafeOutputsContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
           }
@@ -2918,7 +2930,8 @@ async function main() {
           secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed"
-              ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
+              ? buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
+                "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,

@@ -1100,7 +1100,8 @@ describe("handle_agent_failure", () => {
 
     it("shows generic failure message when failure but no patch size exceeded", () => {
       const result = buildPushRepoMemoryFailureContext(true, [], "https://example.com/run");
-      expect(result).toContain("⚠️ Repo-Memory Push Failed");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("Repo-Memory Push Failed");
       expect(result).toContain("https://example.com/run");
       expect(result).not.toContain("📦 Repo-Memory Patch Size Exceeded");
     });
@@ -1436,6 +1437,7 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Engine Failure");
       expect(result).toContain("quota exceeded");
       expect(result).toContain("Error details:");
+      expect(result).toContain("> [!WARNING]");
     });
 
     it("returns dedicated context for engine 429/rate-limit failures in stdio logs", () => {
@@ -2002,6 +2004,8 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Missing Tools Reported");
       expect(result).toContain("bash");
       expect(result).toContain("bash is not available");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).not.toContain("**⚠️ Missing Tools Reported**");
     });
 
     it("returns missing tool context for tool with alternatives", () => {
@@ -2198,6 +2202,7 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("5/5");
       expect(result).toContain("guard.tool_denials_exceeded");
       expect(result).toContain("daily-spdd-spec-planner");
+      expect(result).toContain("> [!WARNING]");
     });
   });
 

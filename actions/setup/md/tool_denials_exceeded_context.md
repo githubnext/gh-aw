@@ -1,5 +1,6 @@
 
-**⚠️ Excessive Tool Denials**: The Copilot SDK hit the max tool denial guardrail and stopped the session early (`{denial_count}/{threshold}`).
+> [!WARNING]
+> **Excessive Tool Denials**: The Copilot SDK hit the max tool denial guardrail and stopped the session early (`{denial_count}/{threshold}`).
 
 **Last denied request:**
 {reason}
