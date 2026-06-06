@@ -58,7 +58,7 @@ The specification defines **7 security guarantees (SG-01 to SG-07)**:
 
 - **130+ formal requirements** using RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
 - **70+ compliance tests** across 8 categories
-- **8 comprehensive appendices** with diagrams, examples, and best practices
+- **8 appendices** with diagrams, examples, and best practices
 
 ### Test Categories
 
