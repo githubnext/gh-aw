@@ -526,12 +526,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpr
 		"on":                   "push",
 		"max-runs":             "${{ inputs.max-runs }}",
 		"max-effective-tokens": "${{ inputs.max-effective-tokens }}",
+		"max-ai-credits":       "${{ inputs.max-ai-credits }}",
 		"max-daily-ai-credits": "${{ inputs.max-daily-ai-credits }}",
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-expression-test.md")
 	if err != nil {
-		t.Fatalf("expected max-runs/max-effective-tokens/max-daily-ai-credits expressions to pass schema validation, got: %v", err)
+		t.Fatalf("expected max-runs/max-effective-tokens/max-ai-credits/max-daily-ai-credits expressions to pass schema validation, got: %v", err)
 	}
 }
 
@@ -541,12 +542,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 	validFrontmatter := map[string]any{
 		"on":                   "push",
 		"max-effective-tokens": "100M",
+		"max-ai-credits":       "1k",
 		"max-daily-ai-credits": "100k",
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-suffix-test.md")
 	if err != nil {
-		t.Fatalf("expected max-effective-tokens/max-daily-ai-credits suffix strings to pass schema validation, got: %v", err)
+		t.Fatalf("expected max-effective-tokens/max-ai-credits/max-daily-ai-credits suffix strings to pass schema validation, got: %v", err)
 	}
 }
 
@@ -556,12 +558,27 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 	validFrontmatter := map[string]any{
 		"on":                   "push",
 		"max-effective-tokens": "100k",
+		"max-ai-credits":       "2M",
 		"max-daily-ai-credits": "100M",
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-suffix-case-variants-test.md")
 	if err != nil {
-		t.Fatalf("expected max-effective-tokens/max-daily-ai-credits suffix case variants to pass schema validation, got: %v", err)
+		t.Fatalf("expected max-effective-tokens/max-ai-credits/max-daily-ai-credits suffix case variants to pass schema validation, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsZeroInvalid(t *testing.T) {
+	t.Parallel()
+
+	invalidFrontmatter := map[string]any{
+		"on":             "push",
+		"max-ai-credits": 0,
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-ai-credits-zero-integer-test.md")
+	if err == nil {
+		t.Fatal("expected max-ai-credits=0 to fail schema validation")
 	}
 }
 

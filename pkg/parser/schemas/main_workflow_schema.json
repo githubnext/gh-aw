@@ -3686,10 +3686,20 @@
       "description": "AWF turn cap (`max_turns`) applied consistently across all agentic engines. Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for reusable workflow_call workflows.",
       "examples": [15, "${{ inputs.max-turns }}"]
     },
+    "max-tool-denials": {
+      "$ref": "#/$defs/templatable_integer",
+      "description": "Copilot SDK safeguard threshold for repeated tool denials before stopping inference. Defaults to 5 when omitted. Supports GitHub Actions expressions (for example, '${{ inputs.max-tool-denials }}'). Supported only with engine 'copilot' and engine.copilot-sdk: true.",
+      "default": 5,
+      "examples": [5, "${{ inputs.max-tool-denials }}"]
+    },
     "max-effective-tokens": {
       "$ref": "#/$defs/max_effective_tokens_limit",
-      "default": 25000000,
-      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
+      "description": "Explicit ET budget control for firewall cost enforcement. Omit to leave the budget unset. Supports GitHub Actions expressions."
+    },
+    "max-ai-credits": {
+      "$ref": "#/$defs/max_ai_credits_limit",
+      "default": 1000,
+      "description": "Per-run AI Credits budget control for firewall cost enforcement. Defaults to 1000 when omitted. Supports GitHub Actions expressions."
     },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
@@ -10526,6 +10536,10 @@
           "pattern": "^-1$"
         }
       ]
+    },
+    "max_ai_credits_limit": {
+      "description": "Maximum AI Credits budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions).",
+      "$ref": "#/$defs/positive_ai_credits_limit"
     },
     "job_strategy": {
       "type": "object",

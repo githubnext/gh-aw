@@ -408,7 +408,7 @@ constants.PriorityWorkflowFields  // []string{"on","permissions","if","network",
 constants.IgnoredFrontmatterFields // []string{"user-invokable"}
 
 // Fields forbidden in shared/imported workflows (only valid in main workflows)
-constants.SharedWorkflowForbiddenFields // []string{"on","command","concurrency",...}
+constants.SharedWorkflowForbiddenFields // []string{"on","concurrency","container",...}
 
 // Events that do not require permission checks
 constants.SafeWorkflowEvents      // []string{"workflow_dispatch","schedule"}

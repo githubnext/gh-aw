@@ -72,6 +72,7 @@ func TestResolveDefaultsTarget(t *testing.T) {
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
 		DefaultMaxEffectiveTokens: new("10000"),
+		DefaultMaxAICredits:       new("1000"),
 		DefaultMaxDailyAICredits:  new("500000"),
 		DefaultMaxTurns:           new("42"),
 		DefaultTimeoutMinutes:     new("90"),
@@ -87,6 +88,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 
 	yml := string(data)
 	assert.Contains(t, yml, "default_max_effective_tokens:")
+	assert.Contains(t, yml, "default_max_ai_credits:")
 	assert.Contains(t, yml, "default_max_daily_ai_credits:")
 	assert.Contains(t, yml, "default_max_turns:")
 	assert.Contains(t, yml, "default_timeout_minutes:")
@@ -133,6 +135,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("accepts valid values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
 			DefaultMaxEffectiveTokens: new("-1"),
+			DefaultMaxAICredits:       new("1000"),
 			DefaultMaxDailyAICredits:  new("500000"),
 			DefaultMaxTurns:           new("12"),
 			DefaultTimeoutMinutes:     new("30"),
@@ -148,6 +151,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
 			DefaultMaxEffectiveTokens: new("0"),
+			DefaultMaxAICredits:       new("0"),
 			DefaultMaxDailyAICredits:  new("0"),
 			DefaultMaxTurns:           new("abc"),
 			DefaultTimeoutMinutes:     new("0"),
@@ -156,6 +160,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a non-zero integer when set")
+		assert.Contains(t, err.Error(), "default_max_ai_credits must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_max_daily_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")
@@ -185,14 +190,14 @@ func TestDefaultsBuildUpdateChanges(t *testing.T) {
 	assert.Equal(t, "default_max_effective_tokens", changes[0].field)
 	assert.Equal(t, "10000", changes[0].value)
 	assert.False(t, changes[0].delete)
-	assert.Equal(t, "default_max_daily_ai_credits", changes[1].field)
+	assert.Equal(t, "default_max_ai_credits", changes[1].field)
 	assert.True(t, changes[1].delete)
-	assert.Equal(t, "default_max_turns", changes[2].field)
+	assert.Equal(t, "default_max_daily_ai_credits", changes[2].field)
 	assert.True(t, changes[2].delete)
-	assert.Equal(t, "default_timeout_minutes", changes[3].field)
+	assert.Equal(t, "default_max_turns", changes[3].field)
 	assert.True(t, changes[3].delete)
-	assert.Equal(t, "default_utc", changes[5].field)
-	assert.True(t, changes[5].delete)
+	assert.Equal(t, "default_utc", changes[6].field)
+	assert.True(t, changes[6].delete)
 	assert.Equal(t, "default_model_codex", changes[len(changes)-1].field)
 	assert.Equal(t, "gpt-5.5", changes[len(changes)-1].value)
 }

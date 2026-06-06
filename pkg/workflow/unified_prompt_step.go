@@ -267,8 +267,16 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	unifiedPromptLog.Print("Generating unified prompt creation step")
 	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
 
-	// Get the heredoc delimiter for consistent usage
-	delimiter := GenerateHeredocDelimiterFromSeed("PROMPT", data.FrontmatterHash)
+	// Derive the heredoc delimiter from the combined prompt content so it is identical
+	// across builds for the same workflow and changes only when the prompt text changes.
+	var promptContentForHash strings.Builder
+	for _, section := range builtinSections {
+		promptContentForHash.WriteString(section.Content)
+	}
+	for _, chunk := range userPromptChunks {
+		promptContentForHash.WriteString(chunk)
+	}
+	delimiter := GenerateHeredocDelimiterFromContent("PROMPT", promptContentForHash.String())
 
 	// Collect all environment variables from built-in sections and user prompt expressions
 	allEnvVars := make(map[string]string)

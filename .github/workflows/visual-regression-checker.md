@@ -64,7 +64,7 @@ steps:
       echo "$PID" > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"
 
-  - name: Wait for dev server
+  - name: Wait for server readiness
     run: |
       MAX_WAIT=90
       WAITED=0

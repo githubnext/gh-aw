@@ -100,7 +100,7 @@
   },
   {
     "name": "create_discussion",
-    "description": "Create a GitHub discussion for announcements, Q&A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead.",
+    "description": "Create a GitHub discussion for announcements, Q&A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. Arguments must be flat tool arguments (title, body), not nested under create_discussion.",
     "inputSchema": {
       "type": "object",
       "required": [

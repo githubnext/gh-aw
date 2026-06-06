@@ -69,6 +69,11 @@
           "minimum": 1,
           "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input \u00d71, cache-read \u00d70.1, output \u00d74, reasoning \u00d74. See spec \u00a710."
         },
+        "maxAiCredits": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Maximum cumulative AI credits allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'ai_credits_limit_exceeded'."
+        },
         "modelMultipliers": {
           "type": "object",
           "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec \u00a710.2.",

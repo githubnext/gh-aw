@@ -11,6 +11,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the strconv-parse-ignored-error analysis pass.
@@ -36,6 +38,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "strconvparseignorederror")
 
 	nodeFilter := []ast.Node{
 		(*ast.AssignStmt)(nil),
@@ -72,6 +75,10 @@ func run(pass *analysis.Pass) (any, error) {
 			obj := pass.TypesInfo.Uses[ident]
 			if pkgName, ok := obj.(*types.PkgName); ok {
 				if pkgName.Imported().Path() == "strconv" {
+					position := pass.Fset.PositionFor(call.Pos(), false)
+					if nolint.HasDirective(position, noLintLinesByFile) {
+						return
+					}
 					pass.ReportRangef(call, "error return from strconv.%s is discarded; parse failures produce zero values silently", sel.Sel.Name)
 				}
 			}

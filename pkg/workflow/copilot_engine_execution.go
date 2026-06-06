@@ -602,6 +602,14 @@ touch %s
 		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
 	}
 
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
+		if workflowData.EngineConfig.MaxToolDenials != "" {
+			env[constants.EnvVarMaxToolDenials] = workflowData.EngineConfig.MaxToolDenials
+		} else {
+			env[constants.EnvVarMaxToolDenials] = strconv.Itoa(constants.DefaultMaxToolDenials)
+		}
+	}
+
 	// Set the model environment variable.
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads
 	// directly. This avoids embedding the value in the shell command (which would fail template

@@ -30,31 +30,6 @@ func buildWorkflowSpecRef(repoSlug, path, commitSHA, version string) string {
 	return workflowSpec
 }
 
-// resolveImportPath resolves a relative import path to its full repository path
-// based on the workflow file's location
-func resolveImportPath(importPath string, workflowPath string) string {
-	// If the import path is already a workflowspec format (contains owner/repo), return as-is
-	if isWorkflowSpecFormat(importPath) {
-		return importPath
-	}
-
-	// If the import path is absolute (starts with /), use it as-is (relative to repo root)
-	if after, ok := strings.CutPrefix(importPath, "/"); ok {
-		return after
-	}
-
-	// Otherwise, resolve relative to the workflow file's directory
-	workflowDir := filepath.Dir(workflowPath)
-
-	// Clean the path to normalize it (removes .., ., etc.)
-	fullPath := filepath.Clean(filepath.Join(workflowDir, importPath))
-
-	// Convert back to forward slashes (filepath.Clean uses OS path separator)
-	fullPath = filepath.ToSlash(fullPath)
-
-	return fullPath
-}
-
 // processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
 // with workflowspec format (owner/repo/path@sha) for all imports found.
 // Handles both array form and object form (with 'aw' subfield) of the imports field.
@@ -103,7 +78,7 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 					continue
 				}
 			}
-			resolvedPath := resolveImportPath(importPath, workflow.WorkflowPath)
+			resolvedPath := resolveImportPath(importPath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
 			importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
 			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
 			importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
@@ -232,7 +207,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			}
 
 			// Resolve the file path relative to the workflow file's directory
-			resolvedPath := resolveImportPath(filePath, workflow.WorkflowPath)
+			resolvedPath := resolveImportPath(filePath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
 
 			// Build workflowspec for this include
 			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
@@ -374,7 +349,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			}
 
 			// Resolve the file path relative to the workflow file's directory
-			resolvedPath := resolveImportPath(filePath, workflow.WorkflowPath)
+			resolvedPath := resolveImportPath(filePath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
 
 			// Build workflowspec for this include
 			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)

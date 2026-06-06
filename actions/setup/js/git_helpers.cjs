@@ -38,7 +38,12 @@ function getGitAuthEnv(token) {
 }
 
 /**
- * Safely execute git command using spawnSync with args array to prevent shell injection
+ * Safely execute git command using spawnSync with args array to prevent shell injection.
+ *
+ * Hardened against indefinite hangs: always runs git with non-interactive
+ * credential settings (GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=Never,
+ * GIT_ASKPASS=/bin/echo) and a default 60s timeout (override via options.timeout).
+ *
  * @param {string[]} args - Git command arguments
  * @param {Object} options - Spawn options; set suppressLogs: true to avoid core.error annotations for expected failures
  * @returns {string} Command output
@@ -65,10 +70,27 @@ function execGitSync(args, options = {}) {
 
   core.debug(`Executing git command: ${gitCommand}`);
 
+  // Hard guards against indefinite hangs:
+  //  - GIT_TERMINAL_PROMPT=0 / GCM_INTERACTIVE=Never / GIT_ASKPASS make any
+  //    credential rejection fail fast instead of opening an interactive prompt.
+  //  - timeout (default 60s) ensures a stuck network/TLS handshake cannot
+  //    wedge the calling event loop. Callers can override via options.timeout.
+  const callerEnv = spawnOptions.env || process.env;
+  const safeEnv = {
+    ...callerEnv,
+    GIT_TERMINAL_PROMPT: "0",
+    GCM_INTERACTIVE: "Never",
+    GIT_ASKPASS: "/bin/echo",
+  };
+  const defaultTimeoutMs = 60_000;
+
   const result = spawnSync("git", args, {
     encoding: "utf8",
     maxBuffer: 100 * 1024 * 1024, // 100 MB — prevents ENOBUFS on large diffs (e.g. git format-patch)
+    timeout: defaultTimeoutMs,
+    killSignal: "SIGKILL",
     ...spawnOptions,
+    env: safeEnv,
   });
 
   if (result.error) {
@@ -82,10 +104,26 @@ function execGitSync(args, options = {}) {
       core.error(`Git command buffer overflow: ${gitCommand}`);
       throw bufferError;
     }
+    if (spawnError.code === "ETIMEDOUT") {
+      /** @type {NodeJS.ErrnoException} */
+      const timeoutError = new Error(`${ERR_SYSTEM}: Git command timed out after ${spawnOptions.timeout || defaultTimeoutMs}ms: ${gitCommand}`);
+      timeoutError.code = "ETIMEDOUT";
+      core.error(`Git command timed out: ${gitCommand}`);
+      throw timeoutError;
+    }
     // Spawn-level errors (e.g. ENOENT, EACCES) are always unexpected — log
     // via core.error regardless of suppressLogs.
     core.error(`Git command failed with error: ${result.error.message}`);
     throw result.error;
+  }
+
+  // spawnSync sets signal when the process was killed (including by the timeout).
+  if (result.signal === "SIGKILL" || result.signal === "SIGTERM") {
+    /** @type {NodeJS.ErrnoException} */
+    const timeoutError = new Error(`${ERR_SYSTEM}: Git command killed (${result.signal}), likely due to timeout (${spawnOptions.timeout || defaultTimeoutMs}ms): ${gitCommand}`);
+    timeoutError.code = "ETIMEDOUT";
+    core.error(`Git command killed by signal ${result.signal}: ${gitCommand}`);
+    throw timeoutError;
   }
 
   if (result.status !== 0) {
@@ -113,6 +151,49 @@ function execGitSync(args, options = {}) {
   }
 
   return result.stdout;
+}
+
+/**
+ * Ensure refs/remotes/origin/<branch> is available locally, attempting a
+ * single fetch when it is not. Returns whether the ref now exists and
+ * whether a fetch was required.
+ *
+ * Safe to call from the credential-less safe-outputs MCP server: execGitSync
+ * runs git with GIT_TERMINAL_PROMPT=0 / GIT_ASKPASS=/bin/echo and a 60s
+ * timeout, so the fetch attempt either succeeds (public repos, or when a
+ * token was provided) or fails fast (private repos without credentials).
+ * Callers MUST treat exists=false as a recoverable negative result rather
+ * than an error condition.
+ *
+ * @param {string} branch - Branch name (without origin/ prefix)
+ * @param {Object} options
+ * @param {string} options.cwd - Working directory for git commands
+ * @param {string} [options.token] - Optional auth token used for fetch
+ * @param {boolean} [options.suppressLogs=false] - Whether to suppress execGitSync error logs
+ * @returns {{ exists: boolean, fetched: boolean, fetchError?: Error }}
+ *   fetchError is populated only when exists=false after a failed fetch attempt.
+ */
+function ensureOriginRemoteTrackingRef(branch, options) {
+  const ref = `refs/remotes/origin/${branch}`;
+  try {
+    execGitSync(["show-ref", "--verify", "--quiet", ref], {
+      cwd: options.cwd,
+      suppressLogs: options.suppressLogs || false,
+    });
+    return { exists: true, fetched: false };
+  } catch {
+    try {
+      const fetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
+      execGitSync(["fetch", "origin", "--", `${branch}:refs/remotes/origin/${branch}`], {
+        cwd: options.cwd,
+        env: fetchEnv,
+        suppressLogs: options.suppressLogs || false,
+      });
+      return { exists: true, fetched: true };
+    } catch (fetchError) {
+      return { exists: false, fetched: false, fetchError: /** @type {Error} */ fetchError };
+    }
+  }
 }
 
 /**
@@ -300,6 +381,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
 module.exports = {
   execGitSync,
   ensureFullHistoryForBundle,
+  ensureOriginRemoteTrackingRef,
   extractBundlePrerequisiteCommits,
   getGitAuthEnv,
   hasMergeCommitsInRange,

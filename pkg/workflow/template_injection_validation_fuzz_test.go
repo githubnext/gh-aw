@@ -332,16 +332,17 @@ func containsUnsafePattern(yamlContent string) bool {
 	// Note: This is not perfect and may have false positives/negatives
 	lines := strings.Split(yamlContent, "\n")
 	inRunBlock := false
-	runBlockContent := ""
+	var runBlockBuilder strings.Builder
 
 	for _, line := range lines {
 		if strings.Contains(line, "run:") {
 			inRunBlock = true
-			runBlockContent = ""
+			runBlockBuilder.Reset()
 		}
 
 		if inRunBlock {
-			runBlockContent += line + "\n"
+			runBlockBuilder.WriteString(line)
+			runBlockBuilder.WriteByte('\n')
 
 			// Check if we've left the run block (next step or key at same indentation)
 			if strings.HasPrefix(strings.TrimSpace(line), "- name:") ||
@@ -351,6 +352,8 @@ func containsUnsafePattern(yamlContent string) bool {
 			}
 		}
 	}
+
+	runBlockContent := runBlockBuilder.String()
 
 	// Check if run block content contains unsafe patterns
 	for _, pattern := range unsafePatterns {

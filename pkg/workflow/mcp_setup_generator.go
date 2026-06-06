@@ -273,7 +273,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts\"\n")
 	}
 
-	delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_CONFIG", workflowData.FrontmatterHash)
+	delimiter := GenerateHeredocDelimiterFromContent("SAFE_OUTPUTS_CONFIG", sanitizedConfig)
 	if safeOutputConfig != "" {
 		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '" + delimiter + "'\n")
 		yaml.WriteString("          " + sanitizedConfig + "\n")
@@ -424,7 +424,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\"\n")
 
 	toolsJSON := GenerateMCPScriptsToolsConfig(workflowData.MCPScripts)
-	toolsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_TOOLS", workflowData.FrontmatterHash)
+	toolsDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_TOOLS", toolsJSON)
 	if err := ValidateHeredocContent(toolsJSON, toolsDelimiter); err != nil {
 		return fmt.Errorf("mcp-scripts tools.json: %w", err)
 	}
@@ -435,7 +435,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          " + toolsDelimiter + "\n")
 
 	mcpScriptsMCPServer := GenerateMCPScriptsMCPServerScript(workflowData.MCPScripts)
-	serverDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_SERVER", workflowData.FrontmatterHash)
+	serverDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_SERVER", mcpScriptsMCPServer)
 	if err := ValidateHeredocContent(mcpScriptsMCPServer, serverDelimiter); err != nil {
 		return fmt.Errorf("mcp-scripts mcp-server.cjs: %w", err)
 	}
@@ -505,7 +505,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
 	if toolConfig.Script != "" {
 		toolScript := GenerateMCPScriptJavaScriptToolScript(toolConfig)
-		jsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_JS_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+		jsDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_JS_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, jsDelimiter); err != nil {
 			return fmt.Errorf("mcp-scripts tool %q (js): %w", toolName, err)
 		}
@@ -518,7 +518,7 @@ func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, 
 	}
 	if toolConfig.Run != "" {
 		toolScript := GenerateMCPScriptShellToolScript(toolConfig)
-		shDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_SH_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+		shDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_SH_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, shDelimiter); err != nil {
 			return fmt.Errorf("mcp-scripts tool %q (sh): %w", toolName, err)
 		}
@@ -532,7 +532,7 @@ func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, 
 	}
 	if toolConfig.Py != "" {
 		toolScript := GenerateMCPScriptPythonToolScript(toolConfig)
-		pyDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_PY_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+		pyDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_PY_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, pyDelimiter); err != nil {
 			return fmt.Errorf("mcp-scripts tool %q (py): %w", toolName, err)
 		}
@@ -546,7 +546,7 @@ func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, 
 	}
 	if toolConfig.Go != "" {
 		toolScript := GenerateMCPScriptGoToolScript(toolConfig)
-		goDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_GO_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+		goDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_GO_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, goDelimiter); err != nil {
 			return fmt.Errorf("mcp-scripts tool %q (go): %w", toolName, err)
 		}

@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.21.0  
+**Version**: 1.22.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-05-19  
+**Publication Date**: 2026-06-06  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -2241,7 +2241,7 @@ safe-outputs:
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
-- `base-branch`: Target branch
+- `base-branch`: Target base branch for the PR. When omitted, the handler resolves the base branch in this order: (1) the runtime checkout manifest entry for the target repository, (2) the local checkout's `origin/HEAD`, (3) the repository default branch via `GET /repos/{owner}/{repo}`. Explicit configuration is RECOMMENDED when the safe-outputs job runs without repository credentials (e.g. cross-repo private targets).
 - `allowed-branches`: Allowed source branch patterns for `branch` tool input
 - `allowed-base-branches`: Allowed base-branch override patterns for per-run `base` tool input
 - `draft`: Draft status
@@ -3037,11 +3037,18 @@ This section provides complete definitions for all remaining safe output types. 
 - `pull-requests: write` - Pull request metadata access
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Configuration Parameters**:
+
+- `max`: Operation limit (default: 1)
+- `base-branch`: Target base branch used to compute the incremental patch (e.g. `main`, `master`). When omitted, the handler resolves the base branch in this order: (1) the runtime checkout manifest entry for the target repository, (2) the local checkout's `origin/HEAD`, (3) the repository default branch via `GET /repos/{owner}/{repo}`. Explicit configuration is REQUIRED when the safe-outputs job runs without repository credentials (e.g. cross-repo private targets) and the checkout manifest is unavailable.
+- `target`: Triggering PR selector (see `submit_pull_request_review` semantics)
+
 **Notes**:
 
 - Requires `contents: write` for git push operations
 - Enforces maximum patch size limit (default: 10 KB, range: 1–100 KB)
 - Validates changes don't exceed size limits before pushing
+- Base-branch resolution MUST NOT depend on interactive credential prompts; git operations issued by the handler MUST run with `GIT_TERMINAL_PROMPT=0` and an enforced timeout so credential-less environments fail fast rather than hanging
 
 ---
 
@@ -5027,6 +5034,13 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.22.0** (2026-06-06):
+
+- **Added**: `base-branch` configuration parameter on `push_to_pull_request_branch`, matching the existing field on `create_pull_request`.
+- **Added**: Normative base-branch resolution order for `push_to_pull_request_branch` (explicit config → runtime checkout manifest → `origin/HEAD` → repository default branch).
+- **Added**: Hang-safety requirement for handler-issued git operations (`GIT_TERMINAL_PROMPT=0` plus enforced timeout) so credential-less execution contexts fail fast instead of blocking on prompts.
+- **Updated**: Publication metadata to 1.22.0.
 
 **Version 1.21.0** (2026-05-19):
 

@@ -73,3 +73,14 @@ func ValidateDynamic(pattern, input string) (bool, error) {
 	}
 	return re.MatchString(input), nil
 }
+
+func suppressedPreviousLine() bool {
+	//nolint:regexpcompileinfunction
+	re := regexp.MustCompile(`^suppressed$`)
+	return re.MatchString("suppressed")
+}
+
+func suppressedSameLine() bool {
+	re := regexp.MustCompile(`^suppressed$`) //nolint:regexpcompileinfunction
+	return re.MatchString("suppressed")
+}

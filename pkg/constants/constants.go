@@ -269,8 +269,12 @@ const DefaultMCPStartupTimeout = 120 * time.Second
 // DefaultHTTPClientTimeout is the default timeout for internal HTTP clients
 const DefaultHTTPClientTimeout = 30 * time.Second
 
-// DefaultMaxEffectiveTokens is the default ET budget enforced by the AWF API proxy.
-const DefaultMaxEffectiveTokens int64 = 25000000
+// DefaultMaxEffectiveTokens is the fallback ET budget value when no explicit value is configured.
+// A value of 0 means "unset" (do not emit an ET budget in AWF config).
+const DefaultMaxEffectiveTokens int64 = 0
+
+// DefaultMaxAICredits is the default AI Credits budget enforced by the AWF API proxy.
+const DefaultMaxAICredits int64 = 1000
 
 // DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy.
 const DefaultMaxRuns = 500
@@ -322,16 +326,15 @@ var IgnoredFrontmatterFields = []string{"user-invokable"}
 //
 // Forbidden fields fall into these categories:
 //   - Workflow triggers: on (defines it as a main workflow)
-//   - Workflow execution: command, run-name, runs-on, concurrency, if, timeout-minutes, timeout_minutes
+//   - Workflow execution: run-name, runs-on, concurrency, if, timeout-minutes
 //   - Workflow metadata: name, tracker-id, strict
 //   - Workflow features: container, environment, sandbox, features
-//   - Access control: roles, github-token
+//   - Access control: github-token
 //
 // All other fields defined in main_workflow_schema.json can be used in shared workflows
 // and will be properly imported and merged when the shared workflow is imported.
 var SharedWorkflowForbiddenFields = []string{
 	"on",              // Trigger field - only for main workflows
-	"command",         // Command for workflow execution
 	"concurrency",     // Concurrency control
 	"container",       // Container configuration
 	"environment",     // Deployment environment
@@ -339,13 +342,11 @@ var SharedWorkflowForbiddenFields = []string{
 	"github-token",    // GitHub token configuration
 	"if",              // Conditional execution
 	"name",            // Workflow name
-	"roles",           // Role requirements
 	"run-name",        // Run display name
 	"runs-on",         // Runner specification
 	"sandbox",         // Sandbox configuration
 	"strict",          // Strict mode
 	"timeout-minutes", // Timeout in minutes
-	"timeout_minutes", // Timeout in minutes (underscore variant)
 	"tracker-id",      // Tracker ID
 }
 

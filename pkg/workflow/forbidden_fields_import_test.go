@@ -19,7 +19,6 @@ func TestForbiddenFieldsImportRejection(t *testing.T) {
 	// Use the SharedWorkflowForbiddenFields constant and create YAML examples for each
 	forbiddenFieldYAML := map[string]string{
 		"on":              `on: issues`,
-		"command":         `command: /help`,
 		"concurrency":     `concurrency: production`,
 		"container":       `container: node:lts`,
 		"env":             `env: {NODE_ENV: production}`,
@@ -28,13 +27,11 @@ func TestForbiddenFieldsImportRejection(t *testing.T) {
 		"github-token":    `github-token: ${{ secrets.TOKEN }}`,
 		"if":              `if: success()`,
 		"name":            `name: Test Workflow`,
-		"roles":           `roles: ["admin"]`,
 		"run-name":        `run-name: Test Run`,
 		"runs-on":         `runs-on: ubuntu-latest`,
 		"sandbox":         `sandbox: {enabled: true}`,
 		"strict":          `strict: true`,
 		"timeout-minutes": `timeout-minutes: 30`,
-		"timeout_minutes": `timeout_minutes: 30`,
 		"tracker-id":      `tracker-id: "12345"`,
 	}
 

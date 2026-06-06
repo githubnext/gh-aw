@@ -233,7 +233,7 @@ func RenderJSONMCPConfig(
 	// Get the generated configuration
 	generatedConfig := configBuilder.String()
 
-	delimiter := GenerateHeredocDelimiterFromSeed("MCP_CONFIG", workflowData.FrontmatterHash)
+	delimiter := GenerateHeredocDelimiterFromContent("MCP_CONFIG", generatedConfig)
 	// Resolve the node binary to its absolute path so the command is robust
 	// against PATH modifications that may occur later in the workflow.
 	yaml.WriteString("          GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n")

@@ -19,6 +19,7 @@ const { attachHandlers, registerPredefinedTools, registerDynamicTools } = requir
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { normalizeSafeOutputToolArguments } = require("./safe_outputs_mcp_arguments.cjs");
 
 /**
  * Start the safe-outputs MCP server
@@ -32,7 +33,13 @@ function startSafeOutputsServer(options = {}) {
 
   // Create the server instance with optional log directory
   const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
-  const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
+  const server = createServer(SERVER_INFO, {
+    logDir: MCP_LOG_DIR,
+    normalizeArguments: (toolName, args) =>
+      normalizeSafeOutputToolArguments(toolName, args, {
+        debug: message => server.debug(message),
+      }),
+  });
 
   // Bootstrap: load configuration and tools using shared logic
   const { config: safeOutputsConfig, outputFile, tools: ALL_TOOLS } = bootstrapSafeOutputsServer(server);

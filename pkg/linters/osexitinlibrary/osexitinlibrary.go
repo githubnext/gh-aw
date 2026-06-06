@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the os-exit-in-library analysis pass.
@@ -34,6 +35,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "osexitinlibrary")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -56,6 +58,10 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		if ident.Name == "os" && sel.Sel.Name == "Exit" {
+			position := pass.Fset.PositionFor(call.Pos(), false)
+			if nolint.HasDirective(position, noLintLinesByFile) {
+				return
+			}
 			pass.ReportRangef(call, "os.Exit called in library package %s; move process termination to a cmd/ entry-point", pkgPath)
 		}
 	})

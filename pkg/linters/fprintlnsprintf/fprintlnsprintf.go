@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the fprintlnsprintf analysis pass.
@@ -27,6 +28,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "fprintlnsprintf")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -58,6 +60,9 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		if !isFmtFunc(printedArg, "Sprintf") {
+			return
+		}
+		if nolint.HasDirective(pos, noLintLinesByFile) {
 			return
 		}
 
