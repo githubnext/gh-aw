@@ -123,9 +123,13 @@ describe("parse_token_usage", () => {
      * @param {Array<[string, string, string]>} rows [alias, input, output]
      */
     function expectTokenUsageTableRows(summaryText, rows) {
+      const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       expect(summaryText).toContain("| # | Alias | Input | Output |");
       for (const [alias, input, output] of rows) {
-        expect(summaryText).toMatch(new RegExp(`\\|\\s*\\d+\\s*\\|\\s*${alias}\\s*\\|\\s*${input}\\s*\\|\\s*${output}\\s*\\|`));
+        const aliasPattern = escapeRegex(alias);
+        const inputPattern = escapeRegex(input);
+        const outputPattern = escapeRegex(output);
+        expect(summaryText).toMatch(new RegExp(`\\|\\s*\\d+\\s*\\|\\s*${aliasPattern}\\s*\\|\\s*${inputPattern}\\s*\\|\\s*${outputPattern}\\s*\\|`));
       }
     }
 
