@@ -39,7 +39,6 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { minimatch } = require("minimatch");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -163,6 +162,44 @@ function normalizePermissionPath(value) {
 }
 
 /**
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeRegexLiteral(value) {
+  return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+}
+
+/**
+ * @param {string} pattern
+ * @returns {RegExp}
+ */
+function globPatternToRegex(pattern) {
+  let regexSource = "^";
+
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i];
+    if (char === "*") {
+      const nextChar = pattern[i + 1];
+      if (nextChar === "*") {
+        regexSource += ".*";
+        i++;
+      } else {
+        regexSource += "[^/]*";
+      }
+      continue;
+    }
+    if (char === "?") {
+      regexSource += "[^/]";
+      continue;
+    }
+    regexSource += escapeRegexLiteral(char);
+  }
+
+  regexSource += "$";
+  return new RegExp(regexSource);
+}
+
+/**
  * @param {string} shellRule
  * @returns {string[]}
  */
@@ -204,7 +241,7 @@ function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
     if (normalizedRequestedPath === normalizedPattern) {
       return true;
     }
-    return minimatch(normalizedRequestedPath, normalizedPattern, { dot: true });
+    return globPatternToRegex(normalizedPattern).test(normalizedRequestedPath);
   });
 }
 

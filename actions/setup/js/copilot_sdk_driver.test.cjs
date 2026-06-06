@@ -320,7 +320,12 @@ describe("copilot_sdk_driver.cjs", () => {
         prompt: "test prompt",
         logger: () => {},
         permissionConfig: {
-          allowedTools: ["shell(cat /tmp/gh-aw/agent/*)", "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)", "shell(ls /tmp/gh-aw/repo-memory/default/)"],
+          allowedTools: [
+            "shell(cat /tmp/gh-aw/agent/*)",
+            "shell(cat /tmp/gh-aw/agent/**/*.txt)",
+            "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)",
+            "shell(ls /tmp/gh-aw/repo-memory/default/)",
+          ],
         },
         sdkModule: {
           CopilotClient: FakeCopilotClient,
@@ -333,6 +338,9 @@ describe("copilot_sdk_driver.cjs", () => {
       const sessionConfig = createSession.mock.calls[0][0];
       const onPermissionRequest = sessionConfig.onPermissionRequest;
       expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/doc-samples.txt", intention: "" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/subdir/nested.txt", intention: "" })).toEqual({
+        kind: "approve-once",
+      });
       expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/previous-findings.json", intention: "" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/repo-memory/default", intention: "" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
