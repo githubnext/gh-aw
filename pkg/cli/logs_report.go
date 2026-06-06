@@ -58,8 +58,10 @@ type LogsSummary struct {
 	TotalDuration                 string  `json:"total_duration" console:"header:Total Duration"`
 	TotalTokens                   int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
 	TotalEffectiveTokens          int     `json:"total_effective_tokens" console:"header:Total Effective Tokens,format:number"`
+	TotalAIC                      float64 `json:"total_aic,omitempty"`
 	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
 	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
+	TotalSteeringEvents           int     `json:"total_steering_events,omitempty" console:"header:Total Steering Events,format:number,omitempty"`
 	TotalErrors                   int     `json:"total_errors" console:"header:Total Errors"`
 	TotalWarnings                 int     `json:"total_warnings" console:"header:Total Warnings"`
 	TotalMissingTools             int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
@@ -108,6 +110,7 @@ type RunData struct {
 	ActionMinutes              float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	TokenUsage                 int                    `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
 	EffectiveTokens            int                    `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
+	AIC                        float64                `json:"aic,omitempty"`
 	AmbientContext             *AmbientContextMetrics `json:"ambient_context,omitempty" console:"-"`
 	Turns                      int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount                 int                    `json:"error_count,omitempty" console:"header:Errors"`
@@ -158,8 +161,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalDuration time.Duration
 	var totalTokens int
 	var totalEffectiveTokens int
+	var totalAIC float64
 	var totalActionMinutes float64
 	var totalTurns int
+	var totalSteeringEvents int
 	var totalErrors int
 	var totalWarnings int
 	var totalMissingTools int
@@ -191,8 +196,14 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 		totalTokens += run.TokenUsage
 		totalEffectiveTokens += run.EffectiveTokens
+		if pr.TokenUsage != nil {
+			totalAIC += pr.TokenUsage.TotalAIC
+		}
 		totalActionMinutes += run.ActionMinutes
 		totalTurns += run.Turns
+		if pr.TokenUsage != nil {
+			totalSteeringEvents += pr.TokenUsage.TotalSteeringEvents
+		}
 		totalErrors += run.ErrorCount
 		totalWarnings += run.WarningCount
 		totalMissingTools += run.MissingToolCount
@@ -267,6 +278,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Classification:             deriveRunClassification(comparison),
 			TokenUsage:                 run.TokenUsage,
 			EffectiveTokens:            run.EffectiveTokens,
+			AIC:                        0,
 			AmbientContext:             ambientContext,
 			ActionMinutes:              run.ActionMinutes,
 			Turns:                      run.Turns,
@@ -325,6 +337,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)
 		}
+		if pr.TokenUsage != nil && pr.TokenUsage.TotalAIC > 0 {
+			runData.AIC = pr.TokenUsage.TotalAIC
+		}
 		// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
 		if run.AvgTimeBetweenTurns > 0 {
 			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
@@ -339,8 +354,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalDuration:                 timeutil.FormatDuration(totalDuration),
 		TotalTokens:                   totalTokens,
 		TotalEffectiveTokens:          totalEffectiveTokens,
+		TotalAIC:                      totalAIC,
 		TotalActionMinutes:            totalActionMinutes,
 		TotalTurns:                    totalTurns,
+		TotalSteeringEvents:           totalSteeringEvents,
 		TotalErrors:                   totalErrors,
 		TotalWarnings:                 totalWarnings,
 		TotalMissingTools:             totalMissingTools,

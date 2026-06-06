@@ -10,7 +10,7 @@
 
 ### Context
 
-The repository defines a Model Alias Format (MAF) specification (`docs/src/content/docs/reference/model-alias-specification.md`) that governs the syntax of model identifier strings used in workflow frontmatter (`models:` map) and the `engine.model` field. Prior to this change, the spec existed as documentation only: invalid identifiers (bad characters, circular aliases, out-of-range parameters, globs where forbidden) would either be silently accepted at compile time and fail at runtime, or propagate as confusing downstream errors. The workflow compiler already had a validation extension point (`ParseWorkflowFile`), making it a natural site for enforcement. The spec itself defines discrete, numbered validation rules (V-MAF-001 through V-MAF-013), making a rule-by-rule implementation tractable.
+The repository defines a Model Alias Format (MAF) specification (`docs/src/content/docs/specs/model-alias-specification.md`) that governs the syntax of model identifier strings used in workflow frontmatter (`models:` map) and the `engine.model` field. Prior to this change, the spec existed as documentation only: invalid identifiers (bad characters, circular aliases, out-of-range parameters, globs where forbidden) would either be silently accepted at compile time and fail at runtime, or propagate as confusing downstream errors. The workflow compiler already had a validation extension point (`ParseWorkflowFile`), making it a natural site for enforcement. The spec itself defines discrete, numbered validation rules (V-MAF-001 through V-MAF-013), making a rule-by-rule implementation tractable.
 
 ### Decision
 

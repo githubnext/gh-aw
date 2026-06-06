@@ -169,6 +169,7 @@ function buildCopilotSDKEnv(env) {
   if (!uri) return {};
   /** @type {NodeJS.ProcessEnv} */
   const sdkEnv = { COPILOT_SDK_URI: uri };
+  sdkEnv.COPILOT_SDK_LOG_LEVEL = sourceEnv.COPILOT_SDK_LOG_LEVEL || "all";
   if (sourceEnv.COPILOT_SDK_SEND_TIMEOUT_MS) {
     sdkEnv.COPILOT_SDK_SEND_TIMEOUT_MS = sourceEnv.COPILOT_SDK_SEND_TIMEOUT_MS;
     return sdkEnv;

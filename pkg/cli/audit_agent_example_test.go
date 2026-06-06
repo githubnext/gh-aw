@@ -92,6 +92,13 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		FirewallAnalysis: firewallAnalysis,
 		MissingTools:     []MissingToolReport{},
 		MCPFailures:      []MCPFailureReport{},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:    40000,
+			TotalOutputTokens:   5000,
+			TotalRequests:       42,
+			TotalSteeringEvents: 3,
+			TotalAIC:            1.25,
+		},
 		JobDetails: []JobInfoWithDuration{
 			{
 				JobInfo: JobInfo{
@@ -163,6 +170,12 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			if !strings.Contains(output, section) {
 				t.Errorf("Console output missing section: %s", section)
 			}
+		}
+		if !strings.Contains(output, "steering=") {
+			t.Error("Console output should include aggregate steering event count")
+		}
+		if !strings.Contains(output, "aic=1.25") {
+			t.Error("Console output should include AI Credits")
 		}
 
 		// Verify emojis and visual indicators

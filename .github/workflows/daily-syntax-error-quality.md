@@ -237,12 +237,7 @@ Collect key strengths (1–2 bullets) and improvement suggestions (1–2 bullets
 - Any individual test case scores < 50, OR
 - Critical pattern issues are identified
 
-### Output Contract (Required)
-
-1. Emit **exactly one** safe-output before finishing.
-2. If issue criteria are met and the issue body is complete, emit `create_issue` once.
-3. Otherwise, emit `noop` once with a one-line summary of what you analyzed and why no issue was created.
-4. Never end with plain text only. A run without a safe-output call is a failure.
+If the threshold is met (average ≥ 65 and no score < 50), **skip this phase entirely** and proceed directly to Phase 7.
 
 ### Issue Structure
 
@@ -299,6 +294,26 @@ Suggested structure:
 3. **Prioritize Improvements**: Focus on high-impact, feasible changes
 4. **Include Examples**: Show both current and improved error messages
 
+## Phase 7: Signal Completion ⚠️ REQUIRED — DO NOT SKIP
+
+**This phase is mandatory regardless of your findings. Execute it as your final action.**
+
+After Phase 5 scoring (and after Phase 6 if you created an issue):
+
+**Path A — Threshold met (average ≥ 65, no score < 50)**:
+Run this shell command now:
+```
+safeoutputs noop --message "Analyzed [workflow1.md] (Category A) + [workflow2.md] (Category B). Average: [N]/100. Threshold met — no issue needed."
+```
+
+**Path B — Issue created in Phase 6**:
+Run this shell command now:
+```
+safeoutputs noop --message "Created quality improvement issue. Analyzed [workflow1.md] + [workflow2.md]. Average: [N]/100."
+```
+
+⚠️ **Your session ends only after executing one of the above shell commands. Do not output text and stop — run the command.**
+
 ## Success Criteria
 
 A successful analysis run:
@@ -308,6 +323,7 @@ A successful analysis run:
 - ✅ Provides quality scores across all dimensions
 - ✅ Creates issue only when quality is below threshold (average < 65 or any score < 50)
 - ✅ Cleans up temporary test files
+- ✅ Executes Phase 7 shell command to signal completion
 
 ---
 

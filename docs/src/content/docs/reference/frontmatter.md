@@ -227,42 +227,42 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 >
 > Use engine-specific secret configuration instead of the `env:` section to pass secrets securely.
 
-### Effective Token Budget (`max-effective-tokens:`)
+### AI Credits Guardrail (`max-ai-credits:`)
 
-Sets the AWF effective-token budget used for cost enforcement. Defaults to `25M` when omitted. Token steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and token steering.
+Sets the AWF AI Credits budget used for cost enforcement. Defaults to `25M` when omitted. Steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and steering.
 
 ```yaml wrap
-max-effective-tokens: 5M
+max-ai-credits: 5M
 ```
 
 ```yaml wrap
 # Equivalent shorthand
-max-effective-tokens: 100M
+max-ai-credits: 100M
 ```
 
 ```yaml wrap
-# Disable budget enforcement and token steering
-max-effective-tokens: -1
+# Disable budget enforcement and steering
+max-ai-credits: -1
 ```
 
-### Daily Per-Workflow Effective Token Guardrail (`max-daily-effective-tokens:`)
+### Daily Per-Workflow AI Credits Guardrail (`max-daily-ai-credits:`)
 
-Sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
+Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
 
 This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 
 ```yaml wrap
-max-daily-effective-tokens: 15M
+max-daily-ai-credits: 15M
 ```
 
 ```yaml wrap
 # Equivalent shorthand
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 ```
 
 ```yaml wrap
 # Disable the guardrail explicitly
-max-daily-effective-tokens: -1
+max-daily-ai-credits: -1
 ```
 
 ### Secrets (`secrets:`)
@@ -392,6 +392,18 @@ runtimes:
 
 Omitted runtimes use the defaults above. Runtimes from imported shared workflows are merged with your workflow's configuration.
 
+### `run-install-scripts`
+
+Controls whether npm pre/post-install scripts are allowed during package installation. Configure this under `runtimes.node.run-install-scripts`. The default is `false`.
+
+```yaml wrap
+runtimes:
+  node:
+    run-install-scripts: true
+```
+
+Enabling this increases supply chain risk because install hooks from dependencies can execute arbitrary code. In strict mode, `run-install-scripts: true` is rejected.
+
 ### Source Tracking (`source:`)
 
 Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated when using `gh aw add` to install workflows from external repositories. Optional for manually created workflows.
@@ -442,6 +454,16 @@ private: true
 Adding the workflow from another repository then fails with `workflow 'owner/repo/internal-tooling' is private and cannot be added to other repositories`. Use this for internal tooling, sensitive automation, or repository-specific workflows not intended for reuse.
 
 This only blocks installation via `gh aw add`; the visibility of the workflow file itself is controlled by your repository's access settings.
+
+### `check-for-updates`
+
+Controls whether the compile-agentic version update check runs in the activation job.
+
+```yaml wrap
+check-for-updates: true
+```
+
+When `true` (default), the activation job verifies the compiled version is not blocked and meets the minimum supported version. Set to `false` to disable this check (not allowed in strict mode).
 
 ### Feature Flags (`features:`)
 

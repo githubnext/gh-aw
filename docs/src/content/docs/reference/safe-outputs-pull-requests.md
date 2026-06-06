@@ -323,7 +323,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `allowed-reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
+Use `allowed-reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/).
 
 ## Compile-Time Warnings for `target: "*"`
 

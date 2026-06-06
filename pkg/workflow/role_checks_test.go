@@ -270,6 +270,39 @@ func TestInferEventsFromTriggers(t *testing.T) {
 	}
 }
 
+func TestExtractRateLimitConfig(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("extracts user-rate-limit config", func(t *testing.T) {
+		cfg := c.extractRateLimitConfig(map[string]any{
+			"user-rate-limit": map[string]any{
+				"max-runs-per-window": 3,
+				"window":              45,
+				"events":              []any{"issue_comment"},
+				"ignored-roles":       []any{"admin"},
+			},
+		})
+
+		if assert.NotNil(t, cfg) {
+			assert.Equal(t, 3, cfg.Max)
+			assert.Equal(t, 45, cfg.Window)
+			assert.Equal(t, []string{"issue_comment"}, cfg.Events)
+			assert.Equal(t, []string{"admin"}, cfg.IgnoredRoles)
+		}
+	})
+
+	t.Run("legacy rate-limit key is ignored", func(t *testing.T) {
+		cfg := c.extractRateLimitConfig(map[string]any{
+			"rate-limit": map[string]any{
+				"max-runs": 3,
+				"window":   45,
+			},
+		})
+
+		assert.Nil(t, cfg)
+	})
+}
+
 // TestCommentAuthorAssociationConditionInPreActivation verifies that the compiler adds
 // an explicit author_association guard to the pre_activation job's if: condition when the
 // workflow is triggered by issue_comment or pull_request_review_comment events and permission

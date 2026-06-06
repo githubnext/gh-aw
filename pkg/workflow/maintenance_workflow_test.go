@@ -504,25 +504,25 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500") {
-		t.Errorf("Job forecast_report should warm logs cache with 30-day lookback and expanded count in:\n%s", yaml)
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500 --artifacts agent") {
+		t.Errorf("Job forecast_report should warm logs cache with 30-day lookback, expanded count, and only the agent artifact in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast.") {
 		t.Errorf("Job forecast_report should fail when run summary cache is missing after warm-up in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --timeout 10 --json") {
+	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --timeout 30 --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo, --timeout, and --json in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "shell: bash") {
 		t.Errorf("Job forecast_report should explicitly use bash shell for stderr filtering in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --timeout 10 --json 2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2) > ./.cache/gh-aw/forecast/report.json") {
-		t.Errorf("Job forecast_report gh aw forecast command should set a 10-minute forecast timeout while filtering the experimental warning in:\n%s", yaml)
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --timeout 30 --json 2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2) > ./.cache/gh-aw/forecast/report.json") {
+		t.Errorf("Job forecast_report gh aw forecast command should set a 30-minute forecast timeout while filtering the experimental warning in:\n%s", yaml)
 	}
 	if strings.Contains(yaml, "timeout 10m ${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should not use shell timeout wrapper for forecast command anymore in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "echo '{\"outcome\":\"timeout\",\"message\":\"Forecast computation timed out after 10 minutes.\"}' > ./.cache/gh-aw/forecast/error.json") {
+	if !strings.Contains(yaml, "echo '{\"outcome\":\"timeout\",\"message\":\"Forecast computation timed out after 30 minutes.\"}' > ./.cache/gh-aw/forecast/error.json") {
 		t.Errorf("Job forecast_report should record timeout errors for issue creation in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "if: ${{ always() }}") {

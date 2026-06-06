@@ -459,7 +459,7 @@ if [ -z "$VERSION" ]; then
   else
     echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
     echo "ERROR: Cannot install without a compatible version." >&2
-    echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.51')" >&2
+    echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.56')" >&2
     echo "   or ensure GH_AW_COMPILED_VERSION matches a row in .github/aw/compat.json" >&2
     exit 1
   fi

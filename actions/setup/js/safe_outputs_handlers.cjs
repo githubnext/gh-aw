@@ -10,6 +10,7 @@ const { estimateTokens } = require("./estimate_tokens.cjs");
 const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
+const { lookupCheckout } = require("./checkout_manifest.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { hasMergeCommitsInRange, execGitSync } = require("./git_helpers.cjs");
@@ -42,6 +43,14 @@ function buildIntentErrorResponse(error) {
     ],
     isError: true,
   };
+}
+
+/**
+ * @param {Record<string, any>} entry
+ * @returns {boolean}
+ */
+function hasExplicitAddCommentTargetNumber(entry) {
+  return ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
 }
 
 /**
@@ -130,6 +139,8 @@ function resolvePatchWorkspacePath(workspacePath) {
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
+  const addCommentConfig = config.add_comment || config["add-comment"] || {};
+  const wildcardAddCommentTargetRequiresItemNumber = addCommentConfig.target === "*";
 
   /**
    * Detect and offload large string fields to files.
@@ -423,16 +434,26 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Get base branch for the resolved target repository.
-    // Prefer explicit safe-output config value when provided, otherwise fall back
-    // to dynamic resolution from trigger context/default branch. For side-repo
-    // checkouts, prefer repository default-branch resolution from local
-    // origin/HEAD metadata before payload/API fallback.
-    const baseBranch =
-      prConfig.base_branch ||
-      (await getBaseBranch(repoParts, {
-        preferLocalDefaultBranchMetadata: Boolean(repoCwd),
-        cwd: repoCwd || undefined,
-      }));
+    // Priority:
+    //   1. Explicit `base-branch` from the workflow config (no I/O, no fetch).
+    //   2. Checkout manifest written by the workflow's setup phase (no network).
+    //   3. Local origin/HEAD metadata + payload/API fallbacks via getBaseBranch.
+    let baseBranch;
+    const configuredBaseBranch = typeof prConfig.base_branch === "string" ? prConfig.base_branch.trim() : "";
+    if (configuredBaseBranch) {
+      baseBranch = configuredBaseBranch;
+    } else {
+      const manifestEntry = lookupCheckout(repoResult.repo);
+      if (manifestEntry && manifestEntry.default_branch) {
+        baseBranch = manifestEntry.default_branch;
+        server.debug(`Using checkout-manifest default_branch for ${repoResult.repo}: ${baseBranch}`);
+      } else {
+        baseBranch = await getBaseBranch(repoParts, {
+          preferLocalDefaultBranchMetadata: Boolean(repoCwd),
+          cwd: repoCwd || undefined,
+        });
+      }
+    }
 
     // Store the resolved base branch in the entry so the apply-time checkout step
     // can use it directly instead of inferring from event context.
@@ -627,8 +648,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
-    // Store the patch path in the entry so consumers know which file to use
-    entry.patch_path = patchResult.patchPath;
+    // Patch/bundle paths are not transmitted via the safe-output entry: the
+    // privileged safe_outputs job re-derives them from the (validated) branch name
+    // using resolve_transport_paths.
 
     // Store the base commit SHA so the create_pull_request handler can use it
     // directly in the fallback path (the From <sha> header in format-patch output
@@ -703,8 +725,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         }
       }
 
-      // Store the bundle path in the entry so consumers know which file to use
-      entry.bundle_path = bundleResult.bundlePath;
+      // Bundle path is not transmitted via the safe-output entry: the privileged
+      // safe_outputs job re-derives it from the (validated) branch name using
+      // resolve_transport_paths.
 
       // Prefer the base_commit captured from format-patch generation (used by
       // patch-based fallback/apply paths). Only fall back to bundle base commit
@@ -843,12 +866,28 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Get base branch for the resolved target repository.
-    // For side-repo checkouts, prefer repository default-branch resolution from
-    // local origin/HEAD metadata before payload/API fallback.
-    const baseBranch = await getBaseBranch(repoParts, {
-      preferLocalDefaultBranchMetadata: Boolean(repoCwd),
-      cwd: repoCwd || undefined,
-    });
+    // Priority:
+    //   1. Explicit `base-branch` from the workflow config (no I/O, no fetch).
+    //   2. Checkout manifest written by the workflow's setup phase (no network).
+    //   3. Local origin/HEAD metadata in the side-repo checkout (when available).
+    //   4. Payload / GitHub API fallbacks via getBaseBranch.
+    let baseBranch;
+    const configuredBaseBranch = typeof pushConfig.base_branch === "string" ? pushConfig.base_branch.trim() : "";
+    if (configuredBaseBranch) {
+      baseBranch = configuredBaseBranch;
+      server.debug(`Using configured base_branch for push_to_pull_request_branch: ${baseBranch}`);
+    } else {
+      const manifestEntry = lookupCheckout(itemRepo);
+      if (manifestEntry && manifestEntry.default_branch) {
+        baseBranch = manifestEntry.default_branch;
+        server.debug(`Using checkout-manifest default_branch for ${itemRepo}: ${baseBranch}`);
+      } else {
+        baseBranch = await getBaseBranch(repoParts, {
+          preferLocalDefaultBranchMetadata: Boolean(repoCwd),
+          cwd: repoCwd || undefined,
+        });
+      }
+    }
 
     // Store the resolved base branch in the entry so the apply-time checkout step
     // can use it directly instead of inferring from event context.
@@ -1024,8 +1063,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines, diffSize=${patchResult.diffSize ?? "(n/a)"} bytes)`);
 
-    // Store the patch path in the entry so consumers know which file to use
-    entry.patch_path = patchResult.patchPath;
+    // Patch/bundle paths are not transmitted via the safe-output entry: the
+    // privileged safe_outputs job re-derives them from the (validated) branch name
+    // using resolve_transport_paths.
 
     // Store the base commit SHA so the push handler can use it directly
     if (patchResult.baseCommit) {
@@ -1107,8 +1147,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         }
       }
 
-      // Store the bundle path in the entry so consumers know which file to use
-      entry.bundle_path = bundleResult.bundlePath;
+      // Bundle path is not transmitted via the safe-output entry: the privileged
+      // safe_outputs job re-derives it from the (validated) branch name using
+      // resolve_transport_paths.
 
       // Prefer the base_commit captured from format-patch generation (used by
       // patch-based fallback/apply paths). Only fall back to bundle base commit
@@ -1482,6 +1523,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
+    if (wildcardAddCommentTargetRequiresItemNumber) {
+      if (!hasExplicitAddCommentTargetNumber(entry)) {
+        return buildIntentErrorResponse("add_comment requires item_number when safe-outputs.add-comment.target is '*'. Provide item_number (or pr_number/pr alias).");
+      }
+    }
     const intentValidationError = validateAddCommentIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);

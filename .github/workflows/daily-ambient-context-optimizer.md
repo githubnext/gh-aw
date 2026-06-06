@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 tracker-id: daily-ambient-context-optimizer
 strict: true
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 network:
   allowed: [defaults, github]
 tools:
@@ -32,7 +32,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 45
 steps:
-  - name: Setup Python runtime
+  - name: Setup Python
     uses: actions/setup-python@v6.2.0
     with:
       python-version: "3.12"
@@ -85,11 +85,11 @@ Eligibility rules:
   - preferred: `prompt.txt`
   - fallback: the first `user.message` event in `events.jsonl`
 
-Prefer higher-cost runs first by using `effective_tokens`, `token_usage`, `turns`, or prompt size when available.
+Prefer higher-cost runs first by using `aic`, then `effective_tokens`, `token_usage`, `turns`, or prompt size when available.
 
 ### Step 3 — Enrich a subset with audits
 
-Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer token context and references.
+Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer cost context and references.
 
 ## First-Request Extraction Rules
 
@@ -114,7 +114,7 @@ Include at least:
 - `run_url`
 - `status`
 - `conclusion`
-- `effective_tokens`
+- `aic`
 - `token_usage`
 - `turns`
 - `request_chars`

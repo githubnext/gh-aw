@@ -453,18 +453,18 @@ describe("generateGitPatch - standardized error codes", () => {
   });
 });
 
-describe("getPatchPath", () => {
+describe("getPatchPathForBranch", () => {
   it("should return correct path format", async () => {
-    const { getPatchPath } = await import("./generate_git_patch.cjs");
+    const { getPatchPathForBranch } = await import("./generate_git_patch.cjs");
 
-    expect(getPatchPath("feature-branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+    expect(getPatchPathForBranch("feature-branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
   });
 
   it("should sanitize branch name in path", async () => {
-    const { getPatchPath } = await import("./generate_git_patch.cjs");
+    const { getPatchPathForBranch } = await import("./generate_git_patch.cjs");
 
-    expect(getPatchPath("feature/branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
-    expect(getPatchPath("Feature/BRANCH")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+    expect(getPatchPathForBranch("feature/branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+    expect(getPatchPathForBranch("Feature/BRANCH")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
   });
 });
 

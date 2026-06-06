@@ -105,7 +105,7 @@ Staged mode is supported by all built-in safe output types:
 | [`dispatch-workflow`](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) | Target workflow, inputs |
 | [`assign-to-agent`](/gh-aw/reference/safe-outputs/#assign-to-agent-assign-to-agent) | Target issue/PR |
 | [`assign-to-user`](/gh-aw/reference/safe-outputs/#assign-to-user-assign-to-user) | Target item, user |
-| [`create-agent-session`](/gh-aw/reference/safe-outputs/#agent-session-creation-create-agent-session) | Session details |
+| [`create-agent-session`](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) | Session details |
 
 [Custom safe output jobs](/gh-aw/reference/custom-safe-outputs/) receive the `GH_AW_SAFE_OUTPUTS_STAGED` environment variable set to `"true"` when staged mode is active, allowing you to implement your own preview behavior.
 

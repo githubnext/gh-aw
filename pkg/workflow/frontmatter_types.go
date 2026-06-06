@@ -283,16 +283,18 @@ type FrontmatterConfig struct {
 	// configuration (e.g. {id: copilot, max-continuations: 2}).  Using any prevents
 	// JSON unmarshal failures when the engine is an object, which would otherwise cause
 	// ParseFrontmatterConfig to return nil and break features that depend on it (e.g. OTLP).
-	Engine                  any               `json:"engine,omitempty"`
-	Source                  string            `json:"source,omitempty"`
-	Redirect                string            `json:"redirect,omitempty"`
-	TrackerID               string            `json:"tracker-id,omitempty"`
-	Version                 string            `json:"version,omitempty"`
-	TimeoutMinutes          *TemplatableInt32 `json:"timeout-minutes,omitempty"`
-	MaxDailyEffectiveTokens *TemplatableInt32 `json:"max-daily-effective-tokens,omitempty"`
-	Strict                  *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
-	Private                 *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
-	Labels                  []string          `json:"labels,omitempty"`
+	Engine            any               `json:"engine,omitempty"`
+	Source            string            `json:"source,omitempty"`
+	Redirect          string            `json:"redirect,omitempty"`
+	TrackerID         string            `json:"tracker-id,omitempty"`
+	Version           string            `json:"version,omitempty"`
+	TimeoutMinutes    *TemplatableInt32 `json:"timeout-minutes,omitempty"`
+	MaxAICredits      *TemplatableInt32 `json:"max-ai-credits,omitempty"`
+	MaxDailyAICredits *TemplatableInt32 `json:"max-daily-ai-credits,omitempty"`
+	MaxToolDenials    *TemplatableInt32 `json:"max-tool-denials,omitempty"`
+	Strict            *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
+	Private           *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
+	Labels            []string          `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
 	Tools            *ToolsConfig       `json:"tools,omitempty"`
@@ -316,12 +318,9 @@ type FrontmatterConfig struct {
 	Sandbox *SandboxConfig      `json:"sandbox,omitempty"`
 
 	// Feature flags and other settings
-	Features map[string]any `json:"features,omitempty"` // Dynamic feature flags
-	// Deprecated: as of v1.1.0, inline sub-agents are always enabled.
-	// Remove this field from frontmatter. Setting false causes a compilation error.
-	InlineSubAgents *bool             `json:"inline-sub-agents,omitempty"`
-	Env             map[string]string `json:"env,omitempty"`
-	Secrets         map[string]any    `json:"secrets,omitempty"`
+	Features map[string]any    `json:"features,omitempty"` // Dynamic feature flags
+	Env      map[string]string `json:"env,omitempty"`
+	Secrets  map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
 	RunsOn        any            `json:"runs-on,omitempty"`      // Supports string, array, or object GitHub Actions runner forms

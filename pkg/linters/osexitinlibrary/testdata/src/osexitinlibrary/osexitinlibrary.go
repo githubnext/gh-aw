@@ -11,3 +11,12 @@ func stopProcess() {
 func doWork() error {
 	return nil
 }
+
+func suppressedPreviousLine() {
+	//nolint:osexitinlibrary
+	os.Exit(1)
+}
+
+func suppressedSameLine() {
+	os.Exit(1) //nolint:osexitinlibrary
+}

@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { main, getReadableTokenUsagePaths, extractRequestId, readDedupedTokenUsage, TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH, TOKEN_USAGE_PATHS, AGENT_USAGE_PATH } = require("./parse_token_usage.cjs");
+const { main, getReadableTokenUsagePaths, extractRequestId, readDedupedTokenUsage, getSummaryTitle, TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH, TOKEN_USAGE_PATHS, AGENT_USAGE_PATH, DEFAULT_SUMMARY_TITLE } = require("./parse_token_usage.cjs");
 
 describe("parse_token_usage", () => {
   const singleEntry = JSON.stringify({
@@ -39,6 +39,10 @@ describe("parse_token_usage", () => {
     test("AGENT_USAGE_PATH points to agent_usage.json", () => {
       expect(AGENT_USAGE_PATH).toBe("/tmp/gh-aw/agent_usage.json");
     });
+
+    test("DEFAULT_SUMMARY_TITLE points to Token Usage", () => {
+      expect(DEFAULT_SUMMARY_TITLE).toBe("Token Usage");
+    });
   });
 
   describe("main function", () => {
@@ -51,6 +55,7 @@ describe("parse_token_usage", () => {
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "parse-token-usage-test-"));
+      delete process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE;
 
       mockCore = {
         info: vi.fn(),
@@ -159,6 +164,30 @@ describe("parse_token_usage", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
     });
 
+    test("uses custom summary title when configured", async () => {
+      process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE = "Threat Detection Token Usage";
+
+      fs.existsSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_PATH) return true;
+        if (p === TOKEN_USAGE_AUDIT_PATH) return false;
+        return originalExistsSync(p);
+      });
+      fs.statSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_PATH) return { size: singleEntry.length };
+        if (p === TOKEN_USAGE_AUDIT_PATH) return { size: 0 };
+        return originalStatSync(p);
+      });
+      fs.readFileSync = vi.fn((p, enc) => {
+        if (p === TOKEN_USAGE_PATH) return singleEntry;
+        if (p === TOKEN_USAGE_AUDIT_PATH) return "";
+        return originalReadFileSync(p, enc);
+      });
+
+      await main();
+
+      expect(mockCore.summary.addDetails).toHaveBeenCalledWith("Threat Detection Token Usage", expect.stringContaining("| Alias |"));
+    });
+
     test("writes agent_usage.json with aggregated token totals including effective_tokens and primary_model", async () => {
       const agentUsageFile = path.join(tmpDir, "agent_usage.json");
 
@@ -194,6 +223,7 @@ describe("parse_token_usage", () => {
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
       expect(typeof agentUsage.effective_tokens).toBe("number");
+      expect(typeof agentUsage.ai_credits).toBe("number");
       // primary_model is the actual model from token-usage data (not a user alias)
       expect(agentUsage.primary_model).toBe("claude-sonnet-4-6");
     });
@@ -227,6 +257,10 @@ describe("parse_token_usage", () => {
       if (agentUsage.effective_tokens > 0) {
         expect(mockCore.setOutput).toHaveBeenCalledWith("effective_tokens", String(agentUsage.effective_tokens));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", String(agentUsage.effective_tokens));
+      }
+      if (agentUsage.ai_credits > 0) {
+        expect(mockCore.setOutput).toHaveBeenCalledWith("aic", agentUsage.ai_credits.toFixed(3));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", agentUsage.ai_credits.toFixed(3));
       }
     });
 
@@ -450,6 +484,16 @@ describe("parse_token_usage", () => {
       expect(deduped).toContain('"request_id":"req-2"');
       expect(deduped).toContain('"request_id":"req-3"');
       expect(deduped.match(/"request_id":"req-1"/g)).toHaveLength(1);
+    });
+
+    test("getSummaryTitle returns trimmed env title", () => {
+      process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE = "  Threat Detection Token Usage  ";
+      expect(getSummaryTitle()).toBe("Threat Detection Token Usage");
+    });
+
+    test("getSummaryTitle falls back to default title", () => {
+      delete process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE;
+      expect(getSummaryTitle()).toBe("Token Usage");
     });
   });
 });

@@ -140,6 +140,13 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 		yaml.WriteString(line)
 	}
 
+	// Emit a manifest step that records the path and resolved default branch for each
+	// non-default cross-repo checkout. The safe-outputs MCP server reads this file to
+	// resolve base branches without making any credentialed network calls.
+	for _, line := range checkoutMgr.GenerateCheckoutManifestStep() {
+		yaml.WriteString(line)
+	}
+
 	// Add checkout steps for repository imports
 	// Each repository import needs to be checked out into a temporary folder
 	// so the merge script can copy files from it

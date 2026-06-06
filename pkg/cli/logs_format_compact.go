@@ -65,6 +65,9 @@ func renderLogsCompact(data LogsData) {
 		"turns=" + strconv.Itoa(s.TotalTurns),
 		"errors=" + strconv.Itoa(s.TotalErrors),
 	}
+	if s.TotalAIC > 0 {
+		summaryParts = append(summaryParts, "aic="+formatCompactAIC(s.TotalAIC))
+	}
 	if s.TotalWarnings > 0 {
 		summaryParts = append(summaryParts, "warnings="+strconv.Itoa(s.TotalWarnings))
 	}
@@ -100,7 +103,7 @@ func renderLogsCompact(data LogsData) {
 	// [runs] aligned table using tabwriter
 	fmt.Fprintln(os.Stdout, "[runs]")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tTURNS\tERR\tEVENT\tACTOR\tBRANCH")
+	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tAIC\tTURNS\tERR\tEVENT\tACTOR\tBRANCH")
 
 	for _, r := range data.Runs {
 		status := r.Conclusion
@@ -124,9 +127,9 @@ func renderLogsCompact(data LogsData) {
 		}
 		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%s\t%d\t%d\t%s\t%s\t%s\n",
 			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, r.Turns, r.ErrorCount,
+			r.TokenUsage, formatCompactAIC(r.AIC), r.Turns, r.ErrorCount,
 			r.Event, actor, branch)
 	}
 	w.Flush()
@@ -236,6 +239,9 @@ func renderLogsCompactVerbose(data LogsData) {
 		"github_api=" + strconv.Itoa(s.TotalGitHubAPICalls),
 		"episodes=" + strconv.Itoa(s.TotalEpisodes),
 	}
+	if s.TotalAIC > 0 {
+		summaryParts = append(summaryParts, "aic="+formatCompactAIC(s.TotalAIC))
+	}
 	if len(s.EngineCounts) > 0 {
 		parts := make([]string, 0, len(s.EngineCounts))
 		for engine, count := range s.EngineCounts {
@@ -266,7 +272,7 @@ func renderLogsCompactVerbose(data LogsData) {
 	// [runs] verbose aligned table
 	fmt.Fprintln(os.Stdout, "[runs]")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tEFF_TOK\tTURNS\tERR\tWARN\tEVENT\tACTOR\tTBT\tCLASS\tCREATED\tBRANCH")
+	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tEFF_TOK\tAIC\tTURNS\tERR\tWARN\tEVENT\tACTOR\tTBT\tCLASS\tCREATED\tBRANCH")
 
 	for _, r := range data.Runs {
 		status := r.Conclusion
@@ -294,9 +300,9 @@ func renderLogsCompactVerbose(data LogsData) {
 		}
 		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, r.EffectiveTokens,
+			r.TokenUsage, r.EffectiveTokens, formatCompactAIC(r.AIC),
 			r.Turns, r.ErrorCount, r.WarningCount,
 			r.Event, actor, tbt, classification,
 			r.CreatedAt.Format("01-02 15:04"), r.Branch)
@@ -376,4 +382,20 @@ func renderLogsCompactVerbose(data LogsData) {
 	if data.LogsLocation != "" {
 		fmt.Fprintf(os.Stdout, "[location] %s\n", data.LogsLocation)
 	}
+}
+
+func formatCompactAIC(value float64) string {
+	if value <= 0 {
+		return "-"
+	}
+	if value >= 1000 {
+		return fmt.Sprintf("%.1fK", value/1000)
+	}
+	if value >= 10 {
+		return fmt.Sprintf("%.1f", value)
+	}
+	if value >= 1 {
+		return fmt.Sprintf("%.2f", value)
+	}
+	return fmt.Sprintf("%.3f", value)
 }

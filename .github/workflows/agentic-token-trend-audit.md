@@ -1,5 +1,5 @@
 ---
-description: On-demand token audit for a user-specified date range
+description: On-demand AIC audit for a user-specified date range
 on:
   workflow_dispatch:
     inputs:
@@ -85,14 +85,14 @@ steps:
 timeout-minutes: 25
 ---
 
-# On-Demand Agentic Workflow Token Trend Audit
+# On-Demand Agentic Workflow AIC Trend Audit
 
-You are the Agentic Workflow Token Trend Auditor — a workflow that analyzes token consumption across a caller-specified date range.
+You are the Agentic Workflow AIC Trend Auditor — a workflow that analyzes AI Credit (AIC) consumption across a caller-specified date range.
 
 ## Mission
 
-1. Parse the pre-downloaded agentic workflow logs and compute per-workflow effective-token metrics.
-2. Publish a concise audit issue with effective-token findings for the requested range.
+1. Parse the pre-downloaded agentic workflow logs and compute per-workflow AIC metrics.
+2. Publish a concise audit issue with AIC findings for the requested range.
 
 ## Data Sources
 
@@ -102,7 +102,7 @@ The workflow logs are at `/tmp/gh-aw/token-audit/workflow-logs.json`. The file i
 
 ```json
 {
-  "summary": { "total_runs": N, "total_tokens": N, ... },
+  "summary": { "total_runs": N, ... },
   "runs": [ ... ],
   "tool_usage": [ ... ],
   "mcp_tool_usage": { ... },
@@ -116,8 +116,9 @@ Each element of `.runs` is a `RunData` object with (among others):
 |---|---|---|
 | `workflow_name` | string | Human-readable name |
 | `workflow_path` | string | `.github/workflows/....lock.yml` |
-| `token_usage` | int | Historical token total (`omitempty`) — fallback only when raw usage is unavailable |
-| `effective_tokens` | int | Historical precomputed ET — fallback only when raw usage is unavailable |
+| `aic` | float | AI Credits (AIC); preferred cost metric |
+| `token_usage` | int | Historical raw token total (`omitempty`) |
+| `effective_tokens` | int | Legacy effective-token metric retained for compatibility |
 | `action_minutes` | float | Billable GitHub Actions minutes |
 | `turns` | int | Number of agent turns |
 | `duration` | string | Human-readable duration |
@@ -136,23 +137,13 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
 
 1. Load `/tmp/gh-aw/token-audit/workflow-logs.json` and extract `.runs` for the requested input range `${{ github.event.inputs.date_range }}`.
 2. Filter to `status == "completed"` runs only.
-3. Recompute each run's effective tokens from `token_usage_summary.by_model` raw usage using current token weights and model multipliers (do not trust historical precomputed totals):
-   - Load `token_class_weights` and the `multipliers` map from JSON with this precedence:
-     1) `/tmp/gh-aw/model_multipliers.json` when present, otherwise
-     2) `pkg/cli/data/model_multipliers.json`.
-   - For each model row, compute base weighted tokens as:
-     - Normalize `provider` with `(provider or "").strip().lower()` before applying the rules below.
-     - `effective_input = max(input_tokens - cache_read_tokens, 0)` for providers `""`, `anthropic`, `openai`, `azure-openai`, `azure_openai` (both Azure variants supported due to historical spelling variations in records)
-     - `effective_input = input_tokens` for all other providers
-     - `base = (w_input * effective_input) + (w_cached_input * cache_read_tokens) + (w_output * output_tokens) + (w_reasoning * reasoning_tokens) + (w_cache_write * cache_write_tokens)` where the weights come from `token_class_weights` (defaults: `input=1.0`, `cached_input=0.1`, `output=4.0`, `reasoning=4.0`, `cache_write=1.0`).
-     - Multiply `base` by the best matching model multiplier from the loaded multiplier map (case-insensitive exact match first, then longest lowercase prefix match, fallback `1.0`) and round to nearest integer.
-   - Sum all model rows to get run-level effective tokens.
-   - Fallback order when raw model usage is unavailable: legacy run metadata `effective_tokens` → legacy run metadata `token_usage` → `0`.
+3. Use each run's `aic` field as the preferred cost metric.
+   - Treat missing/null `aic` as `0`.
+   - Keep `effective_tokens` only as a diagnostic legacy field when it is present in the logs.
 4. Group by `workflow_name` and compute per-workflow aggregates:
-   - `run_count`, `total_tokens`, `avg_tokens`, `total_turns`, `avg_turns`, `total_action_minutes`, `error_count`, `warning_count`
-   - `total_tokens` and `avg_tokens` are recomputed effective-token metrics; keep these key names for backward compatibility with existing consumers.
-5. Compute an overall summary: total runs, total tokens (recomputed effective tokens), total action minutes.
-6. Sort workflows descending by `total_tokens`.
+   - `run_count`, `total_aic`, `avg_aic`, `total_turns`, `avg_turns`, `total_action_minutes`, `error_count`, `warning_count`
+5. Compute an overall summary: total runs, total AIC, total action minutes.
+6. Sort workflows descending by `total_aic`.
 7. Save the result to `/tmp/gh-aw/token-audit/audit_snapshot.json` with this shape:
 
 ```json
@@ -161,15 +152,15 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
   "period_range": "${{ github.event.inputs.date_range }}",
   "overall": {
     "total_runs": N,
-    "total_tokens": N,
+    "total_aic": N,
     "total_action_minutes": F
   },
   "workflows": [
     {
       "workflow_name": "...",
       "run_count": N,
-      "total_tokens": N,
-      "avg_tokens": N,
+      "total_aic": N,
+      "avg_aic": N,
       "total_turns": N,
       "avg_turns": F,
       "total_action_minutes": F,
@@ -181,14 +172,14 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
 }
 ```
 
-Treat any missing numeric raw usage field as 0 during recomputation.
+Treat any missing numeric AIC field as `0`.
 
 ## Phase 2 — Generate Charts
 
 Create chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
-1. **Effective tokens by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total recomputed effective tokens from `audit_snapshot.json`.
-2. **Daily effective-token trend** (`daily_token_trend.png`, optional): a line chart that aggregates completed-run recomputed effective tokens by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
+1. **AIC by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total AIC from `audit_snapshot.json`.
+2. **Daily AIC trend** (`daily_token_trend.png`, optional): a line chart that aggregates completed-run AIC by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
 
 Chart requirements:
 
@@ -201,7 +192,7 @@ Chart requirements:
 - After generating each chart, call `upload_asset` with its file path.
 - Replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` only after `token_by_workflow.png` is uploaded.
 - Replace `UPLOAD_URL_DAILY_TREND_PLACEHOLDER` only after `daily_token_trend.png` is uploaded.
-- If `daily_token_trend.png` is skipped, omit only the `![Daily Token Usage Trend](...)` image markdown line and its placeholder replacement; keep the Trends section text and explicitly state why the chart was skipped.
+- If `daily_token_trend.png` is skipped, omit only the `![Daily AIC Trend](...)` image markdown line and its placeholder replacement; keep the Trends section text and explicitly state why the chart was skipped.
 
 ## Phase 3 — Publish Audit Issue
 
@@ -221,13 +212,13 @@ Create an issue with these sections:
 
 - **Period**: requested date range (YYYY-MM-DD to YYYY-MM-DD)
 - **Total runs**: N
-- **Total effective tokens**: N (formatted with commas)
+- **Total AIC**: N.NN
 - **Total Actions minutes**: X.X min
 - **Active workflows**: N
 
-### 🏆 Top 5 Workflows by Effective Token Usage
+### 🏆 Top 5 Workflows by AIC Usage
 
-| Workflow | Runs | Total Effective Tokens | Avg Effective Tokens |
+| Workflow | Runs | Total AIC | Avg AIC |
 |---|---|---|---|
 | ... | ... | ... | ... |
 
@@ -235,25 +226,25 @@ Create an issue with these sections:
 
 Embed chart images using uploaded asset URLs when available:
 
-![Token Usage by Workflow](UPLOAD_URL_WORKFLOW_PLACEHOLDER)
+![AIC by Workflow](UPLOAD_URL_WORKFLOW_PLACEHOLDER)
 
 <!-- Optional: include only if daily_token_trend.png was generated and uploaded; otherwise remove this line -->
-![Daily Token Usage Trend](UPLOAD_URL_DAILY_TREND_PLACEHOLDER)
+![Daily AIC Trend](UPLOAD_URL_DAILY_TREND_PLACEHOLDER)
 
-Summarize daily effective-token movement across the requested range (up/down days, spikes, and overall direction) when daily points are available; if the chart was skipped, explicitly state why.
+Summarize daily AIC movement across the requested range (up/down days, spikes, and overall direction) when daily points are available; if the chart was skipped, explicitly state why.
 
 <details>
 <summary><b>Full Per-Workflow Breakdown</b></summary>
 
-[Complete table of all workflows sorted by total effective tokens]
+[Complete table of all workflows sorted by total AIC]
 
 </details>
 
 ### 💡 Observations
 
-- Identify any workflow with >30% of total effective tokens as a "heavy hitter"
+- Identify any workflow with >30% of total AIC as a "heavy hitter"
 - Note workflows with high error/warning counts relative to runs
-- Flag any workflow whose avg effective tokens per run exceeds 100,000
+- Flag any workflow whose avg AIC per run exceeds 10.00
 
 **Data snapshot**: `/tmp/gh-aw/token-audit/audit_snapshot.json`
 ```

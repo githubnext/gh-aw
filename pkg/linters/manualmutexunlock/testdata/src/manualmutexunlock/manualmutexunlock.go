@@ -9,7 +9,7 @@ func GoodMutexPattern() {
 	var mu sync.Mutex
 	mu.Lock()
 	defer mu.Unlock()
-	
+
 	// ... do work ...
 }
 
@@ -17,9 +17,9 @@ func GoodMutexPattern() {
 func BadMutexPattern() {
 	var mu sync.Mutex
 	mu.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
-	
+
 	// ... do work ...
-	
+
 	mu.Unlock()
 }
 
@@ -28,7 +28,7 @@ func GoodRWMutexPattern() {
 	var mu sync.RWMutex
 	mu.RLock()
 	defer mu.RUnlock()
-	
+
 	// ... do work ...
 }
 
@@ -36,9 +36,9 @@ func GoodRWMutexPattern() {
 func BadRWMutexPattern() {
 	var mu sync.RWMutex
 	mu.RLock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
-	
+
 	// ... do work ...
-	
+
 	mu.RUnlock()
 }
 
@@ -46,9 +46,9 @@ func BadRWMutexPattern() {
 func BadRWMutexWriteLock() {
 	var mu sync.RWMutex
 	mu.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
-	
+
 	// ... do work ...
-	
+
 	mu.Unlock()
 }
 
@@ -57,7 +57,7 @@ func GoodNestedPattern() {
 	var mu sync.Mutex
 	mu.Lock()
 	defer mu.Unlock()
-	
+
 	func() {
 		// This is a closure, analyzed separately
 	}()
@@ -67,13 +67,13 @@ func GoodNestedPattern() {
 func GoodMultipleMutexes() {
 	var mu1 sync.Mutex
 	var mu2 sync.Mutex
-	
+
 	mu1.Lock()
 	defer mu1.Unlock()
-	
+
 	mu2.Lock()
 	defer mu2.Unlock()
-	
+
 	// ... do work ...
 }
 
@@ -81,12 +81,12 @@ func GoodMultipleMutexes() {
 func BadMultipleMutexes() {
 	var mu1 sync.Mutex
 	var mu2 sync.Mutex
-	
+
 	mu1.Lock()
 	defer mu1.Unlock()
-	
+
 	mu2.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
-	
+
 	// ... do work ...
 
 	mu2.Unlock()
@@ -111,4 +111,17 @@ func BadRepeatedLockBeforeGood() {
 
 	mu.Lock()
 	defer mu.Unlock()
+}
+
+func NolintPreviousLineSuppressed() {
+	var mu sync.Mutex
+	//nolint:manualmutexunlock
+	mu.Lock()
+	mu.Unlock()
+}
+
+func NolintSameLineSuppressed() {
+	var mu sync.Mutex
+	mu.Lock() //nolint:manualmutexunlock
+	mu.Unlock()
 }

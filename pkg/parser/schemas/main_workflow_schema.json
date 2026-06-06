@@ -2713,11 +2713,6 @@
         }
       ]
     },
-    "inline-sub-agents": {
-      "type": "boolean",
-      "description": "Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by default. Setting this to false is not supported and causes a compilation error.",
-      "examples": [true]
-    },
     "features": {
       "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only).",
       "type": "object",
@@ -2733,7 +2728,9 @@
       ]
     },
     "models": {
-      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
+      "description": "DEPRECATED: Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
+      "deprecated": true,
+      "x-deprecation-message": "Frontmatter 'models' is deprecated and no longer needed. Remove this field from workflow frontmatter.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -3689,14 +3686,32 @@
       "description": "AWF turn cap (`max_turns`) applied consistently across all agentic engines. Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for reusable workflow_call workflows.",
       "examples": [15, "${{ inputs.max-turns }}"]
     },
-    "max-effective-tokens": {
+    "max-tool-denials": {
       "$ref": "#/$defs/templatable_integer",
-      "default": 25000000,
-      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Supports GitHub Actions expressions."
+      "description": "Copilot SDK safeguard threshold for repeated tool denials before stopping inference. Defaults to 5 when omitted. Supports GitHub Actions expressions (for example, '${{ inputs.max-tool-denials }}'). Supported only with engine 'copilot' and engine.copilot-sdk: true.",
+      "default": 5,
+      "examples": [5, "${{ inputs.max-tool-denials }}"]
+    },
+    "max-effective-tokens": {
+      "$ref": "#/$defs/max_effective_tokens_limit",
+      "description": "Explicit ET budget control for firewall cost enforcement. Omit to leave the budget unset. Supports GitHub Actions expressions.",
+      "deprecated": true,
+      "x-deprecation-message": "'max-effective-tokens' is obsolete. Use 'max-ai-credits' instead. Run 'gh aw fix' to automatically migrate numeric values."
+    },
+    "max-ai-credits": {
+      "$ref": "#/$defs/max_ai_credits_limit",
+      "default": 1000,
+      "description": "Per-run AI Credits budget control for firewall cost enforcement. Defaults to 1000 when omitted. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
-      "$ref": "#/$defs/templatable_integer",
-      "description": "24-hour effective-token guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
+      "$ref": "#/$defs/max_daily_ai_credits_limit",
+      "description": "Legacy alias for daily ET guardrails.",
+      "deprecated": true,
+      "x-deprecation-message": "'max-daily-effective-tokens' is obsolete. Use 'max-daily-ai-credits' instead. Run 'gh aw fix' to automatically migrate numeric values."
+    },
+    "max-daily-ai-credits": {
+      "$ref": "#/$defs/max_daily_ai_credits_limit",
+      "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
       "$ref": "#/$defs/templatable_integer",
@@ -9870,68 +9885,6 @@
         }
       ]
     },
-    "rate-limit": {
-      "type": "object",
-      "description": "Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with 'max-runs-per-window'.",
-      "properties": {
-        "max-runs": {
-          "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
-          "oneOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 10
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to an integer at runtime"
-            }
-          ]
-        },
-        "max": {
-          "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
-          "oneOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 10
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to an integer at runtime"
-            }
-          ]
-        },
-        "window": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 180,
-          "default": 60,
-          "description": "Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180 (3 hours)."
-        },
-        "events": {
-          "type": "array",
-          "description": "Optional list of event types to apply rate limiting to.",
-          "items": {
-            "type": "string",
-            "enum": ["workflow_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "issues", "pull_request", "discussion_comment", "discussion"]
-          },
-          "minItems": 1
-        },
-        "ignored-roles": {
-          "type": "array",
-          "description": "Optional list of roles that are exempt from rate limiting.",
-          "items": {
-            "type": "string",
-            "enum": ["admin", "maintain", "write", "triage", "read"]
-          },
-          "minItems": 0
-        }
-      },
-      "additionalProperties": false
-    },
     "strict": {
       "type": "boolean",
       "default": true,
@@ -10542,52 +10495,59 @@
       ],
       "description": "Positive integer as a string (supports optional K/M suffix) or a GitHub Actions expression."
     },
-    "max_effective_tokens_limit": {
+    "positive_effective_tokens_limit": {
       "oneOf": [
         {
           "type": "integer",
-          "not": {
-            "enum": [0]
-          },
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
+          "minimum": 1
         },
         {
-          "allOf": [
-            {
-              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-            }
-          ],
-          "description": "Maximum effective-token (ET) budget as a numeric string (supports K/M suffix) or GitHub Actions expression."
+          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
         }
       ]
     },
-    "max_daily_effective_tokens_limit": {
+    "positive_ai_credits_limit": {
       "oneOf": [
         {
           "type": "integer",
-          "oneOf": [
-            {
-              "const": -1
-            },
-            {
-              "minimum": 1
-            }
-          ],
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
+          "minimum": 1
+        },
+        {
+          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+        }
+      ]
+    },
+    "max_effective_tokens_limit": {
+      "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Use a negative integer to disable budget enforcement and token steering.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/positive_effective_tokens_limit"
+        },
+        {
+          "type": "integer",
+          "maximum": -1
+        }
+      ]
+    },
+    "max_daily_ai_credits_limit": {
+      "description": "Maximum AI Credits budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/positive_ai_credits_limit"
+        },
+        {
+          "type": "integer",
+          "const": -1
         },
         {
           "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^-1$"
-            },
-            {
-              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-            }
-          ],
-          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string (supports K/M suffix) or GitHub Actions expression. Use -1 to disable."
+          "pattern": "^-1$"
         }
       ]
+    },
+    "max_ai_credits_limit": {
+      "description": "Maximum AI Credits budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions).",
+      "$ref": "#/$defs/positive_ai_credits_limit"
     },
     "job_strategy": {
       "type": "object",
@@ -10928,7 +10888,7 @@
             "copilot-sdk-driver": {
               "type": "string",
               "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
-              "description": "Custom Copilot SDK driver script or command (copilot engine only). Used only when `copilot-sdk: true` is set. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
+              "description": "Custom Copilot SDK driver script or command (copilot engine only). Setting this field implies `copilot-sdk: true`. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
             }
           },
           "required": ["id"],

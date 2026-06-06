@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the seen-map-bool analysis pass.
@@ -29,6 +30,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "seenmapbool")
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -53,7 +55,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 			body = fn.Body
 		}
-		inspectBody(pass, body)
+		inspectBody(pass, body, noLintLinesByFile)
 	})
 
 	return nil, nil
@@ -61,7 +63,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 // inspectBody walks a function body and reports map[string]bool variables
 // that are only ever assigned the literal true (i.e., used as a set).
-func inspectBody(pass *analysis.Pass, body *ast.BlockStmt) {
+func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map[string]map[int]struct{}) {
 	// Collect map[string]bool local variables defined in this scope.
 	candidates := make(map[types.Object]ast.Node) // object -> declaration node for reporting
 
@@ -159,6 +161,9 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt) {
 	// Report remaining candidates that are pure sets.
 	for obj, declNode := range candidates {
 		if nonSetMaps[obj] {
+			continue
+		}
+		if nolint.HasDirective(pass.Fset.PositionFor(declNode.Pos(), false), noLintLinesByFile) {
 			continue
 		}
 		pass.ReportRangef(

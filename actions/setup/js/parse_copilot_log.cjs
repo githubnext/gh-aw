@@ -63,6 +63,217 @@ function extractAwfTokenWarnings(logEntries) {
 }
 
 /**
+ * Detects whether parsed entries are Copilot SDK events.jsonl entries that need
+ * conversion into the normalized trace structure used by summary renderers.
+ * @param {Array<any>} logEntries
+ * @returns {boolean}
+ */
+function isCopilotSdkEventsFormat(logEntries) {
+  if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    return false;
+  }
+
+  const sdkEventTypes = new Set(["user.message", "assistant.message", "tool.execution_start", "tool.execution_complete", "reasoning", "assistant.reasoning"]);
+  let sdkLikeCount = 0;
+
+  for (const entry of logEntries) {
+    if (!entry || typeof entry !== "object") continue;
+    if (entry.type === "assistant" || entry.type === "user" || entry.type === "system" || entry.type === "result") {
+      return false;
+    }
+    if (typeof entry.type === "string" && sdkEventTypes.has(entry.type) && typeof entry.data === "object" && entry.data !== null) {
+      sdkLikeCount++;
+    }
+  }
+
+  return sdkLikeCount > 0;
+}
+
+/**
+ * Converts Copilot SDK events.jsonl entries into the normalized trace format
+ * expected by generateConversationMarkdown and copilot-style summary renderers.
+ * @param {Array<any>} sdkEntries
+ * @returns {Array<any>}
+ */
+function normalizeCopilotSdkEventsToTrace(sdkEntries) {
+  /** @type {Array<any>} */
+  const normalizedEntries = [];
+  const toolNames = new Set();
+  const pendingByToolCallId = new Map();
+  const pendingIdsByToolName = new Map();
+  let toolCounter = 0;
+  let turnCount = 0;
+  let assistantMessageCount = 0;
+  let firstTimestampMs = null;
+  let lastTimestampMs = null;
+
+  const addPendingId = (toolName, toolId) => {
+    const existing = pendingIdsByToolName.get(toolName);
+    if (existing) {
+      existing.push(toolId);
+      return;
+    }
+    pendingIdsByToolName.set(toolName, [toolId]);
+  };
+
+  const shiftPendingId = toolName => {
+    const existing = pendingIdsByToolName.get(toolName);
+    if (!existing || existing.length === 0) return null;
+    const toolId = existing.shift();
+    if (existing.length === 0) {
+      pendingIdsByToolName.delete(toolName);
+    }
+    return toolId || null;
+  };
+
+  const removePendingId = (toolName, toolId) => {
+    const existing = pendingIdsByToolName.get(toolName);
+    if (!existing || existing.length === 0) return;
+    const idx = existing.indexOf(toolId);
+    if (idx === -1) return;
+    existing.splice(idx, 1);
+    if (existing.length === 0) {
+      pendingIdsByToolName.delete(toolName);
+    }
+  };
+
+  const normalizeToolName = (rawToolName, mcpServerName) => {
+    const toolName = typeof rawToolName === "string" && rawToolName.trim() ? rawToolName.trim() : "unknown";
+    if (toolName.startsWith("mcp__")) {
+      return toolName;
+    }
+    const serverName = typeof mcpServerName === "string" ? mcpServerName.trim() : "";
+    if (!serverName) {
+      return toolName;
+    }
+    return `mcp__${serverName}__${toolName}`;
+  };
+
+  const maybeTrackTimestamp = timestamp => {
+    if (typeof timestamp !== "string") return;
+    const ms = new Date(timestamp).getTime();
+    if (!Number.isFinite(ms)) return;
+    if (firstTimestampMs === null || ms < firstTimestampMs) {
+      firstTimestampMs = ms;
+    }
+    if (lastTimestampMs === null || ms > lastTimestampMs) {
+      lastTimestampMs = ms;
+    }
+  };
+
+  for (const entry of sdkEntries) {
+    if (!entry || typeof entry !== "object") continue;
+    maybeTrackTimestamp(entry.timestamp);
+
+    switch (entry.type) {
+      case "user.message":
+        turnCount++;
+        break;
+
+      case "assistant.message": {
+        assistantMessageCount++;
+        const text = typeof entry.data?.content === "string" ? entry.data.content.trim() : "";
+        if (!text) break;
+        normalizedEntries.push({
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text }],
+          },
+        });
+        break;
+      }
+
+      case "tool.execution_start": {
+        const toolName = normalizeToolName(entry.data?.toolName, entry.data?.mcpServerName);
+        toolNames.add(toolName);
+        const toolCallId = typeof entry.data?.toolCallId === "string" && entry.data.toolCallId.trim() ? entry.data.toolCallId : null;
+        const resolvedToolId = toolCallId || `sdk_tool_${++toolCounter}`;
+        if (toolCallId) {
+          pendingByToolCallId.set(toolCallId, resolvedToolId);
+        }
+        addPendingId(toolName, resolvedToolId);
+        normalizedEntries.push({
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
+          },
+        });
+        break;
+      }
+
+      case "tool.execution_complete": {
+        const toolName = normalizeToolName(entry.data?.toolName, entry.data?.mcpServerName);
+        toolNames.add(toolName);
+        const toolCallId = typeof entry.data?.toolCallId === "string" && entry.data.toolCallId.trim() ? entry.data.toolCallId : null;
+        let resolvedToolId = null;
+
+        if (toolCallId && pendingByToolCallId.has(toolCallId)) {
+          resolvedToolId = pendingByToolCallId.get(toolCallId);
+          pendingByToolCallId.delete(toolCallId);
+          if (resolvedToolId) {
+            removePendingId(toolName, resolvedToolId);
+          }
+        }
+        if (!resolvedToolId) {
+          resolvedToolId = shiftPendingId(toolName);
+        }
+        if (!resolvedToolId) {
+          resolvedToolId = `sdk_tool_${++toolCounter}`;
+          normalizedEntries.push({
+            type: "assistant",
+            message: {
+              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
+            },
+          });
+        }
+
+        const success = typeof entry.data?.success === "boolean" ? entry.data.success : !entry.data?.error;
+        normalizedEntries.push({
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: resolvedToolId,
+                content: success ? "success" : "Tool execution failed",
+                is_error: !success,
+              },
+            ],
+          },
+        });
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  if (normalizedEntries.length === 0) {
+    return [];
+  }
+
+  normalizedEntries.unshift({
+    type: "system",
+    subtype: "init",
+    model: "copilot-sdk",
+    session_id: null,
+    tools: Array.from(toolNames),
+  });
+
+  const resultEntry = {
+    type: "result",
+    num_turns: turnCount > 0 ? turnCount : assistantMessageCount,
+  };
+  if (firstTimestampMs !== null && lastTimestampMs !== null && lastTimestampMs >= firstTimestampMs) {
+    resultEntry.duration_ms = lastTimestampMs - firstTimestampMs;
+  }
+  normalizedEntries.push(resultEntry);
+
+  return normalizedEntries;
+}
+
+/**
  * Parses Copilot CLI log content and converts it to markdown format
  * @param {string} logContent - The raw log content as a string
  * @returns {{markdown: string, logEntries: Array, mcpFailures?: string[], maxTurnsHit?: boolean}} Formatted result with markdown and metadata
@@ -97,6 +308,13 @@ function parseCopilotLog(logContent) {
 
   if (!logEntries || logEntries.length === 0) {
     return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
+  }
+
+  if (isCopilotSdkEventsFormat(logEntries)) {
+    const normalized = normalizeCopilotSdkEventsToTrace(logEntries);
+    if (normalized.length > 0) {
+      logEntries = normalized;
+    }
   }
 
   // Generate conversation markdown using shared function

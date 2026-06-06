@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -15,6 +16,11 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
+
+func containsEnvValue(stepContent, key, value string) bool {
+	return strings.Contains(stepContent, key+": "+value) ||
+		strings.Contains(stepContent, key+`: "`+value+`"`)
+}
 
 func TestCopilotEngine(t *testing.T) {
 	engine := NewCopilotEngine()
@@ -218,6 +224,38 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 }
 
+// TestCopilotEngineDisablesRubberDuck verifies that the Copilot engine execution steps
+// write a settings file that disables the rubber-duck sub-agent, reducing token overhead
+// and latency for Copilot engine runs.
+func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// The step should create the Copilot config directory and write a settings file
+	// that disables the rubber-duck sub-agent.
+	if !strings.Contains(stepContent, "mkdir -p /home/runner/.copilot") {
+		t.Errorf("Expected 'mkdir -p /home/runner/.copilot' in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, copilotSettingsContent) {
+		t.Errorf("Expected copilot settings content %q in step content:\n%s", copilotSettingsContent, stepContent)
+	}
+	if !strings.Contains(stepContent, copilotSettingsPath) {
+		t.Errorf("Expected copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
+	}
+	if !strings.Contains(stepContent, "rm -f "+copilotSettingsPath) {
+		t.Errorf("Expected cleanup command to remove copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
+	}
+}
+
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
@@ -264,6 +302,15 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	expectedURI := constants.CopilotSDKURIEnvVar + ": http://127.0.0.1:" + strconv.Itoa(constants.DefaultCopilotSDKPort)
 	if !strings.Contains(stepContent, expectedURI) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
+	}
+	expectedMaxToolDenials := constants.EnvVarMaxToolDenials + ": " + strconv.Itoa(constants.DefaultMaxToolDenials)
+	if !strings.Contains(stepContent, expectedMaxToolDenials) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedMaxToolDenials, stepContent)
+	}
+	defaultTimeoutMinutes := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	expectedTimeoutEnv := "GH_AW_TIMEOUT_MINUTES: " + defaultTimeoutMinutes
+	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", defaultTimeoutMinutes) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedTimeoutEnv, stepContent)
 	}
 	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from npm global root, got:\n%s", stepContent)
@@ -323,6 +370,30 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineExecutionStepsWithCopilotSDKTimeoutExpression(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name:           "test-workflow",
+		TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "timeout-minutes: ${{ inputs.timeout }}") {
+		t.Fatalf("Expected timeout-minutes expression in step, got:\n%s", stepContent)
+	}
+	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", "${{ inputs.timeout }}") {
+		t.Fatalf("Expected GH_AW_TIMEOUT_MINUTES expression in step env, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
@@ -347,6 +418,28 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	}
 	if strings.Contains(stepContent, "/actions/copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected built-in SDK driver to be replaced, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKMaxToolDenialsOverride(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:     true,
+			MaxToolDenials: "${{ inputs.max-tool-denials }}",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, constants.EnvVarMaxToolDenials+": ${{ inputs.max-tool-denials }}") &&
+		!strings.Contains(stepContent, constants.EnvVarMaxToolDenials+`: "${{ inputs.max-tool-denials }}"`) {
+		t.Fatalf("Expected %s to include workflow expression override, got:\n%s", constants.EnvVarMaxToolDenials, stepContent)
 	}
 }
 
@@ -2540,6 +2633,9 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		}
 		if !strings.Contains(stepContent, "GH_AW_ENGINE_COMMAND_EOF") {
 			t.Errorf("Expected step to include heredoc delimiter for script serialization, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)" /home/runner/.copilot`) {
+			t.Errorf("Expected step to fix ownership for /home/runner/.copilot in custom engine.command mode, got:\n%s", stepContent)
 		}
 	})
 }

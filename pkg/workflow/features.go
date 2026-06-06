@@ -66,7 +66,7 @@ func getFeatureValueFromFrontmatter(flagLower string, workflowData *WorkflowData
 	}
 
 	for key, value := range workflowData.Features {
-		if strings.ToLower(key) == flagLower {
+		if strings.EqualFold(key, flagLower) {
 			if enabled, found := parseFeatureValue(value); found {
 				if logEnabled {
 					featuresLog.Printf("Feature found in frontmatter (case-insensitive): %s=%v", flagLower, enabled)
@@ -102,7 +102,7 @@ func isFeatureInEnvironment(flagLower string, logEnabled bool) bool {
 		featuresLog.Printf("Checking GH_AW_FEATURES environment variable: %s", features)
 	}
 	for feature := range strings.SplitSeq(features, ",") {
-		if strings.ToLower(strings.TrimSpace(feature)) == flagLower {
+		if strings.EqualFold(strings.TrimSpace(feature), flagLower) {
 			return true
 		}
 	}

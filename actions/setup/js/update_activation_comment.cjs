@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-005: targetRepo is supplied by trusted orchestration code (callers validate the repo via resolveAndValidateRepo before passing it in); never derived from agent safe-output content
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getMessages } = require("./messages_core.cjs");

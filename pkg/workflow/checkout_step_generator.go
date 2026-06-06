@@ -68,6 +68,79 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 	return lines
 }
 
+// GenerateCheckoutManifestStep emits a step that writes a JSON manifest describing
+// each non-default cross-repository checkout, keyed by lowercase repo slug. The
+// manifest records the on-disk path and the resolved default branch for each repo
+// so the safe-outputs MCP server (which runs without credentials) can look up the
+// base branch without making any network calls.
+//
+// The manifest file lives at $RUNNER_TEMP/gh-aw/checkout-manifest.json. The default
+// branch is resolved at runtime via:
+//  1. `git symbolic-ref --short refs/remotes/origin/HEAD` on the local checkout
+//     (works when actions/checkout left the remote HEAD set, typical for fetch-depth: 0)
+//  2. `gh api repos/<owner>/<repo> --jq .default_branch` as a credentialed fallback
+//
+// Returns an empty slice when there are no non-default cross-repo checkouts to record.
+func (cm *CheckoutManager) GenerateCheckoutManifestStep() []string {
+	type manifestEntry struct {
+		repository string
+		path       string
+	}
+	var entries []manifestEntry
+	for _, entry := range cm.ordered {
+		if entry.key.wiki {
+			continue
+		}
+		if entry.key.repository == "" {
+			continue
+		}
+		entries = append(entries, manifestEntry{repository: entry.key.repository, path: entry.key.path})
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	checkoutManagerLog.Printf("Generating checkout manifest step for %d cross-repo entries", len(entries))
+
+	var sb strings.Builder
+	sb.WriteString("      - name: Build checkout manifest for safe-outputs handlers\n")
+	sb.WriteString("        env:\n")
+	sb.WriteString("          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          set -euo pipefail\n")
+	sb.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
+	sb.WriteString("          manifest=\"${RUNNER_TEMP}/gh-aw/checkout-manifest.json\"\n")
+	sb.WriteString("          printf '{}' > \"$manifest\"\n")
+	sb.WriteString("          resolve_default_branch() {\n")
+	sb.WriteString("            local repo=\"$1\" path=\"$2\" db=\"\"\n")
+	sb.WriteString("            if [ -d \"${GITHUB_WORKSPACE}/${path}/.git\" ]; then\n")
+	sb.WriteString("              db=$(git -C \"${GITHUB_WORKSPACE}/${path}\" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)\n")
+	sb.WriteString("            fi\n")
+	sb.WriteString("            if [ -z \"$db\" ]; then\n")
+	sb.WriteString("              db=$(gh api \"repos/${repo}\" --jq '.default_branch' 2>/dev/null || true)\n")
+	sb.WriteString("            fi\n")
+	sb.WriteString("            printf '%s' \"$db\"\n")
+	sb.WriteString("          }\n")
+	for _, e := range entries {
+		// Both repo and path are static at compile time. Use shell-quoted literals.
+		fmt.Fprintf(&sb, "          repo=%s\n", shellSingleQuote(e.repository))
+		fmt.Fprintf(&sb, "          path=%s\n", shellSingleQuote(e.path))
+		sb.WriteString("          db=$(resolve_default_branch \"$repo\" \"$path\")\n")
+		sb.WriteString("          tmp=$(mktemp)\n")
+		sb.WriteString("          jq --arg repo \"$repo\" --arg path \"$path\" --arg db \"$db\" \\\n")
+		sb.WriteString("            '.[($repo | ascii_downcase)] = {repository: $repo, path: $path, default_branch: $db}' \\\n")
+		sb.WriteString("            \"$manifest\" > \"$tmp\" && mv \"$tmp\" \"$manifest\"\n")
+		sb.WriteString("          echo \"checkout-manifest: ${repo} -> path=${path} default_branch=${db:-<unresolved>}\"\n")
+	}
+	sb.WriteString("          cat \"$manifest\"\n")
+	return []string{sb.String()}
+}
+
+// shellSingleQuote returns s wrapped in single quotes, escaping any embedded single quotes.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 // GenerateGitHubFolderCheckoutStep generates YAML step lines for a sparse checkout of
 // the .github and .agents folders. This is used in the activation job to access workflow
 // configuration and runtime imports.

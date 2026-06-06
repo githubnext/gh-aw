@@ -13,6 +13,7 @@ const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 const { formatET, reduceModelNameToIdentifier, resolveActualModelName } = require("./effective_tokens.cjs");
+const { formatAIC } = require("./model_costs.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 
 /**
@@ -52,12 +53,89 @@ function getEffectiveTokensFromEnv(modelName) {
 }
 
 /**
+ * @param {string|undefined} raw
+ * @returns {number|undefined}
+ */
+function parsePositiveAIC(raw) {
+  const parsed = raw ? Number.parseFloat(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/**
+ * @param {string} label
+ * @param {number|undefined} value
+ * @returns {{ value: number|undefined, formatted: string|undefined, suffix: string }}
+ */
+function buildAICEntry(label, value) {
+  const formatted = typeof value === "number" ? formatAIC(value) : undefined;
+  const labelPrefix = label ? `${label} ` : "";
+  return {
+    value,
+    formatted,
+    suffix: formatted ? ` · ${labelPrefix}${formatted} AIC` : "",
+  };
+}
+
+/**
+ * Read AI Credits from the environment and return the total, separate entries when
+ * threat detection consumed credits, and the pre-formatted footer suffix.
+ * @returns {{
+ *   aiCredits: number|undefined,
+ *   aiCreditsFormatted: string|undefined,
+ *   aiCreditsSuffix: string,
+ *   agentAiCredits: number|undefined,
+ *   agentAiCreditsFormatted: string|undefined,
+ *   agentAiCreditsSuffix: string,
+ *   threatDetectionAiCredits: number|undefined,
+ *   threatDetectionAiCreditsFormatted: string|undefined,
+ *   threatDetectionAiCreditsSuffix: string
+ * }}
+ */
+function getAICFromEnv() {
+  const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
+  const agentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
+  const threatDetectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
+  const agentEntry = buildAICEntry("", agentAIC);
+  const threatDetectionEntry = buildAICEntry("⌖", threatDetectionAIC);
+  const useBreakdown = threatDetectionEntry.suffix.length > 0;
+  const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
+  const aiCreditsFormatted = typeof aiCredits === "number" ? formatAIC(aiCredits) : undefined;
+  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}` : aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
+
+  return {
+    aiCredits,
+    aiCreditsFormatted,
+    aiCreditsSuffix,
+    agentAiCredits: agentEntry.value,
+    agentAiCreditsFormatted: agentEntry.formatted,
+    agentAiCreditsSuffix: agentEntry.suffix,
+    threatDetectionAiCredits: threatDetectionEntry.value,
+    threatDetectionAiCreditsFormatted: threatDetectionEntry.formatted,
+    threatDetectionAiCreditsSuffix: threatDetectionEntry.suffix,
+  };
+}
+
+/**
  * @param {string} modelName
  * @returns {string}
  */
 function buildModelPrefix(modelName) {
   const reducedModel = reduceModelNameToIdentifier(modelName);
   return reducedModel ? `${reducedModel} ` : "";
+}
+
+/**
+ * Determine whether to append AI Credits to effective_tokens_suffix in custom
+ * templates for backward compatibility.
+ * @param {string} footerTemplate
+ * @param {string} effectiveTokensSuffix
+ * @param {string} aiCreditsSuffix
+ * @returns {boolean}
+ */
+function shouldAppendAICToEffectiveTokensSuffix(footerTemplate, effectiveTokensSuffix, aiCreditsSuffix) {
+  const includesEffectiveTokensSuffix = footerTemplate.includes("{effective_tokens_suffix}");
+  const includesAICSuffix = footerTemplate.includes("{ai_credits_suffix}");
+  return includesEffectiveTokensSuffix && !includesAICSuffix && effectiveTokensSuffix.length > 0 && aiCreditsSuffix.length > 0;
 }
 
 /**
@@ -71,6 +149,7 @@ function buildModelPrefix(modelName) {
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
  * @property {number} [effectiveTokens] - Total effective token count for the run (shown as N when > 0, in compact format)
+ * @property {number} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
  * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
@@ -92,7 +171,19 @@ function getFooterMessage(ctx) {
   // over GH_AW_ENGINE_MODEL, which may be a user-supplied alias (e.g. "agent").
   const resolvedModelName = ctx.model || resolveActualModelName();
   const { effectiveTokens: envEffectiveTokens, effectiveTokensFormatted: envEffectiveTokensFormatted, effectiveTokensSuffix: envEffectiveTokensSuffix } = getEffectiveTokensFromEnv(resolvedModelName);
+  const {
+    aiCredits: envAIC,
+    aiCreditsFormatted: envAICFormatted,
+    aiCreditsSuffix: envAICSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  } = getAICFromEnv();
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
+  const aiCredits = ctx.aiCredits ?? envAIC;
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
   const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
@@ -114,9 +205,39 @@ function getFooterMessage(ctx) {
       effectiveTokensSuffix = "";
     }
   }
+  const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  let aiCreditsFormatted = envAICFormatted;
+  let aiCreditsSuffix = envAICSuffix;
+  if (hasExplicitContextAIC) {
+    aiCreditsFormatted = aiCredits ? formatAIC(aiCredits) : undefined;
+    aiCreditsSuffix = aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
+  }
+
+  // Backward compatibility for generated custom footers that currently include only
+  // {effective_tokens_suffix}: when AIC is available, append it immediately after ET
+  // unless the template already opts in via {ai_credits_suffix}.
+  const customFooterTemplate = messages?.footer || "";
+  const shouldAppendAIC = shouldAppendAICToEffectiveTokensSuffix(customFooterTemplate, effectiveTokensSuffix, aiCreditsSuffix);
+  const finalEffectiveTokensSuffix = shouldAppendAIC ? `${effectiveTokensSuffix}${aiCreditsSuffix}` : effectiveTokensSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
-  const templateContext = toSnakeCase({ ...ctx, effectiveTokens, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });
+  const templateContext = toSnakeCase({
+    ...ctx,
+    effectiveTokens,
+    aiCredits,
+    historyLink,
+    agenticWorkflowUrl,
+    effectiveTokensFormatted,
+    effectiveTokensSuffix: finalEffectiveTokensSuffix,
+    aiCreditsFormatted,
+    aiCreditsSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  });
 
   // Use custom footer template if configured (no automatic suffix appended)
   if (messages?.footer) {
@@ -129,9 +250,8 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
-  // Append effective tokens when available (compact format, no "ET" label)
-  if (effectiveTokens) {
-    defaultFooter += effectiveTokensSuffix;
+  if (aiCredits) {
+    defaultFooter += aiCreditsSuffix;
   }
   // Append history link when available
   if (ctx.historyUrl) {
@@ -269,10 +389,6 @@ function getFooterAgentFailureIssueMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    // Append effective tokens when available (compact format, no "ET" label)
-    if (effectiveTokens) {
-      defaultFooter += `{effective_tokens_suffix}`;
-    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";
@@ -311,10 +427,6 @@ function getFooterAgentFailureCommentMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    // Append effective tokens when available (compact format, no "ET" label)
-    if (effectiveTokens) {
-      defaultFooter += `{effective_tokens_suffix}`;
-    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";

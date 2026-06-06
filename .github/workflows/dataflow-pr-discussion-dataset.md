@@ -83,8 +83,41 @@ safe-outputs:
     run-failure: "⚠️ DataFlow pipeline failed! [{workflow_name}]({run_url}) {status}. Check the run logs."
 timeout-minutes: 30
 tracker-id: dataflow-pr-discussion-dataset
+experiments:
+  caveman_mode:
+    variants: ["no", "yes"]
+    description: "Test whether extreme prompt compression (removing ASCII diagrams, embedded Python scripts, and step-by-step narration) preserves DataFlow dataset quality and run reliability"
+    hypothesis: "H0: no change in input_token_count, retention_rate, or run_success_rate. H1: caveman prompt cuts input tokens ≥30% with retention_rate ≥0.80 and run_success_rate ≥0.90"
+    metric: input_token_count
+    secondary_metrics: [run_duration_ms, dataset_record_count, retention_rate]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.9"
+      - name: empty_output_rate
+        threshold: "==0.0"
+    min_samples: 10
+    weight: [50, 50]
+    start_date: "2026-06-05"
+    issue: 37102
 strict: true
 ---
+
+{{#if experiments.caveman_mode == 'yes' }}
+Build a cleaned JSONL dataset from this repo's discussions and PRs using OpenDCAI/DataFlow.
+
+Inputs:
+- Discussions: `/tmp/gh-aw/agent/discussions-data/discussions.json`
+- PRs: `/tmp/gh-aw/agent/dataflow/input/prs.json`
+
+Output: `/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl`
+Venv: `/tmp/gh-aw/agent/venv/bin/python3`
+
+Normalise both sources into unified JSONL (fields: id, source, text, url, author, created_at).
+Filter with min_len=50 and alpha_ratio>0.25.
+Deduplicate with MinHash threshold=0.85, or exact-hash fallback.
+If DataFlow is unavailable, use pure Python fallback.
+Compute retention_rate = output/input, upload `dataset_clean.jsonl` as artifact, post a stats table (input count, output count, retention rate, operators used) to a GitHub Discussion in category `reports`, and update the memory branch with run metadata.
+{{else}}
 # DataFlow PR & Discussion Dataset Builder
 
 You are a data pipeline agent that uses [OpenDCAI/DataFlow](https://github.com/OpenDCAI/DataFlow) to process GitHub discussions and pull requests into high-quality, deduplicated datasets suitable for LLM training and analysis.
@@ -637,3 +670,4 @@ The resulting JSONL dataset is suitable for:
 - **Analytics**: Deduplicated corpus for topic modelling, sentiment analysis, clustering
 
 {{#runtime-import shared/noop-reminder.md}}
+{{/if}}

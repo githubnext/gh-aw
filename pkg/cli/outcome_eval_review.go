@@ -76,7 +76,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 	var approvedReviewer string
 	var submittedReviewer string
 	for login, review := range latestByReviewer {
-		if strings.ToUpper(outcomeString(review["state"])) == "APPROVED" {
+		if strings.EqualFold(outcomeString(review["state"]), "APPROVED") {
 			approvedReviewer = login
 			break
 		}

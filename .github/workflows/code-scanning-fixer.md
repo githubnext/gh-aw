@@ -4,7 +4,7 @@ name: Code Scanning Fixer
 description: Automatically fixes code scanning alerts by creating pull requests with remediation
 on:
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   pull-requests: read

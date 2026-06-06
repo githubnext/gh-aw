@@ -707,8 +707,8 @@ describe("handle_agent_failure", () => {
               if (q.includes('"gh-aw-failure-issue:"') && q.includes('"failure_categories:"')) {
                 return {
                   data: {
-                    total_count: 5,
-                    items: Array.from({ length: 5 }, (_, index) => ({
+                    total_count: 25,
+                    items: Array.from({ length: 25 }, (_, index) => ({
                       number: index + 1,
                       html_url: `https://github.com/owner/repo/issues/${index + 1}`,
                       created_at: now,
@@ -765,6 +765,7 @@ describe("handle_agent_failure", () => {
         mcp_policy_error_context: "",
         model_not_supported_error_context: "",
         effective_tokens_rate_limit_error_context: "",
+        ai_credits_rate_limit_error_context: "",
         app_token_minting_failed_context: "",
         lockdown_check_failed_context: "",
         stale_lock_file_failed_context: "",
@@ -2675,6 +2676,75 @@ describe("handle_agent_failure", () => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-resolve-et-"));
     });
 
+    describe("resolveAICreditsFailureState", () => {
+      const fs = require("fs");
+      const os = require("os");
+      const path = require("path");
+
+      let tmpDir;
+      let resolveAICreditsFailureState;
+
+      beforeEach(() => {
+        vi.resetModules();
+        ({ resolveAICreditsFailureState } = require("./effective_tokens_context.cjs"));
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-resolve-aic-"));
+      });
+
+      afterEach(() => {
+        delete process.env.GH_AW_AGENT_OUTPUT;
+        delete process.env.GH_AW_AIC;
+        delete process.env.GH_AW_MAX_AI_CREDITS;
+        delete process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR;
+        if (tmpDir && fs.existsSync(tmpDir)) {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+      });
+
+      it("suppresses AI credits budget exhaustion when usage is below the configured maximum", () => {
+        const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+        fs.mkdirSync(auditDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(auditDir, "log.jsonl"),
+          JSON.stringify({
+            _schema: "audit/v0.26.0",
+            ts: 1,
+            ai_credits: 900,
+            max_ai_credits: 1000,
+            ai_credits_rate_limit_error: true,
+          })
+        );
+        process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+        expect(resolveAICreditsFailureState()).toEqual({
+          aiCredits: "900",
+          maxAICredits: "1000",
+          aiCreditsRateLimitError: false,
+        });
+      });
+
+      it("keeps AI credits budget exhaustion when usage meets the configured maximum", () => {
+        const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+        fs.mkdirSync(auditDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(auditDir, "log.jsonl"),
+          JSON.stringify({
+            _schema: "audit/v0.26.0",
+            ts: 1,
+            ai_credits: 1000,
+            max_ai_credits: 1000,
+            ai_credits_rate_limit_error: true,
+          })
+        );
+        process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+        expect(resolveAICreditsFailureState()).toEqual({
+          aiCredits: "1000",
+          maxAICredits: "1000",
+          aiCreditsRateLimitError: true,
+        });
+      });
+    });
+
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_EFFECTIVE_TOKENS;
@@ -2838,7 +2908,7 @@ describe("handle_agent_failure", () => {
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [effective tokens]({et_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
-          "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
+          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
           "{et_table_section}\n" +
           "- To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).\n" +
           "</details>\n"
@@ -2888,7 +2958,7 @@ describe("handle_agent_failure", () => {
 
     it("includes a link to the ET specification docs", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
-      expect(result).toContain("https://github.github.com/gh-aw/reference/effective-tokens-specification/");
+      expect(result).toContain("https://github.github.com/gh-aw/specs/effective-tokens-specification/");
     });
 
     it("includes a link to the token optimization guide", () => {

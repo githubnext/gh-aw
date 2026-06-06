@@ -13,7 +13,7 @@ import (
 )
 
 func TestSafeOutputsSpecificationDocumentsMergePullRequest(t *testing.T) {
-	specPath := findRepoFile(t, filepath.Join("docs", "src", "content", "docs", "reference", "safe-outputs-specification.md"))
+	specPath := findRepoFile(t, filepath.Join("docs", "src", "content", "docs", "specs", "safe-outputs-specification.md"))
 	specBytes, err := os.ReadFile(specPath)
 	require.NoError(t, err, "should read safe outputs specification")
 

@@ -9,6 +9,8 @@ const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
+const { parseJsonlContent } = require("./jsonl_helpers.cjs");
+const { countSteeringEventsInApiProxyJsonl } = require("./steering_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -1390,6 +1392,12 @@ const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
  * @type {string}
  */
 const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
+const API_PROXY_EVENT_LOG_PATHS = [
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/events.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
+];
 const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|EPERM)\b/i;
 
 /**
@@ -1413,9 +1421,12 @@ const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|
 function readLastRateLimitEntry() {
   try {
     const content = fs.readFileSync(GITHUB_RATE_LIMITS_JSONL_PATH, "utf8");
-    const lines = content.split("\n").filter(l => l.trim() !== "");
-    if (lines.length === 0) return null;
-    return JSON.parse(lines[lines.length - 1]);
+    const entries = parseJsonlContent(content);
+    if (entries.length === 0) return null;
+    const last = entries[entries.length - 1];
+    // Rate-limit enrichment requires object entries (not primitive values or
+    // arrays) so the expected fields can be extracted as attributes.
+    return last && typeof last === "object" && !Array.isArray(last) ? last : null;
   } catch {
     return null;
   }
@@ -1493,18 +1504,9 @@ function readOTLPExportErrorDetails() {
     const content = fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8");
     /** @type {OTLPExportErrorDetail[]} */
     const details = [];
-    for (const rawLine of content.split("\n")) {
-      const line = rawLine.trim();
-      if (!line) {
-        continue;
-      }
-      try {
-        const parsed = JSON.parse(line);
-        if (isValidOTLPExportErrorDetail(parsed)) {
-          details.push(normalizeOTLPExportErrorDetail(parsed));
-        }
-      } catch {
-        // Ignore malformed and partially written JSONL lines.
+    for (const parsed of parseJsonlContent(content)) {
+      if (isValidOTLPExportErrorDetail(parsed)) {
+        details.push(normalizeOTLPExportErrorDetail(parsed));
       }
     }
     return details;
@@ -1626,61 +1628,103 @@ function getErrorMessage(errorEntry) {
  * @property {number | undefined} turns
  * @property {string | undefined} stopReason
  * @property {string | undefined} resolvedModel
- * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
+ * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, ai_credits?: number} | undefined} tokenUsage
  * @property {number} warningCount
  * @property {number} permissionDeniedCount
+ * @property {number} steeringEventCount
  */
+
+/**
+ * Normalize a non-negative numeric counter or cost value.
+ *
+ * @param {unknown} rawValue
+ * @returns {number | undefined}
+ */
+function normalizeNonNegativeNumber(rawValue) {
+  if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue >= 0) {
+    return rawValue;
+  }
+  if (typeof rawValue === "string" && rawValue.trim()) {
+    const parsed = Number(rawValue.trim());
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
 
 /**
  * Normalize token usage counters from an engine result event usage block.
  *
  * @param {unknown} rawUsage
- * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined}
+ * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, ai_credits?: number} | undefined}
  */
 function normalizeRuntimeTokenUsage(rawUsage) {
   if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
     return undefined;
   }
 
-  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number}} */
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number, effective_tokens?: number, ai_credits?: number}} */
   const usage = rawUsage;
-  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number}} */
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, ai_credits?: number}} */
   const normalized = {};
 
-  const normalizeTokenCounter = rawValue => {
-    if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue >= 0) {
-      return rawValue;
-    }
-    if (typeof rawValue === "string" && rawValue.trim()) {
-      const trimmed = rawValue.trim();
-      const parsed = Number(trimmed);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        return parsed;
-      }
-    }
-    return undefined;
-  };
-
-  const inputTokens = normalizeTokenCounter(usage.input_tokens);
+  const inputTokens = normalizeNonNegativeNumber(usage.input_tokens);
   if (typeof inputTokens === "number") {
     normalized.input_tokens = inputTokens;
   }
-  const outputTokens = normalizeTokenCounter(usage.output_tokens);
+  const outputTokens = normalizeNonNegativeNumber(usage.output_tokens);
   if (typeof outputTokens === "number") {
     normalized.output_tokens = outputTokens;
   }
 
-  const cacheReadTokens = normalizeTokenCounter(usage.cache_read_tokens) ?? normalizeTokenCounter(usage.cache_read_input_tokens);
+  const cacheReadTokens = normalizeNonNegativeNumber(usage.cache_read_tokens) ?? normalizeNonNegativeNumber(usage.cache_read_input_tokens);
   if (typeof cacheReadTokens === "number") {
     normalized.cache_read_tokens = cacheReadTokens;
   }
 
-  const cacheWriteTokens = normalizeTokenCounter(usage.cache_write_tokens) ?? normalizeTokenCounter(usage.cache_creation_input_tokens);
+  const cacheWriteTokens = normalizeNonNegativeNumber(usage.cache_write_tokens) ?? normalizeNonNegativeNumber(usage.cache_creation_input_tokens);
   if (typeof cacheWriteTokens === "number") {
     normalized.cache_write_tokens = cacheWriteTokens;
   }
 
+  const effectiveTokens = normalizeNonNegativeNumber(usage.effective_tokens);
+  if (typeof effectiveTokens === "number") {
+    normalized.effective_tokens = effectiveTokens;
+  }
+
+  const aiCredits = normalizeNonNegativeNumber(usage.ai_credits);
+  if (typeof aiCredits === "number") {
+    normalized.ai_credits = aiCredits;
+  }
+
   return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+/**
+ * Read steering-event count from the first available API proxy event-log JSONL.
+ *
+ * Uses first-available-wins semantics: the first non-empty file encountered is
+ * the single source of truth for this run. Multiple paths cover runtime vs
+ * audit sandbox layouts. If the file exists but has no steering events, 0 is
+ * returned without checking later paths.
+ *
+ * @returns {number}
+ */
+function readApiProxySteeringEventCount() {
+  for (const filePath of API_PROXY_EVENT_LOG_PATHS) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (!stat || stat.size <= 0) {
+        continue;
+      }
+      const content = fs.readFileSync(filePath, "utf8");
+      return countSteeringEventsInApiProxyJsonl(content);
+    } catch {
+      // Ignore missing/unreadable files and fall through to the next path.
+    }
+  }
+  return 0;
 }
 
 /**
@@ -1690,7 +1734,7 @@ function normalizeRuntimeTokenUsage(rawUsage) {
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0 };
+  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0, permissionDeniedCount: 0, steeringEventCount: readApiProxySteeringEventCount() };
   let fallbackPermissionDeniedCount = 0;
   let hasStructuredPermissionDeniedCount = false;
 
@@ -1811,7 +1855,12 @@ function readAgentRuntimeMetrics() {
  *                                     the span status is set to STATUS_CODE_ERROR (2)
  * - `GH_AW_DETECTION_CONCLUSION`   – threat-detection scan outcome ("success", "warning",
  *                                     "failure", "skipped"); emitted as
- *                                     `gh-aw.detection.conclusion` when present
+ *                                     `gh-aw.detection.conclusion` when present.
+ *                                     Set via GITHUB_ENV by the detection job itself
+ *                                     (parse_threat_detection_results.cjs) so the
+ *                                     detection conclusion span reports the job's own
+ *                                     result; also injected from
+ *                                     needs.detection.outputs.* in downstream jobs.
  * - `GH_AW_DETECTION_REASON`       – machine-readable reason for the detection conclusion
  *                                     (e.g. "threat_detected", "agent_failure"); emitted as
  *                                     `gh-aw.detection.reason` when present
@@ -1846,11 +1895,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // Read workflow metadata from aw_info.json (written by the agent job setup step).
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
-
-  // Effective token count is surfaced by the agent job and passed to downstream jobs
-  // via the GH_AW_EFFECTIVE_TOKENS environment variable.
-  const rawET = process.env.GH_AW_EFFECTIVE_TOKENS || "";
-  const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || awInfo.cli_version || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown";
@@ -1890,6 +1934,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
+  const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
@@ -1911,11 +1956,21 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
-  // Detection conclusion and reason are injected from needs.detection.outputs.*
-  // when threat detection is enabled in the compiled workflow.
+  // Detection conclusion and reason: set via GITHUB_ENV by parse_threat_detection_results.cjs
+  // so the detection job's own span includes its result; also injected from
+  // needs.detection.outputs.* in downstream jobs (conclusion, safe_outputs, etc.).
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const runtimeMetrics = readAgentRuntimeMetrics();
+  // Read once and reuse for both gh-aw.aic and gen_ai.usage.* attributes.
+  const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
+  // Prefer the per-step export when present, but fall back to agent_usage.json so
+  // agent-like downstream jobs (for example detection) can still report their own
+  // effective tokens even when the post action cannot observe the earlier export.
+  // Gate both sources behind jobEmitsOwnTokenUsage: GH_AW_EFFECTIVE_TOKENS is
+  // propagated to every downstream job via needs.agent.outputs.*, so reading it
+  // unconditionally would re-inflate metrics on conclusion/safe_outputs/etc.
+  const effectiveTokens = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_EFFECTIVE_TOKENS) ?? agentUsage.effective_tokens) : undefined;
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentTimedOut = agentConclusion === "timed_out";
@@ -1979,6 +2034,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
   attributes.push(buildAttr("gh-aw.permission_denied_count", runtimeMetrics.permissionDeniedCount));
+  attributes.push(buildAttr("gh-aw.steering_event_count", runtimeMetrics.steeringEventCount));
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
@@ -2009,8 +2065,14 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
   if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
-  if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
+  if (typeof effectiveTokens === "number" && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
+  }
+  // GH_AW_AIC is propagated to downstream jobs via needs.agent.outputs.*, so gate it
+  // behind jobEmitsOwnTokenUsage to prevent non-agent jobs from re-emitting it.
+  const aiCredits = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits) : undefined;
+  if (typeof aiCredits === "number" && aiCredits > 0) {
+    attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
@@ -2196,7 +2258,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // to avoid double-counting in backends that sum gen_ai.usage.* across all spans.
   // When no agent span is emitted the attributes fall through to the conclusion span
   // so a single query is still sufficient for observability.
-  const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
   const usageAttrs = [];
   if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
@@ -2257,12 +2318,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // Only attach token-usage attributes to the agent job's conclusion span as a
-  // fallback (when no dedicated agent sub-span was emitted).  Non-agent jobs
-  // (conclusion, detection, safe_outputs) also have agent_usage.json on disk
-  // (downloaded via the agent artifact) but must NOT emit token data — otherwise
-  // every sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
-  if (!hasDedicatedAgentSpan && jobName === "agent") {
+  // Only attach token-usage attributes to jobs that actually executed an agent.
+  // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
+  // disk via artifact download but must NOT emit token data — otherwise every
+  // sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
+  if (!hasDedicatedAgentSpan && jobEmitsOwnTokenUsage) {
     attributes.push(...usageAttrs);
   }
 

@@ -276,6 +276,20 @@ const canWriteDefault = canWriteToDefaultPath();
   }),
   describe.sequential("safe_outputs_mcp_server.cjs tool call response format", () => {
     const toolsJsonPath = path.join(__dirname, "safe_outputs_tools.json");
+    // Provide a target repo so the create_issue handler's resolveAndValidateRepo
+    // succeeds without depending on the ambient CI env (GITHUB_REPOSITORY).
+    let prevTargetRepoSlug;
+    beforeEach(() => {
+      prevTargetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+    });
+    afterEach(() => {
+      if (prevTargetRepoSlug === undefined) {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      } else {
+        process.env.GH_AW_TARGET_REPO_SLUG = prevTargetRepoSlug;
+      }
+    });
     (it("should include isError field in tool call responses", async () => {
       const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
       fs.writeFileSync(tempConfigPath, JSON.stringify({ create_issue: {} }));
@@ -335,7 +349,12 @@ const canWriteDefault = canWriteToDefaultPath();
             }, 5e3),
             child = spawn("node", [serverPath], {
               stdio: ["pipe", "pipe", "pipe"],
-              env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl", GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath },
+              env: {
+                ...process.env,
+                GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
+                GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl",
+                GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath,
+              },
             });
           let receivedMessages = [];
           (child.stdout.on("data", data => {

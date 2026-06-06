@@ -259,7 +259,7 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 		},
 	}
 
-	steps, err := buildCustomScriptFilesStep(scripts, "")
+	steps, err := buildCustomScriptFilesStep(scripts)
 
 	require.NoError(t, err, "Should not return error for valid scripts")
 	require.NotEmpty(t, steps, "Should produce steps")
@@ -282,11 +282,11 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 
 // TestBuildCustomScriptFilesStepEmpty verifies nil return for empty scripts
 func TestBuildCustomScriptFilesStepEmpty(t *testing.T) {
-	steps, err := buildCustomScriptFilesStep(nil, "")
+	steps, err := buildCustomScriptFilesStep(nil)
 	require.NoError(t, err, "Should not return error for nil scripts")
 	assert.Nil(t, steps, "Should return nil for empty scripts")
 
-	stepsEmpty, err := buildCustomScriptFilesStep(map[string]*SafeScriptConfig{}, "")
+	stepsEmpty, err := buildCustomScriptFilesStep(map[string]*SafeScriptConfig{})
 	require.NoError(t, err, "Should not return error for empty map")
 	assert.Nil(t, stepsEmpty, "Should return nil for empty map")
 }

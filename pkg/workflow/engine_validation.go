@@ -163,7 +163,7 @@ func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) er
 
 	// Each path segment must be safe (alphanumeric, underscore, dot, hyphen; may start with dot).
 	// Empty segments (consecutive slashes, leading/trailing slashes) are rejected.
-	for _, segment := range strings.Split(name, "/") {
+	for segment := range strings.SplitSeq(name, "/") {
 		if segment == "" {
 			return fmt.Errorf("engine.copilot-sdk-driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/') (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
 		}

@@ -215,7 +215,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	}
 
 	// Never send credentials over plaintext HTTP — HTTPS is required.
-	if strings.ToLower(parsed.Scheme) != "https" {
+	if !strings.EqualFold(parsed.Scheme, "https") {
 		importURLFetcherLog.Printf("Skipping auth header for non-HTTPS URL: scheme=%s", parsed.Scheme)
 		return
 	}

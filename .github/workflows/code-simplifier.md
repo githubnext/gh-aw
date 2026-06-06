@@ -5,7 +5,7 @@ description: Analyzes recently modified code and creates pull requests with simp
 on:
   schedule: daily
 
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

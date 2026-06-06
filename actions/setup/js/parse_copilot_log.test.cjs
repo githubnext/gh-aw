@@ -105,6 +105,23 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("Total Cost");
     });
 
+    it("normalizes Copilot SDK events.jsonl entries into trace entries for rendering", () => {
+      const sdkEventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_start","timestamp":"2026-06-05T00:44:04.520Z","data":{"toolName":"report_intent","mcpServerName":""}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"report_intent","mcpServerName":"","success":true}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Rendered summary content"}}',
+      ].join("\n");
+
+      const result = parseCopilotLog(sdkEventsLog);
+
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("report_intent");
+      expect(result.markdown).toContain("Rendered summary content");
+      const resultEntry = result.logEntries.find(e => e.type === "result");
+      expect(resultEntry?.num_turns).toBe(1);
+    });
+
     it("should handle tool calls with details in HTML format", () => {
       const logWithHtmlDetails = JSON.stringify([
         { type: "system", subtype: "init", session_id: "html-test", tools: ["Bash"], model: "gpt-5" },

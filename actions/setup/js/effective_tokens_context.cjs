@@ -9,22 +9,21 @@ const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffecti
 const EFFECTIVE_TOKENS_FIELDS = new Set(["effective_tokens", "effectiveTokens"]);
 const EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS = new Set(["effective_tokens_rate_limit_error", "effectiveTokensRateLimitError"]);
 const EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail"]);
-// Effective-token rate-limit indicators seen in runtime/audit payload text, e.g.:
-// - "effective_tokens limit exceeded"
-// - "rate limit ... effective tokens"
-// - "429 too many requests ... ET budget"
-// Keep these patterns permissive because providers vary wording across error payloads.
 const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
   /\b429\b[\s\S]{0,120}(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?|et budget)/i,
 ];
+
+const MAX_AI_CREDITS_FIELDS = new Set(["max_ai_credits", "maxAiCredits"]);
+const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
+const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error", "aiCreditsRateLimitError"]);
+const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
+const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
+
 const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
-/**
- * @param {unknown} value
- * @returns {string}
- */
+/** @param {unknown} value */
 function parsePositiveIntegerString(value) {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return String(Math.trunc(value));
@@ -35,19 +34,22 @@ function parsePositiveIntegerString(value) {
   return "";
 }
 
-/**
- * Compare two integer strings using BigInt.
- * Returns false when either value is missing or cannot be parsed as an integer.
- *
- * @param {string} left
- * @param {string} right
- * @returns {boolean}
- */
-function isIntegerStringGreaterThanOrEqual(left, right) {
-  if (!left || !right) {
-    return false;
+/** @param {unknown} value */
+function parsePositiveNumberString(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(value);
   }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "") return "";
+    const parsed = Number.parseFloat(trimmed);
+    if (Number.isFinite(parsed) && parsed > 0) return trimmed;
+  }
+  return "";
+}
 
+function isIntegerStringGreaterThanOrEqual(left, right) {
+  if (!left || !right) return false;
   try {
     return BigInt(left) >= BigInt(right);
   } catch {
@@ -55,56 +57,36 @@ function isIntegerStringGreaterThanOrEqual(left, right) {
   }
 }
 
-/**
- * Decide whether an ET rate-limit signal should be surfaced as budget exhaustion.
- * A missing signal always means "no". When the signal is present but one of the
- * token counts is unavailable, keep reporting the condition; otherwise require the
- * effective-token count to meet or exceed the configured max.
- *
- * @param {boolean} hasRateLimitSignal
- * @param {string} effectiveTokens
- * @param {string} maxEffectiveTokens
- * @returns {boolean}
- */
+function isNumberStringGreaterThanOrEqual(left, right) {
+  if (!left || !right) return false;
+  const leftNumber = Number.parseFloat(left);
+  const rightNumber = Number.parseFloat(right);
+  return Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && leftNumber >= rightNumber;
+}
+
 function shouldReportEffectiveTokensRateLimitError(hasRateLimitSignal, effectiveTokens, maxEffectiveTokens) {
-  if (!hasRateLimitSignal) {
-    return false;
-  }
-
-  if (!effectiveTokens || !maxEffectiveTokens) {
-    // Conservative fallback: when a rate-limit signal exists but the numeric budget
-    // values are unavailable, keep surfacing the ET failure instead of suppressing it.
-    return true;
-  }
-
+  if (!hasRateLimitSignal) return false;
+  if (!effectiveTokens || !maxEffectiveTokens) return true;
   return isIntegerStringGreaterThanOrEqual(effectiveTokens, maxEffectiveTokens);
 }
 
-/**
- * @param {unknown} value
- * @returns {boolean}
- */
+function shouldReportAICreditsRateLimitError(hasRateLimitSignal, aiCredits, maxAICredits) {
+  if (!hasRateLimitSignal) return false;
+  if (!aiCredits || !maxAICredits) return true;
+  return isNumberStringGreaterThanOrEqual(aiCredits, maxAICredits);
+}
+
+/** @param {unknown} value */
 function isTrueLike(value) {
   return value === true || value === "true" || value === 1 || value === "1";
 }
 
-/**
- * Resolve the AWF firewall audit log path.
- * Newer runs write `log.jsonl`; older runs use `audit.jsonl`.
- *
- * @param {string} [auditJsonlPathOverride]
- * @returns {string}
- */
 function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
   if (auditJsonlPathOverride) return auditJsonlPathOverride;
-
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const candidateBases = [];
   if (agentOutputFile) {
     candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit"));
-    // AWF artifacts have used both sandbox/firewall/audit/ and sandbox/firewall/logs/
-    // for JSONL exports across versions/configurations. Probe both agent-artifact-relative
-    // paths first, then the equivalent absolute /tmp fallback locations below.
     candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "logs"));
   }
   candidateBases.push("/tmp/gh-aw/sandbox/firewall/audit");
@@ -116,32 +98,16 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
     const auditPath = path.join(base, "audit.jsonl");
     if (fs.existsSync(auditPath)) return auditPath;
   }
-
-  // Default to the latest expected location/name.
   return path.join(candidateBases[0] || "/tmp/gh-aw/sandbox/firewall/audit", "log.jsonl");
 }
 
-/**
- * Resolve the agent stdio log path used by the conclusion job.
- *
- * @param {string} [stdioLogPathOverride]
- * @returns {string}
- */
 function resolveAgentStdioLogPath(stdioLogPathOverride) {
   if (stdioLogPathOverride) return stdioLogPathOverride;
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (agentOutputFile) {
-    return path.join(path.dirname(agentOutputFile), "agent-stdio.log");
-  }
+  if (agentOutputFile) return path.join(path.dirname(agentOutputFile), "agent-stdio.log");
   return "/tmp/gh-aw/agent-stdio.log";
 }
 
-/**
- * Detect a hard effective-token budget rail from agent stderr/stdout logs.
- *
- * @param {string} [stdioLogPathOverride]
- * @returns {boolean}
- */
 function hasMaxEffectiveTokensExceededSignal(stdioLogPathOverride) {
   try {
     const stdioLogPath = resolveAgentStdioLogPath(stdioLogPathOverride);
@@ -153,36 +119,18 @@ function hasMaxEffectiveTokensExceededSignal(stdioLogPathOverride) {
   }
 }
 
-/**
- * Resolve the AWF firewall reflect file path.
- *
- * @returns {string}
- */
 function resolveFirewallReflectPath() {
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (agentOutputFile) {
-    return path.join(path.dirname(agentOutputFile), AWF_REFLECT_RELATIVE_PATH);
-  }
+  if (agentOutputFile) return path.join(path.dirname(agentOutputFile), AWF_REFLECT_RELATIVE_PATH);
   return "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 }
 
-/**
- * Parse effective token totals from AWF firewall reflect JSON.
- *
- * @returns {{effectiveTokens: string, maxEffectiveTokens: string}}
- */
 function parseEffectiveTokensFromReflectFile() {
   try {
     const reflectPath = resolveFirewallReflectPath();
-    if (!fs.existsSync(reflectPath)) {
-      return { effectiveTokens: "", maxEffectiveTokens: "" };
-    }
-
+    if (!fs.existsSync(reflectPath)) return { effectiveTokens: "", maxEffectiveTokens: "" };
     const content = fs.readFileSync(reflectPath, "utf8");
-    if (!content.trim()) {
-      return { effectiveTokens: "", maxEffectiveTokens: "" };
-    }
-
+    if (!content.trim()) return { effectiveTokens: "", maxEffectiveTokens: "" };
     const parsed = JSON.parse(content);
     const effectiveTokens = parsePositiveIntegerString(parsed?.effective_tokens?.total_effective_tokens);
     const maxEffectiveTokens = parsePositiveEffectiveTokenLimitString(parsed?.effective_tokens?.max_effective_tokens);
@@ -192,17 +140,8 @@ function parseEffectiveTokensFromReflectFile() {
   }
 }
 
-/**
- * Parse max effective tokens from a single AWF audit log entry object.
- * Accepts both snake_case and camelCase field names.
- *
- * @param {unknown} entry
- * @returns {string}
- */
 function parseMaxEffectiveTokensFromAuditEntry(entry) {
   if (!entry || typeof entry !== "object") return "";
-
-  /** @type {unknown[]} */
   const stack = [entry];
   while (stack.length > 0) {
     const node = stack.pop();
@@ -212,81 +151,85 @@ function parseMaxEffectiveTokensFromAuditEntry(entry) {
         const parsed = parsePositiveEffectiveTokenLimitString(value);
         if (parsed) return parsed;
       }
-      if (value && typeof value === "object") {
-        stack.push(value);
-      }
+      if (value && typeof value === "object") stack.push(value);
     }
   }
-
   return "";
 }
 
-/**
- * Parse effective token error metadata from a single AWF audit log entry object.
- * Accepts both snake_case and camelCase field names.
- *
- * @param {unknown} entry
- * @returns {{effectiveTokens: string, rateLimitError: boolean}}
- */
-function parseEffectiveTokensErrorInfoFromAuditEntry(entry) {
-  if (!entry || typeof entry !== "object") return { effectiveTokens: "", rateLimitError: false };
-
-  /** @type {unknown[]} */
+function parseMaxAICreditsFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return "";
   const stack = [entry];
-  let effectiveTokens = "";
-  let rateLimitError = false;
-
   while (stack.length > 0) {
     const node = stack.pop();
     if (!node || typeof node !== "object") continue;
+    for (const [key, value] of Object.entries(node)) {
+      if (MAX_AI_CREDITS_FIELDS.has(key)) {
+        const parsed = parsePositiveNumberString(value);
+        if (parsed) return parsed;
+      }
+      if (value && typeof value === "object") stack.push(value);
+    }
+  }
+  return "";
+}
 
+function parseEffectiveTokensErrorInfoFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return { effectiveTokens: "", rateLimitError: false };
+  const stack = [entry];
+  let effectiveTokens = "";
+  let rateLimitError = false;
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
     for (const [key, value] of Object.entries(node)) {
       if (EFFECTIVE_TOKENS_FIELDS.has(key)) {
         const parsed = parsePositiveIntegerString(value);
         if (parsed) effectiveTokens = parsed;
       }
-
-      if (EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS.has(key)) {
-        if (isTrueLike(value)) {
-          rateLimitError = true;
-        }
-      }
-
+      if (EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS.has(key) && isTrueLike(value)) rateLimitError = true;
       if (EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
-        if (EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) {
-          rateLimitError = true;
-        }
+        if (EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) rateLimitError = true;
       }
-
-      if (value && typeof value === "object") {
-        stack.push(value);
-      }
+      if (value && typeof value === "object") stack.push(value);
     }
   }
-
   return { effectiveTokens, rateLimitError };
 }
 
-/**
- * Parse max effective tokens from AWF firewall audit JSONL.
- *
- * @param {string} [auditJsonlPathOverride]
- * @returns {string}
- */
+function parseAICreditsErrorInfoFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return { aiCredits: "", rateLimitError: false };
+  const stack = [entry];
+  let aiCredits = "";
+  let rateLimitError = false;
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    for (const [key, value] of Object.entries(node)) {
+      if (AI_CREDITS_FIELDS.has(key)) {
+        const parsed = parsePositiveNumberString(value);
+        if (parsed) aiCredits = parsed;
+      }
+      if (AI_CREDITS_RATE_LIMIT_ERROR_FIELDS.has(key) && isTrueLike(value)) rateLimitError = true;
+      if (AI_CREDITS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
+        if (AI_CREDITS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) rateLimitError = true;
+      }
+      if (value && typeof value === "object") stack.push(value);
+    }
+  }
+  return { aiCredits, rateLimitError };
+}
+
 function parseMaxEffectiveTokensFromAuditLog(auditJsonlPathOverride) {
   try {
     const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
     if (!fs.existsSync(auditJsonlPath)) return "";
-
     const content = fs.readFileSync(auditJsonlPath, "utf8");
-    if (!content.trim()) return "";
-    if (!/(?:max_effective_tokens|maxEffectiveTokens)/.test(content)) return "";
-
+    if (!content.trim() || !/(?:max_effective_tokens|maxEffectiveTokens)/.test(content)) return "";
     let parsedMaxEffectiveTokens = "";
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed || trimmed[0] !== "{") continue;
-
       try {
         const entry = JSON.parse(trimmed);
         const value = parseMaxEffectiveTokensFromAuditEntry(entry);
@@ -295,82 +238,118 @@ function parseMaxEffectiveTokensFromAuditLog(auditJsonlPathOverride) {
         // ignore malformed lines
       }
     }
-
     return parsedMaxEffectiveTokens;
   } catch {
     return "";
   }
 }
 
-/**
- * Parse effective token error metadata from AWF firewall audit JSONL.
- *
- * @param {string} [auditJsonlPathOverride]
- * @returns {{effectiveTokens: string, rateLimitError: boolean}}
- */
+function parseMaxAICreditsFromAuditLog(auditJsonlPathOverride) {
+  try {
+    const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
+    if (!fs.existsSync(auditJsonlPath)) return "";
+    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    if (!content.trim() || !/(?:max_ai_credits|maxAiCredits)/.test(content)) return "";
+    let parsedMaxAICredits = "";
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed[0] !== "{") continue;
+      try {
+        const entry = JSON.parse(trimmed);
+        const value = parseMaxAICreditsFromAuditEntry(entry);
+        if (value) parsedMaxAICredits = value;
+      } catch {
+        // ignore malformed lines
+      }
+    }
+    return parsedMaxAICredits;
+  } catch {
+    return "";
+  }
+}
+
 function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
   try {
     const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
     if (!fs.existsSync(auditJsonlPath)) return { effectiveTokens: "", rateLimitError: false };
-
     const content = fs.readFileSync(auditJsonlPath, "utf8");
     if (!content.trim()) return { effectiveTokens: "", rateLimitError: false };
-
     let parsedEffectiveTokens = "";
     let hasRateLimitError = false;
-
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed || trimmed[0] !== "{") continue;
-
       try {
         const entry = JSON.parse(trimmed);
         const parsed = parseEffectiveTokensErrorInfoFromAuditEntry(entry);
-        // AWF audit logs are append-only JSONL; later entries represent newer state.
         if (parsed.effectiveTokens) parsedEffectiveTokens = parsed.effectiveTokens;
-        // Sticky OR: any detected ET rate-limit signal is enough to report this failure mode.
         if (parsed.rateLimitError) hasRateLimitError = true;
       } catch {
         // ignore malformed lines
       }
     }
-
     return { effectiveTokens: parsedEffectiveTokens, rateLimitError: hasRateLimitError };
   } catch {
     return { effectiveTokens: "", rateLimitError: false };
   }
 }
 
-/**
- * Compute effective-token failure state with audit JSONL values preferred over env fallbacks.
- * @returns {{effectiveTokens: string, maxEffectiveTokens: string, effectiveTokensRateLimitError: boolean}}
- */
+function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
+  try {
+    const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
+    if (!fs.existsSync(auditJsonlPath)) return { aiCredits: "", rateLimitError: false };
+    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    if (!content.trim()) return { aiCredits: "", rateLimitError: false };
+    let parsedAICredits = "";
+    let hasRateLimitError = false;
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed[0] !== "{") continue;
+      try {
+        const entry = JSON.parse(trimmed);
+        const parsed = parseAICreditsErrorInfoFromAuditEntry(entry);
+        if (parsed.aiCredits) parsedAICredits = parsed.aiCredits;
+        if (parsed.rateLimitError) hasRateLimitError = true;
+      } catch {
+        // ignore malformed lines
+      }
+    }
+    return { aiCredits: parsedAICredits, rateLimitError: hasRateLimitError };
+  } catch {
+    return { aiCredits: "", rateLimitError: false };
+  }
+}
+
 function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
   const parsedEffectiveTokensFromReflect = parseEffectiveTokensFromReflectFile();
-  // Treat invalid env fallbacks as missing so they do not produce misleading ET math.
   const envEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
   const envMaxEffectiveTokens = parsePositiveEffectiveTokenLimitString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
-  // Combine effective-token-specific signals from:
-  // 1) structured firewall audit JSONL metadata when available,
-  // 2) the agent stdio hard-rail message seen in Copilot failures,
-  // 3) the existing environment override used by upstream workflow steps.
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
+  return { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError };
+}
 
-  return {
-    effectiveTokens,
-    maxEffectiveTokens,
-    effectiveTokensRateLimitError,
-  };
+function resolveAICreditsFailureState() {
+  const parsedAICreditsErrorInfo = parseAICreditsErrorInfoFromAuditLog();
+  const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
+  const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
+  const aiCredits = parsedAICreditsErrorInfo.aiCredits || envAICredits || "";
+  const maxAICredits = parseMaxAICreditsFromAuditLog() || envMaxAICredits || "";
+  const rawAICreditsRateLimitError = parsedAICreditsErrorInfo.rateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
+  const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError, aiCredits, maxAICredits);
+  return { aiCredits, maxAICredits, aiCreditsRateLimitError };
 }
 
 module.exports = {
   resolveFirewallAuditLogPath,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
+  parseMaxAICreditsFromAuditLog,
+  parseAICreditsErrorInfoFromAuditLog,
   hasMaxEffectiveTokensExceededSignal,
   resolveEffectiveTokensFailureState,
+  resolveAICreditsFailureState,
 };

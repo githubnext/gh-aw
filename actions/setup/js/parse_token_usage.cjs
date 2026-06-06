@@ -18,6 +18,7 @@ const TOKEN_USAGE_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
 const TOKEN_USAGE_PATHS = [TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH];
 const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
+const DEFAULT_SUMMARY_TITLE = "Token Usage";
 
 /**
  * Returns readable, non-empty token usage files, skipping paths that error.
@@ -83,6 +84,15 @@ function readDedupedTokenUsage(paths) {
 }
 
 /**
+ * Returns the token usage summary title for the current job.
+ * @returns {string}
+ */
+function getSummaryTitle() {
+  const title = process.env.GH_AW_TOKEN_USAGE_SUMMARY_TITLE;
+  return title && title.trim() ? title.trim() : DEFAULT_SUMMARY_TITLE;
+}
+
+/**
  * Main function to parse token usage and write the step summary.
  */
 async function main() {
@@ -104,7 +114,7 @@ async function main() {
 
     const markdown = generateTokenUsageSummary(summary);
     if (markdown.length > 0) {
-      core.summary.addDetails("Token Usage", "\n\n" + markdown);
+      core.summary.addDetails(getSummaryTitle(), "\n\n" + markdown);
     }
 
     await core.summary.write();
@@ -132,6 +142,7 @@ async function main() {
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
       effective_tokens: effectiveTokens,
+      ai_credits: Number((summary.totalAIC || 0).toFixed(3)),
       ...(primaryModel ? { primary_model: primaryModel } : {}),
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
@@ -142,6 +153,12 @@ async function main() {
       core.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(effectiveTokens));
       core.setOutput("effective_tokens", String(effectiveTokens));
       core.info(`Effective tokens: ${effectiveTokens}`);
+    }
+    if (summary.totalAIC > 0) {
+      const aic = summary.totalAIC.toFixed(3);
+      core.exportVariable("GH_AW_AIC", aic);
+      core.setOutput("aic", aic);
+      core.info(`AI Credits: ${aic}`);
     }
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
@@ -155,10 +172,12 @@ if (typeof module !== "undefined" && module.exports) {
     getReadableTokenUsagePaths,
     extractRequestId,
     readDedupedTokenUsage,
+    getSummaryTitle,
     TOKEN_USAGE_AUDIT_PATH,
     TOKEN_USAGE_PATH,
     TOKEN_USAGE_PATHS,
     AGENT_USAGE_PATH,
+    DEFAULT_SUMMARY_TITLE,
   };
 }
 

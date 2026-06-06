@@ -169,6 +169,7 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 type ListWorkflowRunsOptions struct {
 	Context        context.Context
 	WorkflowName   string // filter by specific workflow (if empty, fetches all agentic workflows)
+	Status         string // filter by run status/conclusion (for example: completed, success, failure)
 	Limit          int    // maximum number of runs to fetch in this API call (batch size)
 	StartDate      string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
 	EndDate        string // filter by creation date (<=); combined with StartDate into a single --created range
@@ -206,6 +207,9 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	// Add filters
 	if opts.WorkflowName != "" {
 		args = append(args, "--workflow", opts.WorkflowName)
+	}
+	if opts.Status != "" {
+		args = append(args, "--status", opts.Status)
 	}
 	if opts.Limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(opts.Limit))

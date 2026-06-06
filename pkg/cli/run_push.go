@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -324,7 +323,7 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 		runPushLog.Printf("Processing import %d/%d: %s", i+1, len(imports), importPath)
 
 		// Resolve the import path
-		resolvedPath := resolveImportPathLocal(importPath, workflowDir)
+		resolvedPath := resolveImportPath(importPath, workflowDir, importPathRunPushOpts)
 		if resolvedPath == "" {
 			runPushLog.Printf("Could not resolve import path: %s", importPath)
 			if verbose {
@@ -368,44 +367,6 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 
 	runPushLog.Printf("Finished processing imports for: %s", workflowPath)
 	return nil
-}
-
-// resolveImportPathLocal is a local version of resolveImportPath for push functionality
-// This is needed to avoid circular dependencies with imports.go
-func resolveImportPathLocal(importPath, baseDir string) string {
-	runPushLog.Printf("Resolving import path: %s (baseDir: %s)", importPath, baseDir)
-
-	// Handle section references (file.md#Section) - strip the section part
-	if strings.Contains(importPath, "#") {
-		parts := strings.SplitN(importPath, "#", 2)
-		runPushLog.Printf("Stripping section reference: %s -> %s", importPath, parts[0])
-		importPath = parts[0]
-	}
-
-	// Skip workflowspec format imports (owner/repo/path@sha)
-	if isWorkflowSpecFormat(importPath) {
-		runPushLog.Printf("Skipping workflowspec format import: %s", importPath)
-		return ""
-	}
-
-	// If the import path is absolute (starts with /), use it relative to repo root
-	if strings.HasPrefix(importPath, "/") {
-		runPushLog.Printf("Import path is absolute (starts with /): %s", importPath)
-		// Find git root
-		gitRoot, err := gitutil.FindGitRoot()
-		if err != nil {
-			runPushLog.Printf("Failed to find git root: %v", err)
-			return ""
-		}
-		resolved := filepath.Join(gitRoot, strings.TrimPrefix(importPath, "/"))
-		runPushLog.Printf("Resolved absolute import: %s (git root: %s)", resolved, gitRoot)
-		return resolved
-	}
-
-	// Otherwise, resolve relative to the workflow file's directory
-	resolved := filepath.Join(baseDir, importPath)
-	runPushLog.Printf("Resolved relative import: %s", resolved)
-	return resolved
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository

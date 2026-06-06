@@ -6,7 +6,7 @@ on:
     max: 3
     query: is:issue is:open in:title "[ab-advisor] " label:experiments
   workflow_dispatch: null
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   actions: read
   contents: read
@@ -181,7 +181,7 @@ Use the randomly selected dimension as your starting point. If after reading the
 
 For the chosen dimension, define:
 - **Null hypothesis**: "The variant does not improve <metric> compared to baseline"
-- **Primary metric**: The most important measurable outcome (e.g., effective token count, discussion engagement score, issue resolution rate, run success rate)
+- **Primary metric**: The most important measurable outcome (e.g., AIC spend, discussion engagement score, issue resolution rate, run success rate)
 - **Secondary metrics**: Supporting signals (run duration, error rate, output length)
 - **Guardrail metrics**: Things that must NOT degrade (e.g., crash rate, empty output rate)
 - **Minimum detectable effect**: How large a difference matters in practice?

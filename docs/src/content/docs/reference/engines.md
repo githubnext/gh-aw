@@ -44,7 +44,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 
-`max-runs` (default `500`) and `max-effective-tokens` (default `25M`) are top-level frontmatter fields supported by all engines. `max-turns` limits Claude iterations per run; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
+`max-runs` (default `500`) and `max-ai-credits` (default `25M`) are top-level frontmatter fields supported by all engines. `max-turns` limits Claude iterations per run; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
 
 ## Extended Coding Agent Configuration
 
@@ -269,6 +269,11 @@ Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.
 In this mode, the harness starts a local sidecar and runs the
 SDK driver process instead of the default CLI-only flow.
 
+Use top-level `max-tool-denials` to stop SDK inference when
+tool requests are repeatedly denied. The default is `5`.
+This field is only supported when `engine.id: copilot` and
+`engine.copilot-sdk: true`.
+
 Use `engine.copilot-sdk-driver` to replace the built-in
 `copilot_sdk_driver.cjs` implementation:
 
@@ -277,6 +282,7 @@ engine:
   id: copilot
   copilot-sdk: true
   copilot-sdk-driver: .github/drivers/custom-copilot-driver.js
+max-tool-denials: 8
 ```
 
 `copilot-sdk-driver` must be a **relative path from the workspace root**
@@ -287,7 +293,7 @@ engine:
 - bare command names without an extension (resolved from
   `PATH`)
 
-See [Copilot SDK Driver Specification](/gh-aw/reference/copilot-sdk-driver-specification/)
+See [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/)
 for the full driver contract.
 
 #### SDK driver environment variables
@@ -353,7 +359,7 @@ Defaults to `false`.
 
 ### Custom Token Weights (`token-weights`)
 
-Override the built-in token cost multipliers used when computing [Effective Tokens](/gh-aw/reference/effective-tokens-specification/). Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
+Override the built-in token cost multipliers used when computing the AI Credits (AIC) cost for a run. Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
 
 ```yaml wrap
 engine:

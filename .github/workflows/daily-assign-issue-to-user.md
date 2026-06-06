@@ -5,7 +5,7 @@ strict: true
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   issues: read
   pull-requests: read

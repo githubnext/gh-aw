@@ -91,7 +91,7 @@ describe("effective_tokens", () => {
       expect(w.output).toBe(4.0);
     });
 
-    test("merges partial token_class_weights with defaults", () => {
+    test("ignores GH_AW_MODEL_MULTIPLIERS token_class_weights overrides", () => {
       _resetCache();
       process.env.GH_AW_MODEL_MULTIPLIERS = JSON.stringify({
         token_class_weights: { output: 8.0 },
@@ -99,27 +99,16 @@ describe("effective_tokens", () => {
       });
       const w = getTokenClassWeights();
       expect(w.input).toBe(1.0); // default
-      expect(w.output).toBe(8.0); // overridden
+      expect(w.output).toBe(4.0); // default
       expect(w.cached_input).toBe(0.1); // default
     });
   });
 
   describe("getModelMultiplier", () => {
-    test("returns exact match multiplier", () => {
-      expect(getModelMultiplier("model-a")).toBe(2.0);
-      expect(getModelMultiplier("model-b")).toBe(1.0);
-    });
-
-    test("is case-insensitive", () => {
-      expect(getModelMultiplier("MODEL-A")).toBe(2.0);
-      expect(getModelMultiplier("Model-A")).toBe(2.0);
-    });
-
-    test("returns longest prefix match", () => {
-      // "gpt-4o-mini" starts with "gpt-4o", but exact "gpt-4o-mini" matches first
-      expect(getModelMultiplier("gpt-4o-mini")).toBe(0.1);
-      // A model that starts with "gpt-4o" but isn't exact
-      expect(getModelMultiplier("gpt-4o-preview")).toBe(1.0); // prefix match to "gpt-4o"
+    test("returns compatibility multiplier of 1.0", () => {
+      expect(getModelMultiplier("model-a")).toBe(1.0);
+      expect(getModelMultiplier("MODEL-A")).toBe(1.0);
+      expect(getModelMultiplier("gpt-4o-mini")).toBe(1.0);
     });
 
     test("returns 1.0 for unknown model (reference baseline)", () => {
@@ -130,18 +119,18 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("")).toBe(1.0);
     });
 
-    test("falls back to built-in multipliers when env var is not set", () => {
+    test("returns 1.0 when env var is not set", () => {
       _resetCache();
       delete process.env.GH_AW_MODEL_MULTIPLIERS;
-      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+      expect(getModelMultiplier("claude-opus-4.5")).toBe(1.0);
     });
 
-    test("matches claude-haiku-4.5 with multiplier 0.1", () => {
-      expect(getModelMultiplier("claude-haiku-4.5")).toBe(0.1);
+    test("returns compatibility multiplier for claude-haiku-4.5", () => {
+      expect(getModelMultiplier("claude-haiku-4.5")).toBe(1.0);
     });
 
-    test("matches claude-opus-4.5 with multiplier 5.0", () => {
-      expect(getModelMultiplier("claude-opus-4.5")).toBe(5.0);
+    test("returns compatibility multiplier for claude-opus-4.5", () => {
+      expect(getModelMultiplier("claude-opus-4.5")).toBe(1.0);
     });
   });
 
@@ -187,8 +176,7 @@ describe("effective_tokens", () => {
       expect(base).toBe(100); // 1.0 × 100
     });
 
-    // T-ET-004: Custom weights are applied when default weights are overridden
-    test("T-ET-004: custom weights are applied when overridden", () => {
+    test("ignores custom weights overrides from env vars", () => {
       _resetCache();
       process.env.GH_AW_MODEL_MULTIPLIERS = JSON.stringify({
         token_class_weights: {
@@ -200,9 +188,9 @@ describe("effective_tokens", () => {
         },
         multipliers: {},
       });
-      // With custom weights: base = (2.0 × 100) + (8.0 × 50) = 200 + 400 = 600
+      // Uses built-in defaults: base = (1.0 × 100) + (4.0 × 50) = 300
       const base = computeBaseWeightedTokens(100, 50, 0, 0, 0);
-      expect(base).toBe(600);
+      expect(base).toBe(300);
     });
 
     // T-ET-005: Cached/input overlap must not be double-counted
@@ -226,11 +214,9 @@ describe("effective_tokens", () => {
   });
 
   describe("computeEffectiveTokens", () => {
-    // T-ET-002: Single invocation ET equals m × base_weighted_tokens
-    test("T-ET-002: ET equals m × base_weighted_tokens", () => {
-      // root: base=920, m=2.0, ET=1840
+    test("falls back to base-weighted tokens when pricing is unavailable", () => {
       const et = computeEffectiveTokens("model-a", 500, 150, 200, 0, 0);
-      expect(et).toBe(1840);
+      expect(et).toBe(920);
     });
 
     test("computes ET for retrieval invocation (m=1.0)", () => {
@@ -240,9 +226,9 @@ describe("effective_tokens", () => {
     });
 
     test("computes ET for synthesis invocation (m=2.0)", () => {
-      // synthesis: base=1110, m=2.0, ET=2220
+      // synthesis: base=1110
       const et = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0);
-      expect(et).toBe(2220);
+      expect(et).toBe(1110);
     });
 
     test("returns 0 for zero token inputs", () => {
@@ -250,30 +236,23 @@ describe("effective_tokens", () => {
     });
 
     test("uses multiplier 1.0 for unknown model", () => {
-      // base = 1.0 × 100 = 100, m = 1.0, ET = 100
       const et = computeEffectiveTokens("unknown-model", 100, 0, 0, 0, 0);
       expect(et).toBe(100);
     });
 
-    test("computes ET as real-valued product (no rounding)", () => {
-      // gpt-4o-mini multiplier = 0.1, base = 1.0 × 100 = 100, ET = 0.1 × 100 = 10
-      const et = computeEffectiveTokens("gpt-4o-mini", 100, 0, 0, 0, 0);
-      expect(et).toBe(10);
+    test("normalizes known-model USD cost to effective tokens", () => {
+      const et = computeEffectiveTokens("claude-sonnet-4.6", 1000, 200, 400, 50, 25, "anthropic");
+      expect(et).toBeCloseTo(1827.5, 6);
     });
 
-    test("correctly handles high multiplier model (claude-opus)", () => {
-      // claude-opus-4.5 multiplier = 5.0
-      // base = 1.0 × 100 + 4.0 × 50 = 100 + 200 = 300, ET = 5.0 × 300 = 1500
-      const et = computeEffectiveTokens("claude-opus-4.5", 100, 50, 0, 0, 0);
-      expect(et).toBe(1500);
+    test("uses pricing fallback for cache read/write token classes", () => {
+      const et = computeEffectiveTokens("claude-sonnet-4.6", 100, 50, 0, 20, 0, "anthropic");
+      expect(et).toBeGreaterThan(0);
     });
 
-    test("handles reasoning tokens with o1 model (m=3.0)", () => {
-      // o1 multiplier = 3.0
-      // base = (1.0 × 100) + (4.0 × 50) + (4.0 × 30) = 100 + 200 + 120 = 420
-      // ET = 3.0 × 420 = 1260
-      const et = computeEffectiveTokens("o1", 100, 50, 0, 0, 30);
-      expect(et).toBe(1260);
+    test("includes reasoning tokens when pricing data includes reasoning", () => {
+      const et = computeEffectiveTokens("claude-sonnet-4.6", 100, 50, 0, 0, 30, "anthropic");
+      expect(et).toBeGreaterThan(0);
     });
   });
 
@@ -284,12 +263,12 @@ describe("effective_tokens", () => {
       const retrievalET = computeEffectiveTokens("model-b", 300, 100, 0, 0, 0); // 700
       const synthesisET = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0); // 2220
 
-      expect(rootET).toBe(1840);
+      expect(rootET).toBe(920);
       expect(retrievalET).toBe(700);
-      expect(synthesisET).toBe(2220);
+      expect(synthesisET).toBe(1110);
 
       const totalET = rootET + retrievalET + synthesisET;
-      expect(totalET).toBe(4760);
+      expect(totalET).toBe(2730);
     });
 
     test("T-ET-011: raw_total_tokens equals sum of all raw tokens", () => {
@@ -324,10 +303,10 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("any-model")).toBe(1.0);
     });
 
-    test("falls back to built-in multipliers when env var is malformed", () => {
+    test("returns compatibility multiplier when env var is malformed", () => {
       _resetCache();
       process.env.GH_AW_MODEL_MULTIPLIERS = "{ not valid json }";
-      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+      expect(getModelMultiplier("claude-opus-4.5")).toBe(1.0);
     });
 
     test("handles empty env var gracefully", () => {
@@ -336,10 +315,10 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("any-model")).toBe(1.0);
     });
 
-    test("falls back to built-in multipliers when env var is empty", () => {
+    test("returns compatibility multiplier when env var is empty", () => {
       _resetCache();
       process.env.GH_AW_MODEL_MULTIPLIERS = "";
-      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+      expect(getModelMultiplier("claude-opus-4.5")).toBe(1.0);
     });
 
     test("handles missing multipliers key gracefully", () => {
@@ -352,7 +331,7 @@ describe("effective_tokens", () => {
       getModelMultiplier("model-a");
       getModelMultiplier("model-b");
       // Should not throw or cause inconsistencies
-      expect(getModelMultiplier("model-a")).toBe(2.0);
+      expect(getModelMultiplier("model-a")).toBe(1.0);
       expect(getModelMultiplier("model-b")).toBe(1.0);
     });
   });

@@ -43,6 +43,8 @@ type LockMetadata struct {
 	AgentModel          string            `json:"agent_model,omitempty"`
 	DetectionAgentID    string            `json:"detection_agent_id,omitempty"`
 	DetectionAgentModel string            `json:"detection_agent_model,omitempty"`
+	EngineVersions      map[string]string `json:"engine_versions,omitempty"`
+	AgentImageRunner    string            `json:"agent_image_runner,omitempty"`
 }
 
 // AgentMetadataInfo holds agent and detection agent information for embedding in lock file metadata
@@ -51,6 +53,8 @@ type AgentMetadataInfo struct {
 	AgentModel          string
 	DetectionAgentID    string
 	DetectionAgentModel string
+	EngineVersions      map[string]string
+	AgentImageRunner    string
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
@@ -126,6 +130,8 @@ func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, a
 		AgentModel:          agentInfo.AgentModel,
 		DetectionAgentID:    agentInfo.DetectionAgentID,
 		DetectionAgentModel: agentInfo.DetectionAgentModel,
+		EngineVersions:      agentInfo.EngineVersions,
+		AgentImageRunner:    agentInfo.AgentImageRunner,
 	}
 
 	// Include compiler version only for release builds

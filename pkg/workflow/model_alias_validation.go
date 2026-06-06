@@ -1,5 +1,5 @@
 // This file implements compile-time validation of the Model Alias Format (MAF)
-// as specified in docs/src/content/docs/reference/model-alias-specification.md.
+// as specified in docs/src/content/docs/specs/model-alias-specification.md.
 //
 // # Validation Rules Implemented
 //

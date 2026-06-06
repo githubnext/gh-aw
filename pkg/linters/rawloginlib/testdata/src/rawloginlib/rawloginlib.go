@@ -11,3 +11,9 @@ func good() {
 	// Using pkg/logger is fine — this file only tests that raw log calls are flagged.
 	_ = "no raw log call here"
 }
+
+func suppressed() {
+	//nolint:rawloginlib
+	log.Printf("suppressed previous line")
+	log.Println("suppressed same line") //nolint:rawloginlib
+}

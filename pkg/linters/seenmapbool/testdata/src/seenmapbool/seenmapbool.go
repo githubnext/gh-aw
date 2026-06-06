@@ -19,6 +19,12 @@ func BadSetBoolLiteral() {
 	_ = seen
 }
 
+func SuppressedSetBool() {
+	seen := map[string]bool{} //nolint:seenmapbool
+	seen["x"] = true
+	_ = seen
+}
+
 func GoodSetStruct() {
 	// Using map[string]struct{} is the correct pattern — no diagnostic expected.
 	seen := make(map[string]struct{})

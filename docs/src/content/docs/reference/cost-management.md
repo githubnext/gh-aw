@@ -1,11 +1,26 @@
 ---
 title: Cost Management
-description: Understand and control the cost of running GitHub Agentic Workflows, including Actions minutes, inference billing, and strategies to reduce spend.
+description: Understand and control the cost of running GitHub Agentic Workflows, including Actions minutes, AI Credits (AIC) inference billing, and strategies to reduce spend.
 sidebar:
   order: 296
 ---
 
 The cost of running an agentic workflow is the sum of two components: **GitHub Actions minutes** consumed by the workflow jobs, and **inference costs** charged by the AI provider for each agent run.
+
+## AI Credits (AIC)
+
+**AI Credits (AIC)** are the primary metric for monitoring and budgeting inference costs in gh-aw. One AIC equals $0.01 USD. AIC values are computed from actual provider pricing data and appear in `gh aw logs`, `gh aw audit`, and run footer messages.
+
+| Provider | AIC computation |
+|----------|----------------|
+| `claude` | Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens) |
+| `codex` | Based on OpenAI token pricing |
+| `copilot` | Based on GitHub Copilot usage and billing data surfaced by GitHub documentation; cross-reference [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs |
+
+AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit reports alongside raw token counts, and as `{ai_credits_suffix}` in workflow footer templates. For structured output, each run under `.runs[]` includes an `aic` field and each episode under `.episodes[]` includes `total_aic`.
+
+> [!NOTE]
+> AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
 
 ## Cost Components
 
@@ -24,18 +39,18 @@ Each job also incurs approximately 1.5 minutes of runner setup overhead on top o
 
 The agent job invokes an AI engine to process the prompt and call tools. Inference is billed by the provider:
 
-| Engine | Billed to | Unit |
-|--------|-----------|------|
-| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Tokens (see [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
-| `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | Tokens |
-| `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | Tokens |
+| Engine | Billed to | gh-aw cost metric |
+|--------|-----------|-------------------|
+| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | AIC (based on GitHub Copilot model and billing documentation — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
+| `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | AIC (AI Credits) |
+| `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | AIC (AI Credits) |
 
 > [!NOTE]
 > For Copilot, inference is charged to the individual account owning `COPILOT_GITHUB_TOKEN`, not the repository or organization. Use a dedicated service account to track spend per workflow.
 
 ## Monitoring Costs with `gh aw logs`
 
-The `gh aw logs` command surfaces per-run metrics — elapsed duration, token usage, and estimated inference cost — before you decide what to optimize. Use `gh aw audit <run-id>` to deep-dive into a single run's token usage, tool calls, and inference spend; its **Metrics** and **Performance Metrics** sections cover token counts, effective tokens, turn counts, and estimated cost in one place. For cost trends across multiple runs, use `gh aw logs --format markdown [workflow]` to generate a cross-run report with anomaly detection.
+The `gh aw logs` command surfaces per-run metrics — elapsed duration, token usage, AIC (AI Credits), and turn count — before you decide what to optimize. Use `gh aw audit <run-id>` to deep-dive into a single run's token usage, tool calls, and inference spend; its **Metrics** and **Performance Metrics** sections cover token counts, AIC, turn counts, and estimated cost in one place. For cost trends across multiple runs, use `gh aw logs --format markdown [workflow]` to generate a cross-run report with anomaly detection.
 
 ### View recent run durations
 
@@ -60,17 +75,17 @@ Use `--json` to get structured output suitable for scripting or trend analysis:
 # Write JSON to a file for further processing
 gh aw logs --start-date -1w --json > /tmp/logs.json
 
-# List per-run duration and tokens across all workflows
+# List per-run duration, tokens, and AIC across all workflows
 gh aw logs --start-date -30d --json | \
-  jq '.runs[] | {workflow: .workflow_name, duration: .duration, tokens: .token_usage}'
+  jq '.runs[] | {workflow: .workflow_name, duration: .duration, tokens: .token_usage, aic: .aic}'
 
-# Token usage grouped by workflow over the past 30 days
+# AIC spend grouped by workflow over the past 30 days
 gh aw logs --start-date -30d --json | \
   jq '[.runs[]] | group_by(.workflow_name) |
-  map({workflow: .[0].workflow_name, runs: length, total_tokens: (map(.token_usage) | add // 0)})'
+  map({workflow: .[0].workflow_name, runs: length, total_aic: (map(.aic // 0) | add)})'
 ```
 
-Each run under `.runs[]` includes `duration`, `token_usage`, `workflow_name`, and `agent`. For orchestrated workflows, the same JSON includes deterministic lineage under `.episodes[]` and `.edges[]` — see the next section.
+Each run under `.runs[]` includes `duration`, `token_usage`, `aic`, `workflow_name`, and `agent`. For orchestrated workflows, the same JSON includes deterministic lineage under `.episodes[]` and `.edges[]` — see the next section.
 
 ### Interpret Episode-Level Usage
 
@@ -81,21 +96,27 @@ Useful episode fields for usage analysis:
 | Field | Meaning |
 |-------|---------|
 | `total_runs` | Workflow runs in the logical execution |
-| `total_tokens` / `total_effective_tokens` | Raw and effective token aggregates; prefer `total_effective_tokens` for Copilot |
+| `total_tokens` | Raw token aggregate across grouped runs |
+| `total_aic` | Total AI Credits (AIC) for the episode; preferred cost metric |
 | `total_duration` | Wall-clock duration across grouped runs |
 | `primary_workflow` | Main workflow label |
 | `resource_heavy_node_count` | Runs flagged as resource-heavy |
 | `blocked_request_count` | Aggregate blocked-network pressure |
 
-For Copilot runs, `total_effective_tokens` is the most reliable proxy for resource usage — Copilot does not expose billing-grade cost data.
+For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric — it reflects provider billing in AI Credits (1 AIC = $0.01 USD).
 
 Safe-output actuation also appears in both `gh aw logs --json` (run- and repo-level) and `gh aw audit <run-id>` (under `safe_output_summary`). The relevant fields — `temporary_id_map_status`, `temporary_id_mappings`, `chained_target_count`, `chained_followup_action_count`, `delegated_temp_target_count`, `closed_temp_target_count`, and their repo-level aggregates — show how often a workflow follows up on its own outputs. When `temporary_id_map_status` is `missing` or `invalid`, chain counts fall back to `0` rather than guessing from incomplete data.
 
 ```bash
-# Top 10 heaviest logical executions over the past 30 days by effective tokens
+# Top 10 costliest logical executions over the past 30 days by AIC
 gh aw logs --start-date -30d --json | \
-  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: (.total_effective_tokens // 0)}]
-      | sort_by(.effective_tokens) | reverse | .[:10]'
+  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
+      | sort_by(.aic) | reverse | .[:10]'
+
+# Top 10 heaviest Copilot executions by AIC
+gh aw logs --start-date -30d --json | \
+  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
+      | sort_by(.aic) | reverse | .[:10]'
 ```
 
 ## Track Costs at Scale with OpenTelemetry
@@ -119,7 +140,9 @@ The exported spans include workflow and model metadata such as
 `gen_ai.usage.input_tokens`, and
 `gen_ai.usage.output_tokens`. Use these attributes to group usage
 by workflow, engine, model, repository, or team in the backend of
-your choice.
+your choice. For inference cost, AIC is derived from the raw
+token counts in your observability backend using provider
+pricing.
 
 OpenTelemetry is most useful for answering questions such as:
 "Which repositories are driving the most token usage?",
@@ -189,20 +212,18 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 
 Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
 
-### Cap Effective Tokens per Run
+### Cap AI Credits per Run
 
-Use the top-level `max-effective-tokens` frontmatter field to cap
-the effective-token budget for a single workflow run. This provides
-a hard stop for unusually expensive runs and a consistent cost
-guardrail across all supported engines. The field accepts plain
-integers or `K`/`M` suffixes such as `100M`.
+Use the top-level `max-ai-credits` frontmatter field to cap
+the AI Credits (AIC) budget for a single workflow run. This
+provides a hard stop for unusually expensive runs and a consistent
+cost guardrail across all supported engines. The field accepts
+plain integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
-max-effective-tokens: 5M
+max-ai-credits: 5M
 ```
 
-Effective tokens are the normalized usage metric described in the
-[Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
 When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
@@ -241,14 +262,14 @@ environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual
 workflows override this default by setting `max-turns` in
 frontmatter.
 
-### Cap Daily Effective Tokens per Workflow
+### Cap Daily AI Credits per Workflow
 
-Use `max-daily-effective-tokens` to set a 24-hour effective-token
+Use `max-daily-ai-credits` to set a 24-hour AI Credits
 cap for one workflow. The guardrail sums runs from the past 24 hours of the same
 workflow started by the same triggering user.
 
 ```aw wrap
-max-daily-effective-tokens: 15M
+max-daily-ai-credits: 15M
 ```
 
 You can also configure the same threshold via environment variable
@@ -256,7 +277,7 @@ to make the guardrail configurable per environment or workflow call:
 
 ```aw wrap
 env:
-  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: ${{ vars.AWF_DAILY_ET_LIMIT }}
+  GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.AWF_DAILY_ET_LIMIT }}
 ```
 
 When the total from the past 24 hours already meets or exceeds this threshold, the activation
@@ -286,8 +307,8 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 2. Update and apply shared defaults in batch:
 
 ```yaml
-default_max_effective_tokens: "5M"
-default_max_daily_effective_tokens: "15M"
+default_max_ai_credits: "5M"
+default_max_daily_ai_credits: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
@@ -301,14 +322,15 @@ gh aw env update defaults.yml --scope org --org MY_ORG
 Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
-`default_max_turns` / `default_timeout_minutes` must be positive integers, and
-`default_max_effective_tokens` / `default_max_daily_effective_tokens` must be
-non-zero integers (negative values disable the corresponding guardrail).
+`default_max_turns` / `default_timeout_minutes` must be positive integers,
+`default_max_ai_credits` must be a positive integer, and
+`default_max_daily_ai_credits` must be a non-zero integer
+(a negative value disables the daily guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
-`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
-`GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_AI_CREDITS`,
+`GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_TURNS`,
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
 `GH_AW_DEFAULT_DETECTION_MODEL`.
@@ -332,13 +354,107 @@ See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) and [Conc
 
 ### Use Schedules for Predictable Budgets
 
-Scheduled workflows fire at a fixed cadence, making cost easy to estimate and cap:
+Scheduled workflows fire at a fixed cadence, making cost easy to estimate and cap. The less often a workflow runs, the lower the cost:
 
 ```aw wrap
+# Once per day on weekdays — 5 runs/week
 schedule: daily on weekdays
 ```
 
-One scheduled run per weekday = five agent invocations per week. See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy schedule syntax.
+```aw wrap
+# Every two days — roughly 15 runs/month
+schedule: every 2 days
+```
+
+```aw wrap
+# Weekly on Monday mornings — 4–5 runs/month
+schedule: weekly
+```
+
+When an event-based trigger fires far more often than the agent actually needs to act, a schedule is almost always cheaper. Replace `push` or `issues` triggers with a daily or weekly schedule and let the agent work through a backlog of items in one run.
+
+See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy schedule syntax.
+
+### Batch Instead of Reacting to Events
+
+Reactive triggers like `issues` or `pull_request` launch one agent run per event. When many events arrive in a short window, that adds up quickly. A scheduled batch run groups all pending items into a single invocation — and because the shared system prompt and instructions are sent once for the whole batch, AI providers can cache that context across items, further reducing AI Credits consumption.
+
+```aw wrap
+description: Nightly issue triage (replaces reactive issues trigger)
+on:
+  schedule: daily
+  workflow_dispatch:
+
+permissions:
+  issues: read
+engine:
+  id: copilot
+  model: gpt-4.1-mini
+tools:
+  github:
+    toolsets: [issues]
+---
+
+Fetch all issues opened in the past 24 hours with no labels.
+For each issue, apply the most appropriate label. Process them in a single pass.
+```
+
+> [!TIP]
+> For high-volume repositories, combine a scheduled trigger with [BatchOps](/gh-aw/patterns/batch-ops/) to split work across parallel matrix jobs and stay within per-run token budgets.
+
+### Use Inline Sub-Agents with Smaller Models
+
+When a workflow delegates specialized tasks to sub-agents, each sub-agent can use a different model. Assign cheap, fast models to high-frequency sub-tasks (summarization, labeling, classification) and reserve frontier models only for the orchestrator.
+
+```aw wrap
+engine:
+  id: copilot
+  model: small
+permissions:
+  pull-requests: read
+
+---
+
+Use the `summarizer` sub-agent to summarize the diff, then post the result as a review comment.
+
+## agent: `summarizer`
+---
+model: small
+description: Summarizes a pull request diff in one paragraph
+---
+Read the diff and return a single paragraph describing what changed and why.
+```
+
+See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax.
+
+### Use Inline Skills to Reduce Context
+
+Move large instruction blocks out of the main prompt body using inline skills. At runtime, each `## skill:` block is extracted and written to engine-specific skill locations — the agent can invoke the skill on demand instead of receiving the guidance upfront, keeping the ambient context slim:
+
+```aw wrap
+engine:
+  id: copilot
+  model: small
+permissions:
+  issues: read
+tools:
+  github:
+    toolsets: [issues]
+
+---
+
+Triage the issue using the `triage-rules` skill.
+
+## skill: `triage-rules`
+---
+description: Classify issues and suggest next actions.
+---
+Classify by bug / feature / question, identify missing information, and suggest
+the smallest actionable next step.
+```
+
+> [!TIP]
+> Include the `agentic-workflows` tool only in workflows that need self-inspection. Omitting it from unrelated workflows eliminates several hundred tokens of ambient context per run.
 
 ## Agentic Cost Optimization
 
@@ -358,7 +474,8 @@ tools:
 
 | Signal | Automatic action |
 |--------|-----------------|
-| High token count per run | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
+| High AIC per run (Claude/Codex) | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
+| High AIC per run (Copilot) | Switch to a smaller model or reduce context size |
 | High turn count per run | Set `max-turns` to cap iterations and prevent runaway loops |
 | Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
 | Long queue times due to concurrency | Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group |
@@ -366,6 +483,10 @@ tools:
 
 > [!NOTE]
 > The `agentic-workflows` tool requires `actions: read` permission and is configured under the `tools:` frontmatter key. See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
+
+## Optimize at Scale with github/agentic-ops
+
+The [githubnext/agentic-ops](https://github.com/githubnext/agentic-ops) repository is the reference implementation for organization-wide agentic workflow monitoring and optimization. It applies the [MonitorOps](/gh-aw/patterns/monitor-ops/) pattern to summarize spend, escalate failures, and propose workflow improvements on a schedule.
 
 ## Common Scenario Estimates
 
@@ -385,12 +506,15 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) - How effective token counts are computed
 - [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
+- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents with per-task model selection
+- [Imports](/gh-aw/reference/imports/) - Sharing workflow components across multiple workflows
+- [BatchOps](/gh-aw/patterns/batch-ops/) - Grouping work items into scheduled batch runs
+- [MonitorOps](/gh-aw/patterns/monitor-ops/) - Scheduled monitoring and escalation for agentic workflows
 - [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Default model and guardrail precedence
 - [Environment Variables](/gh-aw/reference/environment-variables/) - Variable scopes and compiler-managed defaults
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Cron schedule format

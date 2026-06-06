@@ -33,35 +33,67 @@ func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
 	})
 }
 
-func TestResolveDefaultMaxDailyEffectiveTokens(t *testing.T) {
+func TestResolveDefaultMaxDailyAICredits(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
-		assert.Empty(t, ResolveDefaultMaxDailyEffectiveTokens(""))
+		t.Setenv(DefaultMaxDailyAICredits, "")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
 	})
 
 	t.Run("invalid uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxDailyEffectiveTokens, "abc")
-		assert.Equal(t, "123", ResolveDefaultMaxDailyEffectiveTokens("123"))
+		t.Setenv(DefaultMaxDailyAICredits, "abc")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
 	})
 
 	t.Run("zero uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxDailyEffectiveTokens, "0")
-		assert.Equal(t, "123", ResolveDefaultMaxDailyEffectiveTokens("123"))
+		t.Setenv(DefaultMaxDailyAICredits, "0")
+		assert.Equal(t, "500000", ResolveDefaultMaxDailyAICredits("500000"))
 	})
 
 	t.Run("valid value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxDailyEffectiveTokens, "424242")
-		assert.Equal(t, "424242", ResolveDefaultMaxDailyEffectiveTokens(""))
+		t.Setenv(DefaultMaxDailyAICredits, "1000000")
+		assert.Equal(t, "1000000", ResolveDefaultMaxDailyAICredits("500000"))
 	})
 
 	t.Run("suffix value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxDailyEffectiveTokens, "100M")
-		assert.Equal(t, "100000000", ResolveDefaultMaxDailyEffectiveTokens(""))
+		t.Setenv(DefaultMaxDailyAICredits, "2M")
+		assert.Equal(t, "2000000", ResolveDefaultMaxDailyAICredits("500000"))
 	})
 
-	t.Run("negative value disables guardrail", func(t *testing.T) {
-		t.Setenv(DefaultMaxDailyEffectiveTokens, "-1")
-		assert.Equal(t, "-1", ResolveDefaultMaxDailyEffectiveTokens("123"))
+	t.Run("disables guardrail with -1", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyAICredits, "-1")
+		assert.Equal(t, "-1", ResolveDefaultMaxDailyAICredits("500000"))
+	})
+}
+
+func TestResolveDefaultMaxAICredits(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxAICredits, "")
+		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
+	})
+
+	t.Run("invalid uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxAICredits, "abc")
+		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
+	})
+
+	t.Run("zero uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxAICredits, "0")
+		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
+	})
+
+	t.Run("negative uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxAICredits, "-1")
+		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
+	})
+
+	t.Run("valid value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxAICredits, "2500")
+		assert.Equal(t, int64(2500), ResolveDefaultMaxAICredits(1000))
+	})
+
+	t.Run("suffix value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxAICredits, "2k")
+		assert.Equal(t, int64(2000), ResolveDefaultMaxAICredits(1000))
 	})
 }
 

@@ -26,3 +26,8 @@ func okExamples() {
 	_ = strings.ToLower(name) == name
 	_ = strings.ToLower(name) != name
 }
+
+func suppressedExamples() {
+	name := "Alice"
+	_ = strings.ToLower(name) == "alice" //nolint:tolowerequalfold
+}

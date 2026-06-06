@@ -8,6 +8,37 @@ import * as os from "os";
 
 const require = createRequire(import.meta.url);
 
+const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_patch_utils.cjs");
+const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
+
+// The privileged handler derives patch/bundle paths from `branch` (and `repo`)
+// via resolveTransportPaths, so tests must write transport files at the
+// canonical derived location and let the handler discover them.
+function canonicalPatchPath(branch, repo) {
+  fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+  return repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch);
+}
+function canonicalBundlePath(branch, repo) {
+  fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+  return repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+}
+function cleanupCanonicalTransports() {
+  try {
+    for (const f of fs.readdirSync("/tmp/gh-aw")) {
+      if (/^aw-.*\.(patch|bundle)$/.test(f)) {
+        fs.rmSync(`/tmp/gh-aw/${f}`, { force: true });
+      }
+    }
+  } catch {}
+}
+
+beforeEach(() => {
+  cleanupCanonicalTransports();
+});
+afterEach(() => {
+  cleanupCanonicalTransports();
+});
+
 describe("create_pull_request - draft policy enforcement", () => {
   let tempDir;
   let originalEnv;
@@ -237,7 +268,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
   });
 
   it("should deepen origin/<base> before fetching bundle in shallow repositories", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -256,12 +287,12 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     // Initial bundle fetch is now via getExecOutput (with ignoreReturnCode: true) rather than exec,
@@ -282,7 +313,7 @@ index 0000000..abc1234
   });
 
   it("should pass signed_commits false to bundle pushes", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -301,19 +332,19 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true, signed_commits: false });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ signedCommits: false }));
   });
 
   it("should rewrite bundle history to a single commit and retry when signed push rejects merge commits", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -332,7 +363,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     let revParseHeadCallCount = 0;
@@ -365,7 +396,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).not.toBe(true);
@@ -376,7 +407,7 @@ index 0000000..abc1234
   });
 
   it("should resolve bundle source ref from list-heads when JSONL branch ref is missing in bundle", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("ops-review-may09-2026");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -395,7 +426,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("ops-review-may09-2026");
     fs.writeFileSync(bundlePath, "bundle content");
 
     global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
@@ -424,7 +455,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
@@ -436,7 +467,7 @@ index 0000000..abc1234
   });
 
   it("should fall back to HEAD refspec when bundle contains only HEAD (no refs/heads/* entry)", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -455,7 +486,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6");
     fs.writeFileSync(bundlePath, "bundle content");
 
     global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
@@ -485,7 +516,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
@@ -498,7 +529,7 @@ index 0000000..abc1234
   });
 
   it("should fetch prerequisite commits and retry bundle fetch when prerequisites are missing", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -517,7 +548,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
@@ -542,7 +573,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     // Prerequisites are fetched from origin via exec with --filter=blob:none to avoid downloading blobs
@@ -554,7 +585,7 @@ index 0000000..abc1234
   });
 
   it("should fetch all prerequisite commits in a single origin fetch and retry bundle fetch", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -573,7 +604,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha1 = "256f08b38d9ce40cfa5d46385551caba8642a9df";
@@ -596,7 +627,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha1, missingSha2]);
@@ -606,7 +637,7 @@ index 0000000..abc1234
   });
 
   it("should fail when fetching prerequisite commits from origin fails", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -625,7 +656,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
@@ -653,7 +684,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
@@ -664,7 +695,7 @@ index 0000000..abc1234
   });
 
   it("should include retry context when bundle fetch still fails after prerequisite recovery", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -683,7 +714,7 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
@@ -711,7 +742,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
@@ -721,7 +752,7 @@ index 0000000..abc1234
   });
 
   it("should not fetch a bundle directly into the target branch", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("autoloop/perf-comparison");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -740,12 +771,12 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "test.bundle");
+    const bundlePath = canonicalBundlePath("autoloop/perf-comparison");
     fs.writeFileSync(bundlePath, "bundle content");
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison" }, {});
 
     expect(result.success).toBe(true);
     // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
@@ -760,7 +791,7 @@ index 0000000..abc1234
   });
 
   it("should give fallback issue bundle instructions that avoid direct branch fetches", async () => {
-    const patchPath = path.join(tempDir, "test.patch");
+    const patchPath = canonicalPatchPath("autoloop/perf-comparison");
     fs.writeFileSync(
       patchPath,
       `From abc123 Mon Sep 17 00:00:00 2001
@@ -779,13 +810,13 @@ index 0000000..abc1234
 2.34.1
 `
     );
-    const bundlePath = path.join(tempDir, "aw-test.bundle");
+    const bundlePath = canonicalBundlePath("autoloop/perf-comparison");
     fs.writeFileSync(bundlePath, "bundle content");
     pushSignedSpy.mockRejectedValueOnce(new Error("push rejected"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -1473,8 +1504,8 @@ ${diffs}
 `;
   }
 
-  function writePatch(content) {
-    const p = path.join(tempDir, "test.patch");
+  function writePatch(branch, content) {
+    const p = canonicalPatchPath(branch);
     fs.writeFileSync(p, content);
     return p;
   }
@@ -1485,11 +1516,11 @@ ${diffs}
   }
 
   it("should reject files outside the allowed-files allowlist", async () => {
-    const patchPath = writePatch(createPatchWithFiles("src/index.js"));
+    const patchPath = writePatch("should-reject-files-outside-the-allowed-files-allowlist", createPatchWithFiles("src/index.js"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allowed_files: [".github/aw/**"] });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-reject-files-outside-the-allowed-files-allowlist" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("outside the allowed-files list");
@@ -1497,11 +1528,11 @@ ${diffs}
   });
 
   it("should reject a mixed patch where some files are outside the allowlist", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/github-agentic-workflows.md", "src/index.js"));
+    const patchPath = writePatch("should-reject-a-mixed-patch-where-some-files-are-outside-the", createPatchWithFiles(".github/aw/github-agentic-workflows.md", "src/index.js"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allowed_files: [".github/aw/**"] });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-reject-a-mixed-patch-where-some-files-are-outside-the" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("outside the allowed-files list");
@@ -1512,7 +1543,7 @@ ${diffs}
   it("should still enforce protected-files when allowed-files matches (orthogonal checks)", async () => {
     // allowed-files and protected-files are orthogonal: both checks must pass.
     // Matching the allowlist does NOT bypass the protected-files policy.
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("should-still-enforce-protected-files-when-allowed-files-matc", createPatchWithFiles(".github/aw/instructions.md"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
@@ -1520,7 +1551,7 @@ ${diffs}
       protected_path_prefixes: [".github/"],
       protected_files_policy: "blocked",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-still-enforce-protected-files-when-allowed-files-matc" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("protected files");
@@ -1528,7 +1559,7 @@ ${diffs}
 
   it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
     // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("should-allow-a-protected-file-when-both-allowed-files-matche", createPatchWithFiles(".github/aw/instructions.md"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
@@ -1536,7 +1567,7 @@ ${diffs}
       protected_path_prefixes: [".github/"],
       protected_files_policy: "allowed",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-allow-a-protected-file-when-both-allowed-files-matche" }, {});
 
     // Should not be blocked by either check
     expect(result.error || "").not.toContain("protected files");
@@ -1544,28 +1575,28 @@ ${diffs}
   });
 
   it("should still enforce protected-files when allowed-files is not set", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("should-still-enforce-protected-files-when-allowed-files-is-n", createPatchWithFiles(".github/aw/instructions.md"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
       protected_path_prefixes: [".github/"],
       protected_files_policy: "blocked",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-still-enforce-protected-files-when-allowed-files-is-n" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("protected files");
   });
 
   it("should create PR with caution and request-changes review when protected-files is request_review", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("should-create-pr-with-caution-and-request-changes-review-whe", createPatchWithFiles(".github/aw/instructions.md"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
       protected_path_prefixes: [".github/"],
       protected_files_policy: "request_review",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+    const result = await handler({ title: "Test PR", body: "Body text", branch: "should-create-pr-with-caution-and-request-changes-review-whe" }, {});
 
     expect(result.success).toBe(true);
     expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
@@ -1581,13 +1612,13 @@ ${diffs}
   });
 
   it("should default to request_review when protected-files policy is unset", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("should-default-to-request-review-when-protected-files-policy", createPatchWithFiles(".github/aw/instructions.md"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
       protected_path_prefixes: [".github/"],
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+    const result = await handler({ title: "Test PR", body: "Body text", branch: "should-default-to-request-review-when-protected-files-policy" }, {});
 
     expect(result.success).toBe(true);
     expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
@@ -1597,7 +1628,7 @@ ${diffs}
   });
 
   it("should retry with COMMENT when REQUEST_CHANGES review is rejected on own pull request", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("should-retry-with-comment-when-request-changes-review-is-rej", createPatchWithFiles(".github/aw/instructions.md"));
     global.github.rest.pulls.createReview = vi
       .fn()
       .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
@@ -1608,7 +1639,7 @@ ${diffs}
       protected_path_prefixes: [".github/"],
       protected_files_policy: "request_review",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+    const result = await handler({ title: "Test PR", body: "Body text", branch: "should-retry-with-comment-when-request-changes-review-is-rej" }, {});
 
     expect(result.success).toBe(true);
     expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(2);
@@ -1617,7 +1648,7 @@ ${diffs}
   });
 
   it("should push branch with compare URL for protected-files fallback (patch transport)", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const patchPath = writePatch("feature/protected", createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
     const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
@@ -1636,7 +1667,7 @@ ${diffs}
       protected_path_prefixes: [".github/"],
       protected_files_policy: "fallback-to-issue",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -1655,8 +1686,8 @@ ${diffs}
   });
 
   it("should push branch with compare URL for protected-files fallback (bundle transport)", async () => {
-    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
-    const bundlePath = path.join(tempDir, "aw-protected.bundle");
+    const patchPath = writePatch("feature/protected", createPatchWithFiles(".github/aw/instructions.md"));
+    const bundlePath = canonicalBundlePath("feature/protected");
     fs.writeFileSync(bundlePath, "bundle content");
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
@@ -1676,7 +1707,7 @@ ${diffs}
       protected_path_prefixes: [".github/"],
       protected_files_policy: "fallback-to-issue",
     });
-    const result = await handler({ patch_path: patchPath, bundle_path: bundlePath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -1793,8 +1824,8 @@ ${diffs}
 `;
   }
 
-  function writePatch(content) {
-    const p = path.join(tempDir, "test.patch");
+  function writePatch(branch, content) {
+    const p = canonicalPatchPath(branch);
     fs.writeFileSync(p, content);
     return p;
   }
@@ -1802,27 +1833,27 @@ ${diffs}
   it("should ignore files matching excluded-files patterns (not blocked by allowed-files)", async () => {
     // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
     // Simulate post-generation: the patch already contains only the non-ignored file.
-    const patchPath = writePatch(createPatchWithFiles("src/index.js"));
+    const patchPath = writePatch("should-ignore-files-matching-excluded-files-patterns-not-blo", createPatchWithFiles("src/index.js"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
       excluded_files: ["auto-generated/**"],
       allowed_files: ["src/**"],
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-ignore-files-matching-excluded-files-patterns-not-blo" }, {});
 
     expect(result.error || "").not.toContain("outside the allowed-files list");
   });
 
   it("should still block non-ignored files that violate the allowed-files list", async () => {
-    const patchPath = writePatch(createPatchWithFiles("src/index.js", "other/file.txt"));
+    const patchPath = writePatch("should-still-block-non-ignored-files-that-violate-the-allowe", createPatchWithFiles("src/index.js", "other/file.txt"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
       excluded_files: ["auto-generated/**"],
       allowed_files: ["src/**"],
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-still-block-non-ignored-files-that-violate-the-allowe" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("outside the allowed-files list");
@@ -1833,7 +1864,7 @@ ${diffs}
   it("should ignore files matching excluded-files patterns (not blocked by protected-files)", async () => {
     // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
     // Simulate post-generation: the patch already contains only the non-ignored file.
-    const patchPath = writePatch(createPatchWithFiles("src/index.js"));
+    const patchPath = writePatch("should-ignore-files-matching-excluded-files-patterns-not-blo", createPatchWithFiles("src/index.js"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
@@ -1841,7 +1872,7 @@ ${diffs}
       protected_files: ["package.json"],
       protected_files_policy: "blocked",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-ignore-files-matching-excluded-files-patterns-not-blo" }, {});
 
     expect(result.error || "").not.toContain("protected files");
   });
@@ -1855,7 +1886,7 @@ ${diffs}
       allowed_files: ["src/**"],
     });
     // No patch file — simulates all changes being ignored at generation time
-    const result = await handler({ patch_path: path.join(tempDir, "nonexistent.patch"), title: "Test PR", body: "" }, {});
+    const result = await handler({ title: "Test PR", body: "", branch: "should-allow-when-all-patch-files-are-ignored-even-with-allo" }, {});
 
     // No patch → treated as no changes, not an allowlist violation
     expect(result.error || "").not.toContain("outside the allowed-files list");
@@ -2359,6 +2390,12 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-fallback-test-"));
     patchFilePath = path.join(tempDir, "test.patch");
     fs.writeFileSync(patchFilePath, PATCH_CONTENT, "utf8");
+    // Write the same patch content at every canonical path consumed by tests in
+    // this describe, so the handler (which re-derives the path from
+    // message.branch) finds it.
+    for (const branch of ["test-branch", "preserve-me", "chaos/preserve-me", "some-branch"]) {
+      fs.writeFileSync(canonicalPatchPath(branch), PATCH_CONTENT, "utf8");
+    }
 
     global.core = {
       info: vi.fn(),
@@ -2452,7 +2489,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: `  ${MOCK_BASE_COMMIT_SHA}  ` }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: `  ${MOCK_BASE_COMMIT_SHA}  ` }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA]);
@@ -2468,7 +2505,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: "not-a-sha --bad" }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: "not-a-sha --bad" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"]);
@@ -2488,7 +2525,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA]);
@@ -2515,7 +2552,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     // Should warn that the PR will show merge conflicts
@@ -2569,7 +2606,6 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       {
         title: "Test PR",
         body: "Test body",
-        patch_path: patchFilePath,
         branch: "test-branch",
         base_commit: MOCK_BASE_COMMIT_SHA,
       },
@@ -2598,7 +2634,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
@@ -2636,7 +2672,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath]);
@@ -2668,7 +2704,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Automatic add/add conflict recovery attempt failed"));
@@ -2695,7 +2731,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
@@ -2718,7 +2754,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const handler = await main({});
 
     // No base_commit provided - fallback should not be possible
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch" }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
@@ -2748,7 +2784,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ preserve_branch_name: true, recreate_ref: true });
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     // Should have called deleteRef to force-delete the existing remote branch
@@ -2781,7 +2817,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ preserve_branch_name: true, fallback_as_issue: false });
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(result.error_type).toBe("push_failed");
@@ -2808,7 +2844,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ preserve_branch_name: true, recreate_ref: true, fallback_as_issue: false });
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(result.error_type).toBe("push_failed");
@@ -2846,7 +2882,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ preserve_branch_name: true, recreate_ref: true });
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "chaos/preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "chaos/preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     // Should have attempted to delete the ref
@@ -2891,7 +2927,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "some-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "some-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     expect(renameCalled).toBe(true);
@@ -3170,7 +3206,7 @@ describe("create_pull_request - threat detection caution", () => {
   it("should compose one REQUEST_CHANGES review when protected-files and threat warning are both active", async () => {
     process.env.GH_AW_DETECTION_CONCLUSION = "warning";
     process.env.GH_AW_DETECTION_REASON = "pattern-match";
-    const patchPath = path.join(tempDir, "protected.patch");
+    const patchPath = canonicalPatchPath("should-compose-one-request-changes-review-when-protected-fil");
     fs.writeFileSync(
       patchPath,
       `diff --git a/.github/aw/instructions.md b/.github/aw/instructions.md
@@ -3185,7 +3221,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allow_empty: true, protected_path_prefixes: [".github/"], protected_files_policy: "request_review" });
-    await handler({ title: "Test PR", body: "Agent body content", patch_path: patchPath }, {});
+    await handler({ title: "Test PR", body: "Agent body content", branch: "should-compose-one-request-changes-review-when-protected-fil" }, {});
 
     expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
     const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
@@ -3645,12 +3681,12 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   }
 
   it("should create a fallback issue when E003 fires and fallback_as_issue is true (default)", async () => {
-    const patchPath = path.join(tempDir, "aw-test.patch");
+    const patchPath = canonicalPatchPath("data/refresh");
     fs.writeFileSync(patchPath, buildOversizedPatch(101));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -3673,12 +3709,12 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   });
 
   it("should use the actual received file count (not maxFiles*2) as the suggested limit", async () => {
-    const patchPath = path.join(tempDir, "aw-test.patch");
+    const patchPath = canonicalPatchPath("api/regen");
     fs.writeFileSync(patchPath, buildOversizedPatch(220));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "API regen PR", body: "Daily update", branch: "api/regen", patch_path: patchPath }, {});
+    const result = await handler({ title: "API regen PR", body: "Daily update", branch: "api/regen" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -3690,12 +3726,12 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   });
 
   it("should sanitize and apply title prefix to fallback issue title", async () => {
-    const patchPath = path.join(tempDir, "aw-test.patch");
+    const patchPath = canonicalPatchPath("data/refresh");
     fs.writeFileSync(patchPath, buildOversizedPatch(101));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ title_prefix: "[bot]" });
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     expect(result.success).toBe(true);
     const issueCall = global.github.rest.issues.create.mock.calls[0][0];
@@ -3706,12 +3742,12 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   it("should return staged preview instead of creating a fallback issue when in staged mode", async () => {
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
 
-    const patchPath = path.join(tempDir, "aw-test.patch");
+    const patchPath = canonicalPatchPath("data/refresh");
     fs.writeFileSync(patchPath, buildOversizedPatch(101));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     // Staged mode: no API side effects, just a preview
     expect(result.success).toBe(true);
@@ -3723,12 +3759,12 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   });
 
   it("should return success: false when E003 fires and fallback_as_issue is false", async () => {
-    const patchPath = path.join(tempDir, "aw-test.patch");
+    const patchPath = canonicalPatchPath("data/refresh");
     fs.writeFileSync(patchPath, buildOversizedPatch(101));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ fallback_as_issue: false });
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("E003");
@@ -3738,12 +3774,12 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   });
 
   it("should pass when max_patch_files is raised above the file count", async () => {
-    const patchPath = path.join(tempDir, "aw-test.patch");
+    const patchPath = canonicalPatchPath("data/refresh");
     fs.writeFileSync(patchPath, buildOversizedPatch(150));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ max_patch_files: 200 });
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     // Should succeed — limit was raised
     expect(result.success).toBe(true);

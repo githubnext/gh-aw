@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the regexp-compile-in-function analysis pass.
@@ -31,6 +32,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "regexpcompileinfunction")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -56,6 +58,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		// Check if we're inside a function (not package-level)
 		if isInsideFunction(stack) {
+			if nolint.HasDirective(pos, noLintLinesByFile) {
+				return true
+			}
 			pass.Report(analysis.Diagnostic{
 				Pos:     call.Pos(),
 				End:     call.End(),

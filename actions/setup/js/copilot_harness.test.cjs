@@ -252,6 +252,7 @@ describe("copilot_harness.cjs", () => {
       expect(isCopilotSDKEnabled({})).toBe(false);
       expect(buildCopilotSDKEnv({ COPILOT_SDK_URI: "http://127.0.0.1:3002" })).toEqual({
         COPILOT_SDK_URI: "http://127.0.0.1:3002",
+        COPILOT_SDK_LOG_LEVEL: "all",
       });
     });
 

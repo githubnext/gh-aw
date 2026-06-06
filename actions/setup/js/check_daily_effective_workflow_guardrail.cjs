@@ -5,7 +5,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { calculateDailyEffectiveWorkflowStats, findTokenUsageFile, formatEffectiveTokens, sumEffectiveTokensFromTokenUsageFile } = require("./daily_effective_workflow_helpers.cjs");
+const { calculateDailyAICStats, findTokenUsageFile, formatAICCredits, sumAICFromTokenUsageFile } = require("./daily_effective_workflow_helpers.cjs");
 const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
@@ -85,7 +85,7 @@ function matchesGuardrailArtifactName(artifactName) {
  * @param {string} repo
  * @returns {Promise<number>}
  */
-async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) {
+async function getRunAIC(artifactClient, runId, token, owner, repo) {
   const { artifacts } = await artifactClient.listArtifacts({
     latest: true,
     findBy: {
@@ -142,13 +142,13 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
     downloadPath: download.downloadPath || downloadRoot,
     tokenUsageFile,
   });
-  const effectiveTokens = sumEffectiveTokensFromTokenUsageFile(tokenUsageFile);
-  logDailyGuardrail("Computed run ET from artifact", {
+  const aic = sumAICFromTokenUsageFile(tokenUsageFile);
+  logDailyGuardrail("Computed run AIC from artifact", {
     runId,
     artifactId: artifact.id,
-    effectiveTokens,
+    aic,
   });
-  return effectiveTokens;
+  return aic;
 }
 
 /**
@@ -205,13 +205,13 @@ async function getCoreRateLimitSnapshot(githubClient) {
  * @param {string} workflowName
  * @param {string} actorLogin
  * @param {number} threshold
- * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} countedRuns
+ * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} countedRuns
  * @param {{remaining:number,limit:number,used:number,reset:string}} rateLimit
  * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} meta
  * @returns {string}
  */
 function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
-  const stats = calculateDailyEffectiveWorkflowStats(countedRuns);
+  const stats = calculateDailyAICStats(countedRuns);
   const remainingBudget = Math.max(0, threshold - stats.total);
   const usagePercent = threshold > 0 ? ((stats.total / threshold) * 100).toFixed(2) : "0.00";
   const runRows =
@@ -219,7 +219,7 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
       ? countedRuns
           .slice()
           .sort((a, b) => Date.parse(b.created_at || "") - Date.parse(a.created_at || ""))
-          .map(run => `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatEffectiveTokens(run.effective_tokens)} |`)
+          .map(run => `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatAICCredits(run.aic)} |`)
           .join("\n")
       : "| _none_ | — | — | 0 |";
 
@@ -236,21 +236,21 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
     "",
     "| Statistic | Value |",
     "| --- | ---: |",
-    `| 24h total ET | ${formatEffectiveTokens(stats.total)} |`,
-    `| Threshold | ${formatEffectiveTokens(threshold)} |`,
+    `| 24h total AIC | ${formatAICCredits(stats.total)} |`,
+    `| Threshold | ${formatAICCredits(threshold)} |`,
     `| Threshold used | ${usagePercent}% |`,
-    `| Remaining headroom | ${formatEffectiveTokens(remainingBudget)} |`,
+    `| Remaining headroom | ${formatAICCredits(remainingBudget)} |`,
     `| Runs counted | ${formatInteger(stats.count)} |`,
-    `| Avg ET / run | ${formatEffectiveTokens(stats.average)} |`,
-    `| Std dev ET | ${formatEffectiveTokens(stats.stddev)} |`,
-    `| Min / Max ET | ${formatEffectiveTokens(stats.min)} / ${formatEffectiveTokens(stats.max)} |`,
+    `| Avg AIC / run | ${formatAICCredits(stats.average)} |`,
+    `| Std dev AIC | ${formatAICCredits(stats.stddev)} |`,
+    `| Min / Max AIC | ${formatAICCredits(stats.min)} / ${formatAICCredits(stats.max)} |`,
     `| API remaining | ${formatInteger(rateLimit.remaining)} / ${formatInteger(rateLimit.limit)} |`,
     `| API used | ${formatInteger(rateLimit.used)} |`,
     `| API reset | ${rateLimit.reset || "unknown"} |`,
     "",
     "Previous runs counted in the last 24 hours:",
     "",
-    "| Run | Created | Conclusion | ET |",
+    "| Run | Created | Conclusion | AIC |",
     "| --- | --- | --- | ---: |",
     runRows,
     ...(noteLines.length > 0 ? ["", ...noteLines] : []),
@@ -261,14 +261,14 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
  * @param {string} workflowName
  * @param {string} actorLogin
  * @param {number} threshold
- * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} countedRuns
+ * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} countedRuns
  * @param {{remaining:number,limit:number,used:number,reset:string}} rateLimit
  * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} meta
  * @returns {Promise<void>}
  */
 async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
   const markdown = renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta);
-  core.summary.addDetails("Daily Effective Token Usage (24h)", "\n\n" + markdown);
+  core.summary.addDetails("Daily AI Credits Usage (24h)", "\n\n" + markdown);
   await core.summary.write();
 }
 
@@ -287,8 +287,9 @@ async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, thr
 async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
   core.setOutput("daily_effective_workflow_total_effective_tokens", "");
+  core.setOutput("daily_effective_workflow_total_ai_credits", "");
   core.setOutput("daily_effective_workflow_threshold", "");
-  const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
+  const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS);
   if (threshold <= 0) {
     return;
   }
@@ -405,8 +406,8 @@ async function main() {
     });
 
     const artifactClient = await getArtifactClient();
-    let totalEffectiveTokens = 0;
-    /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} */
+    let totalAIC = 0;
+    /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
     for (const run of candidateRuns) {
       if (countedRuns.length >= maxInspectableRuns) {
@@ -414,27 +415,27 @@ async function main() {
         break;
       }
       try {
-        const runEffectiveTokens = await getRunEffectiveTokens(artifactClient, run.id, token, owner, repo);
-        if (runEffectiveTokens <= 0) {
-          logDailyGuardrail("Skipping run without ET usage artifact data", {
+        const runAIC = await getRunAIC(artifactClient, run.id, token, owner, repo);
+        if (runAIC <= 0) {
+          logDailyGuardrail("Skipping run without AIC usage artifact data", {
             runId: run.id,
-            currentEffectiveTokens: totalEffectiveTokens,
+            currentAIC: totalAIC,
             threshold,
           });
           continue;
         }
-        totalEffectiveTokens += runEffectiveTokens;
+        totalAIC += runAIC;
         countedRuns.push({
           id: run.id,
           html_url: run.html_url || "",
           created_at: run.created_at || "",
           conclusion: run.conclusion || "",
-          effective_tokens: runEffectiveTokens,
+          aic: runAIC,
         });
-        logDailyGuardrail("Updated current ET state", {
+        logDailyGuardrail("Updated current AIC state", {
           runId: run.id,
-          runEffectiveTokens,
-          currentEffectiveTokens: totalEffectiveTokens,
+          runAIC,
+          currentAIC: totalAIC,
           threshold,
           countedRunIds: countedRuns.map(item => item.id),
         });
@@ -443,7 +444,8 @@ async function main() {
       }
     }
 
-    core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalEffectiveTokens));
+    core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalAIC));
+    core.setOutput("daily_effective_workflow_total_ai_credits", String(totalAIC));
     core.setOutput("daily_effective_workflow_threshold", String(threshold));
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
@@ -452,24 +454,24 @@ async function main() {
       inspectedRunsCount: countedRuns.length,
       truncatedByRateLimit,
     };
-    logDailyGuardrail("Completed ET inspection window", {
+    logDailyGuardrail("Completed AIC inspection window", {
       candidateRunsCount: summaryMeta.candidateRunsCount,
       inspectedRunsCount: summaryMeta.inspectedRunsCount,
       countedRunIds: countedRuns.map(run => run.id),
-      currentEffectiveTokens: totalEffectiveTokens,
+      currentAIC: totalAIC,
       threshold,
-      exceeded: totalEffectiveTokens > threshold,
+      exceeded: totalAIC > threshold,
     });
 
-    if (totalEffectiveTokens <= threshold) {
+    if (totalAIC <= threshold) {
       await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
-      core.info(`Daily workflow ET guardrail not exceeded (${totalEffectiveTokens}/${threshold}).`);
+      core.info(`Daily workflow AIC guardrail not exceeded (${totalAIC}/${threshold}).`);
       return;
     }
 
     core.setOutput("daily_effective_workflow_exceeded", "true");
     await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
-    core.warning(`Daily workflow ET guardrail exceeded for ${workflowName}: ${totalEffectiveTokens}/${threshold}.`);
+    core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
     // Treat any unexpected error as a non-blocking skip so the step never fails the
     // activation job.  The output stays at the default "false", allowing the agent to
@@ -483,8 +485,8 @@ module.exports = {
   shouldSkipDailyEffectiveWorkflowGuardrail,
   matchesGuardrailArtifactName,
   findTokenUsageFile,
-  sumEffectiveTokensFromTokenUsageFile,
-  calculateDailyEffectiveWorkflowStats,
+  sumAICFromTokenUsageFile,
+  calculateDailyAICStats,
   computeMaxInspectableRuns,
   renderDailyEffectiveWorkflowSummary,
   formatDailyGuardrailLogMessage,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
   describe("runWithCopilotSDK", () => {
@@ -310,7 +310,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(coreLogger.warning).toHaveBeenCalledWith(expect.stringContaining("shell(rm -rf /tmp/x)"));
     });
 
-    it("uses SDK default permission behavior when no permissionConfig is provided", async () => {
+    it("always configures onPermissionRequest and defaults to approveAll when permissionConfig is absent", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
       const createSession = vi.fn().mockResolvedValue({
@@ -339,10 +339,255 @@ describe("copilot_sdk_driver.cjs", () => {
 
       expect(result.exitCode).toBe(0);
       const sessionConfig = createSession.mock.calls[0][0];
-      // The SDK's default policy is exercised by omitting onPermissionRequest entirely.
-      // This assertion verifies we do not force approve-all in the no-toolset path.
-      expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
-      expect(approveAll).not.toHaveBeenCalled();
+      expect(sessionConfig).toHaveProperty("onPermissionRequest");
+      const decision = sessionConfig.onPermissionRequest({ kind: "read", fileName: "a.txt" });
+      expect(decision).toEqual({ kind: "approve-once" });
+      expect(approveAll).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops session when permission denials reach max-tool-denials threshold", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let sessionConfig;
+      const session = {
+        sessionId: "session-max-tool-denials",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          return { data: { content: "should-not-complete" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "3";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("max tool denials threshold reached");
+        expect(disconnect).toHaveBeenCalled();
+      } finally {
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
+        } else {
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
+        }
+      }
+    });
+
+    it("falls back to default threshold when GH_AW_MAX_TOOL_DENIALS is malformed", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let sessionConfig;
+      const session = {
+        sessionId: "session-max-tool-denials-malformed-env",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          return { data: { content: "completed" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "3ms";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+      } finally {
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
+        } else {
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
+        }
+      }
+    });
+
+    it("returns threshold error when sendAndWait fails after catastrophic denial disconnect", async () => {
+      let sessionConfig;
+      let disconnected = false;
+      const disconnect = vi.fn().mockImplementation(async () => {
+        disconnected = true;
+      });
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const session = {
+        sessionId: "session-max-tool-denials-disconnect",
+        on: () => {},
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          const denyRequest = { kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" };
+          sessionConfig.onPermissionRequest(denyRequest);
+          sessionConfig.onPermissionRequest(denyRequest);
+          if (disconnected) {
+            throw new Error("transport disconnected");
+          }
+          return { data: { content: "unexpected" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockImplementation(async config => {
+          sessionConfig = config;
+          return session;
+        });
+        stop = stop;
+      }
+
+      const oldMaxToolDenials = process.env.GH_AW_MAX_TOOL_DENIALS;
+      process.env.GH_AW_MAX_TOOL_DENIALS = "2";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("max tool denials threshold reached");
+      } finally {
+        if (oldMaxToolDenials === undefined) {
+          delete process.env.GH_AW_MAX_TOOL_DENIALS;
+        } else {
+          process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
+        }
+      }
+    });
+  });
+
+  describe("parsePermissionConfigFromServerArgs", () => {
+    it("returns undefined when input is undefined", () => {
+      expect(parsePermissionConfigFromServerArgs(undefined)).toBeUndefined();
+    });
+
+    it("returns undefined when input is empty string", () => {
+      expect(parsePermissionConfigFromServerArgs("")).toBeUndefined();
+    });
+
+    it("returns undefined when input is invalid JSON", () => {
+      expect(parsePermissionConfigFromServerArgs("not-json")).toBeUndefined();
+    });
+
+    it("returns undefined when input is not an array", () => {
+      expect(parsePermissionConfigFromServerArgs('{"key":"value"}')).toBeUndefined();
+    });
+
+    it("returns undefined when args contain no permission flags", () => {
+      const args = JSON.stringify(["--headless", "--no-auto-update", "--port", "3002"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toBeUndefined();
+    });
+
+    it("returns allowAllTools:true when --allow-all-tools is present", () => {
+      const args = JSON.stringify(["--headless", "--allow-all-tools", "--port", "3002"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({ allowAllTools: true });
+    });
+
+    it("--allow-all-tools takes precedence over --allow-tool entries", () => {
+      const args = JSON.stringify(["--allow-tool", "shell(git:*)", "--allow-all-tools", "--allow-tool", "write"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({ allowAllTools: true });
+    });
+
+    it("extracts a single --allow-tool entry", () => {
+      const args = JSON.stringify(["--allow-tool", "safeoutputs"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({ allowedTools: ["safeoutputs"] });
+    });
+
+    it("extracts multiple --allow-tool entries preserving order", () => {
+      const args = JSON.stringify(["--headless", "--no-ask-user", "--allow-tool", "github", "--allow-tool", "safeoutputs", "--allow-tool", "shell(safeoutputs:*)", "--allow-tool", "write"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({
+        allowedTools: ["github", "safeoutputs", "shell(safeoutputs:*)", "write"],
+      });
+    });
+
+    it("extracts shell(safeoutputs:*) from a realistic GH_AW_COPILOT_SDK_SERVER_ARGS value", () => {
+      const args = JSON.stringify([
+        "--headless",
+        "--no-auto-update",
+        "--port",
+        "3002",
+        "--no-ask-user",
+        "--allow-tool",
+        "github",
+        "--allow-tool",
+        "safeoutputs",
+        "--allow-tool",
+        "shell(agenticworkflows:*)",
+        "--allow-tool",
+        "shell(safeoutputs:*)",
+        "--allow-tool",
+        "shell(git:*)",
+        "--allow-tool",
+        "write",
+        "--allow-all-paths",
+      ]);
+      const config = parsePermissionConfigFromServerArgs(args);
+      expect(config).not.toBeNull();
+      expect(config?.allowedTools).toContain("shell(safeoutputs:*)");
+      expect(config?.allowedTools).toContain("safeoutputs");
+      expect(config?.allowedTools).toContain("write");
+    });
+
+    it("ignores non-string array elements", () => {
+      // Mixed arrays should not produce an error; only string entries are valid flags.
+      const args = JSON.stringify(["--allow-tool", "write", null, 42, "--allow-tool", "safeoutputs"]);
+      const config = parsePermissionConfigFromServerArgs(args);
+      // null/42 are not the string "--allow-tool", so only the valid pairs are collected.
+      expect(config).toEqual({ allowedTools: ["write", "safeoutputs"] });
     });
   });
 });

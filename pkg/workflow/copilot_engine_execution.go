@@ -38,6 +38,36 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
+
+// copilotSettingsPath is the path to the Copilot CLI settings file on GitHub Actions runners.
+// The Copilot CLI resolves its config directory as ~/.copilot, which on GitHub Actions
+// runners is /home/runner/.copilot (HOME=/home/runner).
+const copilotSettingsPath = "/home/runner/.copilot/settings.json"
+
+// copilotSettingsContent is the JSON content written to the Copilot CLI settings file.
+// Setting builtInAgents.rubberDuck to false disables the rubber-duck sub-agent, which
+// would otherwise be invoked proactively for non-trivial tasks. In Copilot engine runs
+// this adds unnecessary token overhead and latency with little benefit, since the primary
+// model already has strong reasoning capabilities.
+const copilotSettingsContent = `{"builtInAgents":{"rubberDuck":false}}`
+
+// buildCopilotSettingsSetup returns shell commands that write the Copilot CLI settings
+// file before the agent runs, disabling the rubber-duck sub-agent.
+func buildCopilotSettingsSetup(fixOwnershipForCustomCommand bool) string {
+	setup := "mkdir -p /home/runner/.copilot\n"
+	if fixOwnershipForCustomCommand {
+		setup += "sudo chown -R \"$(id -u):$(id -g)\" /home/runner/.copilot\n"
+	}
+	return setup + fmt.Sprintf("printf '%%s' %s > %s\n",
+		shellEscapeArg(copilotSettingsContent), copilotSettingsPath)
+}
+
+// buildCopilotSettingsCleanupTrap returns a shell trap command that removes the
+// temporary Copilot settings file at step exit.
+func buildCopilotSettingsCleanupTrap() string {
+	return fmt.Sprintf("trap %s EXIT\n", shellEscapeArg("rm -f "+copilotSettingsPath))
+}
+
 const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi`
 const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
@@ -396,6 +426,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}
+		// Write the Copilot settings file before AWF starts. The file is created on the
+		// host and AWF mounts it into the container, where the Copilot CLI reads it to
+		// disable the rubber-duck sub-agent.
+		pathSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + pathSetup
 		// Build the list of core secret var names to hide from the agent shell tools.
 		// In BYOK mode COPILOT_GITHUB_TOKEN is not injected into the step env at all,
 		// so there is nothing to exclude. Excluding it unconditionally would produce
@@ -434,6 +468,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if customCommandScriptSetup != "" {
 			preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
 		}
+		// Write the Copilot settings file before the agent runs to disable the rubber-duck
+		// sub-agent. This reduces token overhead and latency for Copilot engine runs.
+		preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + preCommandSetup
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
@@ -459,6 +496,16 @@ touch %s
 	} else {
 		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
+	timeoutValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	if workflowData.TimeoutMinutes != "" {
+		rawTimeoutValue := strings.TrimSpace(workflowData.TimeoutMinutes)
+		if after, ok := strings.CutPrefix(rawTimeoutValue, "timeout-minutes:"); ok {
+			rawTimeoutValue = strings.TrimSpace(after)
+		}
+		if rawTimeoutValue != "" {
+			timeoutValue = rawTimeoutValue
+		}
+	}
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -467,11 +514,12 @@ touch %s
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real
 		// $GITHUB_STEP_SUMMARY after secret redaction.
-		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
-		"GITHUB_HEAD_REF":     "${{ github.head_ref }}",
-		"GITHUB_REF_NAME":     "${{ github.ref_name }}",
-		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
-		"RUNNER_TEMP":         "${{ runner.temp }}",
+		"GITHUB_STEP_SUMMARY":   AgentStepSummaryPath,
+		"GITHUB_HEAD_REF":       "${{ github.head_ref }}",
+		"GITHUB_REF_NAME":       "${{ github.ref_name }}",
+		"GITHUB_WORKSPACE":      "${{ github.workspace }}",
+		"RUNNER_TEMP":           "${{ runner.temp }}",
+		"GH_AW_TIMEOUT_MINUTES": timeoutValue,
 		// Pass GitHub server URL and API URL for GitHub Enterprise compatibility.
 		// In standard GitHub.com environments these resolve to https://github.com and
 		// https://api.github.com. In GitHub Enterprise they resolve to the enterprise
@@ -563,6 +611,14 @@ touch %s
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	} else {
 		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
+		if workflowData.EngineConfig.MaxToolDenials != "" {
+			env[constants.EnvVarMaxToolDenials] = workflowData.EngineConfig.MaxToolDenials
+		} else {
+			env[constants.EnvVarMaxToolDenials] = strconv.Itoa(constants.DefaultMaxToolDenials)
+		}
 	}
 
 	// Set the model environment variable.
@@ -665,13 +721,7 @@ touch %s
 	}
 
 	// Add timeout at step level (GitHub Actions standard)
-	if workflowData.TimeoutMinutes != "" {
-		// Strip timeout-minutes prefix
-		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
-	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
-	}
+	stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
 
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container

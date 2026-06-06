@@ -61,6 +61,22 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxTurns: "${{ inputs.max-turns }}"},
 		},
 		{
+			name: "top-level max-tool-denials without engine",
+			frontmatter: map[string]any{
+				"max-tool-denials": 5,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxToolDenials: "5"},
+		},
+		{
+			name: "top-level max-tool-denials expression without engine",
+			frontmatter: map[string]any{
+				"max-tool-denials": "${{ inputs.max-tool-denials }}",
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxToolDenials: "${{ inputs.max-tool-denials }}"},
+		},
+		{
 			name: "top-level max-turns zero is ignored",
 			frontmatter: map[string]any{
 				"max-turns": 0,
@@ -218,6 +234,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "codex", MaxTurns: "12"},
 		},
 		{
+			name: "object format - with top-level max-tool-denials",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+				"max-tool-denials": 8,
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", MaxToolDenials: "8"},
+		},
+		{
 			name: "object format - top-level max-turns overrides engine max-turns",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -372,7 +399,19 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "copilot",
-			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+		},
+		{
+			name: "object format - copilot sdk driver implies copilot sdk even when false",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                 "copilot",
+					"copilot-sdk":        false,
+					"copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
 		},
 		{
 			name: "object format - complete with user-agent",
@@ -426,7 +465,9 @@ func TestExtractEngineConfig(t *testing.T) {
 				if config.MaxTurns != test.expectedConfig.MaxTurns {
 					t.Errorf("Expected config.MaxTurns '%s', got '%s'", test.expectedConfig.MaxTurns, config.MaxTurns)
 				}
-
+				if config.MaxToolDenials != test.expectedConfig.MaxToolDenials {
+					t.Errorf("Expected config.MaxToolDenials '%s', got '%s'", test.expectedConfig.MaxToolDenials, config.MaxToolDenials)
+				}
 				if config.MaxEffectiveTokens != test.expectedConfig.MaxEffectiveTokens {
 					t.Errorf("Expected config.MaxEffectiveTokens '%d', got '%d'", test.expectedConfig.MaxEffectiveTokens, config.MaxEffectiveTokens)
 				}
@@ -445,6 +486,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.CopilotSDKDriver != test.expectedConfig.CopilotSDKDriver {
 					t.Errorf("Expected config.CopilotSDKDriver '%s', got '%s'", test.expectedConfig.CopilotSDKDriver, config.CopilotSDKDriver)
+				}
+
+				if config.CopilotSDK != test.expectedConfig.CopilotSDK {
+					t.Errorf("Expected config.CopilotSDK '%v', got '%v'", test.expectedConfig.CopilotSDK, config.CopilotSDK)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

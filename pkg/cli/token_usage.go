@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -57,10 +58,12 @@ type TokenUsageSummary struct {
 	TotalCacheReadTokens  int                         `json:"total_cache_read_tokens" console:"header:Cache Read,format:number"`
 	TotalCacheWriteTokens int                         `json:"total_cache_write_tokens" console:"header:Cache Write,format:number"`
 	TotalRequests         int                         `json:"total_requests" console:"header:Requests"`
+	TotalSteeringEvents   int                         `json:"total_steering_events,omitempty" console:"header:Steering Events,format:number,omitempty"`
 	TotalDurationMs       int                         `json:"total_duration_ms"`
 	TotalResponseBytes    int                         `json:"total_response_bytes"`
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
 	TotalEffectiveTokens  int                         `json:"total_effective_tokens" console:"header:Effective Tokens,format:number"`
+	TotalAIC              float64                     `json:"total_aic,omitempty"`
 	AmbientContext        *AmbientContextMetrics      `json:"ambient_context,omitempty"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
 	SubagentModelRequests []SubagentModelRequest      `json:"subagent_model_requests,omitempty"`
@@ -71,29 +74,31 @@ type TokenUsageSummary struct {
 
 // ModelTokenUsage contains per-model token usage statistics
 type ModelTokenUsage struct {
-	Provider         string `json:"provider"`
-	InputTokens      int    `json:"input_tokens" console:"header:Input,format:number"`
-	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
-	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
-	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	ReasoningTokens  int    `json:"reasoning_tokens,omitempty"`
-	Requests         int    `json:"requests" console:"header:Requests"`
-	DurationMs       int    `json:"duration_ms"`
-	ResponseBytes    int    `json:"response_bytes"`
-	EffectiveTokens  int    `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	Provider         string  `json:"provider"`
+	InputTokens      int     `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	ReasoningTokens  int     `json:"reasoning_tokens,omitempty"`
+	Requests         int     `json:"requests" console:"header:Requests"`
+	DurationMs       int     `json:"duration_ms"`
+	ResponseBytes    int     `json:"response_bytes"`
+	EffectiveTokens  int     `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	AIC              float64 `json:"aic,omitempty"`
 }
 
 // ModelTokenUsageRow is a flattened version for console table rendering
 type ModelTokenUsageRow struct {
-	Model            string `json:"model" console:"header:Model"`
-	Provider         string `json:"provider" console:"header:Provider"`
-	InputTokens      int    `json:"input_tokens" console:"header:Input,format:number"`
-	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
-	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
-	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	EffectiveTokens  int    `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
-	Requests         int    `json:"requests" console:"header:Requests"`
-	AvgDuration      string `json:"avg_duration" console:"header:Avg Duration"`
+	Model            string  `json:"model" console:"header:Model"`
+	Provider         string  `json:"provider" console:"header:Provider"`
+	InputTokens      int     `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	EffectiveTokens  int     `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	AIC              float64 `json:"aic,omitempty"`
+	Requests         int     `json:"requests" console:"header:Requests"`
+	AvgDuration      string  `json:"avg_duration" console:"header:Avg Duration"`
 }
 
 // SubagentModelRequest captures requested/effective model attribution for a sub-agent.
@@ -114,10 +119,15 @@ type SubagentModelActual struct {
 
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
 const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
+const proxyEventsJSONLPath = "api-proxy-logs/events.jsonl"
 const agentUsageJSONPath = "agent_usage.json"
 const modelMismatchReasonTokenUsageMissing = "TOKEN_USAGE_MISSING"
 const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const subagentStdioWarning = "partial or incorrect data: sub-agent model requests are inferred from agent-stdio.log; use token_usage.jsonl for reliable token consumption"
+const tokenSteeringEventName = "token_steering"
+const timeoutSteeringEventName = "timeout_steering"
+const awfTokenWarningPrefix = "[AWF TOKEN WARNING]"
+const awfTimeWarningPrefix = "[AWF TIME WARNING]"
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -204,6 +214,7 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 
 	// Compute effective tokens using per-model multipliers (with optional custom overrides)
 	populateEffectiveTokensWithCustomWeights(summary, customWeights)
+	populateAIC(summary)
 	summary.AmbientContext = extractAmbientContextMetrics(entries)
 
 	return summary, nil
@@ -407,6 +418,7 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 	// raw usage exists, otherwise keep fallback effective_tokens from the file.
 	if hasRawTokenData {
 		populateEffectiveTokensWithCustomWeights(summary, customWeights)
+		populateAIC(summary)
 	} else {
 		summary.TotalEffectiveTokens = entry.EffectiveTokens
 	}
@@ -437,6 +449,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		if err != nil || summary == nil {
 			return summary, err
 		}
+		summary.TotalSteeringEvents = countAPIProxySteeringEvents(runDir)
 		augmentSubagentModelAttribution(runDir, summary)
 		return summary, nil
 	}
@@ -457,8 +470,113 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	if err != nil || summary == nil {
 		return summary, err
 	}
+	summary.TotalSteeringEvents = countAPIProxySteeringEvents(runDir)
 	augmentSubagentModelAttribution(runDir, summary)
 	return summary, nil
+}
+
+func countAPIProxySteeringEvents(runDir string) int {
+	eventsPath := findAPIProxyEventsFile(runDir)
+	if eventsPath == "" {
+		return 0
+	}
+	count, err := parseAPIProxySteeringEvents(eventsPath)
+	if err != nil {
+		tokenUsageLog.Printf("Failed to parse API proxy events file %s: %v", eventsPath, err)
+		return 0
+	}
+	return count
+}
+
+func findAPIProxyEventsFile(runDir string) string {
+	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", proxyEventsJSONLPath)
+	if _, err := os.Stat(primary); err == nil {
+		return primary
+	}
+
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return ""
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
+			candidate := filepath.Join(runDir, name, proxyEventsJSONLPath)
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
+	return ""
+}
+
+func parseAPIProxySteeringEvents(filePath string) (int, error) {
+	file, err := os.Open(filepath.Clean(filePath))
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	count := 0
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !containsSteeringKeyword(line) {
+			continue
+		}
+		var entry map[string]any
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		eventName := strings.ToLower(strings.TrimSpace(coalesceString(
+			entry["event"],
+			entry["type"],
+			entry["event_name"],
+			entry["eventName"],
+		)))
+		message := strings.TrimSpace(coalesceString(entry["message"]))
+		if isSteeringEvent(eventName, message) {
+			count++
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func coalesceString(values ...any) string {
+	for _, value := range values {
+		if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
+			return str
+		}
+	}
+	return ""
+}
+
+func containsSteeringKeyword(line string) bool {
+	return strings.Contains(line, "steering") ||
+		strings.Contains(line, "STEERING") ||
+		strings.Contains(line, "Steering")
+}
+
+// isSteeringEvent matches AWF proxy steering events using both event name and
+// message format from the firewall specification.
+func isSteeringEvent(eventName, message string) bool {
+	switch eventName {
+	case tokenSteeringEventName:
+		return strings.HasPrefix(message, awfTokenWarningPrefix)
+	case timeoutSteeringEventName:
+		return strings.HasPrefix(message, awfTimeWarningPrefix)
+	default:
+		return false
+	}
 }
 
 func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) {
@@ -524,10 +642,8 @@ func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
 	if summary == nil || warning == "" {
 		return
 	}
-	for _, existing := range summary.Warnings {
-		if existing == warning {
-			return
-		}
+	if slices.Contains(summary.Warnings, warning) {
+		return
 	}
 	summary.Warnings = append(summary.Warnings, warning)
 }
@@ -804,6 +920,7 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 			CacheReadTokens:  usage.CacheReadTokens,
 			CacheWriteTokens: usage.CacheWriteTokens,
 			EffectiveTokens:  usage.EffectiveTokens,
+			AIC:              usage.AIC,
 			Requests:         usage.Requests,
 			AvgDuration:      timeutil.FormatDurationMs(avgDur),
 		})
@@ -815,4 +932,21 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 		return iTot > jTot
 	})
 	return rows
+}
+
+func populateAIC(summary *TokenUsageSummary) {
+	if summary == nil {
+		return
+	}
+
+	total := 0.0
+	for model, usage := range summary.ByModel {
+		if usage == nil {
+			continue
+		}
+		aic := computeModelInferenceAIC(usage.Provider, model, usage.InputTokens, usage.OutputTokens, usage.CacheReadTokens, usage.CacheWriteTokens, usage.ReasoningTokens)
+		usage.AIC = aic
+		total += aic
+	}
+	summary.TotalAIC = total
 }

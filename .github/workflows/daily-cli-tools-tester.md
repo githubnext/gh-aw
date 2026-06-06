@@ -4,7 +4,7 @@ description: Daily exploratory testing of audit, logs, and compile tools in gh-a
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-effective-tokens: 100M
+max-daily-ai-credits: 100M
 permissions:
   contents: read
   issues: read

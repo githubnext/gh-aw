@@ -195,11 +195,12 @@ security-scan: security-gosec security-govulncheck
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 	@# Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
 	@# Keep this list in sync with .golangci.yml for consistency
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
+		-nosec-require-rules -nosec-require-justification \
 		-exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
 		./...
 	@echo "✓ Gosec scan complete (results in gosec-report.json)"
@@ -390,7 +391,7 @@ check-node-version:
 tools: ## Install build-time tools from tools.go
 	@echo "Installing build tools..."
 	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
-	@go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
+	@go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 	@go install golang.org/x/tools/gopls@v0.21.1
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@echo "✓ Tools installed successfully"
@@ -593,6 +594,7 @@ fmt-cjs:
 fmt-json:
 	@echo "→ Formatting JSON files..."
 	@cd actions/setup/js && npm run format:pkg-json --silent >/dev/null 2>&1
+	@npx prettier --write 'pkg/cli/data/models.json' 'actions/setup/js/models.json' --ignore-path .prettierignore --log-level=error 2>&1
 	@echo "✓ JSON files formatted"
 
 # Check formatting
@@ -641,11 +643,26 @@ validate-model-alias-chains:
 	@node scripts/validate-model-alias-chains.js
 
 # Validate model_multipliers.json has no placeholder or null multipliers (R-REG-007)
-# See docs/src/content/docs/reference/effective-tokens-specification.md §Model Multiplier Registry
+# See docs/src/content/docs/specs/effective-tokens-specification.md §Model Multiplier Registry
 .PHONY: validate-registry
 validate-registry:
 	@echo "Validating model_multipliers.json (R-REG-007: no placeholder or null multipliers)..."
 	@go test ./pkg/cli/... -run TestModelMultipliersNoPlaceholders -count=1
+
+MODELS_DEV_MODELS_JSON_URL ?= https://models.dev/catalog.json
+
+.PHONY: refresh-models-json
+refresh-models-json:
+	@echo "Refreshing models.json from $(MODELS_DEV_MODELS_JSON_URL)..."
+	@set -e; \
+	tmp=$$(mktemp); \
+	src=$$(mktemp); \
+	trap 'rm -f "$$tmp" "$$src"' EXIT; \
+	curl -fsSL "$(MODELS_DEV_MODELS_JSON_URL)" -o "$$src"; \
+	jq '{providers: ((.providers // {}) | with_entries(select(.key | test("^(anthropic|openai|github-copilot)$$"))) | with_entries(.value |= {models: ((.models // {}) | with_entries(.value |= {cost: ((.cost // {}) | with_entries(select(.value != null and ((.value | type) == "number" or (.value | type) == "string"))) | with_entries(if (.value | type) == "number" then .value |= (./1000000 | tostring) else . end))}) )}))}' "$$src" > "$$tmp"; \
+	cp "$$tmp" pkg/cli/data/models.json; \
+	cp "$$tmp" actions/setup/js/models.json; \
+	echo "✓ Refreshed pkg/cli/data/models.json and actions/setup/js/models.json (catalog providers: anthropic, openai, github-copilot)"
 
 # Check file sizes and function counts
 .PHONY: check-file-sizes

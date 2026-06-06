@@ -49,7 +49,7 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md §9 for credential isolation semantics."
+          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md \u00a79 for credential isolation semantics."
         },
         "enableTokenSteering": {
           "type": "boolean",
@@ -67,20 +67,44 @@
         "maxEffectiveTokens": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input \u00d71, cache-read \u00d70.1, output \u00d74, reasoning \u00d74. See spec \u00a710."
+        },
+        "maxAiCredits": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Maximum cumulative AI credits allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'ai_credits_limit_exceeded'."
         },
         "modelMultipliers": {
           "type": "object",
-          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Defaults to 1 for unlisted models. See spec §10.2.",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec \u00a710.2.",
           "additionalProperties": {
             "type": "number",
             "exclusiveMinimum": 0
           }
         },
+        "defaultModelMultiplier": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Default multiplier applied when a model is not present in modelMultipliers. When omitted, AWF uses the highest configured model multiplier as a conservative fallback."
+        },
+        "maxModelMultiplierCap": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Maximum allowed model multiplier. When set, the proxy resolves each incoming request's model against the configured modelMultipliers (and defaultModelMultiplier) and rejects any request whose resolved multiplier exceeds this cap with HTTP 400 and error type model_multiplier_cap_exceeded. This guards against unexpected pricing spikes from model routing changes."
+        },
         "maxRuns": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec \u00a711."
+        },
+        "maxPermissionDenied": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of upstream permission-denied (401/403) responses allowed per run. When reached, the API proxy rejects all subsequent requests with HTTP 403 and error type 'permission_denied_limit_exceeded', stopping the run to avoid wasting tokens on misconfigured or missing API credentials. When unset, the guard is disabled."
+        },
+        "requestedModel": {
+          "type": "string",
+          "description": "Expected model name for pre-startup validation. When set, the API proxy validates at startup that this model is available in at least one provider's model catalogue. Emits a clear diagnostic if the model is retired, restricted, or misspelled. Does not block startup."
         },
         "modelFallback": {
           "type": "object",
@@ -114,6 +138,21 @@
             }
           }
         },
+        "modelRouter": {
+          "type": "object",
+          "description": "Model-router settings for Copilot-compatible BYOK upstreams.",
+          "additionalProperties": false,
+          "properties": {
+            "providerType": {
+              "type": "string",
+              "description": "Provider type hint for router-specific behavior (maps to COPILOT_PROVIDER_TYPE)."
+            },
+            "baseUrl": {
+              "type": "string",
+              "description": "Router base URL for Copilot BYOK upstream traffic (maps to COPILOT_PROVIDER_BASE_URL)."
+            }
+          }
+        },
         "targets": {
           "type": "object",
           "description": "Override upstream API endpoints for each provider.",
@@ -128,8 +167,8 @@
               "description": "Anthropic API target override."
             },
             "copilot": {
-              "$ref": "#/$defs/providerHostOnlyTarget",
-              "description": "GitHub Copilot API target override (basePath not supported)."
+              "$ref": "#/$defs/copilotTarget",
+              "description": "GitHub Copilot API target override and BYOK supplemental headers (basePath not supported)."
             },
             "gemini": {
               "$ref": "#/$defs/providerTarget",
@@ -153,7 +192,7 @@
         },
         "auth": {
           "type": "object",
-          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md §9.5.",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC \u2192 Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md \u00a79.5.",
           "additionalProperties": false,
           "properties": {
             "type": {
@@ -231,6 +270,11 @@
             "anthropicWorkspaceId": {
               "type": "string",
               "description": "Anthropic workspace ID. Required when the federation rule covers multiple workspaces. Maps to AWF_AUTH_ANTHROPIC_WORKSPACE_ID."
+            },
+            "anthropicTokenUrl": {
+              "type": "string",
+              "description": "Anthropic OAuth token exchange endpoint override. Non-sensitive config and maps to AWF_AUTH_ANTHROPIC_TOKEN_URL.",
+              "default": "https://api.anthropic.com/v1/oauth/token"
             }
           },
           "required": ["type"],
@@ -419,7 +463,7 @@
     },
     "environment": {
       "type": "object",
-      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md §8–9 for credential isolation rules.",
+      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md \u00a78\u20139 for credential isolation rules.",
       "additionalProperties": false,
       "properties": {
         "envFile": {
@@ -428,7 +472,7 @@
         },
         "envAll": {
           "type": "boolean",
-          "description": "Forward all host environment variables into the agent container. Use with caution — may expose secrets."
+          "description": "Forward all host environment variables into the agent container. Use with caution \u2014 may expose secrets."
         },
         "excludeEnv": {
           "type": "array",
@@ -522,6 +566,31 @@
         "host": {
           "type": "string",
           "description": "Override the provider API host."
+        }
+      }
+    },
+    "copilotTarget": {
+      "type": "object",
+      "description": "Copilot target override (host only) plus non-sensitive BYOK supplemental headers.",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Override the Copilot API host."
+        },
+        "extraHeaders": {
+          "type": "object",
+          "description": "Additional non-sensitive headers to include on Copilot BYOK upstream requests. Values must be strings. Maps to AWF_BYOK_EXTRA_HEADERS in the sidecar.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "extraBodyFields": {
+          "type": "object",
+          "description": "Additional non-sensitive JSON body fields to include on Copilot BYOK upstream requests. Values must be strings. Maps to AWF_BYOK_EXTRA_BODY_FIELDS in the sidecar.",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     }

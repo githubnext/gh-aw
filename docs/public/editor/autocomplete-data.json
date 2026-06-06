@@ -526,12 +526,6 @@
       "desc": "Environment variables for the workflow",
       "leaf": true
     },
-    "inline-sub-agents": {
-      "type": "boolean",
-      "desc": "Deprecated switch for inline sub-agent support.",
-      "enum": [true, false],
-      "leaf": true
-    },
     "features": {
       "type": "object",
       "desc": "Feature flags and configuration options for experimental or optional features in the workflow."
@@ -1106,7 +1100,19 @@
     },
     "max-effective-tokens": {
       "type": "integer|string",
-      "desc": "Explicit ET budget control for firewall cost enforcement.",
+      "desc": "OBSOLETE: Use `max-ai-credits` instead. Legacy ET budget control for firewall cost enforcement.",
+      "deprecated": true,
+      "leaf": true
+    },
+    "max-ai-credits": {
+      "type": "integer|string",
+      "desc": "Per-run AI credits budget control for firewall cost enforcement.",
+      "leaf": true
+    },
+    "max-daily-effective-tokens": {
+      "type": "integer|string",
+      "desc": "OBSOLETE: Use `max-daily-ai-credits` instead. Legacy 24-hour ET guardrail.",
+      "deprecated": true,
       "leaf": true
     },
     "max-runs": {
@@ -2034,37 +2040,6 @@
         "max-runs-per-window": {
           "type": "integer|string",
           "desc": "Maximum number of workflow runs allowed per user within the time window.",
-          "leaf": true
-        },
-        "window": {
-          "type": "integer",
-          "desc": "Time window in minutes for rate limiting.",
-          "leaf": true
-        },
-        "events": {
-          "type": "array",
-          "desc": "Optional list of event types to apply rate limiting to.",
-          "array": true
-        },
-        "ignored-roles": {
-          "type": "array",
-          "desc": "Optional list of roles that are exempt from rate limiting.",
-          "array": true
-        }
-      }
-    },
-    "rate-limit": {
-      "type": "object",
-      "desc": "Legacy alias for 'user-rate-limit'.",
-      "children": {
-        "max-runs": {
-          "type": "integer|string",
-          "desc": "Legacy maximum runs key.",
-          "leaf": true
-        },
-        "max": {
-          "type": "integer|string",
-          "desc": "Legacy maximum runs key.",
           "leaf": true
         },
         "window": {
