@@ -91,7 +91,7 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep() []string {
 		if entry.key.wiki {
 			continue
 		}
-		if entry.key.repository == "" || entry.key.path == "" {
+		if entry.key.repository == "" {
 			continue
 		}
 		entries = append(entries, manifestEntry{repository: entry.key.repository, path: entry.key.path})
