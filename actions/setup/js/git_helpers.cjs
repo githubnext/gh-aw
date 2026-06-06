@@ -191,7 +191,7 @@ function ensureOriginRemoteTrackingRef(branch, options) {
       });
       return { exists: true, fetched: true };
     } catch (fetchError) {
-      return { exists: false, fetched: false, fetchError: /** @type {Error} */ (fetchError) };
+      return { exists: false, fetched: false, fetchError: /** @type {Error} */ fetchError };
     }
   }
 }
