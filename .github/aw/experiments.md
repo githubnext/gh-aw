@@ -66,7 +66,7 @@ experiments:
     variants: [concise, detailed, step_by_step]
     weight: [2, 1, 1]           # 50% concise, 25% detailed, 25% step_by_step
     description: "Verbosity A/B test"
-    metric: "ai_credits"
+    metric: "effective_tokens"
     issue: "42"
     start_date: "2026-05-01"
     end_date: "2026-06-01"
@@ -138,7 +138,7 @@ Both forms are resolved before the agent receives the prompt. The agent always s
 
 1. **One dimension** changed at a time — isolate the variable to attribute differences to the right cause.
 2. **A falsifiable hypothesis** — state what you expect and what would disprove it.
-3. **A primary metric** that is measurable from workflow run data (artifacts, outputs, duration, AI credit counts).
+3. **A primary metric** that is measurable from workflow run data (artifacts, outputs, duration, token counts).
 4. **Guardrail metrics** — things that must not degrade (e.g., crash rate, empty-output rate, run success rate).
 5. **A sample size estimate** — calculate how many runs per variant are needed before drawing conclusions.
 
@@ -175,7 +175,7 @@ Then use a `{{#if experiments.engine_variant == "claude" }}` block *or* simply p
 
 > ⚠️ **Engine experiments require separate compiled files** if the engine changes the `engine:` frontmatter key. You cannot switch the engine mid-run from a single workflow file. Instead, create two workflow files (baseline + variant), run them in parallel, and compare their run metrics.
 
-**Typical metrics**: run cost (AI credit usage), run duration, task completion rate, error rate.
+**Typical metrics**: run cost (token usage), run duration, task completion rate, error rate.
 
 ### Tool Configuration
 
@@ -207,7 +207,7 @@ Check `skills/` for SKILL.md files relevant to this task and apply their guidanc
 {{#endif}}
 ```
 
-**Typical metrics**: output quality, context AI credit consumption, run duration.
+**Typical metrics**: output quality, context token consumption, run duration.
 
 ### Timeout & Pacing
 
