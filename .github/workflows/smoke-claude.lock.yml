@@ -2650,6 +2650,7 @@ jobs:
     if: needs.safe_outputs.outputs.sarif_file != ''
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       security-events: write
     timeout-minutes: 10
