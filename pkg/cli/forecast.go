@@ -47,6 +47,8 @@ var (
 	forecastFetchGitHubWorkflows      = fetchGitHubWorkflows
 	forecastListWorkflowRunsPaginated = listWorkflowRunsWithPagination
 	forecastLoadCachedRunAIC          = loadCachedRunAIC
+	forecastDownloadRunArtifacts      = downloadRunArtifacts
+	forecastAnalyzeTokenUsage         = analyzeTokenUsage
 	forecastRateLimitSleep            = func(ctx context.Context, delay time.Duration) error {
 		timer := time.NewTimer(delay)
 		defer timer.Stop()
@@ -750,12 +752,27 @@ func extractWorkflowIDFromName(name string) string {
 func loadCachedRunAIC(runID int64, verbose bool) float64 {
 	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
 	summary, ok := loadRunSummary(dir, verbose)
-	if !ok || summary == nil {
-		return 0
-	}
-	if summary.TokenUsage != nil && summary.TokenUsage.TotalAIC > 0 {
+	if ok && summary != nil && summary.TokenUsage != nil && summary.TokenUsage.TotalAIC > 0 {
 		return summary.TokenUsage.TotalAIC
 	}
+
+	usageFirstFilters := [][]string{
+		{"usage"},
+		{constants.AgentArtifactName},
+		{"agent-artifacts"},
+	}
+
+	for _, filter := range usageFirstFilters {
+		if err := forecastDownloadRunArtifacts(context.Background(), runID, dir, verbose, "", "", "", filter); err != nil && !errors.Is(err, ErrNoArtifacts) {
+			continue
+		}
+		tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
+		if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
+			continue
+		}
+		return tokenUsage.TotalAIC
+	}
+
 	return 0
 }
 

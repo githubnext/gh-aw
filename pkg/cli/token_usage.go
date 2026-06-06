@@ -278,6 +278,12 @@ func parseTokenUsageTimestamp(value string) (time.Time, bool) {
 
 // findTokenUsageFile searches for token-usage.jsonl in the run directory
 func findTokenUsageFile(runDir string) string {
+	usageArtifactCandidate := filepath.Join(runDir, "usage", "agent", "token_usage.jsonl")
+	if _, err := os.Stat(usageArtifactCandidate); err == nil {
+		tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
+		return usageArtifactCandidate
+	}
+
 	// Primary path: sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
 	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath)
 	if _, err := os.Stat(primary); err == nil {
@@ -314,7 +320,7 @@ func findTokenUsageFile(runDir string) string {
 		if info == nil || info.IsDir() {
 			return nil
 		}
-		if info.Name() == "token-usage.jsonl" {
+		if info.Name() == "token-usage.jsonl" || info.Name() == "token_usage.jsonl" {
 			primary = path
 			return filepath.SkipAll
 		}
