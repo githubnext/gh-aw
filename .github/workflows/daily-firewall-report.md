@@ -45,10 +45,8 @@ Collect and analyze firewall logs from all agentic workflows that use the firewa
 
 ## 📊 Trend Charts
 
-Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report using markdown image links:
-- `![Firewall Request Trends](<CHART1_URL returned by the sub-agent>)`
-- `![Blocked Domains Frequency](<CHART2_URL returned by the sub-agent>)`
-If the agent returns an `error` field, omit both image embeds and include a brief note in the final report that chart generation failed with the reported reason.
+Trend charts are optional for this workflow. Do not attempt package installation (`pip`, `pip3`, `uv`, `conda`, `apt`, or similar) and do not retry blocked installs.
+If chart tooling is not already available, skip chart generation and continue with the text report only.
 
 ---
 
@@ -92,35 +90,35 @@ This ensures accurate, up-to-date reporting for every run of this workflow.
 
 ### Step 1: Collect Recent Firewall-Enabled Workflow Runs
 
-Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled (see `workflow_runs_analyzed` in scratchpad/metrics-glossary.md - Scope: Last 7 days):
+Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled (see `workflow_runs_analyzed` in scratchpad/metrics-glossary.md - Scope: Last 24 hours):
 
 **Using the logs tool:**
 Call the `logs` tool with the following parameters:
 - `firewall`: true (boolean - to filter only runs with firewall enabled)
-- `start_date`: "-7d" (to get runs from the past 7 days)
-- `count`: 100 (to get up to 100 matching runs)
+- `start_date`: "-1d" (to get runs from the past 24 hours)
+- `count`: 30 (to get up to 30 matching runs)
 
 The tool will:
 1. Filter runs based on the `steps.firewall` field in `aw_info.json` (e.g., "squid" when enabled)
 2. Return only runs where firewall was enabled
-3. Limit to runs from the past 7 days
-4. Return up to 100 matching runs
+3. Limit to runs from the past 24 hours
+4. Return up to 30 matching runs
 
 **Tool call example:**
 ```json
 {
   "firewall": true,
-  "start_date": "-7d",
-  "count": 100
+  "start_date": "-1d",
+  "count": 30
 }
 ```
 
 ### Step 1.5: Early Exit if No Data
 
-**IMPORTANT**: If Step 1 returns zero workflow runs (no firewall-enabled workflows ran in the past 7 days):
+**IMPORTANT**: If Step 1 returns zero workflow runs (no firewall-enabled workflows ran in the past 24 hours):
 
 1. **Do NOT create a discussion or report**
-2. **Exit early** with a brief log message: "No firewall-enabled workflow runs found in the past 7 days. Exiting without creating a report."
+2. **Exit early** with a brief log message: "No firewall-enabled workflow runs found in the past 24 hours. Exiting without creating a report."
 3. **Stop processing** - do not proceed to Step 2 or any subsequent steps
 
 This prevents creating empty or meaningless reports when there's no data to analyze.
@@ -128,6 +126,7 @@ This prevents creating empty or meaningless reports when there's no data to anal
 ### Step 2–4: Audit and Aggregate Firewall Data
 
 Pass the list of run IDs from Step 1 to the `firewall-data-aggregator` agent as a JSON array of integers (for example: `[123,456,789]`).
+If Step 1 returns more than 30 run IDs, pass only the first 30 to keep processing bounded.
 Example invocation payload:
 ```json
 {
@@ -247,46 +246,6 @@ Ensure the discussion body:
 A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
 
 {{#runtime-import shared/noop-reminder.md}}
-
-## agent: `firewall-chart-generator`
----
-model: small
-description: Collects 30-day firewall data, generates two trend charts, uploads them, and returns chart URLs
----
-You are a chart-generation sub-agent for daily firewall reporting.
-
-Task:
-1. Collect firewall request and blocked-domain trend data for the past 30 days (or all available days).
-2. Create chart inputs under `/tmp/gh-aw/python/data/`.
-3. Generate exactly 2 charts under `/tmp/gh-aw/python/charts/`:
-   - `firewall_requests_trends.png` (allowed, blocked, total request trends over time)
-   - `blocked_domains_frequency.png` (top blocked domains by frequency)
-4. Upload both charts with the `upload_asset` safe-output tool using absolute paths.
-5. Return a JSON object with these exact field mappings:
-   - `CHART1_URL` = uploaded URL for `firewall_requests_trends.png`
-   - `CHART2_URL` = uploaded URL for `blocked_domains_frequency.png`
-
-Requirements:
-- Use pandas + matplotlib + seaborn.
-- Use readable labels, legends, and professional styling.
-- Handle sparse data gracefully and still produce both charts.
-
-Return ONLY a JSON object:
-```json
-{
-  "CHART1_URL": "<url>",
-  "CHART2_URL": "<url>"
-}
-```
-
-If chart generation or upload ultimately fails after reasonable retries, return:
-```json
-{
-  "CHART1_URL": "",
-  "CHART2_URL": "",
-  "error": "<brief reason>"
-}
-```
 
 ## agent: `firewall-data-aggregator`
 ---
