@@ -270,8 +270,7 @@ The following frontmatter fields in imported files are merged into the importing
 - `github-app:` - Top-level GitHub App credentials (first-wins across imports)
 - `on.github-app:` - Activation GitHub App credentials (first-wins across imports)
 - `steps:`, `pre-agent-steps:`, `post-steps:` - Steps appended in import order
-- `jobs.<job-id>.setup-steps` and `jobs.<job-id>.pre-steps` - Merged per job with imported steps first, then main workflow steps.
-- `jobs.<job-id>.setup-steps` runs before `jobs.<job-id>.pre-steps`; the two hooks remain distinct.
+- `jobs.<job-id>.setup-steps` and `jobs.<job-id>.pre-steps` - Merged per job with imported steps first, then main workflow steps; `setup-steps` remains distinct and executes before `pre-steps`.
 - `runtimes:`, `network:`, `permissions:`, `services:`, `cache:`, `features:`, `mcp-servers:`
 
 Example import file:
