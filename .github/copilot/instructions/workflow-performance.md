@@ -19,7 +19,7 @@ gh aw logs --start-date -1w -o /tmp/gh-aw/agent/perf/
 
 - **Cost model**: 1 AI credit = $0.01
 - **Average AI credits per run**: 500 to 10,000 (default: 1,000; current baseline: ~4,810)
-- **Average cost per run**: < $0.15 (current baseline: ~$0.30)
+- **Average cost per run**: $5 to $100 (default baseline: ~$10.00)
 - **Execution time**: 2-5 minutes for typical workflows
 - **Tool call efficiency**: 30% reduction in redundant calls
 
@@ -64,7 +64,7 @@ Use the github tool to get full issue details with all fields.
 ```
 
 **Impact**: 60-70% AI credit reduction (4,810 → 1,500 AI credits)
-**Cost Savings**: ~$0.15 per run, $90-100 annually at 500 runs/year
+**Cost Savings**: ~33 AI credits per run (about $0.33), ~$165 annually at 500 runs/year
 
 ### 2. Redundant Tool Calls and Context Fetching
 
@@ -342,8 +342,8 @@ Annual cost (500 runs): ~$5,000
 
 **Optimization Impact**:
 - 60% AI credit reduction: Save ~60% of run cost
-- 30% turn reduction: Save ~$20/year
-- Combined: ~$65/year savings
+- 30% turn reduction: Save execution time and additional run cost
+- Combined: Material annual savings at scale
 
 ## Common Anti-Patterns
 
