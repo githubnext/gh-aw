@@ -1406,7 +1406,7 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "ai_credits_spec_link, cost_management_link, budget_line");
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "{ai_credits_spec_link}, {cost_management_link}, {budget_line}");
   }
 }
 
