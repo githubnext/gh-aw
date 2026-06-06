@@ -83,18 +83,62 @@ function isPRClosedAtStart() {
   return false;
 }
 
-function resolveDispatchRef() {
+function normalizeDispatchRef(ref) {
+  if (!ref) {
+    return "";
+  }
+  return ref.startsWith("refs/") ? ref : `refs/heads/${ref}`;
+}
+
+async function resolveIssueBackedPRHeadRef() {
+  const isIssueBackedPullRequest = context.payload?.issue?.pull_request;
+  const pullNumber = context.payload?.issue?.number;
+  if (!isIssueBackedPullRequest || !pullNumber) {
+    return "";
+  }
+
+  try {
+    const response = await github.rest.pulls.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: pullNumber,
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      },
+    });
+    const headRef = response?.data?.head?.ref;
+    if (!headRef) {
+      return "";
+    }
+    return normalizeDispatchRef(headRef);
+  } catch (error) {
+    core.warning(`Failed to resolve PR head ref for #${pullNumber}: ${String(error)}`);
+    return "";
+  }
+}
+
+async function resolveDispatchRef() {
   if (process.env.GITHUB_HEAD_REF) {
-    return `refs/heads/${process.env.GITHUB_HEAD_REF}`;
+    return normalizeDispatchRef(process.env.GITHUB_HEAD_REF);
+  }
+
+  const payloadHeadRef = context.payload?.pull_request?.head?.ref;
+  if (payloadHeadRef) {
+    return normalizeDispatchRef(payloadHeadRef);
+  }
+
+  const issuePullRequestHeadRef = await resolveIssueBackedPRHeadRef();
+  if (issuePullRequestHeadRef) {
+    return issuePullRequestHeadRef;
   }
 
   const fallbackRef = process.env.GITHUB_REF || context.ref;
   if (fallbackRef) {
-    return fallbackRef;
+    return normalizeDispatchRef(fallbackRef);
   }
 
   const defaultBranch = context.payload?.repository?.default_branch || "main";
-  return `refs/heads/${defaultBranch}`;
+  return normalizeDispatchRef(defaultBranch);
 }
 
 function normalizeReaction(reaction) {
@@ -306,7 +350,7 @@ async function main() {
 
   const identifier = eventIdentifier();
   const { buildAwContext } = require("./aw_context.cjs");
-  const ref = resolveDispatchRef();
+  const ref = await resolveDispatchRef();
   if (isPRClosedAtStart()) {
     core.info("Pull request is closed at workflow start; skipping centralized routing.");
     return;

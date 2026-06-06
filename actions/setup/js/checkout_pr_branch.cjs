@@ -29,6 +29,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
 
 /**
  * Log detailed PR context information for debugging
@@ -110,6 +111,39 @@ function logCheckoutStrategy(eventName, strategy, reason) {
   core.endGroup();
 }
 
+/**
+ * Ensure checkout step only runs in trusted runtime contexts.
+ * - repository must not be a fork
+ * - triggering actor must have write-or-higher repository permission
+ */
+async function assertTrustedCheckoutRuntime() {
+  const repository = context.payload.repository;
+  if (repository?.fork === true) {
+    throw new Error("Refusing PR checkout in forked repository runtime context");
+  }
+
+  // context.actor is preferred when available; sender.login and GITHUB_ACTOR
+  // are retained as event/runtime-compatible fallbacks.
+  const actor = context.actor || context.payload.sender?.login || process.env.GITHUB_ACTOR;
+  if (!actor) {
+    throw new Error("Refusing PR checkout: unable to determine triggering actor");
+  }
+
+  const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    username: actor,
+  });
+
+  const permission = permissionData?.permission || "none";
+  const hasWriteOrHigher = TRUSTED_CHECKOUT_PERMISSIONS.includes(permission);
+  if (!hasWriteOrHigher) {
+    throw new Error(`Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
+  }
+
+  core.info(`Runtime safety check passed for actor '${actor}' with '${permission}' permission`);
+}
+
 async function main() {
   const eventName = context.eventName;
   // For pull_request events, the PR context is in context.payload.pull_request.
@@ -142,6 +176,8 @@ async function main() {
   }
 
   try {
+    await assertTrustedCheckoutRuntime();
+
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
 

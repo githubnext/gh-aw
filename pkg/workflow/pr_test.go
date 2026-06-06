@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,4 +74,21 @@ pull-requests: read`,
 			assert.Equal(t, tt.expected, result, "ShouldGeneratePRCheckoutStep() result mismatch")
 		})
 	}
+}
+
+func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentContext(t *testing.T) {
+	compiler := NewCompiler()
+	var yaml strings.Builder
+	data := &WorkflowData{
+		Permissions: "contents: read",
+	}
+
+	compiler.generatePRReadyForReviewCheckout(&yaml, data)
+	rendered := yaml.String()
+
+	assert.Contains(t, rendered, "github.event.pull_request")
+	assert.Contains(t, rendered, "github.event.issue.pull_request")
+	assert.Contains(t, rendered, "github.event_name == 'workflow_dispatch'")
+	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').item_type == 'pull_request'")
+	assert.NotContains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type")
 }

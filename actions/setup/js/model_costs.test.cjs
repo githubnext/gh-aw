@@ -62,4 +62,45 @@ describe("model_costs.cjs", () => {
     expect(formatAIC(1.25)).toBe("1.25");
     expect(formatAIC(12.5)).toBe("12.5");
   });
+
+  it("resolves 'copilot' provider alias to 'github-copilot' for AIC lookup", async () => {
+    writeModelsFixture({
+      "github-copilot": {
+        models: {
+          "claude-sonnet-4.6": {
+            cost: {
+              input: "0.000003",
+              output: "0.000015",
+              cache_read: "0.0000003",
+            },
+          },
+        },
+      },
+    });
+
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+
+    // provider="copilot" should be treated as "github-copilot"
+    const aicViaProvider = computeInferenceAIC({
+      provider: "copilot",
+      model: "claude-sonnet-4.6",
+      inputTokens: 1000,
+      outputTokens: 100,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(aicViaProvider).toBeGreaterThan(0);
+
+    // model="copilot/claude-sonnet-4.6" (embedded provider prefix) should also resolve
+    const aicViaEmbedded = computeInferenceAIC({
+      provider: "",
+      model: "copilot/claude-sonnet-4.6",
+      inputTokens: 1000,
+      outputTokens: 100,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(aicViaEmbedded).toBeGreaterThan(0);
+    expect(aicViaEmbedded).toBeCloseTo(aicViaProvider, 6);
+  });
 });
