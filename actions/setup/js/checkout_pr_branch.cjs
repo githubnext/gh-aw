@@ -29,6 +29,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
 
 /**
  * Log detailed PR context information for debugging
@@ -121,6 +122,8 @@ async function assertTrustedCheckoutRuntime() {
     throw new Error("Refusing PR checkout in forked repository runtime context");
   }
 
+  // context.actor is preferred when available; sender.login and GITHUB_ACTOR
+  // are retained as event/runtime-compatible fallbacks.
   const actor = context.actor || context.payload.sender?.login || process.env.GITHUB_ACTOR;
   if (!actor) {
     throw new Error("Refusing PR checkout: unable to determine triggering actor");
@@ -133,7 +136,7 @@ async function assertTrustedCheckoutRuntime() {
   });
 
   const permission = permissionData?.permission || "none";
-  const hasWriteOrHigher = permission === "write" || permission === "maintain" || permission === "admin";
+  const hasWriteOrHigher = TRUSTED_CHECKOUT_PERMISSIONS.includes(permission);
   if (!hasWriteOrHigher) {
     throw new Error(`Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
   }

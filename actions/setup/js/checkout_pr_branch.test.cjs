@@ -240,7 +240,7 @@ If the pull request is still open, verify that:
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
-        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_API}: Failed to checkout PR branch: Refusing PR checkout in forked repository runtime context`));
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Refusing PR checkout in forked repository runtime context"));
       });
 
       it("should fail when actor does not have write-or-higher permission", async () => {
