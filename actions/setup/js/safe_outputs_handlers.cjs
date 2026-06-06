@@ -439,8 +439,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     //   2. Checkout manifest written by the workflow's setup phase (no network).
     //   3. Local origin/HEAD metadata + payload/API fallbacks via getBaseBranch.
     let baseBranch;
-    if (prConfig.base_branch) {
-      baseBranch = prConfig.base_branch;
+    const configuredBaseBranch = typeof prConfig.base_branch === "string" ? prConfig.base_branch.trim() : "";
+    if (configuredBaseBranch) {
+      baseBranch = configuredBaseBranch;
     } else {
       const manifestEntry = lookupCheckout(repoResult.repo);
       if (manifestEntry && manifestEntry.default_branch) {
