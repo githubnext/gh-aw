@@ -17,6 +17,11 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+func containsEnvValue(stepContent, key, value string) bool {
+	return strings.Contains(stepContent, key+": "+value) ||
+		strings.Contains(stepContent, key+`: "`+value+`"`)
+}
+
 func TestCopilotEngine(t *testing.T) {
 	engine := NewCopilotEngine()
 
@@ -302,9 +307,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, expectedMaxToolDenials) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedMaxToolDenials, stepContent)
 	}
-	expectedTimeoutEnv := "GH_AW_TIMEOUT_MINUTES: " + strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout/time.Minute))
-	if !strings.Contains(stepContent, expectedTimeoutEnv) &&
-		!strings.Contains(stepContent, `GH_AW_TIMEOUT_MINUTES: "`+strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout/time.Minute))+`"`) {
+	defaultTimeoutMinutes := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	expectedTimeoutEnv := "GH_AW_TIMEOUT_MINUTES: " + defaultTimeoutMinutes
+	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", defaultTimeoutMinutes) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedTimeoutEnv, stepContent)
 	}
 	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
@@ -384,8 +389,7 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTimeoutExpression(t *testing.T
 	if !strings.Contains(stepContent, "timeout-minutes: ${{ inputs.timeout }}") {
 		t.Fatalf("Expected timeout-minutes expression in step, got:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, "GH_AW_TIMEOUT_MINUTES: ${{ inputs.timeout }}") &&
-		!strings.Contains(stepContent, `GH_AW_TIMEOUT_MINUTES: "${{ inputs.timeout }}"`) {
+	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", "${{ inputs.timeout }}") {
 		t.Fatalf("Expected GH_AW_TIMEOUT_MINUTES expression in step env, got:\n%s", stepContent)
 	}
 }

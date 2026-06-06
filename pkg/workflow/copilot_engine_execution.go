@@ -498,7 +498,13 @@ touch %s
 	}
 	timeoutValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData.TimeoutMinutes != "" {
-		timeoutValue = strings.TrimSpace(strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: "))
+		rawTimeoutValue := strings.TrimSpace(workflowData.TimeoutMinutes)
+		if strings.HasPrefix(rawTimeoutValue, "timeout-minutes:") {
+			rawTimeoutValue = strings.TrimSpace(strings.TrimPrefix(rawTimeoutValue, "timeout-minutes:"))
+		}
+		if rawTimeoutValue != "" {
+			timeoutValue = rawTimeoutValue
+		}
 	}
 
 	env := map[string]string{
