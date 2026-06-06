@@ -157,35 +157,40 @@
       "function": "splitOnPipelineOperators",
       "relation": "whitespace-invariance",
       "left": "ls /tmp&&cat file",
-      "right": "  ls /tmp  &&  cat file  "
+      "right": "  ls /tmp  &&  cat file  ",
+      "expected": ["ls /tmp", "cat file"]
     },
     {
       "id": "BP-MR-002",
       "function": "extractCommandName",
       "relation": "env-prefix-invariance",
       "left": "ls /tmp",
-      "right": "FOO=1 BAR=2 ls /tmp"
+      "right": "FOO=1 BAR=2 ls /tmp",
+      "expected": "ls"
     },
     {
       "id": "BP-MR-003",
       "function": "extractCommandName",
       "relation": "redirection-suffix-invariance",
       "left": "jq '.x' results.json",
-      "right": "jq '.x' results.json 2>/dev/null"
+      "right": "jq '.x' results.json 2>/dev/null",
+      "expected": "jq"
     },
     {
       "id": "BP-MR-004",
       "function": "extractCommandNamesFromPipeline",
-      "relation": "duplicate-collapse-invariance",
-      "left": "echo a && echo b && echo c",
-      "right": "echo a"
+      "relation": "duplicate-collapse",
+      "left": "echo a && cat b && echo c",
+      "right": "echo a && cat b",
+      "expected": ["echo", "cat"]
     },
     {
       "id": "BP-MR-005",
       "function": "extractCommandNamesFromPipeline",
       "relation": "quoted-operator-shielding",
       "left": "echo \"a && b\"",
-      "right": "echo 'a && b'"
+      "right": "echo 'a && b'",
+      "expected": ["echo"]
     }
   ]
 }

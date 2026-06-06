@@ -240,7 +240,7 @@ This parser is not a shell sandbox and MUST NOT be treated as proof of command s
 
 ### 11.2 Informative
 
-- `/home/runner/work/gh-aw/gh-aw/actions/setup/js/bash_command_parser.cjs`
-- `/home/runner/work/gh-aw/gh-aw/actions/setup/js/bash_command_parser.test.cjs`
-- `/home/runner/work/gh-aw/gh-aw/actions/setup/js/fuzz_bash_command_parser_harness.cjs`
-- `/home/runner/work/gh-aw/gh-aw/actions/setup/js/copilot_sdk_driver.cjs`
+- `actions/setup/js/bash_command_parser.cjs`
+- `actions/setup/js/bash_command_parser.test.cjs`
+- `actions/setup/js/fuzz_bash_command_parser_harness.cjs`
+- `actions/setup/js/copilot_sdk_driver.cjs`

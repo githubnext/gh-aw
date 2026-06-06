@@ -37,16 +37,25 @@ describe("bash_command_parser specification metamorphic relations", () => {
   for (const relation of vectors.metamorphic) {
     it(`${relation.id} (${relation.relation})`, () => {
       if (relation.function === "splitOnPipelineOperators") {
-        expect(splitOnPipelineOperators(relation.left)).toEqual(splitOnPipelineOperators(relation.right));
+        const left = splitOnPipelineOperators(relation.left);
+        const right = splitOnPipelineOperators(relation.right);
+        expect(left).toEqual(right);
+        expect(left).toEqual(relation.expected);
         return;
       }
 
       if (relation.function === "extractCommandName") {
-        expect(extractCommandName(relation.left)).toBe(extractCommandName(relation.right));
+        const left = extractCommandName(relation.left);
+        const right = extractCommandName(relation.right);
+        expect(left).toBe(right);
+        expect(left).toBe(relation.expected);
         return;
       }
 
-      expect(extractCommandNamesFromPipeline(relation.left)).toEqual(extractCommandNamesFromPipeline(relation.right));
+      const left = extractCommandNamesFromPipeline(relation.left);
+      const right = extractCommandNamesFromPipeline(relation.right);
+      expect(left).toEqual(right);
+      expect(left).toEqual(relation.expected);
     });
   }
 });
