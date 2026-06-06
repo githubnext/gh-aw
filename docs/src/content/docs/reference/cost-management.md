@@ -307,7 +307,7 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 2. Update and apply shared defaults in batch:
 
 ```yaml
-default_max_effective_tokens: "5M"
+default_max_ai_credits: "5M"
 default_max_daily_ai_credits: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
@@ -322,13 +322,14 @@ gh aw env update defaults.yml --scope org --org MY_ORG
 Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
-`default_max_turns` / `default_timeout_minutes` must be positive integers, and
-`default_max_effective_tokens` / `default_max_daily_ai_credits` must be
-non-zero integers (negative values disable the corresponding guardrail).
+`default_max_turns` / `default_timeout_minutes` must be positive integers,
+`default_max_ai_credits` must be a positive integer, and
+`default_max_daily_ai_credits` must be a non-zero integer
+(a negative value disables the daily guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
-`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_TURNS`,
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
