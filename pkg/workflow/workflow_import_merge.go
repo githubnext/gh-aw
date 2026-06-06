@@ -138,26 +138,21 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	}
 
 	mainPreSteps, mainFieldKey, okMain := extractJobPreSteps(mainMap)
-	importedPreSteps, importedFieldKey, okImported := extractJobPreSteps(importedMap)
+	importedPreSteps, _, okImported := extractJobPreSteps(importedMap)
 	if !okMain || !okImported {
 		return nil, false
 	}
 
 	merged := make(map[string]any, len(mainMap))
 	// Intentionally shallow-copy the top-level job map: this merge operation only
-	// replaces the "pre-steps" key with a newly allocated slice and does not mutate
-	// any nested structures from other keys.
+	// rewrites the canonical setup/pre-steps key with a newly allocated slice,
+	// deletes the alternate key, and does not mutate any nested structures from
+	// other keys.
 	maps.Copy(merged, mainMap)
 
 	mergedPreSteps := make([]any, 0, safeAllocationCapacity(len(importedPreSteps), len(mainPreSteps)))
 	mergedPreSteps = append(mergedPreSteps, importedPreSteps...)
 	mergedPreSteps = append(mergedPreSteps, mainPreSteps...)
-	if mainFieldKey == "" {
-		mainFieldKey = importedFieldKey
-		if mainFieldKey == "" {
-			mainFieldKey = "setup-steps"
-		}
-	}
 	merged[mainFieldKey] = mergedPreSteps
 	if mainFieldKey == "setup-steps" {
 		delete(merged, "pre-steps")
@@ -168,6 +163,11 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	return merged, true
 }
 
+// extractJobPreSteps flattens a job's setup/pre-step configuration into one
+// slice in setup-steps -> pre-steps order and returns the canonical key to use
+// when writing merged results back. A job that defines both keys keeps
+// setup-steps as the canonical field, so pre-steps content is promoted into the
+// merged setup-steps array for deterministic import behavior.
 func extractJobPreSteps(jobConfig map[string]any) ([]any, string, bool) {
 	var mergedSteps []any
 	key := ""

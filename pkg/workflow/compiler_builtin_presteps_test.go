@@ -137,9 +137,11 @@ jobs:
 	if agentSection == "" {
 		t.Fatal("Expected agent job section")
 	}
-	if !containsInNonCommentLines(agentSection, "- name: Agent setup-step") {
-		t.Fatalf("Expected agent setup-step in agent section:\n%s", agentSection)
-	}
+	assertStepOrderInSection(t, agentSection,
+		"id: setup",
+		"- name: Agent setup-step",
+		"- name: Set runtime paths",
+	)
 
 	safeOutputsSection := extractJobSection(lockYAML, "safe_outputs")
 	if safeOutputsSection == "" {
@@ -156,6 +158,89 @@ jobs:
 	}
 	assertStepOrderInSection(t, conclusionSection,
 		"- name: Conclusion setup-step",
+		"- name: Generate GitHub App token",
+	)
+}
+
+func TestBuiltinJobsPreStepsRunBeforeTokenMinting(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "builtin-pre-steps-token-order")
+
+	workflowContent := `---
+on:
+  issue_comment:
+    types: [created]
+  roles: [admin]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  github-app:
+    app-id: "${{ vars.ACTIONS_APP_ID }}"
+    private-key: "${{ secrets.ACTIONS_PRIVATE_KEY }}"
+  add-comment:
+jobs:
+  agent:
+    pre-steps:
+      - name: Agent pre-step
+        run: echo "agent-pre"
+  safe_outputs:
+    pre-steps:
+      - name: Safe outputs pre-step
+        run: echo "safe-outputs-pre"
+  conclusion:
+    pre-steps:
+      - name: Conclusion pre-step
+        run: echo "conclusion-pre"
+---
+
+# Builtin pre-steps ordering with app token minting
+`
+
+	workflowFile := filepath.Join(tmpDir, "builtin-pre-steps-token-order.md")
+	if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("CompileWorkflow() returned error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "builtin-pre-steps-token-order.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockYAML := string(lockContent)
+
+	agentSection := extractJobSection(lockYAML, "agent")
+	if agentSection == "" {
+		t.Fatal("Expected agent job section")
+	}
+	assertStepOrderInSection(t, agentSection,
+		"id: setup",
+		"- name: Agent pre-step",
+		"- name: Set runtime paths",
+	)
+
+	safeOutputsSection := extractJobSection(lockYAML, "safe_outputs")
+	if safeOutputsSection == "" {
+		t.Fatal("Expected safe_outputs job section")
+	}
+	assertStepOrderInSection(t, safeOutputsSection,
+		"- name: Safe outputs pre-step",
+		"- name: Generate GitHub App token",
+	)
+
+	conclusionSection := extractJobSection(lockYAML, "conclusion")
+	if conclusionSection == "" {
+		t.Fatal("Expected conclusion job section")
+	}
+	assertStepOrderInSection(t, conclusionSection,
+		"- name: Conclusion pre-step",
 		"- name: Generate GitHub App token",
 	)
 }

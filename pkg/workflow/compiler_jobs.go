@@ -1068,14 +1068,14 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 			continue
 		}
 
-		job.Steps = insertPreStepsAfterSetupBeforeCheckout(job.Steps, setupSteps)
+		job.Steps = insertSetupPreStepsAtEarliestBoundary(job.Steps, setupSteps)
 		compilerJobsLog.Printf("Inserted %d setup/pre-steps into built-in job '%s'", len(setupSteps), targetJobName)
 	}
 
 	return nil
 }
 
-func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) []string {
+func insertSetupPreStepsAtEarliestBoundary(steps []string, preSteps []string) []string {
 	if len(preSteps) == 0 {
 		return steps
 	}

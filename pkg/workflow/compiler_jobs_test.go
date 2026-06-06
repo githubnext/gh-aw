@@ -1159,6 +1159,56 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 			},
 		},
 		{
+			name: "insert before token mint shorthand step without name",
+			steps: []string{
+				"      - uses: actions/create-github-app-token@v3",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+				"      - uses: actions/create-github-app-token@v3",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+		},
+		{
+			name: "insert after setup scaffold when token mint and checkout also present",
+			steps: []string{
+				"      - name: Setup Scripts",
+				"        uses: actions/github-script@v7",
+				"        id: setup",
+				"      - name: Generate GitHub App token",
+				"        uses: actions/create-github-app-token@v3",
+				"      - name: Checkout repository",
+				"        uses: actions/checkout@v6",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Setup Scripts",
+				"        uses: actions/github-script@v7",
+				"        id: setup",
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+				"      - name: Generate GitHub App token",
+				"        uses: actions/create-github-app-token@v3",
+				"      - name: Checkout repository",
+				"        uses: actions/checkout@v6",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+		},
+		{
 			name: "insert before checkout shorthand step without name",
 			steps: []string{
 				"      - uses: actions/checkout@v6",
@@ -1205,9 +1255,9 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := insertPreStepsAfterSetupBeforeCheckout(tt.steps, tt.preSteps)
+			got := insertSetupPreStepsAtEarliestBoundary(tt.steps, tt.preSteps)
 			if !slices.Equal(got, tt.want) {
-				t.Fatalf("insertPreStepsAfterSetupBeforeCheckout() mismatch\nwant:\n%q\ngot:\n%q", tt.want, got)
+				t.Fatalf("insertSetupPreStepsAtEarliestBoundary() mismatch\nwant:\n%q\ngot:\n%q", tt.want, got)
 			}
 		})
 	}
@@ -1285,6 +1335,59 @@ jobs:
 	if !strings.Contains(err.Error(), "setup-steps") {
 		t.Fatalf("Expected error to mention setup-steps, got: %v", err)
 	}
+}
+
+func TestCustomJobSetupAndPreStepsOrdering(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-setup-and-pre-steps")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  custom_job:
+    runs-on: ubuntu-latest
+    setup-steps:
+      - name: Setup step
+        run: echo "setup"
+    pre-steps:
+      - name: Pre step
+        run: echo "pre"
+    steps:
+      - name: Main step
+        run: echo "work"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() returned error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	customJobSection := extractJobSection(string(lockContent), "custom_job")
+	if customJobSection == "" {
+		t.Fatal("Expected custom_job section")
+	}
+	assertStepOrderInSection(t, customJobSection,
+		"- name: Setup step",
+		"- name: Pre step",
+		"- name: Main step",
+	)
 }
 
 func assertStepOrderInSection(t *testing.T, section string, orderedSteps ...string) {
