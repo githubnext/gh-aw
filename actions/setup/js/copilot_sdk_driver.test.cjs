@@ -548,18 +548,7 @@ describe("copilot_sdk_driver.cjs", () => {
     });
 
     it("extracts multiple --allow-tool entries preserving order", () => {
-      const args = JSON.stringify([
-        "--headless",
-        "--no-ask-user",
-        "--allow-tool",
-        "github",
-        "--allow-tool",
-        "safeoutputs",
-        "--allow-tool",
-        "shell(safeoutputs:*)",
-        "--allow-tool",
-        "write",
-      ]);
+      const args = JSON.stringify(["--headless", "--no-ask-user", "--allow-tool", "github", "--allow-tool", "safeoutputs", "--allow-tool", "shell(safeoutputs:*)", "--allow-tool", "write"]);
       expect(parsePermissionConfigFromServerArgs(args)).toEqual({
         allowedTools: ["github", "safeoutputs", "shell(safeoutputs:*)", "write"],
       });

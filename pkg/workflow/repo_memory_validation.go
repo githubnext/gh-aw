@@ -49,7 +49,7 @@ func validateBranchPrefix(prefix string) error {
 	}
 
 	// Cannot be "copilot"
-	if strings.ToLower(prefix) == "copilot" {
+	if strings.EqualFold(prefix, "copilot") {
 		return errors.New("branch-prefix cannot be 'copilot' (reserved)")
 	}
 

@@ -378,7 +378,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 
 **Configuration (2026-05-20):**
 - `timeout-minutes: 30`
-- `max-effective-tokens: 40000000` (40M — raised above default; meta-orchestrator doing deep cross-agent analysis)
+- `max-ai-credits: 40000000` (40M — raised above default; meta-orchestrator doing deep cross-agent analysis)
 - `file-glob` narrowed from `"**"` to `["*.json", "*.md"]` — reduces repo-memory context load
 - Added `## Token Budget Guidelines` section in both caveman and verbose prompt variants:
   - Analyze top 20 agents by output volume; skip zero-output agents
@@ -399,7 +399,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 
 **Configuration (2026-05-20):**
 - `timeout-minutes: 30`
-- `max-effective-tokens: 30000000` (30M — raised above default; monitors all workflows daily)
+- `max-ai-credits: 30000000` (30M — raised above default; monitors all workflows daily)
 - `file-glob` narrowed from `"**"` to `["*.json", "*.md"]` — reduces repo-memory context load
 - Added `## Token Budget Guidelines` section in prompt:
   - Use pre-computed `failing-workflows.json` from pre-agent step
@@ -417,7 +417,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 
 **Configuration (2026-05-20):**
 - `timeout-minutes: 30`
-- `max-effective-tokens: 10000000` (10M — firm ceiling for 6-hourly classification workflow)
+- `max-ai-credits: 10000000` (10M — firm ceiling for 6-hourly classification workflow)
 - `file-glob` narrowed from `"**"` to `["*.json", "*.md"]` — reduces repo-memory context load
 
 **Budget Target:**
@@ -425,7 +425,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 - **Alert threshold**: >5M tokens
 
 
-| Workflow | Target Tokens | Alert Threshold | Critical Threshold | `max-effective-tokens` |
+| Workflow | Target Tokens | Alert Threshold | Critical Threshold | `max-ai-credits` |
 |----------|--------------|-----------------|-------------------|------------------------|
 | Agent Persona Explorer | 120K-180K | >200K | >250K | (default) |
 | CI Cleaner | 68K-90K | >120K | >150K | (default) |

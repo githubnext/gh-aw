@@ -67,7 +67,7 @@ function sanitizeRepoSlugForPatch(repoSlug) {
  * @param {string} branchName - The branch name
  * @returns {string} The full patch file path
  */
-function getPatchPath(branchName) {
+function getPatchPathForBranch(branchName) {
   const sanitized = sanitizeBranchNameForPatch(branchName);
   return `/tmp/gh-aw/aw-${sanitized}.patch`;
 }
@@ -79,7 +79,7 @@ function getPatchPath(branchName) {
  * @param {string} repoSlug - The repository slug (owner/repo)
  * @returns {string} The full patch file path including repo disambiguation
  */
-function getPatchPathForRepo(branchName, repoSlug) {
+function getPatchPathForBranchInRepo(branchName, repoSlug) {
   const sanitizedBranch = sanitizeBranchNameForPatch(branchName);
   const sanitizedRepo = sanitizeRepoSlugForPatch(repoSlug);
   return `/tmp/gh-aw/aw-${sanitizedRepo}-${sanitizedBranch}.patch`;
@@ -155,8 +155,8 @@ module.exports = {
   sanitizeForFilename,
   sanitizeBranchNameForPatch,
   sanitizeRepoSlugForPatch,
-  getPatchPath,
-  getPatchPathForRepo,
+  getPatchPathForBranch,
+  getPatchPathForBranchInRepo,
   buildExcludePathspecs,
   computeIncrementalDiffSize,
 };
