@@ -281,7 +281,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     // Initial bundle fetch is now via getExecOutput (with ignoreReturnCode: true) rather than exec,
@@ -325,7 +325,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true, signed_commits: false });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ signedCommits: false }));
@@ -384,7 +384,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).not.toBe(true);
@@ -443,7 +443,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
@@ -504,7 +504,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
@@ -561,7 +561,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     // Prerequisites are fetched from origin via exec with --filter=blob:none to avoid downloading blobs
@@ -615,7 +615,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha1, missingSha2]);
@@ -672,7 +672,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
@@ -730,7 +730,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
@@ -764,7 +764,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison" }, {});
 
     expect(result.success).toBe(true);
     // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
@@ -804,7 +804,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison"}, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -3674,7 +3674,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh"}, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -3702,7 +3702,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "API regen PR", body: "Daily update", branch: "api/regen"}, {});
+    const result = await handler({ title: "API regen PR", body: "Daily update", branch: "api/regen" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -3719,7 +3719,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ title_prefix: "[bot]" });
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh"}, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     expect(result.success).toBe(true);
     const issueCall = global.github.rest.issues.create.mock.calls[0][0];
@@ -3735,7 +3735,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh"}, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     // Staged mode: no API side effects, just a preview
     expect(result.success).toBe(true);
@@ -3752,7 +3752,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ fallback_as_issue: false });
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh"}, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("E003");
@@ -3767,7 +3767,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ max_patch_files: 200 });
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh"}, {});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
     // Should succeed — limit was raised
     expect(result.success).toBe(true);
