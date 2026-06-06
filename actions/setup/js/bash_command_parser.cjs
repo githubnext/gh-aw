@@ -195,29 +195,32 @@ function extractCommandName(segment) {
 
   if (!remaining) return null;
 
-  // Get the first word
-  const wordMatch = remaining.match(/^(\S+)/);
-  if (!wordMatch) return null;
+  for (;;) {
+    // Get the first word
+    const wordMatch = remaining.match(/^(\S+)/);
+    if (!wordMatch) return null;
 
-  const word = wordMatch[1];
+    const word = wordMatch[1];
 
-  // Redirection operators (<, >, 2>, 2>&1, …)
-  if (/^[<>]/.test(word) || /^\d+[<>&]/.test(word)) {
-    return null;
+    // Redirection operators (<, >, 2>, 2>&1, …)
+    if (/^[<>]/.test(word) || /^\d+[<>&]/.test(word)) {
+      return null;
+    }
+
+    // Shell negation / grouping — skip and continue scanning
+    if (word === "!" || word === "{" || word === "}") {
+      remaining = remaining.slice(word.length).trim();
+      if (!remaining) return null;
+      continue;
+    }
+
+    // Flow-control keywords are not executable commands
+    if (SHELL_KEYWORDS.has(word)) {
+      return null;
+    }
+
+    return word;
   }
-
-  // Shell negation / grouping — recurse on the remainder
-  if (word === "!" || word === "{" || word === "}") {
-    const rest = remaining.slice(word.length).trim();
-    return extractCommandName(rest);
-  }
-
-  // Flow-control keywords are not executable commands
-  if (SHELL_KEYWORDS.has(word)) {
-    return null;
-  }
-
-  return word;
 }
 
 /**
