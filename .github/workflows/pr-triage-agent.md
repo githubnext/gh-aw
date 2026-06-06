@@ -42,8 +42,8 @@ safe-outputs:
     run-success: "✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the issue for detailed report."
     run-failure: "❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged."
 timeout-minutes: 30
-# PR triage does classification work; 10M is a firm ceiling for this 6-hourly workflow.
-max-ai-credits: 10000000
+# Default AI credit budget for this workflow.
+max-ai-credits: 1500
 
 
 ---

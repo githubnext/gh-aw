@@ -182,6 +182,17 @@ func TestFindTokenUsageFile(t *testing.T) {
 		assert.Equal(t, tokenFile, result, "should find file in firewall-audit-logs")
 	})
 
+	t.Run("finds usage artifact token_usage.jsonl", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "find-token-usage")
+		usageDir := filepath.Join(tmpDir, "usage", "agent")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+		tokenFile := filepath.Join(usageDir, "token_usage.jsonl")
+		require.NoError(t, os.WriteFile(tokenFile, []byte(`{"input_tokens":1}`+"\n"), 0o644))
+
+		result := findTokenUsageFile(tmpDir)
+		assert.Equal(t, tokenFile, result, "should prefer usage artifact token usage file")
+	})
+
 	t.Run("returns empty string when not found", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "find-token-usage")
 		result := findTokenUsageFile(tmpDir)

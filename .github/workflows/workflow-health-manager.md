@@ -31,8 +31,8 @@ safe-outputs:
   update-issue:
     max: 5
 timeout-minutes: 30
-# Raised above 25M default: meta-orchestrator monitors all workflows; set ceiling to catch runaway health checks.
-max-ai-credits: 30000000
+# Default AI credit budget for this workflow.
+max-ai-credits: 1500
 imports:
   - shared/reporting.md
   - shared/otlp.md

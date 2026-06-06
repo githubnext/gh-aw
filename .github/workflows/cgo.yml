@@ -2197,14 +2197,56 @@ jobs:
           const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
           const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
 
+          const parseUTCOffsetMinutes = (rawOffset) => {
+            const offset = typeof rawOffset === 'string' ? rawOffset.trim() : '';
+            const match = offset.match(/^([+-])(\d{2}):(\d{2})$/);
+            if (!match) return Number.NaN;
+            const [, sign, hoursText, minutesText] = match;
+            const hours = Number.parseInt(hoursText, 10);
+            const minutes = Number.parseInt(minutesText, 10);
+            if (hours > 14 || minutes > 59 || (hours === 14 && minutes !== 0)) {
+              return Number.NaN;
+            }
+            const direction = sign === '-' ? -1 : 1;
+            return direction * (hours * 60 + minutes);
+          };
+
+          let repoUTCOffset = '';
+          try {
+            const awConfigFile = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: '.github/workflows/aw.json',
+              ref: context.sha,
+            });
+            if (!Array.isArray(awConfigFile.data) && awConfigFile.data.type === 'file' && awConfigFile.data.content) {
+              const awConfigRaw = Buffer.from(awConfigFile.data.content, 'base64').toString('utf8');
+              const awConfig = JSON.parse(awConfigRaw);
+              const rawUTC = typeof awConfig?.utc === 'string' ? awConfig.utc.trim() : '';
+              if (!Number.isNaN(parseUTCOffsetMinutes(rawUTC))) {
+                repoUTCOffset = rawUTC;
+              } else if (rawUTC) {
+                core.warning(`Ignoring invalid utc offset in .github/workflows/aw.json: ${rawUTC}`);
+              }
+            }
+          } catch (error) {
+            core.warning(`Unable to read .github/workflows/aw.json UTC offset: ${error?.message || String(error)}`);
+          }
+
           // Format expiration line using the gh-aw-expires XML comment format
           const expiresDate = new Date(expiresAt);
-          const humanReadableDate = expiresDate.toLocaleString('en-US', {
+          const repoOffsetMinutes = parseUTCOffsetMinutes(repoUTCOffset);
+          const hasRepoUTCOffset = !Number.isNaN(repoOffsetMinutes);
+          const displayDate = hasRepoUTCOffset
+            ? new Date(expiresDate.getTime() + repoOffsetMinutes * 60 * 1000)
+            : expiresDate;
+          const humanReadableDate = displayDate.toLocaleString('en-US', {
             dateStyle: 'medium',
             timeStyle: 'short',
             timeZone: 'UTC',
           });
-          const expirationLine = `- [x] expires <!-- gh-aw-expires: ${expiresAt} --> on ${humanReadableDate} UTC`;
+          const humanReadableSuffix = hasRepoUTCOffset ? `UTC${repoUTCOffset}` : 'UTC';
+          const expirationLine = `- [x] expires <!-- gh-aw-expires: ${expiresAt} --> on ${humanReadableDate} ${humanReadableSuffix}`;
 
           const body = [
             `## CGO Workflow Failure`,
