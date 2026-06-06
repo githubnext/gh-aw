@@ -707,8 +707,8 @@ describe("handle_agent_failure", () => {
               if (q.includes('"gh-aw-failure-issue:"') && q.includes('"failure_categories:"')) {
                 return {
                   data: {
-                    total_count: 5,
-                    items: Array.from({ length: 5 }, (_, index) => ({
+                    total_count: 25,
+                    items: Array.from({ length: 25 }, (_, index) => ({
                       number: index + 1,
                       html_url: `https://github.com/owner/repo/issues/${index + 1}`,
                       created_at: now,
@@ -2908,7 +2908,7 @@ describe("handle_agent_failure", () => {
           "<summary>Why this happened and how to optimize</summary>\n\n" +
           "- Learn about [effective tokens]({et_spec_link}).\n" +
           "{usage_line}{budget_line}{run_line}\n" +
-          "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
+          "You can tune this limit with `max-ai-credits` in workflow frontmatter.\n\n" +
           "{et_table_section}\n" +
           "- To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).\n" +
           "</details>\n"

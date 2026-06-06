@@ -9,7 +9,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var notifyCommentLog = logger.New("workflow:notify_comment")
@@ -385,13 +384,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
 
-	// Pass configured ET budget so failure reporting can attribute ET budget exhaustion accurately.
-	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
-	if data.EngineConfig != nil && data.EngineConfig.MaxEffectiveTokens != 0 {
-		maxEffectiveTokens = data.EngineConfig.MaxEffectiveTokens
-	}
-	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MAX_EFFECTIVE_TOKENS: %q\n", strconv.FormatInt(maxEffectiveTokens, 10)))
-
 	// Pass cache-memory availability flag so the failure handler can detect cache-miss
 	// misconfigurations: a cache_miss reported by the agent despite cache-memory being available
 	// indicates the prompt is referencing an incorrect file path within the cache directory.
@@ -627,7 +619,7 @@ func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
 	flag := strings.ToLower(strings.TrimSpace(string(constants.GroupConcurrencyQueueFeatureFlag)))
 	if data != nil && data.Features != nil {
 		for key, value := range data.Features {
-			if strings.ToLower(key) == flag {
+			if strings.EqualFold(key, flag) {
 				return parseGroupConcurrencyQueueFeatureValue(value)
 			}
 		}

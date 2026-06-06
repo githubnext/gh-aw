@@ -11,7 +11,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 | Variable | Source | Purpose | Applies when |
 | --- | --- | --- | --- |
-| `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Compiler process environment | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
+| `GH_AW_DEFAULT_MAX_AI_CREDITS` | Compiler process environment | Default AWF `apiProxy.maxAiCredits` budget | `max-ai-credits` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | Compiler process environment | Default `max-daily-ai-credits` guardrail | `max-daily-ai-credits` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
@@ -23,7 +23,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 Use `gh aw env get` and `gh aw env update` to manage these
 variables in batch at repo, org, or enterprise scope. The defaults file uses
-`default_`-prefixed keys such as `default_max_effective_tokens`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
+`default_`-prefixed keys such as `default_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
 `default_model_copilot`, and `default_utc`.
 
 ## Project Timezone
@@ -53,17 +53,17 @@ For model selection, precedence is:
 3. `GH_AW_DEFAULT_MODEL_*`
 4. Built-in compiler fallback
 
-For max effective tokens, precedence is:
+For max AI credits, precedence is:
 
-1. `max-effective-tokens` in workflow frontmatter
-2. `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`
+1. `max-ai-credits` in workflow frontmatter
+2. `GH_AW_DEFAULT_MAX_AI_CREDITS`
 3. Built-in compiler default
 
-A negative `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` disables AWF token steering and
-omits the budget limit when frontmatter does not set `max-effective-tokens`.
+A negative `GH_AW_DEFAULT_MAX_AI_CREDITS` disables AWF budget steering and
+omits the budget limit when frontmatter does not set `max-ai-credits`.
 Positive values also accept `K`/`M` suffixes such as `100M`.
 
-For daily effective-token workflow guardrails, precedence is:
+For daily AI credits workflow guardrails, precedence is:
 
 1. `max-daily-ai-credits` in workflow frontmatter
 2. `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`
@@ -104,17 +104,17 @@ Set an org-wide Codex model fallback:
 gh variable set GH_AW_DEFAULT_MODEL_CODEX --org my-org --body "gpt-5.5"
 ```
 
-Set an org-wide default max-effective-tokens guardrail:
+Set an org-wide default max-ai-credits guardrail:
 
 ```bash
-gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "15M"
+gh variable set GH_AW_DEFAULT_MAX_AI_CREDITS --org my-org --body "15M"
 ```
 
 ```bash
-gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "100M"
+gh variable set GH_AW_DEFAULT_MAX_AI_CREDITS --org my-org --body "100M"
 ```
 
-Set an org-wide default daily workflow ET guardrail:
+Set an org-wide default daily workflow AIC guardrail:
 
 ```bash
 gh variable set GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS --org my-org --body "15M"

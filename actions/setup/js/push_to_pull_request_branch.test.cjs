@@ -3,6 +3,37 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
+const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_patch_utils.cjs");
+const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
+
+// The privileged handler derives patch/bundle paths from `branch` (and `repo`)
+// via resolveTransportPaths, so tests must write transport files at the
+// canonical derived location and let the handler discover them.
+function canonicalPatchPath(branch, repo) {
+  fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+  return repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch);
+}
+function canonicalBundlePath(branch, repo) {
+  fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+  return repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+}
+function cleanupCanonicalTransports() {
+  try {
+    for (const f of fs.readdirSync("/tmp/gh-aw")) {
+      if (/^aw-.*\.(patch|bundle)$/.test(f)) {
+        fs.rmSync(`/tmp/gh-aw/${f}`, { force: true });
+      }
+    }
+  } catch {}
+}
+
+beforeEach(() => {
+  cleanupCanonicalTransports();
+});
+afterEach(() => {
+  cleanupCanonicalTransports();
+});
+
 /**
  * Test Matrix for push_to_pull_request_branch.cjs
  *
@@ -214,10 +245,12 @@ describe("push_to_pull_request_branch.cjs", () => {
   }
 
   /**
-   * Helper to create a valid patch file
+   * Helper to create a valid patch file at the canonical path derived from the
+   * message branch. The privileged handler always re-derives the patch path
+   * from the validated branch, so tests must write at that canonical location.
    */
-  function createPatchFile(content = null) {
-    const patchPath = path.join(tempDir, "test.patch");
+  function createPatchFile(branch, content = null) {
+    const patchPath = canonicalPatchPath(branch);
     const defaultPatch = `From abc123 Mon Sep 17 00:00:00 2001
 From: Test Author <test@example.com>
 Date: Mon, 1 Jan 2024 00:00:00 +0000
@@ -329,14 +362,14 @@ index 0000000..abc1234
   describe("GitHub Actions context scenarios", () => {
     it('should handle pull_request event with target "triggering"', async () => {
       mockContext.eventName = "pull_request";
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-pull-request-event-with-target-triggering");
 
       // Mock git commands
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-pull-request-event-with-target-triggering" }, {});
 
       expect(result.success).toBe(true);
       expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
@@ -349,13 +382,13 @@ index 0000000..abc1234
     it("should handle issue_comment event (comment on PR)", async () => {
       mockContext.eventName = "issue_comment";
       mockContext.payload.issue = { number: 123 };
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-issue-comment-event-comment-on-pr");
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-issue-comment-event-comment-on-pr" }, {});
 
       expect(result.success).toBe(true);
     });
@@ -365,11 +398,11 @@ index 0000000..abc1234
       delete mockContext.payload.pull_request;
       delete mockContext.payload.issue;
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-fail-for-schedule-event-with-target-triggering");
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-fail-for-schedule-event-with-target-triggering" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("pull request context");
@@ -378,11 +411,11 @@ index 0000000..abc1234
     it('should fail gracefully with target "triggering" when context is undefined (MCP daemon mode)', async () => {
       delete global.context;
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-fail-gracefully-with-target-triggering-when-context-i");
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-fail-gracefully-with-target-triggering-when-context-i" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("pull request context");
@@ -391,13 +424,13 @@ index 0000000..abc1234
     it('should handle schedule event with target "*" and explicit PR number', async () => {
       mockContext.eventName = "schedule";
       delete mockContext.payload.pull_request;
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-schedule-event-with-target-and-explicit-pr-num");
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "*" });
-      const result = await handler({ patch_path: patchPath, pull_request_number: 456 }, {});
+      const result = await handler({ pull_request_number: 456, branch: "should-handle-schedule-event-with-target-and-explicit-pr-num" }, {});
 
       expect(result.success).toBe(true);
       expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
@@ -410,13 +443,13 @@ index 0000000..abc1234
     it("should handle workflow_dispatch event with explicit PR number", async () => {
       mockContext.eventName = "workflow_dispatch";
       delete mockContext.payload.pull_request;
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-workflow-dispatch-event-with-explicit-pr-numbe");
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "789" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-workflow-dispatch-event-with-explicit-pr-numbe" }, {});
 
       expect(result.success).toBe(true);
       expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
@@ -436,13 +469,13 @@ index 0000000..abc1234
           item_number: "456",
         }),
       };
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-resolve-target-triggering-from-workflow-dispatch-aw-c");
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-resolve-target-triggering-from-workflow-dispatch-aw-c" }, {});
 
       expect(result.success).toBe(true);
       expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
@@ -462,11 +495,11 @@ index 0000000..abc1234
           item_number: "0",
         }),
       };
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-fail-when-workflow-dispatch-aw-context-item-number-is");
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-fail-when-workflow-dispatch-aw-context-item-number-is" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("pull request context");
@@ -502,11 +535,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-detect-fork-pr-via-different-repository-names-and-fai");
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-detect-fork-pr-via-different-repository-names-and-fai" }, {});
 
       // Fork PRs should fail early with a clear error
       expect(result.success).toBe(false);
@@ -540,11 +573,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-not-treat-same-repo-pr-as-fork-even-when-repo-has-for");
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-not-treat-same-repo-pr-as-fork-even-when-repo-has-for" }, {});
 
       // Same full_name means same repo — push should proceed, not fail
       expect(result.success).toBe(true);
@@ -569,11 +602,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-deleted-head-repo-likely-a-fork-and-fail-early");
 
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-deleted-head-repo-likely-a-fork-and-fail-early" }, {});
 
       // When head.repo is null, this is likely a deleted fork
       // The handler should give a clear error about the fork
@@ -603,10 +636,10 @@ index 0000000..abc1234
       });
       mockGithub.rest.repos.get.mockResolvedValue({ data: { default_branch: "main" } });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("main");
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "main" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("default branch");
@@ -619,10 +652,10 @@ index 0000000..abc1234
       // Branch has protection rules - getBranchProtection resolves successfully
       mockGithub.rest.repos.getBranchProtection.mockResolvedValue({ data: {} });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-block-push-to-a-branch-with-protection-rules");
       const module = await loadModule();
       const handler = await module.main({ target: "triggering" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-block-push-to-a-branch-with-protection-rules" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("protection rules");
@@ -634,12 +667,12 @@ index 0000000..abc1234
     it("should allow push when branch is not default and has no protection rules", async () => {
       // Default mock: repos.get returns "main", getBranchProtection returns 404
       // PR head is "feature-branch" (not the default)
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-allow-push-when-branch-is-not-default-and-has-no-prot");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-allow-push-when-branch-is-not-default-and-has-no-prot" }, {});
 
       expect(result.success).toBe(true);
       expect(result.branch_name).toBe("feature-branch");
@@ -648,12 +681,12 @@ index 0000000..abc1234
     it("should warn and continue when repos.get fails", async () => {
       // repos.get fails - cannot determine default branch, warn and continue
       mockGithub.rest.repos.get.mockRejectedValue(new Error("API unavailable"));
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-warn-and-continue-when-repos-get-fails");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-warn-and-continue-when-repos-get-fails" }, {});
 
       // Should warn but still allow the push since we can't confirm it's the default branch
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not check repository default branch"));
@@ -664,12 +697,12 @@ index 0000000..abc1234
       // getBranchProtection returns 403 (no permission to read protection)
       // Platform will still enforce protection at push time, so we warn and allow
       mockGithub.rest.repos.getBranchProtection.mockRejectedValue(Object.assign(new Error("Forbidden"), { status: 403 }));
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-warn-and-continue-when-getbranchprotection-returns-40");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-warn-and-continue-when-getbranchprotection-returns-40" }, {});
 
       // Should warn but allow push since the platform still enforces protection at push time
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not check branch protection rules"));
@@ -679,11 +712,11 @@ index 0000000..abc1234
     it("should block push when getBranchProtection returns an unexpected error (fail closed)", async () => {
       // getBranchProtection returns 500 - unexpected error, fail closed for security
       mockGithub.rest.repos.getBranchProtection.mockRejectedValue(Object.assign(new Error("Internal Server Error"), { status: 500 }));
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-block-push-when-getbranchprotection-returns-an-unexpe");
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-block-push-when-getbranchprotection-returns-an-unexpe" }, {});
 
       // Should block the push when branch protection status cannot be verified
       expect(result.success).toBe(false);
@@ -700,7 +733,7 @@ index 0000000..abc1234
 
   describe("repository state scenarios", () => {
     it("should handle successful normal push", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-successful-normal-push");
       mockExec.getExecOutput
         .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" })
         .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head-before\n", stderr: "" })
@@ -709,7 +742,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-successful-normal-push" }, {});
 
       expect(result.success).toBe(true);
       expect(result.branch_name).toBe("feature-branch");
@@ -719,7 +752,7 @@ index 0000000..abc1234
     });
 
     it("should reset to message.base_commit before applying patch transport", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-reset-to-message-base-commit-before-applying-patch-tr");
       const recordedBaseCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -728,7 +761,7 @@ index 0000000..abc1234
       try {
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ patch_path: patchPath, base_commit: recordedBaseCommit }, {});
+        const result = await handler({ base_commit: recordedBaseCommit, branch: "should-reset-to-message-base-commit-before-applying-patch-tr" }, {});
 
         expect(result.success).toBe(true);
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", recordedBaseCommit], expect.any(Object));
@@ -740,7 +773,7 @@ index 0000000..abc1234
     });
 
     it("should fall back to current HEAD when base_commit is unavailable for patch transport", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-fall-back-to-current-head-when-base-commit-is-unavail");
       const recordedBaseCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
       mockExec.exec.mockImplementation(async (cmd, args) => {
@@ -756,7 +789,7 @@ index 0000000..abc1234
       try {
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ patch_path: patchPath, base_commit: recordedBaseCommit }, {});
+        const result = await handler({ base_commit: recordedBaseCommit, branch: "should-fall-back-to-current-head-when-base-commit-is-unavail" }, {});
 
         expect(result.success).toBe(true);
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["reset", "--hard", recordedBaseCommit], expect.any(Object));
@@ -767,12 +800,12 @@ index 0000000..abc1234
     });
 
     it("should ignore invalid message.base_commit for patch transport", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-ignore-invalid-message-base-commit-for-patch-transpor");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath, base_commit: "not-a-sha --bad" }, {});
+      const result = await handler({ base_commit: "not-a-sha --bad", branch: "should-ignore-invalid-message-base-commit-for-patch-transpor" }, {});
 
       expect(result.success).toBe(true);
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"], expect.any(Object));
@@ -781,7 +814,7 @@ index 0000000..abc1234
     });
 
     it("should use pushed commit SHA returned by pushSignedCommits for activation comment commit link", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-use-pushed-commit-sha-returned-by-pushsignedcommits-f");
       const updateActivationCommentModule = require("./update_activation_comment.cjs");
       const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -798,7 +831,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ patch_path: patchPath }, {});
+        const result = await handler({ branch: "should-use-pushed-commit-sha-returned-by-pushsignedcommits-f" }, {});
 
         expect(result.success).toBe(true);
         expect(result.commit_sha).toBe("remote-head-after");
@@ -815,7 +848,7 @@ index 0000000..abc1234
     });
 
     it("should skip activation comment for empty commits (no file changes)", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-skip-activation-comment-for-empty-commits-no-file-cha");
       const updateActivationCommentModule = require("./update_activation_comment.cjs");
       const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -831,7 +864,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ patch_path: patchPath }, {});
+        const result = await handler({ branch: "should-skip-activation-comment-for-empty-commits-no-file-cha" }, {});
 
         expect(result.success).toBe(true);
         expect(result.commit_sha).toBe("remote-head-after");
@@ -844,13 +877,13 @@ index 0000000..abc1234
     });
 
     it("should detect deleted branch before fetch", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-detect-deleted-branch-before-fetch");
 
       mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-detect-deleted-branch-before-fetch" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("no longer exists on origin");
@@ -858,13 +891,13 @@ index 0000000..abc1234
     });
 
     it("should skip deleted branch failure when ignore_missing_branch_failure is enabled", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-skip-deleted-branch-failure-when-ignore-missing-branc");
 
       mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
 
       const module = await loadModule();
       const handler = await module.main({ ignore_missing_branch_failure: true });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-skip-deleted-branch-failure-when-ignore-missing-branc" }, {});
 
       expect(result.success).toBe(false);
       expect(result.skipped).toBe(true);
@@ -874,13 +907,13 @@ index 0000000..abc1234
     });
 
     it("should fail with diagnostic error when branch existence check fails for other reasons", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-fail-with-diagnostic-error-when-branch-existence-chec");
 
       mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: Authentication failed" });
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-fail-with-diagnostic-error-when-branch-existence-chec" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to verify branch");
@@ -889,21 +922,21 @@ index 0000000..abc1234
     });
 
     it("should handle git fetch failure", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-git-fetch-failure");
 
       // First exec call (git fetch) fails
       mockExec.exec.mockRejectedValueOnce(new Error("Failed to fetch: network error"));
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-git-fetch-failure" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to fetch branch");
     });
 
     it("should handle branch not existing on origin", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-branch-not-existing-on-origin");
 
       // git fetch succeeds, but git rev-parse fails
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -911,14 +944,14 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-branch-not-existing-on-origin" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("does not exist on origin");
     });
 
     it("should skip rev-parse missing branch failure when ignore_missing_branch_failure is enabled", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-skip-rev-parse-missing-branch-failure-when-ignore-mis");
 
       // git fetch succeeds, but git rev-parse fails
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -926,7 +959,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({ ignore_missing_branch_failure: true });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-skip-rev-parse-missing-branch-failure-when-ignore-mis" }, {});
 
       expect(result.success).toBe(false);
       expect(result.skipped).toBe(true);
@@ -935,7 +968,7 @@ index 0000000..abc1234
     });
 
     it("should handle git checkout failure", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-git-checkout-failure");
 
       mockExec.exec.mockResolvedValueOnce(0); // fetch
       mockExec.exec.mockResolvedValueOnce(0); // rev-parse
@@ -943,14 +976,14 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-git-checkout-failure" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to checkout branch");
     });
 
     it("should handle git am (patch apply) failure with investigation", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-git-am-patch-apply-failure-with-investigation");
 
       // Set up successful fetch, rev-parse, checkout
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -975,7 +1008,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-git-am-patch-apply-failure-with-investigation" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to apply patch");
@@ -983,7 +1016,7 @@ index 0000000..abc1234
     });
 
     it("should resolve add/add conflicts by preferring patch version and continuing git am", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-resolve-add-add-conflicts-by-preferring-patch-version");
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("pushed-sha");
 
@@ -1024,7 +1057,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ patch_path: patchPath }, {});
+        const result = await handler({ branch: "should-resolve-add-add-conflicts-by-preferring-patch-version" }, {});
 
         expect(result.success).toBe(true);
         expect(mockCore.info).toHaveBeenCalledWith("Patch applied successfully after resolving add/add conflict(s)");
@@ -1037,7 +1070,7 @@ index 0000000..abc1234
     });
 
     it("should create fallback pull request on non-fast-forward push rejection by default", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-create-fallback-pull-request-on-non-fast-forward-push");
 
       // Set up successful operations until push
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -1084,7 +1117,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-create-fallback-pull-request-on-non-fast-forward-push" }, {});
 
       expect(result.success).toBe(true);
       expect(result.fallback_used).toBe(true);
@@ -1094,7 +1127,7 @@ index 0000000..abc1234
     });
 
     it("should not create fallback pull request when fallback-as-pull-request is disabled", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-not-create-fallback-pull-request-when-fallback-as-pul");
 
       mockExec.exec.mockResolvedValueOnce(0); // fetch
       mockExec.exec.mockResolvedValueOnce(0); // rev-parse
@@ -1137,7 +1170,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({ fallback_as_pull_request: false });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-not-create-fallback-pull-request-when-fallback-as-pul" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error_type).toBe("push_failed");
@@ -1146,7 +1179,7 @@ index 0000000..abc1234
     });
 
     it("should diagnose deleted branch when push fails", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-diagnose-deleted-branch-when-push-fails");
 
       // Set up successful operations until push
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -1199,7 +1232,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-diagnose-deleted-branch-when-push-fails" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error_type).toBe("push_failed");
@@ -1207,7 +1240,7 @@ index 0000000..abc1234
     });
 
     it("should detect force-pushed branch via ref mismatch", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-detect-force-pushed-branch-via-ref-mismatch");
 
       // This tests the scenario where the branch SHA we have doesn't match remote
       // The current implementation doesn't explicitly detect this, but git operations would fail
@@ -1235,7 +1268,7 @@ index 0000000..abc1234
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-detect-force-pushed-branch-via-ref-mismatch" }, {});
 
       // The push proceeds - force-push detection would need to be added
       expect(mockGithub.rest.pulls.get).toHaveBeenCalled();
@@ -1248,11 +1281,11 @@ index 0000000..abc1234
 
   describe("empty commit / no changes handling", () => {
     it("should warn when patch is empty and if-no-changes is warn", async () => {
-      const patchPath = createPatchFile(""); // Empty patch
+      const patchPath = createPatchFile("should-warn-when-patch-is-empty-and-if-no-changes-is-warn", ""); // Empty patch
 
       const module = await loadModule();
       const handler = await module.main({ if_no_changes: "warn" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-warn-when-patch-is-empty-and-if-no-changes-is-warn" }, {});
 
       expect(result.success).toBe(false);
       expect(result.skipped).toBe(true);
@@ -1260,22 +1293,22 @@ index 0000000..abc1234
     });
 
     it("should error when patch is empty and if-no-changes is error", async () => {
-      const patchPath = createPatchFile(""); // Empty patch
+      const patchPath = createPatchFile("should-error-when-patch-is-empty-and-if-no-changes-is-error", ""); // Empty patch
 
       const module = await loadModule();
       const handler = await module.main({ if_no_changes: "error" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-error-when-patch-is-empty-and-if-no-changes-is-error" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("No changes");
     });
 
     it("should silently skip when patch is empty and if-no-changes is ignore", async () => {
-      const patchPath = createPatchFile(""); // Empty patch
+      const patchPath = createPatchFile("should-silently-skip-when-patch-is-empty-and-if-no-changes-i", ""); // Empty patch
 
       const module = await loadModule();
       const handler = await module.main({ if_no_changes: "ignore" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-silently-skip-when-patch-is-empty-and-if-no-changes-i" }, {});
 
       expect(result.success).toBe(false);
       expect(result.skipped).toBe(true);
@@ -1284,18 +1317,18 @@ index 0000000..abc1234
     it("should handle missing patch file", async () => {
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: "/nonexistent/path.patch" }, {});
+      const result = await handler({ branch: "should-handle-missing-patch-file" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("No patch file");
     });
 
     it("should handle patch file with error message", async () => {
-      const patchPath = createPatchFile("Failed to generate patch: some error");
+      const patchPath = createPatchFile("should-handle-patch-file-with-error-message", "Failed to generate patch: some error");
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-patch-file-with-error-message" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("error message");
@@ -1310,24 +1343,24 @@ index 0000000..abc1234
     it("should reject patches exceeding max size", async () => {
       // Create a patch larger than 1KB
       const largePatch = "x".repeat(2 * 1024 * 1024); // 2MB
-      const patchPath = createPatchFile(largePatch);
+      const patchPath = createPatchFile("should-reject-patches-exceeding-max-size", largePatch);
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1MB max
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-reject-patches-exceeding-max-size" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum");
     });
 
     it("should accept patches within max size", async () => {
-      const patchPath = createPatchFile(); // Small valid patch
+      const patchPath = createPatchFile("should-accept-patches-within-max-size"); // Small valid patch
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-accept-patches-within-max-size" }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
@@ -1339,13 +1372,13 @@ index 0000000..abc1234
       // tiny incremental net diff (e.g. 5 KB of actual changes since
       // origin/<branch>). The size check must use diff_size and accept the push.
       const largePatch = "x".repeat(2 * 1024 * 1024); // 2 MB format-patch file
-      const patchPath = createPatchFile(largePatch);
+      const patchPath = createPatchFile("should-prefer-message-diff-size-incremental-net-diff-over-pa", largePatch);
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ patch_path: patchPath, diff_size: 5 * 1024 }, {});
+      const result = await handler({ diff_size: 5 * 1024, branch: "should-prefer-message-diff-size-incremental-net-diff-over-pa" }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
@@ -1358,11 +1391,11 @@ index 0000000..abc1234
       // Inverse case: small file (defensive — shouldn't happen in practice)
       // but a recorded large diff_size should still cause rejection. This
       // proves diff_size is the source of truth for the size check.
-      const patchPath = createPatchFile(); // small valid patch
+      const patchPath = createPatchFile("should-reject-when-message-diff-size-exceeds-max-size-even-i"); // small valid patch
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ patch_path: patchPath, diff_size: 2 * 1024 * 1024 }, {});
+      const result = await handler({ diff_size: 2 * 1024 * 1024, branch: "should-reject-when-message-diff-size-exceeds-max-size-even-i" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum");
@@ -1373,11 +1406,11 @@ index 0000000..abc1234
       // do not set diff_size. The check must continue to work using the patch
       // file size as the measurement.
       const largePatch = "x".repeat(2 * 1024 * 1024); // 2 MB
-      const patchPath = createPatchFile(largePatch);
+      const patchPath = createPatchFile("should-fall-back-to-patch-file-size-when-message-diff-size-i", largePatch);
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-fall-back-to-patch-file-size-when-message-diff-size-i" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum");
@@ -1386,14 +1419,14 @@ index 0000000..abc1234
     it("should enforce max_patch_size against bundle size when bundle transport is used", async () => {
       // Bundle transport still includes a patch for policy checks, but the size
       // guard falls back to bundle size when diff_size is not provided.
-      const bundlePath = path.join(tempDir, "test.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("should-enforce-max-patch-size-against-bundle-size-when-bundl");
+      const patchPath = createPatchFile("should-enforce-max-patch-size-against-bundle-size-when-bundl", "small patch content");
       // 2 MB dummy bundle file (contents don't matter; only size is checked)
       fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ patch_path: patchPath, bundle_path: bundlePath }, {});
+      const result = await handler({ branch: "should-enforce-max-patch-size-against-bundle-size-when-bundl" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum");
@@ -1404,15 +1437,15 @@ index 0000000..abc1234
       // Bundle is 2 MB on disk, but the incremental net diff is only 5 KB:
       // the check must accept the push (limit reflects the real change, not the
       // compressed transport size).
-      const bundlePath = path.join(tempDir, "test.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("should-prefer-diff-size-over-bundle-file-size-for-the-limit-");
+      const patchPath = createPatchFile("should-prefer-diff-size-over-bundle-file-size-for-the-limit-", "small patch content");
       fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+      const result = await handler({ diff_size: 5 * 1024, branch: "should-prefer-diff-size-over-bundle-file-size-for-the-limit-" }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
@@ -1426,8 +1459,8 @@ index 0000000..abc1234
 
   describe("bundle transport application", () => {
     it("should apply bundle transport by updating the branch ref instead of merging", async () => {
-      const bundlePath = path.join(tempDir, "test.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
 
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1452,7 +1485,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
         // Initial bundle fetch is via getExecOutput (with ignoreReturnCode: true), not exec.exec
@@ -1472,8 +1505,8 @@ index 0000000..abc1234
     it("should use sanitized branch name (not agent-supplied message.branch) in bundle fetch refspec", async () => {
       // The agent may supply a message.branch value; the bundle fetch must use the
       // sanitized branchName from the GitHub API — never the raw agent input.
-      const bundlePath = path.join(tempDir, "sanitized-branch.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch; rm -rf /");
+      const patchPath = createPatchFile("feature-branch; rm -rf /", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
 
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1499,7 +1532,7 @@ index 0000000..abc1234
         const module = await loadModule();
         const handler = await module.main({});
         // message.branch contains shell metacharacters; branchName from the GitHub API is "feature-branch"
-        const result = await handler({ branch: "feature-branch; rm -rf /", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch; rm -rf /", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
 
@@ -1516,8 +1549,8 @@ index 0000000..abc1234
     });
 
     it("should fetch prerequisite commits and retry bundle fetch when bundle lacks prerequisites", async () => {
-      const bundlePath = path.join(tempDir, "test.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
       const missingSha = "172f87a830f57a29470efe7646d141069434a893";
 
@@ -1544,7 +1577,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
         // Repo is not shallow and not sparse in this scenario, so no --filter=blob:none is used:
@@ -1564,8 +1597,8 @@ index 0000000..abc1234
       // The handler must detect the merge commit in the range and perform a
       // soft-reset + recommit to linearize it, then call pushSignedCommits with
       // the linearized history.
-      const bundlePath = path.join(tempDir, "merge-test.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
 
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1602,7 +1635,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
 
@@ -1633,8 +1666,8 @@ index 0000000..abc1234
     it("should fall back to merge commit message when no non-merge commits exist in range", async () => {
       // Scenario: the only commit in the range is the merge commit itself (agent only ran
       // `git merge origin/main`, no additional work commits).
-      const bundlePath = path.join(tempDir, "only-merge.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
 
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1674,7 +1707,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
 
@@ -1686,8 +1719,8 @@ index 0000000..abc1234
     });
 
     it("should skip linearization when no merge commits are present", async () => {
-      const bundlePath = path.join(tempDir, "no-merge.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
 
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1716,7 +1749,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
 
@@ -1735,8 +1768,8 @@ index 0000000..abc1234
       // found afterwards (e.g. the range was already empty / only no-op commits).
       // The handler should roll back to the originalHead and warn, then let
       // pushSignedCommits proceed (and potentially surface its own error).
-      const bundlePath = path.join(tempDir, "empty-range.bundle");
-      const patchPath = createPatchFile("small patch content");
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
 
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1772,7 +1805,7 @@ index 0000000..abc1234
 
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         // The overall push should still succeed (warning path, not fatal error)
         expect(result.success).toBe(true);
@@ -1811,11 +1844,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-reject-pr-without-required-title-prefix");
 
       const module = await loadModule();
       const handler = await module.main({ title_prefix: "[bot] " });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-reject-pr-without-required-title-prefix" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("does not start with required prefix");
@@ -1834,12 +1867,12 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-accept-pr-with-required-title-prefix");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ title_prefix: "[bot] " });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-accept-pr-with-required-title-prefix" }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[bot] "');
@@ -1858,11 +1891,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-reject-pr-without-required-labels");
 
       const module = await loadModule();
       const handler = await module.main({ labels: ["automated", "enhancement"] });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-reject-pr-without-required-labels" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("missing required labels");
@@ -1881,12 +1914,12 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-accept-pr-with-all-required-labels");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ labels: ["automated", "enhancement"] });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-accept-pr-with-all-required-labels" }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("✓ Labels validation passed: automated, enhancement");
@@ -1899,12 +1932,12 @@ index 0000000..abc1234
 
   describe("commit title suffix", () => {
     it("should append suffix to commit messages in patch", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-append-suffix-to-commit-messages-in-patch");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ commit_title_suffix: " [skip ci]" });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-append-suffix-to-commit-messages-in-patch" }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith('Appending commit title suffix: " [skip ci]"');
@@ -1922,14 +1955,14 @@ index 0000000..abc1234
   describe("staged mode", () => {
     it("should generate preview instead of pushing in staged mode", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-generate-preview-instead-of-pushing-in-staged-mode");
 
       // Re-import the module to pick up env var
       delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
 
       const module = require("./push_to_pull_request_branch.cjs");
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-generate-preview-instead-of-pushing-in-staged-mode" }, {});
 
       expect(result.success).toBe(true);
       expect(result.staged).toBe(true);
@@ -1944,18 +1977,18 @@ index 0000000..abc1234
 
   describe("max count limiting", () => {
     it("should skip messages after max count reached", async () => {
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-skip-messages-after-max-count-reached");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ max: 1 });
 
       // First call succeeds
-      const result1 = await handler({ patch_path: patchPath }, {});
+      const result1 = await handler({ branch: "should-skip-messages-after-max-count-reached" }, {});
       expect(result1.success).toBe(true);
 
       // Second call is skipped
-      const result2 = await handler({ patch_path: patchPath }, {});
+      const result2 = await handler({ branch: "should-skip-messages-after-max-count-reached" }, {});
       expect(result2.success).toBe(false);
       expect(result2.skipped).toBe(true);
       expect(result2.error).toContain("Max count");
@@ -1980,11 +2013,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-sanitize-branch-names-with-shell-metacharacters");
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-sanitize-branch-names-with-shell-metacharacters" }, {});
 
       // The normalizeBranchName should sanitize dangerous characters
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Branch name sanitized"));
@@ -2003,11 +2036,11 @@ index 0000000..abc1234
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-reject-empty-branch-name-after-sanitization");
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-reject-empty-branch-name-after-sanitization" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Invalid branch name");
@@ -2022,11 +2055,11 @@ index 0000000..abc1234
     it("should handle PR not found error", async () => {
       mockGithub.rest.pulls.get.mockRejectedValue(new Error("Not Found"));
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-pr-not-found-error");
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-pr-not-found-error" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to determine branch name");
@@ -2035,11 +2068,11 @@ index 0000000..abc1234
     it("should handle network error fetching PR", async () => {
       mockGithub.rest.pulls.get.mockRejectedValue(new Error("Network timeout"));
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-handle-network-error-fetching-pr");
 
       const module = await loadModule();
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-handle-network-error-fetching-pr" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to determine branch name");
@@ -2058,7 +2091,7 @@ index 0000000..abc1234
       delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
       delete require.cache[require.resolve("./extra_empty_commit.cjs")];
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-push-extra-empty-commit-when-ci-trigger-token-is-set");
 
       // Mock successful commands
       mockExec.exec.mockResolvedValue(0);
@@ -2077,7 +2110,7 @@ index 0000000..abc1234
 
       const module = require("./push_to_pull_request_branch.cjs");
       const handler = await module.main({});
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-push-extra-empty-commit-when-ci-trigger-token-is-set" }, {});
 
       expect(result.success).toBe(true);
       // The extra empty commit should have been attempted
@@ -2137,11 +2170,11 @@ ${diffs}
     }
 
     it("should reject files outside the allowed-files allowlist", async () => {
-      const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
+      const patchPath = createPatchFile("should-reject-files-outside-the-allowed-files-allowlist", createPatchWithFiles("src/index.js"));
 
       const module = await loadModule();
       const handler = await module.main({ allowed_files: [".changeset/**"] });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-reject-files-outside-the-allowed-files-allowlist" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("outside the allowed-files list");
@@ -2149,7 +2182,7 @@ ${diffs}
     });
 
     it("should accept files that match the allowed-files pattern", async () => {
-      const patchPath = createPatchFile(createPatchWithFiles(".changeset/my-feature-fix.md"));
+      const patchPath = createPatchFile("should-accept-files-that-match-the-allowed-files-pattern", createPatchWithFiles(".changeset/my-feature-fix.md"));
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
           return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\n", stderr: "" };
@@ -2159,7 +2192,7 @@ ${diffs}
 
       const module = await loadModule();
       const handler = await module.main({ allowed_files: [".changeset/**"] });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-accept-files-that-match-the-allowed-files-pattern" }, {});
 
       expect(result.success).toBe(true);
     });
@@ -2167,7 +2200,7 @@ ${diffs}
     it("should still block a protected file when it is in the allowlist but protected-files: allowed is not set", async () => {
       // allowed-files and protected-files are orthogonal: both checks must pass.
       // Matching the allowlist does NOT bypass the protected-files policy.
-      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+      const patchPath = createPatchFile("should-still-block-a-protected-file-when-it-is-in-the-allowl", createPatchWithFiles("package.json"));
 
       const module = await loadModule();
       const handler = await module.main({
@@ -2175,7 +2208,7 @@ ${diffs}
         protected_files: ["package.json"],
         protected_files_policy: "blocked",
       });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-still-block-a-protected-file-when-it-is-in-the-allowl" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("protected files");
@@ -2184,7 +2217,7 @@ ${diffs}
 
     it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
       // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
-      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+      const patchPath = createPatchFile("should-allow-a-protected-file-when-both-allowed-files-matche", createPatchWithFiles("package.json"));
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
           return { exitCode: 0, stdout: "package.json\n", stderr: "" };
@@ -2198,13 +2231,13 @@ ${diffs}
         protected_files: ["package.json"],
         protected_files_policy: "allowed",
       });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-allow-a-protected-file-when-both-allowed-files-matche" }, {});
 
       expect(result.success).toBe(true);
     });
 
     it("should create a fallback issue instead of pushing when post-apply detects protected files", async () => {
-      const patchPath = createPatchFile(createPatchWithFiles("README.md"));
+      const patchPath = createPatchFile("should-create-a-fallback-issue-instead-of-pushing-when-post-", createPatchWithFiles("README.md"));
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("remote-head-after");
       const promptsDir = path.join(tempDir, "prompts");
@@ -2230,7 +2263,7 @@ ${diffs}
         protected_files_policy: "fallback-to-issue",
       });
       try {
-        const result = await handler({ patch_path: patchPath }, {});
+        const result = await handler({ branch: "should-create-a-fallback-issue-instead-of-pushing-when-post-" }, {});
 
         expect(result.success).toBe(true);
         expect(result.fallback_used).toBe(true);
@@ -2244,14 +2277,14 @@ ${diffs}
     });
 
     it("should block a protected file when no allowed-files list is configured", async () => {
-      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+      const patchPath = createPatchFile("should-block-a-protected-file-when-no-allowed-files-list-is-", createPatchWithFiles("package.json"));
 
       const module = await loadModule();
       const handler = await module.main({
         protected_files: ["package.json"],
         protected_files_policy: "blocked",
       });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-block-a-protected-file-when-no-allowed-files-list-is-" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("protected files");
@@ -2259,11 +2292,11 @@ ${diffs}
     });
 
     it("should reject a mixed patch where at least one file is outside the allowlist", async () => {
-      const patchPath = createPatchFile(createPatchWithFiles(".changeset/my-fix.md", "src/index.js"));
+      const patchPath = createPatchFile("should-reject-a-mixed-patch-where-at-least-one-file-is-outsi", createPatchWithFiles(".changeset/my-fix.md", "src/index.js"));
 
       const module = await loadModule();
       const handler = await module.main({ allowed_files: [".changeset/**"] });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-reject-a-mixed-patch-where-at-least-one-file-is-outsi" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("outside the allowed-files list");
@@ -2306,7 +2339,7 @@ ${diffs}
     it("should ignore files matching excluded-files patterns (not blocked by allowed-files)", async () => {
       // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
       // Simulate post-generation: the patch already contains only the non-ignored file.
-      const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
+      const patchPath = createPatchFile("should-ignore-files-matching-excluded-files-patterns-not-blo", createPatchWithFiles("src/index.js"));
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
@@ -2314,20 +2347,20 @@ ${diffs}
         excluded_files: ["auto-generated/**"],
         allowed_files: ["src/**"],
       });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-ignore-files-matching-excluded-files-patterns-not-blo" }, {});
 
       expect(result.error || "").not.toContain("outside the allowed-files list");
     });
 
     it("should still block non-ignored files that violate the allowed-files list", async () => {
-      const patchPath = createPatchFile(createPatchWithFiles("src/index.js", "other/file.txt"));
+      const patchPath = createPatchFile("should-still-block-non-ignored-files-that-violate-the-allowe", createPatchWithFiles("src/index.js", "other/file.txt"));
 
       const module = await loadModule();
       const handler = await module.main({
         excluded_files: ["auto-generated/**"],
         allowed_files: ["src/**"],
       });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-still-block-non-ignored-files-that-violate-the-allowe" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("outside the allowed-files list");
@@ -2338,7 +2371,7 @@ ${diffs}
     it("should ignore files matching excluded-files patterns (not blocked by protected-files)", async () => {
       // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
       // Simulate post-generation: the patch already contains only the non-ignored file.
-      const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
+      const patchPath = createPatchFile("should-ignore-files-matching-excluded-files-patterns-not-blo", createPatchWithFiles("src/index.js"));
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
@@ -2347,7 +2380,7 @@ ${diffs}
         protected_files: ["package.json"],
         protected_files_policy: "blocked",
       });
-      const result = await handler({ patch_path: patchPath }, {});
+      const result = await handler({ branch: "should-ignore-files-matching-excluded-files-patterns-not-blo" }, {});
 
       expect(result.error || "").not.toContain("protected files");
     });
@@ -2355,14 +2388,14 @@ ${diffs}
     it("should allow when all patch files are ignored (even with allowed-files set)", async () => {
       // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
       // Simulate post-generation: all files were excluded so no patch file is produced.
-      const nonexistentPath = path.join(tempDir, "nonexistent.patch");
+      const nonexistentPath = canonicalPatchPath("should-allow-when-all-patch-files-are-ignored-even-with-allo");
 
       const module = await loadModule();
       const handler = await module.main({
         excluded_files: ["dist/**"],
         allowed_files: ["src/**"],
       });
-      const result = await handler({ patch_path: nonexistentPath }, {});
+      const result = await handler({ branch: "should-allow-when-all-patch-files-are-ignored-even-with-allo" }, {});
 
       // No patch → treated as no changes, not an allowlist violation
       expect(result.error || "").not.toContain("outside the allowed-files list");
@@ -2391,11 +2424,11 @@ ${diffs}
         },
       });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("should-return-error-when-target-repo-differs-from-workflow-r");
       const module = await loadModule();
       const handler = await module.main({ "target-repo": "other-owner/other-repo" });
 
-      const result = await handler({ patch_path: patchPath, pull_request_number: 42 }, {});
+      const result = await handler({ pull_request_number: 42, branch: "should-return-error-when-target-repo-differs-from-workflow-r" }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("other-owner/other-repo");
@@ -2433,11 +2466,11 @@ ${diffs}
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
-      const patchPath = createPatchFile();
+      const patchPath = createPatchFile("main");
       const module = await loadModule();
       const handler = await module.main({ "target-repo": "other-owner/other-repo" });
 
-      await handler({ patch_path: patchPath, pull_request_number: 42 }, {});
+      await handler({ pull_request_number: 42, branch: "main" }, {});
 
       // Verify git ls-remote was called with cwd pointing at the subdirectory
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(`Found checkout for other-owner/other-repo at: ${subRepoDir}`));

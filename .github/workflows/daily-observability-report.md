@@ -21,7 +21,7 @@ timeout-minutes: 45
 # - run 26424799100: 7,479,570 ET
 # - run 26197188358: 7,244,916 ET
 # 20M preserves >2.5x headroom over the recent peak while keeping daily budget hygiene.
-max-effective-tokens: 20000000
+max-ai-credits: 20000000
 imports:
   - uses: shared/meta-analysis-base.md
     with:

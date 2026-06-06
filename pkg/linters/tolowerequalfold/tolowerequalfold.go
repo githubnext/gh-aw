@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the tolower-equalfold analysis pass.
@@ -29,6 +30,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "tolowerequalfold")
 
 	nodeFilter := []ast.Node{
 		(*ast.BinaryExpr)(nil),
@@ -55,6 +57,9 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if isCaseConvCall(expr.X) || isCaseConvCall(expr.Y) {
+			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
+				return
+			}
 			pass.ReportRangef(expr,
 				"use strings.EqualFold for case-insensitive comparison instead of strings.ToLower/ToUpper with ==")
 		}

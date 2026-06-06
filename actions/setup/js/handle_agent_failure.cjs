@@ -11,13 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const {
-  resolveFirewallAuditLogPath,
-  parseMaxEffectiveTokensFromAuditLog,
-  parseEffectiveTokensErrorInfoFromAuditLog,
-  resolveEffectiveTokensFailureState,
-  resolveAICreditsFailureState,
-} = require("./effective_tokens_context.cjs");
+const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
 const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
@@ -27,7 +21,7 @@ const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
 const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
-const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 5;
+const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 25;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 // Engine-side 429/rate-limit signatures:

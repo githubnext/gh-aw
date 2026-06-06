@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 engine:
   id: claude
-max-effective-tokens: 20000000
+max-ai-credits: 20000000
 tools:
   edit:
   bash: ["*"]

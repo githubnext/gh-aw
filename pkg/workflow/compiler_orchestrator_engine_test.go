@@ -59,6 +59,7 @@ func TestSetupEngineAndImports_PreservesNegativeMaxEffectiveTokensForStringEngin
 
 	testContent := `---
 on: push
+strict: false
 engine: copilot
 network:
   allowed:

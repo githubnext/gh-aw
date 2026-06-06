@@ -54,7 +54,7 @@ function sanitizeBranchNameForBundle(branchName) {
  * @param {string} branchName - The branch name
  * @returns {string} The full bundle file path
  */
-function getBundlePath(branchName) {
+function getBundlePathForBranch(branchName) {
   const sanitized = sanitizeBranchNameForBundle(branchName);
   return `/tmp/gh-aw/aw-${sanitized}.bundle`;
 }
@@ -75,7 +75,7 @@ function sanitizeRepoSlugForBundle(repoSlug) {
  * @param {string} repoSlug - The repository slug (owner/repo)
  * @returns {string} The full bundle file path including repo disambiguation
  */
-function getBundlePathForRepo(branchName, repoSlug) {
+function getBundlePathForBranchInRepo(branchName, repoSlug) {
   const sanitizedBranch = sanitizeBranchNameForBundle(branchName);
   const sanitizedRepo = sanitizeRepoSlugForBundle(repoSlug);
   return `/tmp/gh-aw/aw-${sanitizedRepo}-${sanitizedBranch}.bundle`;
@@ -106,7 +106,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
   // Support custom cwd for multi-repo scenarios
   const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
 
-  const bundlePath = options.repoSlug ? getBundlePathForRepo(branchName, options.repoSlug) : getBundlePath(branchName);
+  const bundlePath = options.repoSlug ? getBundlePathForBranchInRepo(branchName, options.repoSlug) : getBundlePathForBranch(branchName);
 
   // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
   if (typeof baseBranch !== "string" || baseBranch.trim() === "") {
@@ -431,8 +431,8 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
 
 module.exports = {
   generateGitBundle,
-  getBundlePath,
-  getBundlePathForRepo,
+  getBundlePathForBranch,
+  getBundlePathForBranchInRepo,
   sanitizeBranchNameForBundle,
   sanitizeRepoSlugForBundle,
 };
