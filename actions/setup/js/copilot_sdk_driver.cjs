@@ -525,7 +525,53 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   }
 }
 
-module.exports = { extractPromptFromArgs, runWithCopilotSDK };
+/**
+ * Parse a CopilotSDKPermissionConfig from a JSON-encoded sidecar args array.
+ *
+ * Extracts --allow-tool values and the --allow-all-tools flag from the raw
+ * GH_AW_COPILOT_SDK_SERVER_ARGS string that the Go engine writes.  Returns
+ * undefined when no permission-related flags are present so that the SDK
+ * continues to apply its own built-in policy in the unrestricted case.
+ *
+ * @param {string | undefined} serverArgsJson - Raw JSON value of GH_AW_COPILOT_SDK_SERVER_ARGS
+ * @returns {CopilotSDKPermissionConfig | undefined}
+ */
+function parsePermissionConfigFromServerArgs(serverArgsJson) {
+  if (!serverArgsJson) {
+    return undefined;
+  }
+  /** @type {unknown} */
+  let parsed;
+  try {
+    parsed = JSON.parse(serverArgsJson);
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(parsed)) {
+    return undefined;
+  }
+  const args = /** @type {unknown[]} */ (parsed);
+
+  // --allow-all-tools takes precedence: the sidecar was launched with blanket
+  // tool approval, so the driver should mirror that policy.
+  if (args.includes("--allow-all-tools")) {
+    return { allowAllTools: true };
+  }
+
+  // Collect the value of every --allow-tool <entry> pair.
+  /** @type {string[]} */
+  const allowedTools = [];
+  for (let i = 0; i < args.length - 1; i++) {
+    if (args[i] === "--allow-tool" && typeof args[i + 1] === "string") {
+      allowedTools.push(/** @type {string} */ (args[i + 1]));
+      i += 1; // consume the value so it is not re-examined as a flag
+    }
+  }
+
+  return allowedTools.length > 0 ? { allowedTools } : undefined;
+}
+
+module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConfigFromServerArgs };
 
 // ---------------------------------------------------------------------------
 // Standalone entry point
@@ -594,6 +640,23 @@ async function main() {
   /** @type {import("@github/copilot-sdk").ProviderConfig} */
   const provider = { type: "openai", baseUrl: providerBaseUrl };
 
+  // --- Build permission config from sidecar server args ----------------
+  // GH_AW_COPILOT_SDK_SERVER_ARGS holds the JSON-encoded --allow-tool flags
+  // that the Go engine passed to the sidecar. Mirror those same rules in the
+  // SDK session so the driver's onPermissionRequest handler aligns with the
+  // sidecar's pre-configured allow list (e.g. shell(safeoutputs:*) for
+  // workflows with safe-outputs enabled and a restricted bash allowlist).
+  const permissionConfig = parsePermissionConfigFromServerArgs(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS);
+  if (permissionConfig) {
+    if (permissionConfig.allowAllTools) {
+      log("permission config: allow-all-tools (sidecar launched with --allow-all-tools)");
+    } else {
+      log(`permission config: ${(permissionConfig.allowedTools ?? []).length} allow-tool entries from GH_AW_COPILOT_SDK_SERVER_ARGS`);
+    }
+  } else {
+    log("permission config: none (SDK default permission behavior)");
+  }
+
   // --- Run SDK session -------------------------------------------------
 
   const result = await runWithCopilotSDK({
@@ -603,6 +666,7 @@ async function main() {
     model,
     connectionToken,
     provider,
+    permissionConfig,
   });
 
   process.exit(result.exitCode);

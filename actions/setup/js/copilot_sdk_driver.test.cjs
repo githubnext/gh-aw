@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
   describe("runWithCopilotSDK", () => {
@@ -507,6 +507,98 @@ describe("copilot_sdk_driver.cjs", () => {
           process.env.GH_AW_MAX_TOOL_DENIALS = oldMaxToolDenials;
         }
       }
+    });
+  });
+
+  describe("parsePermissionConfigFromServerArgs", () => {
+    it("returns undefined when input is undefined", () => {
+      expect(parsePermissionConfigFromServerArgs(undefined)).toBeUndefined();
+    });
+
+    it("returns undefined when input is empty string", () => {
+      expect(parsePermissionConfigFromServerArgs("")).toBeUndefined();
+    });
+
+    it("returns undefined when input is invalid JSON", () => {
+      expect(parsePermissionConfigFromServerArgs("not-json")).toBeUndefined();
+    });
+
+    it("returns undefined when input is not an array", () => {
+      expect(parsePermissionConfigFromServerArgs('{"key":"value"}')).toBeUndefined();
+    });
+
+    it("returns undefined when args contain no permission flags", () => {
+      const args = JSON.stringify(["--headless", "--no-auto-update", "--port", "3002"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toBeUndefined();
+    });
+
+    it("returns allowAllTools:true when --allow-all-tools is present", () => {
+      const args = JSON.stringify(["--headless", "--allow-all-tools", "--port", "3002"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({ allowAllTools: true });
+    });
+
+    it("--allow-all-tools takes precedence over --allow-tool entries", () => {
+      const args = JSON.stringify(["--allow-tool", "shell(git:*)", "--allow-all-tools", "--allow-tool", "write"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({ allowAllTools: true });
+    });
+
+    it("extracts a single --allow-tool entry", () => {
+      const args = JSON.stringify(["--allow-tool", "safeoutputs"]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({ allowedTools: ["safeoutputs"] });
+    });
+
+    it("extracts multiple --allow-tool entries preserving order", () => {
+      const args = JSON.stringify([
+        "--headless",
+        "--no-ask-user",
+        "--allow-tool",
+        "github",
+        "--allow-tool",
+        "safeoutputs",
+        "--allow-tool",
+        "shell(safeoutputs:*)",
+        "--allow-tool",
+        "write",
+      ]);
+      expect(parsePermissionConfigFromServerArgs(args)).toEqual({
+        allowedTools: ["github", "safeoutputs", "shell(safeoutputs:*)", "write"],
+      });
+    });
+
+    it("extracts shell(safeoutputs:*) from a realistic GH_AW_COPILOT_SDK_SERVER_ARGS value", () => {
+      const args = JSON.stringify([
+        "--headless",
+        "--no-auto-update",
+        "--port",
+        "3002",
+        "--no-ask-user",
+        "--allow-tool",
+        "github",
+        "--allow-tool",
+        "safeoutputs",
+        "--allow-tool",
+        "shell(agenticworkflows:*)",
+        "--allow-tool",
+        "shell(safeoutputs:*)",
+        "--allow-tool",
+        "shell(git:*)",
+        "--allow-tool",
+        "write",
+        "--allow-all-paths",
+      ]);
+      const config = parsePermissionConfigFromServerArgs(args);
+      expect(config).not.toBeNull();
+      expect(config?.allowedTools).toContain("shell(safeoutputs:*)");
+      expect(config?.allowedTools).toContain("safeoutputs");
+      expect(config?.allowedTools).toContain("write");
+    });
+
+    it("ignores non-string array elements", () => {
+      // Mixed arrays should not produce an error; only string entries are valid flags.
+      const args = JSON.stringify(["--allow-tool", "write", null, 42, "--allow-tool", "safeoutputs"]);
+      const config = parsePermissionConfigFromServerArgs(args);
+      // null/42 are not the string "--allow-tool", so only the valid pairs are collected.
+      expect(config).toEqual({ allowedTools: ["write", "safeoutputs"] });
     });
   });
 });
