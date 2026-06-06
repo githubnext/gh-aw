@@ -310,7 +310,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(coreLogger.warning).toHaveBeenCalledWith(expect.stringContaining("shell(rm -rf /tmp/x)"));
     });
 
-    it("uses SDK default permission behavior when no permissionConfig is provided", async () => {
+    it("always configures onPermissionRequest and defaults to approveAll when permissionConfig is absent", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
       const createSession = vi.fn().mockResolvedValue({
@@ -339,10 +339,10 @@ describe("copilot_sdk_driver.cjs", () => {
 
       expect(result.exitCode).toBe(0);
       const sessionConfig = createSession.mock.calls[0][0];
-      // The SDK's default policy is exercised by omitting onPermissionRequest entirely.
-      // This assertion verifies we do not force approve-all in the no-toolset path.
-      expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
-      expect(approveAll).not.toHaveBeenCalled();
+      expect(sessionConfig).toHaveProperty("onPermissionRequest");
+      const decision = sessionConfig.onPermissionRequest({ kind: "read", fileName: "a.txt" });
+      expect(decision).toEqual({ kind: "approve-once" });
+      expect(approveAll).toHaveBeenCalledTimes(1);
     });
 
     it("stops session when permission denials reach max-tool-denials threshold", async () => {
