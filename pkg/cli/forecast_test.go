@@ -441,6 +441,9 @@ func TestLoadCachedRunAIC_FallsBackToLegacyAgentArtifacts(t *testing.T) {
 		return nil
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
+		if len(downloaded) == 0 {
+			return &TokenUsageSummary{}, nil
+		}
 		last := downloaded[len(downloaded)-1]
 		if last == "usage" {
 			return &TokenUsageSummary{}, nil
