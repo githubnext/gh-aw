@@ -276,7 +276,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
             uses: aws-actions/configure-aws-credentials@v4
             with:
               # Replace with your AWS account role ARN.
-              role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/gh-aw-activation
+              role-to-assume: arn:aws:iam::<your-account-id>:role/gh-aw-activation
               aws-region: us-east-1
           - name: Fetch bootstrap token
             id: bootstrap
