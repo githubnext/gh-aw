@@ -14,6 +14,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { spawnSync } from "child_process";
+import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -23,9 +24,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const driverPath = path.join(__dirname, "apply_samples.cjs");
+const require = createRequire(import.meta.url);
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function git(args, cwd) {
+  const r = spawnSync("git", args, { cwd, encoding: "utf8" });
+  if (r.status !== 0) {
+    throw new Error(`git ${args.join(" ")} failed: ${r.stderr || r.stdout}`);
+  }
+  return r.stdout;
+}
+
+function initRepo(dir, defaultBranch) {
+  git(["init", "-q", "-b", defaultBranch], dir);
+  git(["config", "user.email", "ghaw-test@example.com"], dir);
+  git(["config", "user.name", "ghaw test"], dir);
+  fs.writeFileSync(path.join(dir, "README.md"), "# seed\n");
+  git(["add", "."], dir);
+  git(["commit", "-q", "-m", "seed"], dir);
 }
 
 describe.sequential("apply_samples.cjs", () => {
@@ -111,5 +130,129 @@ describe.sequential("apply_samples.cjs", () => {
     expect(result.status).toBe(0);
     const logText = fs.readFileSync(path.join(tempDir, "empty-log.log"), "utf8");
     expect(logText).toContain("terminal_reason");
+  });
+});
+
+describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_request_branch)", () => {
+  // Load the module under test directly so we can drive preStagePatch in
+  // isolation against a real, throwaway git working tree. This is the
+  // critical code path that turns a `patch` sidecar on a sample entry into
+  // a real branch + commit that the downstream MCP `create_pull_request`
+  // handler (which derives a git diff) can act on.
+  const { preStagePatch } = require("./apply_samples.cjs");
+
+  /**
+   * Build a unified diff that adds a brand-new file. Synthetic but realistic.
+   */
+  function newFileDiff(filePath, contents) {
+    const lines = contents.split("\n");
+    // Strip trailing empty element produced by a terminating "\n" so the
+    // hunk header line count matches what git apply expects.
+    if (lines[lines.length - 1] === "") lines.pop();
+    const body = lines.map(l => "+" + l).join("\n");
+    return `diff --git a/${filePath} b/${filePath}\n` + `new file mode 100644\n` + `index 0000000..1111111\n` + `--- /dev/null\n` + `+++ b/${filePath}\n` + `@@ -0,0 +1,${lines.length} @@\n` + body + "\n";
+  }
+
+  it("checks out the requested branch and commits the patch on it (create_pull_request)", () => {
+    const workspace = makeTempDir("gh-aw-prestage-cpr-");
+    initRepo(workspace, "main");
+
+    const branchName = "feat/gh-aw-sample-branch";
+    const fileToAdd = "sample-feature.txt";
+    const fileBody = "hello from a deterministic sample\nsecond line\n";
+    const entry = {
+      tool: "create_pull_request",
+      arguments: {
+        title: "Sample PR",
+        body: "Sample PR body",
+        branch: branchName,
+      },
+      sidecars: { patch: newFileDiff(fileToAdd, fileBody) },
+    };
+
+    // GH_AW_CUSTOM_BASE_BRANCH steers preStagePatch to check out the right
+    // base ref inside our fresh repo (default is GITHUB_BASE_REF / "main").
+    const prev = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    try {
+      preStagePatch(entry, 0, workspace);
+    } finally {
+      if (prev === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prev;
+    }
+
+    // 1. Branch name on the entry is preserved (driver must forward it to MCP).
+    expect(entry.arguments.branch).toBe(branchName);
+
+    // 2. The named branch exists in the working repo.
+    const branches = git(["branch", "--list", branchName], workspace).trim();
+    expect(branches).toContain(branchName);
+
+    // 3. Current HEAD is that branch.
+    const head = git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim();
+    expect(head).toBe(branchName);
+
+    // 4. The patch was applied AND committed (not just sitting in the worktree).
+    const status = git(["status", "--porcelain"], workspace).trim();
+    expect(status).toBe("");
+    expect(fs.existsSync(path.join(workspace, fileToAdd))).toBe(true);
+    expect(fs.readFileSync(path.join(workspace, fileToAdd), "utf8")).toBe(fileBody);
+
+    // 5. The commit message identifies the sample so failures are diagnosable.
+    const lastMsg = git(["log", "-1", "--pretty=%s"], workspace).trim();
+    expect(lastMsg).toMatch(/gh-aw sample 1: create_pull_request/);
+
+    // 6. The new file shows up as a real diff against the base branch — this is
+    // precisely what the downstream MCP create_pull_request handler will read.
+    const diff = git(["diff", "main..." + branchName, "--", fileToAdd], workspace);
+    expect(diff).toContain("+hello from a deterministic sample");
+  });
+
+  it("defaults the branch name to gh-aw-sample-<i+1> when none is supplied", () => {
+    const workspace = makeTempDir("gh-aw-prestage-default-");
+    initRepo(workspace, "main");
+
+    const entry = {
+      tool: "push_to_pull_request_branch",
+      arguments: {
+        body: "Sample push body",
+        // branch intentionally omitted — driver should synthesize one.
+      },
+      sidecars: { patch: newFileDiff("push-feature.txt", "from push sample\n") },
+    };
+
+    const prev = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    try {
+      preStagePatch(entry, 2, workspace);
+    } finally {
+      if (prev === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prev;
+    }
+
+    // Index in preStagePatch is zero-based; the default uses i+1 → "gh-aw-sample-3".
+    expect(entry.arguments.branch).toBe("gh-aw-sample-3");
+    const head = git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim();
+    expect(head).toBe("gh-aw-sample-3");
+    expect(fs.existsSync(path.join(workspace, "push-feature.txt"))).toBe(true);
+  });
+
+  it("is a no-op when the sample tool isn't in the patch-sidecar set", () => {
+    // We assert this at the driver level (PATCH_SIDECAR_TOOLS gate in main()),
+    // but preStagePatch itself should also be a no-op when called with an
+    // entry that has no patch sidecar — protecting against misuse.
+    const workspace = makeTempDir("gh-aw-prestage-noop-");
+    initRepo(workspace, "main");
+
+    const entry = {
+      tool: "create_issue",
+      arguments: { title: "x", body: "y" },
+    };
+    preStagePatch(entry, 0, workspace);
+
+    // Still on main, no extra commits, no new files.
+    expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe("main");
+    const log = git(["log", "--pretty=%s"], workspace).trim().split("\n");
+    expect(log).toEqual(["seed"]);
   });
 });
