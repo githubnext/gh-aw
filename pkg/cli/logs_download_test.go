@@ -6,6 +6,7 @@ import (
 	"archive/zip"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDownloadWorkflowLogs(t *testing.T) {
@@ -304,6 +307,32 @@ func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
 			t.Errorf("expected directory %s to still exist after retry", name)
 		}
 	}
+}
+
+func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	require.NoError(t, os.WriteFile(fakeGH, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+
+	originalPath := os.Getenv("PATH")
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
+	t.Setenv("GITHUB_ACTIONS", "true")
+
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	originalStderr := os.Stderr
+	os.Stderr = writer
+	t.Cleanup(func() {
+		os.Stderr = originalStderr
+	})
+
+	err = downloadArtifactsByName(context.Background(), 12345, t.TempDir(), []string{"usage"}, false, "", "", "")
+	require.NoError(t, err)
+
+	require.NoError(t, writer.Close())
+	output, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Contains(t, string(output), "Downloading artifact: usage")
 }
 
 func TestListWorkflowRunsWithPagination(t *testing.T) {

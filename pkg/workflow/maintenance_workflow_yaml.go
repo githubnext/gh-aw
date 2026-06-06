@@ -589,7 +589,17 @@ jobs:
 `)
 
 	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
-	yaml.WriteString(`      - name: Generate forecast report
+	yaml.WriteString(`      - name: Restore forecast report logs cache
+        id: forecast_report_logs_cache
+        uses: ` + getActionPin("actions/cache/restore") + `
+        with:
+          path: ./.github/aw/logs
+          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-forecast-report-logs-
+
+      - name: Generate forecast report
         id: generate_forecast_report
         shell: bash
         env:
@@ -611,6 +621,13 @@ jobs:
             echo "::error::Forecast computation failed with exit code ${forecast_exit_code}."
             exit 1
           fi
+
+      - name: Save forecast report logs cache
+        if: ${{ always() }}
+        uses: ` + getActionPin("actions/cache/save") + `
+        with:
+          path: ./.github/aw/logs
+          key: ${{ steps.forecast_report_logs_cache.outputs.cache-primary-key }}
 
       - name: Generate forecast issue
         if: ${{ always() }}

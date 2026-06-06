@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -427,7 +426,7 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 	require.Equal(t, []string{"usage"}, downloaded)
 }
 
-func TestLoadCachedRunAIC_FallsBackToLegacyAgentArtifacts(t *testing.T) {
+func TestLoadCachedRunAIC_DoesNotFallbackToLegacyAgentArtifacts(t *testing.T) {
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -444,17 +443,10 @@ func TestLoadCachedRunAIC_FallsBackToLegacyAgentArtifacts(t *testing.T) {
 		if len(downloaded) == 0 {
 			return &TokenUsageSummary{}, nil
 		}
-		last := downloaded[len(downloaded)-1]
-		if last == "usage" {
-			return &TokenUsageSummary{}, nil
-		}
-		if last == constants.AgentArtifactName {
-			return &TokenUsageSummary{TotalAIC: 4.56}, nil
-		}
 		return &TokenUsageSummary{}, nil
 	}
 
 	aic := loadCachedRunAIC(999_000_002, false)
-	require.InDelta(t, 4.56, aic, 1e-9)
-	require.Equal(t, []string{"usage", constants.AgentArtifactName}, downloaded)
+	require.Zero(t, aic)
+	require.Equal(t, []string{"usage"}, downloaded)
 }

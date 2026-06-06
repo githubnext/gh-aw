@@ -557,7 +557,7 @@ func downloadArtifactsByName(ctx context.Context, runID int64, outputDir string,
 		}
 
 		logsDownloadLog.Printf("Downloading artifact %q individually: gh %s", name, strings.Join(args, " "))
-		if verbose {
+		if verbose || IsRunningInCI() {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Downloading artifact: "+name))
 		}
 
@@ -650,14 +650,14 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			missing := findMissingFilterEntries(artifactFilter, outputDir)
 			if len(missing) == 0 {
 				logsDownloadLog.Printf("All requested artifacts already on disk for run %d", runID)
-				if verbose {
+				if verbose || IsRunningInCI() {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", runID)))
 				}
 				return nil
 			}
 			// Restrict the download to only the artifacts that are not yet on disk.
 			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", runID, missing, artifactFilter)
-			if verbose {
+			if verbose || IsRunningInCI() {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading missing artifacts for run %d: %v", runID, missing)))
 			}
 			artifactFilter = missing
@@ -705,7 +705,9 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		}
 		if len(dockerBuildArtifacts) > 0 {
 			logsDownloadLog.Printf("Found %d .dockerbuild artifact(s) that will be skipped: %v", len(dockerBuildArtifacts), dockerBuildArtifacts)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %d .dockerbuild artifact(s) (not valid zip archives): %s", len(dockerBuildArtifacts), strings.Join(dockerBuildArtifacts, ", "))))
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Skipping %d .dockerbuild artifact(s) (not valid zip archives): %s", len(dockerBuildArtifacts), strings.Join(dockerBuildArtifacts, ", "))))
+			}
 		}
 	} else {
 		logsDownloadLog.Printf("Could not list artifacts (will use bulk download): %v", listErr)
