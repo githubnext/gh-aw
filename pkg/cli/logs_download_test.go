@@ -312,7 +312,8 @@ func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
 func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
 	fakeGH := filepath.Join(fakeBinDir, "gh")
-	require.NoError(t, os.WriteFile(fakeGH, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	require.NoError(t, os.WriteFile(fakeGH, []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \""+argsLogPath+"\"\nexit 0\n"), 0o755))
 
 	originalPath := os.Getenv("PATH")
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
@@ -333,6 +334,10 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 	output, err := io.ReadAll(reader)
 	require.NoError(t, err)
 	assert.Contains(t, string(output), "Downloading artifact: usage")
+
+	argsLog, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(argsLog), "run download 12345 --name usage")
 }
 
 func TestListWorkflowRunsWithPagination(t *testing.T) {

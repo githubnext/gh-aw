@@ -756,8 +756,10 @@ func loadCachedRunAIC(runID int64, verbose bool) float64 {
 		return summary.TokenUsage.TotalAIC
 	}
 
-	if err := forecastDownloadRunArtifacts(context.Background(), runID, dir, verbose, "", "", "", []string{"usage"}); err != nil && !errors.Is(err, ErrNoArtifacts) {
-		return 0
+	if err := forecastDownloadRunArtifacts(context.Background(), runID, dir, verbose, "", "", "", []string{"usage"}); err != nil {
+		if !errors.Is(err, ErrNoArtifacts) {
+			return 0
+		}
 	}
 
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
