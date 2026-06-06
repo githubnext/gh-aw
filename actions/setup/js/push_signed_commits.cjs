@@ -9,6 +9,7 @@
 
 const { ERR_API } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
+const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
 /** Sentinel error class used to signal that the commit range contains a shape
@@ -24,6 +25,15 @@ class PushSignedCommitsUnsupportedShape extends Error {
   constructor(message) {
     super(message);
     this.name = "PushSignedCommitsUnsupportedShape";
+  }
+}
+
+/** Sentinel error class for synthesized-payload policy violations. */
+class PushSignedCommitsPolicyViolation extends Error {
+  /** @param {string} message */
+  constructor(message) {
+    super(message);
+    this.name = "PushSignedCommitsPolicyViolation";
   }
 }
 
@@ -184,6 +194,43 @@ async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv }) {
 }
 
 /**
+ * Enforce limits and file-protection policy on the synthesized GraphQL payload.
+ *
+ * @param {Array<{path: string, contents: string}>} additions
+ * @param {Array<{path: string}>} deletions
+ * @param {Record<string, any> | undefined} validationConfig
+ */
+function validateSynthesizedFileChanges(additions, deletions, validationConfig) {
+  if (!validationConfig) {
+    return;
+  }
+
+  const uniquePaths = Array.from(new Set([...deletions.map(entry => entry.path), ...additions.map(entry => entry.path)].map(path => String(path || "").trim()).filter(Boolean)));
+
+  const maxFilesRaw = Number.parseInt(String(validationConfig.max_patch_files ?? ""), 10);
+  if (Number.isFinite(maxFilesRaw) && maxFilesRaw > 0 && uniquePaths.length > maxFilesRaw) {
+    throw new PushSignedCommitsPolicyViolation(`E003: Signed-commit payload exceeds max-patch-files (${maxFilesRaw}). ` + `Synthesized payload touches ${uniquePaths.length} file(s): ${uniquePaths.join(", ")}`);
+  }
+
+  const maxSizeKbRaw = Number.parseInt(String(validationConfig.max_patch_size ?? ""), 10);
+  if (Number.isFinite(maxSizeKbRaw) && maxSizeKbRaw > 0) {
+    const additionsBytes = additions.reduce((total, entry) => total + Buffer.from(entry.contents, "base64").length, 0);
+    const additionsKb = Math.ceil(additionsBytes / 1024);
+    if (additionsKb > maxSizeKbRaw) {
+      throw new PushSignedCommitsPolicyViolation(`E003: Signed-commit payload exceeds max-patch-size (${maxSizeKbRaw} KB). ` + `Synthesized payload additions total ${additionsKb} KB`);
+    }
+  }
+
+  const protection = checkFileProtectionPostApply(uniquePaths, {
+    ...validationConfig,
+    protected_files_policy: validationConfig.protected_files_policy ?? "request_review",
+  });
+  if (protection.action !== "allow") {
+    throw new PushSignedCommitsPolicyViolation(`Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`);
+  }
+}
+
+/**
  * Resolve the local HEAD SHA.
  *
  * @param {string} cwd
@@ -211,9 +258,10 @@ async function resolveLocalHeadSha(cwd) {
  * @param {boolean} [opts.allowGitPushFallback=true] - When false, refuse any fallback path that would use direct git push
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
  * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
+ * @param {Record<string, any>} [opts.validationConfig] - Optional safe-output policy config applied to synthesized GraphQL fileChanges
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, allowGitPushFallback = true, resolvedTemporaryIds, currentRepo }) {
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, allowGitPushFallback = true, resolvedTemporaryIds, currentRepo, validationConfig }) {
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
   const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
     defaultRepo: effectiveCurrentRepo,
@@ -292,16 +340,69 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       const fields = line.split(" ");
       return { line, fields, sha: fields[0] };
     });
-  const revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
+  let revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
   const droppedBoundaryCount = revListEntriesRaw.length - revListEntries.length;
   if (baseRefOid !== undefined && droppedBoundaryCount > 0) {
     core.info(`pushSignedCommits: dropped ${droppedBoundaryCount} baseRef boundary commit(s) from replay set`);
   }
-  const shas = revListEntries.map(entry => entry.sha);
+  let shas = revListEntries.map(entry => entry.sha);
 
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
     return undefined;
+  }
+
+  let remoteHeadOid;
+  try {
+    const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
+    const resolved = oidOut.trim().split(/\s+/)[0];
+    if (OID_PATTERN.test(resolved)) {
+      remoteHeadOid = resolved;
+    }
+  } catch {
+    // Non-fatal. The existing branch-creation logic handles missing remote refs.
+  }
+  const firstReplayParentOid = revListEntries[0] && revListEntries[0].fields.length > 1 ? revListEntries[0].fields[1] : undefined;
+  const firstGraphqlParentOid = remoteHeadOid || baseRefOid;
+  let graphqlParentIsAncestorOfHead = true;
+  if (firstGraphqlParentOid) {
+    try {
+      const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", firstGraphqlParentOid, "HEAD"], { cwd, ignoreReturnCode: true });
+      graphqlParentIsAncestorOfHead = ancestryCheck.exitCode === 0;
+    } catch {
+      // If ancestry probing fails, keep the default (true) and avoid rewrite.
+    }
+  }
+  if (firstReplayParentOid && firstGraphqlParentOid && firstReplayParentOid !== firstGraphqlParentOid && !graphqlParentIsAncestorOfHead) {
+    core.warning(`pushSignedCommits: replay parent ${firstReplayParentOid} does not match GraphQL parent ${firstGraphqlParentOid}; ` + `rebasing commit range before signed replay to avoid stale-base file synthesis`);
+    try {
+      await exec.exec("git", ["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd });
+    } catch (rebaseError) {
+      try {
+        await exec.exec("git", ["rebase", "--abort"], { cwd });
+      } catch {
+        // Ignore cleanup failures.
+      }
+      throw new Error(
+        `pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` +
+          `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${rebaseError instanceof Error ? rebaseError.message : String(rebaseError)}`,
+        { cause: rebaseError }
+      );
+    }
+    const { stdout: rebasedRevListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${firstGraphqlParentOid}..HEAD`], { cwd });
+    revListEntries = rebasedRevListOut
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map(line => {
+        const fields = line.split(" ");
+        return { line, fields, sha: fields[0] };
+      });
+    shas = revListEntries.map(entry => entry.sha);
+    if (shas.length === 0) {
+      core.info("pushSignedCommits: no new commits to replay after rebase");
+      return undefined;
+    }
   }
 
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
@@ -513,6 +614,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
 
       const additions = additionsMap.get(sha) || [];
       const deletions = deletionsMap.get(sha) || [];
+      validateSynthesizedFileChanges(additions, deletions, validationConfig);
       core.info(`pushSignedCommits: file changes: ${additions.length} addition(s), ${deletions.length} deletion(s)`);
 
       /** @type {any} */
@@ -549,6 +651,9 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           `or set signed-commits: false if the repository does not require signed commits.`,
         { cause: err }
       );
+    }
+    if (err instanceof PushSignedCommitsPolicyViolation) {
+      throw new Error(`pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}`, { cause: err });
     }
     if (allowGitPushFallback === false) {
       throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${err instanceof Error ? err.message : String(err)}`, { cause: err });

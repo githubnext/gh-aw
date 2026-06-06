@@ -741,10 +741,14 @@ async function main(config = {}) {
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
-          await ensureFullHistoryForBundle(exec, {
-            env: { ...process.env, ...gitAuthEnv },
-            ...baseGitOpts,
-          });
+          await ensureFullHistoryForBundle(
+            exec,
+            {
+              env: { ...process.env, ...gitAuthEnv },
+              ...baseGitOpts,
+            },
+            { baseRef: branchName, bundleFilePath }
+          );
 
           // Fetch from bundle into a temporary ref.
           // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
@@ -1076,6 +1080,7 @@ async function main(config = {}) {
           signedCommits,
           resolvedTemporaryIds,
           currentRepo: itemRepo,
+          validationConfig: config,
         });
         if (pushedSha) {
           pushedCommitSha = pushedSha;

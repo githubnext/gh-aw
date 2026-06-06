@@ -1477,6 +1477,12 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
             return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
           }
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "verify") {
+            return Promise.resolve({ exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${"a".repeat(40)}\n` });
+          }
+          if (cmd === "git" && args[0] === "merge-base" && args[1] === "--is-ancestor") {
+            return Promise.resolve({ exitCode: 1, stdout: "", stderr: "" });
+          }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
@@ -1495,8 +1501,9 @@ index 0000000..abc1234
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature-branch", "refs/bundles/push-feature-branch", "remote-head"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
-        const unshallowCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-        expect(unshallowCallIndex).toBe(-1);
+        // Iterative deepen replaces a single --unshallow: assert the first --deepen step ran.
+        const deepenCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && typeof args[1] === "string" && args[1].startsWith("--deepen="));
+        expect(deepenCallIndex).toBeGreaterThanOrEqual(0);
       } finally {
         pushSignedSpy.mockRestore();
       }
