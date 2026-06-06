@@ -53,6 +53,8 @@ function formatDurationMs(ms) {
  * Computes effective tokens (ET) per model using merged multipliers, env fallback, then built-in multipliers.
  * @param {string} jsonlContent - The token-usage.jsonl file content
  * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, ambientContextTokens: number|undefined, byModel: Object, entries: Array} | null}
+ * ambientContextTokens records first-request context size as:
+ * input_tokens + ((cache_read_tokens + cache_write_tokens) / 10).
  */
 function parseTokenUsageJsonl(jsonlContent) {
   const summary = {

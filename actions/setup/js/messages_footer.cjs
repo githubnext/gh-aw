@@ -79,7 +79,7 @@ function getAmbientContextFromEnv() {
   return {
     ambientContext,
     ambientContextFormatted,
-    ambientContextSuffix: ambientContextFormatted ? ` · 🧠 ${ambientContextFormatted} ctx` : "",
+    ambientContextSuffix: ambientContextFormatted ? ` · 🧠 ${ambientContextFormatted} ambient context` : "",
   };
 }
 
