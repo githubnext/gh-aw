@@ -275,7 +275,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
           - name: Configure cloud credentials with OIDC
             uses: aws-actions/configure-aws-credentials@v4
             with:
-              # Replace with your AWS account role ARN.
+              # Replace with your AWS account ID and role ARN.
               role-to-assume: arn:aws:iam::123456789012:role/gh-aw-activation
               aws-region: us-east-1
           - name: Fetch bootstrap token
