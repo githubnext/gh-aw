@@ -395,6 +395,20 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   let catastrophicToolDenialsTriggered = false;
 
   /**
+   * Best-effort write of a driver-level event to events.jsonl and stderr.
+   * @param {string} type
+   * @param {object} data
+   */
+  function writeDriverEvent(type, data) {
+    const entry = { type, timestamp: new Date().toISOString(), data };
+    const jsonl = JSON.stringify(entry) + "\n";
+    if (eventsStream) {
+      eventsStream.write(jsonl);
+    }
+    process.stderr.write(jsonl);
+  }
+
+  /**
    * @param {string} reason
    */
   function recordToolDenial(reason) {
@@ -405,6 +419,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     }
     catastrophicToolDenialsTriggered = true;
     catastrophicToolDenialsError = new Error(`max tool denials threshold reached (${toolDenialCount}/${maxToolDenialsLimit})`);
+    writeDriverEvent("guard.tool_denials_exceeded", {
+      denialCount: toolDenialCount,
+      threshold: maxToolDenialsLimit,
+      reason,
+    });
     log(`${catastrophicToolDenialsError.message}; stopping SDK session early`);
     if (session) {
       void session.disconnect().catch(() => {

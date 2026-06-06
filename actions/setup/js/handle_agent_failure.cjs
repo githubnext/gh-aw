@@ -24,6 +24,7 @@ const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+const COPILOT_SESSION_STATE_DIR = "/tmp/gh-aw/sandbox/agent/logs/copilot-session-state";
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded
@@ -162,6 +163,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasMissingSafeOutputs) categories.push("missing_safe_outputs");
   if (options.hasReportIncomplete) categories.push("report_incomplete");
   if (options.hasMissingTool) categories.push("missing_tool");
+  if (options.hasToolDenialsExceeded) categories.push("tool_denials_exceeded");
   if (options.hasMissingData) categories.push("missing_data");
   if (options.hasCacheMissMisconfiguration) categories.push("cache_miss_misconfiguration");
   if (options.secretVerificationFailed) categories.push("secret_verification_failed");
@@ -1060,6 +1062,90 @@ function buildPermissionDeniedContext(items, workflowId) {
       `\n**🚫 Repeated Permission Denied**: The agent was denied permission for ${deniedCount} command(s).\n\n` +
       `**Denied Commands:**\n${deniedCommandsList}\n\n` +
       `Update the workflow prompt to use built-in tools instead of the denied commands.\n`
+    );
+  }
+}
+
+/**
+ * Load max-tool-denials guard events from Copilot SDK session events.jsonl files.
+ * @returns {Array<{denialCount: number, threshold: number, reason: string}>}
+ */
+function loadToolDenialsExceededEvents() {
+  try {
+    if (!fs.existsSync(COPILOT_SESSION_STATE_DIR)) {
+      return [];
+    }
+
+    const events = [];
+    const sessionDirs = fs.readdirSync(COPILOT_SESSION_STATE_DIR, { withFileTypes: true });
+    for (const entry of sessionDirs) {
+      if (!entry.isDirectory()) continue;
+      const eventsPath = path.join(COPILOT_SESSION_STATE_DIR, entry.name, "events.jsonl");
+      if (!fs.existsSync(eventsPath)) continue;
+      const content = fs.readFileSync(eventsPath, "utf8");
+      const lines = content.split("\n");
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type !== "guard.tool_denials_exceeded" || !parsed.data || typeof parsed.data !== "object") {
+            continue;
+          }
+          const denialCount = Number.parseInt(String(parsed.data.denialCount), 10);
+          const threshold = Number.parseInt(String(parsed.data.threshold), 10);
+          if (!Number.isFinite(denialCount) || !Number.isFinite(threshold)) {
+            continue;
+          }
+          events.push({
+            denialCount,
+            threshold,
+            reason: typeof parsed.data.reason === "string" ? parsed.data.reason.trim() : "",
+          });
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+    return events;
+  } catch (error) {
+    core.warning(`Failed to load tool-denials-exceeded events: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Build context for max-tool-denials guardrail failures from Copilot SDK events.
+ * @param {Array<{denialCount: number, threshold: number, reason: string}>} events
+ * @param {string} [workflowId]
+ * @returns {string}
+ */
+function buildToolDenialsExceededContext(events, workflowId) {
+  if (!Array.isArray(events) || events.length === 0) {
+    return "";
+  }
+  const latestEvent = events[events.length - 1];
+  const denialCount = String(latestEvent.denialCount);
+  const threshold = String(latestEvent.threshold);
+  const reason = latestEvent.reason || "permission denied by workflow tool permissions";
+
+  try {
+    const templatePath = getPromptPath("tool_denials_exceeded_context.md");
+    const template = fs.readFileSync(templatePath, "utf8");
+    return (
+      "\n" +
+      renderTemplate(template, {
+        denial_count: denialCount,
+        threshold,
+        reason: `\`${reason}\``,
+        workflow_id: workflowId || "the workflow",
+      })
+    );
+  } catch {
+    return (
+      `\n**⚠️ Excessive Tool Denials**: The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.\n\n` +
+      `**Last denied request:** \`${reason}\`\n\n` +
+      "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
     );
   }
 }
@@ -2326,6 +2412,15 @@ async function main() {
       core.info("Missing data report-as-failure is disabled - missing_data signals will not trigger failure handling");
     }
 
+    const engineId = String(process.env.GH_AW_ENGINE_ID || "")
+      .trim()
+      .toLowerCase();
+    const toolDenialsExceededEvents = engineId === "copilot" ? loadToolDenialsExceededEvents() : [];
+    const hasToolDenialsExceeded = toolDenialsExceededEvents.length > 0;
+    if (hasToolDenialsExceeded) {
+      core.info(`Detected ${toolDenialsExceededEvents.length} guard.tool_denials_exceeded event(s) from Copilot SDK events.jsonl`);
+    }
+
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
     // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
     // prompt is referencing an incorrect path inside the cache directory.
@@ -2365,16 +2460,17 @@ async function main() {
       !effectiveTokensRateLimitError &&
       !aiCreditsRateLimitError &&
       !hasMissingTool &&
-      !hasMissingData
+      !hasMissingData &&
+      !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-et/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-et/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
 
-    // If we only have noop outputs (and no report_incomplete or cache-miss or missing-tool/data), skip failure handling
-    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData) {
+    // If we only have noop outputs (and no report_incomplete/cache-miss/missing-tool/data/tool-denials-exceeded), skip failure handling
+    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData && !hasToolDenialsExceeded) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -2463,6 +2559,7 @@ async function main() {
       hasMissingSafeOutputs,
       hasReportIncomplete,
       hasMissingTool,
+      hasToolDenialsExceeded,
       hasMissingData,
       hasCacheMissMisconfiguration,
       secretVerificationFailed: secretVerificationResult === "failed",
@@ -2551,6 +2648,8 @@ async function main() {
 
         // Build permission denied context (denied commands list + fix prompt)
         const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
+        // Build tool-denials-exceeded guard context from events.jsonl
+        const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
@@ -2625,6 +2724,7 @@ async function main() {
           missing_data_context: missingDataContext,
           missing_tool_context: missingToolContext,
           permission_denied_context: permissionDeniedContext,
+          tool_denials_exceeded_context: toolDenialsExceededContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -2770,6 +2870,8 @@ async function main() {
 
         // Build permission denied context (denied commands list + fix prompt)
         const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
+        // Build tool-denials-exceeded guard context from events.jsonl
+        const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
@@ -2843,6 +2945,7 @@ async function main() {
           missing_data_context: missingDataContext,
           missing_tool_context: missingToolContext,
           permission_denied_context: permissionDeniedContext,
+          tool_denials_exceeded_context: toolDenialsExceededContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -2942,6 +3045,8 @@ module.exports = {
   buildMissingDataContext,
   buildMissingToolContext,
   buildPermissionDeniedContext,
+  loadToolDenialsExceededEvents,
+  buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
   hasEngineRateLimit429Signal,

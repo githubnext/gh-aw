@@ -424,6 +424,7 @@ describe("copilot_sdk_driver.cjs", () => {
     it("stops session when permission denials reach max-tool-denials threshold", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
       let sessionConfig;
       const session = {
         sessionId: "session-max-tool-denials",
@@ -466,7 +467,27 @@ describe("copilot_sdk_driver.cjs", () => {
         expect(result.exitCode).toBe(1);
         expect(result.output).toContain("max tool denials threshold reached");
         expect(disconnect).toHaveBeenCalled();
+        const parsedEvents = stderrWriteSpy.mock.calls
+          .map(([message]) => {
+            if (typeof message !== "string" || !message.endsWith("\n")) return null;
+            try {
+              return JSON.parse(message.trimEnd());
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        const toolDenialsEvent = parsedEvents.find(event => event.type === "guard.tool_denials_exceeded");
+        expect(toolDenialsEvent).toMatchObject({
+          type: "guard.tool_denials_exceeded",
+          data: {
+            denialCount: 3,
+            threshold: 3,
+            reason: expect.stringContaining("permission denied"),
+          },
+        });
       } finally {
+        stderrWriteSpy.mockRestore();
         if (oldMaxToolDenials === undefined) {
           delete process.env.GH_AW_MAX_TOOL_DENIALS;
         } else {

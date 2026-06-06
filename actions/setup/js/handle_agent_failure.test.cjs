@@ -846,6 +846,7 @@ describe("handle_agent_failure", () => {
         missing_data_context: "",
         missing_tool_context: "",
         permission_denied_context: "",
+        tool_denials_exceeded_context: "",
         report_incomplete_context: reportIncompleteContext,
         missing_safe_outputs_context: "",
         engine_failure_context: "",
@@ -2136,6 +2137,67 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("go version 2>&1");
       expect(result).toContain("my-workflow");
       expect(result).toContain("Repeated Permission Denied");
+    });
+  });
+
+  describe("tool_denials_exceeded context", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+    let loadToolDenialsExceededEvents;
+    let buildToolDenialsExceededContext;
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      try {
+        fs.rmSync("/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", { recursive: true, force: true });
+      } catch {}
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-tool-denials-exceeded-"));
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ loadToolDenialsExceededEvents, buildToolDenialsExceededContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+      try {
+        fs.rmSync("/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", { recursive: true, force: true });
+      } catch {}
+    });
+
+    it("loads guard.tool_denials_exceeded events from copilot session events.jsonl", () => {
+      const sessionDir = "/tmp/gh-aw/sandbox/agent/logs/copilot-session-state/session-1";
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({ type: "assistant.message", timestamp: "2026-06-06T00:00:00Z", data: { content: "" } }),
+          JSON.stringify({
+            type: "guard.tool_denials_exceeded",
+            timestamp: "2026-06-06T00:00:01Z",
+            data: { denialCount: 5, threshold: 5, reason: "permission denied: read" },
+          }),
+        ].join("\n") + "\n"
+      );
+
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }]);
+    });
+
+    it("renders dedicated context for tool denial threshold events", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
+
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }], "daily-spdd-spec-planner");
+      expect(result).toContain("Excessive Tool Denials");
+      expect(result).toContain("5/5");
+      expect(result).toContain("guard.tool_denials_exceeded");
+      expect(result).toContain("daily-spdd-spec-planner");
     });
   });
 
