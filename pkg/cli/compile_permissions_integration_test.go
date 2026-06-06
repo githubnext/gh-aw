@@ -66,6 +66,7 @@ func TestCompileVulnerabilityAlertsPermissionIncluded(t *testing.T) {
 		if !ok {
 			continue
 		}
+
 		perms, hasPerms := jobMap["permissions"]
 		if !hasPerms {
 			continue
@@ -89,4 +90,33 @@ func TestCompileVulnerabilityAlertsPermissionIncluded(t *testing.T) {
 		"vulnerability-alerts: read should appear at least as often as permission-vulnerability-alerts: read")
 	assert.Greater(t, occurrences, 0,
 		"vulnerability-alerts: read should appear at least once in the lock file")
+}
+
+// TestCompileCopilotCreatePullRequestPermissions compiles the canonical
+// test-copilot-create-pull-request.md workflow file and verifies that
+// create-pull-request safe output configuration is preserved.
+func TestCompileCopilotCreatePullRequestPermissions(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	srcPath := filepath.Join(projectRoot, "pkg/cli/workflows/test-copilot-create-pull-request.md")
+	dstPath := filepath.Join(setup.workflowsDir, "test-copilot-create-pull-request.md")
+
+	srcContent, err := os.ReadFile(srcPath)
+	require.NoError(t, err, "Failed to read source workflow file %s", srcPath)
+	require.NoError(t, os.WriteFile(dstPath, srcContent, 0o644), "Failed to write workflow to test dir")
+
+	cmd := exec.Command(setup.binaryPath, "compile", dstPath)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "CLI compile command failed:\n%s", string(output))
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-copilot-create-pull-request.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContentStr := string(lockContent)
+
+	assert.Contains(t, lockContentStr, "Tools: create_pull_request,",
+		"compiled workflow should include create_pull_request in safe output tools")
+	assert.Contains(t, lockContentStr, "safe_outputs_create_pull_request.md",
+		"compiled workflow should include create-pull-request safe output prompt")
 }

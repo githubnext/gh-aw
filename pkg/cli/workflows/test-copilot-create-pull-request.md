@@ -4,7 +4,11 @@ on:
 permissions:
   pull-requests: read
   contents: read
+  actions: read
 engine: copilot
+safe-outputs:
+  create-pull-request:
+    max: 1
 ---
 
 # Test Copilot Create Pull Request
