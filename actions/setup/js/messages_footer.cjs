@@ -277,11 +277,15 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
+  const metricSuffixes = [];
   if (aiCredits) {
-    defaultFooter += aiCreditsSuffix;
+    metricSuffixes.push(aiCreditsSuffix);
   }
   if (ambientContext) {
-    defaultFooter += envAmbientContextSuffix;
+    metricSuffixes.push(envAmbientContextSuffix);
+  }
+  if (metricSuffixes.length > 0) {
+    defaultFooter += metricSuffixes.join("");
   }
   // Append history link when available
   if (ctx.historyUrl) {
