@@ -222,6 +222,7 @@ describe("parse_token_usage", () => {
       expect(agentUsage.output_tokens).toBe(200);
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
+      expect(agentUsage.ambient_context).toBe(900);
       expect(typeof agentUsage.effective_tokens).toBe("number");
       expect(typeof agentUsage.ai_credits).toBe("number");
       // primary_model is the actual model from token-usage data (not a user alias)
@@ -261,6 +262,10 @@ describe("parse_token_usage", () => {
       if (agentUsage.ai_credits > 0) {
         expect(mockCore.setOutput).toHaveBeenCalledWith("aic", agentUsage.ai_credits.toFixed(3));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", agentUsage.ai_credits.toFixed(3));
+      }
+      if (agentUsage.ambient_context > 0) {
+        expect(mockCore.setOutput).toHaveBeenCalledWith("ambient_context", String(agentUsage.ambient_context));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AMBIENT_CONTEXT", String(agentUsage.ambient_context));
       }
     });
 

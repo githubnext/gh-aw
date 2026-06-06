@@ -141,6 +141,7 @@ async function main() {
       output_tokens: summary.totalOutputTokens,
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
+      ambient_context: Math.round(summary.ambientContextTokens || 0),
       effective_tokens: effectiveTokens,
       ai_credits: Number((summary.totalAIC || 0).toFixed(3)),
       ...(primaryModel ? { primary_model: primaryModel } : {}),
@@ -159,6 +160,12 @@ async function main() {
       core.exportVariable("GH_AW_AIC", aic);
       core.setOutput("aic", aic);
       core.info(`AI Credits: ${aic}`);
+    }
+    if (typeof summary.ambientContextTokens === "number" && summary.ambientContextTokens > 0) {
+      const ambientContext = String(Math.round(summary.ambientContextTokens));
+      core.exportVariable("GH_AW_AMBIENT_CONTEXT", ambientContext);
+      core.setOutput("ambient_context", ambientContext);
+      core.info(`Ambient context: ${ambientContext}`);
     }
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);

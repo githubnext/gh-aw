@@ -406,6 +406,7 @@ Some content here.`;
         expect(mockCore.summary.addDetails).not.toHaveBeenCalledWith("Token Usage", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", expect.any(String));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AMBIENT_CONTEXT", expect.any(String));
         expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;
@@ -1512,6 +1513,7 @@ Some content here.`;
       expect(summary.totalCacheWriteTokens).toBe(3000);
       expect(summary.totalRequests).toBe(1);
       expect(summary.totalDurationMs).toBe(2500);
+      expect(summary.ambientContextTokens).toBe(900);
     });
 
     test("aggregates multiple entries across models", () => {
@@ -1531,6 +1533,7 @@ Some content here.`;
       expect(summary.byModel["claude-sonnet-4-6"].requests).toBe(2);
       expect(summary.byModel["claude-sonnet-4-6"].inputTokens).toBe(15);
       expect(summary.byModel["gpt-4o"].requests).toBe(1);
+      expect(summary.ambientContextTokens).toBe(25);
     });
 
     test("skips malformed lines and still parses valid ones", () => {

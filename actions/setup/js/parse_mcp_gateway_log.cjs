@@ -52,7 +52,7 @@ function formatDurationMs(ms) {
  * Parses token-usage.jsonl content and returns an aggregated summary.
  * Computes effective tokens (ET) per model using merged multipliers, env fallback, then built-in multipliers.
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, byModel: Object, entries: Array} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, ambientContextTokens: number|undefined, byModel: Object, entries: Array} | null}
  */
 function parseTokenUsageJsonl(jsonlContent) {
   const summary = {
@@ -64,6 +64,7 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalDurationMs: 0,
     totalEffectiveTokens: 0,
     totalAIC: 0,
+    ambientContextTokens: undefined,
     byModel: {},
     /** @type {{ model: string, provider: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, reasoningTokens: number, durationMs: number, deltaET: number, deltaAIC: number }[]} */
     entries: [],
@@ -90,6 +91,10 @@ function parseTokenUsageJsonl(jsonlContent) {
       summary.totalCacheWriteTokens += cacheWriteTokens;
       summary.totalRequests++;
       summary.totalDurationMs += durationMs;
+      if (summary.ambientContextTokens === undefined) {
+        const cacheTokens = cacheReadTokens + cacheWriteTokens;
+        summary.ambientContextTokens = inputTokens + cacheTokens / 10;
+      }
 
       const model = entry.model || "unknown";
       summary.byModel[model] ??= {
@@ -231,6 +236,12 @@ function writeStepSummaryWithTokenUsage(coreObj) {
         coreObj.exportVariable("GH_AW_AIC", roundedAIC);
         coreObj.setOutput("aic", roundedAIC);
         coreObj.info(`AI Credits: ${roundedAIC}`);
+      }
+      if (parsedSummary && typeof parsedSummary.ambientContextTokens === "number" && parsedSummary.ambientContextTokens > 0) {
+        const roundedAmbientContext = String(Math.round(parsedSummary.ambientContextTokens));
+        coreObj.exportVariable("GH_AW_AMBIENT_CONTEXT", roundedAmbientContext);
+        coreObj.setOutput("ambient_context", roundedAmbientContext);
+        coreObj.info(`Ambient context: ${roundedAmbientContext}`);
       }
     }
   }
