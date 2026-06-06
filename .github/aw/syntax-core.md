@@ -138,6 +138,8 @@ The YAML frontmatter supports these fields:
 - **`steps:`** - Custom workflow steps before AI execution (object). **Security Notice**: Custom steps run OUTSIDE the firewall sandbox with standard GitHub Actions security but NO network egress controls. Use only for deterministic data preparation, not agentic compute. **Secrets restriction**: Using `${{ secrets.* }}` expressions (other than `secrets.GITHUB_TOKEN`) in custom steps is an error in strict mode and a warning otherwise — move secret-dependent operations to a separate job outside the agent job.
 - **`pre-agent-steps:`** - Custom workflow steps to run before MCP gateway startup (object or array). Use when preparation must install or configure MCP dependencies before the gateway starts. Same security restrictions apply as for `steps:`.
 - **`post-steps:`** - Custom workflow steps after AI execution (object). **Security Notice**: Post-execution steps run OUTSIDE the firewall sandbox. Use only for deterministic cleanup, artifact uploads, or notifications—not agentic compute or untrusted AI execution. Same secrets restriction applies as for `steps:`.
+
+For job-scoped hooks under `jobs.<job-id>`, choose based on timing: `setup-steps` run before framework GitHub App token minting and checkout, while `pre-steps` run after compiler setup and before the job's main work.
 - **`environment:`** - Environment that the job references for protection rules (string or object)
 - **`container:`** - Container to run job steps in (string or object)
 - **`services:`** - Service containers that run alongside the job (object)

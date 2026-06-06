@@ -17,7 +17,8 @@ Only these frontmatter fields are merged when a file is imported:
 | `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, `permissions:`, `runtimes:`, `services:`, `cache:`, `features:` | Deep-merged |
 | `env:` | Merged; duplicate keys → compile error |
 | `github-app:`, `on.github-app:` | First-wins across imports |
-| `steps:`, `pre-steps:`, `pre-agent-steps:`, `post-steps:` | Appended in import order |
+| `steps:`, `pre-agent-steps:`, `post-steps:` | Appended in import order |
+| `jobs.<job-id>.setup-steps`, `jobs.<job-id>.pre-steps` | For each job, imported steps run first, then main workflow steps; `setup-steps` remains separate from `pre-steps` |
 | Markdown body | Appended as prompt instructions |
 
 All other fields (`on:`, `engine:`, `timeout-minutes:`, …) are ignored in imported files.

@@ -62,6 +62,7 @@ When a requested feature increases risk:
 - auto-merge or bypassing review
 - overly broad network access
 - unbounded bash allowlists for untrusted input
+- placing OIDC/secret bootstrap in `pre-steps` instead of earlier `setup-steps`
 - using `post-steps:` for agent-driven write actions
 
 ## Self-Hosted Runner Compatibility

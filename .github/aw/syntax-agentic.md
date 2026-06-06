@@ -245,19 +245,43 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Each job can have: `name`, `runs-on`, `steps`, `needs`, `if`, `env`, `permissions`, `timeout-minutes`, etc.
   - For most agentic workflows, jobs are auto-generated; only specify this for advanced multi-job workflows
   - **Security Notice**: Custom jobs run OUTSIDE the firewall sandbox. Execute with standard GitHub Actions security but NO network egress controls. Use only for deterministic preprocessing, data fetching, or static analysis—not agentic compute or untrusted AI execution.
+  - **`setup-steps:`** - Steps injected before compiler-generated setup, GitHub App token minting, and checkout in a custom or built-in job (array). Use this for OIDC login, secret fetch, and credential bootstrap that must happen before framework token/checkout steps. Imported `setup-steps` run before main workflow `setup-steps`.
   - **`pre-steps:`** - Steps injected after compiler-generated setup and before any `steps:` in a custom or built-in job (array). For built-in jobs (`activation`, `pre_activation`), injected after the `id: setup` step and before the first checkout. Imported `pre-steps` run before main workflow `pre-steps`.
+  - **`setup-steps` vs `pre-steps`** - Use `setup-steps` for pre-token bootstrap work (OIDC/secret retrieval). Use `pre-steps` for steps that should run after compiler setup but before main job work.
   - Example:
 
     ```yaml
     jobs:
       custom-job:
         runs-on: ubuntu-latest
+        setup-steps:
+          - name: Bootstrap credentials
+            run: echo "runs before framework token/checkout setup"
         pre-steps:
           - name: Pre-flight setup
             run: echo "runs before checkout"
         steps:
           - name: Custom step
             run: echo "Custom job"
+    ```
+
+  - Built-in job example (OIDC/secret bootstrap before token minting):
+
+    ```yaml
+    jobs:
+      activation:
+        setup-steps:
+          - name: Configure cloud credentials with OIDC
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: arn:aws:iam::123456789012:role/gh-aw-activation
+              aws-region: us-east-1
+          - name: Fetch bootstrap token
+            id: bootstrap
+            run: echo "token=fetched-value" >> "$GITHUB_OUTPUT"
+        pre-steps:
+          - name: Verify bootstrap token
+            run: test -n "${{ steps.bootstrap.outputs.token }}"
     ```
 
 - **`engine:`** - AI processor configuration
