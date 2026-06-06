@@ -10,7 +10,7 @@ sidebar:
 **Version**: 1.0.0  
 **Status**: Draft Specification  
 **Latest Version**: [bash-command-parser-specification](/gh-aw/specs/bash-command-parser-specification/)  
-**Editor**: GitHub Agentic Workflows Team
+**Editors**: GitHub Agentic Workflows Team
 
 ---
 
@@ -104,6 +104,8 @@ subshell_char  = ? any char not terminating current depth ? ;
 other          = ? any other single char ? ;
 ```
 
+The optional closing quote in `single_quoted` and `double_quoted` is intentional and models malformed-input tolerance; implementations MUST preserve the non-throwing robustness requirement in §4.1 even when quotes are unbalanced.
+
 ### 3.2 Segment Extraction Grammar (EBNF)
 
 ```ebnf
@@ -158,8 +160,8 @@ word           = nonspace , { nonspace } ;
 The parser output is consumed by `copilot_sdk_driver.cjs` in fallback shell-permission logic:
 
 1. If multiple names are extracted (`length > 1`), **all** names MUST satisfy shell identifier rules.
-2. If one name is extracted (`length === 1`), normal single-command matching applies, including exact full-command matching for literal rules that contain spaces.
-3. If no names are extracted (`length === 0`), only exact full-command matching for literal-with-spaces rules is attempted; otherwise deny.
+2. If one name is extracted (`length === 1`), normal single-command matching applies, including exact full-command matching for literal shell rules that contain spaces (for example `ls /tmp`).
+3. If no names are extracted (`length === 0`), only exact full-command matching for shell rules that contain spaces is attempted; otherwise deny.
 4. This preserves default-deny behavior when parsing cannot confidently identify commands.
 
 ---
