@@ -313,7 +313,8 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
 	fakeGH := filepath.Join(fakeBinDir, "gh")
 	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
-	require.NoError(t, os.WriteFile(fakeGH, []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \""+argsLogPath+"\"\nexit 0\n"), 0o755))
+	fakeGHScript := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\nexit 0\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
 
 	originalPath := os.Getenv("PATH")
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)

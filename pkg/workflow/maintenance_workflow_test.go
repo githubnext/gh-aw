@@ -507,8 +507,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "./.github/aw/logs") {
 		t.Errorf("Job forecast_report cache should target ./.github/aw/logs in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "steps.forecast_report_logs_cache.outputs.cache-primary-key") {
-		t.Errorf("Job forecast_report cache save step should use cache primary key output in:\n%s", yaml)
+	if !strings.Contains(yaml, "${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}") {
+		t.Errorf("Job forecast_report cache save step should use the explicit forecast logs cache key in:\n%s", yaml)
 	}
 	if strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500 --artifacts agent") {
 		t.Errorf("Job forecast_report should not pre-download full logs before running forecast in:\n%s", yaml)

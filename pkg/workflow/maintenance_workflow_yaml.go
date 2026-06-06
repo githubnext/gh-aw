@@ -627,7 +627,7 @@ jobs:
         uses: ` + getActionPin("actions/cache/save") + `
         with:
           path: ./.github/aw/logs
-          key: ${{ steps.forecast_report_logs_cache.outputs.cache-primary-key }}
+          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Generate forecast issue
         if: ${{ always() }}

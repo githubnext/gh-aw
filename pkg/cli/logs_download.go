@@ -706,9 +706,10 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			}
 		}
 		if len(dockerBuildArtifacts) > 0 {
+			skipDockerBuildMessage := fmt.Sprintf("Skipping %d .dockerbuild artifact(s) (not valid zip archives): %s", len(dockerBuildArtifacts), strings.Join(dockerBuildArtifacts, ", "))
 			logsDownloadLog.Printf("Found %d .dockerbuild artifact(s) that will be skipped: %v", len(dockerBuildArtifacts), dockerBuildArtifacts)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Skipping %d .dockerbuild artifact(s) (not valid zip archives): %s", len(dockerBuildArtifacts), strings.Join(dockerBuildArtifacts, ", "))))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(skipDockerBuildMessage))
 			}
 		}
 	} else {
