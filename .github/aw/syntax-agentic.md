@@ -279,6 +279,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
               aws-region: us-east-1
           - name: Fetch bootstrap token
             id: bootstrap
+            # Example placeholder; replace with a real secret manager/API call.
             run: echo "token=fetched-value" >> "$GITHUB_OUTPUT"
         pre-steps:
           - name: Verify bootstrap token
