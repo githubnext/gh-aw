@@ -38,9 +38,8 @@ safe-outputs:
   add-comment:
     max: 10
 timeout-minutes: 30
-# Raised above 25M default: meta-orchestrator does deep analysis across all agents.
-# Caveman experiment aims to reduce by ≥20%; set ceiling to catch runaway loops.
-max-ai-credits: 40000000
+# Default AI credit budget for this workflow.
+max-ai-credits: 1500
 experiments:
   prompt_compression:
     variants: [verbose, caveman]

@@ -46,7 +46,7 @@ describe("create_forecast_issue", () => {
     global.github = mockGithub;
   });
 
-  it("renders markdown forecast issue body with pretty ET and source run footnote", async () => {
+  it("renders markdown forecast issue body with pretty AIC and source run footnote", async () => {
     const module = await import("./create_forecast_issue.cjs");
     const body = module.buildForecastIssueBody(
       {
@@ -56,13 +56,13 @@ describe("create_forecast_issue", () => {
             workflow_id: "wf|a",
             sampled_runs: 3,
             monte_carlo: {
-              p50_projected_effective_tokens: 12345.6,
+              p50_projected_aic: 12345.6,
             },
           },
           {
             workflow_id: "wf-b",
             sampled_runs: 5,
-            projected_effective_tokens: 0,
+            projected_aic: 0,
           },
         ],
       },
@@ -75,20 +75,20 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| Workflow | Sampled runs | Forecast ET (P50) |");
+    expect(body).toContain("| Workflow | Sampled runs | Forecast AIC (P50) |");
     expect(body).toContain("| wf\\|a | 3 | 12,346 |");
-    expect(body).toContain("> 1 workflow has sampled runs but forecast ET is 0. This usually indicates missing token usage in cached run summaries for sampled runs.");
+    expect(body).toContain("> 1 workflow has sampled runs but forecast AIC is 0. This usually indicates missing token usage in cached run summaries for sampled runs.");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
   });
 
-  it("adds all-projected-zero diagnostics when every projected ET is zero", async () => {
+  it("adds all-projected-zero diagnostics when every projected AIC is zero", async () => {
     const module = await import("./create_forecast_issue.cjs");
     const body = module.buildForecastIssueBody(
       {
         period: "month",
         workflows: [
-          { workflow_id: "wf-1", sampled_runs: 2, projected_effective_tokens: 0 },
-          { workflow_id: "wf-2", sampled_runs: 0, projected_effective_tokens: 0 },
+          { workflow_id: "wf-1", sampled_runs: 2, projected_aic: 0 },
+          { workflow_id: "wf-2", sampled_runs: 0, projected_aic: 0 },
         ],
       },
       {
@@ -99,7 +99,25 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("All projected ET values are 0 even after cache warm-up.");
+    expect(body).toContain("All projected AIC values are 0 even after cache warm-up.");
+  });
+
+  it("falls back to legacy projected effective token fields when AIC fields are absent", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    const body = module.buildForecastIssueBody(
+      {
+        period: "month",
+        workflows: [{ workflow_id: "wf-legacy", sampled_runs: 2, monte_carlo: { p50_projected_effective_tokens: 9999 } }],
+      },
+      {
+        owner: "octo",
+        repo: "repo",
+        serverUrl: "https://github.com",
+        generatedAtISO: "2026-01-01T00:00:00.000Z",
+      }
+    );
+
+    expect(body).toContain("| wf-legacy | 2 | 9,999 |");
   });
 
   it("creates an error issue when report file is missing", async () => {
