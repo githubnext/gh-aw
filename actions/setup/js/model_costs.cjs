@@ -69,7 +69,8 @@ function normalizeProvider(provider) {
   const normalized = String(provider || "")
     .trim()
     .toLowerCase();
-  return normalized === "github" ? "github-copilot" : normalized;
+  if (normalized === "github" || normalized === "copilot") return "github-copilot";
+  return normalized;
 }
 
 /**
@@ -119,7 +120,16 @@ function findModelPricing(provider, model) {
   const comparableModel = normalizeComparableID(model);
   if (!normalizedModel) return null;
 
-  const fullID = normalizedModel.includes("/") ? normalizedModel : normalizedProvider ? `${normalizedProvider}/${normalizedModel}` : "";
+  // When the model name embeds a provider prefix (e.g., "copilot/claude-sonnet-4.6"),
+  // normalize that embedded prefix so it matches the catalog (e.g., "github-copilot/claude-sonnet-4.6").
+  let fullID;
+  if (normalizedModel.includes("/")) {
+    const slashIdx = normalizedModel.indexOf("/");
+    const embeddedProvider = normalizeProvider(normalizedModel.slice(0, slashIdx));
+    fullID = `${embeddedProvider}/${normalizedModel.slice(slashIdx + 1)}`;
+  } else {
+    fullID = normalizedProvider ? `${normalizedProvider}/${normalizedModel}` : "";
+  }
   const comparableFullID = normalizeComparableID(fullID);
 
   for (const entry of catalog) {
