@@ -111,8 +111,8 @@ Use this map to see where compiler-inserted steps land for each job type.
 
 `jobs.<job-id>` steps run in this order:
 
-1. Compiler host setup (`Configure GH_HOST for enterprise compatibility`)
-2. `jobs.<job-id>.setup-steps`
+1. `jobs.<job-id>.setup-steps`
+2. Compiler host setup (`Configure GH_HOST for enterprise compatibility`)
 3. `jobs.<job-id>.pre-steps`
 4. `jobs.<job-id>.steps`
 
@@ -120,13 +120,13 @@ Use this map to see where compiler-inserted steps land for each job type.
 
 | Job | Step order |
 |---|---|
-| `pre_activation` | Compiler setup checkout/setup → `jobs.pre_activation.setup-steps` → `jobs.pre_activation.pre-steps` → built-in pre-activation steps |
-| `activation` | Compiler setup checkout/setup → `jobs.activation.setup-steps` → `jobs.activation.pre-steps` → built-in activation steps |
-| `agent` | Compiler setup checkout/setup → `jobs.agent.setup-steps` → `jobs.agent.pre-steps` → runtime path setup → top-level `pre-steps` → checkout/token/runtime/custom/agent steps |
-| `safe_outputs` | Compiler setup checkout/setup → `jobs.safe_outputs.setup-steps` → `jobs.safe_outputs.pre-steps` → safe-outputs downloads/prep → GitHub App token minting → safe-output handlers/finalization |
-| `conclusion` | Compiler setup checkout/setup → `jobs.conclusion.setup-steps` → `jobs.conclusion.pre-steps` → built-in conclusion steps (including GitHub App token minting when configured) |
-| `detection` | Compiler setup checkout/setup → `jobs.detection.setup-steps` → `jobs.detection.pre-steps` → built-in detection steps |
-| `unlock` | Compiler setup checkout/setup → `jobs.unlock.setup-steps` → `jobs.unlock.pre-steps` → built-in unlock steps |
+| `pre_activation` | `jobs.pre_activation.setup-steps` → compiler setup checkout/setup → `jobs.pre_activation.pre-steps` → built-in pre-activation steps |
+| `activation` | `jobs.activation.setup-steps` → compiler setup checkout/setup → `jobs.activation.pre-steps` → built-in activation steps |
+| `agent` | `jobs.agent.setup-steps` → compiler setup checkout/setup → `jobs.agent.pre-steps` → runtime path setup → top-level `pre-steps` → checkout/token/runtime/custom/agent steps |
+| `safe_outputs` | `jobs.safe_outputs.setup-steps` → compiler setup checkout/setup → `jobs.safe_outputs.pre-steps` → safe-outputs downloads/prep → GitHub App token minting → safe-output handlers/finalization |
+| `conclusion` | `jobs.conclusion.setup-steps` → compiler setup checkout/setup → `jobs.conclusion.pre-steps` → built-in conclusion steps (including GitHub App token minting when configured) |
+| `detection` | `jobs.detection.setup-steps` → compiler setup checkout/setup → `jobs.detection.pre-steps` → built-in detection steps |
+| `unlock` | `jobs.unlock.setup-steps` → compiler setup checkout/setup → `jobs.unlock.pre-steps` → built-in unlock steps |
 
 Example using `timeout-minutes` and `env`:
 

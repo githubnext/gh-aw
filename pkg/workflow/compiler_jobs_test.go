@@ -1263,7 +1263,7 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 	}
 }
 
-func TestInsertSetupStepsImmediatelyAfterSetup(t *testing.T) {
+func TestInsertSetupStepsAtStart(t *testing.T) {
 	steps := []string{
 		"      - name: Setup Scripts",
 		"        uses: actions/github-script@v7",
@@ -1278,20 +1278,20 @@ func TestInsertSetupStepsImmediatelyAfterSetup(t *testing.T) {
 		"        run: echo setup",
 	}
 
-	got := insertSetupStepsAfterSetupStep(steps, setupSteps)
+	got := insertSetupStepsAtStart(steps, setupSteps)
 	want := []string{
+		"      - name: Setup extension",
+		"        run: echo setup",
 		"      - name: Setup Scripts",
 		"        uses: actions/github-script@v7",
 		"        id: setup",
-		"      - name: Setup extension",
-		"        run: echo setup",
 		"      - name: Set runtime paths",
 		"        run: echo runtime",
 		"      - name: Main work",
 		"        run: echo work",
 	}
 	if !slices.Equal(got, want) {
-		t.Fatalf("insertSetupStepsAfterSetupStep() mismatch\nwant:\n%q\ngot:\n%q", want, got)
+		t.Fatalf("insertSetupStepsAtStart() mismatch\nwant:\n%q\ngot:\n%q", want, got)
 	}
 }
 
@@ -1417,6 +1417,7 @@ jobs:
 	}
 	assertStepOrderInSection(t, customJobSection,
 		"- name: Setup step",
+		"- name: Configure GH_HOST for enterprise compatibility",
 		"- name: Pre step",
 		"- name: Main step",
 	)

@@ -79,7 +79,7 @@ Run builtin pre-step ordering checks.
 
 }
 
-func TestBuiltinJobsSetupStepsRunImmediatelyAfterSetup(t *testing.T) {
+func TestBuiltinJobsSetupStepsRunBeforeCompilerSetup(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "builtin-setup-steps-token-order")
 
 	workflowContent := `---
@@ -147,8 +147,8 @@ jobs:
 		t.Fatal("Expected agent job section")
 	}
 	assertStepOrderInSection(t, agentSection,
-		"id: setup",
 		"- name: Agent setup-step",
+		"id: setup",
 		"- name: Agent pre-step",
 		"- name: Set runtime paths",
 	)
@@ -158,8 +158,8 @@ jobs:
 		t.Fatal("Expected safe_outputs job section")
 	}
 	assertStepOrderInSection(t, safeOutputsSection,
-		"id: setup",
 		"- name: Safe outputs setup-step",
+		"id: setup",
 		"- name: Safe outputs pre-step",
 		"- name: Generate GitHub App token",
 	)
@@ -169,8 +169,8 @@ jobs:
 		t.Fatal("Expected conclusion job section")
 	}
 	assertStepOrderInSection(t, conclusionSection,
-		"id: setup",
 		"- name: Conclusion setup-step",
+		"id: setup",
 		"- name: Conclusion pre-step",
 		"- name: Generate GitHub App token",
 	)

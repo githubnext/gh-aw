@@ -959,8 +959,9 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
 	// Add basic steps if specified (only for non-reusable workflow jobs).
-	// `setup-steps` and `pre-steps` stay distinct so setup-steps can run before
-	// pre-steps while both still precede the regular `steps` list.
+	// `setup-steps` and `pre-steps` stay distinct so setup-steps can remain the
+	// first injected steps in the job, followed by compiler scaffolding,
+	// `pre-steps`, and the regular `steps` list.
 	var setupSteps []string
 	var preSteps []string
 	var regularSteps []string
@@ -991,12 +992,12 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 	}
 
 	if hasSetupStepsField || hasPreStepsField || hasStepsField {
+		job.Steps = append(job.Steps, setupSteps...)
 		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
 		// Custom frontmatter jobs run as independent GitHub Actions jobs that
 		// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
 		// know which host to target without this step.
 		job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
-		job.Steps = append(job.Steps, setupSteps...)
 		job.Steps = append(job.Steps, preSteps...)
 		job.Steps = append(job.Steps, regularSteps...)
 	}
@@ -1071,49 +1072,23 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		}
 
 		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
-		job.Steps = insertSetupStepsAfterSetupStep(job.Steps, setupSteps)
+		job.Steps = insertSetupStepsAtStart(job.Steps, setupSteps)
 		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
 	}
 
 	return nil
 }
 
-// insertSetupStepsAfterSetupStep places setup-steps immediately after the
-// compiler-generated setup step when present. If a job has no setup step (for
-// example, in tests or future callers), it falls back to the same earliest
-// token/checkout boundary used for pre-steps so setup-steps still run before the
-// main job work begins.
-func insertSetupStepsAfterSetupStep(steps []string, setupSteps []string) []string {
+// insertSetupStepsAtStart places setup-steps at the start of the job so they
+// run before any compiler-generated setup, checkout, or token-mint steps.
+func insertSetupStepsAtStart(steps []string, setupSteps []string) []string {
 	if len(setupSteps) == 0 {
 		return steps
 	}
 
-	lastSetupIdx := -1
-	for i, step := range steps {
-		if exactSetupStepIDPattern.MatchString(step) {
-			lastSetupIdx = i
-		}
-	}
-	if lastSetupIdx == -1 {
-		return insertPreStepsAtEarliestBoundary(steps, setupSteps)
-	}
-
-	insertIdx := len(steps)
-	for i := lastSetupIdx + 1; i < len(steps); i++ {
-		trimmed := strings.TrimLeft(steps[i], " ")
-		if strings.HasPrefix(trimmed, "- ") {
-			insertIdx = i
-			break
-		}
-	}
-	if insertIdx == len(steps) {
-		compilerJobsLog.Print("No step boundary found after setup step; appending setup-steps at end")
-	}
-
 	result := make([]string, 0, safeAllocationCapacity(len(steps), len(setupSteps)))
-	result = append(result, steps[:insertIdx]...)
 	result = append(result, setupSteps...)
-	result = append(result, steps[insertIdx:]...)
+	result = append(result, steps...)
 	return result
 }
 
