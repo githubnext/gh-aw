@@ -56,10 +56,10 @@ The diff highlights changes in AI credits, tool calls, and safe outputs between 
 
 ```bash
 gh aw audit <run-id>
-cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/ai-credit-usage.jsonl
+cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/*.jsonl
 ```
 
-Each line is one API call with `model`, `input_ai_credits`, `output_ai_credits`, `cache_read_ai_credits`, and `cache_write_ai_credits` — useful for finding the most expensive calls.
+Each line is one API call with model and usage fields that can be rolled up into AI credit totals — useful for finding the most expensive calls.
 
 ---
 
