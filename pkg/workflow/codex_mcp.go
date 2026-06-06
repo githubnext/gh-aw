@@ -37,7 +37,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	// Build the heredoc content into a temporary buffer so we can derive the
-	// delimiter from its hash before writing it to the YAML output.
+	// delimiter from a SHA-256 hash of the content before writing it to the YAML output.
 	var mcpConfigContent strings.Builder
 
 	// Add history configuration to disable persistence
@@ -133,7 +133,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          # Sync converter output to writable CODEX_HOME for Codex\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 
-	// Build the shell-policy heredoc content into a temp buffer to derive a stable delimiter.
+	// Build the shell-policy heredoc content into a temp buffer so the delimiter
+	// can be derived from a SHA-256 hash of the content for build stability.
 	var shellPolicyContent strings.Builder
 	if isFirewallEnabled(workflowData) {
 		e.renderOpenAIProxyProviderToml(&shellPolicyContent, "          ")
