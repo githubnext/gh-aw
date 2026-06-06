@@ -146,6 +146,8 @@ experiments:
 
 # Smoke Test: Copilot Engine Validation (AOAI apikey BYOK)
 
+> **⚡ EXECUTE IMMEDIATELY**: You are the test runner. Begin executing the tests below right now using bash and the available tools. Do NOT analyze the task, do NOT propose creating files, do NOT say "no action needed". Your first action MUST be a real tool call (bash, GitHub MCP, or safeoutputs). Jump directly to the "Tests to Execute" section and start with test 1.
+
 This variant routes the Copilot engine through Azure OpenAI (AOAI) using BYOK
 mode with an API key, via the `FOUNDRY_API_KEY` and `FOUNDRY_OPENAI_ENDPOINT`
 secrets wired into `engine.env`.
@@ -181,9 +183,9 @@ Run `<server> --help` to list all available tools for a server, or `<server> <to
 
 These are **not** MCP protocol tools — they are bash executables. Call them with the `bash` tool only.
 
-## Test Requirements
+## Tests to Execute
 
-Run these checks and mark each as ✅/❌:
+Run each check NOW and mark as ✅/❌. Do NOT create files to automate this — execute directly using bash and tools:
 
 1. GitHub MCP: review 2 merged PRs in `${{ github.repository }}`.
 2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
