@@ -29,8 +29,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Top-level field mapped to `apiProxy.maxRuns`
   - Supported by all engines
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
-- **`max-ai-credits:`** - Per-run effective-token (ET) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `25000000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
-- **`max-daily-ai-credits:`** - Per-user 24-hour ET guardrail: activation blocks execution once the triggering user's aggregated ET for this workflow over the last 24h exceeds the threshold (integer or `K`/`M` short-form string, or `-1`). Enabled by default with a system default threshold; set `-1` to disable or an explicit value to override. See [token-optimization.md](token-optimization.md).
+- **`max-ai-credits:`** - Per-run AI credit budget enforced by the AWF firewall (integer; typical range: `500` to `10000`; default: `1000`). `1 AI credit = $0.01`. Set a negative value to disable enforcement and steering. See [token-optimization.md](token-optimization.md).
+- **`max-daily-ai-credits:`** - Per-user 24-hour AI credit guardrail: activation blocks execution once the triggering user's aggregated AI credits for this workflow over the last 24h exceeds the threshold (integer or `-1`). Set `-1` to disable or an explicit value to override. See [token-optimization.md](token-optimization.md).
 - **`user-rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
   - **`max-runs-per-window:`** - Maximum runs allowed per user per time window (required, integer 1-10)
   - **`window:`** - Time window in minutes (integer 1-180, default: 60)
@@ -76,7 +76,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         start_date: "2026-05-01"    # Optional: ISO-8601; returns control variant before this date
         end_date: "2026-06-01"      # Optional: ISO-8601; returns control variant after this date
         description: "Verbosity test"  # Optional: experiment description
-        metric: "token_count"       # Optional: primary metric name
+        metric: "ai_credits"       # Optional: primary metric name
         issue: "42"                 # Optional: linked tracking issue number
     ```
 
@@ -166,7 +166,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
     ```
 
-    Every job emits setup and conclusion spans with rich attributes (`gh-aw.job.name`, `gh-aw.workflow.name`, `gh-aw.engine.id`, token usage). All jobs in a run share one trace ID. Dispatched child workflows inherit the parent's trace context via `aw_context`.
+    Every job emits setup and conclusion spans with rich attributes (`gh-aw.job.name`, `gh-aw.workflow.name`, `gh-aw.engine.id`, AI credit usage). All jobs in a run share one trace ID. Dispatched child workflows inherit the parent's trace context via `aw_context`.
 
 - **`runtimes:`** - Runtime environment version overrides (object)
   - Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes
@@ -283,11 +283,11 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       config: |                         # Optional: additional TOML config appended to config.toml (codex engine only)
         [extra]
         key = "value"
-      token-weights:                    # Optional: custom token cost weights for effective token computation
+      token-weights:                    # Optional: custom AI credit weights for AI credit computation
         multipliers:
           my-custom-model: 2.5          # 2.5x the cost of claude-sonnet-4.5 (= 1.0)
         token-class-weights:
-          output: 6.0                   # Override output token weight (default: 4.0)
+          output: 6.0                   # Override output AI credit weight (default: 4.0)
           cached-input: 0.05            # Override cached input weight (default: 0.1)
     ```
 
@@ -420,7 +420,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     ```yaml
     tools:
       playwright:
-        mode: cli          # recommended: token-efficient CLI mode
+        mode: cli          # recommended: AI credit-efficient CLI mode
         version: "0.1.11"  # optional: @playwright/cli npm package version
     ```
   - Custom tool names for MCP servers

@@ -60,7 +60,7 @@ gh aw logs <workflow-name> --json
 Focus on:
 
 - failures and warnings
-- token usage
+- AI credit usage
 - missing tool reports
 - execution time
 - repeated failure patterns
@@ -97,7 +97,7 @@ Inspect these when available:
 - `run_summary.json`
 - `agent-stdio.log`
 - `safe_outputs.jsonl`
-- token-usage artifacts under the firewall audit logs
+- AI-credit usage artifacts under the firewall audit logs
 
 ## Diagnostic Checklist
 
@@ -106,7 +106,7 @@ Inspect these when available:
 - network allowlist problems
 - prompt ambiguity or lack of context
 - timeout pressure
-- unnecessary token consumption
+- unnecessary AI credit consumption
 - safe-output validation failures
 
 ## Workflow-Internal Use of `gh aw`

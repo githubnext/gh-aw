@@ -1,8 +1,8 @@
 ---
-description: Guide for reducing token consumption in agentic workflows — DataOps, gh-proxy, inline sub-agents, caveman experiments, and audit-based measurement.
+description: Guide for reducing AI credit consumption in agentic workflows — DataOps, gh-proxy, inline sub-agents, caveman experiments, and audit-based measurement.
 ---
 
-# Token Consumption Optimization
+# AI Credit Consumption Optimization
 
 ## Quick-Reference Checklist
 
@@ -17,13 +17,14 @@ Apply these in order — each check can halve costs:
 - [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
 - [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
-- [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
-- [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
-- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
+- [ ] **Telemetry**: Configure `observability.otlp` so AI credit usage and run phases are measurable outside individual run logs
+- [ ] **AgenticOps**: Add `copilot-ai-credit-audit` / `copilot-ai-credit-optimizer` workflows so the repository keeps finding waste automatically
+- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "ai_credits"` before promoting
+- [ ] **Cost model**: Use AI credits for optimization decisions (1 AI credit = $0.01; typical run range: 500 to 10,000 AI credits; default: 1,000)
 
 ---
 
-## How to Measure Token Usage
+## How to Measure AI Credit Usage
 
 ### Single-run audit
 
@@ -33,9 +34,9 @@ gh aw audit <run-id> --json
 
 Key fields in the output:
 
-- `agent_usage.effective_tokens` — the normalized cost metric (accounts for model price differences and cache discounts)
-- `agent_usage.input_tokens` / `agent_usage.output_tokens` — raw token counts
-- `agent_usage.cache_read_tokens` / `agent_usage.cache_write_tokens` — tokens served from the prompt cache
+- `agent_usage.ai_credits` — normalized AI credit metric for run cost reporting
+- `agent_usage.input_ai_credits` / `agent_usage.output_ai_credits` — directional AI credit counts
+- `agent_usage.cache_read_ai_credits` / `agent_usage.cache_write_ai_credits` — AI credits served from the prompt cache
 
 Equivalent via MCP: `audit` tool with `run_id: <run-id>`.
 
@@ -47,24 +48,24 @@ gh aw audit <base-run-id> <optimized-run-id> --json
 gh aw audit <base-run-id> <variant-a-run-id> <variant-b-run-id> --json
 ```
 
-The diff highlights changes in effective tokens, tool calls, and safe outputs between runs. Equivalent via MCP: `audit` tool with `run_ids_or_urls: ["<base-run-id>", "<optimized-run-id>"]`.
+The diff highlights changes in AI credits, tool calls, and safe outputs between runs. Equivalent via MCP: `audit` tool with `run_ids_or_urls: ["<base-run-id>", "<optimized-run-id>"]`.
 
-### Per-request token detail
+### Per-request AI credit detail
 
 `gh aw audit <run-id>` downloads all artifacts into `logs/run-<run-id>/`. Read the per-call breakdown from there:
 
 ```bash
 gh aw audit <run-id>
-cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/token-usage.jsonl
+cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/ai-credit-usage.jsonl
 ```
 
-Each line is one API call with `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens` — useful for finding the most expensive calls.
+Each line is one API call with `model`, `input_ai_credits`, `output_ai_credits`, `cache_read_ai_credits`, and `cache_write_ai_credits` — useful for finding the most expensive calls.
 
 ---
 
 ## Technique 1 — DataOps: Move Compute to Steps
 
-**The single biggest optimization.** Replace agentic data fetching with deterministic shell commands in `steps:`. Shell steps run outside the AI sandbox (no tokens) and produce structured output the agent reads directly.
+**The single biggest optimization.** Replace agentic data fetching with deterministic shell commands in `steps:`. Shell steps run outside the AI sandbox (no AI credits) and produce structured output the agent reads directly.
 
 ### Before (agent does all the work)
 
@@ -119,7 +120,7 @@ Read the pre-computed stats at `/tmp/gh-aw/data/stats.json` and `/tmp/gh-aw/data
 Create a concise weekly PR summary discussion.
 ```
 
-Shell steps run outside the AI sandbox (zero tokens); the agent only reads compact aggregated JSON.
+Shell steps run outside the AI sandbox (zero AI credits); the agent only reads compact aggregated JSON.
 
 **Best practices:**
 
@@ -176,7 +177,7 @@ Sub-agents with `model: small` cost 10–20× less than the parent model. Use th
 ### Pattern
 
 ```
-steps:        → deterministic shell (zero AI tokens)
+steps:        → deterministic shell (zero AI credits)
 sub-agents:   → small model per item (cheap, parallelizable)
 main agent:   → synthesizes compact sub-agent results (one high-quality pass)
 ```
@@ -225,7 +226,7 @@ Read the JSON file provided. Return only:
 Nothing else.
 ```
 
-**Why this saves tokens:** sub-agents run on the cheap `small` model; the main agent only reads compact `{"number":…, "category":…}` JSON; sub-agent dispatches can run in parallel.
+**Why this saves AI credits:** sub-agents run on the cheap `small` model; the main agent only reads compact `{"number":…, "category":…}` JSON; sub-agent dispatches can run in parallel.
 
 **Sub-agent model aliases:**
 
@@ -258,7 +259,7 @@ List open issues by priority. Top 5 critical items. Be brief.
 {{/if}}
 ```
 
-Measure `effective_tokens` in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer tokens at acceptable quality, promote it as the baseline.
+Measure `ai_credits` in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer AI credits at acceptable quality, promote it as the baseline.
 
 ---
 
@@ -271,7 +272,7 @@ experiments:
   optimization_v1:
     variants: [control, optimized]
     description: "DataOps refactor — move issue fetching to steps:"
-    metric: "effective_tokens"
+    metric: "ai_credits"
     issue: "123"
 ```
 
@@ -288,10 +289,10 @@ Fetch open issues from ${{ github.repository }} using the GitHub tools.
 **After enough runs:**
 
 1. Compare variants using `gh aw audit <control-run-id> <optimized-run-id>`
-2. Check effective token deltas in the diff output
+2. Check AI credit deltas in the diff output
 3. If the optimized variant wins, rewrite the baseline prompt and remove the `experiments:` field
 
-**Key experiment dimensions for token optimization:**
+**Key experiment dimensions for AI credit optimization:**
 
 | Dimension | Example variants |
 |---|---|
@@ -317,17 +318,17 @@ The cheapest run is the one you don't execute. If a workflow doesn't need near-r
 
 ### Prefer scheduled batches over reactive triggers
 
-Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule: daily on weekdays` and batch work. Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, security digests. Combine with `cache-memory` or `repo-memory` to track processed items so each run only handles new ones.
+Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule: daily on weekdays` and batch work. Typical batch-friendly tasks: triage summaries, stale backlog review, AI credit audits, security digests. Combine with `cache-memory` or `repo-memory` to track processed items so each run only handles new ones.
 
 ---
 
 ## Technique 7 — Measure Continuously with OpenTelemetry and AgenticOps
 
-Export telemetry automatically and add workflows that keep finding token waste over time.
+Export telemetry automatically and add workflows that keep finding AI credit waste over time.
 
 ### Enable OTLP export
 
-Add workflow-level OpenTelemetry export so each run emits token and phase data to your observability backend:
+Add workflow-level OpenTelemetry export so each run emits AI credit and phase data to your observability backend:
 
 ```yaml
 observability:
@@ -336,12 +337,12 @@ observability:
     headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 ```
 
-Setup, agent, and conclusion spans carry token usage attributes — compare runs over time and validate optimizations post-rollout. See [Frontmatter syntax](syntax.md#observability).
+Setup, agent, and conclusion spans carry AI credit usage attributes — compare runs over time and validate optimizations post-rollout. See [Frontmatter syntax](syntax.md#observability).
 
-### Add AgenticOps token workflows
+### Add AgenticOps AI credit workflows
 
-- `copilot-token-audit` — scheduled audit of token usage across workflows
-- `copilot-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
+- `copilot-ai-credit-audit` — scheduled audit of AI credit usage across workflows
+- `copilot-ai-credit-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
 
 Loop: export OTEL → summarize usage → open optimization issues → re-measure. See `.github/workflows/` for examples.
 
@@ -349,7 +350,7 @@ Loop: export OTEL → summarize usage → open optimization issues → re-measur
 
 ## Technique 8 — Enable Prompt Caching
 
-Prompt caching is automatic via the AWF gateway. Cached input tokens are weighted at `0.1` versus `1.0` for uncached input — repeated context (system prompt, shared preamble) costs ~10× less when cached.
+Prompt caching is automatic via the AWF gateway. Cached input AI credits are weighted at `0.1` versus `1.0` for uncached input — repeated context (system prompt, shared preamble) costs ~10× less when cached.
 
 To maximize cache hits:
 

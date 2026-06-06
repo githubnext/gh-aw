@@ -1,6 +1,6 @@
 # Workflow Performance Engineering Guide
 
-This guide helps you optimize agentic workflow execution efficiency, focusing on token usage, execution time, and cost reduction.
+This guide helps you optimize agentic workflow execution efficiency, focusing on AI credit usage, execution time, and cost reduction.
 
 ## Quick Performance Checks
 
@@ -17,24 +17,25 @@ gh aw logs --start-date -1w -o /tmp/gh-aw/agent/perf/
 
 ## Performance Targets
 
-- **Average tokens per run**: < 200k (current baseline: ~481k)
+- **Cost model**: 1 AI credit = $0.01
+- **Average AI credits per run**: 500 to 10,000 (default: 1,000; current baseline: ~4,810)
 - **Average cost per run**: < $0.15 (current baseline: ~$0.30)
 - **Execution time**: 2-5 minutes for typical workflows
 - **Tool call efficiency**: 30% reduction in redundant calls
 
 ## Common Performance Bottlenecks
 
-### 1. Excessive Token Usage from API Calls
+### 1. Excessive AI Credit Usage from API Calls
 
-**Problem**: Large API responses (especially `pull_request_read`) consume excessive tokens.
+**Problem**: Large API responses (especially `pull_request_read`) consume excessive AI credits.
 
-**Example Issue**: Workflow using 481k tokens, 60-70% in API responses.
+**Example Issue**: Workflow using 4,810 AI credits, 60-70% in API responses.
 
 **Measurement**:
 ```bash
-# Analyze token distribution in logs
+# Analyze AI credit distribution in logs
 gh aw logs workflow-name -c 1 -o /tmp/gh-aw/agent/logs/
-grep -R -i "token" /tmp/gh-aw/agent/logs/
+grep -R -i "ai credit\|credit_usage" /tmp/gh-aw/agent/logs/
 ```
 
 **Optimization Strategy**:
@@ -62,7 +63,7 @@ on:
 Use the github tool to get full issue details with all fields.
 ```
 
-**Impact**: 60-70% token reduction (481k → 150k tokens)
+**Impact**: 60-70% AI credit reduction (4,810 → 1,500 AI credits)
 **Cost Savings**: ~$0.15 per run, $90-100 annually at 500 runs/year
 
 ### 2. Redundant Tool Calls and Context Fetching
@@ -143,12 +144,12 @@ Search for "func Init" in src/ directory first, then read only that function.
 
 **✗ Avoid Full File Dumps**:
 ```markdown
-Read all files in the src/ directory.  # BAD - excessive tokens
+Read all files in the src/ directory.  # BAD - excessive AI credits
 ```
 
 ## Performance Optimization Techniques
 
-### Token-Efficient Prompt Design
+### AI Credit-Efficient Prompt Design
 
 **✓ Good Prompt Structure**:
 ```markdown
@@ -189,12 +190,12 @@ tools:
 **✗ Over-permissive Tools**:
 ```yaml
 tools:
-  github:  # Grants all GitHub tools - increases token usage in tool list
+  github:  # Grants all GitHub tools - increases AI credit usage in tool list
   web-fetch:  # Unnecessary if not fetching web content
   web-search:  # Unnecessary if not searching
 ```
 
-**Impact**: Smaller tool list in system prompt = fewer tokens per turn
+**Impact**: Smaller tool list in system prompt = fewer AI credits per turn
 
 ### Caching Strategies
 
@@ -265,7 +266,7 @@ steps:
 gh aw logs workflow-name -c 5
 
 # Analyze logs for:
-# - Total tokens used
+# - Total AI credits used
 # - Number of turns
 # - Execution time
 # - Cost estimate
@@ -275,12 +276,12 @@ gh aw logs workflow-name -c 5
 
 ```bash
 # Look for:
-# - Large API responses (>10k tokens)
+# - Large API responses (>100 AI credits)
 # - Repeated tool calls
 # - Unnecessary file reads
 # - Redundant context fetching
 
-grep -i "tokens" logs/*.log | sort -t: -k2 -rn | head -20
+grep -i "ai_credits" logs/*.log | sort -t: -k2 -rn | head -20
 ```
 
 ### 3. Apply Optimization
@@ -312,35 +313,35 @@ gh aw logs workflow-name -c 5
 # Verify all required actions complete
 ```
 
-## Token Usage Patterns
+## AI Credit Usage Patterns
 
-### High-Value Token Spending
+### High-Value AI Credit Spending
 
-✓ **Worth the tokens**:
+✓ **Worth the AI credits**:
 - Actual work (code changes, analysis, writing)
 - Necessary GitHub API operations
 - Critical tool executions
 - User-facing output
 
-✗ **Wasteful token spending**:
+✗ **Wasteful AI credit spending**:
 - Re-fetching already available context
 - Reading entire files when only excerpt needed
 - Repeated identical API calls
 - Verbose debug output in production
 
-### Cost Calculation
+### AI Credit Cost Model
 
 ```
-Tokens per run: 200,000
-Cost per 1M tokens (input): ~$0.30
-Cost per 1M tokens (output): ~$0.60
-Average cost per run: ~$0.15
+AI credits per run: 1,000 (default)
+Typical range: 500 to 10,000 AI credits
+1 AI credit = $0.01
+Average cost per run: ~$10.00
 
-Annual cost (500 runs): ~$75
+Annual cost (500 runs): ~$5,000
 ```
 
 **Optimization Impact**:
-- 60% token reduction: Save ~$45/year
+- 60% AI credit reduction: Save ~60% of run cost
 - 30% turn reduction: Save ~$20/year
 - Combined: ~$65/year savings
 
@@ -377,7 +378,7 @@ Summarize the above issue content.
 Read all files in the repository to understand the project structure.
 ```
 
-**Problem**: Massive token usage, slow execution, expensive.
+**Problem**: Massive AI credit usage, slow execution, expensive.
 
 **Solution**:
 ```markdown
@@ -389,9 +390,9 @@ List files in src/ to see structure (don't read all).
 
 Before committing workflow performance changes:
 
-- [ ] Measure baseline token usage: `gh aw logs -c 5`
+- [ ] Measure baseline AI credit usage: `gh aw logs -c 5`
 - [ ] Apply optimization (context text, caching, pre-steps)
-- [ ] Measure optimized token usage
+- [ ] Measure optimized AI credit usage
 - [ ] Calculate improvement % and cost savings
 - [ ] Test workflow completes successfully
 - [ ] Verify output quality unchanged
@@ -399,13 +400,13 @@ Before committing workflow performance changes:
 
 ## Troubleshooting
 
-### Problem: Workflow uses too many tokens
+### Problem: Workflow uses too many AI credits
 
 **Diagnosis**:
 ```bash
-# Analyze token distribution
+# Analyze AI credit distribution
 gh aw logs workflow-name -c 1
-grep -A5 "token_usage" logs/*.log
+grep -A5 "ai_credit_usage" logs/*.log
 ```
 
 **Solution**:
@@ -432,18 +433,18 @@ grep "turn" logs/*.log | wc -l
 **Diagnosis**:
 ```bash
 # Calculate cost from logs
-# Input tokens * $0.30/1M + Output tokens * $0.60/1M
+# AI credits * $0.01
 ```
 
 **Solution**:
-1. Apply token reduction techniques
+1. Apply AI credit reduction techniques
 2. Reduce max-turns if workflow is looping
 3. Optimize tool selection
 4. Use caching aggressively
 
 ## Resources
 
-- Issue #1728: Token usage optimization case study (481k → 150k)
+- Issue #1728: AI credit optimization case study (4,810 → 1,500)
 - Issue #2012: Workflow performance analysis patterns
 - `gh aw logs` documentation: Analyzing workflow execution
 - Sanitized context text: Using `steps.sanitized.outputs.text`

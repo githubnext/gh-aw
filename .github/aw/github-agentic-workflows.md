@@ -72,7 +72,7 @@ See also: [workflow-constraints.md](workflow-constraints.md)
 | Imports and shared components | [reuse.md](reuse.md) |
 | Sub-agents | [subagents.md](subagents.md) |
 | Skills | [skills.md](skills.md) |
-| Token cost optimization | [token-optimization.md](token-optimization.md) |
+| AI credit cost optimization | [token-optimization.md](token-optimization.md) |
 | GitHub MCP server configuration | [github-mcp-server.md](github-mcp-server.md) |
 | Campaign and KPI patterns | [campaign.md](campaign.md) |
 | Experiments and A/B testing | [experiments.md](experiments.md) |
