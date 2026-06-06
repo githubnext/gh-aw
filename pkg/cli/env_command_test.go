@@ -160,7 +160,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a non-zero integer when set")
-		assert.Contains(t, err.Error(), "default_max_ai_credits must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_max_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_daily_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")

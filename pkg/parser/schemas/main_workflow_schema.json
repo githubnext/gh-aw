@@ -3709,7 +3709,7 @@
     "max-ai-credits": {
       "$ref": "#/$defs/max_ai_credits_limit",
       "default": 1000,
-      "description": "Per-run AI Credits budget control for firewall cost enforcement. Defaults to 1000 when omitted. Supports GitHub Actions expressions."
+      "description": "Per-run AI Credits budget control for firewall cost enforcement. Defaults to 1000 when omitted. Set to -1 to disable both budget enforcement and token steering. Supports GitHub Actions expressions."
     },
     "max-daily-effective-tokens": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
@@ -10554,8 +10554,20 @@
       ]
     },
     "max_ai_credits_limit": {
-      "description": "Maximum AI Credits budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions).",
-      "$ref": "#/$defs/positive_ai_credits_limit"
+      "description": "Maximum AI Credits budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable both budget enforcement and token steering.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/positive_ai_credits_limit"
+        },
+        {
+          "type": "integer",
+          "const": -1
+        },
+        {
+          "type": "string",
+          "pattern": "^-1$"
+        }
+      ]
     },
     "job_strategy": {
       "type": "object",

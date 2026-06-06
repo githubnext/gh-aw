@@ -582,6 +582,41 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsZeroIn
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsNegativeAllowed(t *testing.T) {
+	t.Parallel()
+
+	for name, raw := range map[string]any{
+		"integer": -1,
+		"string":  "-1",
+	} {
+		t.Run(name, func(t *testing.T) {
+			validFrontmatter := map[string]any{
+				"on":             "push",
+				"max-ai-credits": raw,
+			}
+
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-ai-credits-negative-"+name+"-test.md")
+			if err != nil {
+				t.Fatalf("expected max-ai-credits=%v (%s) to pass schema validation, got: %v", raw, name, err)
+			}
+		})
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsOtherNegativeRejected(t *testing.T) {
+	t.Parallel()
+
+	invalidFrontmatter := map[string]any{
+		"on":             "push",
+		"max-ai-credits": -5,
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-ai-credits-negative-other-test.md")
+	if err == nil {
+		t.Fatal("expected max-ai-credits=-5 to fail schema validation (only -1 is the disable sentinel)")
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensNegativeAllowed(t *testing.T) {
 	t.Parallel()
 

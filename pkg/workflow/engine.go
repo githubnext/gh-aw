@@ -515,7 +515,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		}
 	}
 
-	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxAICredits > 0 || topLevelMaxRuns > 0 {
+	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxAICredits != 0 || topLevelMaxRuns > 0 {
 		return "", &EngineConfig{
 			MaxTurns:           topLevelMaxTurns,
 			MaxToolDenials:     topLevelMaxToolDenials,

@@ -28,24 +28,18 @@ func parseMaxEffectiveTokensValue(raw any) int64 {
 // parseMaxAICreditsValue parses max-ai-credits from either integer
 // or numeric-string frontmatter values.
 //
-// A return value of 0 is a sentinel that means "not configured" (missing or invalid).
+// A return value of 0 is a sentinel that means "not configured" (missing or
+// invalid); explicit zero is not a valid user value. Negative values (-1) are
+// passed through as-is and signal that budget enforcement and token steering
+// should be disabled.
 func parseMaxAICreditsValue(raw any) int64 {
-	normalized, ok := normalizePositiveEffectiveTokenLimit(raw)
-	if !ok {
-		if raw != nil {
-			engineLog.Printf("Ignoring invalid max-ai-credits value of type %T: %v", raw, raw)
-		}
-		return 0
+	if parsed, ok := parseMaxEffectiveTokenLimitValue(raw); ok {
+		return parsed
 	}
-
-	parsed, err := strconv.ParseInt(normalized, 10, 64)
-	if err != nil || parsed <= 0 {
-		if raw != nil {
-			engineLog.Printf("Ignoring invalid max-ai-credits value of type %T: %v", raw, raw)
-		}
-		return 0
+	if raw != nil {
+		engineLog.Printf("Ignoring invalid max-ai-credits value of type %T: %v", raw, raw)
 	}
-	return parsed
+	return 0
 }
 
 // parseMaxRunsValue parses max-runs from either integer or numeric-string

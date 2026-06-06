@@ -87,8 +87,15 @@ func ResolveDefaultMaxDailyAICredits(fallback string) string {
 // ResolveDefaultMaxAICredits returns the resolved max AI credits default, checking
 // the enterprise env var GH_AW_DEFAULT_MAX_AI_CREDITS.
 // Falls back to fallback (built-in default) when the env var is unset or invalid.
+//
+// A value of -1 is preserved and signals that budget enforcement and token
+// steering should be disabled when no per-workflow value is configured.
 func ResolveDefaultMaxAICredits(fallback int64) int64 {
 	if raw := strings.TrimSpace(os.Getenv(DefaultMaxAICredits)); raw != "" {
+		if raw == "-1" {
+			managerLog.Printf("Applying enterprise override %s=%q (fallback was %d)", DefaultMaxAICredits, raw, fallback)
+			return -1
+		}
 		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
 			parsed, err := strconv.ParseInt(normalized, 10, 64)
 			if err == nil && parsed > 0 {

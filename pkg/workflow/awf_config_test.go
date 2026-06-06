@@ -180,6 +180,27 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"maxEffectiveTokens"`, "apiProxy should omit maxEffectiveTokens when negative (disabled)")
 	})
 
+	t.Run("token steering is disabled when max-ai-credits is negative", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					MaxAICredits: -1,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"enableTokenSteering"`, "apiProxy should omit enableTokenSteering when max-ai-credits is negative")
+		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "apiProxy should omit maxAiCredits when negative (disabled)")
+	})
+
 	t.Run("token steering is skipped for unsupported AWF versions", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

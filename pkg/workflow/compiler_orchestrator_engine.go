@@ -304,7 +304,7 @@ func (c *Compiler) applyEngineImportDefaults(
 	if preservedMaxEffectiveTokens != 0 {
 		engineConfig.MaxEffectiveTokens = preservedMaxEffectiveTokens
 	}
-	if preservedMaxAICredits > 0 {
+	if preservedMaxAICredits != 0 {
 		engineConfig.MaxAICredits = preservedMaxAICredits
 	}
 	if preservedMaxRuns > 0 {
@@ -346,10 +346,10 @@ func (c *Compiler) applyEngineImportDefaults(
 			}
 		}
 	}
-	if engineConfig.MaxAICredits <= 0 && importsResult.MergedMaxAICredits != "" {
+	if engineConfig.MaxAICredits == 0 && importsResult.MergedMaxAICredits != "" {
 		var importedMaxAICredits any
 		if err := json.Unmarshal([]byte(importsResult.MergedMaxAICredits), &importedMaxAICredits); err == nil {
-			if parsed := parseMaxAICreditsValue(importedMaxAICredits); parsed > 0 {
+			if parsed := parseMaxAICreditsValue(importedMaxAICredits); parsed != 0 {
 				engineConfig.MaxAICredits = parsed
 				orchestratorEngineLog.Printf("Applied max-ai-credits from import")
 			}

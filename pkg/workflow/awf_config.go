@@ -288,18 +288,23 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		if config.WorkflowData.EngineConfig.MaxEffectiveTokens != 0 {
 			maxEffectiveTokens = config.WorkflowData.EngineConfig.MaxEffectiveTokens
 		}
-		if config.WorkflowData.EngineConfig.MaxAICredits > 0 {
+		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
 			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
 		}
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 
-	// Token steering is enabled by default; a negative max-effective-tokens value
-	// disables both budget enforcement and token steering.
-	enableTokenSteering := maxEffectiveTokens >= 0
+	// Token steering is enabled by default; a negative max-effective-tokens
+	// or max-ai-credits value disables both budget enforcement and token
+	// steering.
+	enableTokenSteering := maxEffectiveTokens >= 0 && maxAICredits >= 0
 	if maxEffectiveTokens < 0 {
 		// Negative signals "disabled" — omit the budget from the AWF config.
 		maxEffectiveTokens = 0
+	}
+	if maxAICredits < 0 {
+		// Negative signals "disabled" — omit the budget from the AWF config.
+		maxAICredits = 0
 	}
 
 	apiProxy := &AWFAPIProxyConfig{
@@ -311,7 +316,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	if !enableTokenSteering {
-		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-effective-tokens is negative (disabled)")
+		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-effective-tokens or max-ai-credits is negative (disabled)")
 	} else if !awfSupportsTokenSteering(firewallConfig) {
 		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
 	}

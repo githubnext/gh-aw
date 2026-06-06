@@ -303,7 +303,7 @@ func defaultsValidateFile(file *defaultsFile) error {
 	}
 
 	validateNonZeroInt("default_max_effective_tokens", file.DefaultMaxEffectiveTokens)
-	validatePositiveInt("default_max_ai_credits", file.DefaultMaxAICredits)
+	validateNonZeroInt("default_max_ai_credits", file.DefaultMaxAICredits)
 	validateNonZeroInt("default_max_daily_ai_credits", file.DefaultMaxDailyAICredits)
 	validatePositiveInt("default_max_turns", file.DefaultMaxTurns)
 	validatePositiveInt("default_timeout_minutes", file.DefaultTimeoutMinutes)

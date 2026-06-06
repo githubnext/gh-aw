@@ -81,9 +81,9 @@ func TestResolveDefaultMaxAICredits(t *testing.T) {
 		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
 	})
 
-	t.Run("negative uses fallback", func(t *testing.T) {
+	t.Run("negative disables guardrail", func(t *testing.T) {
 		t.Setenv(DefaultMaxAICredits, "-1")
-		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
+		assert.Equal(t, int64(-1), ResolveDefaultMaxAICredits(1000))
 	})
 
 	t.Run("valid value overrides fallback", func(t *testing.T) {

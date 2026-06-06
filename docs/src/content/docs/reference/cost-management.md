@@ -323,9 +323,8 @@ Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
 `default_max_turns` / `default_timeout_minutes` must be positive integers,
-`default_max_ai_credits` must be a positive integer, and
-`default_max_daily_ai_credits` must be a non-zero integer
-(a negative value disables the daily guardrail).
+and `default_max_ai_credits` / `default_max_daily_ai_credits` must be
+non-zero integers (a negative value disables the corresponding guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
