@@ -3483,6 +3483,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+    process.env.INPUT_JOB_NAME = "agent";
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 
@@ -3499,6 +3500,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_AIC = "0.125";
+    process.env.INPUT_JOB_NAME = "agent";
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 

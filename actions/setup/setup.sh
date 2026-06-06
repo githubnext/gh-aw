@@ -266,6 +266,7 @@ create_dir "${SAFE_OUTPUTS_DEST}"
 SAFE_OUTPUTS_FILES=(
   "safe_outputs_mcp_server.cjs"
   "safe_outputs_mcp_server_http.cjs"
+  "safe_outputs_mcp_arguments.cjs"
   "safe_outputs_bootstrap.cjs"
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
