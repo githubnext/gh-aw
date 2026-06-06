@@ -1138,6 +1138,27 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 			},
 		},
 		{
+			name: "insert before token mint when no setup or checkout exists",
+			steps: []string{
+				"      - name: Generate GitHub App token",
+				"        uses: actions/create-github-app-token@v3",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+				"      - name: Generate GitHub App token",
+				"        uses: actions/create-github-app-token@v3",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+		},
+		{
 			name: "insert before checkout shorthand step without name",
 			steps: []string{
 				"      - uses: actions/checkout@v6",
@@ -1226,6 +1247,43 @@ jobs:
 	}
 	if !strings.Contains(err.Error(), "pre-steps") {
 		t.Fatalf("Expected error to mention pre-steps, got: %v", err)
+	}
+}
+
+func TestCustomJobSetupStepsSchemaValidation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-setup-steps-schema")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  custom_job:
+    runs-on: ubuntu-latest
+    setup-steps:
+      name: Invalid setup-steps
+      run: echo "invalid"
+    steps:
+      - run: echo "work"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("Expected schema validation error for non-array jobs.<job-id>.setup-steps, got nil")
+	}
+	if !strings.Contains(err.Error(), "setup-steps") {
+		t.Fatalf("Expected error to mention setup-steps, got: %v", err)
 	}
 }
 

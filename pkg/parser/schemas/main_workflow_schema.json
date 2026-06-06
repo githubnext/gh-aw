@@ -2449,6 +2449,14 @@
             ],
             "description": "Optional steps inserted after setup-injected steps and before any checkout step in this custom job. Uses the same schema as `steps`."
           },
+          "setup-steps": {
+            "allOf": [
+              {
+                "$ref": "#/properties/jobs/additionalProperties/properties/steps"
+              }
+            ],
+            "description": "Optional setup steps inserted after setup-injected steps and before any token-mint or checkout steps in this job. Uses the same schema as `steps`."
+          },
           "if": {
             "type": "string",
             "description": "Conditional execution for the job"

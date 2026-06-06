@@ -959,19 +959,28 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
 	// Add basic steps if specified (only for non-reusable workflow jobs).
-	// `pre-steps` are inserted after setup-injected steps and before the
+	// `setup-steps`/`pre-steps` are inserted after setup-injected steps and before the
 	// regular `steps` list (including any checkout step it may contain).
-	var preSteps []string
+	var setupSteps []string
 	var regularSteps []string
+	_, hasSetupStepsField := configMap["setup-steps"]
 	_, hasPreStepsField := configMap["pre-steps"]
 	_, hasStepsField := configMap["steps"]
 
+	if hasSetupStepsField {
+		var err error
+		setupSteps, err = c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
+		if err != nil {
+			return fmt.Errorf("failed to process setup-steps for job '%s': %w", jobName, err)
+		}
+	}
 	if hasPreStepsField {
 		var err error
-		preSteps, err = c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
+		preSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
 		if err != nil {
 			return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
 		}
+		setupSteps = append(setupSteps, preSteps...)
 	}
 	if hasStepsField {
 		var err error
@@ -981,13 +990,13 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		}
 	}
 
-	if hasPreStepsField || hasStepsField {
+	if hasSetupStepsField || hasPreStepsField || hasStepsField {
 		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
 		// Custom frontmatter jobs run as independent GitHub Actions jobs that
 		// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
 		// know which host to target without this step.
 		job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
-		job.Steps = append(job.Steps, preSteps...)
+		job.Steps = append(job.Steps, setupSteps...)
 		job.Steps = append(job.Steps, regularSteps...)
 	}
 
@@ -1034,20 +1043,33 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		if !ok {
 			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
 		}
-		if _, hasPreSteps := configMap["pre-steps"]; !hasPreSteps {
+		_, hasSetupSteps := configMap["setup-steps"]
+		_, hasPreSteps := configMap["pre-steps"]
+		if !hasSetupSteps && !hasPreSteps {
 			continue
 		}
 
-		preSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
-		if err != nil {
-			return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
+		var setupSteps []string
+		if hasSetupSteps {
+			steps, err := c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
+			if err != nil {
+				return fmt.Errorf("failed to process setup-steps for built-in job '%s': %w", jobName, err)
+			}
+			setupSteps = append(setupSteps, steps...)
 		}
-		if len(preSteps) == 0 {
+		if hasPreSteps {
+			steps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
+			if err != nil {
+				return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
+			}
+			setupSteps = append(setupSteps, steps...)
+		}
+		if len(setupSteps) == 0 {
 			continue
 		}
 
-		job.Steps = insertPreStepsAfterSetupBeforeCheckout(job.Steps, preSteps)
-		compilerJobsLog.Printf("Inserted %d pre-steps into built-in job '%s'", len(preSteps), targetJobName)
+		job.Steps = insertPreStepsAfterSetupBeforeCheckout(job.Steps, setupSteps)
+		compilerJobsLog.Printf("Inserted %d setup/pre-steps into built-in job '%s'", len(setupSteps), targetJobName)
 	}
 
 	return nil
@@ -1059,6 +1081,7 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 	}
 
 	firstCheckoutIdx := -1
+	firstTokenMintIdx := -1
 	lastSetupIdx := -1
 	for i, step := range steps {
 		if firstCheckoutIdx == -1 && strings.Contains(step, "uses: actions/checkout@") {
@@ -1070,6 +1093,19 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 				trimmed := strings.TrimLeft(steps[j], " ")
 				if strings.HasPrefix(trimmed, "- ") {
 					firstCheckoutIdx = j
+					break
+				}
+			}
+		}
+		if firstTokenMintIdx == -1 && strings.Contains(step, "uses: actions/create-github-app-token@") {
+			firstTokenMintIdx = i
+			// Walk backward to the token-mint step's list-item boundary ("- ").
+			// If no boundary is found, keep the current index so insertion still
+			// occurs before the token-mint uses-line.
+			for j := i; j >= 0; j-- {
+				trimmed := strings.TrimLeft(steps[j], " ")
+				if strings.HasPrefix(trimmed, "- ") {
+					firstTokenMintIdx = j
 					break
 				}
 			}
@@ -1097,6 +1133,10 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 		if insertIdx == len(steps) {
 			compilerJobsLog.Print("No step boundary found after setup step; appending pre-steps at end")
 		}
+	} else if firstTokenMintIdx >= 0 && firstCheckoutIdx >= 0 {
+		insertIdx = min(firstTokenMintIdx, firstCheckoutIdx)
+	} else if firstTokenMintIdx >= 0 {
+		insertIdx = firstTokenMintIdx
 	} else if firstCheckoutIdx >= 0 {
 		insertIdx = firstCheckoutIdx
 	}

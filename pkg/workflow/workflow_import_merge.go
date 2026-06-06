@@ -109,11 +109,11 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 				workflowImportMergeLog.Printf("Adding imported job: %s", jobName)
 				result[jobName] = jobConfig
 			} else {
-				// Keep main workflow job precedence, but merge pre-steps deterministically
-				// when both imported and main define pre-steps for the same job.
+				// Keep main workflow job precedence, but merge setup/pre-steps deterministically
+				// when both imported and main define setup/pre-steps for the same job.
 				mergedJob, merged := mergeJobPreSteps(result[jobName], jobConfig)
 				if merged {
-					workflowImportMergeLog.Printf("Merged pre-steps for conflicting job %s (imported first, then main)", jobName)
+					workflowImportMergeLog.Printf("Merged setup/pre-steps for conflicting job %s (imported first, then main)", jobName)
 					result[jobName] = mergedJob
 					continue
 				}
@@ -137,8 +137,8 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 		return nil, false
 	}
 
-	mainPreSteps, okMain := extractJobPreSteps(mainMap)
-	importedPreSteps, okImported := extractJobPreSteps(importedMap)
+	mainPreSteps, mainKey, okMain := extractJobPreSteps(mainMap)
+	importedPreSteps, _, okImported := extractJobPreSteps(importedMap)
 	if !okMain || !okImported {
 		return nil, false
 	}
@@ -152,19 +152,45 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	mergedPreSteps := make([]any, 0, safeAllocationCapacity(len(importedPreSteps), len(mainPreSteps)))
 	mergedPreSteps = append(mergedPreSteps, importedPreSteps...)
 	mergedPreSteps = append(mergedPreSteps, mainPreSteps...)
-	merged["pre-steps"] = mergedPreSteps
+	if mainKey == "" {
+		mainKey = "setup-steps"
+	}
+	merged[mainKey] = mergedPreSteps
+	if mainKey == "setup-steps" {
+		delete(merged, "pre-steps")
+	} else {
+		delete(merged, "setup-steps")
+	}
 
 	return merged, true
 }
 
-func extractJobPreSteps(jobConfig map[string]any) ([]any, bool) {
-	raw, exists := jobConfig["pre-steps"]
-	if !exists {
-		return nil, false
+func extractJobPreSteps(jobConfig map[string]any) ([]any, string, bool) {
+	var mergedSteps []any
+	key := ""
+
+	if raw, exists := jobConfig["setup-steps"]; exists {
+		steps, ok := raw.([]any)
+		if !ok {
+			return nil, "", false
+		}
+		mergedSteps = append(mergedSteps, steps...)
+		key = "setup-steps"
 	}
-	steps, ok := raw.([]any)
-	if !ok {
-		return nil, false
+
+	if raw, exists := jobConfig["pre-steps"]; exists {
+		steps, ok := raw.([]any)
+		if !ok {
+			return nil, "", false
+		}
+		mergedSteps = append(mergedSteps, steps...)
+		if key == "" {
+			key = "pre-steps"
+		}
 	}
-	return steps, true
+
+	if key == "" {
+		return nil, "", false
+	}
+	return mergedSteps, key, true
 }
