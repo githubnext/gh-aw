@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference types="@actions/github-script" />
 
 // Safe Outputs MCP Server Module
 //
@@ -11,6 +12,11 @@
 // Or as a module:
 //   const server = require("./safe_outputs_mcp_server.cjs");
 //   server.startSafeOutputsServer();
+
+// Load core/context shim so handlers that reference `core.*` (e.g.
+// create_pull_request.cjs) work when this file is spawned directly as a
+// child process (e.g. by apply_samples.cjs) outside the github-script runtime.
+require("./shim.cjs");
 
 const { createServer, registerTool, normalizeTool, start } = require("./mcp_server_core.cjs");
 const { createAppendFunction } = require("./safe_outputs_append.cjs");
