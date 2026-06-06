@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -264,6 +265,53 @@ func TestImportedBuiltinJobSetupStepsMergeBeforeTokenMinting(t *testing.T) {
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
+	}
+
+	func TestBuiltinJobsSetupStepsRejectedForActivationAndPreActivation(t *testing.T) {
+		tests := []struct {
+			name   string
+			jobKey string
+		}{
+			{name: "activation", jobKey: "activation"},
+			{name: "pre-activation alias", jobKey: "pre-activation"},
+			{name: "pre_activation", jobKey: "pre_activation"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				tmpDir := testutil.TempDir(t, "reject-setup-steps-"+tt.jobKey)
+				workflowContent := `---
+	on:
+	  workflow_dispatch:
+	engine: claude
+	strict: false
+	jobs:
+	  ` + tt.jobKey + `:
+	    setup-steps:
+	      - name: blocked setup
+	        run: echo "blocked"
+	---
+
+	# Reject setup-steps on protected jobs
+	`
+
+				workflowFile := filepath.Join(tmpDir, "reject.md")
+				if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+					t.Fatal(err)
+				}
+
+				compiler := NewCompiler()
+				err := compiler.CompileWorkflow(workflowFile)
+				if err == nil {
+					t.Fatalf("expected compile error for jobs.%s.setup-steps, got nil", tt.jobKey)
+				}
+
+				want := "jobs." + tt.jobKey + ".setup-steps is not allowed"
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error containing %q, got: %v", want, err)
+				}
+			})
+		}
 	}
 
 	sharedWorkflowContent := `---

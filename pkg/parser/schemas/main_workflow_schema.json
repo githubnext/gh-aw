@@ -2455,7 +2455,7 @@
                 "$ref": "#/properties/jobs/additionalProperties/properties/steps"
               }
             ],
-            "description": "Optional setup steps inserted after setup-injected steps and before any token-mint or checkout steps in this job. Uses the same schema as `steps`."
+            "description": "Optional setup steps inserted after setup-injected steps and before any token-mint or checkout steps in this job. Uses the same schema as `steps`. Not supported for jobs.activation, jobs.pre_activation, or jobs.pre-activation; compilation fails for those protected jobs because setup-steps could short-circuit protections."
           },
           "if": {
             "type": "string",

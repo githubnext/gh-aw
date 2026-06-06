@@ -596,8 +596,14 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 		}
 
 		for field := range configMap {
+			if field == "setup-steps" {
+				return nil, nil, fmt.Errorf(
+					"jobs.%s.setup-steps is not allowed: setup-steps are refused for activation/pre-activation jobs because they can short-circuit protections",
+					jobName,
+				)
+			}
 			if !allowedFields[field] {
-				return nil, nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps' and 'outputs' are allowed", jobName, field)
+				return nil, nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps', 'outputs', and 'pre-steps' are allowed", jobName, field)
 			}
 		}
 

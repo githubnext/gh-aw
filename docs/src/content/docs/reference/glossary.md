@@ -560,7 +560,7 @@ Controls behavior when OTLP endpoint or header values resolve to empty at runtim
 
 ### Setup-Steps (`jobs.<job-id>.setup-steps`)
 
-Steps injected immediately after the compiler-generated `actions/setup` step for a custom or built-in job. Defined under `jobs.<job-id>.setup-steps` in workflow frontmatter. When both a main workflow and an imported workflow define `setup-steps` for the same job, imported setup-steps run first. `setup-steps` remain distinct from `pre-steps` and are not merged across keys. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
+Steps injected immediately after the compiler-generated `actions/setup` step for a custom or built-in job. Defined under `jobs.<job-id>.setup-steps` in workflow frontmatter. When both a main workflow and an imported workflow define `setup-steps` for the same job, imported setup-steps run first. `setup-steps` remain distinct from `pre-steps` and are not merged across keys. `jobs.activation.setup-steps` and `jobs.pre_activation`/`jobs.pre-activation` `setup-steps` are refused at compile time because they can short-circuit protections. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
 
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 

@@ -1031,6 +1031,20 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	}
 
 	for jobName, jobConfig := range data.Jobs {
+		configMap, ok := jobConfig.(map[string]any)
+		if !ok {
+			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
+		}
+
+		_, hasSetupSteps := configMap["setup-steps"]
+		_, hasPreSteps := configMap["pre-steps"]
+		if err := validateRestrictedBuiltinSetupSteps(jobName, hasSetupSteps); err != nil {
+			return err
+		}
+		if !hasSetupSteps && !hasPreSteps {
+			continue
+		}
+
 		targetJobName := jobName
 		if jobName == "pre-activation" {
 			targetJobName = string(constants.PreActivationJobName)
@@ -1038,16 +1052,6 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 
 		job, exists := c.jobManager.GetJob(targetJobName)
 		if !exists {
-			continue
-		}
-
-		configMap, ok := jobConfig.(map[string]any)
-		if !ok {
-			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
-		}
-		_, hasSetupSteps := configMap["setup-steps"]
-		_, hasPreSteps := configMap["pre-steps"]
-		if !hasSetupSteps && !hasPreSteps {
 			continue
 		}
 
@@ -1074,6 +1078,23 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
 		job.Steps = insertSetupStepsAtStart(job.Steps, setupSteps)
 		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
+	}
+
+	return nil
+}
+
+func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) error {
+	if !hasSetupSteps {
+		return nil
+	}
+
+	if jobName == string(constants.ActivationJobName) ||
+		jobName == string(constants.PreActivationJobName) ||
+		jobName == "pre-activation" {
+		return fmt.Errorf(
+			"jobs.%s.setup-steps is not allowed: setup-steps are refused for activation/pre-activation jobs because they can short-circuit protections",
+			jobName,
+		)
 	}
 
 	return nil

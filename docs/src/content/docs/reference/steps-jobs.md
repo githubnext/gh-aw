@@ -80,7 +80,7 @@ jobs:
 | `continue-on-error` | Allow the workflow to continue if this job fails |
 | `container` | Docker container to run steps in |
 | `services` | Service containers (e.g. databases) |
-| `setup-steps` | Steps injected immediately after the compiler-generated `actions/setup` step for that job |
+| `setup-steps` | Steps injected immediately after the compiler-generated `actions/setup` step for that job (except `activation` and `pre_activation`, where compile fails) |
 | `pre-steps` | Steps injected after compiler setup steps and before checkout/`steps` in that job |
 | `steps` | List of steps — supports complete GitHub Actions step specification |
 | `uses` | Reusable workflow to call |
@@ -120,8 +120,8 @@ Use this map to see where compiler-inserted steps land for each job type.
 
 | Job | Step order |
 |---|---|
-| `pre_activation` | `jobs.pre_activation.setup-steps` → compiler setup checkout/setup → `jobs.pre_activation.pre-steps` → built-in pre-activation steps |
-| `activation` | `jobs.activation.setup-steps` → compiler setup checkout/setup → `jobs.activation.pre-steps` → built-in activation steps |
+| `pre_activation` | `jobs.pre_activation.setup-steps` is refused at compile time to prevent short-circuiting protections; use `jobs.pre_activation.pre-steps` and `jobs.pre_activation.steps` |
+| `activation` | `jobs.activation.setup-steps` is refused at compile time to prevent short-circuiting protections; use `jobs.activation.pre-steps` |
 | `agent` | `jobs.agent.setup-steps` → compiler setup checkout/setup → `jobs.agent.pre-steps` → runtime path setup → top-level `pre-steps` → checkout/token/runtime/custom/agent steps |
 | `safe_outputs` | `jobs.safe_outputs.setup-steps` → compiler setup checkout/setup → `jobs.safe_outputs.pre-steps` → safe-outputs downloads/prep → GitHub App token minting → safe-output handlers/finalization |
 | `conclusion` | `jobs.conclusion.setup-steps` → compiler setup checkout/setup → `jobs.conclusion.pre-steps` → built-in conclusion steps (including GitHub App token minting when configured) |
