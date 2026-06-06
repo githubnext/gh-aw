@@ -90,5 +90,6 @@ func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentCo
 	assert.Contains(t, rendered, "github.event.issue.pull_request")
 	assert.Contains(t, rendered, "github.event_name == 'workflow_dispatch'")
 	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issue_comment'")
+	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request_review_comment'")
 	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').item_type == 'pull_request'")
 }

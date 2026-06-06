@@ -78,9 +78,15 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	dispatchIssueCommentCondition := BuildAnd(
 		BuildEventTypeEquals("workflow_dispatch"),
 		BuildAnd(
-			BuildEquals(
-				BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').event_type"),
-				BuildStringLiteral("issue_comment"),
+			BuildOr(
+				BuildEquals(
+					BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').event_type"),
+					BuildStringLiteral("issue_comment"),
+				),
+				BuildEquals(
+					BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').event_type"),
+					BuildStringLiteral("pull_request_review_comment"),
+				),
 			),
 			BuildEquals(
 				BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').item_type"),
