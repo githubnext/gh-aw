@@ -1255,11 +1255,43 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := insertSetupPreStepsAtEarliestBoundary(tt.steps, tt.preSteps)
+			got := insertPreStepsAtEarliestBoundary(tt.steps, tt.preSteps)
 			if !slices.Equal(got, tt.want) {
-				t.Fatalf("insertSetupPreStepsAtEarliestBoundary() mismatch\nwant:\n%q\ngot:\n%q", tt.want, got)
+				t.Fatalf("insertPreStepsAtEarliestBoundary() mismatch\nwant:\n%q\ngot:\n%q", tt.want, got)
 			}
 		})
+	}
+}
+
+func TestInsertSetupStepsImmediatelyAfterSetup(t *testing.T) {
+	steps := []string{
+		"      - name: Setup Scripts",
+		"        uses: actions/github-script@v7",
+		"        id: setup",
+		"      - name: Set runtime paths",
+		"        run: echo runtime",
+		"      - name: Main work",
+		"        run: echo work",
+	}
+	setupSteps := []string{
+		"      - name: Setup extension",
+		"        run: echo setup",
+	}
+
+	got := insertSetupStepsAfterSetupStep(steps, setupSteps)
+	want := []string{
+		"      - name: Setup Scripts",
+		"        uses: actions/github-script@v7",
+		"        id: setup",
+		"      - name: Setup extension",
+		"        run: echo setup",
+		"      - name: Set runtime paths",
+		"        run: echo runtime",
+		"      - name: Main work",
+		"        run: echo work",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("insertSetupStepsAfterSetupStep() mismatch\nwant:\n%q\ngot:\n%q", want, got)
 	}
 }
 

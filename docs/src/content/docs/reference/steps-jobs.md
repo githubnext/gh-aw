@@ -80,6 +80,7 @@ jobs:
 | `continue-on-error` | Allow the workflow to continue if this job fails |
 | `container` | Docker container to run steps in |
 | `services` | Service containers (e.g. databases) |
+| `setup-steps` | Steps injected immediately after the compiler-generated `actions/setup` step for that job |
 | `pre-steps` | Steps injected after compiler setup steps and before checkout/`steps` in that job |
 | `steps` | List of steps — supports complete GitHub Actions step specification |
 | `uses` | Reusable workflow to call |
@@ -100,12 +101,32 @@ jobs:
       - uses: actions/checkout@v6
 ```
 
-When `jobs.<job-id>.pre-steps` is set, step execution order is deterministic:
+When imports define the same `jobs.<job-id>.setup-steps` or `jobs.<job-id>.pre-steps`, gh-aw merges that field deterministically: imported steps run first, then main-workflow steps. The two fields stay separate; `setup-steps` are never folded into `pre-steps` or vice versa.
 
-1. Compiler-injected setup steps
-2. `jobs.<job-id>.pre-steps`
-3. Checkout steps
-4. Remaining `jobs.<job-id>.steps`
+## Jobs and Steps
+
+Use this map to see where compiler-inserted steps land for each job type.
+
+### Custom jobs
+
+`jobs.<job-id>` steps run in this order:
+
+1. Compiler host setup (`Configure GH_HOST for enterprise compatibility`)
+2. `jobs.<job-id>.setup-steps`
+3. `jobs.<job-id>.pre-steps`
+4. `jobs.<job-id>.steps`
+
+### Built-in jobs
+
+| Job | Step order |
+|---|---|
+| `pre_activation` | Compiler setup checkout/setup → `jobs.pre_activation.setup-steps` → `jobs.pre_activation.pre-steps` → built-in pre-activation steps |
+| `activation` | Compiler setup checkout/setup → `jobs.activation.setup-steps` → `jobs.activation.pre-steps` → built-in activation steps |
+| `agent` | Compiler setup checkout/setup → `jobs.agent.setup-steps` → `jobs.agent.pre-steps` → runtime path setup → top-level `pre-steps` → checkout/token/runtime/custom/agent steps |
+| `safe_outputs` | Compiler setup checkout/setup → `jobs.safe_outputs.setup-steps` → `jobs.safe_outputs.pre-steps` → safe-outputs downloads/prep → GitHub App token minting → safe-output handlers/finalization |
+| `conclusion` | Compiler setup checkout/setup → `jobs.conclusion.setup-steps` → `jobs.conclusion.pre-steps` → built-in conclusion steps (including GitHub App token minting when configured) |
+| `detection` | Compiler setup checkout/setup → `jobs.detection.setup-steps` → `jobs.detection.pre-steps` → built-in detection steps |
+| `unlock` | Compiler setup checkout/setup → `jobs.unlock.setup-steps` → `jobs.unlock.pre-steps` → built-in unlock steps |
 
 Example using `timeout-minutes` and `env`:
 

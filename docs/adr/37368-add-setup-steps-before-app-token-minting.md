@@ -9,7 +9,7 @@ When agentic workflows authenticate with a GitHub App, the framework mints an Ap
 
 ## Decision
 
-We will add a `jobs.<job-name>.setup-steps` hook that uses the same step schema as `steps`/`pre-steps`, and inject these steps early in the job — after setup-injected scaffolding when present, otherwise before the earliest `create-github-app-token` or `checkout` boundary. `setup-steps` is the preferred explicit shape; existing `pre-steps` continues to work and is merged together with `setup-steps` (setup-steps first). The safe-output job builder is reordered so configured pre/setup steps run before App token minting, and import-merge logic merges conflicting `setup-steps`/`pre-steps` arrays deterministically (imported first, then main).
+We will add a `jobs.<job-name>.setup-steps` hook that uses the same step schema as `steps`/`pre-steps`, and inject these steps immediately after the compiler-generated setup action when present, otherwise before the earliest `create-github-app-token` or `checkout` boundary. `setup-steps` is the preferred explicit shape; existing `pre-steps` continues to work as a distinct later insertion point. The safe-output job builder is reordered so configured setup/pre steps run before App token minting, and import-merge logic merges conflicting `setup-steps` and `pre-steps` arrays independently (imported first, then main, per field).
 
 ## Alternatives Considered
 
@@ -23,10 +23,10 @@ We could bake specific OIDC/secret-fetch behavior directly into the framework jo
 
 ### Positive
 - Built-in jobs (`agent`, `safe_outputs`, `conclusion`, etc.) can now run OIDC/secret-fetch/bootstrap steps before framework App token minting.
-- Backward compatible — existing `pre-steps` users are unaffected; `setup-steps` and `pre-steps` are merged deterministically.
+- Backward compatible — existing `pre-steps` users are unaffected; `setup-steps` adds an earlier, explicit hook without collapsing the two fields together.
 
 ### Negative
-- Two overlapping concepts (`setup-steps` and `pre-steps`) now coexist, which can confuse authors about which to use.
+- Two closely related concepts (`setup-steps` and `pre-steps`) now coexist, which can confuse authors about which to use.
 - Step-insertion ordering logic gains complexity (token-mint boundary detection, backward walk to list-item boundary, checkout-vs-token-mint precedence).
 
 ### Neutral

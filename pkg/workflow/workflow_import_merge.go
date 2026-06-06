@@ -109,11 +109,12 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 				workflowImportMergeLog.Printf("Adding imported job: %s", jobName)
 				result[jobName] = jobConfig
 			} else {
-				// Keep main workflow job precedence, but merge setup/pre-steps deterministically
-				// when both imported and main define setup/pre-steps for the same job.
-				mergedJob, merged := mergeJobPreSteps(result[jobName], jobConfig)
+				// Keep main workflow job precedence, but merge setup/pre-step fields
+				// deterministically when imported and main define step injections for the
+				// same job.
+				mergedJob, merged := mergeJobInjectedSteps(result[jobName], jobConfig)
 				if merged {
-					workflowImportMergeLog.Printf("Merged setup/pre-steps for conflicting job %s (imported first, then main)", jobName)
+					workflowImportMergeLog.Printf("Merged injected job steps for conflicting job %s (imported first, then main per field)", jobName)
 					result[jobName] = mergedJob
 					continue
 				}
@@ -127,7 +128,7 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 	return result
 }
 
-func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
+func mergeJobInjectedSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	mainMap, ok := mainJob.(map[string]any)
 	if !ok {
 		return nil, false
@@ -137,63 +138,52 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 		return nil, false
 	}
 
-	mainPreSteps, mainFieldKey, okMain := extractJobPreSteps(mainMap)
-	importedPreSteps, _, okImported := extractJobPreSteps(importedMap)
-	if !okMain || !okImported {
-		return nil, false
-	}
-
 	merged := make(map[string]any, len(mainMap))
 	// Intentionally shallow-copy the top-level job map: this merge operation only
-	// rewrites the canonical setup/pre-steps key with a newly allocated slice,
-	// deletes the alternate key, and does not mutate any nested structures from
-	// other keys.
+	// rewrites the setup-steps and/or pre-steps keys with newly allocated slices
+	// and does not mutate any nested structures from other keys.
 	maps.Copy(merged, mainMap)
 
-	mergedPreSteps := make([]any, 0, safeAllocationCapacity(len(importedPreSteps), len(mainPreSteps)))
-	mergedPreSteps = append(mergedPreSteps, importedPreSteps...)
-	mergedPreSteps = append(mergedPreSteps, mainPreSteps...)
-	merged[mainFieldKey] = mergedPreSteps
-	if mainFieldKey == "setup-steps" {
-		delete(merged, "pre-steps")
-	} else {
-		delete(merged, "setup-steps")
+	mergedAny := false
+	for _, fieldName := range []string{"setup-steps", "pre-steps"} {
+		mergedSteps, ok := mergeJobStepField(mainMap, importedMap, fieldName)
+		if !ok {
+			continue
+		}
+		merged[fieldName] = mergedSteps
+		mergedAny = true
 	}
 
-	return merged, true
+	return merged, mergedAny
 }
 
-// extractJobPreSteps flattens a job's setup/pre-step configuration into one
-// slice in setup-steps -> pre-steps order and returns the canonical key to use
-// when writing merged results back. A job that defines both keys keeps
-// setup-steps as the canonical field, so pre-steps content is promoted into the
-// merged setup-steps array for deterministic import behavior.
-func extractJobPreSteps(jobConfig map[string]any) ([]any, string, bool) {
-	var mergedSteps []any
-	key := ""
-
-	if raw, exists := jobConfig["setup-steps"]; exists {
-		steps, ok := raw.([]any)
-		if !ok {
-			return nil, "", false
-		}
-		mergedSteps = append(mergedSteps, steps...)
-		key = "setup-steps"
+func mergeJobStepField(mainJob map[string]any, importedJob map[string]any, fieldName string) ([]any, bool) {
+	mainSteps, hasMain := extractJobStepField(mainJob, fieldName)
+	importedSteps, hasImported := extractJobStepField(importedJob, fieldName)
+	if !hasMain && !hasImported {
+		return nil, false
+	}
+	if !hasMain {
+		return append([]any(nil), importedSteps...), true
+	}
+	if !hasImported {
+		return append([]any(nil), mainSteps...), true
 	}
 
-	if raw, exists := jobConfig["pre-steps"]; exists {
-		steps, ok := raw.([]any)
-		if !ok {
-			return nil, "", false
-		}
-		mergedSteps = append(mergedSteps, steps...)
-		if key == "" {
-			key = "pre-steps"
-		}
-	}
+	mergedSteps := make([]any, 0, safeAllocationCapacity(len(importedSteps), len(mainSteps)))
+	mergedSteps = append(mergedSteps, importedSteps...)
+	mergedSteps = append(mergedSteps, mainSteps...)
+	return mergedSteps, true
+}
 
-	if key == "" {
-		return nil, "", false
+func extractJobStepField(jobConfig map[string]any, fieldName string) ([]any, bool) {
+	raw, exists := jobConfig[fieldName]
+	if !exists {
+		return nil, false
 	}
-	return mergedSteps, key, true
+	steps, ok := raw.([]any)
+	if !ok {
+		return nil, false
+	}
+	return steps, true
 }

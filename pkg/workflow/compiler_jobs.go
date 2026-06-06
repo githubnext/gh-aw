@@ -959,9 +959,10 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
 	// Add basic steps if specified (only for non-reusable workflow jobs).
-	// `setup-steps`/`pre-steps` are inserted after setup-injected steps and before the
-	// regular `steps` list (including any checkout step it may contain).
+	// `setup-steps` and `pre-steps` stay distinct so setup-steps can run before
+	// pre-steps while both still precede the regular `steps` list.
 	var setupSteps []string
+	var preSteps []string
 	var regularSteps []string
 	_, hasSetupStepsField := configMap["setup-steps"]
 	_, hasPreStepsField := configMap["pre-steps"]
@@ -976,11 +977,10 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 	}
 	if hasPreStepsField {
 		var err error
-		extractedPreSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
+		preSteps, err = c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
 		if err != nil {
 			return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
 		}
-		setupSteps = append(setupSteps, extractedPreSteps...)
 	}
 	if hasStepsField {
 		var err error
@@ -997,6 +997,7 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		// know which host to target without this step.
 		job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
 		job.Steps = append(job.Steps, setupSteps...)
+		job.Steps = append(job.Steps, preSteps...)
 		job.Steps = append(job.Steps, regularSteps...)
 	}
 
@@ -1050,6 +1051,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		}
 
 		var setupSteps []string
+		var preSteps []string
 		if hasSetupSteps {
 			steps, err := c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
 			if err != nil {
@@ -1062,20 +1064,55 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 			if err != nil {
 				return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
 			}
-			setupSteps = append(setupSteps, steps...)
+			preSteps = append(preSteps, steps...)
 		}
-		if len(setupSteps) == 0 {
+		if len(setupSteps) == 0 && len(preSteps) == 0 {
 			continue
 		}
 
-		job.Steps = insertSetupPreStepsAtEarliestBoundary(job.Steps, setupSteps)
-		compilerJobsLog.Printf("Inserted %d setup/pre-steps into built-in job '%s'", len(setupSteps), targetJobName)
+		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
+		job.Steps = insertSetupStepsAfterSetupStep(job.Steps, setupSteps)
+		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
 	}
 
 	return nil
 }
 
-func insertSetupPreStepsAtEarliestBoundary(steps []string, preSteps []string) []string {
+func insertSetupStepsAfterSetupStep(steps []string, setupSteps []string) []string {
+	if len(setupSteps) == 0 {
+		return steps
+	}
+
+	lastSetupIdx := -1
+	for i, step := range steps {
+		if exactSetupStepIDPattern.MatchString(step) {
+			lastSetupIdx = i
+		}
+	}
+	if lastSetupIdx == -1 {
+		return insertPreStepsAtEarliestBoundary(steps, setupSteps)
+	}
+
+	insertIdx := len(steps)
+	for i := lastSetupIdx + 1; i < len(steps); i++ {
+		trimmed := strings.TrimLeft(steps[i], " ")
+		if strings.HasPrefix(trimmed, "- ") {
+			insertIdx = i
+			break
+		}
+	}
+	if insertIdx == len(steps) {
+		compilerJobsLog.Print("No step boundary found after setup step; appending setup-steps at end")
+	}
+
+	result := make([]string, 0, safeAllocationCapacity(len(steps), len(setupSteps)))
+	result = append(result, steps[:insertIdx]...)
+	result = append(result, setupSteps...)
+	result = append(result, steps[insertIdx:]...)
+	return result
+}
+
+func insertPreStepsAtEarliestBoundary(steps []string, preSteps []string) []string {
 	if len(preSteps) == 0 {
 		return steps
 	}
@@ -1117,12 +1154,6 @@ func insertSetupPreStepsAtEarliestBoundary(steps []string, preSteps []string) []
 
 	insertIdx := len(steps)
 	if lastSetupIdx >= 0 {
-		// Setup step may be emitted as multiple []string entries (one line per entry).
-		// Insert after the full setup step by finding the next step boundary.
-		// A step boundary is identified by the YAML list-item prefix ("- ") after
-		// indentation trimming, which marks the beginning of the next step block.
-		// If no boundary is found (e.g. setup is the final step), insertIdx stays len(steps)
-		// and pre-steps are appended by the slice insertion logic below.
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
 			trimmed := strings.TrimLeft(steps[i], " ")
 			if strings.HasPrefix(trimmed, "- ") {

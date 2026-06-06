@@ -915,7 +915,7 @@ func TestMergeJobsFromYAMLImports_MergesSetupStepsOnConflict(t *testing.T) {
 	assert.Equal(t, "main setup", second["name"], "Main workflow setup-steps should run after imported setup-steps")
 }
 
-func TestMergeJobsFromYAMLImports_MergesMixedSetupAndPreStepsOnConflict(t *testing.T) {
+func TestMergeJobsFromYAMLImports_MergesSetupAndPreStepsIndependentlyOnConflict(t *testing.T) {
 	compiler := NewCompiler()
 
 	mainJobs := map[string]any{
@@ -924,13 +924,16 @@ func TestMergeJobsFromYAMLImports_MergesMixedSetupAndPreStepsOnConflict(t *testi
 			"setup-steps": []any{
 				map[string]any{"name": "main setup", "run": "echo main"},
 			},
+			"pre-steps": []any{
+				map[string]any{"name": "main pre", "run": "echo main pre"},
+			},
 			"steps": []any{
 				map[string]any{"run": "echo main job"},
 			},
 		},
 	}
 
-	importedJobsJSON := `{"test": {"runs-on": "macos-latest", "pre-steps": [{"name": "import pre", "run": "echo import"}], "steps": [{"run": "echo imported job"}]}}`
+	importedJobsJSON := `{"test": {"runs-on": "macos-latest", "setup-steps": [{"name": "import setup", "run": "echo import setup"}], "pre-steps": [{"name": "import pre", "run": "echo import pre"}], "steps": [{"run": "echo imported job"}]}}`
 	result := compiler.mergeJobsFromYAMLImports(mainJobs, importedJobsJSON)
 
 	assert.Len(t, result, 1)
@@ -938,15 +941,21 @@ func TestMergeJobsFromYAMLImports_MergesMixedSetupAndPreStepsOnConflict(t *testi
 
 	setupSteps, ok := testJob["setup-steps"].([]any)
 	require.True(t, ok, "Expected merged setup-steps array")
-	require.Len(t, setupSteps, 2, "Expected imported pre-steps to be promoted into merged setup-steps")
+	require.Len(t, setupSteps, 2, "Expected imported+main setup-steps to be merged")
 
-	_, hasPreSteps := testJob["pre-steps"]
-	assert.False(t, hasPreSteps, "Expected mixed-key merge to keep the main job's canonical setup-steps key")
+	preSteps, ok := testJob["pre-steps"].([]any)
+	require.True(t, ok, "Expected merged pre-steps array")
+	require.Len(t, preSteps, 2, "Expected imported+main pre-steps to be merged")
 
 	first := setupSteps[0].(map[string]any)
 	second := setupSteps[1].(map[string]any)
-	assert.Equal(t, "import pre", first["name"], "Imported pre-steps should run first in merged setup-steps")
-	assert.Equal(t, "main setup", second["name"], "Main workflow setup-steps should run after imported steps")
+	assert.Equal(t, "import setup", first["name"], "Imported setup-steps should run first")
+	assert.Equal(t, "main setup", second["name"], "Main workflow setup-steps should run after imported setup-steps")
+
+	firstPre := preSteps[0].(map[string]any)
+	secondPre := preSteps[1].(map[string]any)
+	assert.Equal(t, "import pre", firstPre["name"], "Imported pre-steps should run first")
+	assert.Equal(t, "main pre", secondPre["name"], "Main workflow pre-steps should run after imported pre-steps")
 }
 
 // TestMergeJobsFromYAMLImports_MultipleImportedJobs tests merging multiple imported jobs
