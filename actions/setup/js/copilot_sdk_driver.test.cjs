@@ -320,7 +320,12 @@ describe("copilot_sdk_driver.cjs", () => {
         prompt: "test prompt",
         logger: () => {},
         permissionConfig: {
-          allowedTools: ["shell(cat /tmp/gh-aw/agent/*)", "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)", "shell(ls /tmp/gh-aw/repo-memory/default/)"],
+          allowedTools: [
+            "shell(cat /tmp/gh-aw/agent/*)",
+            "shell(cat /tmp/gh-aw/agent/**/*.txt)",
+            "shell(xargs -a /tmp/gh-aw/agent/doc-samples.txt cat)",
+            "shell(ls /tmp/gh-aw/repo-memory/default/)",
+          ],
         },
         sdkModule: {
           CopilotClient: FakeCopilotClient,
@@ -333,6 +338,9 @@ describe("copilot_sdk_driver.cjs", () => {
       const sessionConfig = createSession.mock.calls[0][0];
       const onPermissionRequest = sessionConfig.onPermissionRequest;
       expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/doc-samples.txt", intention: "" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/subdir/nested.txt", intention: "" })).toEqual({
+        kind: "approve-once",
+      });
       expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/agent/previous-findings.json", intention: "" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "read", path: "/tmp/gh-aw/repo-memory/default", intention: "" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
@@ -685,6 +693,166 @@ describe("copilot_sdk_driver.cjs", () => {
       const config = parsePermissionConfigFromServerArgs(args);
       // null/42 are not the string "--allow-tool", so only the valid pairs are collected.
       expect(config).toEqual({ allowedTools: ["write", "safeoutputs"] });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Piped / chained shell command permission tests
+  //
+  // These tests verify the fallback path in the permission handler that parses
+  // fullCommandText when the Copilot SDK does not provide command identifiers.
+  // This is the scenario that caused the GEO Optimizer daily audit to fail.
+  // ─────────────────────────────────────────────────────────────────────────
+  describe("buildCopilotSDKPermissionHandler – piped command support", () => {
+    /**
+     * Helper: build an onPermissionRequest handler with the given allowed tools
+     * and return a function that checks a shell request with no command identifiers.
+     */
+    function makeHandler(allowedTools) {
+      // We need access to buildCopilotSDKPermissionHandler via runWithCopilotSDK.
+      // The simplest way is to exercise it through the same flow used in production.
+      // We recreate the config here and call parsePermissionConfigFromServerArgs.
+      const args = allowedTools.map(t => ["--allow-tool", t]).flat();
+      const config = parsePermissionConfigFromServerArgs(JSON.stringify(args));
+      // Build a minimal handler directly:
+      // Import the internal helper used by runWithCopilotSDK via a round-trip
+      // through a test-only re-export of buildCopilotSDKPermissionHandler.
+      // Since that function is not exported, we exercise it through runWithCopilotSDK
+      // in integration tests below.  Here we just verify config parsing is correct.
+      return config;
+    }
+
+    it("parsePermissionConfigFromServerArgs round-trips piped-command allowed tools", () => {
+      const config = makeHandler(["shell(ls)", "shell(cat)", "shell(echo)", "shell(safeoutputs:*)"]);
+      expect(config?.allowedTools).toContain("shell(ls)");
+      expect(config?.allowedTools).toContain("shell(cat)");
+      expect(config?.allowedTools).toContain("shell(echo)");
+      expect(config?.allowedTools).toContain("shell(safeoutputs:*)");
+    });
+
+    // Integration: drive permission handler through runWithCopilotSDK to verify
+    // that piped commands are allowed when all their segments are in the allow-list.
+    async function makePermissionHandlerViaSDK(allowedTools) {
+      const { runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
+      const { vi } = await import("vitest");
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let capturedHandler;
+      const createSession = vi.fn().mockImplementation(async config => {
+        capturedHandler = config.onPermissionRequest;
+        return {
+          sessionId: "session-pipe-test",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        };
+      });
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = createSession;
+        stop = stop;
+      }
+      await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        permissionConfig: { allowedTools },
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => ({ kind: "approve-once" }),
+        },
+      });
+      return capturedHandler;
+    }
+
+    it("allows a piped command when SDK provides no identifiers but all commands are allowed", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(ls)", "shell(cat)", "shell(echo)"]);
+      // Simulate what the Copilot SDK sends for a piped command: commands: [] (empty)
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: 'ls /tmp/dir 2>/dev/null && echo "---" && cat /tmp/file.json 2>/dev/null || echo "not found"',
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
+    it("denies a piped command when any stage is not in the allow-list", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(ls)", "shell(echo)"]);
+      // cat is NOT in the allow-list
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: "ls /tmp && cat /tmp/file.json && echo done",
+      });
+      expect(result).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
+    });
+
+    it("allows a safeoutputs || echo pipeline when both are allowed", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(safeoutputs:*)", "shell(echo)"]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"',
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
+    it("allows a pwd && ls && safeoutputs && printf pipeline when all are allowed", async () => {
+      const handler = await makePermissionHandlerViaSDK([
+        "shell(pwd)",
+        "shell(ls)",
+        "shell(safeoutputs:*)",
+        "shell(printf)",
+      ]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: "pwd && ls -la && safeoutputs --help && printf '%s\\n' done",
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
+    it("allows a piped grep/wc command when both are in the allow-list", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(grep)", "shell(wc)"]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: "grep -r pattern /tmp | wc -l",
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
+    it("preserves original single-command behaviour when SDK provides identifiers", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(git:*)"]);
+      // SDK provides identifiers (non-piped path)
+      expect(handler({ kind: "shell", commands: [{ identifier: "git" }], fullCommandText: "git status" })).toEqual({
+        kind: "approve-once",
+      });
+      expect(handler({ kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" })).toEqual({
+        kind: "reject",
+        feedback: "Tool invocation is not allowed by workflow tool permissions.",
+      });
+    });
+
+    it("denies when fullCommandText is empty and no identifiers provided", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(ls)"]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: "",
+      });
+      expect(result).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
+    });
+
+    it("allows a :* wildcard rule to match pipeline stages with the given prefix", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(gh:*)", "shell(echo)"]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: "gh issue list && echo done",
+      });
+      expect(result).toEqual({ kind: "approve-once" });
     });
   });
 });

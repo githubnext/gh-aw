@@ -62,6 +62,28 @@ function parsePositiveAIC(raw) {
 }
 
 /**
+ * @param {string|undefined} raw
+ * @returns {number|undefined}
+ */
+function parsePositiveAmbientContext(raw) {
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/**
+ * @returns {{ ambientContext: number|undefined, ambientContextFormatted: string|undefined, ambientContextSuffix: string }}
+ */
+function getAmbientContextFromEnv() {
+  const ambientContext = parsePositiveAmbientContext(process.env.GH_AW_AMBIENT_CONTEXT);
+  const ambientContextFormatted = typeof ambientContext === "number" ? formatET(ambientContext) : undefined;
+  return {
+    ambientContext,
+    ambientContextFormatted,
+    ambientContextSuffix: ambientContextFormatted ? ` · ⊞ ${ambientContextFormatted} ambient context` : "",
+  };
+}
+
+/**
  * @param {string} label
  * @param {number|undefined} value
  * @returns {{ value: number|undefined, formatted: string|undefined, suffix: string }}
@@ -182,8 +204,10 @@ function getFooterMessage(ctx) {
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
   } = getAICFromEnv();
+  const { ambientContext: envAmbientContext, ambientContextFormatted: envAmbientContextFormatted, ambientContextSuffix: envAmbientContextSuffix } = getAmbientContextFromEnv();
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
   const aiCredits = ctx.aiCredits ?? envAIC;
+  const ambientContext = envAmbientContext;
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
   const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
@@ -231,6 +255,9 @@ function getFooterMessage(ctx) {
     effectiveTokensSuffix: finalEffectiveTokensSuffix,
     aiCreditsFormatted,
     aiCreditsSuffix,
+    ambientContext,
+    ambientContextFormatted: envAmbientContextFormatted,
+    ambientContextSuffix: envAmbientContextSuffix,
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
@@ -250,8 +277,15 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
+  const metricSuffixes = [];
   if (aiCredits) {
-    defaultFooter += aiCreditsSuffix;
+    metricSuffixes.push(aiCreditsSuffix);
+  }
+  if (ambientContext) {
+    metricSuffixes.push(envAmbientContextSuffix);
+  }
+  if (metricSuffixes.length > 0) {
+    defaultFooter += metricSuffixes.join("");
   }
   // Append history link when available
   if (ctx.historyUrl) {

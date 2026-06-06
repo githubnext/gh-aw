@@ -39,7 +39,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { minimatch } = require("minimatch");
+const { extractCommandNamesFromPipeline } = require("./bash_command_parser.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -204,7 +204,7 @@ function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
     if (normalizedRequestedPath === normalizedPattern) {
       return true;
     }
-    return minimatch(normalizedRequestedPath, normalizedPattern, { dot: true });
+    return path.posix.matchesGlob(normalizedRequestedPath, normalizedPattern);
   });
 }
 
@@ -241,6 +241,35 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
   const readablePathPatterns = shellRules.flatMap(extractReadablePathPatternsFromShellRule);
 
   /**
+   * Returns true if a single command identifier matches any of the shell rules.
+   *
+   * Three rule formats are recognised:
+   *  - **Wildcard** (`cmd:*`)  — the identifier must equal the prefix before `:*`.
+   *    Example: rule `"safeoutputs:*"` matches identifier `"safeoutputs"`.
+   *  - **Single-word** (`cmd`) — the identifier must equal the rule exactly.
+   *    Example: rule `"ls"` matches identifier `"ls"` only.
+   *  - **Full-command** (`cmd arg …`) — rules that contain a space are intentionally
+   *    **not** tested here.  They represent exact full-command constraints and are
+   *    only meaningful when compared against the whole command text, not against
+   *    individual pipeline stages.
+   *
+   * @param {string} identifier - A single command name (e.g. "ls", "git", "safeoutputs")
+   * @returns {boolean} True when any shell rule permits the identifier
+   */
+  function isIdentifierAllowedByShellRules(identifier) {
+    return shellRules.some(rule => {
+      if (rule.endsWith(":*")) {
+        const prefix = rule.slice(0, -2).trim();
+        return prefix.length > 0 && identifier === prefix;
+      }
+      if (!rule.includes(" ")) {
+        return identifier === rule;
+      }
+      return false;
+    });
+  }
+
+  /**
    * @param {import("@github/copilot-sdk").PermissionRequest} request
    * @returns {boolean}
    */
@@ -250,16 +279,59 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
         if (allowedToolEntries.has("shell")) return true;
         const commandIdentifiers = Array.isArray(request.commands) ? request.commands.map(cmd => cmd?.identifier).filter(Boolean) : [];
         const fullCommand = String(request.fullCommandText || "").trim();
-        return shellRules.some(rule => {
-          if (rule.endsWith(":*")) {
-            const prefix = rule.slice(0, -2).trim();
-            return prefix.length > 0 && commandIdentifiers.includes(prefix);
+
+        // Primary path: the SDK provided command identifiers.
+        // Use original matching logic: single-word and :* rules match identifiers,
+        // rules with spaces are compared against the full command text.
+        if (commandIdentifiers.length > 0) {
+          return shellRules.some(rule => {
+            if (rule.endsWith(":*")) {
+              const prefix = rule.slice(0, -2).trim();
+              return prefix.length > 0 && commandIdentifiers.includes(prefix);
+            }
+            if (!rule.includes(" ")) {
+              return commandIdentifiers.includes(rule);
+            }
+            return fullCommand === rule;
+          });
+        }
+
+        // Fallback path: SDK did not supply command identifiers (common for complex
+        // piped / chained commands such as `ls /tmp && cat file.json || echo "done"`).
+        // Parse fullCommandText to extract the executable name from each pipeline
+        // stage and verify that every stage is individually allowed.
+        if (fullCommand) {
+          const parsedNames = extractCommandNamesFromPipeline(fullCommand);
+
+          if (parsedNames.length > 1) {
+            // Multi-stage pipeline: ALL stages must be individually allowed.
+            // Exact full-command rules (with spaces) do not apply to individual
+            // pipeline stages — only single-word and :* prefix rules.
+            return parsedNames.every(name => isIdentifierAllowedByShellRules(name));
           }
-          if (!rule.includes(" ")) {
-            return commandIdentifiers.includes(rule);
+
+          if (parsedNames.length === 1) {
+            // Single parsed command: apply the same logic as for a single SDK identifier,
+            // including exact full-command rule matching for rules that contain spaces.
+            const [name] = parsedNames;
+            return shellRules.some(rule => {
+              if (rule.endsWith(":*")) {
+                const prefix = rule.slice(0, -2).trim();
+                return prefix.length > 0 && name === prefix;
+              }
+              if (!rule.includes(" ")) {
+                return name === rule;
+              }
+              return fullCommand === rule;
+            });
           }
-          return fullCommand === rule;
-        });
+
+          // Could not extract any command names (e.g. complex subshell-only command).
+          // Last resort: try an exact full-command match against rules with spaces.
+          return shellRules.some(rule => rule.includes(" ") && !rule.endsWith(":*") && fullCommand === rule);
+        }
+
+        return false;
       }
       case "write":
         return allowedToolEntries.has("write");
