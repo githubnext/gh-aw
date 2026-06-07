@@ -132,6 +132,13 @@ steps:
   - name: Install formatter dependencies
     if: steps.fetch-prs.outputs.eligible_count != '0'
     run: npm ci --prefix actions/setup/js
+  - name: Seed noop output when queue is empty
+    if: steps.fetch-prs.outputs.eligible_count == '0'
+    run: |
+      mkdir -p /tmp/gh-aw
+      cat > /tmp/gh-aw/agent_output.json <<'JSON'
+      {"items":[{"type":"noop","message":"No open non-draft PRs to process"}]}
+      JSON
 safe-outputs:
   add-comment:
     max: 20
