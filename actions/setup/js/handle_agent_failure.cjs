@@ -13,6 +13,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
+const { formatAIC } = require("./model_costs.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
@@ -64,6 +65,19 @@ function buildWarningAlertLine(title, message) {
  */
 function renderPromptTemplate(templateName, context = {}) {
   return renderTemplateFromFile(getPromptPath(templateName), context);
+}
+
+/**
+ * Format AIC for report messaging as an approximate rounded-up value.
+ * @param {string} raw
+ * @returns {string}
+ */
+function formatApproximateAIC(raw) {
+  const value = Number(raw || "");
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+  return formatAIC(Math.ceil(value));
 }
 
 /**
@@ -1489,8 +1503,10 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return "";
   }
 
-  const usageLine = aiCredits ? `\n- AI credits used: \`${aiCredits}\`` : "";
-  const budgetLine = maxAICredits ? `\n- Configured AI credits budget: \`${maxAICredits}\`` : "";
+  const formattedAICredits = formatApproximateAIC(aiCredits);
+  const formattedMaxAICredits = formatApproximateAIC(maxAICredits);
+  const usageLine = formattedAICredits ? `\n- AI credits used: \`${formattedAICredits}\`` : "";
+  const budgetLine = formattedMaxAICredits ? `\n- Configured AI credits budget: \`${formattedMaxAICredits}\`` : "";
   const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
 
   const templateName = "ai_credits_rate_limit_error.md";
@@ -1575,11 +1591,13 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
   }
 
   const templatePath = getPromptPath("daily_effective_workflow_exceeded.md");
+  const formattedTotalAIC = formatApproximateAIC(totalAIC);
+  const formattedThreshold = formatApproximateAIC(threshold);
   return (
     "\n" +
     renderTemplateFromFile(templatePath, {
-      total_effective_tokens: totalAIC || "unknown",
-      threshold: threshold || "unknown",
+      total_effective_tokens: formattedTotalAIC || "unknown",
+      threshold: formattedThreshold || "unknown",
     })
   );
 }
@@ -3105,6 +3123,7 @@ module.exports = {
   loadToolDenialsExceededEvents,
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
+  buildAICreditsRateLimitErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,

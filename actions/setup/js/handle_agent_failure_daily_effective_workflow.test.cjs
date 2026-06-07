@@ -20,16 +20,18 @@ describe("handle_agent_failure daily workflow ET context", () => {
   });
 
   it("renders the daily workflow ET guardrail context when exceeded", () => {
-    const rendered = buildDailyEffectiveWorkflowExceededContext(true, "2500", "2000");
+    const rendered = buildDailyEffectiveWorkflowExceededContext(true, "17.329230000000003", "10");
     expect(rendered).toContain("Daily Workflow AIC Guardrail Exceeded");
-    expect(rendered).toContain("2500");
-    expect(rendered).toContain("2000");
+    expect(rendered).toContain("**24h AIC usage:** `18` AI Credits");
+    expect(rendered).toContain("**Configured threshold:** `10` AI Credits");
     expect(rendered).not.toContain("Activation Issue:");
     // Progressive disclosure sections
     expect(rendered).toContain("How to raise the daily limit");
+    expect(rendered).toContain("max-daily-ai-credits: 20K");
     expect(rendered).toContain("max-daily-ai-credits");
     expect(rendered).toContain("What is the daily AI Credits guardrail");
     expect(rendered).toContain("How to disable this guardrail");
+    expect(rendered).toContain("Consult the billing dashboards for accurate usage and charges.");
   });
 
   it("returns empty string when the guardrail did not trigger", () => {

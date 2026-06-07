@@ -4,6 +4,8 @@ Repository: {repository}
 Generated at: {generated_at}
 Period: {period}
 
+<sub>AIC values are approximate. Consult the billing dashboards for accurate usage and charges.</sub>
+
 {report_table}
 
 {without_data_section}

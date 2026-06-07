@@ -27,7 +27,7 @@ function formatAIC(value) {
   if (!Number.isFinite(n) || n <= 0) {
     return "0";
   }
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.ceil(n));
 }
 
 /**

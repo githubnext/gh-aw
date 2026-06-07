@@ -3,6 +3,8 @@
 >
 > The workflow hit the configured `max-ai-credits` budget and the firewall rejected additional model requests.{usage_line}{budget_line}{run_line}
 >
+> <sub>AIC values are approximate. Consult the billing dashboards for accurate usage and charges.</sub>
+>
 > To reduce recurrence:
 > - Increase `max-ai-credits` for this workflow when appropriate.
 > - Reduce unnecessary model/tool calls in the prompt.

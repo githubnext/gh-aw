@@ -97,7 +97,35 @@ describe("create_forecast_issue", () => {
     expect(body).toContain("### How to read this report");
     expect(body).toContain("It is statistically valid for monthly P50 to be positive while weekly P50 is 0");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
+    expect(body).toContain("Consult the billing dashboards for accurate usage and charges.");
     expect(body).not.toContain("sampled runs but forecast AIC is 0");
+  });
+
+  it("rounds forecast AIC values up to the next integer", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    const body = module.buildForecastIssueBody(
+      {
+        period: "month",
+        workflows: [
+          {
+            workflow_id: "wf-round",
+            sampled_runs: 1,
+            p50_aic_per_run: 1.1,
+            p95_aic_per_run: 2.01,
+            weekly_projected_aic: 3.001,
+            monthly_projected_aic: 4.0001,
+          },
+        ],
+      },
+      {
+        owner: "octo",
+        repo: "repo",
+        serverUrl: "https://github.com",
+        generatedAtISO: "2026-01-01T00:00:00.000Z",
+      }
+    );
+
+    expect(body).toContain("| wf-round | 1 | 2 | 3 | 4 | 5 |");
   });
 
   it("lists workflows without data when every projected AIC is zero", async () => {

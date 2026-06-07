@@ -6,13 +6,15 @@
 
 The agent will resume automatically once the 24-hour rolling window resets. No action is required if the current limit is appropriate for your usage.
 
+<sub>AIC values are approximate. Consult the billing dashboards for accurate usage and charges.</sub>
+
 <details>
 <summary>How to raise the daily limit</summary>
 
 Set `max-daily-ai-credits` in your workflow frontmatter to a higher value, then recompile:
 
 ```yaml
-max-daily-ai-credits: 5M
+max-daily-ai-credits: 20K
 ```
 
 Common suffix shorthands: `K` = thousands, `M` = millions (e.g. `2M` = 2,000,000).
@@ -29,7 +31,7 @@ Commit and push the updated `.lock.yml` file.
 > Raising the limit increases the number of AI inference calls the workflow can make
 > per 24-hour window per triggering user. Review your Copilot or model provider billing
 > before significantly increasing the threshold (for example, before doubling the current
-> value or setting it above 10M tokens).
+> value or setting it far above expected usage).
 
 </details>
 
