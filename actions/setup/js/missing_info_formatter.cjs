@@ -19,6 +19,15 @@ function escapeMarkdown(text) {
 }
 
 /**
+ * Escape markdown content for table cells
+ * @param {string | null | undefined} text - Text to escape
+ * @returns {string} Escaped table-safe text
+ */
+function escapeMarkdownTableCell(text) {
+  return escapeMarkdown(text).replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+}
+
+/**
  * Format missing_tool messages into markdown list items
  * @param {Array<{tool: string | null, reason: string, alternatives?: string | null}>} missingTools - Missing tool messages
  * @returns {string} Formatted markdown list
@@ -26,15 +35,14 @@ function escapeMarkdown(text) {
 function formatMissingTools(missingTools) {
   if (!missingTools || missingTools.length === 0) return "";
 
-  const items = missingTools.map(item => {
-    let line = `- **${escapeMarkdown(item.tool)}**: ${escapeMarkdown(item.reason)}`;
-    if (item.alternatives) {
-      line += `\n  - *Alternatives*: ${escapeMarkdown(item.alternatives)}`;
-    }
-    return line;
-  });
+  const items = missingTools.map(item => `- **${escapeMarkdown(item.tool)}**: ${escapeMarkdown(item.reason)}`);
+  const alternativesRows = missingTools.filter(item => item.alternatives).map(item => `| ${escapeMarkdownTableCell(item.tool)} | ${escapeMarkdownTableCell(item.alternatives)} |`);
 
-  return items.join("\n");
+  if (alternativesRows.length === 0) {
+    return items.join("\n");
+  }
+
+  return `${items.join("\n")}\n\nAlternatives:\n\n| Tool | Alternative |\n| --- | --- |\n${alternativesRows.join("\n")}`;
 }
 
 /**

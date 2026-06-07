@@ -34,7 +34,9 @@ describe("missing_info_formatter.cjs", () => {
       const result = formatMissingTools(tools);
       expect(result).toContain("**docker**");
       expect(result).toContain("Need containerization");
-      expect(result).toContain("*Alternatives*: Use VM");
+      expect(result).toContain("Alternatives:");
+      expect(result).toContain("| Tool | Alternative |");
+      expect(result).toContain("| docker | Use VM |");
       expect(result).toContain("**kubectl**");
       expect(result).toContain("Kubernetes management");
     });
@@ -47,11 +49,12 @@ describe("missing_info_formatter.cjs", () => {
 
     it("should escape special characters in tool info", () => {
       const { formatMissingTools } = formatter;
-      const tools = [{ tool: "my_tool", reason: "Need <special> chars" }];
+      const tools = [{ tool: "my_tool", reason: "Need <special> chars", alternatives: "Use A | B" }];
 
       const result = formatMissingTools(tools);
       expect(result).toContain("my\\_tool");
       expect(result).toContain("&lt;special&gt;");
+      expect(result).toContain("| my\\_tool | Use A \\| B |");
     });
   });
 

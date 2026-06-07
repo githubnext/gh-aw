@@ -1038,6 +1038,21 @@ function extractDeniedCommandsFromAlternatives(alternatives) {
 }
 
 /**
+ * Normalize denied command strings for permission-context deduplication.
+ * `read(path)` grants are path-agnostic once enabled, so collapse all reads.
+ * @param {string} command
+ * @returns {string}
+ */
+function normalizeDeniedPermissionCommand(command) {
+  const trimmed = typeof command === "string" ? command.trim() : "";
+  if (!trimmed) return "";
+  if (/^read\s*\([\s\S]*\)$/i.test(trimmed)) {
+    return "read(...)";
+  }
+  return trimmed;
+}
+
+/**
  * Load missing_tool messages from agent output.
  * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
@@ -1122,7 +1137,8 @@ function buildPermissionDeniedContext(items, workflowId) {
   const allDenied = new Set();
   for (const item of permissionItems) {
     for (const cmd of item.denied_commands) {
-      if (cmd) allDenied.add(cmd);
+      const normalized = normalizeDeniedPermissionCommand(cmd);
+      if (normalized) allDenied.add(normalized);
     }
   }
 
