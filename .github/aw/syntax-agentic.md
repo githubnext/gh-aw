@@ -87,13 +87,13 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
   - Markdown files under `.github/agents/` are treated as custom agent files
   - Only one agent file is allowed per workflow
-  - See [Imports Field](#imports-field) section for detailed documentation
+  - See [Imports Field](syntax-tools-imports.md#imports-field) section for detailed documentation
 - **`inlined-imports:`** - Inline all imports at compile time (boolean, default: `false`)
   - When `true`, all imports (including those without inputs) are inlined in the generated `.lock.yml` instead of using runtime-import macros
   - The frontmatter hash covers the entire markdown body when enabled, so any content change invalidates the hash
   - **Required for repository rulesets**: Workflows used as required status checks in repository rulesets run without access to repository files at runtime. Set `inlined-imports: true` to bundle all imported content at compile time to avoid "Runtime import file not found" errors
   - **Constraint**: Cannot be combined with agent file imports (`.github/agents/` files). Remove any custom agent file imports before enabling
-- **`import-schema:`** - Define typed input parameters for this shared workflow (object). Use when other workflows import this one via the `uses:`/`with:` syntax (see [Imports Field](#imports-field)).
+- **`import-schema:`** - Define typed input parameters for this shared workflow (object). Use when other workflows import this one via the `uses:`/`with:` syntax (see [Imports Field](syntax-tools-imports.md#imports-field)).
   - Parameters are accessible inside the shared workflow via `${{ github.aw.import-inputs.<name> }}` expressions
   - Object inputs (type: `object`) allow one-level deep sub-fields: `${{ github.aw.import-inputs.<name>.<subkey> }}`
   - Fields per parameter:
@@ -266,26 +266,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
             run: echo "Custom job"
     ```
 
-  - Built-in job example (OIDC/secret bootstrap before token minting). Replace the placeholder fetch command with your real secret manager/API call:
-
-    ```yaml
-    jobs:
-      activation:
-        setup-steps:
-          - name: Configure cloud credentials with OIDC
-            uses: aws-actions/configure-aws-credentials@v4
-            with:
-              # Replace with your AWS account ID and role ARN.
-              role-to-assume: arn:aws:iam::123456789012:role/gh-aw-activation
-              aws-region: us-east-1
-          - name: Fetch bootstrap token
-            id: bootstrap
-            # Example placeholder; replace with a real secret manager/API call.
-            run: echo "token=fetched-value" >> "$GITHUB_OUTPUT"
-        pre-steps:
-          - name: Verify bootstrap token
-            run: test -n "${{ steps.bootstrap.outputs.token }}"
-    ```
+  - `setup-steps`/`pre-steps` also apply to built-in jobs (e.g. `activation`): use `setup-steps` for OIDC/secret bootstrap that must run before framework token minting, then verify the result in `pre-steps`.
 
 - **`engine:`** - AI processor configuration
   - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or `"opencode"` (experimental)
