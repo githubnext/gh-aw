@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,6 +69,16 @@ func TestExtractWorkflowIDFromName(t *testing.T) {
 	for _, tc := range cases {
 		assert.Equal(t, tc.want, extractWorkflowIDFromName(tc.in), "input=%q", tc.in)
 	}
+}
+
+func TestExtractEngineNames(t *testing.T) {
+	cfg := &workflow.FrontmatterConfig{
+		Engine: map[string]any{
+			"id":       "copilot",
+			"fallback": []any{"claude", map[string]any{"id": "codex"}},
+		},
+	}
+	assert.Equal(t, []string{"claude", "codex", "copilot"}, extractEngineNames(cfg))
 }
 
 // ── RunForecast validation ────────────────────────────────────────────────────
@@ -426,7 +437,7 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 	require.Equal(t, []string{"usage"}, downloaded)
 }
 
-func TestLoadCachedRunAIC_DoesNotFallbackToLegacyAgentArtifacts(t *testing.T) {
+func TestLoadCachedRunAIC_FallsBackToAgentAndDetectionArtifacts(t *testing.T) {
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -437,16 +448,16 @@ func TestLoadCachedRunAIC_DoesNotFallbackToLegacyAgentArtifacts(t *testing.T) {
 	var downloaded []string
 	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
 		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
+		if strings.Join(artifactFilter, ",") == "usage" {
+			return ErrNoArtifacts
+		}
 		return nil
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
-		if len(downloaded) == 0 {
-			return &TokenUsageSummary{}, nil
-		}
-		return &TokenUsageSummary{}, nil
+		return &TokenUsageSummary{TotalAIC: 4.56}, nil
 	}
 
 	aic := loadCachedRunAIC(context.Background(), 999_000_002, false)
-	require.Zero(t, aic)
-	require.Equal(t, []string{"usage"}, downloaded)
+	require.InDelta(t, 4.56, aic, 1e-9)
+	require.Equal(t, []string{"usage", "agent,detection"}, downloaded)
 }

@@ -54,6 +54,8 @@ describe("create_forecast_issue", () => {
         workflows: [
           {
             workflow_id: "wf|a",
+            workflow_path: ".github/workflows/wf-a.yml",
+            engines: ["copilot"],
             sampled_runs: 3,
             p50_aic_per_run: 4000,
             p95_aic_per_run: 8000,
@@ -62,6 +64,8 @@ describe("create_forecast_issue", () => {
           },
           {
             workflow_id: "wf-b",
+            workflow_path: ".github/workflows/wf-b.yml",
+            engines: ["claude", "copilot"],
             sampled_runs: 5,
             p50_aic_per_run: 0,
             p95_aic_per_run: 0,
@@ -79,8 +83,8 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| Workflow | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |");
-    expect(body).toContain("| wf\\|a | 3 | 4,000 | 8,000 | 12,346 | 52,000 |");
+    expect(body).toContain("| Workflow | Engines | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |");
+    expect(body).toContain("| [wf\\|a](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-a.yml) | copilot | 3 | 4,000 | 8,000 | 12,346 | 52,000 |");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
     expect(body).not.toContain("sampled runs but forecast AIC is 0");
   });
@@ -132,6 +136,7 @@ describe("create_forecast_issue", () => {
         workflows: [
           {
             workflow_id: "wf-c",
+            workflow_path: ".github/workflows/wf-c.yml",
             sampled_runs: 2,
             p50_aic_per_run: 1000,
             p95_aic_per_run: 2000,
@@ -154,8 +159,8 @@ describe("create_forecast_issue", () => {
 
     expect(body).toContain("<details>");
     expect(body).toContain("Sampled runs used in computation");
-    expect(body).toContain("| wf-c | #111 | 2026-01-10 | 900 |");
-    expect(body).toContain("| wf-c | #222 | 2026-01-11 | 1,100 |");
+    expect(body).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #111 | 2026-01-10 | 900 |");
+    expect(body).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #222 | 2026-01-11 | 1,100 |");
   });
 
   it("renders TOTAL row when multiple workflows are present", async () => {
@@ -190,7 +195,27 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| **TOTAL** | | | | **10,000** | **42,000** |");
+    expect(body).toContain("| **TOTAL** | | | | | **10,000** | **42,000** |");
+  });
+
+  it("sorts workflows by monthly cost descending", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    const body = module.buildForecastIssueBody(
+      {
+        period: "month",
+        workflows: [
+          { workflow_id: "low", sampled_runs: 1, monthly_projected_aic: 100 },
+          { workflow_id: "high", sampled_runs: 1, monthly_projected_aic: 5000 },
+        ],
+      },
+      {
+        owner: "octo",
+        repo: "repo",
+        serverUrl: "https://github.com",
+        generatedAtISO: "2026-01-01T00:00:00.000Z",
+      }
+    );
+    expect(body.indexOf("| high |")).toBeLessThan(body.indexOf("| low |"));
   });
 
   it("creates an error issue when report file is missing", async () => {
