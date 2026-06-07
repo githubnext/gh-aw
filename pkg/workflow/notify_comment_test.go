@@ -1189,6 +1189,9 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/agent_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include agent_usage.jsonl path.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/detection_usage.jsonl") {
+		t.Errorf("Expected usage artifact to include detection_usage.jsonl path.\nGenerated steps:\n%s", allSteps)
+	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/agent/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include agent token usage path.\nGenerated steps:\n%s", allSteps)
 	}
