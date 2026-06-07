@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { extractRepoSlugFromUrl, normalizeRepoSlug, findGitDirectories, findRepoCheckout, buildRepoCheckoutMap } = require("./find_repo_checkout.cjs");
 const { getPatchPathForBranchInRepo, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch } = require("./generate_git_patch.cjs");
+const { _resetCache: resetCheckoutManifestCache } = require("./checkout_manifest.cjs");
 
 describe("find_repo_checkout", () => {
   describe("extractRepoSlugFromUrl", () => {
@@ -165,6 +166,140 @@ describe("find_repo_checkout", () => {
       } finally {
         fs.rmSync(testDir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe("checkout manifest fallback (issue #37545)", () => {
+    let workspaceDir;
+    let manifestPath;
+    let originalManifestEnv;
+
+    beforeEach(() => {
+      originalManifestEnv = process.env.GH_AW_CHECKOUT_MANIFEST;
+      workspaceDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "test-manifest-"));
+      manifestPath = path.join(workspaceDir, "checkout-manifest.json");
+      process.env.GH_AW_CHECKOUT_MANIFEST = manifestPath;
+      resetCheckoutManifestCache();
+    });
+
+    afterEach(() => {
+      if (originalManifestEnv === undefined) {
+        delete process.env.GH_AW_CHECKOUT_MANIFEST;
+      } else {
+        process.env.GH_AW_CHECKOUT_MANIFEST = originalManifestEnv;
+      }
+      resetCheckoutManifestCache();
+      try {
+        fs.rmSync(workspaceDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    });
+
+    it("findRepoCheckout returns the manifest path even when remote.origin.url has been clobbered", () => {
+      // Reproduces the bug from #37545: the workflow checked out githubnext/gh-aw-side-repo
+      // at the workspace root, but a later "Configure Git credentials" step rewrote
+      // origin to point at githubnext/gh-aw-test. The manifest is the source of truth.
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "githubnext/gh-aw-side-repo": {
+            repository: "githubnext/gh-aw-side-repo",
+            path: "",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const result = findRepoCheckout("githubnext/gh-aw-side-repo", workspaceDir);
+
+      expect(result.success).toBe(true);
+      expect(result.path).toBe(workspaceDir);
+      expect(result.repoSlug).toBe("githubnext/gh-aw-side-repo");
+    });
+
+    it("findRepoCheckout resolves manifest entries with a non-empty path to a subdirectory", () => {
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/sub-repo": {
+            repository: "owner/sub-repo",
+            path: "repos/sub-repo",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const result = findRepoCheckout("owner/sub-repo", workspaceDir);
+
+      expect(result.success).toBe(true);
+      expect(result.path).toBe(path.join(workspaceDir, "repos/sub-repo"));
+    });
+
+    it("findRepoCheckout is case-insensitive on the repo slug", () => {
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "githubnext/gh-aw-side-repo": {
+            repository: "githubnext/gh-aw-side-repo",
+            path: "",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const result = findRepoCheckout("GithubNext/gh-aw-side-repo", workspaceDir);
+
+      expect(result.success).toBe(true);
+      expect(result.path).toBe(workspaceDir);
+    });
+
+    it("findRepoCheckout still applies allowedRepos validation when the manifest matches", () => {
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/blocked": { repository: "owner/blocked", path: "blocked", default_branch: "main" },
+        })
+      );
+
+      const result = findRepoCheckout("owner/blocked", workspaceDir, {
+        allowedRepos: ["owner/allowed"],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it("findRepoCheckout falls back to the git-remote scan when the manifest has no entry", () => {
+      fs.writeFileSync(manifestPath, JSON.stringify({}));
+
+      const result = findRepoCheckout("owner/missing", workspaceDir);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("buildRepoCheckoutMap seeds from manifest entries", () => {
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "githubnext/gh-aw-side-repo": {
+            repository: "githubnext/gh-aw-side-repo",
+            path: "",
+            default_branch: "main",
+          },
+          "owner/sub-repo": {
+            repository: "owner/sub-repo",
+            path: "repos/sub-repo",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const map = buildRepoCheckoutMap(workspaceDir);
+
+      expect(map.get("githubnext/gh-aw-side-repo")).toBe(workspaceDir);
+      expect(map.get("owner/sub-repo")).toBe(path.join(workspaceDir, "repos/sub-repo"));
     });
   });
 

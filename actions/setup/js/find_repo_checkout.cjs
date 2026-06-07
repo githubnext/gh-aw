@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { execGitSync } = require("./git_helpers.cjs");
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
+const { lookupCheckout, loadAllCheckouts } = require("./checkout_manifest.cjs");
 
 /**
  * Debug logging helper - logs to stderr when DEBUG env var matches
@@ -123,6 +124,24 @@ function getRemoteOriginUrl(repoPath) {
 }
 
 /**
+ * Resolve a workspace-relative path from the checkout manifest into an
+ * absolute path under the workspace. The manifest stores an empty string
+ * to represent the workspace root.
+ * @param {string} workspaceRoot
+ * @param {string} relPath
+ * @returns {string}
+ */
+function resolveManifestPath(workspaceRoot, relPath) {
+  if (!relPath || relPath === "" || relPath === ".") {
+    return workspaceRoot;
+  }
+  if (path.isAbsolute(relPath)) {
+    return relPath;
+  }
+  return path.join(workspaceRoot, relPath);
+}
+
+/**
  * Find the checkout directory for a given repo slug
  * Searches the workspace for git repos and matches by remote URL
  *
@@ -153,6 +172,22 @@ function findRepoCheckout(repoSlug, workspaceRoot, options = {}) {
     if (!validation.valid) {
       return { success: false, error: validation.error };
     }
+  }
+
+  // First, consult the checkout manifest written by the compiler-emitted
+  // "Build checkout manifest for safe-outputs handlers" step. This is the
+  // authoritative source for cross-repo checkout paths and does not depend
+  // on `git config --get remote.origin.url`, which a later "Configure Git
+  // credentials" step may have overwritten to point at the workflow repo.
+  const manifestEntry = lookupCheckout(targetSlug);
+  if (manifestEntry) {
+    const resolved = resolveManifestPath(ws, manifestEntry.path);
+    debugLog(`Found manifest entry for ${targetSlug}: ${resolved}`);
+    return {
+      success: true,
+      path: resolved,
+      repoSlug: targetSlug,
+    };
   }
 
   // Find all git directories in the workspace
@@ -211,6 +246,13 @@ function buildRepoCheckoutMap(workspaceRoot) {
   const ws = workspaceRoot || process.env.GITHUB_WORKSPACE || process.cwd();
   const map = new Map();
 
+  // Seed from the checkout manifest first so cross-repo entries survive even
+  // when a later "Configure Git credentials" step has rewritten remote.origin.url.
+  const manifest = loadAllCheckouts();
+  for (const [slug, entry] of manifest) {
+    map.set(slug, resolveManifestPath(ws, entry.path));
+  }
+
   const gitDirs = findGitDirectories(ws);
 
   for (const repoPath of gitDirs) {
@@ -218,7 +260,7 @@ function buildRepoCheckoutMap(workspaceRoot) {
     if (!remoteUrl) continue;
 
     const slug = extractRepoSlugFromUrl(remoteUrl);
-    if (slug) {
+    if (slug && !map.has(slug)) {
       map.set(slug, repoPath);
     }
   }
