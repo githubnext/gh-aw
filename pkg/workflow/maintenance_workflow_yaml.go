@@ -601,14 +601,16 @@ jobs:
 
       - name: Generate forecast report
         id: generate_forecast_report
+        timeout-minutes: 30
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: "*"
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         run: |
           mkdir -p ./.cache/gh-aw/forecast
           set +e
-          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 30 --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 30 --verbose --json > ./.cache/gh-aw/forecast/report.json
           forecast_exit_code=$?
           set -e
           if [ "${forecast_exit_code}" -eq 124 ]; then

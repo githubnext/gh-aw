@@ -134,6 +134,31 @@ describe("create_forecast_issue", () => {
     );
   });
 
+  it("does not emit warning for empty report when forecast step is cancelled", async () => {
+    process.env.FORECAST_STEP_OUTCOME = "cancelled";
+    mockFs.existsSync.mockReturnValue(true);
+    mockFs.readFileSync.mockImplementation(path => {
+      if (path === "./.cache/gh-aw/forecast/report.json") {
+        return "   ";
+      }
+      if (path === "./.cache/gh-aw/forecast/error.json") {
+        return '{"outcome":"cancelled","message":"Forecast step finished with outcome: cancelled."}';
+      }
+      return "";
+    });
+
+    const module = await import("./create_forecast_issue.cjs");
+    await module.main();
+
+    expect(mockCore.warning).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Forecast step outcome was cancelled."));
+    expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: module.FORECAST_ERROR_ISSUE_TITLE,
+      })
+    );
+  });
+
   it("renders timeout diagnostics in issue body when outcome is timeout", async () => {
     const module = await import("./create_forecast_issue.cjs");
     const body = module.buildForecastIssueBody(null, {

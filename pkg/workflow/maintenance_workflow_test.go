@@ -513,14 +513,23 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500 --artifacts agent") {
 		t.Errorf("Job forecast_report should not pre-download full logs before running forecast in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --timeout 30 --json") {
-		t.Errorf("Job forecast_report gh aw forecast command should include --repo, --timeout, and --json in:\n%s", yaml)
+	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --timeout 30 --verbose --json") {
+		t.Errorf("Job forecast_report gh aw forecast command should include --repo, --timeout, --verbose, and --json in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "shell: bash") {
 		t.Errorf("Job forecast_report should explicitly use bash shell for stderr filtering in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --timeout 30 --json 2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2) > ./.cache/gh-aw/forecast/report.json") {
-		t.Errorf("Job forecast_report gh aw forecast command should set a 30-minute forecast timeout while filtering the experimental warning in:\n%s", yaml)
+	if !strings.Contains(yaml, "timeout-minutes: 30") {
+		t.Errorf("Job forecast_report should set a 30-minute timeout on the forecast generation step in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "DEBUG: \"*\"") {
+		t.Errorf("Job forecast_report should enable DEBUG=* in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --timeout 30 --verbose --json > ./.cache/gh-aw/forecast/report.json") {
+		t.Errorf("Job forecast_report gh aw forecast command should run in verbose mode and write report output in:\n%s", yaml)
+	}
+	if strings.Contains(yaml, "2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2)") {
+		t.Errorf("Job forecast_report should not filter forecast stderr in:\n%s", yaml)
 	}
 	if strings.Contains(yaml, "timeout 10m ${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should not use shell timeout wrapper for forecast command anymore in:\n%s", yaml)

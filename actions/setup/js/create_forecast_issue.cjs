@@ -97,6 +97,8 @@ async function main() {
   let report = null;
   let outcome = "success";
   let errorMessage = "";
+  const stepOutcome = String(process.env.FORECAST_STEP_OUTCOME || "").toLowerCase();
+  const forecastStepFailed = stepOutcome !== "" && stepOutcome !== "success";
 
   if (fs.existsSync(FORECAST_REPORT_PATH)) {
     let reportBody = "";
@@ -119,12 +121,22 @@ async function main() {
     } else if (!errorMessage) {
       outcome = "error";
       errorMessage = `Forecast report JSON is empty at ${FORECAST_REPORT_PATH}.`;
-      core.warning(errorMessage);
+      if (forecastStepFailed) {
+        outcome = stepOutcome;
+        core.info(`${errorMessage} Forecast step outcome was ${stepOutcome}.`);
+      } else {
+        core.warning(errorMessage);
+      }
     }
   } else {
     outcome = "error";
     errorMessage = `Forecast report JSON not found at ${FORECAST_REPORT_PATH}.`;
-    core.warning(errorMessage);
+    if (forecastStepFailed) {
+      outcome = stepOutcome;
+      core.info(`${errorMessage} Forecast step outcome was ${stepOutcome}.`);
+    } else {
+      core.warning(errorMessage);
+    }
   }
 
   if (fs.existsSync(FORECAST_ERROR_PATH)) {
@@ -139,8 +151,7 @@ async function main() {
     }
   }
 
-  if (process.env.FORECAST_STEP_OUTCOME && outcome === "success") {
-    const stepOutcome = process.env.FORECAST_STEP_OUTCOME.toLowerCase();
+  if (stepOutcome && outcome === "success") {
     if (stepOutcome !== "success") {
       outcome = stepOutcome;
       errorMessage = errorMessage || `Forecast step finished with outcome: ${stepOutcome}.`;
