@@ -147,13 +147,13 @@ function splitOnPipelineOperators(commandText) {
     // except when escaped as a shell line continuation ("\\" + newline).
     // Handles LF, CRLF, and CR forms.
     if (ch === "\n" || ch === "\r") {
-      let trailingBackslashes = 0;
+      let backslashRunLength = 0;
       for (let j = current.length - 1; j >= 0 && current[j] === "\\"; j--) {
-        trailingBackslashes++;
+        backslashRunLength++;
       }
 
       // Odd number of trailing backslashes means the newline is escaped.
-      if (trailingBackslashes % 2 === 1) {
+      if (backslashRunLength % 2 === 1) {
         current = current.slice(0, -1);
         i++;
         if (ch === "\r" && i < len && commandText[i] === "\n") {
