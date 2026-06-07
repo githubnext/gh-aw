@@ -424,20 +424,23 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 	})
 
 	var downloaded []string
+	analyzeCalled := false
 	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
 		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
 		return nil
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
+		analyzeCalled = true
 		return &TokenUsageSummary{TotalAIC: 12.34}, nil
 	}
 
 	aic := loadCachedRunAIC(context.Background(), 999_000_001, false)
 	require.InDelta(t, 12.34, aic, 1e-9)
+	require.True(t, analyzeCalled)
 	require.Equal(t, []string{"usage"}, downloaded)
 }
 
-func TestLoadCachedRunAIC_NoUsageArtifactReturnsZero(t *testing.T) {
+func TestLoadCachedRunAIC_MissingUsageArtifactReturnsZeroWithoutAnalysis(t *testing.T) {
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
