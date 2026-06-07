@@ -187,6 +187,8 @@ async function main() {
       core.setOutput("output", validatedOutputJson);
     };
 
+    // Only auto-noop when noop is explicitly configured/enabled.
+    // noop !== false alone is insufficient because undefined would also pass.
     const shouldEmitFallbackNoop = safeOutputsConfig && safeOutputsConfig.noop !== false && safeOutputsConfig.noop != null;
 
     const emitFallbackNoop = reason => {
