@@ -82,9 +82,7 @@ function buildAICSuffix() {
   const detectionRaw = process.env.GH_AW_THREAT_DETECTION_AIC;
   const agentAIC = agentRaw ? Number.parseFloat(agentRaw) : NaN;
   const detectionAIC = detectionRaw ? Number.parseFloat(detectionRaw) : NaN;
-  const totalAIC =
-    (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) +
-    (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0);
+  const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0);
   if (totalAIC <= 0) {
     return "";
   }
@@ -127,7 +125,6 @@ function buildHistoryLink() {
   });
   return historyUrl ? ` · [◷](${historyUrl})` : "";
 }
-
 
 /**
  * Process no-op safe outputs and optionally post to the no-op runs issue.
