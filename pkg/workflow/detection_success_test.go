@@ -234,6 +234,52 @@ Create an issue.
 	}
 }
 
+func TestNoopStepGetsThreatDetectionAICEnvVar(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+
+	frontmatter := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: claude
+safe-outputs:
+  noop: {}
+---
+
+# Test
+
+Emit noop output.
+`
+
+	if err := os.WriteFile(workflowPath, []byte(frontmatter), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	yamlBytes, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled YAML: %v", err)
+	}
+	yaml := string(yamlBytes)
+
+	conclusionSection := extractJobSection(yaml, "conclusion")
+	if conclusionSection == "" {
+		t.Fatal("Conclusion job not found in compiled YAML")
+	}
+	if !strings.Contains(conclusionSection, "Process no-op messages") {
+		t.Fatal("Conclusion job should contain 'Process no-op messages' step")
+	}
+	if !strings.Contains(conclusionSection, "GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}") {
+		t.Error("No-op step should receive threat-detection AI Credits env var")
+	}
+}
+
 // TestDetectionConclusionStepContinueOnError verifies that:
 //   - In warn mode (default, continue-on-error: true), the parse step has continue-on-error: true
 //     so that an unexpected parse exception never fails the detection job.
