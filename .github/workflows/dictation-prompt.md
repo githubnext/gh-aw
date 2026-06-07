@@ -47,6 +47,15 @@ timeout-minutes: 10
 
 Extract technical vocabulary from documentation files and create a concise dictation instruction file for fixing speech-to-text errors and improving text clarity.
 
+## Required Safe Output (Must Do)
+
+Before you finish, you **MUST** call exactly one safe-output tool:
+- Use `create_pull_request` if you made meaningful updates to `DICTATION.md`.
+- Use `noop` if no meaningful update is needed after analysis.
+- Use `report_incomplete` only if a blocker prevented completion.
+
+Do **not** end with prose-only output. A safe-output tool call is required for successful workflow completion.
+
 ## Your Mission
 
 Create a concise dictation instruction file at `DICTATION.md` that:
