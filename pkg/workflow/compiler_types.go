@@ -466,7 +466,7 @@ type WorkflowData struct {
 	Source                         string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
 	Redirect                       string         // optional redirect field describing a moved workflow location
 	TrackerID                      string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
-	MaxDailyEffectiveTokens        *string        // optional 24-hour per-workflow ET threshold (numeric string or GitHub Actions expression)
+	MaxDailyAICredits        *string        // optional 24-hour per-workflow ET threshold (numeric string or GitHub Actions expression)
 	ImportedFiles                  []string       // list of files imported via imports field (rendered as comment in lock file)
 	ImportedMarkdown               string         // Only imports WITH inputs (for compile-time substitution)
 	ImportPaths                    []string       // Import file paths for runtime-import macro generation (imports without inputs)

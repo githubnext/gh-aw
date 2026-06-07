@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import path from "path";
 import { fileURLToPath } from "url";
 
-let buildDailyEffectiveWorkflowExceededContext;
+let buildDailyAICExceededContext;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("handle_agent_failure daily workflow ET context", () => {
@@ -11,7 +11,7 @@ describe("handle_agent_failure daily workflow ET context", () => {
     process.env.GH_AW_PROMPTS_DIR = path.join(__dirname, "../md");
     const mod = await import("./handle_agent_failure.cjs");
     const exports = mod.default || mod;
-    buildDailyEffectiveWorkflowExceededContext = exports.buildDailyEffectiveWorkflowExceededContext;
+    buildDailyAICExceededContext = exports.buildDailyAICExceededContext;
   });
 
   afterEach(() => {
@@ -20,7 +20,7 @@ describe("handle_agent_failure daily workflow ET context", () => {
   });
 
   it("renders the daily workflow ET guardrail context when exceeded", () => {
-    const rendered = buildDailyEffectiveWorkflowExceededContext(true, "17.329230000000003", "10");
+    const rendered = buildDailyAICExceededContext(true, "17.329230000000003", "10");
     expect(rendered).toContain("Daily Workflow AIC Guardrail Exceeded");
     expect(rendered).toContain("**24h AIC usage:** `18` AI Credits");
     expect(rendered).toContain("**Configured threshold:** `10` AI Credits");
@@ -35,6 +35,6 @@ describe("handle_agent_failure daily workflow ET context", () => {
   });
 
   it("returns empty string when the guardrail did not trigger", () => {
-    expect(buildDailyEffectiveWorkflowExceededContext(false, "2500", "2000", "")).toBe("");
+    expect(buildDailyAICExceededContext(false, "2500", "2000", "")).toBe("");
   });
 });

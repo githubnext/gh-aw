@@ -5,7 +5,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_effective_workflow_helpers.cjs");
+const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
 const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
@@ -58,7 +58,7 @@ function logDailyGuardrail(message, details) {
 /**
  * @returns {boolean}
  */
-function shouldSkipDailyEffectiveWorkflowGuardrail() {
+function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   if (eventName === "workflow_call" || eventName === "repository_dispatch") {
     return true;
@@ -210,7 +210,7 @@ async function getCoreRateLimitSnapshot(githubClient) {
  * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} meta
  * @returns {string}
  */
-function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
+function renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
   const stats = calculateDailyAICStats(countedRuns);
   const remainingBudget = Math.max(0, threshold - stats.total);
   const usagePercent = threshold > 0 ? ((stats.total / threshold) * 100).toFixed(2) : "0.00";
@@ -266,8 +266,8 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
  * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} meta
  * @returns {Promise<void>}
  */
-async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
-  const markdown = renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta);
+async function appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
+  const markdown = renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta);
   core.summary.addDetails("Daily AI Credits Usage (24h)", "\n\n" + markdown);
   await core.summary.write();
 }
@@ -293,7 +293,7 @@ async function main() {
   if (threshold <= 0) {
     return;
   }
-  if (shouldSkipDailyEffectiveWorkflowGuardrail()) {
+  if (shouldSkipDailyAICGuardrail()) {
     core.info("Skipping daily workflow ET guardrail for workflow_call, repository_dispatch, or workflow_dispatch with aw_context.");
     return;
   }
@@ -462,13 +462,13 @@ async function main() {
     });
 
     if (totalAIC <= threshold) {
-      await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+      await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
       core.info(`Daily workflow AIC guardrail not exceeded (${totalAIC}/${threshold}).`);
       return;
     }
 
     core.setOutput("daily_effective_workflow_exceeded", "true");
-    await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+    await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
     core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
     // Treat any unexpected error as a non-blocking skip so the step never fails the
@@ -480,12 +480,12 @@ async function main() {
 
 module.exports = {
   main,
-  shouldSkipDailyEffectiveWorkflowGuardrail,
+  shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,
   sumAICFromUsageJSONLFiles,
   calculateDailyAICStats,
   computeMaxInspectableRuns,
-  renderDailyEffectiveWorkflowSummary,
+  renderDailyAICSummary,
   formatDailyGuardrailLogMessage,
 };

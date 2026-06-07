@@ -5,12 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let exports;
 
-describe("check_daily_effective_workflow_guardrail", () => {
+describe("check_daily_aic_workflow_guardrail", () => {
   beforeEach(async () => {
     vi.resetModules();
     process.env.GITHUB_EVENT_NAME = "";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
-    const mod = await import("./check_daily_effective_workflow_guardrail.cjs");
+    const mod = await import("./check_daily_aic_workflow_guardrail.cjs");
     exports = mod.default || mod;
   });
 
@@ -21,17 +21,17 @@ describe("check_daily_effective_workflow_guardrail", () => {
 
   it("skips workflow_call, repository_dispatch, and workflow_dispatch with aw_context", () => {
     process.env.GITHUB_EVENT_NAME = "workflow_call";
-    expect(exports.shouldSkipDailyEffectiveWorkflowGuardrail()).toBe(true);
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GITHUB_EVENT_NAME = "repository_dispatch";
-    expect(exports.shouldSkipDailyEffectiveWorkflowGuardrail()).toBe(true);
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"item_number":123}';
-    expect(exports.shouldSkipDailyEffectiveWorkflowGuardrail()).toBe(true);
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
-    expect(exports.shouldSkipDailyEffectiveWorkflowGuardrail()).toBe(false);
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
   });
 
   it("matches usage artifacts only", () => {
@@ -99,7 +99,7 @@ describe("check_daily_effective_workflow_guardrail", () => {
   });
 
   it("renders a daily ET details summary with stats and prior runs", () => {
-    const markdown = exports.renderDailyEffectiveWorkflowSummary(
+    const markdown = exports.renderDailyAICSummary(
       "Nightly triage",
       "copilot-swe-agent[bot]",
       1_500_000,

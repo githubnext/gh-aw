@@ -81,7 +81,7 @@ type importAccumulator struct {
 	mergedMaxRuns                 string
 	mergedMaxEffectiveTokens      string
 	mergedMaxAICredits            string
-	mergedMaxDailyEffectiveTokens string
+	mergedMaxDailyAICredits string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -354,7 +354,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 //
 // Side effects: acc.mergedMaxTurns, acc.mergedMaxToolDenials, acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
 // acc.mergedMaxAICredits,
-// acc.mergedMaxDailyEffectiveTokens, acc.mcpServersBuilder,
+// acc.mergedMaxDailyAICredits, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
@@ -364,7 +364,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-effective-tokens", &acc.mergedMaxEffectiveTokens)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
-	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyEffectiveTokens)
+	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
@@ -743,7 +743,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMaxRuns:                 acc.mergedMaxRuns,
 		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
 		MergedMaxAICredits:            acc.mergedMaxAICredits,
-		MergedMaxDailyEffectiveTokens: acc.mergedMaxDailyEffectiveTokens,
+		MergedMaxDailyAICredits: acc.mergedMaxDailyAICredits,
 		Warnings:                      acc.warnings,
 	}
 }

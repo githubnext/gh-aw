@@ -118,7 +118,7 @@ func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) {
 func (c *Compiler) addActivationSetupAndWorkflowCallSteps(ctx *activationJobBuildContext, setupActionRef string) {
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(ctx.data)...)
 	activationSetupTraceID, activationSetupParentSpanID := buildActivationSetupParentSpans(ctx.preActivationJob)
-	enableArtifactClient := hasMaxDailyEffectiveTokensGuardrail(ctx.data)
+	enableArtifactClient := hasMaxDailyAICGuardrail(ctx.data)
 	artifactClientCondition := ""
 	if enableArtifactClient {
 		artifactClientCondition = maxDailyAICreditsConfiguredIfExpr
@@ -195,8 +195,8 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	compilerActivationJobLog.Printf("Adding activation feedback/validation steps: reaction=%t, status_comment=%t, remove_label=%t, app_token_for_access=%t",
 		ctx.hasReaction, ctx.hasStatusComment, ctx.shouldRemoveLabel, ctx.needsAppTokenForAccess)
 	c.maybeAddActivationAppTokenMintStep(ctx)
-	if hasMaxDailyEffectiveTokensGuardrail(data) {
-		ctx.steps = append(ctx.steps, c.buildActivationDailyEffectiveWorkflowGuardrailStep(data)...)
+	if hasMaxDailyAICGuardrail(data) {
+		ctx.steps = append(ctx.steps, c.buildActivationDailyAICGuardrailStep(data)...)
 		ctx.outputs["daily_effective_workflow_exceeded"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}"
 		ctx.outputs["daily_effective_workflow_total_effective_tokens"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}"
 		ctx.outputs["daily_effective_workflow_threshold"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}"
@@ -230,7 +230,7 @@ func activationJobNeedsAppToken(ctx *activationJobBuildContext) bool {
 		ctx.hasStatusComment ||
 		ctx.shouldRemoveLabel ||
 		ctx.needsAppTokenForAccess ||
-		hasMaxDailyEffectiveTokensGuardrail(ctx.data)
+		hasMaxDailyAICGuardrail(ctx.data)
 }
 
 func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permissions {
@@ -267,7 +267,7 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 	if ctx.needsAppTokenForAccess {
 		appPerms.Set(PermissionContents, PermissionRead)
 	}
-	if hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
+	if hasMaxDailyAICGuardrail(ctx.data) {
 		appPerms.Set(PermissionActions, PermissionRead)
 	}
 	// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
@@ -329,7 +329,7 @@ func (c *Compiler) addActivationCrossRepoGuidanceStep(ctx *activationJobBuildCon
 	ctx.steps = append(ctx.steps, "          echo \"::error::See: https://github.github.com/gh-aw/patterns/central-repo-ops/#cross-repo-setup\"\n")
 }
 
-func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *WorkflowData) []string {
+func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []string {
 	var steps []string
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
@@ -341,13 +341,13 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	steps = append(steps, "          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveActivationToken(data)))
-	steps = append(steps, buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyEffectiveTokens)...)
+	steps = append(steps, buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyAICredits)...)
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
 	steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_daily_effective_workflow_guardrail.cjs');\n")
+	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_daily_aic_workflow_guardrail.cjs');\n")
 	steps = append(steps, "            await main();\n")
 	return steps
 }
@@ -698,7 +698,7 @@ func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
-	if !ctx.data.StaleCheckDisabled || hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
+	if !ctx.data.StaleCheckDisabled || hasMaxDailyAICGuardrail(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
 	}
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
@@ -785,11 +785,11 @@ func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) st
 	return "environment: " + stringutil.StripANSI(ctx.data.ManualApproval)
 }
 
-func buildDailyEffectiveWorkflowActivationJobEnv(data *WorkflowData) map[string]string {
-	if !hasMaxDailyEffectiveTokensGuardrail(data) || !hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
+func buildDailyAICActivationJobEnv(data *WorkflowData) map[string]string {
+	if !hasMaxDailyAICGuardrail(data) || !hasMaxDailyAICFrontmatterConfig(data) {
 		return nil
 	}
-	value := strings.TrimSpace(*data.MaxDailyEffectiveTokens)
+	value := strings.TrimSpace(*data.MaxDailyAICredits)
 	if value == "" {
 		return nil
 	}

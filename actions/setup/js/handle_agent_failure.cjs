@@ -13,7 +13,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
-const { formatAICCredits } = require("./daily_effective_workflow_helpers.cjs");
+const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
@@ -196,7 +196,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
-  if (options.hasDailyEffectiveWorkflowExceeded) categories.push("daily_effective_workflow_exceeded");
+  if (options.hasDailyAICExceeded) categories.push("daily_effective_workflow_exceeded");
 
   if (options.agentConclusion === "failure" && !options.isTimedOut) {
     categories.push("agent_failure");
@@ -1567,13 +1567,13 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
 /**
  * Build a context string when the 24-hour per-workflow AIC guardrail prevented the agent from
  * starting in the activation job.
- * @param {boolean} hasDailyEffectiveWorkflowExceeded - Whether the daily workflow quota was exceeded
+ * @param {boolean} hasDailyAICExceeded - Whether the daily workflow quota was exceeded
  * @param {string} totalAIC - Aggregated AIC usage across the last 24 hours
  * @param {string} threshold - Configured daily workflow threshold
  * @returns {string} Formatted context string, or empty string if no failure
  */
-function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalAIC, threshold) {
-  if (!hasDailyEffectiveWorkflowExceeded) {
+function buildDailyAICExceededContext(hasDailyAICExceeded, totalAIC, threshold) {
+  if (!hasDailyAICExceeded) {
     return "";
   }
 
@@ -2304,9 +2304,9 @@ async function main() {
     // stored in the compiled .lock.yml no longer matches the source .md file.
     // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
     const hasStaleLockFileFailed = process.env.GH_AW_STALE_LOCK_FILE_FAILED === "true";
-    const hasDailyEffectiveWorkflowExceeded = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED === "true";
-    const dailyEffectiveWorkflowTotalEffectiveTokens = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS || "";
-    const dailyEffectiveWorkflowThreshold = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD || "";
+    const hasDailyAICExceeded = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED === "true";
+    const dailyAICTotal = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS || "";
+    const dailyAICThreshold = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD || "";
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
@@ -2344,7 +2344,7 @@ async function main() {
     core.info(`Effective tokens: ${effectiveTokens || "(none)"}`);
     core.info(`Configured max effective tokens: ${maxEffectiveTokens || "(none)"}`);
     core.info(`Effective tokens rate-limit error: ${effectiveTokensRateLimitError}`);
-    core.info(`Daily workflow AIC guardrail exceeded: ${hasDailyEffectiveWorkflowExceeded}`);
+    core.info(`Daily workflow AIC guardrail exceeded: ${hasDailyAICExceeded}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
@@ -2510,7 +2510,7 @@ async function main() {
       !hasAppTokenMintingFailed &&
       !hasLockdownCheckFailed &&
       !hasStaleLockFileFailed &&
-      !hasDailyEffectiveWorkflowExceeded &&
+      !hasDailyAICExceeded &&
       !hasReportIncomplete &&
       !hasCacheMissMisconfiguration &&
       !effectiveTokensRateLimitError &&
@@ -2627,7 +2627,7 @@ async function main() {
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
       hasStaleLockFileFailed,
-      hasDailyEffectiveWorkflowExceeded,
+      hasDailyAICExceeded,
     });
 
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);
@@ -2752,7 +2752,7 @@ async function main() {
 
         // Build stale lock file failure context
         const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
-        const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, dailyEffectiveWorkflowTotalEffectiveTokens, dailyEffectiveWorkflowThreshold);
+        const dailyAICExceededContext = buildDailyAICExceededContext(hasDailyAICExceeded, dailyAICTotal, dailyAICThreshold);
 
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
@@ -2797,7 +2797,7 @@ async function main() {
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
-          daily_effective_workflow_exceeded_context: dailyEffectiveWorkflowExceededContext,
+          daily_effective_workflow_exceeded_context: dailyAICExceededContext,
         };
 
         // Render the comment template
@@ -2975,7 +2975,7 @@ async function main() {
 
         // Build stale lock file failure context
         const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
-        const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, dailyEffectiveWorkflowTotalEffectiveTokens, dailyEffectiveWorkflowThreshold);
+        const dailyAICExceededContext = buildDailyAICExceededContext(hasDailyAICExceeded, dailyAICTotal, dailyAICThreshold);
 
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
@@ -3021,7 +3021,7 @@ async function main() {
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
-          daily_effective_workflow_exceeded_context: dailyEffectiveWorkflowExceededContext,
+          daily_effective_workflow_exceeded_context: dailyAICExceededContext,
         };
 
         // Render the issue template
@@ -3097,7 +3097,7 @@ module.exports = {
   buildAppTokenMintingFailedContext,
   buildLockdownCheckFailedContext,
   buildStaleLockFileFailedContext,
-  buildDailyEffectiveWorkflowExceededContext,
+  buildDailyAICExceededContext,
   buildTimeoutContext,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,

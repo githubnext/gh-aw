@@ -684,7 +684,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Equal(t, "3", acc.mergedMaxRuns, "max-runs should be first-wins")
 	assert.Equal(t, "2048", acc.mergedMaxEffectiveTokens, "max-effective-tokens should be first-wins")
 	assert.Equal(t, "1234", acc.mergedMaxAICredits, "max-ai-credits should be first-wins")
-	assert.Equal(t, "4096", acc.mergedMaxDailyEffectiveTokens, "max-daily-ai-credits should be first-wins")
+	assert.Equal(t, "4096", acc.mergedMaxDailyAICredits, "max-daily-ai-credits should be first-wins")
 
 	assert.Len(t, acc.safeOutputs, 2, "safe-outputs should accumulate across imports")
 	assert.Len(t, acc.mcpScripts, 2, "mcp-scripts should accumulate across imports")

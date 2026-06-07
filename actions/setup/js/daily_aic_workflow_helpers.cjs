@@ -326,7 +326,7 @@ function sumAICFromUsageJSONLFiles(filePaths) {
  * @param {Array<{effective_tokens:number}>} runs
  * @returns {{count:number,total:number,average:number,min:number,max:number,stddev:number}}
  */
-function calculateDailyEffectiveWorkflowStats(runs) {
+function calculateDailyWorkflowETStats(runs) {
   const values = runs.map(run => Number(run?.effective_tokens || 0)).filter(value => Number.isFinite(value) && value > 0);
   if (values.length === 0) {
     return { count: 0, total: 0, average: 0, min: 0, max: 0, stddev: 0 };
@@ -399,7 +399,7 @@ module.exports = {
   sumEffectiveTokensFromTokenUsageFile,
   sumAICFromTokenUsageFile,
   sumAICFromUsageJSONLFiles,
-  calculateDailyEffectiveWorkflowStats,
+  calculateDailyWorkflowETStats,
   calculateDailyAICStats,
   formatEffectiveTokens,
   formatAICCredits,

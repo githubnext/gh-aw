@@ -13,10 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
-func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
+func TestResolveMaxDailyAIC(t *testing.T) {
 	t.Run("prefers top-level literal value", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": 1234}, `"999"`)
+		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 1234}, `"999"`)
 		if got == nil || *got != "1234" {
 			t.Fatalf("expected literal top-level value, got %v", got)
 		}
@@ -25,7 +25,7 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("falls back to imported expression", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-ai-credits }}"`)
+		got := resolveMaxDailyAIC(map[string]any{}, `"${{ inputs.max-daily-ai-credits }}"`)
 		if got == nil || *got != "${{ inputs.max-daily-ai-credits }}" {
 			t.Fatalf("expected imported expression, got %v", got)
 		}
@@ -33,7 +33,7 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("uses enterprise default when unset", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
-		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		got := resolveMaxDailyAIC(map[string]any{}, "")
 		if got == nil || *got != "2222" {
 			t.Fatalf("expected enterprise default, got %v", got)
 		}
@@ -41,7 +41,7 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("uses built-in 500k default when no frontmatter and no env vars", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "")
-		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		got := resolveMaxDailyAIC(map[string]any{}, "")
 		if got == nil || *got != "500000" {
 			t.Fatalf("expected built-in 500k default, got %v", got)
 		}
@@ -49,7 +49,7 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("normalizes suffix strings", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": "100M"}, "")
+		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": "100M"}, "")
 		if got == nil || *got != "100000000" {
 			t.Fatalf("expected normalized suffix string, got %v", got)
 		}
@@ -57,14 +57,14 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 
 	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
-		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-ai-credits": -1}, "")
+		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": -1}, "")
 		if got != nil {
 			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
 		}
 	})
 }
 
-func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
+func TestDailyAICWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-guardrail-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail.md")
 
@@ -110,8 +110,8 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail step to use env-based runtime gating")
 	}
-	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
-		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
+	if !strings.Contains(lockStr, "check_daily_aic_workflow_guardrail.cjs") {
+		t.Fatal("expected activation job to call check_daily_aic_workflow_guardrail.cjs")
 	}
 	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_AI_CREDITS: "100000000"`) {
 		t.Fatal("expected activation job env to include normalized guardrail threshold")
@@ -190,7 +190,7 @@ No daily guardrail`
 	}
 }
 
-func TestDailyEffectiveWorkflowGuardrailConfiguredViaEnvVar(t *testing.T) {
+func TestDailyAICWorkflowGuardrailConfiguredViaEnvVar(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-env-guardrail-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail-env.md")
 
