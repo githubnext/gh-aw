@@ -190,6 +190,38 @@ on:
 
 Use these to filter out noise before incurring inference costs. See [Triggers](/gh-aw/reference/triggers/) for the full syntax.
 
+### Skip the Agent from Steps Using `noop`
+
+When a condition is too complex for a GitHub search query — for example, when you need to call an API, inspect a file, or apply custom business logic — write a `noop` entry to `$GH_AW_SAFE_OUTPUTS` from a `steps:` block. The harness checks for this entry before starting the AI engine and exits cleanly without incurring any AI Credits.
+
+```aw wrap
+steps:
+  - name: Skip if no open issues exist
+    run: |
+      count=$(gh issue list --state open --json number --jq length)
+      if [ "$count" -eq 0 ]; then
+        echo '{"type":"noop","message":"No open issues to process"}' >> "$GH_AW_SAFE_OUTPUTS"
+      fi
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+When a `noop` entry is present at harness startup, the agent is never started and no AI Credits are charged. The `noop` message appears in the workflow conclusion comment or step summary. The same check also suppresses retries: if a `noop` is written during a failed run, the harness exits 0 instead of retrying.
+
+Use `pre-agent-steps:` instead of `steps:` when the check must run right before the engine starts (for example, after MCP configuration is complete).
+
+Compared to `skip-if-match` and `skip-if-no-match`:
+
+| | `skip-if-match` / `skip-if-no-match` | `noop` in `steps:` |
+|---|---|---|
+| Evaluated in | Pre-activation job (earliest, cheapest) | Agent job (after checkout and steps) |
+| Condition type | GitHub search query | Arbitrary shell or script logic |
+| Actions minutes saved | Yes — agent job is never scheduled | No — agent job still runs through setup |
+| AI Credits saved | Yes | Yes |
+| Best for | Simple label/status/title filters | Complex API calls or file-based conditions |
+
+For maximum savings, prefer `skip-if-match` / `skip-if-no-match` when possible. Reserve `noop` in `steps:` for conditions that require full scripting access or the agent job environment.
+
 ### Choose a Cheaper Model
 
 The `engine.model` field selects the AI model. Smaller or faster models cost significantly less per token while still handling many routine tasks:
