@@ -219,6 +219,22 @@ function sumAICFromUsageJSONLFiles(filePaths) {
   /**
    * @param {Record<string, unknown> | null} usage
    * @param {Record<string, unknown>} parsed
+   * @param {string[]} keys
+   * @returns {number}
+   */
+  function getNumericAliasField(usage, parsed, keys) {
+    for (const key of keys) {
+      const num = Number(usage?.[key] ?? parsed[key]);
+      if (Number.isFinite(num)) {
+        return num;
+      }
+    }
+    return 0;
+  }
+
+  /**
+   * @param {Record<string, unknown> | null} usage
+   * @param {Record<string, unknown>} parsed
    * @param {string} snakeCase
    * @param {string} camelCase
    * @returns {string}
@@ -257,11 +273,14 @@ function sumAICFromUsageJSONLFiles(filePaths) {
         }
 
         const usage = normalizeUsageRecord(parsed.usage);
-        const explicitAICredits = getNumericField(usage, parsed, "ai_credits", "aiCredits");
-        const explicitAIC = Number(usage?.aic ?? parsed.aic ?? 0);
-        const explicit = explicitAICredits > 0 ? explicitAICredits : explicitAIC;
-        if (Number.isFinite(explicit) && explicit > 0) {
-          total += explicit;
+        const explicitAICredits = getNumericAliasField(usage, parsed, ["ai_credits", "aiCredits"]);
+        if (explicitAICredits > 0) {
+          total += explicitAICredits;
+          continue;
+        }
+        const explicitAIC = getNumericAliasField(usage, parsed, ["aic"]);
+        if (explicitAIC > 0) {
+          total += explicitAIC;
           continue;
         }
 
