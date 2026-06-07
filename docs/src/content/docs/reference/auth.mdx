@@ -100,6 +100,36 @@ If your workflow fails at the Copilot inference step even with the token set, ve
 
 ---
 
+### `GH_AW_GITHUB_TOKEN`
+
+`GH_AW_GITHUB_TOKEN` is an optional "magic" GitHub Actions secret used as the default fallback token for GitHub operations outside engine inference.
+
+Use it when your workflow needs authenticated GitHub access beyond the default `GITHUB_TOKEN`, for example:
+
+- Safe outputs that write to other repositories
+- Safe outputs that trigger CI on pull requests
+- Safe outputs or tools that need broader repo/API access than the default token provides
+- Fallback when `github-app.ignore-if-missing: true` is used and app secrets are unavailable
+
+Fallback chain:
+
+`custom github-token` → `secrets.GH_AW_GITHUB_TOKEN` → `secrets.GITHUB_TOKEN`
+
+**How to create it**:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) owned by a user account.
+2. Scope repository access to the minimum set of repositories needed.
+3. Grant only the minimum required permissions for your configured operations (for example, `Issues: write` for issue outputs, `Pull requests: write` for PR outputs, `Contents: write` for commit/branch writes, `Actions: write` for workflow dispatch/rerun operations).
+4. Store it as a repository secret:
+
+   ```bash wrap
+   gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-github-pat>"
+   ```
+
+`GH_AW_GITHUB_TOKEN` does **not** replace `COPILOT_GITHUB_TOKEN` for Copilot inference authentication.
+
+---
+
 ### `ANTHROPIC_API_KEY`
 
 If using the Claude by Anthropic engine, you need to set a GitHub Actions secret `ANTHROPIC_API_KEY` to be an API key from Anthropic.

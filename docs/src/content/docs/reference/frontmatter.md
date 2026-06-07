@@ -124,6 +124,8 @@ cache:
     node-modules-
 ```
 
+For secure Go-specific cache guidance, see [FAQ: How should I configure Go caches safely in agentic workflows?](/gh-aw/reference/faq/#how-should-i-configure-go-caches-safely-in-agentic-workflows).
+
 ### Repository Checkout (`checkout:`)
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.

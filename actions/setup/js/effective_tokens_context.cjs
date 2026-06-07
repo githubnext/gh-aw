@@ -20,6 +20,7 @@ const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
 const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error", "aiCreditsRateLimitError"]);
 const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
+const EFFECTIVE_TOKENS_PER_AI_CREDIT = 10000;
 
 const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
@@ -74,6 +75,39 @@ function shouldReportAICreditsRateLimitError(hasRateLimitSignal, aiCredits, maxA
   if (!hasRateLimitSignal) return false;
   if (!aiCredits || !maxAICredits) return true;
   return isNumberStringGreaterThanOrEqual(aiCredits, maxAICredits);
+}
+
+/**
+ * Derive an ET-equivalent budget from AI credits when only max-ai-credits is available.
+ * Conversion uses 1 AIC = 10,000 ET and rounds down to avoid over-reporting ET capacity.
+ * @param {string} maxAICredits
+ * @returns {string}
+ */
+function deriveMaxEffectiveTokensFromAICredits(maxAICredits) {
+  if (!maxAICredits) return "";
+  const normalized = String(maxAICredits).trim();
+  const decimalMatch = normalized.match(/^(\d+)(?:\.(\d+))?$/);
+  if (decimalMatch) {
+    const wholePart = decimalMatch[1];
+    const fractionalPart = decimalMatch[2] || "";
+    // Scale to ET units (1 AIC = 10,000 ET) by right-padding fractional digits.
+    const scaledFraction = (fractionalPart + "0000").slice(0, 4);
+    try {
+      const converted = BigInt(wholePart) * BigInt(EFFECTIVE_TOKENS_PER_AI_CREDIT) + BigInt(scaledFraction || "0");
+      if (converted > 0n) {
+        return converted.toString();
+      }
+    } catch {
+      // Fall through to numeric parsing.
+    }
+  }
+
+  // Fallback for numeric strings not matched by decimal regex (for example scientific notation).
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return "";
+  const converted = Math.floor(parsed * EFFECTIVE_TOKENS_PER_AI_CREDIT);
+  if (!Number.isSafeInteger(converted) || converted <= 0) return "";
+  return String(converted);
 }
 
 /** @param {unknown} value */
@@ -324,9 +358,12 @@ function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
   const parsedEffectiveTokensFromReflect = parseEffectiveTokensFromReflectFile();
   const envEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
-  const envMaxEffectiveTokens = parsePositiveEffectiveTokenLimitString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
+  const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
-  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
+  const maxAICredits = parseMaxAICreditsFromAuditLog() || envMaxAICredits || "";
+  // max_effective_tokens is deprecated for ET failure-state reconciliation.
+  // We only derive the ET ceiling from max_ai_credits.
+  const maxEffectiveTokens = deriveMaxEffectiveTokensFromAICredits(maxAICredits);
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
   return { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError };
