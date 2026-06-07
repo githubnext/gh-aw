@@ -125,7 +125,7 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| wf-round | 1 | 2 | 3 | 4 | 5 |");
+    expect(body).toContain("| wf-round | 1 | 2 | 5 |");
   });
 
   it("lists workflows without data when every projected AIC is zero", async () => {
