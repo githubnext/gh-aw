@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { buildSessionConfig } = require("../../../.github/drivers/copilot_sdk_driver_sample_node.cjs");
+
+afterEach(() => {
+  delete process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
+});
 
 describe("copilot_sdk_driver_sample_node", () => {
   it("includes provider config when GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is set", () => {
@@ -12,7 +16,6 @@ describe("copilot_sdk_driver_sample_node", () => {
     expect(config.provider).toEqual({ type: "openai", baseUrl: "http://api-proxy:10002" });
     expect(config.model).toBe("test-model");
     expect(config.onPermissionRequest).toBe(onPermissionRequest);
-    delete process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
   });
 
   it("omits provider config when GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is unset", () => {
