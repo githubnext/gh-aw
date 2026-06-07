@@ -99,7 +99,7 @@ function sumEffectiveTokensFromTokenUsageFile(filePath) {
   let total = 0;
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
-    if (!line || line[0] !== "{") {
+    if (!line || !line.startsWith("{")) {
       continue;
     }
 
@@ -147,7 +147,7 @@ function sumAICFromTokenUsageFile(filePath) {
   let total = 0;
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
-    if (!line || line[0] !== "{") {
+    if (!line || !line.startsWith("{")) {
       continue;
     }
 
@@ -246,7 +246,7 @@ function sumAICFromUsageJSONLFiles(filePaths) {
 
     for (const rawLine of content.split("\n")) {
       const line = rawLine.trim();
-      if (!line || line[0] !== "{") {
+      if (!line || !line.startsWith("{")) {
         continue;
       }
 
@@ -257,7 +257,9 @@ function sumAICFromUsageJSONLFiles(filePaths) {
         }
 
         const usage = normalizeUsageRecord(parsed.usage);
-        const explicit = getNumericField(usage, parsed, "ai_credits", "aiCredits") || getNumericField(usage, parsed, "aic", "aic");
+        const explicitAICredits = getNumericField(usage, parsed, "ai_credits", "aiCredits");
+        const explicitAIC = getNumericField(usage, parsed, "aic", "aic");
+        const explicit = explicitAICredits > 0 ? explicitAICredits : explicitAIC;
         if (Number.isFinite(explicit) && explicit > 0) {
           total += explicit;
           continue;
