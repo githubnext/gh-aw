@@ -420,7 +420,6 @@ jobs:
             --repo "${{ github.repository }}" \
             --start-date -1w \
             --count 100 \
-            --artifacts usage \
             --output ./.cache/gh-aw/activity-report-logs \
             --format markdown \
             > ./.cache/gh-aw/activity-report-logs/report.md
