@@ -34,6 +34,16 @@ var sampleSidecarFields = map[string]map[string]bool{
 	},
 }
 
+// sampleValidationDeferredTools are dynamic safe-output tool families whose
+// concrete schemas are assembled at runtime from workflow configuration.
+// Compile-time sample validation defers these to apply_samples.cjs +
+// safe_outputs_mcp_server.cjs.
+var sampleValidationDeferredTools = map[string]bool{
+	"dispatch_workflow":   true,
+	"call_workflow":       true,
+	"dispatch_repository": true,
+}
+
 // toolSchemaEntry pairs a compiled jsonschema.Schema with the raw parsed
 // document used to drive schema-aware runtime-expression substitution.
 type toolSchemaEntry struct {
@@ -148,6 +158,9 @@ func validateSamplesForTool(toolName string, samples []map[string]any) error {
 	}
 	entry, found := schemas[toolName]
 	if !found {
+		if sampleValidationDeferredTools[toolName] {
+			return nil
+		}
 		return fmt.Errorf("samples: no MCP tool schema found for %q (yaml key %q). Available tools come from pkg/workflow/js/safe_outputs_tools.json", toolName, toolDisplayKey(toolName))
 	}
 	displayKey := toolDisplayKey(toolName)

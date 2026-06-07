@@ -362,6 +362,45 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField(t *testing.T
 	}
 }
 
+func TestValidateSafeOutputsSamples_DynamicToolsDeferredToRuntime(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"workflow_name": "test-copilot-dispatch-worker",
+						"inputs": map[string]any{
+							"sentinel": "${{ github.event.inputs.sentinel }}",
+						},
+					},
+				},
+			},
+		},
+		CallWorkflow: &CallWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"workflow_name": "test-copilot-call-worker",
+						"inputs": map[string]any{
+							"value": "ok",
+						},
+					},
+				},
+			},
+		},
+	}
+	if err := validateSafeOutputsSamples(cfg); err != nil {
+		t.Fatalf("expected dynamic-tool sample validation to defer to runtime, got: %v", err)
+	}
+}
+
+func TestValidateSamplesForTool_UnknownStillFails(t *testing.T) {
+	err := validateSamplesForTool("tool_that_does_not_exist", []map[string]any{{"x": "y"}})
+	if err == nil {
+		t.Fatal("expected unknown non-dynamic tool to fail schema lookup")
+	}
+}
+
 // TestPlaceholderForSchema covers the schema-driven placeholder lookup for
 // the common shapes used inside safe_outputs_tools.json.
 func TestPlaceholderForSchema(t *testing.T) {
