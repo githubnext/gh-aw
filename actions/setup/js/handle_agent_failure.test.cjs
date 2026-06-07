@@ -2210,8 +2210,9 @@ describe("handle_agent_failure", () => {
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "which go"] },
       ];
       const result = buildPermissionDeniedContext(items);
-      // "go version 2>&1" should appear exactly once (deduplicated) in the denied commands list
-      const listOccurrences = (result.match(/`go version 2>&1`/g) || []).length;
+      const deniedCommandsSection = (result.match(/\*\*Denied Commands:\*\*\n([\s\S]*?)\n\n/) || [])[1] || "";
+      // "go version 2>&1" should appear exactly once (deduplicated) in the denied commands list section
+      const listOccurrences = (deniedCommandsSection.match(/`go version 2>&1`/g) || []).length;
       expect(listOccurrences).toBe(1);
       expect(result).toContain("`ls /usr/local/go/bin/go`");
       expect(result).toContain("`which go`");
