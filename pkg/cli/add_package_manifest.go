@@ -848,7 +848,7 @@ func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string
 		}
 		filenameWithoutExt := strings.TrimSuffix(filepath.Base(installPath), filepath.Ext(installPath))
 		key := strings.ToLower(strings.TrimSpace(filenameWithoutExt))
-		if key == "" {
+		if key == "" { //nolint:tolowerequalfold
 			continue
 		}
 		if previous, exists := seen[key]; exists {

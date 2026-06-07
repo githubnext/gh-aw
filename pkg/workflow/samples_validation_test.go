@@ -3,6 +3,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestValidateSafeOutputsSamples_Valid covers the happy path for the
@@ -166,5 +169,250 @@ func TestCollectSampleEntries_SidecarPartitioning(t *testing.T) {
 	}
 	if patch, ok := e.Sidecars["patch"].(string); !ok || !strings.HasPrefix(patch, "diff --git") {
 		t.Errorf("expected patch to be present in Sidecars as a git diff string, got %#v", e.Sidecars["patch"])
+	}
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionsBypassValidation verifies
+// that sample values containing `${{ ... }}` GitHub Actions expressions
+// (e.g. `item_number: ${{ github.event.inputs.issue_number }}`) bypass
+// compile-time schema validation, since GitHub Actions substitutes them on
+// the runner before apply_samples.cjs reads GH_AW_SAMPLES.
+//
+// Regression for https://github.com/github/gh-aw/issues/37532.
+func TestValidateSafeOutputsSamples_RuntimeExpressionsBypassValidation(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		AddLabels: &AddLabelsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						// item_number's pattern is `^(\d+|#?aw_[A-Za-z0-9_]{3,12})$`,
+						// so the raw expression string would otherwise fail validation.
+						"item_number": "${{ github.event.inputs.issue_number }}",
+						"labels":      []any{"runtime-sample"},
+					},
+				},
+			},
+		},
+	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "runtime expression in sample value should bypass validation")
+
+	// Original sample must be preserved (validation must not mutate) so that
+	// generateSamplesReplayStep emits the live `${{ ... }}` expression for
+	// GitHub Actions to substitute at runtime.
+	got := cfg.AddLabels.Samples[0]["item_number"]
+	assert.Equal(t, "${{ github.event.inputs.issue_number }}", got, "validation must not mutate original sample value")
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionsInNestedValues verifies
+// that runtime-expression substitution works for nested arrays and objects
+// (e.g. fields inside create_issue.fields[*].value).
+func TestValidateSafeOutputsSamples_RuntimeExpressionsInNestedValues(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"title": "Issue ${{ github.event.inputs.title_suffix }}",
+						"body":  "Body",
+						"labels": []any{
+							"static-label",
+							"${{ github.event.inputs.dynamic_label }}",
+						},
+					},
+				},
+			},
+		},
+	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "nested runtime expressions should bypass validation")
+	assert.Equal(t, "Issue ${{ github.event.inputs.title_suffix }}", cfg.CreateIssues.Samples[0]["title"], "title expression must be preserved")
+	labels, ok := cfg.CreateIssues.Samples[0]["labels"].([]any)
+	require.True(t, ok, "labels sample should remain an array")
+	require.Len(t, labels, 2, "labels sample should preserve both literal and expression values")
+	assert.Equal(t, "${{ github.event.inputs.dynamic_label }}", labels[1], "nested expression in labels must be preserved")
+}
+
+// TestValidateSafeOutputsSamples_NonExpressionErrorsStillReported verifies
+// that swapping in the runtime-expression placeholder does NOT mask genuine
+// validation errors on adjacent fields (e.g. a still-missing required field).
+func TestValidateSafeOutputsSamples_NonExpressionErrorsStillReported(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						// title is required and is missing; an expression on
+						// the body must not paper over that.
+						"body": "${{ github.event.inputs.body }}",
+					},
+				},
+			},
+		},
+	}
+	err := validateSafeOutputsSamples(cfg)
+	require.Error(t, err, "missing-title error should still surface even though body is a runtime expression")
+	assert.Contains(t, err.Error(), "create-issue", "error should reference the failing safe-output key")
+	assert.Contains(t, err.Error(), "samples[0]", "error should reference the failing sample entry")
+}
+
+// TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched
+// verifies that the substitution helper only touches strings containing
+// `${{ ... }}` and otherwise returns equivalent values.
+func TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched(t *testing.T) {
+	in := map[string]any{
+		"title": "literal title",
+		"count": float64(5),
+		"flags": []any{"a", "${{ github.run_id }}", "b"},
+		"nested": map[string]any{
+			"id": "${{ inputs.id }}",
+		},
+	}
+	out := substituteRuntimeExpressionsForValidation(in, nil).(map[string]any)
+
+	if out["title"] != "literal title" {
+		t.Errorf("expected literal string to be unchanged, got %v", out["title"])
+	}
+	if out["count"] != float64(5) {
+		t.Errorf("expected numeric value to be unchanged, got %v", out["count"])
+	}
+	flags := out["flags"].([]any)
+	if flags[0] != "a" || flags[2] != "b" {
+		t.Errorf("expected literal array elements to be unchanged, got %v", flags)
+	}
+	if flags[1] != sampleRuntimeExpressionPlaceholder {
+		t.Errorf("expected array element with ${{...}} to be substituted, got %v", flags[1])
+	}
+	nested := out["nested"].(map[string]any)
+	if nested["id"] != sampleRuntimeExpressionPlaceholder {
+		t.Errorf("expected nested ${{...}} string to be substituted, got %v", nested["id"])
+	}
+
+	// Original input must not be mutated.
+	if in["nested"].(map[string]any)["id"] != "${{ inputs.id }}" {
+		t.Error("substituteRuntimeExpressionsForValidation must not mutate its input")
+	}
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionWithEmbeddedBrace covers
+// expressions whose body contains `}` characters (e.g. fromJSON literals).
+// The substitution regex must use non-greedy `.*?` rather than `[^}]*`, so
+// the entire `${{ ... }}` token is recognized and substituted.
+func TestValidateSafeOutputsSamples_RuntimeExpressionWithEmbeddedBrace(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		AddLabels: &AddLabelsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"item_number": `${{ fromJSON('{"n":42}').n }}`,
+						"labels":      []any{"embedded-brace"},
+					},
+				},
+			},
+		},
+	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "expression containing `}` inside literal should still be substituted for validation")
+	assert.Equal(t, `${{ fromJSON('{"n":42}').n }}`, cfg.AddLabels.Samples[0]["item_number"], "validation must not mutate original sample")
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionInEnumField verifies that
+// substitution is schema-aware: an enum-constrained field (e.g.
+// create_code_scanning_alert.severity) gets replaced with the first allowed
+// enum value rather than the generic `aw_sample` string, so the substituted
+// sample still validates.
+func TestValidateSafeOutputsSamples_RuntimeExpressionInEnumField(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"file":     "src/foo.go",
+						"line":     1,
+						"message":  "demo",
+						"severity": "${{ github.event.inputs.severity }}",
+					},
+				},
+			},
+		},
+	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "runtime expression on enum-constrained field should substitute to a valid enum value")
+	assert.Equal(t, "${{ github.event.inputs.severity }}", cfg.CreateCodeScanningAlerts.Samples[0]["severity"], "validation must preserve original enum expression")
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField covers
+// schema-aware substitution for a boolean-typed field
+// (create_pull_request.draft).
+func TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"title":  "PR",
+						"body":   "Body",
+						"branch": "br",
+						"draft":  "${{ github.event.inputs.draft }}",
+					},
+				},
+			},
+		},
+	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "runtime expression on boolean field should substitute to a boolean placeholder for validation")
+	assert.Equal(t, "${{ github.event.inputs.draft }}", cfg.CreatePullRequests.Samples[0]["draft"], "validation must preserve original boolean expression")
+}
+
+// TestPlaceholderForSchema covers the schema-driven placeholder lookup for
+// the common shapes used inside safe_outputs_tools.json.
+func TestPlaceholderForSchema(t *testing.T) {
+	cases := []struct {
+		name   string
+		schema map[string]any
+		want   any
+	}{
+		{name: "nil schema", schema: nil, want: sampleRuntimeExpressionPlaceholder},
+		{
+			name:   "enum picks first value",
+			schema: map[string]any{"type": "string", "enum": []any{"APPROVE", "REQUEST_CHANGES", "COMMENT"}},
+			want:   "APPROVE",
+		},
+		{
+			name:   "boolean",
+			schema: map[string]any{"type": "boolean"},
+			want:   true,
+		},
+		{
+			name:   "number",
+			schema: map[string]any{"type": "number"},
+			want:   float64(1),
+		},
+		{
+			name:   "integer",
+			schema: map[string]any{"type": "integer"},
+			want:   float64(1),
+		},
+		{
+			name:   "type union prefers string",
+			schema: map[string]any{"type": []any{"number", "string"}},
+			want:   sampleRuntimeExpressionPlaceholder,
+		},
+		{
+			name:   "date format",
+			schema: map[string]any{"type": "string", "format": "date"},
+			want:   "2024-01-01",
+		},
+		{
+			name:   "uri format",
+			schema: map[string]any{"type": "string", "format": "uri"},
+			want:   "https://example.com",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := placeholderForSchema(tc.schema)
+			assert.Equal(t, tc.want, got, "placeholderForSchema should return expected value")
+		})
 	}
 }

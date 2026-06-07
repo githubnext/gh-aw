@@ -158,6 +158,33 @@ describe.sequential("apply_samples.cjs", () => {
   });
 });
 
+describe("apply_samples.cjs sendJsonRpc", () => {
+  const { sendJsonRpc } = require("./apply_samples.cjs");
+
+  async function* fromLines(lines) {
+    for (const line of lines) {
+      yield line;
+    }
+  }
+
+  it("skips non-JSON stdout lines until a JSON-RPC response arrives", async () => {
+    const writes = [];
+    const stdin = {
+      write: chunk => writes.push(chunk),
+    };
+    const response = await sendJsonRpc({}, stdin, { jsonrpc: "2.0", id: 99, method: "tools/call", params: {} }, fromLines(["[debug] Executing git command: git status", '{"jsonrpc":"2.0","id":99,"result":{"ok":true}}']));
+
+    expect(writes.length).toBe(1);
+    expect(writes[0]).toContain('"id":99');
+    expect(response).toEqual({ jsonrpc: "2.0", id: 99, result: { ok: true } });
+  });
+
+  it("throws a helpful error for malformed JSON lines that look like protocol frames", async () => {
+    const stdin = { write: () => {} };
+    await expect(sendJsonRpc({}, stdin, { jsonrpc: "2.0", id: 4, method: "initialize", params: {} }, fromLines(["{not-json"]))).rejects.toThrow("failed to parse MCP JSON-RPC response");
+  });
+});
+
 describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_request_branch)", () => {
   // Load the module under test directly so we can drive preStagePatch in
   // isolation against a real, throwaway git working tree. This is the

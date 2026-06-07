@@ -1,4 +1,5 @@
 // @ts-check
+// @safe-outputs-exempt SEC-005: pure local path-derivation utility; no cross-repo API calls. Target-repo allowlist enforcement is handled upstream in API-calling handlers.
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");

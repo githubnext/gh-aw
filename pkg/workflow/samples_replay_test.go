@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestUseSamplesReplacesAgentStep verifies that compiling with
@@ -338,4 +341,66 @@ emit a valid empty-array GH_AW_SAMPLES under --use-samples.
 	if samplesJSON != "[]" {
 		t.Fatalf("GH_AW_SAMPLES = %q, want %q", samplesJSON, "[]")
 	}
+}
+
+// TestUseSamplesPreservesRuntimeExpressionsInLockFile verifies that a sample
+// value containing a `${{ ... }}` GitHub Actions expression compiles cleanly
+// AND lands verbatim in the GH_AW_SAMPLES env value of the lock file, so that
+// GitHub Actions substitutes the real value on the runner before
+// apply_samples.cjs reads it.
+//
+// Regression for https://github.com/github/gh-aw/issues/37532.
+func TestUseSamplesPreservesRuntimeExpressionsInLockFile(t *testing.T) {
+	const md = `---
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number'
+        required: true
+        type: number
+permissions: read-all
+engine:
+  id: claude
+safe-outputs:
+  add-labels:
+    samples:
+      - item_number: ${{ github.event.inputs.issue_number }}
+        labels: ["copilot-safe-output-label-test"]
+---
+
+Runtime-templated sample for workflow_dispatch-driven testing.
+`
+
+	tmpFile, err := os.CreateTemp("", "use-samples-runtime-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(md); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetUseSamples(true)
+	if err := compiler.CompileWorkflow(tmpFile.Name()); err != nil {
+		t.Fatalf("compile failed: %v", err)
+	}
+	lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	defer os.Remove(lockPath)
+	b, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("read lock: %v", err)
+	}
+	lock := string(b)
+
+	samplesJSON := extractGHAWSamplesJSON(t, lock)
+	assert.Contains(t, samplesJSON, "${{ github.event.inputs.issue_number }}", "GH_AW_SAMPLES should preserve live runtime expression for substitution")
+	// The marshalled payload must still be valid JSON (the expression sits
+	// inside a JSON string, so no escaping concerns at compile time).
+	var parsed []any
+	err = json.Unmarshal([]byte(samplesJSON), &parsed)
+	require.NoError(t, err, "GH_AW_SAMPLES should remain valid JSON at compile time")
+	require.NotEmpty(t, parsed, "GH_AW_SAMPLES should include at least one sample entry")
 }
