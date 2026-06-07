@@ -440,7 +440,7 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 	require.Equal(t, []string{"usage"}, downloaded)
 }
 
-func TestLoadCachedRunAIC_MissingUsageArtifactReturnsZeroWithoutAnalysis(t *testing.T) {
+func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
