@@ -383,6 +383,42 @@ func TestForecastWorkflow_RequestsSuccessfulRuns(t *testing.T) {
 	assert.Equal(t, "success", capturedOpts.Status)
 }
 
+func TestForecastWorkflow_ExcludesZeroAICRunsFromComputation(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	originalLoadAIC := forecastLoadCachedRunAIC
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+		forecastLoadCachedRunAIC = originalLoadAIC
+	})
+
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		runs := []WorkflowRun{
+			{DatabaseID: 12, Status: "completed", Conclusion: "success", Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
+			{DatabaseID: 13, Status: "completed", Conclusion: "success", Duration: 6 * time.Minute, StartedAt: start.Add(10 * time.Minute), UpdatedAt: start.Add(16 * time.Minute)},
+		}
+		return runs, len(runs), nil
+	}
+	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+		if runID == 12 {
+			return 0
+		}
+		return 2.0
+	}
+
+	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
+		Days:       30,
+		Period:     "month",
+		SampleSize: 100,
+	}, 30)
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.SampledRuns)
+	assert.InDelta(t, 2.0, result.AvgAIC, 1e-9)
+	assert.InEpsilon(t, 1.0, result.SuccessRate, 1e-9)
+	require.Len(t, result.RunSamples, 1)
+	assert.Equal(t, int64(13), result.RunSamples[0].RunID)
+}
+
 func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)

@@ -147,7 +147,7 @@ type ForecastWorkflowResult struct {
 
 	// RunSamples holds the individual per-run data used in the forecast computation.
 	// Each entry records the run ID, raw AIC, and (when available) the run date.
-	// Populated for all runs where AIC data was obtainable; zero-AIC runs are included.
+	// Zero-AIC runs are treated as missing data and excluded.
 	RunSamples []ForecastRunSample `json:"run_samples,omitempty"`
 }
 
@@ -569,8 +569,6 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 			completed = append(completed, r)
 		}
 	}
-	result.SampledRuns = len(completed)
-
 	if len(completed) == 0 {
 		forecastRunLog.Printf("No completed runs found for %s in last %d days", workflowName, config.Days)
 		return result, nil
@@ -584,7 +582,14 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	samples := make([]ForecastRunSample, 0, len(completed))
 
 	for _, r := range completed {
+		if result.WorkflowPath == "" && r.WorkflowPath != "" {
+			result.WorkflowPath = r.WorkflowPath
+		}
 		runAIC := forecastLoadCachedRunAIC(ctx, r.DatabaseID, config.Verbose)
+		if runAIC <= 0 {
+			forecastRunLog.Printf("Skipping run %d for %s: AIC=%.3f treated as missing data", r.DatabaseID, workflowName, runAIC)
+			continue
+		}
 		totalAIC += runAIC
 		totalDurSec += r.Duration.Seconds()
 		// Monte Carlo currently samples integer observations; keep milli-AIC precision
@@ -601,13 +606,16 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 			sample.RunURL = r.URL
 		}
 		samples = append(samples, sample)
-		if result.WorkflowPath == "" && r.WorkflowPath != "" {
-			result.WorkflowPath = r.WorkflowPath
-		}
 	}
 	result.RunSamples = samples
 
-	n := len(completed)
+	n := len(aicObservations)
+	result.SampledRuns = n
+	if n == 0 {
+		forecastRunLog.Printf("No non-zero AIC run samples found for %s in last %d days", workflowName, config.Days)
+		return result, nil
+	}
+
 	result.AvgAIC = roundForecastAIC(totalAIC / float64(n))
 	result.AvgDurationSeconds = totalDurSec / float64(n)
 	result.SuccessRate = float64(successCount) / float64(n)

@@ -91,13 +91,16 @@ describe("create_forecast_issue", () => {
 
     expect(body).toContain("| Workflow | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |");
     expect(body).toContain("| [wf\\|a](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-a.yml) | 3 | 4,000 | 8,000 | 12,346 | 52,000 |");
+    expect(body).toContain("### AW without data");
+    expect(body).toContain("| [wf-b](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-b.yml) | 0 |");
+    expect(body).toContain("AIC = 0 is treated as missing data and excluded from forecast computation.");
     expect(body).toContain("### How to read this report");
     expect(body).toContain("It is statistically valid for monthly P50 to be positive while weekly P50 is 0");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
     expect(body).not.toContain("sampled runs but forecast AIC is 0");
   });
 
-  it("adds all-projected-zero diagnostics when every projected AIC is zero", async () => {
+  it("lists workflows without data when every projected AIC is zero", async () => {
     const module = await import("./create_forecast_issue.cjs");
     const body = module.buildForecastIssueBody(
       {
@@ -115,7 +118,10 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("All projected AIC values are 0 even after cache warm-up.");
+    expect(body).toContain("### AW without data");
+    expect(body).toContain("| wf-1 | 0 |");
+    expect(body).toContain("| wf-2 | 0 |");
+    expect(body).not.toContain("All projected AIC values are 0 even after cache warm-up.");
   });
 
   it("falls back to legacy projected effective token fields when AIC fields are absent", async () => {
@@ -201,6 +207,34 @@ describe("create_forecast_issue", () => {
       }
     );
     expect(summary).toBe("");
+  });
+
+  it("excludes zero-AIC run samples from step summary", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    const summary = module.buildForecastStepSummary(
+      {
+        period: "month",
+        workflows: [
+          {
+            workflow_id: "wf-c",
+            workflow_path: ".github/workflows/wf-c.yml",
+            run_samples: [
+              { run_id: 111, date: "2026-01-10", aic: 0 },
+              { run_id: 222, date: "2026-01-11", aic: 1200 },
+            ],
+          },
+        ],
+      },
+      {
+        owner: "octo",
+        repo: "repo",
+        serverUrl: "https://github.com",
+        generatedAtISO: "2026-01-01T00:00:00.000Z",
+      }
+    );
+
+    expect(summary).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #222 | 2026-01-11 | 1,200 |");
+    expect(summary).not.toContain("| #111 |");
   });
 
   it("renders TOTAL row when multiple workflows are present", async () => {

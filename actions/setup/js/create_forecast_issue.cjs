@@ -31,6 +31,23 @@ function formatAIC(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {number}
+ */
+function toFiniteNumber(value) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function hasPositiveAIC(value) {
+  return toFiniteNumber(value) > 0;
+}
+
+/**
  * @param {Record<string, any>} workflow
  * @param {{owner: string, repo: string, serverUrl: string}} options
  * @returns {string}
@@ -62,22 +79,36 @@ function buildForecastIssueBody(report, options) {
   const workflows = Array.isArray(report?.workflows) ? [...report.workflows] : [];
   workflows.sort((a, b) => monthlyCost(b) - monthlyCost(a));
 
-  // Build the summary table with per-run P50/P95 and weekly/monthly projected totals.
-  const tableRows = workflows.map(workflow => {
+  const categorized = workflows.map(workflow => {
     const p50PerRun = workflow?.p50_aic_per_run ?? 0;
     const p95PerRun = workflow?.p95_aic_per_run ?? 0;
     const weeklyP50 = workflow?.weekly_monte_carlo?.p50_projected_aic ?? workflow?.weekly_projected_aic ?? 0;
     const monthlyP50 = workflow?.monthly_monte_carlo?.p50_projected_aic ?? workflow?.monthly_projected_aic ?? 0;
-    return [renderWorkflowLink(workflow, options), workflow.sampled_runs ?? 0, Number(p50PerRun), Number(p95PerRun), Number(weeklyP50), Number(monthlyP50)];
+    const hasForecastData = [p50PerRun, p95PerRun, weeklyP50, monthlyP50].some(hasPositiveAIC);
+    return {
+      workflow,
+      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), toFiniteNumber(p50PerRun), toFiniteNumber(p95PerRun), toFiniteNumber(weeklyP50), toFiniteNumber(monthlyP50)],
+      hasForecastData,
+    };
   });
+  const tableRows = categorized.filter(item => item.hasForecastData).map(item => item.row);
+  const workflowsWithoutData = categorized.filter(item => !item.hasForecastData).map(item => item.workflow);
 
   // Legacy fallback: derive weekly/monthly from the configured-period P50 when new fields are absent.
   const hasNewFields = workflows.some(w => w?.p50_aic_per_run != null || w?.weekly_projected_aic != null);
   const legacyRows = hasNewFields
     ? null
-    : workflows.map(workflow => {
+    : workflows
+        .map(workflow => {
+          const p50 = workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
+          return [escapeCell(workflow.workflow_id), toFiniteNumber(workflow.sampled_runs), toFiniteNumber(p50)];
+        })
+        .filter(([, , p50]) => hasPositiveAIC(p50));
+  const legacyNoDataWorkflows = hasNewFields
+    ? []
+    : workflows.filter(workflow => {
         const p50 = workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
-        return [escapeCell(workflow.workflow_id), workflow.sampled_runs ?? 0, Number(p50)];
+        return !hasPositiveAIC(p50);
       });
 
   const allWeeklyZero = tableRows.length > 0 && tableRows.every(([, , , , weekly]) => Number(weekly) === 0);
@@ -103,6 +134,20 @@ function buildForecastIssueBody(report, options) {
       reportTable = ["| Workflow | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |", "| --- | ---: | ---: | ---: | ---: | ---: |", ...dataRows].join("\n");
     }
   }
+  const withoutDataWorkflows = legacyRows ? legacyNoDataWorkflows : workflowsWithoutData;
+  const withoutDataSection =
+    withoutDataWorkflows.length === 0
+      ? ""
+      : [
+          "### AW without data",
+          "",
+          "| Workflow | Runs used |",
+          "| --- | ---: |",
+          ...withoutDataWorkflows.map(workflow => `| ${renderWorkflowLink(workflow, options)} | 0 |`),
+          "",
+          "- AIC = 0 is treated as missing data and excluded from forecast computation.",
+          "",
+        ].join("\n");
 
   const repoSlug = `${options.owner}/${options.repo}`;
   const period = report?.period || "month";
@@ -139,6 +184,7 @@ function buildForecastIssueBody(report, options) {
     generated_at: options.generatedAtISO || new Date().toISOString(),
     period,
     report_table: reportTable,
+    without_data_section: withoutDataSection,
     report_reading_section: reportReadingSection,
     all_projected_zero_note: allProjectedZeroNote,
     run_samples_section: "",
@@ -171,12 +217,12 @@ function buildForecastStepSummary(report, options) {
  * @returns {string}
  */
 function buildRunSamplesSection(workflows, options) {
-  const hasAny = workflows.some(w => Array.isArray(w?.run_samples) && w.run_samples.length > 0);
+  const hasAny = workflows.some(w => Array.isArray(w?.run_samples) && w.run_samples.some(sample => hasPositiveAIC(sample?.aic)));
   if (!hasAny) return "";
 
   const lines = ["<details>", "<summary>Sampled runs used in computation</summary>", "", "| Workflow | Run ID | Date | AIC |", "| --- | ---: | --- | ---: |"];
   for (const wf of workflows) {
-    const samples = Array.isArray(wf?.run_samples) ? wf.run_samples : [];
+    const samples = Array.isArray(wf?.run_samples) ? wf.run_samples.filter(sample => hasPositiveAIC(sample?.aic)) : [];
     const workflowLabel = renderWorkflowLink(wf, options);
     for (const s of samples) {
       const runID = s?.run_id ?? "";
