@@ -269,7 +269,13 @@ LATEST_TAG=""
 FALLBACK_DOWNLOAD_URL=""
 FALLBACK_CHECKSUMS_URL=""
 if [ "$VERSION" = "latest" ]; then
-    LATEST_TAG=$(curl -sL --connect-timeout 15 --max-time 30 "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    LATEST_RELEASE_RESPONSE=$(curl -sL --connect-timeout 15 --max-time 30 "https://api.github.com/repos/$REPO/releases/latest")
+    LATEST_RELEASE_STATUS=$?
+    if [ "$LATEST_RELEASE_STATUS" -eq 0 ]; then
+        LATEST_TAG=$(printf '%s' "$LATEST_RELEASE_RESPONSE" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    else
+        print_warning "Failed to resolve latest release tag from GitHub API (curl exit code: $LATEST_RELEASE_STATUS)."
+    fi
     if [ -n "$LATEST_TAG" ]; then
         FALLBACK_DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST_TAG/$PLATFORM"
         FALLBACK_CHECKSUMS_URL="https://github.com/$REPO/releases/download/$LATEST_TAG/checksums.txt"
