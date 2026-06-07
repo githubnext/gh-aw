@@ -19,8 +19,11 @@ Resolution supports two modes:
 |------|------|-------------|
 | `ActionYAMLInput` | struct | Input metadata parsed from an Action's `action.yml` |
 | `ActionPin` | struct | Pinned action entry (repo, version, SHA, optional inputs) |
+| `ContainerPin` | struct | Pinned container image entry (image, digest, pinned image reference) |
 | `ActionPinsData` | struct | JSON container used to load embedded pin entries |
 | `SHAResolver` | interface | Resolves a SHA for `repo@version` dynamically |
+| `ResolutionErrorType` | string | Classifies unresolved action-ref pinning outcomes for auditing |
+| `ResolutionFailure` | struct | Captures an unresolved action-ref pinning event (repo, ref, error type) |
 | `PinContext` | struct | Runtime context for resolution (resolver, strict mode, warning dedupe map) |
 
 ### Functions
@@ -48,6 +51,39 @@ if err != nil {
 }
 
 fmt.Println(reference) // actions/checkout@<sha> # v5
+```
+
+### Auditing Resolution Failures
+
+`ResolutionErrorType` classifies why a pin could not be resolved. The two defined values are:
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ResolutionErrorTypeDynamicResolutionFailed` | `"dynamic_resolution_failed"` | Dynamic tag/ref → SHA resolution failed |
+| `ResolutionErrorTypePinNotFound` | `"pin_not_found"` | No usable hardcoded pin was found for the ref |
+
+Use `PinContext.RecordResolutionFailure` to collect `ResolutionFailure` events for auditing:
+
+```go
+var failures []actionpins.ResolutionFailure
+ctx := &actionpins.PinContext{
+    RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+        failures = append(failures, f)
+    },
+}
+actionpins.ResolveActionPin("unknown/action", "v1", ctx)
+// failures[0].ErrorType == actionpins.ResolutionErrorTypePinNotFound
+```
+
+### Container Pins
+
+`ContainerPin` provides a pinned image reference for container images:
+
+```go
+pin, ok := actionpins.GetContainerPin("ghcr.io/some/image:v1")
+if ok {
+    fmt.Println(pin.PinnedImage) // ghcr.io/some/image@sha256:abc123
+}
 ```
 
 ## Dependencies

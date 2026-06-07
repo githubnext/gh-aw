@@ -102,6 +102,34 @@ Per-token-class weights for effective token computation. Each field corresponds 
 | `Reasoning` | Internal reasoning tokens |
 | `CacheWrite` | Cache-write tokens |
 
+### `InputDefinition`
+
+Defines an input parameter for workflows, safe-jobs, and imported workflows. The structure follows the [`workflow_dispatch` input schema](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onworkflow_dispatchinputs) from GitHub Actions.
+
+```go
+input := types.InputDefinition{
+    Description: "The environment to deploy to",
+    Required:    true,
+    Default:     "staging",
+    Type:        "choice",
+    Options:     []string{"staging", "production"},
+}
+```
+
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Description` | `string` | Human-readable description of the input parameter |
+| `Required` | `bool` | Whether the input is required; defaults to `false` |
+| `Default` | `any` | Default value; can be `string`, `number`, or `boolean` |
+| `Type` | `string` | Input type: `"string"`, `"choice"`, `"boolean"`, `"number"`, or `"environment"` |
+| `Options` | `[]string` | Valid options for `choice` type inputs |
+
+#### Method: `GetDefaultAsString() string`
+
+Returns the `Default` field as a string, regardless of its underlying type. Handles `string`, `bool`, `int`, `int64`, and `float64` inputs. Integer-valued `float64` defaults (e.g. `1.0`) are formatted without a decimal point. Returns `""` when `Default` is `nil`.
+
 ## Usage Examples
 
 ```go
