@@ -11,7 +11,6 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-  discussions: read
 experiments:
   sub_agent_strategy:
     variants: [per_scenario, batch]
@@ -20,7 +19,7 @@ experiments:
     metric: effective_tokens
     secondary_metrics: [run_duration_minutes, scenarios_tested, output_quality_score]
     guardrail_metrics:
-      - name: discussion_created
+      - name: issue_created
         threshold: "==1"
       - name: scenarios_analyzed
         threshold: ">=3"
