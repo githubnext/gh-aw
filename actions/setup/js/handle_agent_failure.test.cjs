@@ -3065,6 +3065,28 @@ describe("handle_agent_failure", () => {
       });
     });
 
+    it("supports fractional AI credits when deriving ET-equivalent max budgets", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditDir, "log.jsonl"),
+        JSON.stringify({
+          _schema: "audit/v0.26.0",
+          ts: 1,
+          effective_tokens: 500,
+          max_ai_credits: "0.2509",
+          effective_tokens_rate_limit_error: true,
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "500",
+        maxEffectiveTokens: "2509",
+        effectiveTokensRateLimitError: false,
+      });
+    });
+
     it("keeps ET budget exhaustion when the rate-limit signal is present but no max is available", () => {
       process.env.GH_AW_EFFECTIVE_TOKENS = "2097968";
       process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";

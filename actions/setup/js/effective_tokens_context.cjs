@@ -77,9 +77,33 @@ function shouldReportAICreditsRateLimitError(hasRateLimitSignal, aiCredits, maxA
   return isNumberStringGreaterThanOrEqual(aiCredits, maxAICredits);
 }
 
+/**
+ * Derive an ET-equivalent budget from AI credits when only max-ai-credits is available.
+ * Conversion uses 1 AIC = 10,000 ET and rounds down to avoid over-reporting ET capacity.
+ * @param {string} maxAICredits
+ * @returns {string}
+ */
 function deriveMaxEffectiveTokensFromAICredits(maxAICredits) {
   if (!maxAICredits) return "";
-  const parsed = Number.parseFloat(maxAICredits);
+  const normalized = String(maxAICredits).trim();
+  const decimalMatch = normalized.match(/^(\d+)(?:\.(\d+))?$/);
+  if (decimalMatch) {
+    const wholePart = decimalMatch[1];
+    const fractionalPart = decimalMatch[2] || "";
+    // Scale to ET units (1 AIC = 10,000 ET) by right-padding fractional digits.
+    const scaledFraction = (fractionalPart + "0000").slice(0, 4);
+    try {
+      const converted = BigInt(wholePart) * BigInt(EFFECTIVE_TOKENS_PER_AI_CREDIT) + BigInt(scaledFraction || "0");
+      if (converted > 0n) {
+        return converted.toString();
+      }
+    } catch {
+      // Fall through to numeric parsing.
+    }
+  }
+
+  // Fallback for numeric strings not matched by decimal regex (for example scientific notation).
+  const parsed = Number.parseFloat(normalized);
   if (!Number.isFinite(parsed) || parsed <= 0) return "";
   const converted = Math.floor(parsed * EFFECTIVE_TOKENS_PER_AI_CREDIT);
   if (!Number.isSafeInteger(converted) || converted <= 0) return "";
