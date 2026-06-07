@@ -49,7 +49,7 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 	labels := extractRunnerLabels(runsOn)
 	for _, label := range labels {
 		lower := strings.ToLower(label)
-		if strings.HasPrefix(lower, "macos-") || lower == "macos" {
+		if strings.HasPrefix(lower, "macos-") || strings.EqualFold(lower, "macos") {
 			return formatCompilerError(markdownPath, "error",
 				fmt.Sprintf("runner '%s' is not supported in agentic workflows.\n\n"+
 					"macOS runners are not supported because agentic workflows rely on containers "+

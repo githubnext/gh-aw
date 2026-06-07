@@ -218,7 +218,7 @@ func classifyValidationSeverity(field string, reason string) (ErrorSeverity, str
 	lowerReason := strings.ToLower(reason)
 
 	switch {
-	case lowerField == "engine" || strings.Contains(lowerReason, "invalid engine"):
+	case strings.EqualFold(lowerField, "engine") || strings.Contains(lowerReason, "invalid engine"):
 		return SeverityCritical, "configuration"
 	case strings.Contains(lowerField, "network") || strings.Contains(lowerReason, "strict mode"):
 		return SeverityHigh, "permissions"

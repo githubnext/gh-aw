@@ -12,6 +12,9 @@ func flaggedExamples() {
 	_ = "alice" == strings.ToLower(name)                  // want `use strings\.EqualFold`
 	_ = strings.ToLower(name) != "alice"                  // want `use strings\.EqualFold`
 	_ = strings.ToLower(name) == strings.ToLower("alice") // want `use strings\.EqualFold`
+
+	lower := strings.ToLower(name)
+	_ = lower == "alice" // want `use strings\.EqualFold`
 }
 
 func okExamples() {
@@ -25,6 +28,9 @@ func okExamples() {
 	_ = strings.ToLower(name) // used standalone, not in a comparison
 	_ = strings.ToLower(name) == name
 	_ = strings.ToLower(name) != name
+
+	lower := strings.ToLower(name)
+	_ = lower == name
 }
 
 func suppressedExamples() {

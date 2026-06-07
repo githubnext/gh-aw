@@ -63,8 +63,7 @@ func isActionDefinitionFile(filePath string, content []byte) (bool, error) {
 // Supports both .yml and .yaml extensions for consistency with GitHub Actions
 func isCopilotSetupStepsFile(filePath string) bool {
 	base := filepath.Base(filePath)
-	lower := strings.ToLower(base)
-	return lower == "copilot-setup-steps.yml" || lower == "copilot-setup-steps.yaml"
+	return strings.EqualFold(base, "copilot-setup-steps.yml") || strings.EqualFold(base, "copilot-setup-steps.yaml")
 }
 
 // processYAMLWorkflowImport processes an imported YAML workflow file

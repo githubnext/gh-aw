@@ -24,7 +24,7 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 
 	// Inline sub-agents are now enabled by default and the corresponding
 	// frontmatter flag is deprecated/no-op.
-	if flagLower == "inline-agents" {
+	if strings.EqualFold(flagLower, "inline-agents") {
 		if logEnabled {
 			featuresLog.Printf("Feature %s is deprecated and always enabled", flagLower)
 		}
