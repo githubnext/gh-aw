@@ -353,10 +353,10 @@ var compoundEcosystems = map[string][]string{
 func getEcosystemDomains(category string) []string {
 	// Check for compound ecosystem first
 	if components, ok := compoundEcosystems[category]; ok {
-		domainMap := make(map[string]bool)
+		domainMap := make(map[string]struct{})
 		for _, component := range components {
 			for _, d := range getEcosystemDomains(component) {
-				domainMap[d] = true
+				domainMap[d] = struct{}{}
 			}
 		}
 		result := slices.Sorted(maps.Keys(domainMap))
@@ -405,7 +405,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 		return []string{}
 	}
 
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 
 	for runtimeID := range runtimes {
 		// Look up the ecosystem for this runtime
@@ -420,7 +420,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 		if len(domains) > 0 {
 			domainsLog.Printf("Runtime '%s' mapped to ecosystem '%s' with %d domains", runtimeID, ecosystem, len(domains))
 			for _, d := range domains {
-				domainMap[d] = true
+				domainMap[d] = struct{}{}
 			}
 		}
 	}
@@ -504,7 +504,7 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 
 	// Process the allowed list, expanding ecosystem identifiers if present
 	// Use a map to deduplicate domains
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 	for _, domain := range network.Allowed {
 		// Try to get domains for this ecosystem category
 		ecosystemDomains := getEcosystemDomains(domain)
@@ -512,11 +512,11 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 			// This was an ecosystem identifier, expand it
 			domainsLog.Printf("Expanded ecosystem '%s' to %d domains", domain, len(ecosystemDomains))
 			for _, d := range ecosystemDomains {
-				domainMap[d] = true
+				domainMap[d] = struct{}{}
 			}
 		} else {
 			// Add the domain as-is (regular domain name)
-			domainMap[domain] = true
+			domainMap[domain] = struct{}{}
 		}
 	}
 
@@ -570,11 +570,11 @@ var ecosystemPriority = []string{
 // Ecosystems are checked in ecosystemPriority order so that the result is deterministic even when
 // a domain appears in multiple ecosystems (e.g. cdn.jsdelivr.net is in both "node" and "node-cdns").
 func GetDomainEcosystem(domain string) string {
-	checked := make(map[string]bool, len(ecosystemPriority))
+	checked := make(map[string]struct{}, len(ecosystemPriority))
 
 	// Check ecosystems in priority order first
 	for _, ecosystem := range ecosystemPriority {
-		checked[ecosystem] = true
+		checked[ecosystem] = struct{}{}
 		domains := getEcosystemDomains(ecosystem)
 		for _, ecosystemDomain := range domains {
 			if matchesDomain(domain, ecosystemDomain) {
@@ -586,7 +586,7 @@ func GetDomainEcosystem(domain string) string {
 	// Fall back to any ecosystems not in the priority list, sorted for determinism
 	remaining := make([]string, 0)
 	for ecosystem := range ecosystemDomains {
-		if !checked[ecosystem] {
+		if _, ok := checked[ecosystem]; !ok {
 			remaining = append(remaining, ecosystem)
 		}
 	}
@@ -688,11 +688,11 @@ func extractPlaywrightDomains(tools map[string]any) []string {
 // mergeDomainsWithNetworkToolsAndRuntimes combines default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 
 	// Add default domains
 	for _, domain := range defaultDomains {
-		domainMap[domain] = true
+		domainMap[domain] = struct{}{}
 	}
 
 	// Add NetworkPermissions domains (if specified)
@@ -700,7 +700,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 		// Expand ecosystem identifiers and add individual domains
 		expandedDomains := GetAllowedDomains(network)
 		for _, domain := range expandedDomains {
-			domainMap[domain] = true
+			domainMap[domain] = struct{}{}
 		}
 	}
 
@@ -708,7 +708,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	if tools != nil {
 		mcpDomains := extractHTTPMCPDomains(tools)
 		for _, domain := range mcpDomains {
-			domainMap[domain] = true
+			domainMap[domain] = struct{}{}
 		}
 	}
 
@@ -717,7 +717,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	if tools != nil {
 		playwrightDomains := extractPlaywrightDomains(tools)
 		for _, domain := range playwrightDomains {
-			domainMap[domain] = true
+			domainMap[domain] = struct{}{}
 		}
 	}
 
@@ -725,7 +725,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	if runtimes != nil {
 		runtimeDomains := getDomainsFromRuntimes(runtimes)
 		for _, domain := range runtimeDomains {
-			domainMap[domain] = true
+			domainMap[domain] = struct{}{}
 		}
 	}
 
@@ -840,7 +840,7 @@ func GetBlockedDomains(network *NetworkPermissions) []string {
 
 	// Process the blocked list, expanding ecosystem identifiers if present
 	// Use a map to deduplicate domains
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 	for _, domain := range network.Blocked {
 		// Try to get domains for this ecosystem category
 		ecosystemDomains := getEcosystemDomains(domain)
@@ -848,11 +848,11 @@ func GetBlockedDomains(network *NetworkPermissions) []string {
 			// This was an ecosystem identifier, expand it
 			domainsLog.Printf("Expanded ecosystem '%s' to %d domains", domain, len(ecosystemDomains))
 			for _, d := range ecosystemDomains {
-				domainMap[d] = true
+				domainMap[d] = struct{}{}
 			}
 		} else {
 			// Add the domain as-is (regular domain name)
-			domainMap[domain] = true
+			domainMap[domain] = struct{}{}
 		}
 	}
 
@@ -911,15 +911,15 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 		return domainsStr
 	}
 
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 	for d := range strings.SplitSeq(domainsStr, ",") {
 		d = strings.TrimSpace(d)
 		if d != "" {
-			domainMap[d] = true
+			domainMap[d] = struct{}{}
 		}
 	}
 	for _, d := range extraDomains {
-		domainMap[d] = true
+		domainMap[d] = struct{}{}
 	}
 
 	return strings.Join(slices.Sorted(maps.Keys(domainMap)), ",")
@@ -998,15 +998,15 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 // identifiers like "python", "node", "dev-tools") into a deduplicated, sorted list of
 // concrete domain strings. This uses the same expansion logic as network.allowed.
 func expandAllowedDomains(entries []string) []string {
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 	for _, entry := range entries {
 		ecosystemDomains := getEcosystemDomains(entry)
 		if len(ecosystemDomains) > 0 {
 			for _, d := range ecosystemDomains {
-				domainMap[d] = true
+				domainMap[d] = struct{}{}
 			}
 		} else {
-			domainMap[entry] = true
+			domainMap[entry] = struct{}{}
 		}
 	}
 	return slices.Sorted(maps.Keys(domainMap))
@@ -1024,14 +1024,14 @@ func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowDa
 		return "", err
 	}
 
-	domainMap := make(map[string]bool)
+	domainMap := make(map[string]struct{})
 
 	// Seed from the base computation
 	if base != "" {
 		for d := range strings.SplitSeq(base, ",") {
 			d = strings.TrimSpace(d)
 			if d != "" {
-				domainMap[d] = true
+				domainMap[d] = struct{}{}
 			}
 		}
 	}
@@ -1039,15 +1039,15 @@ func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowDa
 	// Union with allowed-domains (expanded)
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		for _, d := range expandAllowedDomains(data.SafeOutputs.AllowedDomains) {
-			domainMap[d] = true
+			domainMap[d] = struct{}{}
 		}
 	}
 
 	// Always allow localhost (for local development URL references)
-	domainMap["localhost"] = true
+	domainMap["localhost"] = struct{}{}
 
 	// Always allow github.com (GitHub page of the current repo)
-	domainMap["github.com"] = true
+	domainMap["github.com"] = struct{}{}
 
 	// Produce a sorted, comma-separated result
 	return strings.Join(slices.Sorted(maps.Keys(domainMap)), ","), nil

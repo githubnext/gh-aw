@@ -145,12 +145,12 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 
 		// Merge blocked domain lists
 		if len(otherFirewall.BlockedDomains) > 0 {
-			domainSet := make(map[string]bool, len(f.BlockedDomains)+len(otherFirewall.BlockedDomains))
+			domainSet := make(map[string]struct{}, len(f.BlockedDomains)+len(otherFirewall.BlockedDomains))
 			for _, d := range f.BlockedDomains {
-				domainSet[d] = true
+				domainSet[d] = struct{}{}
 			}
 			for _, d := range otherFirewall.BlockedDomains {
-				domainSet[d] = true
+				domainSet[d] = struct{}{}
 			}
 			merged := make([]string, 0, len(domainSet))
 			for d := range domainSet {
@@ -162,12 +162,12 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 
 		// Merge allowed domain lists
 		if len(otherFirewall.AllowedDomains) > 0 {
-			domainSet := make(map[string]bool, len(f.AllowedDomains)+len(otherFirewall.AllowedDomains))
+			domainSet := make(map[string]struct{}, len(f.AllowedDomains)+len(otherFirewall.AllowedDomains))
 			for _, d := range f.AllowedDomains {
-				domainSet[d] = true
+				domainSet[d] = struct{}{}
 			}
 			for _, d := range otherFirewall.AllowedDomains {
-				domainSet[d] = true
+				domainSet[d] = struct{}{}
 			}
 			merged := make([]string, 0, len(domainSet))
 			for d := range domainSet {
@@ -288,8 +288,8 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
 
-	allowedDomainsSet := make(map[string]bool)
-	blockedDomainsSet := make(map[string]bool)
+	allowedDomainsSet := make(map[string]struct{})
+	blockedDomainsSet := make(map[string]struct{})
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -329,13 +329,13 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 
 		if isAllowed {
 			analysis.AllowedRequests++
-			if domain != unknownDomain && !allowedDomainsSet[domain] {
-				allowedDomainsSet[domain] = true
+			if domain != unknownDomain {
+				allowedDomainsSet[domain] = struct{}{}
 			}
 		} else {
 			analysis.BlockedRequests++
-			if domain != unknownDomain && !blockedDomainsSet[domain] {
-				blockedDomainsSet[domain] = true
+			if domain != unknownDomain {
+				blockedDomainsSet[domain] = struct{}{}
 			}
 		}
 
@@ -478,7 +478,7 @@ func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysi
 		return nil
 	}
 
-	blockedDomainsSet := make(map[string]bool)
+	blockedDomainsSet := make(map[string]struct{})
 	for line := range strings.SplitSeq(string(content), "\n") {
 		if matches := agentLogAllowDomainsPattern.FindStringSubmatch(line); len(matches) > 1 {
 			// Strip surrounding double quotes if present (e.g., --allow-domains "dom1,dom2")
@@ -486,7 +486,7 @@ func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysi
 			// Domains can be comma-separated in the suggestion
 			for domain := range strings.SplitSeq(allowDomains, ",") {
 				if d := strings.TrimSpace(domain); d != "" {
-					blockedDomainsSet[d] = true
+					blockedDomainsSet[d] = struct{}{}
 				}
 			}
 		}

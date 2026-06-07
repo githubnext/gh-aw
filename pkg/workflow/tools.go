@@ -537,10 +537,10 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		parsedConfig := parseGitHubTool(githubTool)
 
 		// Create a set of existing tools for efficient lookup
-		existingToolsSet := make(map[string]bool)
+		existingToolsSet := make(map[string]struct{})
 		if parsedConfig != nil {
 			for _, tool := range parsedConfig.Allowed {
-				existingToolsSet[string(tool)] = true
+				existingToolsSet[string(tool)] = struct{}{}
 			}
 		}
 
@@ -604,10 +604,10 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			existingBash := tools["bash"]
 			if existingCommands, ok := existingBash.([]any); ok {
 				// Convert existing commands to strings for comparison
-				existingSet := make(map[string]bool)
+				existingSet := make(map[string]struct{})
 				for _, cmd := range existingCommands {
 					if cmdStr, ok := cmd.(string); ok {
-						existingSet[cmdStr] = true
+						existingSet[cmdStr] = struct{}{}
 						// If we see :* or *, all bash commands are already allowed
 						if cmdStr == ":*" || cmdStr == "*" {
 							// Don't add specific Git commands since all are already allowed
@@ -620,7 +620,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				newCommands := append([]any(nil), existingCommands...)
 				for _, gitCmd := range gitCommands {
 					if gitCmdStr, ok := gitCmd.(string); ok {
-						if !existingSet[gitCmdStr] {
+						if _, ok := existingSet[gitCmdStr]; !ok {
 							newCommands = append(newCommands, gitCmd)
 						}
 					}
@@ -668,17 +668,17 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			// bash is an array - merge default commands with custom commands
 			if len(bashArray) > 0 {
 				// Create a set to track existing commands to avoid duplicates
-				existingCommands := make(map[string]bool)
+				existingCommands := make(map[string]struct{})
 				for _, cmd := range bashArray {
 					if cmdStr, ok := cmd.(string); ok {
-						existingCommands[cmdStr] = true
+						existingCommands[cmdStr] = struct{}{}
 					}
 				}
 
 				// Start with default commands (append handles capacity automatically)
 				var mergedCommands []any
 				for _, cmd := range constants.DefaultBashTools {
-					if !existingCommands[cmd] {
+					if _, ok := existingCommands[cmd]; !ok {
 						mergedCommands = append(mergedCommands, cmd)
 					}
 				}

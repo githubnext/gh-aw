@@ -83,12 +83,12 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 	}
 
 	// Collect all domains
-	allDomains := make(map[string]bool)
+	allDomains := make(map[string]struct{})
 	for domain := range run1Stats {
-		allDomains[domain] = true
+		allDomains[domain] = struct{}{}
 	}
 	for domain := range run2Stats {
-		allDomains[domain] = true
+		allDomains[domain] = struct{}{}
 	}
 
 	// Sorted domain list for deterministic output
@@ -426,12 +426,12 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 		}
 	}
 
-	allKeys := make(map[string]bool)
+	allKeys := make(map[string]struct{})
 	for k := range run1Tools {
-		allKeys[k] = true
+		allKeys[k] = struct{}{}
 	}
 	for k := range run2Tools {
-		allKeys[k] = true
+		allKeys[k] = struct{}{}
 	}
 
 	sortedKeys := make([]string, 0, len(allKeys))
@@ -638,12 +638,12 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		return nil
 	}
 
-	allNames := make(map[string]bool)
+	allNames := make(map[string]struct{})
 	for k := range run1Tools {
-		allNames[k] = true
+		allNames[k] = struct{}{}
 	}
 	for k := range run2Tools {
-		allNames[k] = true
+		allNames[k] = struct{}{}
 	}
 
 	sortedNames := make([]string, 0, len(allNames))
@@ -741,12 +741,12 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 // The maps should contain only bash-related entries (generic "bash"/"Bash" and per-command "bash_*").
 // Returns nil when no bash tool calls are present in either map.
 func computeBashCommandsDiff(run1Tools, run2Tools map[string]ToolCallInfo) *BashCommandsDiff {
-	allNames := make(map[string]bool)
+	allNames := make(map[string]struct{})
 	for k := range run1Tools {
-		allNames[k] = true
+		allNames[k] = struct{}{}
 	}
 	for k := range run2Tools {
-		allNames[k] = true
+		allNames[k] = struct{}{}
 	}
 
 	if len(allNames) == 0 {
