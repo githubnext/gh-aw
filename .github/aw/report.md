@@ -16,6 +16,20 @@ For agentic workflows that generate reports — status updates, audits, summarie
 
 Default to `create-issue` — issues are searchable and support full close/expire cleanup. Only use `create-discussion` when explicitly requested.
 
+### PM/Stakeholder Digest Guidance
+
+For product, stakeholder, and leadership digests:
+
+- Use `create-issue` when the report is operational (backlog follow-ups, ownership tracking, recurring status history).
+- Use `create-discussion` only when the requester explicitly wants discussion-native collaboration (threaded ideation, broad async feedback).
+- If intent is unclear, default to `create-issue` and note in the prompt that discussions require explicit request.
+
+Examples:
+
+- Weekly release health digest for engineering managers → `create-issue`
+- Monthly roadmap status with action items and owners → `create-issue`
+- Community-facing product update seeking open feedback → `create-discussion` (explicitly requested)
+
 ## Automatic Cleanup
 
 Always configure cleanup for scheduled or recurring reports.

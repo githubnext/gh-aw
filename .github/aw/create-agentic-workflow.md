@@ -69,6 +69,15 @@ Common mappings:
 - GitHub Actions pipeline monitoring → `workflow_run`
 - external deployment monitoring → `deployment_status`
 
+Quick decision matrix:
+
+| User intent | Trigger | Typical read tools | Typical safe output |
+|---|---|---|---|
+| Review PR changes, comment on quality, suggest fixes | `pull_request` | `github` (`gh-proxy`), optional `playwright` for UI diffs | `add-comment` |
+| Investigate failed CI/deploy runs and summarize incident | `workflow_run` | `github` (`gh-proxy`) with `actions: read` | `create-issue` |
+| Run visual regression checks on PR UI changes | `pull_request` | `playwright` + `cache-memory` | `add-comment` |
+| Publish weekly stakeholder/product digest | `schedule` | `github` (`gh-proxy`) | `create-issue` (default), `create-discussion` only if explicitly requested |
+
 Use [workflow-patterns.md](workflow-patterns.md) for trigger-selection guidance.
 
 ### 3. Keep permissions read-only

@@ -40,10 +40,11 @@ tools:
   agentic-workflows:
   cache-memory: true
 safe-outputs:
-  create-discussion:
-    category: "agent-research"
+  create-issue:
+    title-prefix: "Agent Persona Exploration - "
+    labels: ["agent-research"]
     max: 1
-    close-older-discussions: true
+    close-older-issues: true
     expires: false
 timeout-minutes: 180
 imports:
@@ -173,13 +174,13 @@ Review all captured responses and identify:
 
 ## Phase 5: Document and Publish Findings (1 minute)
 
-**MANDATORY OUTPUT**: Regardless of how many phases completed successfully, you MUST call either the `create discussion` or the `noop` safe-output tool before finishing. Failing to call a safe-output tool is the most common cause of workflow failures.
+**MANDATORY OUTPUT**: Regardless of how many phases completed successfully, you MUST call either the `create issue` or the `noop` safe-output tool before finishing. Failing to call a safe-output tool is the most common cause of workflow failures.
 
-Create a GitHub discussion with a **concise** summary report. Use the `create discussion` safe-output to publish your findings. Even if only 1-2 scenarios were tested, create the discussion with partial results.
+Create a GitHub issue with a **concise** summary report. Use the `create issue` safe-output to publish your findings. Even if only 1-2 scenarios were tested, create the issue with partial results.
 
-**Discussion title**: "Agent Persona Exploration - [DATE]" (e.g., "Agent Persona Exploration - 2024-01-16")
+**Issue title**: "Agent Persona Exploration - [DATE]" (e.g., "Agent Persona Exploration - 2024-01-16")
 
-**Discussion content structure**:
+**Issue content structure**:
 
 Follow these formatting guidelines when creating your persona analysis report:
 
@@ -272,7 +273,7 @@ Example:
 ## Success Criteria
 
 Your effectiveness is measured by:
-- **Safe output**: ALWAYS call either `create discussion` or `noop` — this is the most critical requirement
+- **Safe output**: ALWAYS call either `create issue` or `noop` — this is the most critical requirement
 - **Efficiency**: Complete analysis within token budget (timeout: 180 minutes, concise outputs)
 - **Quality over quantity**: Test 3-4 representative scenarios thoroughly rather than many scenarios superficially
 - **Actionable insights**: Provide 3-5 concrete, implementable recommendations
@@ -282,7 +283,7 @@ Your effectiveness is measured by:
 Execute all phases systematically and maintain an objective, research-focused approach to understanding the agentic-workflows custom agent's capabilities and limitations.
 
 **CRITICAL**: You MUST call a safe-output tool before finishing. Choose one:
-1. Call `create discussion` to publish findings (preferred — even partial results are valuable)
+1. Call `create issue` to publish findings (preferred — even partial results are valuable)
 2. Call `noop` if you were completely unable to gather any data
 
 ```json

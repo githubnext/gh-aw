@@ -32,6 +32,13 @@ See also: [triggers.md](triggers.md)
 - monitoring another GitHub Actions workflow in the **same repository**
 - reacting to workflow completion or conclusion
 
+Reusable incident-triage pattern:
+
+- trigger: `on.workflow_run` for the named deployment or CI workflow
+- permissions: include `actions: read`; keep main job read-only
+- reads: fetch failed job logs/artifacts via GitHub tools
+- output: summarize impact/root cause in `create-issue`; use `noop` when no incident action is needed
+
 ### Use `deployment_status` when
 
 - monitoring an external deployment service that reports status back to GitHub
@@ -60,6 +67,16 @@ Rules:
 - set `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` on every `gh` step
 - add `permissions: actions: read` when downloading workflow logs or artifacts
 - use `jq` to reduce JSON payload size before writing files
+
+## PR Visual Regression Pattern
+
+For pull-request UI validation and screenshot diffs:
+
+- trigger: `pull_request`
+- tools: `playwright` plus `cache-memory` for baseline metadata
+- permissions: read-only repo/PR access in agent job
+- output: `add-comment` with pass/fail summary and links to captured artifacts
+- fallback: use `noop` when no UI-relevant changes are detected
 
 ## Cross-Repository Pattern
 
