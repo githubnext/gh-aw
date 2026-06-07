@@ -67,6 +67,13 @@ experiments:
     weight: [2, 1, 1]           # 50% concise, 25% detailed, 25% step_by_step
     description: "Verbosity A/B test"
     metric: "effective_tokens"
+    hypothesis: "H0: no change in effective_tokens. H1: concise reduces by >=15%"
+    guardrail_metrics:
+      - name: success_rate
+        threshold: ">=0.95"
+      - name: empty_output_rate
+        direction: min
+        threshold: 0.0
     issue: "42"
     start_date: "2026-05-01"
     end_date: "2026-06-01"
@@ -81,6 +88,8 @@ experiments:
 - `description:` - Human-readable experiment description for governance tooling (no runtime effect).
 - `metric:` - Primary metric name for governance tooling (no runtime effect).
 - `issue:` - Linked tracking issue number for governance tooling (no runtime effect).
+- `guardrail_metrics:` - Array of guardrail objects. Each entry must have `name` (metric identifier) and `threshold` (either a comparison string like `">=0.95"` or a bare number like `0.0`). The optional `direction` field (`"min"` or `"max"`) sets the optimization direction: `"min"` means lower values are better (e.g. error rates, latency), `"max"` means higher values are better (e.g. success rates). When `threshold` is a bare number, pair it with `direction` — for `direction: min` the metric must be ≤ threshold, for `direction: max` the metric must be ≥ threshold. If any guardrail fails for any variant, the experiment is automatically abandoned.
+- `hypothesis:` - Null and alternative hypothesis for the experiment (no runtime effect).
 
 **Bare array and object forms can be mixed** in the same `experiments:` map — each experiment is independent.
 
@@ -139,7 +148,7 @@ Both forms are resolved before the agent receives the prompt. The agent always s
 1. **One dimension** changed at a time — isolate the variable to attribute differences to the right cause.
 2. **A falsifiable hypothesis** — state what you expect and what would disprove it.
 3. **A primary metric** that is measurable from workflow run data (artifacts, outputs, duration, token counts).
-4. **Guardrail metrics** — things that must not degrade (e.g., crash rate, empty-output rate, run success rate).
+4. **Guardrail metrics** — things that must not degrade (e.g., crash rate, empty-output rate, run success rate). Use `direction: min` with a bare numeric `threshold` for rate metrics where lower is better (e.g. `direction: min`, `threshold: 0.0` for empty-output rate), or a comparison string like `">=0.95"` for metrics where higher is better.
 5. **A sample size estimate** — calculate how many runs per variant are needed before drawing conclusions.
 
 Prefer experiments on **high-frequency workflows** (hourly, multiple times per day) to reach statistical significance faster.

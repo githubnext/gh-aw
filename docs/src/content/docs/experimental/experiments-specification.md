@@ -229,7 +229,7 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 | `hypothesis` | string | Null and alternative hypothesis statements. |
 | `metric` | string | Primary metric name to observe (e.g., `aic`). |
 | `secondary_metrics` | string[] | Additional metrics to collect. |
-| `guardrail_metrics` | object[] | Thresholds that must not degrade (see §4.4). |
+| `guardrail_metrics` | object[] | Thresholds that must not degrade. Each object has `name` (string), `threshold` (string or number), and optional `direction` (`"min"`\|`"max"`) (see §4.4). |
 | `min_samples` | integer ≥ 1 | Minimum runs per variant before analysis is reliable. Defaults to 20. |
 | `weight` | integer[] | Per-variant probability weights (see §5.2). |
 | `issue` | integer ≥ 1 | GitHub issue number tracking this experiment. |
@@ -250,9 +250,23 @@ strict mode.
 
 ### 4.4 Guardrail Metrics
 
-**R-SCHEMA-011**: Each entry in `guardrail_metrics` **MUST** be an object with exactly two
-string fields: `name` and `threshold`. The `threshold` **MUST** match the pattern
-`^(>=|<=|==|>|<)-?\d+(\.\d+)?$` (e.g., `>=0.95`, `==0`, `<=0.05`).
+**R-SCHEMA-011**: Each entry in `guardrail_metrics` **MUST** be an object with the required
+fields `name` and `threshold`, and the optional field `direction`. The fields are defined as
+follows:
+
+- `name` (string, required) — the metric identifier to guard (e.g. `"success_rate"`, `"empty_output_rate"`).
+- `threshold` (string **or** number, required) — either a comparison expression matching
+  `^(>=|<=|==|>|<)-?\d+(\.\d+)?$` (e.g. `">=0.95"`, `"==0"`, `"<=0.05"`) **or** a bare
+  numeric value (e.g. `0.0`) when paired with a `direction` field.
+- `direction` (`"min"` | `"max"`, optional) — the optimization direction for the metric.
+  Use `"min"` when lower values are better (e.g. error rates, latency) and `"max"` when
+  higher values are better (e.g. success rates, quality scores).
+
+When `direction` is present with a bare numeric `threshold`, reporting tooling (§11.5) **MUST**
+interpret the threshold as the acceptable boundary: for `direction: min` the observed value
+**MUST** be ≤ threshold; for `direction: max` the observed value **MUST** be ≥ threshold.
+When `threshold` is a comparison string (e.g. `">=0.95"`), `direction` is informative only
+and the explicit comparison operator governs evaluation.
 
 **R-SCHEMA-012**: Guardrail evaluation is **INFORMATIVE** at the schema level — the compiler
 does not enforce guardrails at compile time. Reporting tooling (§11) **MUST** evaluate each
@@ -684,6 +698,23 @@ recommendation to ABANDON regardless of the primary-metric p-value.
 **R-STAT-010**: Multi-variant experiments **MUST** show guardrail pass/fail status per variant,
 not aggregated across the experiment.
 
+**R-STAT-013**: When evaluating a guardrail entry that carries a bare numeric `threshold`
+(i.e. `threshold` is a number, not a comparison string), reporting tools **MUST** consult the
+`direction` field to determine the pass condition:
+
+- `direction: min` — the metric value **MUST** be ≤ threshold (lower is better; the guardrail
+  catches regressions that push the value above the limit).
+- `direction: max` — the metric value **MUST** be ≥ threshold (higher is better; the guardrail
+  catches regressions that push the value below the limit).
+
+When `threshold` is a comparison string (e.g. `">=0.95"`), the explicit operator in the string
+governs the comparison. The `direction` field, if present, is treated as informative metadata
+and **MUST NOT** alter the comparison logic.
+
+> **Note (informative)**: The `direction` + numeric threshold form is preferred when generating
+> experiment configs programmatically (e.g. from a generator agent), because it separates the
+> numeric bound from the comparison direction, making both machine-readable and human-readable.
+
 ### 11.6 Reporting Workflow Permissions
 
 **R-STAT-011**: Any automated workflow that posts comments to issues (e.g., via `notify.issue`
@@ -833,7 +864,8 @@ Conformance at each level is verified by the following test categories.
 | T-SCHEMA-001 | R-SCHEMA-005 | Reject bare-array with fewer than 2 variants |
 | T-SCHEMA-002 | R-SCHEMA-003 | Skip and warn on invalid experiment name |
 | T-SCHEMA-003 | R-SCHEMA-007 | Reject object form with `variants` containing < 2 entries |
-| T-SCHEMA-004 | R-SCHEMA-011 | Reject guardrail with invalid threshold pattern |
+| T-SCHEMA-004 | R-SCHEMA-011 | Reject guardrail with invalid threshold pattern (non-numeric string that does not match comparison expression) |
+| T-SCHEMA-004a | R-SCHEMA-011 | Accept guardrail with bare numeric threshold and `direction: min` or `direction: max` |
 | T-SCHEMA-005 | R-SCHEMA-013 | Reject `notify` object with unknown keys |
 | T-SCHEMA-006 | R-SCHEMA-001 | Compile workflow without `experiments:` field — output unchanged |
 
@@ -958,7 +990,8 @@ experiments:
       - name: success_rate
         threshold: ">=0.95"
       - name: empty_output_rate
-        threshold: "==0"
+        direction: min
+        threshold: 0.0
     weight: [40, 40, 20]
     min_samples: 30
     start_date: "2026-05-01"

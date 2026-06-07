@@ -54,7 +54,8 @@ experiments:
       - name: success_rate
         threshold: ">=0.95"
       - name: empty_output_rate
-        threshold: "==0"
+        direction: min
+        threshold: 0.0
     weight: [50, 50]
     min_samples: 25
     start_date: "2026-05-05"
@@ -199,7 +200,7 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `hypothesis` | `string` | | Null and alternative hypothesis (e.g. `"H0: no change. H1: concise reduces AIC by >=15%"`) |
 | `metric` | `string` | | Primary metric to observe (e.g. `aic`, `duration_ms`) |
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
-| `guardrail_metrics` | `object[]` | | List of `{name, threshold}` pairs that must not degrade. Threshold is a comparison expression like `>=0.95` or `==0` |
+| `guardrail_metrics` | `object[]` | | List of guardrail objects that must not degrade. Each entry has: `name` (string, required), `threshold` (comparison string like `>=0.95` or bare number like `0.0`, required), and `direction` (`"min"` or `"max"`, optional — `"min"` means lower is better, `"max"` means higher is better). When `threshold` is a bare number, `direction` determines the pass condition (≤ for `min`, ≥ for `max`). |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
