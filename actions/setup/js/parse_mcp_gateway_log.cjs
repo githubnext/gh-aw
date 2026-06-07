@@ -28,8 +28,8 @@ const API_PROXY_EVENT_LOG_PATHS = [
 ];
 const AMBIENT_ENGINE_MARKER_START = "<!-- GH_AW_AMBIENT_ENGINE_CONTEXT_BEGIN -->";
 const AMBIENT_ENGINE_MARKER_END = "<!-- GH_AW_AMBIENT_ENGINE_CONTEXT_END -->";
-const AMBIENT_GHAW_MARKER_START = "<!-- GH_AW_AMBIENT_GH_AW_CONTEXT_BEGIN -->";
-const AMBIENT_GHAW_MARKER_END = "<!-- GH_AW_AMBIENT_GH_AW_CONTEXT_END -->";
+const AMBIENT_REPO_MARKER_START = "<!-- GH_AW_AMBIENT_REPO_CONTEXT_BEGIN -->";
+const AMBIENT_REPO_MARKER_END = "<!-- GH_AW_AMBIENT_REPO_CONTEXT_END -->";
 const AMBIENT_USER_MARKER_START = "<!-- GH_AW_AMBIENT_USER_CONTENT_BEGIN -->";
 const AMBIENT_USER_MARKER_END = "<!-- GH_AW_AMBIENT_USER_CONTENT_END -->";
 const MAX_AMBIENT_SECTION_LENGTH = 8000;
@@ -595,7 +595,7 @@ function truncateSummaryValue(value, maxLength) {
  * @returns {string}
  */
 function sanitizeForTextCodeBlock(text) {
-  return String(text || "").replace(/```/g, "\\`\\`\\`");
+  return String(text || "").replace(/```/g, "&#96;&#96;&#96;");
 }
 
 /**
@@ -610,8 +610,8 @@ function splitAmbientContextFromFirstPrompt(text) {
 
   const markerEngineStart = raw.indexOf(AMBIENT_ENGINE_MARKER_START);
   const markerEngineEnd = raw.indexOf(AMBIENT_ENGINE_MARKER_END);
-  const markerGhAwStart = raw.indexOf(AMBIENT_GHAW_MARKER_START);
-  const markerGhAwEnd = raw.indexOf(AMBIENT_GHAW_MARKER_END);
+  const markerGhAwStart = raw.indexOf(AMBIENT_REPO_MARKER_START);
+  const markerGhAwEnd = raw.indexOf(AMBIENT_REPO_MARKER_END);
   const markerUserStart = raw.indexOf(AMBIENT_USER_MARKER_START);
   const markerUserEnd = raw.indexOf(AMBIENT_USER_MARKER_END);
 
@@ -628,7 +628,7 @@ function splitAmbientContextFromFirstPrompt(text) {
   ) {
     return {
       engineAmbientContext: raw.slice(markerEngineStart + AMBIENT_ENGINE_MARKER_START.length, markerEngineEnd).trim(),
-      ghAwAmbientContext: raw.slice(markerGhAwStart + AMBIENT_GHAW_MARKER_START.length, markerGhAwEnd).trim(),
+      ghAwAmbientContext: raw.slice(markerGhAwStart + AMBIENT_REPO_MARKER_START.length, markerGhAwEnd).trim(),
       userContent: raw.slice(markerUserStart + AMBIENT_USER_MARKER_START.length, markerUserEnd).trim(),
     };
   }
@@ -690,7 +690,7 @@ function extractMessageText(value) {
  * @returns {Array<any>|null}
  */
 function findMessagesArray(payload, depth = 0) {
-  if (!payload || typeof payload !== "object" || depth > MAX_MESSAGES_SEARCH_DEPTH) {
+  if (!payload || typeof payload !== "object" || depth >= MAX_MESSAGES_SEARCH_DEPTH) {
     return null;
   }
   const obj = /** @type {Record<string, any>} */ (payload);
