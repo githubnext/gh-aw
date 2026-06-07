@@ -358,12 +358,10 @@ function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
   const parsedEffectiveTokensFromReflect = parseEffectiveTokensFromReflectFile();
   const envEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
-  const envMaxEffectiveTokens = parsePositiveEffectiveTokenLimitString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxAICredits = parseMaxAICreditsFromAuditLog() || envMaxAICredits || "";
-  const derivedMaxEffectiveTokens = deriveMaxEffectiveTokensFromAICredits(maxAICredits);
-  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || derivedMaxEffectiveTokens || "";
+  const maxEffectiveTokens = deriveMaxEffectiveTokensFromAICredits(maxAICredits);
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
   return { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError };

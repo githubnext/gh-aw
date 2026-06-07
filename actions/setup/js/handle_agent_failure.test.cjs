@@ -2976,7 +2976,7 @@ describe("handle_agent_failure", () => {
       }
     });
 
-    it("suppresses ET budget exhaustion when usage is below the configured maximum", () => {
+    it("does not suppress ET budget exhaustion from max_effective_tokens when max_ai_credits is absent", () => {
       const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
       fs.mkdirSync(auditDir, { recursive: true });
       fs.writeFileSync(
@@ -2993,12 +2993,12 @@ describe("handle_agent_failure", () => {
 
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "2097968",
-        maxEffectiveTokens: "10000000",
-        effectiveTokensRateLimitError: false,
+        maxEffectiveTokens: "",
+        effectiveTokensRateLimitError: true,
       });
     });
 
-    it("uses firewall reflect ET totals to suppress false ET budget exhaustion signals", () => {
+    it("does not suppress ET budget exhaustion from reflect max_effective_tokens when max_ai_credits is absent", () => {
       const firewallDir = path.join(tmpDir, "sandbox", "firewall");
       fs.mkdirSync(firewallDir, { recursive: true });
       fs.writeFileSync(
@@ -3016,12 +3016,12 @@ describe("handle_agent_failure", () => {
 
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "1355879",
-        maxEffectiveTokens: "10000000",
-        effectiveTokensRateLimitError: false,
+        maxEffectiveTokens: "",
+        effectiveTokensRateLimitError: true,
       });
     });
 
-    it("keeps ET budget exhaustion when usage meets the configured maximum", () => {
+    it("keeps ET budget exhaustion when only max_effective_tokens is present", () => {
       const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
       fs.mkdirSync(auditDir, { recursive: true });
       fs.writeFileSync(
@@ -3038,7 +3038,7 @@ describe("handle_agent_failure", () => {
 
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "10000000",
-        maxEffectiveTokens: "10000000",
+        maxEffectiveTokens: "",
         effectiveTokensRateLimitError: true,
       });
     });
@@ -3087,6 +3087,29 @@ describe("handle_agent_failure", () => {
       });
     });
 
+    it("uses max_ai_credits instead of max_effective_tokens when both are present", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditDir, "log.jsonl"),
+        JSON.stringify({
+          _schema: "audit/v0.26.0",
+          ts: 1,
+          effective_tokens: 5000,
+          max_effective_tokens: 5000,
+          max_ai_credits: "1",
+          effective_tokens_rate_limit_error: true,
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "5000",
+        maxEffectiveTokens: "10000",
+        effectiveTokensRateLimitError: false,
+      });
+    });
+
     it("keeps ET budget exhaustion when the rate-limit signal is present but no max is available", () => {
       process.env.GH_AW_EFFECTIVE_TOKENS = "2097968";
       process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
@@ -3115,7 +3138,7 @@ describe("handle_agent_failure", () => {
 
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "25000000",
-        maxEffectiveTokens: "25000000",
+        maxEffectiveTokens: "",
         effectiveTokensRateLimitError: true,
       });
     });
@@ -3138,7 +3161,7 @@ describe("handle_agent_failure", () => {
 
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "10000000",
-        maxEffectiveTokens: "10000000",
+        maxEffectiveTokens: "",
         effectiveTokensRateLimitError: false,
       });
     });
@@ -3149,7 +3172,7 @@ describe("handle_agent_failure", () => {
 
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "10000000",
-        maxEffectiveTokens: "100000000",
+        maxEffectiveTokens: "",
         effectiveTokensRateLimitError: false,
       });
     });
