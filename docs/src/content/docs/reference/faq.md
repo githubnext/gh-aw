@@ -165,6 +165,37 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
 See [Conditional Execution](/gh-aw/reference/frontmatter/#conditional-execution-if) in the Frontmatter Reference for details.
 
+### How should I configure Go caches safely in agentic workflows?
+
+For Go workflows, cache module downloads and build artifacts explicitly, and scope cache keys tightly:
+
+```yaml wrap
+cache:
+  key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+  path: |
+    ~/go/pkg/mod
+    ~/.cache/go-build
+  restore-keys: |
+    go-${{ runner.os }}-
+
+jobs:
+  setup:
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+      - run: |
+          echo "GOMODCACHE=$HOME/go/pkg/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$HOME/.cache/go-build" >> "$GITHUB_ENV"
+```
+
+Security guidance:
+
+- Keep keys specific to OS and dependency lock state (`go.sum`) to reduce accidental cross-context restores.
+- Do not share writeable cache keys across trust boundaries (for example, untrusted fork PR runs and protected branch runs).
+- Never place secrets in `GOMODCACHE`/`GOCACHE`; these directories should contain only modules and build outputs.
+
 ## Guardrails
 
 ### Agentic workflows run in GitHub Actions. Can they access my repository secrets?
