@@ -82,7 +82,7 @@ Eligibility rules:
 - prefer successful runs, but include up to 2 failed runs when they have usable request artifacts
 - prefer breadth: no more than 2 runs from the same workflow when alternatives exist
 - require a usable first-request source:
-  - preferred: the first DLLM request payload in `sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl` or `sandbox/firewall/logs/api-proxy-logs/events.jsonl` (including the matching `sandbox/firewall-audit-logs/...` fallback path when present)
+  - preferred: the first DLLM request payload in the canonical `sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl`, accepting the legacy `sandbox/firewall/logs/api-proxy-logs/events.jsonl` name too (including the matching `sandbox/firewall-audit-logs/...` fallback path when present)
   - fallback: the first `user.message` event in `sandbox/agent/logs/copilot-session-state/<session-id>/events.jsonl`
   - use `prompt.txt` only as a compilation-debug cross-check, never as the ambient-context source of truth
 
@@ -96,7 +96,7 @@ Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have r
 
 Treat the first DLLM request text as:
 
-1. the first DLLM request payload captured in the API proxy event log at `sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl` or `sandbox/firewall/logs/api-proxy-logs/events.jsonl` (or the same path under `sandbox/firewall-audit-logs/` when that artifact layout is present), because that is the text actually sent to the DLLM
+1. the first DLLM request payload captured in the canonical API proxy event log `sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl`, accepting the legacy `sandbox/firewall/logs/api-proxy-logs/events.jsonl` name too (or the same path under `sandbox/firewall-audit-logs/` when that artifact layout is present), because that is the text actually sent to the DLLM
 2. otherwise, extract the first user-message payload from `sandbox/agent/logs/copilot-session-state/<session-id>/events.jsonl`
 3. read `prompt.txt` only as a secondary compilation-debug artifact for cross-checking; do not use it as the primary request text
 
@@ -124,7 +124,7 @@ Include at least:
 - `request_source`
 - `request_input_tokens` when a matching API proxy token-usage entry is available
 - `prompt_chars` when `prompt.txt` exists
-- `request_prompt_char_delta`
+- `request_prompt_char_delta` (`request_chars - prompt_chars` when both exist)
 
 ## Deterministic Analysis
 
@@ -151,7 +151,7 @@ The script must compute deterministic metrics for each sampled first request:
 - imported skill reference count (`SKILL.md`)
 - duplicate line ratio
 - duplicate paragraph ratio
-- char-to-token ratio when `request_input_tokens` is available
+- per-request char-to-token ratio (`request_chars / request_input_tokens`) when `request_input_tokens` is available
 - longest 5 sections by heading
 - top repeated non-trivial lines or paragraphs
 - count of lines mentioning tools, skills, agents, safe outputs, and workflow instructions
