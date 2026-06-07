@@ -57,7 +57,7 @@ For max AI credits, precedence is:
 
 1. `max-ai-credits` in workflow frontmatter
 2. `GH_AW_DEFAULT_MAX_AI_CREDITS`
-3. Built-in compiler default
+3. Built-in compiler default (`1000` / `1k`)
 
 A negative `GH_AW_DEFAULT_MAX_AI_CREDITS` disables AWF budget steering and
 omits the budget limit when frontmatter does not set `max-ai-credits`.

@@ -127,6 +127,25 @@ jobs:
 Use `go build` or `python3` - both are available.
 ```
 
+#### Go cache paths in AWF (`GOMODCACHE` / `GOCACHE`)
+
+When using `actions/setup-go` in AWF, pin Go cache paths explicitly so restore behavior is predictable:
+
+```yaml wrap
+jobs:
+  setup:
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+      - run: |
+          echo "GOMODCACHE=$HOME/go/pkg/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$HOME/.cache/go-build" >> "$GITHUB_ENV"
+```
+
+Then cache those paths via top-level `cache:` (see [Frontmatter cache configuration](/gh-aw/reference/frontmatter/)). Keep cache keys scoped to trusted contexts and avoid sharing writeable keys between untrusted and protected runs.
+
 ## MCP Gateway
 
 The MCP Gateway routes all MCP server calls through a unified HTTP gateway, enabling centralized management, logging, and authentication for MCP tools.

@@ -3,7 +3,7 @@ emoji: "🦙"
 description: Daily test of the Copilot BYOK endpoint using a local Ollama instance with a small model
 on:
   schedule: daily on weekdays
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

@@ -7,7 +7,7 @@ on:
     strategy: centralized
     name: ace
     events: [pull_request_comment]
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 timeout-minutes: 10
 strict: false
 permissions:

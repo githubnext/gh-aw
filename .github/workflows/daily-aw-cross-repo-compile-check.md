@@ -5,7 +5,7 @@ description: Daily Claude workflow that finds popular repositories using gh-aw l
 on:
   schedule: daily on weekdays
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

@@ -7,7 +7,7 @@ on:
     types: [opened, edited]
   schedule: every 6h
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 user-rate-limit:
   max-runs-per-window: 5
   window: 60

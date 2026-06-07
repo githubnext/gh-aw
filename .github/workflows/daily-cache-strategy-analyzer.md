@@ -5,7 +5,7 @@ description: Analyzes agentic workflow logs daily for cache misses and misconfig
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
