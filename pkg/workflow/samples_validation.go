@@ -36,6 +36,8 @@ var sampleSidecarFields = map[string]map[string]bool{
 
 // sampleValidationDeferredTools are dynamic safe-output tool families whose
 // concrete schemas are assembled at runtime from workflow configuration.
+// Keep this list in sync with the dynamic handler entries in
+// safe_output_handlers.go and the tool names exposed via safeOutputFieldMapping.
 // Compile-time sample validation defers these to apply_samples.cjs +
 // safe_outputs_mcp_server.cjs.
 var sampleValidationDeferredTools = map[string]bool{

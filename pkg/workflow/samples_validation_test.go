@@ -394,6 +394,9 @@ func TestValidateSafeOutputsSamples_DynamicToolsDeferredToRuntime(t *testing.T) 
 	if err := validateSafeOutputsSamples(cfg); err != nil {
 		t.Fatalf("expected dynamic-tool sample validation to defer to runtime, got: %v", err)
 	}
+}
+
+func TestValidateSamplesForTool_DispatchRepositoryDeferred(t *testing.T) {
 	if err := validateSamplesForTool("dispatch_repository", []map[string]any{{"tool_name": "tool-a", "inputs": map[string]any{}}}); err != nil {
 		t.Fatalf("expected dispatch_repository sample validation to defer to runtime, got: %v", err)
 	}
@@ -401,9 +404,8 @@ func TestValidateSafeOutputsSamples_DynamicToolsDeferredToRuntime(t *testing.T) 
 
 func TestValidateSamplesForTool_UnknownStillFails(t *testing.T) {
 	err := validateSamplesForTool("tool_that_does_not_exist", []map[string]any{{"x": "y"}})
-	if err == nil {
-		t.Fatal("expected unknown non-dynamic tool to fail schema lookup")
-	}
+	require.Error(t, err, "expected unknown non-dynamic tool to fail schema lookup")
+	assert.Contains(t, err.Error(), "no MCP tool schema found")
 }
 
 // TestPlaceholderForSchema covers the schema-driven placeholder lookup for
