@@ -93,6 +93,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		// AIC, ambient context, and workflow ID are used to enrich noop comments with
 		// AI Credits cost, context size metrics, and a history search link.
 		noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_AIC: ${{ needs.%s.outputs.aic }}\n", mainJobName))
+		if IsDetectionJobEnabled(data.SafeOutputs) {
+			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_THREAT_DETECTION_AIC: ${{ needs.%s.outputs.aic }}\n", constants.DetectionJobName))
+		}
 		noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_AMBIENT_CONTEXT: ${{ needs.%s.outputs.ambient_context }}\n", mainJobName))
 		if data.WorkflowID != "" {
 			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))

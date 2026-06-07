@@ -73,16 +73,20 @@ async function ensureAgentRunsIssue() {
 
 /**
  * Build the AIC suffix string for use in comment footers.
+ * Includes both agent and threat-detection AIC when available.
  * Returns a string like " · 0.001 AIC" or "" when not available.
  * @returns {string}
  */
 function buildAICSuffix() {
-  const raw = process.env.GH_AW_AIC;
-  const parsed = raw ? Number.parseFloat(raw) : NaN;
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  const agentRaw = process.env.GH_AW_AIC;
+  const detectionRaw = process.env.GH_AW_THREAT_DETECTION_AIC;
+  const agentAIC = agentRaw ? Number.parseFloat(agentRaw) : NaN;
+  const detectionAIC = detectionRaw ? Number.parseFloat(detectionRaw) : NaN;
+  const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0);
+  if (totalAIC <= 0) {
     return "";
   }
-  return ` · ${formatAIC(parsed)} AIC`;
+  return ` · ${formatAIC(totalAIC)} AIC`;
 }
 
 /**
@@ -121,7 +125,6 @@ function buildHistoryLink() {
   });
   return historyUrl ? ` · [◷](${historyUrl})` : "";
 }
-
 
 /**
  * Process no-op safe outputs and optionally post to the no-op runs issue.
