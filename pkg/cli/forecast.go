@@ -623,9 +623,9 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	// (bootstrap), and per-run success (Bernoulli) to produce P10/P50/P90 ranges.
 	// Two independent RNGs ensure the weekly and monthly simulations are uncorrelated.
 	seed := time.Now().UnixNano()
-	rng := rand.New(rand.NewSource(seed))           //nolint:gosec // non-cryptographic simulation RNG
-	rng2 := rand.New(rand.NewSource(seed + 1))      //nolint:gosec
-	rng3 := rand.New(rand.NewSource(seed + 2))      //nolint:gosec
+	rng := rand.New(rand.NewSource(seed))      //nolint:gosec // non-cryptographic simulation RNG
+	rng2 := rand.New(rand.NewSource(seed + 1)) //nolint:gosec
+	rng3 := rand.New(rand.NewSource(seed + 2)) //nolint:gosec
 	result.MonteCarlo = runMonteCarlo(aicObservations, successCount, result.ObservedRunsPerPeriod, rng)
 	result.WeeklyMonteCarlo = runMonteCarlo(aicObservations, successCount, weeklyRuns, rng2)
 	result.MonthlyMonteCarlo = runMonteCarlo(aicObservations, successCount, monthlyRuns, rng3)

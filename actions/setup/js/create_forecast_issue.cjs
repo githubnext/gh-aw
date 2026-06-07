@@ -72,9 +72,7 @@ function buildForecastIssueBody(report, options) {
     } else {
       const totalWeekly = tableRows.reduce((s, [, , , , w]) => s + Number(w), 0);
       const totalMonthly = tableRows.reduce((s, [, , , , , m]) => s + Number(m), 0);
-      const dataRows = tableRows.map(([workflowID, sampledRuns, p50Run, p95Run, weekly, monthly]) =>
-        `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`
-      );
+      const dataRows = tableRows.map(([workflowID, sampledRuns, p50Run, p95Run, weekly, monthly]) => `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`);
       if (tableRows.length > 1) {
         dataRows.push(`| **TOTAL** | | | | **${formatAIC(totalWeekly)}** | **${formatAIC(totalMonthly)}** |`);
       }
@@ -124,13 +122,7 @@ function buildRunSamplesSection(workflows) {
   const hasAny = workflows.some(w => Array.isArray(w?.run_samples) && w.run_samples.length > 0);
   if (!hasAny) return "";
 
-  const lines = [
-    "<details>",
-    "<summary>Sampled runs used in computation</summary>",
-    "",
-    "| Workflow | Run ID | Date | AIC |",
-    "| --- | ---: | --- | ---: |",
-  ];
+  const lines = ["<details>", "<summary>Sampled runs used in computation</summary>", "", "| Workflow | Run ID | Date | AIC |", "| --- | ---: | --- | ---: |"];
   for (const wf of workflows) {
     const samples = Array.isArray(wf?.run_samples) ? wf.run_samples : [];
     for (const s of samples) {
