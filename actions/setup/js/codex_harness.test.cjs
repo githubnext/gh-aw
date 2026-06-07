@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { spawnSync } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
@@ -22,7 +23,15 @@ const {
   extractOpenAIProxyBaseURLFromToml,
   getConfiguredOpenAIPortFromReflect,
   validateCodexOpenAIBaseURLFromReflect,
+  hasNoopInSafeOutputs,
 } = require("./codex_harness.cjs");
+
+const agentTempDir = "/tmp/gh-aw/agent";
+
+function makeHarnessTempDir(name) {
+  fs.mkdirSync(agentTempDir, { recursive: true });
+  return fs.mkdtempSync(path.join(agentTempDir, name));
+}
 
 describe("codex_harness.cjs", () => {
   describe("resolveCodexPromptFileArgs", () => {
@@ -451,6 +460,79 @@ env_key = "OPENAI_API_KEY"
         output: "CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).",
       };
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+  });
+
+  describe("noop pre-flight and retry guard", () => {
+    it("skips the agent when a noop is already in safe-outputs before the run", () => {
+      const tempDir = makeHarnessTempDir("codex-noop-preflight-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      fs.writeFileSync(safeOutputsPath, '{"type":"noop","message":"nothing to do"}\n', "utf8");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(stubPath, "process.exit(0);", "utf8");
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(
+        process.execPath,
+        ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath],
+        {
+          cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+          env: { ...process.env, CODEX_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+          encoding: "utf8",
+          timeout: 10000,
+        }
+      );
+      // Agent stub should never have been invoked
+      const stubCallCount = fs.existsSync(callsPath)
+        ? fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length
+        : 0;
+      expect(stubCallCount).toBe(0);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("pre-flight: noop message found in safe-outputs");
+    });
+
+    it("does not retry after a failed run when a noop was written to safe-outputs", () => {
+      const tempDir = makeHarnessTempDir("codex-noop-retry-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes a noop on the first call then fails; harness must not retry.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"noop",message:"nothing to do"}) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(
+        process.execPath,
+        ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath],
+        {
+          cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+          env: {
+            ...process.env,
+            CODEX_HARNESS_STUB_CALLS: callsPath,
+            GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+            CODEX_API_KEY: "fake-key-for-test",
+          },
+          encoding: "utf8",
+          timeout: 10000,
+        }
+      );
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Only one attempt — no retries after noop detected
+      expect(callCount).toBe(1);
+      // Harness exits 0 because noop means the work is done
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
     });
   });
 });

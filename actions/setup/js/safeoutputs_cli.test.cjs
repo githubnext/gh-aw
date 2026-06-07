@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 const require = createRequire(import.meta.url);
-const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 
 describe("safeoutputs_cli.cjs", () => {
   describe("runSafeOutputsCLI", () => {
@@ -149,6 +152,102 @@ describe("safeoutputs_cli.cjs", () => {
       });
       expect(logs.some(m => m.includes("report_incomplete emission failed"))).toBe(true);
       expect(logs.some(m => m.includes("EROFS"))).toBe(true);
+    });
+  });
+
+  describe("hasNoopInSafeOutputs", () => {
+    function makeTempFile(content) {
+      const p = path.join(os.tmpdir(), `safeoutputs-noop-test-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`);
+      fs.writeFileSync(p, content, "utf8");
+      return p;
+    }
+
+    it("returns true when the file contains a noop entry", () => {
+      const filePath = makeTempFile('{"type":"noop","message":"nothing to do"}\n');
+      try {
+        expect(hasNoopInSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns true when noop is mixed with other entries", () => {
+      const filePath = makeTempFile('{"type":"add_comment","body":"done"}\n{"type":"noop","message":"nothing"}\n');
+      try {
+        expect(hasNoopInSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when the file has no noop entry", () => {
+      const filePath = makeTempFile('{"type":"add_comment","body":"done"}\n');
+      try {
+        expect(hasNoopInSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when the file does not exist", () => {
+      expect(hasNoopInSafeOutputs("/tmp/nonexistent-safe-outputs-file.jsonl")).toBe(false);
+    });
+
+    it("returns false when safeOutputsPath is empty", () => {
+      expect(hasNoopInSafeOutputs("")).toBe(false);
+    });
+
+    it("returns false for an empty file", () => {
+      const filePath = makeTempFile("");
+      try {
+        expect(hasNoopInSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("skips malformed lines and returns false when no valid noop exists", () => {
+      const filePath = makeTempFile('not-json\n{"type":"add_comment"}\n');
+      try {
+        expect(hasNoopInSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("skips malformed lines and returns true when a valid noop follows them", () => {
+      const filePath = makeTempFile('not-json\n{"type":"noop","message":"x"}\n');
+      try {
+        expect(hasNoopInSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("uses injected readFileSync for testability", () => {
+      const logs = [];
+      const result = hasNoopInSafeOutputs("/fake/path.jsonl", {
+        readFileSync: () => '{"type":"noop","message":"injected"}\n',
+        logger: m => logs.push(m),
+      });
+      expect(result).toBe(true);
+      expect(logs.some(m => m.includes("noop entry found"))).toBe(true);
+    });
+
+    it("returns false when injected readFileSync returns no noop entries", () => {
+      const result = hasNoopInSafeOutputs("/fake/path.jsonl", {
+        readFileSync: () => '{"type":"add_comment","body":"hi"}\n',
+      });
+      expect(result).toBe(false);
+    });
+
+    it("returns false when injected readFileSync throws", () => {
+      const result = hasNoopInSafeOutputs("/fake/path.jsonl", {
+        readFileSync: () => {
+          throw new Error("ENOENT");
+        },
+      });
+      expect(result).toBe(false);
     });
   });
 });

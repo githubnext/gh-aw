@@ -13,6 +13,7 @@
 "use strict";
 
 const childProcess = require("child_process");
+const fs = require("fs");
 
 /**
  * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
@@ -151,6 +152,51 @@ function emitInfrastructureIncomplete(details, options) {
 }
 
 /**
+ * Read the safe-outputs JSONL file and check whether any noop entry has been written.
+ * Returns true when at least one {"type":"noop"} line is present; false otherwise.
+ * Used by harnesses to skip agent startup or suppress retries when a noop was already
+ * recorded — indicating the work is complete or there was nothing to do.
+ * @param {string} safeOutputsPath - Path to the safe-outputs JSONL file
+ * @param {{
+ *   logger?: (msg: string) => void,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string
+ * }=} options
+ * @returns {boolean}
+ */
+function hasNoopInSafeOutputs(safeOutputsPath, options) {
+  const logger = options && options.logger ? options.logger : defaultLog;
+  const readFile = options && options.readFileSync ? options.readFileSync : fs.readFileSync;
+
+  if (!safeOutputsPath) {
+    return false;
+  }
+
+  let content;
+  try {
+    content = readFile(safeOutputsPath, "utf8");
+  } catch {
+    // File does not exist or is not readable — no noop entries present
+    return false;
+  }
+
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && parsed.type === "noop") {
+        logger(`hasNoopInSafeOutputs: noop entry found in ${safeOutputsPath}`);
+        return true;
+      }
+    } catch {
+      // Skip malformed lines — they do not represent valid noop entries
+    }
+  }
+  return false;
+}
+
+/**
  * Default logger that writes to stderr.
  * @param {string} message
  */
@@ -164,5 +210,6 @@ if (typeof module !== "undefined" && module.exports) {
     buildMissingToolAlternatives,
     emitMissingToolPermissionIssue,
     emitInfrastructureIncomplete,
+    hasNoopInSafeOutputs,
   };
 }

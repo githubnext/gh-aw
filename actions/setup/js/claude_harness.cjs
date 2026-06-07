@@ -46,7 +46,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
 } = require("./awf_reflect.cjs");
-const { emitMissingToolPermissionIssue } = require("./safeoutputs_cli.cjs");
+const { emitMissingToolPermissionIssue, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 
 // Maximum number of retry attempts after the initial run
@@ -320,6 +320,15 @@ async function main() {
   // This is best-effort: failures are logged but do not affect the agent run.
   await fetchAWFReflect({ logger: log });
 
+  // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
+  // A noop indicates the work is complete or there is nothing to do — starting the agent
+  // would be wasteful and potentially harmful.
+  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
+  if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
+    log("pre-flight: noop message found in safe-outputs — skipping agent (work is already complete or no work needed)");
+    process.exit(0);
+  }
+
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
   let useContinueOnRetry = false;
@@ -378,6 +387,15 @@ async function main() {
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
     );
+
+    // If a noop was written to safe-outputs during the failed run, the agent determined
+    // there was nothing to do (or the user indicated so before the agent ran).  Retrying
+    // would not produce different results and could waste resources.
+    if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
+      log(`attempt ${attempt + 1}: noop message found in safe-outputs — not retrying (work is already complete or no work needed)`);
+      lastExitCode = 0;
+      break;
+    }
 
     if (attempt === 0 && isAuthenticationFailed) {
       log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
@@ -480,6 +498,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractDeniedCommands,
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
+    hasNoopInSafeOutputs,
   };
 }
 
