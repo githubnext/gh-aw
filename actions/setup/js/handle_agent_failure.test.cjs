@@ -11,6 +11,7 @@ describe("handle_agent_failure", () => {
   let buildPushRepoMemoryFailureContext;
   let buildReportIncompleteContext;
   let getActionFailureIssueExpiresHours;
+  const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -1441,7 +1442,7 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_OTEL_JSONL_PATH = path.join(tmpDir, "otel.jsonl");
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
-      fs.copyFileSync(path.join(__dirname, "../md/engine_rate_limit_429.md"), path.join(promptsDir, "engine_rate_limit_429.md"));
+      fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
@@ -1763,6 +1764,51 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // buildEngineRateLimit429Context
+  // ──────────────────────────────────────────────────────
+
+  describe("buildEngineRateLimit429Context", () => {
+    let buildEngineRateLimit429Context;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-engine-rate-limit-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildEngineRateLimit429Context } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("renders template content when engine rate-limit template exists", () => {
+      fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
+      const result = buildEngineRateLimit429Context("Copilot");
+      expect(result).toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("Copilot");
+      expect(result).toContain("OTLP telemetry");
+    });
+
+    it("throws when engine rate-limit template is missing", () => {
+      expect(() => buildEngineRateLimit429Context("Copilot")).toThrow(/ENOENT|no such file/i);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // buildMCPPolicyErrorContext
   // ──────────────────────────────────────────────────────
 
@@ -1813,7 +1859,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("throws when template is missing", () => {
-      expect(() => buildMCPPolicyErrorContext(true)).toThrow();
+      expect(() => buildMCPPolicyErrorContext(true)).toThrow(/ENOENT|no such file/i);
     });
   });
 
@@ -1860,7 +1906,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("throws when template is missing", () => {
-      expect(() => buildModelNotSupportedErrorContext(true)).toThrow();
+      expect(() => buildModelNotSupportedErrorContext(true)).toThrow(/ENOENT|no such file/i);
     });
   });
 
@@ -2146,15 +2192,20 @@ describe("handle_agent_failure", () => {
 
     /** @type {string} */
     let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    function writePermissionDeniedTemplate() {
+      fs.writeFileSync(path.join(promptsDir, "permission_denied_context.md"), "> [!WARNING]\n> **Repeated Permission Denied**\n\n**Denied Commands:**\n{denied_commands_list}\n\nworkflow: {workflow_id}\n");
+    }
 
     beforeEach(() => {
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-permission-denied-"));
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
-      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
-      fs.copyFileSync(path.join(__dirname, "../md/permission_denied_context.md"), path.join(promptsDir, "permission_denied_context.md"));
       ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
     });
 
@@ -2186,6 +2237,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("renders template with denied command", () => {
+      writePermissionDeniedTemplate();
       const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("go version 2>&1");
@@ -2193,6 +2245,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("renders template with denied commands listed", () => {
+      writePermissionDeniedTemplate();
       const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] }];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("`go version 2>&1`");
@@ -2200,6 +2253,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("deduplicates denied commands across multiple tool/permission items", () => {
+      writePermissionDeniedTemplate();
       const items = [
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] },
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "which go"] },
@@ -2213,10 +2267,13 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("`which go`");
     });
 
+    it("throws when permission_denied_context template is missing", () => {
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
+      expect(() => buildPermissionDeniedContext(items)).toThrow(/ENOENT|no such file/i);
+    });
+
     it("renders template when permission_denied_context.md is available", () => {
-      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
-      fs.mkdirSync(promptsDir, { recursive: true });
-      fs.copyFileSync(path.join(__dirname, "../md/permission_denied_context.md"), path.join(promptsDir, "permission_denied_context.md"));
+      writePermissionDeniedTemplate();
       const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
       const result = buildPermissionDeniedContext(items, "my-workflow");
       expect(result).toContain("go version 2>&1");
