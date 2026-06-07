@@ -1583,7 +1583,7 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
   return (
     "\n" +
     renderTemplateFromFile(templatePath, {
-      total_effective_tokens: formattedTotalAIC || "unknown",
+      total_aic: formattedTotalAIC || "unknown",
       threshold: formattedThreshold || "unknown",
     })
   );

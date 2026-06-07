@@ -384,7 +384,7 @@ function formatEffectiveTokens(value) {
 }
 
 /**
- * @param {number | undefined} value
+ * @param {number | string | undefined} value
  * @returns {string}
  */
 function formatAICCredits(value) {

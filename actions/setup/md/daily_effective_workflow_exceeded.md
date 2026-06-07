@@ -1,7 +1,7 @@
 > [!WARNING]
 > **Daily Workflow AIC Guardrail Exceeded**: The agent was not started because the triggering user has already consumed the configured 24-hour AI Credits budget for this workflow.
 
-- **24h AIC usage:** `{total_effective_tokens}` AI Credits
+- **24h AIC usage:** `{total_aic}` AI Credits
 - **Configured threshold:** `{threshold}` AI Credits
 
 The agent will resume automatically once the 24-hour rolling window resets. No action is required if the current limit is appropriate for your usage.
