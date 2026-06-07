@@ -264,8 +264,7 @@ func suggestWorkflowNames(target string) []string {
 // isWorkflowFile returns true if the file should be treated as a workflow file.
 // README.md files are excluded as they are documentation, not workflows.
 func isWorkflowFile(filename string) bool {
-	base := strings.ToLower(filepath.Base(filename))
-	return base != "readme.md"
+	return !strings.EqualFold(filepath.Base(filename), "readme.md")
 }
 
 // filterWorkflowFiles filters out non-workflow files from a list of markdown files.

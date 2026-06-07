@@ -61,7 +61,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		}
 		state := strings.ToUpper(outcomeString(review["state"]))
 		submittedAt := outcomeString(review["submitted_at"])
-		if state == "" || state == "PENDING" || submittedAt == "" {
+		if state == "" || state == "PENDING" || submittedAt == "" { //nolint:tolowerequalfold
 			continue
 		}
 		if !timestampOnOrAfter(submittedAt, item.Timestamp) {
@@ -206,7 +206,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 	prState, _ := pr["state"].(string)
 
 	switch {
-	case reviewState == "DISMISSED":
+	case reviewState == "DISMISSED": //nolint:tolowerequalfold
 		report.Result = OutcomeRejected
 		report.Detail = "review dismissed by repo admin"
 		report.OutcomeEvaluation = OutcomeEvaluation{
@@ -215,7 +215,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 			Signal:           "review_dismissed",
 		}
 		return report
-	case prMerged && reviewState == "APPROVED":
+	case prMerged && reviewState == "APPROVED": //nolint:tolowerequalfold
 		report.Result = OutcomeAccepted
 		report.Detail = "approved review followed by merge"
 		report.TimeToOutcomeHours = timeBetween(item.Timestamp, outcomeString(pr["merged_at"]))
@@ -225,7 +225,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 			Signal:           "review_approved",
 		}
 		return report
-	case prMerged && reviewState == "CHANGES_REQUESTED":
+	case prMerged && reviewState == "CHANGES_REQUESTED": //nolint:tolowerequalfold
 		commits, err := outcomeReviewGHAPIGetArray(fmt.Sprintf("pulls/%d/commits", num), repo)
 		if err == nil && hasCommitAfterTimestamp(commits, reviewSubmittedAt) {
 			report.Result = OutcomeAccepted
@@ -385,7 +385,7 @@ func timestampOnOrAfter(candidate string, threshold string) bool {
 func hasReviewAfterTimestamp(reviews []map[string]any, threshold string) bool {
 	for _, review := range reviews {
 		state := strings.ToUpper(outcomeString(review["state"]))
-		if state == "" || state == "PENDING" {
+		if state == "" || state == "PENDING" { //nolint:tolowerequalfold
 			continue
 		}
 		if timestampOnOrAfter(outcomeString(review["submitted_at"]), threshold) {
@@ -412,7 +412,7 @@ func latestReviewAfterTimestamp(reviews []map[string]any, threshold string) map[
 	for _, review := range reviews {
 		state := strings.ToUpper(outcomeString(review["state"]))
 		submittedAt := outcomeString(review["submitted_at"])
-		if state == "" || state == "PENDING" || submittedAt == "" {
+		if state == "" || state == "PENDING" || submittedAt == "" { //nolint:tolowerequalfold
 			continue
 		}
 		if !timestampOnOrAfter(submittedAt, threshold) {

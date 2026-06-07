@@ -277,7 +277,7 @@ func computeModelEffectiveTokensWithWeights(opts effectiveTokensOptions) int {
 
 func getModelMultiplier(model string, multipliers map[string]float64) float64 {
 	key := strings.ToLower(strings.TrimSpace(model))
-	if key == "" {
+	if key == "" { //nolint:tolowerequalfold
 		return 1.0
 	}
 	if m, ok := multipliers[key]; ok {

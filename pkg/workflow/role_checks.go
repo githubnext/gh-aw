@@ -590,7 +590,7 @@ func (c *Compiler) extractSkipAuthorAssociations(frontmatter map[string]any) map
 		normalizedAssociations := make([]string, 0, len(associations))
 		for _, association := range associations {
 			normalized := strings.ToUpper(strings.TrimSpace(association))
-			if normalized != "" {
+			if normalized != "" { //nolint:tolowerequalfold
 				normalizedAssociations = append(normalizedAssociations, normalized)
 			}
 		}
