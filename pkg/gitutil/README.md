@@ -13,6 +13,12 @@ This package contains helpers for:
 
 ## Public API
 
+### Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `ErrNotGitRepository` | `error` | Sentinel error returned by `FindGitRoot` and `FindGitRootFrom` when no `.git` entry is found while traversing up to the filesystem root |
+
 ### Functions
 
 | Function | Signature | Description |
@@ -43,8 +49,10 @@ if gitutil.IsValidFullSHA(commitSHA) {
 
 // Find the git repository root (pure Go, no git subprocess)
 root, err := gitutil.FindGitRoot()
-if err != nil {
-    return fmt.Errorf("not in a git repository: %w", err)
+if errors.Is(err, gitutil.ErrNotGitRepository) {
+    return fmt.Errorf("must be run inside a git repository")
+} else if err != nil {
+    return fmt.Errorf("failed to find git root: %w", err)
 }
 
 // Find the git root starting from a specific directory
