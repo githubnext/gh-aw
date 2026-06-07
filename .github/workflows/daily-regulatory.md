@@ -12,6 +12,7 @@ permissions:
   discussions: read
 strict: true
 tracker-id: daily-regulatory
+max-ai-credits: 1000
 tools:
   cli-proxy: true
   github:
