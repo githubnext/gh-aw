@@ -216,6 +216,23 @@ function sumAICFromUsageJSONLFiles(filePaths) {
     return 0;
   }
 
+  /**
+   * @param {Record<string, unknown> | null} usage
+   * @param {Record<string, unknown>} parsed
+   * @param {string} snakeCase
+   * @param {string} camelCase
+   * @returns {string}
+   */
+  function getStringField(usage, parsed, snakeCase, camelCase) {
+    const candidates = [usage?.[snakeCase], usage?.[camelCase], parsed[snakeCase], parsed[camelCase]];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate;
+      }
+    }
+    return "";
+  }
+
   let total = 0;
   for (const filePath of filePaths) {
     if (!filePath || !fs.existsSync(filePath)) {
@@ -240,15 +257,15 @@ function sumAICFromUsageJSONLFiles(filePaths) {
         }
 
         const usage = normalizeUsageRecord(parsed.usage);
-        const explicit = Number(usage?.aic ?? usage?.ai_credits ?? usage?.aiCredits ?? parsed.aic ?? parsed.ai_credits ?? parsed.aiCredits);
+        const explicit = getNumericField(usage, parsed, "ai_credits", "aiCredits") || getNumericField(usage, parsed, "aic", "aic");
         if (Number.isFinite(explicit) && explicit > 0) {
           total += explicit;
           continue;
         }
 
         const computed = computeInferenceAIC({
-          provider: String(usage?.provider || parsed.provider || ""),
-          model: String(usage?.model || parsed.model || ""),
+          provider: getStringField(usage, parsed, "provider", "provider"),
+          model: getStringField(usage, parsed, "model", "model"),
           inputTokens: getNumericField(usage, parsed, "input_tokens", "inputTokens"),
           outputTokens: getNumericField(usage, parsed, "output_tokens", "outputTokens"),
           cacheReadTokens: getNumericField(usage, parsed, "cache_read_tokens", "cacheReadTokens"),
