@@ -597,17 +597,17 @@ func TestAggregateDomainStats(t *testing.T) {
 // TestConvertDomainsToSortedSlices tests the domain conversion helper
 func TestConvertDomainsToSortedSlices(t *testing.T) {
 	t.Run("converts and sorts domains", func(t *testing.T) {
-		allowedMap := map[string]struct{}{
-			"z.com": {},
-			"a.com": {},
-			"m.com": {},
+		allowedMap := map[string]bool{
+			"z.com": true,
+			"a.com": true,
+			"m.com": true,
 		}
-		deniedMap := map[string]struct{}{
-			"y.com": {},
-			"b.com": {},
+		deniedMap := map[string]bool{
+			"y.com": true,
+			"b.com": true,
 		}
 
-		allowed, denied := convertDomainsToSortedSlices(stringSetToBoolMap(allowedMap), stringSetToBoolMap(deniedMap))
+		allowed, denied := convertDomainsToSortedSlices(allowedMap, deniedMap)
 
 		// Check sorted order
 		expectedAllowed := []string{"a.com", "m.com", "z.com"}
@@ -632,10 +632,10 @@ func TestConvertDomainsToSortedSlices(t *testing.T) {
 	})
 
 	t.Run("handles empty maps", func(t *testing.T) {
-		allowedMap := map[string]struct{}{}
-		deniedMap := map[string]struct{}{}
+		allowedMap := map[string]bool{}
+		deniedMap := map[string]bool{}
 
-		allowed, denied := convertDomainsToSortedSlices(stringSetToBoolMap(allowedMap), stringSetToBoolMap(deniedMap))
+		allowed, denied := convertDomainsToSortedSlices(allowedMap, deniedMap)
 
 		if len(allowed) != 0 {
 			t.Errorf("Expected 0 allowed domains, got %d", len(allowed))
