@@ -705,6 +705,26 @@ touch %s
 		}
 	}
 
+	// Add a check step for noop safe output when needed.
+	// This prevents running the agent when a prior step (e.g., an empty-queue check)
+	// has already seeded a noop output, avoiding unnecessary processing and token costs.
+	// Only apply this check to the main agent job (not detection) and when safe outputs are enabled.
+	if !workflowData.IsDetectionRun && workflowData.SafeOutputs != nil {
+		checkStepLines := []string{
+			"      - name: Check for noop safe output",
+			"        id: check-noop",
+			"        env:",
+			"          SAFE_OUTPUTS_FILE: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
+			"        run: |",
+			"          if [ -f \"$SAFE_OUTPUTS_FILE\" ] && jq -e '.tool == \"noop\"' \"$SAFE_OUTPUTS_FILE\" >/dev/null 2>&1; then",
+			"            echo \"noop_exists=true\" >> \"$GITHUB_OUTPUT\"",
+			"          else",
+			"            echo \"noop_exists=false\" >> \"$GITHUB_OUTPUT\"",
+			"          fi",
+		}
+		steps = append(steps, GitHubActionStep(checkStepLines))
+	}
+
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
@@ -713,12 +733,9 @@ touch %s
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Skip agent execution if a noop safe output already exists.
-	// This prevents running the agent when a prior step (e.g., an empty-queue check)
-	// has already seeded a noop output, avoiding unnecessary processing and token costs.
-	// Only apply this check to the main agent job (not detection) and when safe outputs are enabled.
+	// This uses the output from the check-noop step above.
 	if !workflowData.IsDetectionRun && workflowData.SafeOutputs != nil {
-		stepLines = append(stepLines, "        if: |")
-		stepLines = append(stepLines, "          ! (test -f \"${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\" && jq -e '.tool == \"noop\"' \"${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\" >/dev/null 2>&1)")
+		stepLines = append(stepLines, "        if: steps.check-noop.outputs.noop_exists != 'true'")
 	}
 
 	// Add tool arguments comment before the run section

@@ -259,22 +259,34 @@ func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
-		Name:        "test-workflow",
-		SafeOutputs: &SafeOutputsConfig{}, // Non-nil to trigger output handling
+		Name:           "test-workflow",
+		SafeOutputs:    &SafeOutputsConfig{}, // Non-nil to trigger output handling
+		IsDetectionRun: false,                 // Main agent job
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	// GetExecutionSteps returns 1 step: execution
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	// GetExecutionSteps returns 2 steps for agent job with safe outputs: check-noop + execution
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (check-noop + execution), got %d", len(steps))
+	}
+
+	// Check the check-noop step
+	checkNoopStepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(checkNoopStepContent, "Check for noop safe output") {
+		t.Errorf("Expected check-noop step in first step:\n%s", checkNoopStepContent)
 	}
 
 	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
+	}
+
+	// Test that the if condition is present to skip execution when noop exists
+	if !strings.Contains(stepContent, "if: steps.check-noop.outputs.noop_exists != 'true'") {
+		t.Errorf("Expected if condition to skip execution when noop exists in step content:\n%s", stepContent)
 	}
 }
 
@@ -2711,9 +2723,10 @@ func TestCopilotEngineNoAskUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Name:         "test-workflow",
-				EngineConfig: tt.engineConfig,
-				SafeOutputs:  tt.safeOutputs,
+				Name:           "test-workflow",
+				EngineConfig:   tt.engineConfig,
+				SafeOutputs:    tt.safeOutputs,
+				IsDetectionRun: tt.safeOutputs == nil, // detection job when SafeOutputs is nil
 			}
 
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
@@ -2721,7 +2734,11 @@ func TestCopilotEngineNoAskUser(t *testing.T) {
 				t.Fatal("Expected at least one step")
 			}
 
-			stepContent := strings.Join([]string(steps[0]), "\n")
+			// For agent job with safe outputs, we have 2 steps: check-noop + execution
+			// For detection job, we have only 1 step: execution
+			// The execution step is always the last one
+			execStepIndex := len(steps) - 1
+			stepContent := strings.Join([]string(steps[execStepIndex]), "\n")
 			hasNoAsk := strings.Contains(stepContent, "--no-ask-user")
 
 			if tt.expectNoAsk && !hasNoAsk {

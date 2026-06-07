@@ -826,6 +826,8 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        if: |
+          ! (test -f "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}" && jq -e '.tool == "noop"' "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}" >/dev/null 2>&1)
         # Copilot CLI tool arguments (sorted):
         timeout-minutes: 15
         run: |
