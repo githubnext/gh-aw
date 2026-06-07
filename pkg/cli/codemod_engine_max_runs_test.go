@@ -13,7 +13,7 @@ func TestEngineMaxRunsToTopLevelCodemod_Metadata(t *testing.T) {
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	assert.Equal(t, "engine-max-runs-to-top-level", codemod.ID)
-	assert.Equal(t, "Move engine.max-runs to top-level max-runs", codemod.Name)
+	assert.Equal(t, "Move engine.max-runs to top-level max-turns", codemod.Name)
 	assert.NotEmpty(t, codemod.Description)
 	assert.Equal(t, "0.17.0", codemod.IntroducedIn)
 	require.NotNil(t, codemod.Apply)
@@ -63,7 +63,7 @@ engine:
 	result, applied, err := codemod.Apply(content, frontmatter)
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "\nmax-runs: 42\nengine:")
+	assert.Contains(t, result, "\nmax-turns: 42\nengine:")
 	assert.NotContains(t, result, "\n  max-runs:")
 }
 
@@ -71,14 +71,14 @@ func TestEngineMaxRunsToTopLevelCodemod_RespectsExistingTopLevel(t *testing.T) {
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	content := `---
-max-runs: 10
+max-turns: 10
 engine:
   id: copilot
   max-runs: 42
 ---
 `
 	frontmatter := map[string]any{
-		"max-runs": 10,
+		"max-turns": 10,
 		"engine": map[string]any{
 			"id":       "copilot",
 			"max-runs": 42,
@@ -88,7 +88,7 @@ engine:
 	result, applied, err := codemod.Apply(content, frontmatter)
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "max-runs: 10")
+	assert.Contains(t, result, "max-turns: 10")
 	assert.NotContains(t, result, "max-runs: 42")
 	assert.NotContains(t, result, "\n  max-runs:")
 }
