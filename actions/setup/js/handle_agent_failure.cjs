@@ -1046,7 +1046,7 @@ function extractDeniedCommandsFromAlternatives(alternatives) {
 function normalizeDeniedPermissionCommand(command) {
   const trimmed = typeof command === "string" ? command.trim() : "";
   if (!trimmed) return "";
-  if (/^read\s*\([\s\S]*\)$/i.test(trimmed)) {
+  if (/^read\s*\([^)\r\n]*\)$/i.test(trimmed)) {
     return "read(...)";
   }
   return trimmed;
