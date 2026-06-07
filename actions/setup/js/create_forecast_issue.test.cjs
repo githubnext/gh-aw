@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockCore = {
   info: vi.fn(),
   warning: vi.fn(),
+  summary: {
+    addRaw: vi.fn(),
+    write: vi.fn(),
+  },
 };
 
 const mockContext = {
@@ -24,6 +28,8 @@ describe("create_forecast_issue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    mockCore.summary.addRaw.mockReturnValue(mockCore.summary);
+    mockCore.summary.write.mockResolvedValue(undefined);
     process.env.GITHUB_RUN_ID = "123456";
     process.env.GH_AW_PROMPTS_DIR = new URL("../md", import.meta.url).pathname;
     mockFs = {
@@ -128,9 +134,48 @@ describe("create_forecast_issue", () => {
     expect(body).toContain("| wf-legacy | 2 | 9,999 |");
   });
 
-  it("renders run samples section in a collapsed details block", async () => {
+  it("renders run samples section in step summary, not issue body", async () => {
     const module = await import("./create_forecast_issue.cjs");
-    const body = module.buildForecastIssueBody(
+    const report = {
+      period: "month",
+      workflows: [
+        {
+          workflow_id: "wf-c",
+          workflow_path: ".github/workflows/wf-c.yml",
+          sampled_runs: 2,
+          p50_aic_per_run: 1000,
+          p95_aic_per_run: 2000,
+          weekly_projected_aic: 5000,
+          monthly_projected_aic: 20000,
+          run_samples: [
+            { run_id: 111, date: "2026-01-10", aic: 900 },
+            { run_id: 222, date: "2026-01-11", aic: 1100 },
+          ],
+        },
+      ],
+    };
+    const options = {
+      owner: "octo",
+      repo: "repo",
+      serverUrl: "https://github.com",
+      generatedAtISO: "2026-01-01T00:00:00.000Z",
+    };
+    const body = module.buildForecastIssueBody(report, options);
+    const summary = module.buildForecastStepSummary(report, options);
+
+    expect(body).not.toContain("Sampled runs used in computation");
+    expect(body).not.toContain("| Workflow | Run ID | Date | AIC |");
+
+    expect(summary).toContain("### Workflow run samples");
+    expect(summary).toContain("<details>");
+    expect(summary).toContain("Sampled runs used in computation");
+    expect(summary).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #111 | 2026-01-10 | 900 |");
+    expect(summary).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #222 | 2026-01-11 | 1,100 |");
+  });
+
+  it("returns empty step summary when no run samples exist", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    const summary = module.buildForecastStepSummary(
       {
         period: "month",
         workflows: [
@@ -142,10 +187,7 @@ describe("create_forecast_issue", () => {
             p95_aic_per_run: 2000,
             weekly_projected_aic: 5000,
             monthly_projected_aic: 20000,
-            run_samples: [
-              { run_id: 111, date: "2026-01-10", aic: 900 },
-              { run_id: 222, date: "2026-01-11", aic: 1100 },
-            ],
+            run_samples: [],
           },
         ],
       },
@@ -156,11 +198,7 @@ describe("create_forecast_issue", () => {
         generatedAtISO: "2026-01-01T00:00:00.000Z",
       }
     );
-
-    expect(body).toContain("<details>");
-    expect(body).toContain("Sampled runs used in computation");
-    expect(body).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #111 | 2026-01-10 | 900 |");
-    expect(body).toContain("| [wf-c](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-c.yml) | #222 | 2026-01-11 | 1,100 |");
+    expect(summary).toBe("");
   });
 
   it("renders TOTAL row when multiple workflows are present", async () => {

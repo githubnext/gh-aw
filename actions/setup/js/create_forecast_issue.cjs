@@ -116,9 +116,6 @@ function buildForecastIssueBody(report, options) {
     }
   }
 
-  // Build the detailed run samples section.
-  const samplesSection = buildRunSamplesSection(workflows, options);
-
   const repoSlug = `${options.owner}/${options.repo}`;
   const period = report?.period || "month";
   const runID = options.runID || "";
@@ -142,10 +139,26 @@ function buildForecastIssueBody(report, options) {
     period,
     report_table: reportTable,
     all_projected_zero_note: allProjectedZeroNote,
-    run_samples_section: samplesSection,
+    run_samples_section: "",
     error_section: errorSection,
     source_run_line: sourceRunLine,
   }).trim();
+}
+
+/**
+ * @param {Record<string, any>|null} report
+ * @param {{owner: string, repo: string, serverUrl: string, generatedAtISO?: string}} options
+ * @returns {string}
+ */
+function buildForecastStepSummary(report, options) {
+  const workflows = Array.isArray(report?.workflows) ? [...report.workflows] : [];
+  workflows.sort((a, b) => monthlyCost(b) - monthlyCost(a));
+  const samplesSection = buildRunSamplesSection(workflows, options);
+  if (!samplesSection) {
+    return "";
+  }
+
+  return ["### Workflow run samples", "", samplesSection.trim(), ""].join("\n");
 }
 
 /**
@@ -254,6 +267,14 @@ async function main() {
     outcome,
     errorMessage,
   });
+  const summary = buildForecastStepSummary(report, {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    serverUrl: context.serverUrl,
+  });
+  if (summary) {
+    await core.summary.addRaw(summary).write();
+  }
 
   const createdIssue = await github.rest.issues.create({
     owner: context.repo.owner,
@@ -269,6 +290,7 @@ async function main() {
 module.exports = {
   main,
   buildForecastIssueBody,
+  buildForecastStepSummary,
   buildRunSamplesSection,
   formatAIC,
   escapeCell,
