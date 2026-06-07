@@ -52,7 +52,12 @@ function buildIntentErrorResponse(error) {
  * @returns {string}
  */
 function buildMissingTemporaryIdError(toolName, configKey) {
-  return `${toolName} requires 'temporary_id' when safe-outputs.${configKey}.require-temporary-id is enabled. Set temporary_id (for example "aw_${toolName === "create_pull_request" ? "pr1" : "issue1"}") and retry.`;
+  const temporaryIdExamples = {
+    create_pull_request: "aw_pr1",
+    create_issue: "aw_issue1",
+  };
+  const example = temporaryIdExamples[toolName] || "aw_item1";
+  return `${toolName} requires 'temporary_id' when safe-outputs.${configKey}.require-temporary-id is enabled. Set temporary_id (for example "${example}") and retry.`;
 }
 
 /**
