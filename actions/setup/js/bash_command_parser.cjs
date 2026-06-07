@@ -177,7 +177,8 @@ const CLAUSE_KEYWORDS = new Set(["then", "else", "elif", "do"]);
 
 /**
  * Structural shell keywords never represent an executable command token
- * for permission matching in this parser.
+ * for permission matching in this parser. They introduce/close control
+ * structures and are treated as non-command segment starts.
  */
 const STRUCTURE_KEYWORDS = new Set([
   "if",
@@ -197,9 +198,9 @@ const STRUCTURE_KEYWORDS = new Set([
 
 const SHELL_KEYWORDS = new Set([...CLAUSE_KEYWORDS, ...STRUCTURE_KEYWORDS]);
 
-// IDENTIFIER=VALUE where VALUE can be:
-// - a double-quoted string with escapes
-// - a single-quoted string
+// IDENTIFIER=VALUE where VALUE is one of:
+// - "(...)" double-quoted text (supports escapes like \")
+// - '(...)' single-quoted text
 // - an unquoted non-space token
 const ENV_ASSIGNMENT_PREFIX_RE = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'[^']*'|\S*)\s*/;
 
