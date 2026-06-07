@@ -1629,7 +1629,12 @@ jobs:
         git config user.email "test@example.com"
         git config user.name "Test"
         # Copy pkg/cli/workflows .md files to simulate a user workflow directory
-        cp "$GITHUB_WORKSPACE/pkg/cli/workflows/"*.md .github/workflows/
+        MD_FILES=$(find "$GITHUB_WORKSPACE/pkg/cli/workflows" -maxdepth 1 -name '*.md' | sort)
+        if [ -z "$MD_FILES" ]; then
+          echo "❌ No .md files found in pkg/cli/workflows" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+        echo "$MD_FILES" | xargs -I{} cp {} .github/workflows/
         WORKFLOW_COUNT=$(ls .github/workflows/*.md | wc -l | tr -d ' ')
         echo "✅ Test workspace set up with ${WORKFLOW_COUNT} workflow files" >> $GITHUB_STEP_SUMMARY
 
@@ -1663,11 +1668,25 @@ jobs:
         done
 
         # Find workflows with lock files (same pattern as compile-cli-workflows make target)
+        # $WORKFLOWS is intentionally unquoted: word-splitting is required to pass
+        # multiple space-separated file paths as separate arguments to compile.
         WORKFLOWS=$(find "$TMP_WORKFLOWS_DIR/workflows" -maxdepth 1 -type f -name '*.lock.yml' \
           | sed 's/\.lock\.yml$/.md/' | sort | tr '\n' ' ')
 
         if [ -z "$WORKFLOWS" ]; then
           echo "❌ No .lock.yml companion files found in pkg/cli/workflows" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        # Verify each .md path derived from a .lock.yml actually exists
+        MISSING=false
+        for wf in $WORKFLOWS; do
+          if [ ! -f "$wf" ]; then
+            echo "❌ Expected .md file not found after fix: $wf" >> $GITHUB_STEP_SUMMARY
+            MISSING=true
+          fi
+        done
+        if [ "$MISSING" = "true" ]; then
           exit 1
         fi
 
