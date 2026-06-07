@@ -31,9 +31,9 @@ safe-outputs:
     title-prefix: "[spec-enforcer] "
 description: Generates and maintains specification-driven test suites for each Go package, relying on README.md specifications rather than source code
 emoji: 📋
+max-turns: 100
 engine:
   id: claude
-  max-turns: 100
 name: Package Specification Enforcer
 strict: true
 timeout-minutes: 30
@@ -67,6 +67,7 @@ tools:
     - default
 tracker-id: spec-enforcer
 ---
+
 # Package Specification Enforcer
 
 You are the Package Specification Enforcer — a test engineering agent that generates and maintains specification-driven test suites. You enforce package contracts by writing tests derived from README.md specifications, **not** from reading implementation source code.

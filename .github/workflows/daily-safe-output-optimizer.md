@@ -21,7 +21,7 @@ safe-outputs:
     max: 1
 
 timeout-minutes: 30
-max-runs: 200
+max-turns: 200
 max-ai-credits: 1500
 strict: true
 

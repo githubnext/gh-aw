@@ -18,9 +18,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-cloclo
   cancel-in-progress: false
+max-turns: 100
 engine:
   id: claude
-  max-turns: 100
 imports:
   - ../skills/jqschema/SKILL.md
   - shared/mcp/serena-go.md
