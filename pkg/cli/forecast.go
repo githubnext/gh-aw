@@ -912,13 +912,14 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Usage artifact download for run %d interrupted: %v", runID, err)))
 			}
+			return 0
 		} else {
 			forecastRunLog.Printf("Failed to download usage artifact for run %d: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to download usage artifact for run %d: %v", runID, err)))
 			}
+			return 0
 		}
-		return 0
 	}
 
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
@@ -1366,13 +1367,6 @@ func formatForecastAIC(value float64) string {
 	if value <= 0 {
 		return "-"
 	}
-
-	func formatEngineList(engines []string) string {
-		if len(engines) == 0 {
-			return "-"
-		}
-		return strings.Join(engines, ", ")
-	}
 	if value < 1 {
 		return fmt.Sprintf("%.3f", value)
 	}
@@ -1386,6 +1380,13 @@ func formatForecastAIC(value float64) string {
 		return fmt.Sprintf("%.1fK", value/1000)
 	}
 	return fmt.Sprintf("%.2fM", value/1_000_000)
+}
+
+func formatEngineList(engines []string) string {
+	if len(engines) == 0 {
+		return "-"
+	}
+	return strings.Join(engines, ", ")
 }
 
 // formatForecastSignedAIC formats a signed AIC value, preserving

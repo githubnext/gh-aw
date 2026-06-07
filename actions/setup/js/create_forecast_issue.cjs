@@ -106,7 +106,9 @@ function buildForecastIssueBody(report, options) {
     } else {
       const totalWeekly = tableRows.reduce((s, [, , , , , w]) => s + Number(w), 0);
       const totalMonthly = tableRows.reduce((s, [, , , , , , m]) => s + Number(m), 0);
-      const dataRows = tableRows.map(([workflowID, engines, sampledRuns, p50Run, p95Run, weekly, monthly]) => `| ${workflowID} | ${engines} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`);
+      const dataRows = tableRows.map(
+        ([workflowID, engines, sampledRuns, p50Run, p95Run, weekly, monthly]) => `| ${workflowID} | ${engines} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`
+      );
       if (tableRows.length > 1) {
         dataRows.push(`| **TOTAL** | | | | | **${formatAIC(totalWeekly)}** | **${formatAIC(totalMonthly)}** |`);
       }
@@ -165,9 +167,7 @@ function buildRunSamplesSection(workflows, options) {
       const runID = s?.run_id ?? "";
       const date = s?.date ?? "";
       const aic = formatAIC(s?.aic ?? 0);
-      const runURL = typeof s?.run_url === "string" && s.run_url !== "" ? `[#${
-        runID
-      }](${s.run_url})` : `#${runID}`;
+      const runURL = typeof s?.run_url === "string" && s.run_url !== "" ? `[#${runID}](${s.run_url})` : `#${runID}`;
       lines.push(`| ${workflowLabel} | ${runURL} | ${date} | ${aic} |`);
     }
   }
