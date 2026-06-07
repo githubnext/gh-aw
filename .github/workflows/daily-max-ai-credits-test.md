@@ -39,16 +39,25 @@ safe-outputs:
 
 1. The AWF firewall enforces the `max-ai-credits` per-run budget.
 2. Once the agent consumes more than 1 AI credit in a single run, the firewall cuts off the LLM API.
-3. Because any real model invocation exceeds 1 AI credit, this workflow will always fail immediately.
+3. The prompt forces multiple turns and multiple large-file reads so the run reliably burns credits.
+4. The run is expected to be cut off by the per-run budget before all jobs can complete.
 
 ## Task (broken by design)
 
-Call `noop` with the message: "Starting max-ai-credits guardrail test."
+Use **at least four separate assistant turns**. Do not combine all work into one response.
 
-This invocation consumes AI credits. Since the per-run budget is 1, the AWF firewall will
-cut off the agent before or immediately after this call, causing the run to fail.
+Turn 1: Call `noop` with the message: "Starting max-ai-credits multi-turn guardrail test."
 
-That failure is the expected and correct outcome.
+Turn 2 (Job 1): Read a large file: `pkg/parser/schemas/main_workflow_schema.json`.
+
+Turn 3 (Job 2): Read a large file: `.github/workflows/daily-max-ai-credits-test.lock.yml`.
+
+Turn 4 (Job 3): Read a large file: `.github/workflows/daily-credit-limit-test.lock.yml`.
+
+After each job, briefly summarize what was read, then continue to the next turn.
+
+Since the per-run budget is `max-ai-credits: 1`, the AWF firewall should cut off the agent
+before all turns complete. That failure is the expected and correct outcome.
 
 If the workflow somehow completes without hitting the per-run limit, call `noop` with the message:
 "Per-run credit limit not exceeded — verify that max-ai-credits: 1 is enforced by the AWF firewall."
