@@ -62,7 +62,28 @@ name: Daily Compiler Quality Check
 strict: true
 timeout-minutes: 30
 tools:
-  bash: true
+  bash:
+  - set
+  - find
+  - wc
+  - git
+  - mkdir
+  - cat
+  - jq
+  - mv
+  - echo
+  - bc
+  - sed
+  - printf
+  - date
+  - grep
+  - head
+  - ls
+  - pwd
+  - sort
+  - tail
+  - uniq
+  - yq
   cache-memory: true
   cli-proxy: true
   github:
