@@ -712,6 +712,15 @@ touch %s
 	stepLines = append(stepLines, "      - name: "+stepName)
 	stepLines = append(stepLines, "        id: agentic_execution")
 
+	// Skip agent execution if a noop safe output already exists.
+	// This prevents running the agent when a prior step (e.g., an empty-queue check)
+	// has already seeded a noop output, avoiding unnecessary processing and token costs.
+	// Only apply this check to the main agent job, not the detection job.
+	if !workflowData.IsDetectionRun {
+		stepLines = append(stepLines, "        if: |")
+		stepLines = append(stepLines, "          ! (test -f \"${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\" && jq -e '.tool == \"noop\"' \"${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\" >/dev/null 2>&1)")
+	}
+
 	// Add tool arguments comment before the run section
 	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")
 	if toolArgsComment != "" {
