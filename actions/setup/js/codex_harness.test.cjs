@@ -440,7 +440,6 @@ env_key = "OPENAI_API_KEY"
       const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
       expect(shouldRetry(result, 0)).toBe(false);
     });
-
   });
 
   describe("noop pre-flight and retry guard", () => {

@@ -1491,7 +1491,6 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
     });
 
-
     it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
       fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
       fs.writeFileSync(
@@ -2878,7 +2877,6 @@ describe("handle_agent_failure", () => {
       expect(result).toEqual([]);
     });
   });
-
 
   describe("readTokenUsageMarkdown", () => {
     let readTokenUsageMarkdown;

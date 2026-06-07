@@ -152,7 +152,6 @@ describe("create_forecast_issue", () => {
     expect(body).not.toContain("All projected AIC values are 0 even after cache warm-up.");
   });
 
-
   it("renders run samples section in step summary, not issue body", async () => {
     const module = await import("./create_forecast_issue.cjs");
     const report = {

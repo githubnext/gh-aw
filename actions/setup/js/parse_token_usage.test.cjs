@@ -292,7 +292,6 @@ describe("parse_token_usage", () => {
       expect(agentUsage.primary_model).toBe("claude-sonnet-4-6");
     });
 
-
     test("handles multiple model entries", async () => {
       const agentUsageFile = path.join(tmpDir, "agent_usage.json");
 

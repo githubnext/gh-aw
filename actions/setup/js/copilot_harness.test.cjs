@@ -157,7 +157,6 @@ describe("copilot_harness.cjs", () => {
       expect(hasNumerousPermissionDeniedIssues(result.output)).toBe(true);
       expect(shouldRetry(result, 0)).toBe(false);
     });
-
   });
 
   describe("scheduled startup retry policy (exit code 2)", () => {
@@ -1411,9 +1410,9 @@ describe("copilot_harness.cjs", () => {
      * @returns {{ shouldRetry: boolean, useContinueOnRetry: boolean }}
      */
     function blendedRetryDecision(result, attempt, copilotSDKMode, continueDisabledPermanently = false) {
-     if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry: false };
-     if (hasNumerousPermissionDeniedIssues(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
-     if (attempt >= MAX_RETRIES || !result.hasOutput) return { shouldRetry: false, useContinueOnRetry: false };
+      if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry: false };
+      if (hasNumerousPermissionDeniedIssues(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
+      if (attempt >= MAX_RETRIES || !result.hasOutput) return { shouldRetry: false, useContinueOnRetry: false };
       // --continue is only enabled in CLI mode and only when not permanently disabled.
       const useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
       return { shouldRetry: true, useContinueOnRetry };

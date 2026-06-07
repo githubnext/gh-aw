@@ -498,7 +498,6 @@ describe("messages.cjs", () => {
       expect(result).not.toContain("99K");
     });
 
-
     it("should expose ai_credits_suffix in custom footer templates", async () => {
       process.env.GH_AW_AIC = "1.25";
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
@@ -531,9 +530,6 @@ describe("messages.cjs", () => {
 
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⌖ 0.25 AIC");
     });
-
-
-
 
     it("should not include mini-tier model identifiers in default footer suffixes", async () => {
       const { getFooterMessage } = await import("./messages.cjs");
@@ -1089,7 +1085,6 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)");
       expect(result).not.toContain("●");
     });
-
   });
 
   describe("getFooterAgentFailureCommentMessage", () => {
@@ -1149,7 +1144,6 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)");
       expect(result).not.toContain("●");
     });
-
   });
 
   describe("getDetectionCautionAlert", () => {

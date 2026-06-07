@@ -1569,8 +1569,6 @@ not-json
       expect(summary.entries[0].durationMs).toBe(100);
       expect(summary.entries[1].model).toBe("m2");
     });
-
-
   });
 
   describe("generateTokenUsageSummary", () => {
@@ -1668,10 +1666,5 @@ not-json
       expect(md).not.toContain("Cache efficiency");
       expect(md).not.toContain("effective token");
     });
-
   });
-
-
-
-
 });

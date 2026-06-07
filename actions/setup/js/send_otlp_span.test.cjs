@@ -3477,7 +3477,6 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.workflow.name"]).toBe("");
   });
 
-
   it("includes gh-aw.aic when GH_AW_AIC is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
