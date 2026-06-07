@@ -142,6 +142,10 @@ const ActivationArtifactName = "activation"
 // uploaded by the activation job when experiments are declared in the frontmatter.
 const ExperimentArtifactName = "experiment"
 
+// UsageArtifactName is the compact artifact produced by the conclusion job with
+// workflow-run metadata and token-usage files used by lightweight reporting paths.
+const UsageArtifactName = "usage"
+
 // SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
 // This artifact contains the JSONL manifest of all items created by safe output handlers
 // and is uploaded by the safe_outputs job to avoid conflicting with the "agent" artifact

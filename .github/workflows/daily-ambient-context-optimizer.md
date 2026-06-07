@@ -1,7 +1,7 @@
 ---
 emoji: "🌫️"
 name: Daily Ambient Context Optimizer
-description: Samples recent agentic workflow runs, inspects the first DLLM request text, and recommends prompt, skill, and agent changes to shrink ambient context
+description: Samples recent agentic workflow runs, inspects the first DLLM request from API proxy event logs, and recommends prompt, skill, and agent changes to shrink ambient context
 on:
   schedule: daily
   workflow_dispatch:
@@ -52,7 +52,7 @@ Your job is to inspect the **first request sent to the DLLM** for several recent
 ## Goals
 
 1. Sample a small but representative set of agentic workflow runs from the last 24 hours.
-2. Inspect the first DLLM request text for each sampled run.
+2. Inspect the first DLLM request text actually sent to the DLLM for each sampled run.
 3. Use deterministic Python analysis to measure prompt bloat and repetition.
 4. Recommend the highest-leverage improvements to workflow `.md` files, skill usage, and the set of agents/sub-agents.
 5. Create exactly one detailed issue report.
@@ -79,13 +79,14 @@ Eligibility rules:
 
 - `status == "completed"`
 - exclude this workflow itself
-- prefer successful runs, but include up to 2 failed runs when they have usable prompt artifacts
+- prefer successful runs, but include up to 2 failed runs when they have usable request artifacts
 - prefer breadth: no more than 2 runs from the same workflow when alternatives exist
 - require a usable first-request source:
-  - preferred: `prompt.txt`
-  - fallback: the first `user.message` event in `events.jsonl`
+  - preferred: the first DLLM request payload in the canonical `sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl`, accepting the legacy `sandbox/firewall/logs/api-proxy-logs/events.jsonl` name too (including the matching `sandbox/firewall-audit-logs/...` fallback path when present)
+  - fallback: the first `user.message` event in `sandbox/agent/logs/copilot-session-state/<session-id>/events.jsonl`
+  - use `prompt.txt` only as a compilation-debug cross-check, never as the ambient-context source of truth
 
-Prefer higher-cost runs first by using `aic`, then `effective_tokens`, `token_usage`, `turns`, or prompt size when available.
+Prefer higher-cost runs first by using `aic`, then `effective_tokens`, `token_usage`, `turns`, or first-request size when available.
 
 ### Step 3 — Enrich a subset with audits
 
@@ -95,8 +96,9 @@ Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have r
 
 Treat the first DLLM request text as:
 
-1. `prompt.txt` when present, because it is the generated prompt sent to the agent
-2. otherwise, extract the first user-message payload from the run's `events.jsonl`
+1. the first DLLM request payload captured in the canonical API proxy event log `sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl`, accepting the legacy `sandbox/firewall/logs/api-proxy-logs/events.jsonl` name too (or the same path under `sandbox/firewall-audit-logs/` when that artifact layout is present), because that is the text actually sent to the DLLM
+2. otherwise, extract the first user-message payload from `sandbox/agent/logs/copilot-session-state/<session-id>/events.jsonl`
+3. read `prompt.txt` only as a secondary compilation-debug artifact for cross-checking; do not use it as the primary request text
 
 For each sampled run, save the extracted text to:
 
@@ -120,6 +122,9 @@ Include at least:
 - `request_chars`
 - `request_lines`
 - `request_source`
+- `request_input_tokens` when a matching API proxy token-usage entry is available
+- `prompt_chars` when `prompt.txt` exists
+- `request_prompt_char_delta` (`request_chars - prompt_chars` when both exist)
 
 ## Deterministic Analysis
 
@@ -141,10 +146,12 @@ The script must compute deterministic metrics for each sampled first request:
 - HTML `<details>` count
 - table row count
 - inline agent count (`## agent:`)
+- inline linter count (`## linter:`)
 - inline skill count (`## skill:`)
 - imported skill reference count (`SKILL.md`)
 - duplicate line ratio
 - duplicate paragraph ratio
+- per-request char-to-token ratio (`request_chars / request_input_tokens`) when `request_input_tokens` is available
 - longest 5 sections by heading
 - top repeated non-trivial lines or paragraphs
 - count of lines mentioning tools, skills, agents, safe outputs, and workflow instructions
@@ -170,6 +177,11 @@ Assess whether the request size is likely driven by:
 - too many inline agents or agent definitions that are not justified
 - duplicated guardrails, examples, or formatting rules
 - context that should be moved to deterministic `steps:` or smaller sub-agents
+
+Review `prompt.txt` only as a compiler cross-check artifact:
+
+- compare its size to the authoritative API proxy request text when both are present
+- if `prompt.txt` contains inline agents or inline linters that do **not** appear in the API proxy request text, classify that as a likely compilation bug instead of ambient-context evidence against the workflow author
 
 Also review proxy/CLI feature readiness for each sampled workflow:
 

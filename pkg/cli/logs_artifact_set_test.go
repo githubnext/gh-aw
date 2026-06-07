@@ -58,6 +58,11 @@ func TestValidateArtifactSets(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "usage is valid",
+			sets:      []string{"usage"},
+			expectErr: false,
+		},
+		{
 			name:      "multiple valid sets",
 			sets:      []string{"agent", "mcp"},
 			expectErr: false,
@@ -146,6 +151,11 @@ func TestResolveArtifactFilter(t *testing.T) {
 			name:     "github-api resolves to activation and agent",
 			sets:     []string{"github-api"},
 			expected: []string{"activation", "agent"},
+		},
+		{
+			name:     "usage resolves to usage artifact",
+			sets:     []string{"usage"},
+			expected: []string{"usage"},
 		},
 		{
 			name:     "multiple sets are merged and deduplicated",
@@ -242,8 +252,43 @@ func TestValidArtifactSetNames(t *testing.T) {
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
-	expected := []string{"all", "activation", "agent", "detection", "experiment", "firewall", "github-api", "mcp"}
+	expected := []string{"all", "activation", "agent", "detection", "experiment", "firewall", "github-api", "mcp", "usage"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
+}
+
+func TestIsUsageOnlyArtifactFilter(t *testing.T) {
+	tests := []struct {
+		name     string
+		filter   []string
+		expected bool
+	}{
+		{
+			name:     "usage only",
+			filter:   []string{"usage"},
+			expected: true,
+		},
+		{
+			name:     "usage plus another artifact",
+			filter:   []string{"usage", "agent"},
+			expected: false,
+		},
+		{
+			name:     "non-usage only",
+			filter:   []string{"agent"},
+			expected: false,
+		},
+		{
+			name:     "empty filter",
+			filter:   nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isUsageOnlyArtifactFilter(tt.filter))
+		})
+	}
 }
 
 func TestFindMissingFilterEntries(t *testing.T) {

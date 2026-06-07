@@ -25,6 +25,7 @@ tools:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]
 timeout-minutes: 90
+max-ai-credits: 1500
 imports:
   - uses: shared/daily-audit-base.md
     with:
