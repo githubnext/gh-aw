@@ -2259,13 +2259,29 @@ describe("handle_agent_failure", () => {
           type: "missing_tool",
           tool: "tool/permission",
           reason: "permission denied",
-          alternatives:
-            "Verify token scopes, repository permissions, and MCP/tool access configuration. Denied commands: shell(find specs -type f -name '*.md' | sort) | read(/home/runner/work/gh-aw/gh-aw/specs)",
+          alternatives: "Verify token scopes, repository permissions, and MCP/tool access configuration. Denied commands: shell(find specs -type f -name '*.md' | sort) | read(/home/runner/work/gh-aw/gh-aw/specs)",
         },
       ];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("`shell(find specs -type f -name '*.md' | sort)`");
       expect(result).toContain("`read(/home/runner/work/gh-aw/gh-aw/specs)`");
+    });
+
+    it("parses denied commands from Daily SPDD Spec Planner alternatives", () => {
+      writePermissionDeniedTemplate();
+      const items = [
+        {
+          type: "missing_tool",
+          tool: "tool/permission",
+          reason: "numerous permission denied errors detected",
+          alternatives:
+            'Verify token scopes, repository permissions, and MCP/tool access configuration. Denied commands: shell(mkdir -p /tmp/gh-aw/cache-memory/spdd-daily/ && touch /tmp/gh-aw/cache-memory/spdd-daily/.preflight && echo "preflight_ok") | read(/home/runner/work/gh-aw/gh-aw) | read(/tmp/gh-aw/cache-memory/spdd-daily/rotation.json)',
+        },
+      ];
+      const result = buildPermissionDeniedContext(items);
+      expect(result).toContain('`shell(mkdir -p /tmp/gh-aw/cache-memory/spdd-daily/ && touch /tmp/gh-aw/cache-memory/spdd-daily/.preflight && echo "preflight_ok")`');
+      expect(result).toContain("`read(/home/runner/work/gh-aw/gh-aw)`");
+      expect(result).toContain("`read(/tmp/gh-aw/cache-memory/spdd-daily/rotation.json)`");
     });
 
     it("deduplicates denied commands across multiple tool/permission items", () => {
