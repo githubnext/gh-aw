@@ -171,7 +171,7 @@ Do **not** re-fetch these datasets with GitHub tools unless a required file is m
 ## Phase 1 — Determine Scope
 
 1. Read `recent-context.json` and `source-files.json`.
-2. If no candidate files exist, exit with:
+2. If no candidate files exist, call `noop` with this exact message:
 
 ```
 ✅ No code changes detected in the last 24 hours.
@@ -221,7 +221,7 @@ Create a PR only if all are true:
 - behavior is preserved
 - `make test-unit`, `make lint`, and `make build` succeed
 
-If no useful change remains, exit with:
+If no useful change remains, call `noop` with this exact message:
 
 ```
 ✅ Code analyzed from last 24 hours.
@@ -240,11 +240,14 @@ Include:
 
 ## Output Requirements
 
-Return one of:
+You MUST finish by calling exactly one safe-output tool:
 
-1. no recent code changes (exact message above)
-2. no beneficial simplifications (exact message above)
-3. PR created through safe outputs
+1. `noop` with the no-recent-code-changes message above
+2. `noop` with the no-beneficial-simplifications message above
+3. `create_pull_request` when meaningful validated simplifications are ready
+4. `report_incomplete` when blocked by infrastructure/tooling failures
+
+Do not finish with plain text only. The safe-output tool call is required.
 
 {{#runtime-import shared/noop-reminder.md}}
 
