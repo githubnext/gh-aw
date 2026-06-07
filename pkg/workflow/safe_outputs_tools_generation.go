@@ -234,6 +234,10 @@ type ToolsMeta struct {
 	// safe_outputs_tools.json should be optional for this specific workflow (e.g. when
 	// allow-body: false is configured for close_discussion or close_issue).
 	RequiredFieldRemovals map[string][]string `json:"required_field_removals,omitempty"`
+	// RequiredFieldAdditions maps tool name → list of field names to add to the
+	// inputSchema.required array. Used when a field that is optional in the static
+	// safe_outputs_tools.json should be required for this specific workflow.
+	RequiredFieldAdditions map[string][]string `json:"required_field_additions,omitempty"`
 }
 
 // computeRequiredFieldRemovals returns a map of tool name → required fields to remove
@@ -251,6 +255,22 @@ func computeRequiredFieldRemovals(safeOutputs *SafeOutputsConfig) map[string][]s
 		removals["close_issue"] = []string{"body"}
 	}
 	return removals
+}
+
+// computeRequiredFieldAdditions returns a map of tool name → required fields to add
+// based on the safe-outputs configuration.
+func computeRequiredFieldAdditions(safeOutputs *SafeOutputsConfig) map[string][]string {
+	additions := make(map[string][]string)
+	if safeOutputs == nil {
+		return additions
+	}
+	if safeOutputs.CreateIssues != nil && safeOutputs.CreateIssues.RequireTemporaryID {
+		additions["create_issue"] = []string{"temporary_id"}
+	}
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.RequireTemporaryID {
+		additions["create_pull_request"] = []string{"temporary_id"}
+	}
+	return additions
 }
 
 // generateToolsMetaJSON generates the content for tools_meta.json: a compact file
@@ -310,12 +330,14 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 
 	// Compute required field removals (e.g. body when allow-body: false).
 	requiredFieldRemovals := computeRequiredFieldRemovals(data.SafeOutputs)
+	requiredFieldAdditions := computeRequiredFieldAdditions(data.SafeOutputs)
 
 	meta := ToolsMeta{
-		DescriptionSuffixes:   descriptionSuffixes,
-		RepoParams:            repoParams,
-		DynamicTools:          dynamicTools,
-		RequiredFieldRemovals: requiredFieldRemovals,
+		DescriptionSuffixes:    descriptionSuffixes,
+		RepoParams:             repoParams,
+		DynamicTools:           dynamicTools,
+		RequiredFieldRemovals:  requiredFieldRemovals,
+		RequiredFieldAdditions: requiredFieldAdditions,
 	}
 
 	result, err := json.MarshalIndent(meta, "", "  ")

@@ -11,6 +11,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.CreateIssues
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddIfTrue("require_temporary_id", c.RequireTemporaryID).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_fields", c.AllowedFields).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -444,6 +445,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		}
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddIfTrue("require_temporary_id", c.RequireTemporaryID).
 			AddIfNotEmpty("branch_prefix", c.BranchPrefix).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddTemplatableStringSlice("labels", c.Labels).

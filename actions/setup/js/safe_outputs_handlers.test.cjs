@@ -578,6 +578,27 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
+    it("should require temporary_id when configured", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+          require_temporary_id: true,
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "feature/test-change",
+        title: "Test PR",
+        body: "Test description",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires 'temporary_id'");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should return error response when patch generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
       // Patch generation will fail because we're not in a git repo
@@ -1642,6 +1663,21 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("Refusing to record an exploratory issue");
       expect(responseData.error).toContain("noop or report_incomplete");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require temporary_id when configured", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          require_temporary_id: true,
+        },
+      });
+      const result = h.createIssueHandler({ title: "Issue A", body: "Body A" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires 'temporary_id'");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
   });

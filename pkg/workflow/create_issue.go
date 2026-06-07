@@ -12,6 +12,7 @@ var createIssueLog = logger.New("workflow:create_issue")
 type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
+	RequireTemporaryID   bool     `yaml:"require-temporary-id,omitempty"` // When true, create_issue tool calls must include temporary_id.
 	Labels               []string `yaml:"labels,omitempty"`
 	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`       // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	AllowedFields        []string `yaml:"allowed-fields,omitempty"`       // Optional list of allowed issue field names. If omitted or empty, any issue fields are allowed. Use ["*"] to explicitly allow all.

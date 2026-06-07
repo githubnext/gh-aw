@@ -391,3 +391,23 @@ func TestComputeRequiredFieldRemovals_BothFalse(t *testing.T) {
 	assert.Equal(t, []string{"body"}, removals["close_discussion"])
 	assert.Equal(t, []string{"body"}, removals["close_issue"])
 }
+
+func TestComputeRequiredFieldAdditionsRequireTemporaryID(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		CreateIssues:       &CreateIssuesConfig{RequireTemporaryID: true},
+		CreatePullRequests: &CreatePullRequestsConfig{RequireTemporaryID: true},
+	})
+
+	require.Contains(t, additions, "create_issue")
+	require.Contains(t, additions, "create_pull_request")
+	assert.Equal(t, []string{"temporary_id"}, additions["create_issue"])
+	assert.Equal(t, []string{"temporary_id"}, additions["create_pull_request"])
+}
+
+func TestComputeRequiredFieldAdditionsDisabledByDefault(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		CreateIssues:       &CreateIssuesConfig{},
+		CreatePullRequests: &CreatePullRequestsConfig{},
+	})
+	assert.Empty(t, additions)
+}

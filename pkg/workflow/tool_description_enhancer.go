@@ -68,6 +68,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Issues will be created in repository %q.", config.TargetRepoSlug))
 			}
+			if config.RequireTemporaryID {
+				constraints = append(constraints, "temporary_id is required.")
+			}
 		}
 
 	case "set_issue_field":
@@ -240,6 +243,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if len(config.Reviewers) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Reviewers %s will be assigned.", formatStringList(config.Reviewers)))
+			}
+			if config.RequireTemporaryID {
+				constraints = append(constraints, "temporary_id is required.")
 			}
 		}
 

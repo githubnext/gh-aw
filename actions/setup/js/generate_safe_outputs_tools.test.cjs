@@ -145,6 +145,28 @@ describe("generate_safe_outputs_tools", () => {
     expect(createIssueTool.inputSchema.properties.repo.type).toBe("string");
   });
 
+  it("adds required fields when specified in tools_meta", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 5 } }));
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: {},
+        repo_params: {},
+        dynamic_tools: [],
+        required_field_additions: {
+          create_issue: ["temporary_id"],
+        },
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.inputSchema.required).toEqual(expect.arrayContaining(["title", "temporary_id"]));
+  });
+
   it("appends dynamic tools from tools_meta", () => {
     fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
     fs.writeFileSync(

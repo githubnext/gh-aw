@@ -65,7 +65,7 @@ async function main() {
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
-  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>}} */
+  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
     toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
@@ -111,6 +111,13 @@ async function main() {
         if (enhancedTool.inputSchema.required.length === 0) {
           delete enhancedTool.inputSchema.required;
         }
+      }
+
+      // Add fields to inputSchema.required when configured (e.g. require-temporary-id: true)
+      const requiredAdditions = toolsMeta.required_field_additions?.[tool.name];
+      if (requiredAdditions && requiredAdditions.length > 0) {
+        const existingRequired = Array.isArray(enhancedTool.inputSchema?.required) ? enhancedTool.inputSchema.required : [];
+        enhancedTool.inputSchema.required = Array.from(new Set([...existingRequired, ...requiredAdditions]));
       }
 
       return enhancedTool;
