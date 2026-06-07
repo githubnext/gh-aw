@@ -193,7 +193,7 @@ function sumAICFromUsageJSONLFiles(filePaths) {
    */
   function normalizeUsageRecord(usage) {
     if (usage && typeof usage === "object" && !Array.isArray(usage)) {
-      return /** @type {Record<string, unknown>} */ usage;
+      return /** @type {Record<string, unknown>} */ (usage);
     }
     return null;
   }
