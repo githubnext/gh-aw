@@ -247,6 +247,9 @@ function extractCommandName(segment) {
 
     // Flow-control keywords are not executable commands
     if (SHELL_KEYWORDS.has(word)) {
+      // Clause keywords can prefix a real command in the same segment
+      // (for example: "then cat file", "do git log"), so skip them
+      // and continue scanning the next token.
       if (word === "then" || word === "else" || word === "elif" || word === "do") {
         remaining = remaining.slice(word.length).trim();
         if (!remaining) return null;

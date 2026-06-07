@@ -162,8 +162,16 @@ describe("extractCommandName", () => {
     expect(extractCommandName("else")).toBeNull();
   });
 
+  it("extracts command after shell keyword 'else'", () => {
+    expect(extractCommandName("else cat file")).toBe("cat");
+  });
+
   it("returns null for shell keyword 'fi'", () => {
     expect(extractCommandName("fi")).toBeNull();
+  });
+
+  it("extracts command after shell keyword 'elif'", () => {
+    expect(extractCommandName("elif grep x file")).toBe("grep");
   });
 
   it("returns null for shell keyword 'if'", () => {
@@ -172,6 +180,10 @@ describe("extractCommandName", () => {
 
   it("returns null for shell keyword 'for'", () => {
     expect(extractCommandName("for f in a b c")).toBeNull();
+  });
+
+  it("extracts command after shell keyword 'do'", () => {
+    expect(extractCommandName("do git status")).toBe("git");
   });
 
   it("returns null for a bare redirection like >file", () => {
