@@ -15,6 +15,8 @@ describe("ephemerals", () => {
     vi.clearAllMocks();
     delete process.env.GH_AW_DEFAULT_UTC;
     delete process.env.GITHUB_WORKSPACE;
+    delete process.env.RUNNER_WORKSPACE;
+    delete process.env.GITHUB_REPOSITORY;
   });
 
   describe("formatExpirationDate", () => {
@@ -73,6 +75,32 @@ describe("ephemerals", () => {
       const result = createExpirationLine(date);
 
       expect(result).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
+    });
+
+    it("should use repo timezone from RUNNER_WORKSPACE when GITHUB_WORKSPACE is unavailable", async () => {
+      const runnerWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-runner-workspace-"));
+      const repoName = "repo-from-runner-workspace";
+      const repoRoot = path.join(runnerWorkspace, repoName);
+      fs.mkdirSync(path.join(repoRoot, ".github", "workflows"), { recursive: true });
+      fs.writeFileSync(path.join(repoRoot, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "+02:00" }));
+
+      process.env.RUNNER_WORKSPACE = runnerWorkspace;
+      process.env.GITHUB_REPOSITORY = `octocat/${repoName}`;
+
+      const originalCwd = process.cwd();
+      const unrelatedDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-unrelated-cwd-"));
+      process.chdir(unrelatedDir);
+
+      try {
+        const { createExpirationLine } = await import("./ephemerals.cjs");
+        const date = new Date("2026-01-25T15:54:08.894Z");
+        const result = createExpirationLine(date);
+
+        expect(result).toContain("UTC+02:00");
+        expect(result).not.toMatch(/\sUTC$/);
+      } finally {
+        process.chdir(originalCwd);
+      }
     });
   });
 

@@ -35,7 +35,21 @@ function parseUTCOffsetMinutes(utcOffset) {
 }
 
 function getRepoConfigPath() {
-  return path.join(process.env.GITHUB_WORKSPACE || process.cwd(), ...REPO_CONFIG_PATH);
+  const githubWorkspace = process.env.GITHUB_WORKSPACE?.trim();
+  if (githubWorkspace) {
+    return path.join(githubWorkspace, ...REPO_CONFIG_PATH);
+  }
+
+  const runnerWorkspace = process.env.RUNNER_WORKSPACE?.trim();
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  if (runnerWorkspace && repository) {
+    const repoName = path.basename(repository);
+    if (repoName) {
+      return path.join(runnerWorkspace, repoName, ...REPO_CONFIG_PATH);
+    }
+  }
+
+  return path.join(process.cwd(), ...REPO_CONFIG_PATH);
 }
 
 function warn(message) {
