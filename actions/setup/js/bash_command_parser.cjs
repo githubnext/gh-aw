@@ -169,20 +169,20 @@ function splitOnPipelineOperators(commandText) {
 }
 
 /**
- * Shell flow-control keywords that can appear as the first word of a segment
- * but do not represent an executable command.  They must be excluded so the
- * permission checker does not attempt to look up keywords like "then" or "fi"
- * as command names and incorrectly deny (or allow) a pipeline that contains
- * them as part of a compound statement (e.g. `if …; then cat …; fi`).
+ * Clause keywords can prefix an executable command in the same segment
+ * (for example: "then cat file", "do git log"). These are skipped and
+ * scanning continues to find the command token.
  */
-const SHELL_KEYWORDS = new Set([
+const CLAUSE_KEYWORDS = new Set(["then", "else", "elif", "do"]);
+
+/**
+ * Structural shell keywords never represent an executable command token
+ * for permission matching in this parser.
+ */
+const STRUCTURE_KEYWORDS = new Set([
   "if",
-  "then",
-  "else",
-  "elif",
   "fi",
   "for",
-  "do",
   "done",
   "while",
   "until",
@@ -194,6 +194,14 @@ const SHELL_KEYWORDS = new Set([
   "time",
   "coproc",
 ]);
+
+const SHELL_KEYWORDS = new Set([...CLAUSE_KEYWORDS, ...STRUCTURE_KEYWORDS]);
+
+// IDENTIFIER=VALUE where VALUE can be:
+// - a double-quoted string with escapes
+// - a single-quoted string
+// - an unquoted non-space token
+const ENV_ASSIGNMENT_PREFIX_RE = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'[^']*'|\S*)\s*/;
 
 /**
  * Extract the executable command name from a single shell command segment.
@@ -217,9 +225,8 @@ function extractCommandName(segment) {
   if (!remaining) return null;
 
   // Skip leading env-var assignments: IDENTIFIER=anything  (repeat)
-  const envAssignRe = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'[^']*'|\S*)\s*/;
   for (;;) {
-    const m = remaining.match(envAssignRe);
+    const m = remaining.match(ENV_ASSIGNMENT_PREFIX_RE);
     if (!m) break;
     remaining = remaining.slice(m[0].length).trim();
   }
@@ -247,10 +254,7 @@ function extractCommandName(segment) {
 
     // Flow-control keywords are not executable commands
     if (SHELL_KEYWORDS.has(word)) {
-      // Clause keywords can prefix a real command in the same segment
-      // (for example: "then cat file", "do git log"), so skip them
-      // and continue scanning the next token.
-      if (word === "then" || word === "else" || word === "elif" || word === "do") {
+      if (CLAUSE_KEYWORDS.has(word)) {
         remaining = remaining.slice(word.length).trim();
         if (!remaining) return null;
         continue;
