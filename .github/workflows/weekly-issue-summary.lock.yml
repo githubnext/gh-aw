@@ -737,7 +737,6 @@ jobs:
           
           export GH_AW_ENGINE="copilot"
           export GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'
-          echo GH_AW_MCP_CLI_SERVERS='["safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           case "${DOCKER_HOST:-}" in
@@ -1612,7 +1611,7 @@ jobs:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
         shell: bash
-        run: |
+        run: | # zizmor: ignore[github-env] GITHUB_SERVER_URL is set by GitHub Actions, not user input.
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
