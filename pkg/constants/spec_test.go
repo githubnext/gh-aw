@@ -28,6 +28,8 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 		{name: "CodexEngine value", constant: constants.CodexEngine, expected: "codex"},
 		// From spec: constants.GeminiEngine // "gemini"
 		{name: "GeminiEngine value", constant: constants.GeminiEngine, expected: "gemini"},
+		// From spec: constants.AntigravityEngine // "antigravity"
+		{name: "AntigravityEngine value", constant: constants.AntigravityEngine, expected: "antigravity"},
 		// From spec: constants.OpenCodeEngine // "opencode"
 		{name: "OpenCodeEngine value", constant: constants.OpenCodeEngine, expected: "opencode"},
 		// From spec: constants.CrushEngine // "crush"
@@ -48,13 +50,13 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 // TestSpec_EngineConstants_AgenticEngines validates the documented AgenticEngines list.
 // Spec section: "// All supported engine names"
-// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents all seven engines, including pi (experimental).
-	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+	// Spec documents all eight engines, including antigravity and pi (experimental).
+	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
 			"AgenticEngines should contain documented engine %q", expected)
