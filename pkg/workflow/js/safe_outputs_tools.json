@@ -341,6 +341,12 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. For multi-repo workflows where the target repo differs from the workflow repo, this must match a repo in the allowed-repos list or the configured target-repo. If omitted, defaults to the configured target-repo (from safe-outputs config), NOT the workflow repository. In most cases, you should omit this parameter and let the system use the configured default."
         },
+        "temporary_id": {
+          "type": "string",
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this pull request. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_pr1', '#aw_fix_123'. The bare 'aw_pr1' form is also accepted and normalised to '#aw_pr1'. Use this same '#aw_ID' form in body text to cross-reference this PR; these references are replaced with the real pull request number after creation.",
+          "x-synonyms": ["temporaryId"]
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

@@ -160,6 +160,8 @@ interface CreatePullRequestItem extends BaseSafeOutputItem {
   labels?: string[];
   /** Whether to create the PR as a draft (default: true) */
   draft?: boolean;
+  /** Optional temporary identifier for this pull request for cross-reference replacement */
+  temporary_id?: string;
 }
 
 /**
