@@ -191,6 +191,47 @@ describe("handle_agent_failure", () => {
       expect((capturedIssueBody.match(/> \[!CAUTION\]/g) || []).length).toBe(1);
       expect(capturedIssueBody).toContain("> Generated from [Test Workflow]");
     });
+
+    it("includes AIC and ambient context metrics in the generated failure issue footer", async () => {
+      process.env.GH_AW_AIC = "1.25";
+      process.env.GH_AW_AMBIENT_CONTEXT = "900";
+      /** @type {string} */
+      let capturedIssueBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: vi.fn(async ({ body }) => {
+              capturedIssueBody = body;
+              return {
+                data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+              };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      try {
+        await main();
+
+        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · 1.25 AIC · ⊞ 900");
+      } finally {
+        delete process.env.GH_AW_AIC;
+        delete process.env.GH_AW_AMBIENT_CONTEXT;
+      }
+    });
   });
 
   describe("main() precise failure issue matching", () => {

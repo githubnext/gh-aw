@@ -1108,6 +1108,20 @@ describe("messages.cjs", () => {
       expect(result).toBe(`> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · [◷](${historyUrl})`);
     });
 
+    it("should include AIC and ambient context in default footer when available", async () => {
+      process.env.GH_AW_AIC = "1.25";
+      process.env.GH_AW_AMBIENT_CONTEXT = "900";
+
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureIssueMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⊞ 900");
+    });
+
     it("should not include effective tokens in custom footer unless placeholder is used", async () => {
       process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({

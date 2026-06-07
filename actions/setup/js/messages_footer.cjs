@@ -412,9 +412,30 @@ function getFooterAgentFailureIssueMessage(ctx) {
   // Read effective tokens from environment variable if available
   const modelName = resolveActualModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
+  const { aiCredits, aiCreditsFormatted, aiCreditsSuffix, agentAiCredits, agentAiCreditsFormatted, agentAiCreditsSuffix, threatDetectionAiCredits, threatDetectionAiCreditsFormatted, threatDetectionAiCreditsSuffix } = getAICFromEnv();
+  const { ambientContext, ambientContextFormatted, ambientContextSuffix } = getAmbientContextFromEnv();
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
-  const templateContext = toSnakeCase({ ...ctx, historyLink, agenticWorkflowUrl, effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix });
+  const templateContext = toSnakeCase({
+    ...ctx,
+    historyLink,
+    agenticWorkflowUrl,
+    effectiveTokens,
+    effectiveTokensFormatted,
+    effectiveTokensSuffix,
+    aiCredits,
+    aiCreditsFormatted,
+    aiCreditsSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+    ambientContext,
+    ambientContextFormatted,
+    ambientContextSuffix,
+  });
 
   // Use custom agent failure issue footer if configured, otherwise use default footer
   let footer;
@@ -423,6 +444,12 @@ function getFooterAgentFailureIssueMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+    if (aiCredits) {
+      defaultFooter += "{ai_credits_suffix}";
+    }
+    if (ambientContext) {
+      defaultFooter += "{ambient_context_suffix}";
+    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";
