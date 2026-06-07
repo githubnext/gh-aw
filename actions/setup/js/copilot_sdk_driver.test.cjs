@@ -920,6 +920,7 @@ for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`
         expect(
           handler({
             kind: "shell",
+            // Intentional: exercise fullCommandText fallback when SDK omits identifiers.
             commands: [],
             fullCommandText: command,
           })
@@ -940,6 +941,7 @@ for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`
         expect(
           handler({
             kind: "shell",
+            // Intentional: exercise fullCommandText fallback when SDK omits identifiers.
             commands: [],
             fullCommandText: command,
           })
