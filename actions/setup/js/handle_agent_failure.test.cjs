@@ -2969,6 +2969,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_EFFECTIVE_TOKENS;
       delete process.env.GH_AW_MAX_EFFECTIVE_TOKENS;
+      delete process.env.GH_AW_MAX_AI_CREDITS;
       delete process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR;
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -3039,6 +3040,28 @@ describe("handle_agent_failure", () => {
         effectiveTokens: "10000000",
         maxEffectiveTokens: "10000000",
         effectiveTokensRateLimitError: true,
+      });
+    });
+
+    it("uses AI credits budgets to suppress false ET budget exhaustion signals", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditDir, "log.jsonl"),
+        JSON.stringify({
+          _schema: "audit/v0.26.0",
+          ts: 1,
+          effective_tokens: 268104,
+          max_ai_credits: 1500,
+          effective_tokens_rate_limit_error: true,
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "268104",
+        maxEffectiveTokens: "15000000",
+        effectiveTokensRateLimitError: false,
       });
     });
 

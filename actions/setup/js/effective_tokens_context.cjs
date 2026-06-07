@@ -20,6 +20,7 @@ const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
 const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error", "aiCreditsRateLimitError"]);
 const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
+const EFFECTIVE_TOKENS_PER_AI_CREDIT = 10000;
 
 const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
@@ -74,6 +75,15 @@ function shouldReportAICreditsRateLimitError(hasRateLimitSignal, aiCredits, maxA
   if (!hasRateLimitSignal) return false;
   if (!aiCredits || !maxAICredits) return true;
   return isNumberStringGreaterThanOrEqual(aiCredits, maxAICredits);
+}
+
+function deriveMaxEffectiveTokensFromAICredits(maxAICredits) {
+  if (!maxAICredits) return "";
+  const parsed = Number.parseFloat(maxAICredits);
+  if (!Number.isFinite(parsed) || parsed <= 0) return "";
+  const converted = Math.floor(parsed * EFFECTIVE_TOKENS_PER_AI_CREDIT);
+  if (!Number.isSafeInteger(converted) || converted <= 0) return "";
+  return String(converted);
 }
 
 /** @param {unknown} value */
@@ -325,8 +335,11 @@ function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensFromReflect = parseEffectiveTokensFromReflectFile();
   const envEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
   const envMaxEffectiveTokens = parsePositiveEffectiveTokenLimitString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
+  const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
-  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
+  const maxAICredits = parseMaxAICreditsFromAuditLog() || envMaxAICredits || "";
+  const derivedMaxEffectiveTokens = deriveMaxEffectiveTokensFromAICredits(maxAICredits);
+  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || derivedMaxEffectiveTokens || "";
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
   return { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError };
