@@ -32,6 +32,13 @@ import (
 
 var logsDownloadLog = logger.New("cli:logs_download")
 
+// isUsageOnlyArtifactFilter reports whether the caller requested only the compact
+// usage artifact. In this mode, workflow-run log downloads are intentionally skipped
+// to minimize API and transfer volume for lightweight reporting paths.
+func isUsageOnlyArtifactFilter(artifactFilter []string) bool {
+	return len(artifactFilter) == 1 && artifactFilter[0] == constants.UsageArtifactName
+}
+
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
 // This handles the case where gh CLI creates a directory for each artifact, even if it's just one file
 func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
@@ -732,14 +739,17 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		}
 		if len(downloadableNames) == 0 {
 			// Nothing to download (all artifacts are either .dockerbuild or excluded by filter).
-			// Attempt workflow run logs for diagnostics before returning.
-			if logErr := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
-				}
-				if fileutil.IsDirEmpty(outputDir) {
-					if removeErr := os.RemoveAll(outputDir); removeErr != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, removeErr)))
+			// For usage-only mode, skip workflow logs entirely to keep downloads lightweight.
+			if !isUsageOnlyArtifactFilter(artifactFilter) {
+				// Attempt workflow run logs for diagnostics before returning.
+				if logErr := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
+					}
+					if fileutil.IsDirEmpty(outputDir) {
+						if removeErr := os.RemoveAll(outputDir); removeErr != nil && verbose {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, removeErr)))
+						}
 					}
 				}
 			}
@@ -897,12 +907,14 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
 	}
 
-	// Download and unzip workflow run logs
-	if err := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); err != nil {
-		// Log the error but don't fail the entire download process
-		// Logs may not be available for all runs (e.g., expired or deleted)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", err)))
+	// Download and unzip workflow run logs unless caller requested usage-only mode.
+	if !isUsageOnlyArtifactFilter(artifactFilter) {
+		if err := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); err != nil {
+			// Log the error but don't fail the entire download process
+			// Logs may not be available for all runs (e.g., expired or deleted)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", err)))
+			}
 		}
 	}
 
