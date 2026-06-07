@@ -58,8 +58,8 @@ function findJSONLFiles(root) {
 
   /** @type {string[]} */
   const queue = [root];
-  while (queue.length > 0) {
-    const current = queue.shift();
+  for (let index = 0; index < queue.length; index++) {
+    const current = queue[index];
     if (!current) continue;
     /** @type {fs.Dirent[]} */
     let entries = [];
@@ -193,9 +193,21 @@ function sumAICFromUsageJSONLFiles(filePaths) {
    */
   function normalizeUsageRecord(usage) {
     if (usage && typeof usage === "object" && !Array.isArray(usage)) {
-      return /** @type {Record<string, unknown>} */ (usage);
+      return /** @type {Record<string, unknown>} */ usage;
     }
     return null;
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {number | null}
+   */
+  function toFiniteNumber(value) {
+    if (typeof value === "string" && !value.trim()) {
+      return null;
+    }
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
   }
 
   /**
@@ -208,8 +220,8 @@ function sumAICFromUsageJSONLFiles(filePaths) {
   function getNumericField(usage, parsed, snakeCase, camelCase) {
     const candidates = [usage?.[snakeCase], usage?.[camelCase], parsed[snakeCase], parsed[camelCase]];
     for (const candidate of candidates) {
-      const num = Number(candidate);
-      if (Number.isFinite(num)) {
+      const num = toFiniteNumber(candidate);
+      if (num !== null) {
         return num;
       }
     }
@@ -224,9 +236,12 @@ function sumAICFromUsageJSONLFiles(filePaths) {
    */
   function getNumericAliasField(usage, parsed, keys) {
     for (const key of keys) {
-      const num = Number(usage?.[key] ?? parsed[key]);
-      if (Number.isFinite(num)) {
-        return num;
+      const candidates = [usage?.[key], parsed[key]];
+      for (const candidate of candidates) {
+        const num = toFiniteNumber(candidate);
+        if (num !== null) {
+          return num;
+        }
       }
     }
     return 0;

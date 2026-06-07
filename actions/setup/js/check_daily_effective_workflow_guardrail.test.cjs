@@ -44,8 +44,10 @@ describe("check_daily_effective_workflow_guardrail", () => {
 
   it("sums AI Credits across multiple JSONL files and usage attributes", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-guardrail-token-usage-"));
+    const nestedDir = path.join(tmpDir, "nested");
+    fs.mkdirSync(nestedDir);
     const filePathA = path.join(tmpDir, "token-usage-a.jsonl");
-    const filePathB = path.join(tmpDir, "token-usage-b.jsonl");
+    const filePathB = path.join(nestedDir, "token-usage-b.jsonl");
     fs.writeFileSync(filePathA, [JSON.stringify({ model: "gpt-5.5", aic: 1.25 }), JSON.stringify({ model: "gpt-5.5", aic: 0.75 })].join("\n"), "utf8");
     fs.writeFileSync(
       filePathB,
@@ -55,11 +57,13 @@ describe("check_daily_effective_workflow_guardrail", () => {
         JSON.stringify({ aic: 9, usage: { aic: 0.25 } }),
         JSON.stringify({ ai_credits: 8, usage: { ai_credits: 0.1 } }),
         JSON.stringify({ aiCredits: 7, usage: { aiCredits: 0.15 } }),
+        JSON.stringify({ aiCredits: 0.2, usage: { aiCredits: "" } }),
+        JSON.stringify({ aic: 0.3, usage: { aic: "" } }),
       ].join("\n"),
       "utf8"
     );
 
-    expect(exports.sumAICFromUsageJSONLFiles([filePathA, filePathB])).toBe(4.5);
+    expect(exports.sumAICFromUsageJSONLFiles(exports.findJSONLFiles(tmpDir))).toBe(5);
   });
 
   it("computes aggregate AIC statistics for prior runs", () => {
