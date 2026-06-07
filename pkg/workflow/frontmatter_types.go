@@ -113,6 +113,9 @@ type GuardrailMetric struct {
 	// Name is the metric to guard (e.g. "success_rate", "empty_output_rate").
 	Name string `json:"name"`
 
+	// Direction declares whether lower or higher values are preferred ("min" or "max").
+	Direction string `json:"direction,omitempty"`
+
 	// Threshold is a comparison expression (e.g. ">=0.95", "==0").
 	Threshold string `json:"threshold"`
 }

@@ -37,9 +37,9 @@ name: Daily Documentation Updater
 strict: true
 experiments:
   model_size:
-    variants: [agent, small-agent]
-    description: "Tests whether a small-agent model achieves similar documentation update quality at lower token cost compared to the full agent model."
-    hypothesis: "H0: no change in PR creation rate or run success rate. H1: small-agent reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
+    variants: [claude-sonnet-4.6, claude-haiku-4.5]
+    description: "Tests whether Claude Haiku achieves similar documentation update quality at lower token cost compared to Claude Sonnet."
+    hypothesis: "H0: no change in PR creation rate or run success rate. H1: Claude Haiku reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
     metric: effective_tokens_total
     secondary_metrics: [run_success_rate, run_duration_ms]
     guardrail_metrics:

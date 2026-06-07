@@ -2,6 +2,7 @@
 on:
   schedule: daily
   workflow_dispatch: null
+max-ai-credits: 1000
 max-daily-ai-credits: 100M
 permissions:
   contents: read

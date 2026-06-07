@@ -906,5 +906,47 @@ for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`
         kind: "approve-once",
       });
     });
+
+    it("denies issue-37538 commands when workflow only allows jq shell usage", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(jq:*)"]);
+      const deniedCommands = [
+        "gh pr list --repo github/gh-aw --state open --draft --json number,title,author,createdAt,updatedAt,labels,headRefName --limit 100 2>&1",
+        "safeoutputs --help 2>&1 | head -50",
+        "git --no-pager status --short && gh pr list --repo github/gh-aw --state open --draft --json number,title,author,createdAt,updatedAt,labels,headRefName,comments,reviews --limit 100",
+        'echo "test"',
+      ];
+
+      for (const command of deniedCommands) {
+        expect(
+          handler({
+            kind: "shell",
+            // Intentional: exercise fullCommandText fallback when SDK omits identifiers.
+            commands: [],
+            fullCommandText: command,
+          })
+        ).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
+      }
+    });
+
+    it("allows issue-37538 commands when corresponding shell permissions are granted", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(gh:*)", "shell(safeoutputs:*)", "shell(head)", "shell(git:*)", "shell(echo)"]);
+      const allowedCommands = [
+        "gh pr list --repo github/gh-aw --state open --draft --json number,title,author,createdAt,updatedAt,labels,headRefName --limit 100 2>&1",
+        "safeoutputs --help 2>&1 | head -50",
+        "git --no-pager status --short && gh pr list --repo github/gh-aw --state open --draft --json number,title,author,createdAt,updatedAt,labels,headRefName,comments,reviews --limit 100",
+        'echo "test"',
+      ];
+
+      for (const command of allowedCommands) {
+        expect(
+          handler({
+            kind: "shell",
+            // Intentional: exercise fullCommandText fallback when SDK omits identifiers.
+            commands: [],
+            fullCommandText: command,
+          })
+        ).toEqual({ kind: "approve-once" });
+      }
+    });
   });
 });
