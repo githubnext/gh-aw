@@ -34,20 +34,29 @@ describe("check_daily_effective_workflow_guardrail", () => {
     expect(exports.shouldSkipDailyEffectiveWorkflowGuardrail()).toBe(false);
   });
 
-  it("matches both firewall-audit-logs and unified agent artifacts", () => {
-    expect(exports.matchesGuardrailArtifactName("firewall-audit-logs")).toBe(true);
-    expect(exports.matchesGuardrailArtifactName("agent")).toBe(true);
-    expect(exports.matchesGuardrailArtifactName("prefix-firewall-audit-logs")).toBe(true);
-    expect(exports.matchesGuardrailArtifactName("prefix-agent")).toBe(true);
+  it("matches usage artifacts only", () => {
+    expect(exports.matchesGuardrailArtifactName("usage")).toBe(true);
+    expect(exports.matchesGuardrailArtifactName("prefix-usage")).toBe(true);
+    expect(exports.matchesGuardrailArtifactName("agent")).toBe(false);
+    expect(exports.matchesGuardrailArtifactName("detection")).toBe(false);
     expect(exports.matchesGuardrailArtifactName("activation")).toBe(false);
   });
 
-  it("sums AI Credits from explicit token-usage entries", () => {
+  it("sums AI Credits across multiple JSONL files and usage attributes", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-guardrail-token-usage-"));
-    const filePath = path.join(tmpDir, "token-usage.jsonl");
-    fs.writeFileSync(filePath, [JSON.stringify({ model: "gpt-5.5", aic: 1.25 }), JSON.stringify({ model: "gpt-5.5", aic: 0.75 })].join("\n"), "utf8");
+    const filePathA = path.join(tmpDir, "token-usage-a.jsonl");
+    const filePathB = path.join(tmpDir, "token-usage-b.jsonl");
+    fs.writeFileSync(filePathA, [JSON.stringify({ model: "gpt-5.5", aic: 1.25 }), JSON.stringify({ model: "gpt-5.5", aic: 0.75 })].join("\n"), "utf8");
+    fs.writeFileSync(
+      filePathB,
+      [
+        JSON.stringify({ usage: { provider: "openai", model: "gpt-5.5", input_tokens: 100, output_tokens: 200 } }),
+        JSON.stringify({ usage: { aic: 0.5 } }),
+      ].join("\n"),
+      "utf8"
+    );
 
-    expect(exports.sumAICFromTokenUsageFile(filePath)).toBe(2);
+    expect(exports.sumAICFromUsageJSONLFiles([filePathA, filePathB])).toBeGreaterThan(2);
   });
 
   it("computes aggregate AIC statistics for prior runs", () => {

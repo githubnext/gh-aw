@@ -46,6 +46,43 @@ function findTokenUsageFile(root) {
 }
 
 /**
+ * @param {string} root
+ * @returns {string[]}
+ */
+function findJSONLFiles(root) {
+  /** @type {string[]} */
+  const files = [];
+  if (!root || !fs.existsSync(root)) {
+    return files;
+  }
+
+  /** @type {string[]} */
+  const queue = [root];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    /** @type {fs.Dirent[]} */
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(fullPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+        files.push(fullPath);
+      }
+    }
+  }
+  return files;
+}
+
+/**
  * @param {string} filePath
  * @returns {number}
  */
@@ -142,6 +179,62 @@ function sumAICFromTokenUsageFile(filePath) {
 }
 
 /**
+ * @param {Array<string>} filePaths
+ * @returns {number}
+ */
+function sumAICFromUsageJSONLFiles(filePaths) {
+  if (!Array.isArray(filePaths) || filePaths.length === 0) {
+    return 0;
+  }
+
+  let total = 0;
+  for (const filePath of filePaths) {
+    if (!filePath || !fs.existsSync(filePath)) {
+      continue;
+    }
+
+    const content = fs.readFileSync(filePath, "utf8");
+    if (!content.trim()) {
+      continue;
+    }
+
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (!line || line[0] !== "{") {
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(line);
+        const usage = parsed?.usage && typeof parsed.usage === "object" ? parsed.usage : parsed;
+        const explicit = Number(usage?.aic ?? usage?.ai_credits ?? usage?.aiCredits);
+        if (Number.isFinite(explicit) && explicit > 0) {
+          total += explicit;
+          continue;
+        }
+
+        const computed = computeInferenceAIC({
+          provider: String(usage?.provider || parsed?.provider || ""),
+          model: String(usage?.model || parsed?.model || ""),
+          inputTokens: Number(usage?.input_tokens ?? usage?.inputTokens ?? parsed?.input_tokens ?? 0),
+          outputTokens: Number(usage?.output_tokens ?? usage?.outputTokens ?? parsed?.output_tokens ?? 0),
+          cacheReadTokens: Number(usage?.cache_read_tokens ?? usage?.cacheReadTokens ?? parsed?.cache_read_tokens ?? 0),
+          cacheWriteTokens: Number(usage?.cache_write_tokens ?? usage?.cacheWriteTokens ?? parsed?.cache_write_tokens ?? 0),
+          reasoningTokens: Number(usage?.reasoning_tokens ?? usage?.reasoningTokens ?? parsed?.reasoning_tokens ?? 0),
+        });
+        if (Number.isFinite(computed) && computed > 0) {
+          total += computed;
+        }
+      } catch {
+        // Ignore malformed lines.
+      }
+    }
+  }
+
+  return total;
+}
+
+/**
  * @param {Array<{effective_tokens:number}>} runs
  * @returns {{count:number,total:number,average:number,min:number,max:number,stddev:number}}
  */
@@ -213,8 +306,10 @@ function formatAICCredits(value) {
 
 module.exports = {
   findTokenUsageFile,
+  findJSONLFiles,
   sumEffectiveTokensFromTokenUsageFile,
   sumAICFromTokenUsageFile,
+  sumAICFromUsageJSONLFiles,
   calculateDailyEffectiveWorkflowStats,
   calculateDailyAICStats,
   formatEffectiveTokens,

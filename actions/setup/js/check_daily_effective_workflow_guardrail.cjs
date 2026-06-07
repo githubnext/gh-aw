@@ -5,12 +5,12 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { calculateDailyAICStats, findTokenUsageFile, formatAICCredits, sumAICFromTokenUsageFile } = require("./daily_effective_workflow_helpers.cjs");
+const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_effective_workflow_helpers.cjs");
 const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 
-const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["firewall-audit-logs", "agent"];
+const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
@@ -134,15 +134,15 @@ async function getRunAIC(artifactClient, runId, token, owner, repo) {
     },
   });
 
-  const tokenUsageFile = findTokenUsageFile(download.downloadPath || downloadRoot);
+  const usageJSONLFiles = findJSONLFiles(download.downloadPath || downloadRoot);
   logDailyGuardrail("Downloaded guardrail artifact", {
     runId,
     artifactId: artifact.id,
     artifactName: artifact.name,
     downloadPath: download.downloadPath || downloadRoot,
-    tokenUsageFile,
+    usageJSONLFiles,
   });
-  const aic = sumAICFromTokenUsageFile(tokenUsageFile);
+  const aic = sumAICFromUsageJSONLFiles(usageJSONLFiles);
   logDailyGuardrail("Computed run AIC from artifact", {
     runId,
     artifactId: artifact.id,
@@ -484,8 +484,8 @@ module.exports = {
   main,
   shouldSkipDailyEffectiveWorkflowGuardrail,
   matchesGuardrailArtifactName,
-  findTokenUsageFile,
-  sumAICFromTokenUsageFile,
+  findJSONLFiles,
+  sumAICFromUsageJSONLFiles,
   calculateDailyAICStats,
   computeMaxInspectableRuns,
   renderDailyEffectiveWorkflowSummary,
