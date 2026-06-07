@@ -170,6 +170,7 @@
       {
         "id": "BP-EP-154",
         "source": "verification",
+        "note": "Multiline control-flow script fixture to verify extraction of set/mkdir/git/sed/printf/cat/wc across for/if blocks.",
         "input": "set -euo pipefail\nmkdir -p \"$ANALYSES_DIR\"\nfor f in $FILES; do git -C \"$REPO\" log -1 -- \"$f\" | sed \"s|^|$f |\"; done\nprintf '---ROTATION---\\n'\nif [ -f \"$CACHE_DIR/rotation.json\" ]; then cat \"$CACHE_DIR/rotation.json\"; fi\nfor f in $FILES; do wc -l \"$f\"; done",
         "expected": ["set", "mkdir", "git", "sed", "printf", "cat", "wc"]
       }
