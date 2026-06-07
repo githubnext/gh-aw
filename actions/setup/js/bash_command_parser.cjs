@@ -26,7 +26,7 @@
 
 /**
  * Split a shell command text into individual pipeline segments.
- * Splits on the following shell operators: &&, ||, |, ;
+ * Splits on the following shell operators: &&, ||, |, ; and newlines.
  *
  * The split respects:
  *   - Single-quoted strings (no escaping inside)
@@ -143,6 +143,19 @@ function splitOnPipelineOperators(commandText) {
       continue;
     }
 
+    // Newline (sequential) — treat line breaks as command separators.
+    // Handles both LF and CRLF forms.
+    if (ch === "\n" || ch === "\r") {
+      segments.push(current);
+      current = "";
+      i++;
+      if (ch === "\r" && i < len && commandText[i] === "\n") {
+        i++;
+      }
+      while (i < len && /\s/.test(commandText[i])) i++;
+      continue;
+    }
+
     current += ch;
     i++;
   }
@@ -162,7 +175,25 @@ function splitOnPipelineOperators(commandText) {
  * as command names and incorrectly deny (or allow) a pipeline that contains
  * them as part of a compound statement (e.g. `if …; then cat …; fi`).
  */
-const SHELL_KEYWORDS = new Set(["then", "else", "elif", "fi", "do", "done", "esac", "in", "function", "time", "coproc"]);
+const SHELL_KEYWORDS = new Set([
+  "if",
+  "then",
+  "else",
+  "elif",
+  "fi",
+  "for",
+  "do",
+  "done",
+  "while",
+  "until",
+  "case",
+  "esac",
+  "select",
+  "in",
+  "function",
+  "time",
+  "coproc",
+]);
 
 /**
  * Extract the executable command name from a single shell command segment.
@@ -186,7 +217,7 @@ function extractCommandName(segment) {
   if (!remaining) return null;
 
   // Skip leading env-var assignments: IDENTIFIER=anything  (repeat)
-  const envAssignRe = /^[A-Za-z_][A-Za-z0-9_]*=\S*\s*/;
+  const envAssignRe = /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s*/;
   for (;;) {
     const m = remaining.match(envAssignRe);
     if (!m) break;
@@ -216,6 +247,11 @@ function extractCommandName(segment) {
 
     // Flow-control keywords are not executable commands
     if (SHELL_KEYWORDS.has(word)) {
+      if (word === "then" || word === "else" || word === "elif" || word === "do") {
+        remaining = remaining.slice(word.length).trim();
+        if (!remaining) return null;
+        continue;
+      }
       return null;
     }
 

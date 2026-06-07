@@ -844,5 +844,84 @@ describe("copilot_sdk_driver.cjs", () => {
       });
       expect(result).toEqual({ kind: "approve-once" });
     });
+
+    it("reproduces denied multiline daily compiler command when required tools are missing", async () => {
+      const handler = await makePermissionHandlerViaSDK([
+        "shell(ls)",
+        "shell(echo)",
+        "shell(find pkg/workflow -name \"compiler*.go\" ! -name \"*_test.go\" -type f)",
+        "shell(sort)",
+        "shell(git log -1 --format=%H --)",
+        "shell(printf)",
+        "shell(cat)",
+        "shell(wc)",
+      ]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: `set -euo pipefail
+CACHE_DIR='cache/gh-aw/cache-memory/compiler-quality'
+ANALYSES_DIR="$CACHE_DIR/analyses"
+mkdir -p "$ANALYSES_DIR"
+FILES='compiler.go compiler_activation_jobs.go compiler_orchestrator.go compiler_jobs.go compiler_safe_outputs.go compiler_safe_outputs_config.go compiler_safe_outputs_job.go compiler_yaml.go compiler_yaml_main_job.go'
+for f in $FILES; do git -C /home/runner/work/gh-aw/gh-aw log -1 --format='%H' -- "pkg/workflow/$f" | sed "s|^|$f |"; done
+printf '---ROTATION---\n'
+if [ -f "$CACHE_DIR/rotation.json" ]; then cat "$CACHE_DIR/rotation.json"; fi
+printf '\n---HASHES---\n'
+if [ -f "$CACHE_DIR/file-hashes.json" ]; then cat "$CACHE_DIR/file-hashes.json"; fi
+printf '\n---FILES---\n'
+for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`,
+      });
+      expect(result).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
+    });
+
+    it("allows multiline daily compiler command after adding missing tool permissions", async () => {
+      const handler = await makePermissionHandlerViaSDK([
+        "shell(set)",
+        "shell(mkdir)",
+        "shell(git:*)",
+        "shell(sed)",
+        "shell(printf)",
+        "shell(cat)",
+        "shell(wc)",
+      ]);
+      const result = handler({
+        kind: "shell",
+        commands: [],
+        fullCommandText: `set -euo pipefail
+CACHE_DIR='cache/gh-aw/cache-memory/compiler-quality'
+ANALYSES_DIR="$CACHE_DIR/analyses"
+mkdir -p "$ANALYSES_DIR"
+FILES='compiler.go compiler_activation_jobs.go compiler_orchestrator.go compiler_jobs.go compiler_safe_outputs.go compiler_safe_outputs_config.go compiler_safe_outputs_job.go compiler_yaml.go compiler_yaml_main_job.go'
+for f in $FILES; do git -C /home/runner/work/gh-aw/gh-aw log -1 --format='%H' -- "pkg/workflow/$f" | sed "s|^|$f |"; done
+printf '---ROTATION---\n'
+if [ -f "$CACHE_DIR/rotation.json" ]; then cat "$CACHE_DIR/rotation.json"; fi
+printf '\n---HASHES---\n'
+if [ -f "$CACHE_DIR/file-hashes.json" ]; then cat "$CACHE_DIR/file-hashes.json"; fi
+printf '\n---FILES---\n'
+for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`,
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
+    it("requires explicit read permission for AGENTS.md and SKILL.md reads", async () => {
+      const denied = await makePermissionHandlerViaSDK(["shell(ls)"]);
+      expect(denied({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md" })).toEqual({
+        kind: "reject",
+        feedback: "Tool invocation is not allowed by workflow tool permissions.",
+      });
+      expect(denied({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/SKILL.md" })).toEqual({
+        kind: "reject",
+        feedback: "Tool invocation is not allowed by workflow tool permissions.",
+      });
+
+      const allowed = await makePermissionHandlerViaSDK(["read"]);
+      expect(allowed({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md" })).toEqual({
+        kind: "approve-once",
+      });
+      expect(allowed({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/SKILL.md" })).toEqual({
+        kind: "approve-once",
+      });
+    });
   });
 });
