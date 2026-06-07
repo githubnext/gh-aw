@@ -504,6 +504,12 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "Save forecast report logs cache") {
 		t.Errorf("Job forecast_report should save logs cache after running forecast in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "Debug forecast logs folder") {
+		t.Errorf("Job forecast_report should include a debug step that lists forecast logs folder files in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "find ./.github/aw/logs -type f | sort") {
+		t.Errorf("Job forecast_report debug step should list files from ./.github/aw/logs in:\n%s", yaml)
+	}
 	if !strings.Contains(yaml, "./.github/aw/logs") {
 		t.Errorf("Job forecast_report cache should target ./.github/aw/logs in:\n%s", yaml)
 	}

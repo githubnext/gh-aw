@@ -624,6 +624,17 @@ jobs:
             exit 1
           fi
 
+      - name: Debug forecast logs folder
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [ ! -d ./.github/aw/logs ]; then
+            echo "Logs directory not found: ./.github/aw/logs"
+            exit 0
+          fi
+          echo "Files under ./.github/aw/logs:"
+          find ./.github/aw/logs -type f | sort
+
       - name: Save forecast report logs cache
         if: ${{ always() }}
         uses: ` + getActionPin("actions/cache/save") + `
