@@ -432,6 +432,7 @@ jobs:
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: changeset
     outputs:
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
@@ -1371,6 +1372,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5.4"
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_EMOJI: "📋"
       GH_AW_WORKFLOW_ID: "changeset"
       GH_AW_WORKFLOW_NAME: "Changeset Generator"

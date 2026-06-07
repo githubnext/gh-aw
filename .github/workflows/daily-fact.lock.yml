@@ -531,6 +531,7 @@ jobs:
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: dailyfact
     outputs:
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
@@ -1885,6 +1886,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5.4"
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_TRACKER_ID: "daily-fact-thread"

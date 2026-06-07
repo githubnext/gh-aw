@@ -445,6 +445,7 @@ jobs:
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: dailycodemetrics
     outputs:
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
@@ -1903,6 +1904,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "claude"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_TRACKER_ID: "daily-code-metrics"
       GH_AW_WORKFLOW_EMOJI: "📊"

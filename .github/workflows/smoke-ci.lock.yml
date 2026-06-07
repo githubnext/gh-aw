@@ -421,6 +421,7 @@ jobs:
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: smokeci
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -1650,6 +1651,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_EMOJI: "🧪"
       GH_AW_WORKFLOW_ID: "smoke-ci"
       GH_AW_WORKFLOW_NAME: "Smoke CI"

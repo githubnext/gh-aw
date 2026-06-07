@@ -450,6 +450,7 @@ jobs:
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: smokepi
     outputs:
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
@@ -1633,6 +1634,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "pi"
       GH_AW_ENGINE_MODEL: "copilot/gpt-5.4"
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🥧 *[{workflow_name}]({run_url}) — Powered by Pi*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🥧 Pi initializing... [{workflow_name}]({run_url}) begins on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Pi delivered. 🥧\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Pi encountered unexpected challenges...\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_EMOJI: "🧪"
