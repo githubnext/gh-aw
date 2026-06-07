@@ -250,6 +250,19 @@ func placeholderForType(t string, schema map[string]any) any {
 	case "boolean":
 		return true
 	case "string":
+		if pattern, ok := schema["pattern"].(string); ok {
+			switch pattern {
+			case `^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$`:
+				return "octo-org/octo-repo"
+			case `^\\d{4}-\\d{2}-\\d{2}$`:
+				return "2024-01-01"
+			case `^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$`:
+				return "https://github.com/orgs/example/projects/1"
+			}
+			if strings.Contains(pattern, "aw_") {
+				return sampleRuntimeExpressionPlaceholder
+			}
+		}
 		if format, ok := schema["format"].(string); ok {
 			switch format {
 			case "date":
