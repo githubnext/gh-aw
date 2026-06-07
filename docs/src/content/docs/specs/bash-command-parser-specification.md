@@ -7,7 +7,7 @@ sidebar:
 
 # Bash Command Parser Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Draft Specification  
 **Latest Version**: [bash-command-parser-specification](/gh-aw/specs/bash-command-parser-specification/)  
 **Editors**: GitHub Agentic Workflows Team
@@ -49,7 +49,7 @@ The parser is a lightweight recognizer for shell command identifiers in chained/
 
 This specification defines:
 
-- splitting on `&&`, `||`, `|`, `;`
+- splitting on `&&`, `||`, `|`, `;`, and top-level line breaks
 - quote/subshell shielding during splitting
 - executable token extraction from a segment
 - deduplicated name extraction from pipeline text
@@ -103,7 +103,8 @@ The grammar below is recognition-oriented and intentionally limited to parser be
 ```ebnf
 command_text   = { unit } ;
 unit           = single_quoted | double_quoted | subshell | operator | other ;
-operator       = "&&" | "||" | "|" | ";" ;
+operator       = "&&" | "||" | "|" | ";" | newline ;
+newline        = "\n" | "\r\n" | "\r" ;
 
 single_quoted  = "'" , { ? any char except "'" ? } , [ "'" ] ;
 double_quoted  = '"' , { dq_char | escape } , [ '"' ] ;
@@ -124,14 +125,21 @@ The optional closing quote in `single_quoted` and `double_quoted` is intentional
 
 ```ebnf
 segment        = ws , { env_assign , ws } , core ;
-env_assign     = ident , "=" , nonspace* ;
+env_assign     = ident , "=" , env_value ;
+env_value      = dq_value | sq_value | nonspace* ;
+dq_value       = '"' , { dq_char | escape } , [ '"' ] ;
+sq_value       = "'" , { ? any char except "'" ? } , [ "'" ] ;
 ident          = ("_" | letter) , { "_" | letter | digit } ;
 
 core           = negation | brace | keyword | redirection | word | empty ;
 negation       = "!" , ws , core ;
 brace          = ("{" | "}") , ws , core ;
-keyword        = "then" | "else" | "elif" | "fi" | "do" | "done"
-               | "esac" | "in" | "function" | "time" | "coproc" ;
+keyword        = clause_keyword | structure_keyword ;
+clause_keyword = "then" | "else" | "elif" | "do" ;
+structure_keyword
+               = "if" | "fi" | "for" | "done" | "while" | "until"
+               | "case" | "esac" | "select" | "in"
+               | "function" | "time" | "coproc" ;
 redirection    = ("<" | ">") , nonspace*
                | digits , ("<" | ">" | "&") , nonspace* ;
 word           = nonspace , nonspace* ;
@@ -154,7 +162,7 @@ letter         = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
 ### 4.1 `splitOnPipelineOperators(commandText)`
 
 1. Non-string or empty/falsy input MUST return `[]`.
-2. The implementation MUST split at top-level operators `&&`, `||`, `|`, and `;`.
+2. The implementation MUST split at top-level operators `&&`, `||`, `|`, `;`, and line breaks (`\n`, `\r\n`, `\r`).
 3. Operators inside single quotes, double quotes, or `$(` `)` regions MUST NOT split.
 4. Output segments MUST be trimmed.
 5. Empty segments MUST be removed.
@@ -163,11 +171,12 @@ letter         = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
 ### 4.2 `extractCommandName(segment)`
 
 1. Non-string or blank segment MUST return `null`.
-2. Leading environment assignments (`IDENTIFIER=\S*`) MUST be stripped repeatedly.
+2. Leading environment assignments (`IDENTIFIER=<value>`) MUST be stripped repeatedly, where `<value>` MAY be unquoted, single-quoted, or double-quoted (including escaped content in double quotes).
 3. If the first token is redirection (`^[<>]` or `^\d+[<>&]`), return `null`.
 4. If the first token is `!`, `{`, or `}`, extraction MUST recurse on the remainder.
-5. If the first token is a shell keyword (`then`, `else`, `elif`, `fi`, `do`, `done`, `esac`, `in`, `function`, `time`, `coproc`), return `null`.
-6. Otherwise return the first token.
+5. If the first token is a clause keyword (`then`, `else`, `elif`, `do`), extraction MUST continue scanning on the remainder.
+6. If the first token is a structural keyword (`if`, `fi`, `for`, `done`, `while`, `until`, `case`, `esac`, `select`, `in`, `function`, `time`, `coproc`), return `null`.
+7. Otherwise return the first token.
 
 ### 4.3 `extractCommandNamesFromPipeline(commandText)`
 
@@ -206,7 +215,7 @@ Implementations SHOULD consume machine-readable vectors and run identical assert
 A minimal suite MUST include all categories below:
 
 - **S-CORE (4 tests)**:
-  1. top-level split on each operator `&&`, `||`, `|`, `;`
+  1. top-level split on each operator `&&`, `||`, `|`, `;`, and newline
   2. no split when operators occur in single quotes
   3. no split when operators occur in double quotes
   4. no split when operators occur inside `$(` `)`
@@ -214,7 +223,7 @@ A minimal suite MUST include all categories below:
   1. simple word returns command name
   2. leading environment assignments are stripped
   3. redirection-first segment returns null/none
-  4. keyword-first segment returns null/none
+  4. clause keywords continue extraction while structural keywords return null/none
   5. recursive skip for `!`, `{`, and `}`
 - **P-CORE (4 tests)**:
   1. split + extract composition over multi-operator pipeline
