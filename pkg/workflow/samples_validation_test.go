@@ -3,6 +3,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestValidateSafeOutputsSamples_Valid covers the happy path for the
@@ -191,17 +194,14 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionsBypassValidation(t *testin
 			},
 		},
 	}
-	if err := validateSafeOutputsSamples(cfg); err != nil {
-		t.Fatalf("expected runtime expression in sample value to bypass validation, got: %v", err)
-	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "runtime expression in sample value should bypass validation")
 
 	// Original sample must be preserved (validation must not mutate) so that
 	// generateSamplesReplayStep emits the live `${{ ... }}` expression for
 	// GitHub Actions to substitute at runtime.
 	got := cfg.AddLabels.Samples[0]["item_number"]
-	if got != "${{ github.event.inputs.issue_number }}" {
-		t.Errorf("validation must not mutate the original sample; got item_number=%v", got)
-	}
+	assert.Equal(t, "${{ github.event.inputs.issue_number }}", got, "validation must not mutate original sample value")
 }
 
 // TestValidateSafeOutputsSamples_RuntimeExpressionsInNestedValues verifies
@@ -224,9 +224,13 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionsInNestedValues(t *testing.
 			},
 		},
 	}
-	if err := validateSafeOutputsSamples(cfg); err != nil {
-		t.Fatalf("expected nested runtime expressions to bypass validation, got: %v", err)
-	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "nested runtime expressions should bypass validation")
+	assert.Equal(t, "Issue ${{ github.event.inputs.title_suffix }}", cfg.CreateIssues.Samples[0]["title"], "title expression must be preserved")
+	labels, ok := cfg.CreateIssues.Samples[0]["labels"].([]any)
+	require.True(t, ok, "labels sample should remain an array")
+	require.Len(t, labels, 2, "labels sample should preserve both literal and expression values")
+	assert.Equal(t, "${{ github.event.inputs.dynamic_label }}", labels[1], "nested expression in labels must be preserved")
 }
 
 // TestValidateSafeOutputsSamples_NonExpressionErrorsStillReported verifies
@@ -246,9 +250,10 @@ func TestValidateSafeOutputsSamples_NonExpressionErrorsStillReported(t *testing.
 			},
 		},
 	}
-	if err := validateSafeOutputsSamples(cfg); err == nil {
-		t.Fatal("expected missing-title error to still surface even though body is a runtime expression")
-	}
+	err := validateSafeOutputsSamples(cfg)
+	require.Error(t, err, "missing-title error should still surface even though body is a runtime expression")
+	assert.Contains(t, err.Error(), "create-issue", "error should reference the failing safe-output key")
+	assert.Contains(t, err.Error(), "samples[0]", "error should reference the failing sample entry")
 }
 
 // TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched
@@ -306,12 +311,9 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionWithEmbeddedBrace(t *testin
 			},
 		},
 	}
-	if err := validateSafeOutputsSamples(cfg); err != nil {
-		t.Fatalf("expected expression containing `}` inside string literal to be substituted, got: %v", err)
-	}
-	if cfg.AddLabels.Samples[0]["item_number"] != `${{ fromJSON('{"n":42}').n }}` {
-		t.Errorf("validation must not mutate the original sample")
-	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "expression containing `}` inside literal should still be substituted for validation")
+	assert.Equal(t, `${{ fromJSON('{"n":42}').n }}`, cfg.AddLabels.Samples[0]["item_number"], "validation must not mutate original sample")
 }
 
 // TestValidateSafeOutputsSamples_RuntimeExpressionInEnumField verifies that
@@ -334,9 +336,9 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionInEnumField(t *testing.T) {
 			},
 		},
 	}
-	if err := validateSafeOutputsSamples(cfg); err != nil {
-		t.Fatalf("expected runtime expression on enum-constrained field to substitute to a valid enum value, got: %v", err)
-	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "runtime expression on enum-constrained field should substitute to a valid enum value")
+	assert.Equal(t, "${{ github.event.inputs.severity }}", cfg.CreateCodeScanningAlerts.Samples[0]["severity"], "validation must preserve original enum expression")
 }
 
 // TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField covers
@@ -357,9 +359,9 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField(t *testing.T
 			},
 		},
 	}
-	if err := validateSafeOutputsSamples(cfg); err != nil {
-		t.Fatalf("expected runtime expression on boolean field to substitute to a boolean, got: %v", err)
-	}
+	err := validateSafeOutputsSamples(cfg)
+	require.NoError(t, err, "runtime expression on boolean field should substitute to a boolean placeholder for validation")
+	assert.Equal(t, "${{ github.event.inputs.draft }}", cfg.CreatePullRequests.Samples[0]["draft"], "validation must preserve original boolean expression")
 }
 
 // TestPlaceholderForSchema covers the schema-driven placeholder lookup for
@@ -410,9 +412,7 @@ func TestPlaceholderForSchema(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := placeholderForSchema(tc.schema)
-			if got != tc.want {
-				t.Errorf("placeholderForSchema(%v) = %v, want %v", tc.schema, got, tc.want)
-			}
+			assert.Equal(t, tc.want, got, "placeholderForSchema should return expected value")
 		})
 	}
 }
