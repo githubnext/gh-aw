@@ -54,16 +54,6 @@ function monthlyCost(workflow) {
 }
 
 /**
- * @param {Record<string, any>} workflow
- * @returns {string}
- */
-function formatEngineList(workflow) {
-  const engines = Array.isArray(workflow?.engines) ? workflow.engines.filter(Boolean) : [];
-  if (engines.length === 0) return "-";
-  return escapeCell(engines.join(", "));
-}
-
-/**
  * @param {Record<string, any>|null} report
  * @param {{owner: string, repo: string, serverUrl: string, runID?: string, generatedAtISO?: string, outcome?: string, errorMessage?: string}} options
  * @returns {string}
@@ -78,7 +68,7 @@ function buildForecastIssueBody(report, options) {
     const p95PerRun = workflow?.p95_aic_per_run ?? 0;
     const weeklyP50 = workflow?.weekly_monte_carlo?.p50_projected_aic ?? workflow?.weekly_projected_aic ?? 0;
     const monthlyP50 = workflow?.monthly_monte_carlo?.p50_projected_aic ?? workflow?.monthly_projected_aic ?? 0;
-    return [renderWorkflowLink(workflow, options), formatEngineList(workflow), workflow.sampled_runs ?? 0, Number(p50PerRun), Number(p95PerRun), Number(weeklyP50), Number(monthlyP50)];
+    return [renderWorkflowLink(workflow, options), workflow.sampled_runs ?? 0, Number(p50PerRun), Number(p95PerRun), Number(weeklyP50), Number(monthlyP50)];
   });
 
   // Legacy fallback: derive weekly/monthly from the configured-period P50 when new fields are absent.
@@ -90,8 +80,8 @@ function buildForecastIssueBody(report, options) {
         return [escapeCell(workflow.workflow_id), workflow.sampled_runs ?? 0, Number(p50)];
       });
 
-  const allWeeklyZero = tableRows.length > 0 && tableRows.every(([, , , , , weekly]) => Number(weekly) === 0);
-  const allMonthlyZero = tableRows.length > 0 && tableRows.every(([, , , , , , monthly]) => Number(monthly) === 0);
+  const allWeeklyZero = tableRows.length > 0 && tableRows.every(([, , , , weekly]) => Number(weekly) === 0);
+  const allMonthlyZero = tableRows.length > 0 && tableRows.every(([, , , , , monthly]) => Number(monthly) === 0);
   const allProjectedZero = legacyRows ? legacyRows.length > 0 && legacyRows.every(([, , p50]) => Number(p50) === 0) : allWeeklyZero && allMonthlyZero;
 
   let reportTable;
@@ -104,15 +94,13 @@ function buildForecastIssueBody(report, options) {
     if (tableRows.length === 0) {
       reportTable = "_No forecast rows were produced._";
     } else {
-      const totalWeekly = tableRows.reduce((s, [, , , , , w]) => s + Number(w), 0);
-      const totalMonthly = tableRows.reduce((s, [, , , , , , m]) => s + Number(m), 0);
-      const dataRows = tableRows.map(
-        ([workflowID, engines, sampledRuns, p50Run, p95Run, weekly, monthly]) => `| ${workflowID} | ${engines} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`
-      );
+      const totalWeekly = tableRows.reduce((s, [, , , , w]) => s + Number(w), 0);
+      const totalMonthly = tableRows.reduce((s, [, , , , , m]) => s + Number(m), 0);
+      const dataRows = tableRows.map(([workflowID, sampledRuns, p50Run, p95Run, weekly, monthly]) => `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`);
       if (tableRows.length > 1) {
-        dataRows.push(`| **TOTAL** | | | | | **${formatAIC(totalWeekly)}** | **${formatAIC(totalMonthly)}** |`);
+        dataRows.push(`| **TOTAL** | | | | **${formatAIC(totalWeekly)}** | **${formatAIC(totalMonthly)}** |`);
       }
-      reportTable = ["| Workflow | Engines | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |", "| --- | --- | ---: | ---: | ---: | ---: | ---: |", ...dataRows].join("\n");
+      reportTable = ["| Workflow | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |", "| --- | ---: | ---: | ---: | ---: | ---: |", ...dataRows].join("\n");
     }
   }
 
@@ -121,6 +109,19 @@ function buildForecastIssueBody(report, options) {
   const runID = options.runID || "";
   const runURL = runID ? `${options.serverUrl}/${repoSlug}/actions/runs/${runID}` : "";
   const outcome = (options.outcome || "success").toLowerCase();
+
+  const reportReadingSection =
+    tableRows.length === 0
+      ? ""
+      : [
+          "### How to read this report",
+          "",
+          "- **P50/Run** and **P95/Run** are per-run percentiles from sampled historical runs.",
+          "- **Weekly (P50)** and **Monthly (P50)** are Monte Carlo medians of total AIC over 7 and 30 days.",
+          "- Weekly and monthly values are distribution medians, not a direct `P50/Run × runs` multiplication.",
+          "- It is statistically valid for monthly P50 to be positive while weekly P50 is 0 when usage is sparse/zero-inflated.",
+          "",
+        ].join("\n");
 
   const allProjectedZeroNote = allProjectedZero
     ? [
@@ -138,6 +139,7 @@ function buildForecastIssueBody(report, options) {
     generated_at: options.generatedAtISO || new Date().toISOString(),
     period,
     report_table: reportTable,
+    report_reading_section: reportReadingSection,
     all_projected_zero_note: allProjectedZeroNote,
     run_samples_section: "",
     error_section: errorSection,
