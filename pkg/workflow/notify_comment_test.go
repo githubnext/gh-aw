@@ -1198,6 +1198,9 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "/tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to include firewall audit token usage path for detection.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "Usage artifact source file status:") {
+		t.Errorf("Expected usage artifact collection to log source file status for diagnostics.\nGenerated steps:\n%s", allSteps)
+	}
 	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/agent/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to ensure agent token usage file exists.\nGenerated steps:\n%s", allSteps)
 	}
