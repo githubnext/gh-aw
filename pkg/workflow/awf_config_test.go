@@ -140,6 +140,45 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxEffectiveTokens":123456`, "apiProxy should emit env var default maxEffectiveTokens")
 	})
 
+	t.Run("default max-ai-credits is enabled when frontmatter is unset", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxAiCredits":1000`, "apiProxy should emit default maxAiCredits=1000 when unset")
+	})
+
+	t.Run("enterprise default max-ai-credits env var is used when frontmatter is unset", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxAiCredits":2000`, "apiProxy should emit env var default maxAiCredits when unset")
+	})
+
 	t.Run("token steering is enabled by default in apiProxy config", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
