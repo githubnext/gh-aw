@@ -115,8 +115,9 @@ function buildAICEntry(label, value) {
  */
 function getAICFromEnv() {
   const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
-  const agentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
+  const explicitAgentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
   const threatDetectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
+  const agentAIC = typeof explicitAgentAIC === "number" ? explicitAgentAIC : totalAIC;
   const agentEntry = buildAICEntry("", agentAIC);
   const threatDetectionEntry = buildAICEntry("⌖", threatDetectionAIC);
   const useBreakdown = threatDetectionEntry.suffix.length > 0;
