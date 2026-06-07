@@ -2310,6 +2310,10 @@ async function main() {
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
+    // The legacy ET proxy signal can appear even when the run ultimately succeeds
+    // (for example after retries). Treat it as a reportable failure only when the
+    // agent job itself failed.
+    const reportableEffectiveTokensRateLimitError = effectiveTokensRateLimitError && agentConclusion === "failure";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -2344,6 +2348,7 @@ async function main() {
     core.info(`Effective tokens: ${effectiveTokens || "(none)"}`);
     core.info(`Configured max effective tokens: ${maxEffectiveTokens || "(none)"}`);
     core.info(`Effective tokens rate-limit error: ${effectiveTokensRateLimitError}`);
+    core.info(`Reportable effective tokens rate-limit error: ${reportableEffectiveTokensRateLimitError}`);
     core.info(`Daily workflow AIC guardrail exceeded: ${hasDailyEffectiveWorkflowExceeded}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
@@ -2513,7 +2518,7 @@ async function main() {
       !hasDailyEffectiveWorkflowExceeded &&
       !hasReportIncomplete &&
       !hasCacheMissMisconfiguration &&
-      !effectiveTokensRateLimitError &&
+      !reportableEffectiveTokensRateLimitError &&
       !aiCreditsRateLimitError &&
       !hasMissingTool &&
       !hasMissingData &&
@@ -2622,7 +2627,7 @@ async function main() {
       inferenceAccessError,
       mcpPolicyError,
       modelNotSupportedError,
-      effectiveTokensRateLimitError,
+      effectiveTokensRateLimitError: reportableEffectiveTokensRateLimitError,
       aiCreditsRateLimitError,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
@@ -2741,7 +2746,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(reportableEffectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
@@ -2964,7 +2969,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(reportableEffectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context

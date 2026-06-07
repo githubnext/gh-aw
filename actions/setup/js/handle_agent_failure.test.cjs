@@ -287,6 +287,8 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_WORKFLOW_ID;
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR;
+      delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GITHUB_HEAD_REF;
       delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
@@ -332,6 +334,36 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).toHaveBeenCalledOnce();
       expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
+    it("skips failure handling when agent succeeds and only legacy ET rate-limit signal is present", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "create_discussion", title: "Done", body: "ok" }] }));
+
+      const searchMock = vi.fn(async () => ({ data: { total_count: 0, items: [] } }));
+      const createIssueMock = vi.fn();
+      const createCommentMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(searchMock).not.toHaveBeenCalled();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
     });
 
     it("adds a comment when existing issue metadata contains commas in free-form values", async () => {
