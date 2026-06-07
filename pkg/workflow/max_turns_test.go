@@ -17,7 +17,7 @@ func TestMaxTurnsCompilation(t *testing.T) {
 	tests := []struct {
 		name             string
 		content          string
-		expectedMaxTurns string
+		expectedMaxRuns  string
 		shouldInclude    bool
 	}{
 		{
@@ -40,8 +40,8 @@ tools:
 # Test Max Turns
 
 This workflow tests the max-turns feature.`,
-			expectedMaxTurns: "--max-turns 3",
-			shouldInclude:    true,
+			expectedMaxRuns: "3",
+			shouldInclude:   true,
 		},
 		{
 			name: "workflow without max-turns",
@@ -61,8 +61,8 @@ tools:
 # Test Without Max Turns
 
 This workflow should not include max-turns.`,
-			expectedMaxTurns: "",
-			shouldInclude:    false,
+			expectedMaxRuns: "",
+			shouldInclude:   false,
 		},
 		{
 			name: "workflow with max-turns and timeout",
@@ -86,8 +86,8 @@ tools:
 # Test Max Turns and Timeout
 
 This workflow tests max-turns with timeout.`,
-			expectedMaxTurns: "--max-turns 10",
-			shouldInclude:    true,
+			expectedMaxRuns: "10",
+			shouldInclude:   true,
 		},
 	}
 
@@ -118,13 +118,14 @@ This workflow tests max-turns with timeout.`,
 			lockContentStr := string(lockContent)
 
 			if tt.shouldInclude {
-				// Verify max_turns is included in the generated workflow
-				if !strings.Contains(lockContentStr, tt.expectedMaxTurns) {
-					t.Errorf("Expected max_turns to be included in generated workflow. Expected: %s\nActual content:\n%s", tt.expectedMaxTurns, lockContentStr)
+				// Verify max-turns is emitted through AWF apiProxy.maxRuns
+				expectedMaxRuns := `"maxRuns":` + tt.expectedMaxRuns
+				if !strings.Contains(lockContentStr, expectedMaxRuns) {
+					t.Errorf("Expected max-turns to be emitted via apiProxy.maxRuns. Expected: %s\nActual content:\n%s", expectedMaxRuns, lockContentStr)
 				}
 
 				// Verify GH_AW_MAX_TURNS environment variable is set
-				expectedEnvVar := "GH_AW_MAX_TURNS: " + strings.TrimPrefix(tt.expectedMaxTurns, "--max-turns ")
+				expectedEnvVar := "GH_AW_MAX_TURNS: " + tt.expectedMaxRuns
 				if !strings.Contains(lockContentStr, expectedEnvVar) {
 					t.Errorf("Expected GH_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
 				}
@@ -134,33 +135,13 @@ This workflow tests max-turns with timeout.`,
 					t.Error("Expected to find claude command in generated workflow")
 				}
 
-				// Look for max_turns in the claude_args section (v1.0 format)
-				lines := strings.Split(lockContentStr, "\n")
-				foundAction := false
-				foundMaxTurns := false
-				for _, line := range lines {
-					if strings.Contains(line, "claude --print") {
-						foundAction = true
-						// Check if --max-turns is in the same line or subsequent run lines
-						if strings.Contains(line, "--max-turns") {
-							foundMaxTurns = true
-							break
-						}
-					}
-					// Also check in run command lines that might span multiple lines
-					if foundAction && strings.Contains(line, "--max-turns") {
-						foundMaxTurns = true
-						break
-					}
-				}
-
-				if !foundMaxTurns {
-					t.Error("Expected to find --max-turns in the CLI command")
+				if strings.Contains(lockContentStr, "--max-turns") {
+					t.Error("Did not expect --max-turns in Claude CLI command")
 				}
 			} else {
-				// Verify max_turns is NOT included when not specified
-				if strings.Contains(lockContentStr, "max_turns:") {
-					t.Error("Expected max_turns NOT to be included when not specified in frontmatter")
+				// Verify --max-turns is NOT included when not specified
+				if strings.Contains(lockContentStr, "--max-turns") {
+					t.Error("Expected --max-turns NOT to be included when not specified in frontmatter")
 				}
 
 				// Verify GH_AW_MAX_TURNS falls back to the vars expression when not specified
@@ -362,9 +343,12 @@ This workflow imports max-turns from a shared import.
 
 	lockContentStr := string(lockContent)
 
-	// Verify --max-turns 100 is present in the compiled output
-	if !strings.Contains(lockContentStr, "--max-turns 100") {
-		t.Errorf("Expected --max-turns 100 in compiled output when max-turns is set in shared import.\nLock file content:\n%s", lockContentStr)
+	// Verify max-turns is emitted via apiProxy.maxRuns in AWF config JSON.
+	if !strings.Contains(lockContentStr, `"maxRuns":100`) {
+		t.Errorf("Expected \"maxRuns\":100 in compiled output when max-turns is set in shared import.\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(lockContentStr, "--max-turns") {
+		t.Errorf("Did not expect --max-turns in compiled output when max-turns is set in shared import.\nLock file content:\n%s", lockContentStr)
 	}
 
 	// Verify GH_AW_MAX_TURNS env var is set

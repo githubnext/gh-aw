@@ -156,12 +156,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_CLAUDE with shell expansion.
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
-	// Add max_turns if specified (in CLI it's max-turns)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		claudeLog.Printf("Setting max turns: %s", workflowData.EngineConfig.MaxTurns)
-		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
-	}
-
 	// Add MCP configuration only if there are MCP servers.
 	// Keep this argument outside shellJoinArgs so ${RUNNER_TEMP} expands at runtime.
 	mcpConfigArg := ""

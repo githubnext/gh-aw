@@ -285,13 +285,21 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	maxAICredits := compilerenv.ResolveDefaultMaxAICredits(constants.DefaultMaxAICredits)
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
+		engineConfig := config.WorkflowData.EngineConfig
 		if config.WorkflowData.EngineConfig.MaxEffectiveTokens != 0 {
 			maxEffectiveTokens = config.WorkflowData.EngineConfig.MaxEffectiveTokens
 		}
 		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
 			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
 		}
-		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
+		maxRuns = engineConfig.GetMaxRuns()
+		// Claude max-turns is enforced by AWF API proxy maxRuns.
+		// Keep explicit max-runs as the higher-priority setting.
+		if maxRuns == constants.DefaultMaxRuns && config.EngineName == string(constants.ClaudeEngine) {
+			if claudeMaxTurns := parseMaxRunsValue(engineConfig.MaxTurns); claudeMaxTurns > 0 {
+				maxRuns = claudeMaxTurns
+			}
+		}
 	}
 
 	// Token steering is enabled by default. Setting either max-effective-tokens or

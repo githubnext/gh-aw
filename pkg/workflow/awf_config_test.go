@@ -262,6 +262,26 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns when unset")
 	})
 
+	t.Run("claude max-turns is emitted as apiProxy maxRuns", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:       "claude",
+					MaxTurns: "23",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxRuns":23`, "apiProxy should emit Claude max-turns as maxRuns")
+	})
+
 	t.Run("engine token-weights multipliers are emitted in apiProxy modelMultipliers", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
