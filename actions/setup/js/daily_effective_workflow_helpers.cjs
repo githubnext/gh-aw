@@ -21,8 +21,8 @@ function findTokenUsageFile(root) {
 
   /** @type {string[]} */
   const queue = [root];
-  while (queue.length > 0) {
-    const current = queue.shift();
+  for (let index = 0; index < queue.length; index++) {
+    const current = queue[index];
     if (!current) continue;
     /** @type {fs.Dirent[]} */
     let entries = [];

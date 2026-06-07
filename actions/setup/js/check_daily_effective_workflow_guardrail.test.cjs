@@ -47,9 +47,9 @@ describe("check_daily_effective_workflow_guardrail", () => {
     const filePathA = path.join(tmpDir, "token-usage-a.jsonl");
     const filePathB = path.join(tmpDir, "token-usage-b.jsonl");
     fs.writeFileSync(filePathA, [JSON.stringify({ model: "gpt-5.5", aic: 1.25 }), JSON.stringify({ model: "gpt-5.5", aic: 0.75 })].join("\n"), "utf8");
-    fs.writeFileSync(filePathB, [JSON.stringify({ usage: { provider: "openai", model: "gpt-5.5", input_tokens: 100, output_tokens: 200 } }), JSON.stringify({ usage: { aic: 0.5 } })].join("\n"), "utf8");
+    fs.writeFileSync(filePathB, [JSON.stringify({ usage: { aic: 1.5 } }), JSON.stringify({ usage: { aic: 0.5 } })].join("\n"), "utf8");
 
-    expect(exports.sumAICFromUsageJSONLFiles([filePathA, filePathB])).toBeGreaterThan(2);
+    expect(exports.sumAICFromUsageJSONLFiles([filePathA, filePathB])).toBe(4);
   });
 
   it("computes aggregate AIC statistics for prior runs", () => {
