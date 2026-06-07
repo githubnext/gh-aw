@@ -715,8 +715,8 @@ touch %s
 	// Skip agent execution if a noop safe output already exists.
 	// This prevents running the agent when a prior step (e.g., an empty-queue check)
 	// has already seeded a noop output, avoiding unnecessary processing and token costs.
-	// Only apply this check to the main agent job, not the detection job.
-	if !workflowData.IsDetectionRun {
+	// Only apply this check to the main agent job (not detection) and when safe outputs are enabled.
+	if !workflowData.IsDetectionRun && workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "        if: |")
 		stepLines = append(stepLines, "          ! (test -f \"${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\" && jq -e '.tool == \"noop\"' \"${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\" >/dev/null 2>&1)")
 	}
