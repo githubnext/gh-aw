@@ -3087,7 +3087,7 @@ describe("handle_agent_failure", () => {
       });
     });
 
-    it("derives ET-equivalent max budgets from whole AI credits", () => {
+    it("derives ET-equivalent max budget from whole AI credits", () => {
       process.env.GH_AW_EFFECTIVE_TOKENS = "15000";
       process.env.GH_AW_MAX_AI_CREDITS = "2";
       process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
