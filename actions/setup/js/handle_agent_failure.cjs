@@ -1076,7 +1076,7 @@ function buildPermissionDeniedContext(items, workflowId) {
   } catch {
     // Template not available — return inline fallback message
     return (
-      `\n**🚫 Repeated Permission Denied**: The agent was denied permission for ${deniedCount} command(s).\n\n` +
+      `\n> [!WARNING]\n> **Repeated Permission Denied**: The agent was denied permission for ${deniedCount} command(s).\n\n` +
       `**Denied Commands:**\n${deniedCommandsList}\n\n` +
       `Update the workflow prompt to use built-in tools instead of the denied commands.\n`
     );
@@ -1281,7 +1281,7 @@ function buildMCPPolicyErrorContext(hasMCPPolicyError) {
   } catch {
     // Template not available — return inline message
     return (
-      "\n**🔒 MCP Servers Blocked by Policy**: The Copilot CLI blocked MCP server connections due to an organization or enterprise policy.\n\n" +
+      "\n> [!WARNING]\n> **MCP Servers Blocked by Policy**: The Copilot CLI blocked MCP server connections due to an organization or enterprise policy.\n\n" +
       'An administrator must enable the **"MCP servers in Copilot"** policy. ' +
       "See: [Configure MCP server access](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access)\n"
     );
@@ -1306,7 +1306,7 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
   } catch {
     // Template not available — return inline message
     return (
-      "\n**🚫 Model Not Supported**: The requested model is not available for your Copilot subscription tier (e.g., Copilot Pro or Education).\n\n" +
+      "\n> [!WARNING]\n> **Model Not Supported**: The requested model is not available for your Copilot subscription tier (e.g., Copilot Pro or Education).\n\n" +
       "Specify a supported model in the workflow frontmatter, for example `model: gpt-5-mini`. " +
       "See: [Supported models](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line#supported-models)\n"
     );
@@ -1355,7 +1355,7 @@ function buildEngineRateLimit429Context(engineLabel) {
     return "\n" + renderTemplateFromFile(templatePath, { engine_label: normalizedEngineLabel });
   } catch {
     return (
-      `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${normalizedEngineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
+      `\n> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**: The ${normalizedEngineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
       "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
       "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
     );

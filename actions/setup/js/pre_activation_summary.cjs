@@ -29,7 +29,7 @@ async function writeDenialSummary(reason, remediation) {
   }
 
   if (!content) {
-    content = `## ⏭️ Workflow Activation Skipped\n\n> ${reason}\n\n**Remediation:** ${remediation}\n\n---\n_See the \`pre_activation\` job log for full details._`;
+    content = `> [!NOTE]\n> **Workflow Activation Skipped**\n\n> ${reason}\n\n**Remediation:** ${remediation}\n\n---\n_See the \`pre_activation\` job log for full details._`;
   }
 
   await core.summary.addRaw(content).write();

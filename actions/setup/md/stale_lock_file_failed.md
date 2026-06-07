@@ -1,4 +1,5 @@
-**🔒 Lock File Out of Sync**: The workflow could not start because its compiled lock file no longer matches the source markdown.
+> [!WARNING]
+> **Lock File Out of Sync**: The workflow could not start because its compiled lock file no longer matches the source markdown.
 
 This means the workflow's `.md` file was edited but `gh aw compile` was not run afterwards to regenerate the corresponding `.lock.yml` file. The agent is prevented from running against a stale configuration to avoid unexpected behaviour.
 

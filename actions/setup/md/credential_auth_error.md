@@ -1,5 +1,5 @@
-
-**🔑 Credential Authentication Failed**: The firewall audit log detected authentication rejections (HTTP 401/403) from AI provider APIs. The following provider credentials appear to be missing, expired, or invalid:
+> [!WARNING]
+> **Credential Authentication Failed**: The firewall audit log detected authentication rejections (HTTP 401/403) from AI provider APIs. The following provider credentials appear to be missing, expired, or invalid:
 
 {providers}
 
@@ -10,4 +10,3 @@ To resolve this:
 3. Check that the secret names in your workflow frontmatter match the configured repository secrets
 
 For details on configuring engine credentials, see: [Engine Reference](https://github.github.com/gh-aw/reference/engines/)
-
