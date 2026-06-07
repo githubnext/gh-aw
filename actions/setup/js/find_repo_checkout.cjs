@@ -126,19 +126,26 @@ function getRemoteOriginUrl(repoPath) {
 /**
  * Resolve a workspace-relative path from the checkout manifest into an
  * absolute path under the workspace. The manifest stores an empty string
- * to represent the workspace root.
+ * to represent the workspace root. Returns null when the manifest path is
+ * absolute or escapes the workspace root via `..` traversal, so a malformed
+ * or tampered manifest cannot redirect lookups outside of $GITHUB_WORKSPACE.
  * @param {string} workspaceRoot
  * @param {string} relPath
- * @returns {string}
+ * @returns {string|null}
  */
 function resolveManifestPath(workspaceRoot, relPath) {
-  if (!relPath || relPath === "" || relPath === ".") {
+  if (!relPath || relPath === ".") {
     return workspaceRoot;
   }
   if (path.isAbsolute(relPath)) {
-    return relPath;
+    return null;
   }
-  return path.join(workspaceRoot, relPath);
+  const wsResolved = path.resolve(workspaceRoot);
+  const resolved = path.resolve(wsResolved, relPath);
+  if (resolved !== wsResolved && !resolved.startsWith(wsResolved + path.sep)) {
+    return null;
+  }
+  return resolved;
 }
 
 /**
@@ -179,15 +186,21 @@ function findRepoCheckout(repoSlug, workspaceRoot, options = {}) {
   // authoritative source for cross-repo checkout paths and does not depend
   // on `git config --get remote.origin.url`, which a later "Configure Git
   // credentials" step may have overwritten to point at the workflow repo.
+  // The manifest is written before `actions/checkout` runs, so fall back to
+  // the git scan when the resolved path is unsafe or does not exist on disk
+  // (failed checkout, workspace wiped, manifest stale).
   const manifestEntry = lookupCheckout(targetSlug);
   if (manifestEntry) {
     const resolved = resolveManifestPath(ws, manifestEntry.path);
-    debugLog(`Found manifest entry for ${targetSlug}: ${resolved}`);
-    return {
-      success: true,
-      path: resolved,
-      repoSlug: targetSlug,
-    };
+    if (resolved && fs.existsSync(resolved)) {
+      debugLog(`Found manifest entry for ${targetSlug}: ${resolved}`);
+      return {
+        success: true,
+        path: resolved,
+        repoSlug: targetSlug,
+      };
+    }
+    debugLog(`Manifest entry for ${targetSlug} unusable (path: ${manifestEntry.path}), falling back to git scan`);
   }
 
   // Find all git directories in the workspace
@@ -248,9 +261,15 @@ function buildRepoCheckoutMap(workspaceRoot) {
 
   // Seed from the checkout manifest first so cross-repo entries survive even
   // when a later "Configure Git credentials" step has rewritten remote.origin.url.
+  // Only seed entries whose resolved path is safe (inside the workspace) and
+  // actually exists on disk, mirroring the guarantee that the git-scan branch
+  // provides for every entry it produces.
   const manifest = loadAllCheckouts();
   for (const [slug, entry] of manifest) {
-    map.set(slug, resolveManifestPath(ws, entry.path));
+    const resolved = resolveManifestPath(ws, entry.path);
+    if (resolved && fs.existsSync(resolved)) {
+      map.set(slug, resolved);
+    }
   }
 
   const gitDirs = findGitDirectories(ws);

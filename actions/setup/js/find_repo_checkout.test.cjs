@@ -219,6 +219,7 @@ describe("find_repo_checkout", () => {
     });
 
     it("findRepoCheckout resolves manifest entries with a non-empty path to a subdirectory", () => {
+      fs.mkdirSync(path.join(workspaceDir, "repos/sub-repo"), { recursive: true });
       fs.writeFileSync(
         manifestPath,
         JSON.stringify({
@@ -280,6 +281,7 @@ describe("find_repo_checkout", () => {
     });
 
     it("buildRepoCheckoutMap seeds from manifest entries", () => {
+      fs.mkdirSync(path.join(workspaceDir, "repos/sub-repo"), { recursive: true });
       fs.writeFileSync(
         manifestPath,
         JSON.stringify({
@@ -300,6 +302,141 @@ describe("find_repo_checkout", () => {
 
       expect(map.get("githubnext/gh-aw-side-repo")).toBe(workspaceDir);
       expect(map.get("owner/sub-repo")).toBe(path.join(workspaceDir, "repos/sub-repo"));
+    });
+
+    it("findRepoCheckout falls back to git-scan when GH_AW_CHECKOUT_MANIFEST is unset", () => {
+      // Pin the contract that loadManifest() returns an empty object (not
+      // throws) when the manifest env var is unset and no $RUNNER_TEMP fallback
+      // exists. Critical for backward compatibility with workflows that have no
+      // multi-repo checkout.
+      delete process.env.GH_AW_CHECKOUT_MANIFEST;
+      const originalRunnerTemp = process.env.RUNNER_TEMP;
+      delete process.env.RUNNER_TEMP;
+      resetCheckoutManifestCache();
+
+      try {
+        const result = findRepoCheckout("owner/missing", workspaceDir);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("not found in workspace");
+      } finally {
+        if (originalRunnerTemp !== undefined) {
+          process.env.RUNNER_TEMP = originalRunnerTemp;
+        }
+      }
+    });
+
+    it("findRepoCheckout falls back to git-scan when GH_AW_CHECKOUT_MANIFEST points to a non-existent file", () => {
+      process.env.GH_AW_CHECKOUT_MANIFEST = path.join(workspaceDir, "does-not-exist.json");
+      resetCheckoutManifestCache();
+
+      const result = findRepoCheckout("owner/missing", workspaceDir);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("findRepoCheckout falls back to git-scan when the manifest path does not exist on disk", () => {
+      // A stale manifest entry (failed checkout, workspace wiped) must not be
+      // returned as a valid checkout — the git scan is authoritative for paths
+      // that actually exist on disk.
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/stale": {
+            repository: "owner/stale",
+            path: "never-checked-out",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const result = findRepoCheckout("owner/stale", workspaceDir);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("findRepoCheckout rejects manifest entries with absolute paths", () => {
+      // resolveManifestPath() must refuse absolute paths so a tampered manifest
+      // cannot redirect lookups outside $GITHUB_WORKSPACE.
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/escape": {
+            repository: "owner/escape",
+            path: "/etc",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const result = findRepoCheckout("owner/escape", workspaceDir);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("findRepoCheckout rejects manifest entries that escape the workspace via .. traversal", () => {
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/escape": {
+            repository: "owner/escape",
+            path: "../outside",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const result = findRepoCheckout("owner/escape", workspaceDir);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("buildRepoCheckoutMap: manifest entry wins over git-scan for the same slug", () => {
+      // The !map.has(slug) guard added in buildRepoCheckoutMap is the core of
+      // the bug fix; without this test the guard could be silently removed and
+      // the regression would go undetected.
+      const manifestRepoPath = path.join(workspaceDir, "from-manifest");
+      const gitScanRepoPath = path.join(workspaceDir, "from-git-scan");
+      fs.mkdirSync(manifestRepoPath, { recursive: true });
+      fs.mkdirSync(path.join(gitScanRepoPath, ".git"), { recursive: true });
+      // Real git config so getRemoteOriginUrl resolves the same slug as the
+      // manifest entry, simulating the clobbered-origin scenario.
+      fs.writeFileSync(path.join(gitScanRepoPath, ".git", "config"), `[remote "origin"]\n\turl = https://github.com/owner/conflict.git\n`);
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/conflict": {
+            repository: "owner/conflict",
+            path: "from-manifest",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const map = buildRepoCheckoutMap(workspaceDir);
+
+      expect(map.get("owner/conflict")).toBe(manifestRepoPath);
+    });
+
+    it("buildRepoCheckoutMap skips manifest entries whose path does not exist", () => {
+      fs.writeFileSync(
+        manifestPath,
+        JSON.stringify({
+          "owner/stale": {
+            repository: "owner/stale",
+            path: "missing-on-disk",
+            default_branch: "main",
+          },
+        })
+      );
+
+      const map = buildRepoCheckoutMap(workspaceDir);
+
+      expect(map.has("owner/stale")).toBe(false);
     });
   });
 
