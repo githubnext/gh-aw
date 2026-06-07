@@ -976,6 +976,68 @@ function buildMissingDataContext(cacheMemoryEnabled, items) {
 }
 
 /**
+ * Extract denied command entries from a missing_tool alternatives string.
+ * Handles batched command text in the form:
+ * ".... Denied commands: cmd1 | cmd2 | cmd3"
+ * while preserving internal pipes inside tool call parentheses.
+ * @param {string | null | undefined} alternatives
+ * @returns {string[]}
+ */
+function extractDeniedCommandsFromAlternatives(alternatives) {
+  if (!alternatives || typeof alternatives !== "string") {
+    return [];
+  }
+
+  const marker = "Denied commands:";
+  const markerIndex = alternatives.indexOf(marker);
+  if (markerIndex < 0) {
+    return [];
+  }
+
+  const deniedSection = alternatives.slice(markerIndex + marker.length).trim();
+  if (!deniedSection) {
+    return [];
+  }
+
+  const commands = [];
+  let current = "";
+  let depth = 0;
+
+  for (let i = 0; i < deniedSection.length; i++) {
+    const ch = deniedSection[i];
+    if (ch === "(") {
+      depth += 1;
+      current += ch;
+      continue;
+    }
+    if (ch === ")" && depth > 0) {
+      depth -= 1;
+      current += ch;
+      continue;
+    }
+
+    if (depth === 0 && deniedSection.slice(i, i + 3) === " | ") {
+      const value = current.trim();
+      if (value && !/^\.\.\. and \d+ more$/i.test(value)) {
+        commands.push(value);
+      }
+      current = "";
+      i += 2;
+      continue;
+    }
+
+    current += ch;
+  }
+
+  const last = current.trim();
+  if (last && !/^\.\.\. and \d+ more$/i.test(last)) {
+    commands.push(last);
+  }
+
+  return [...new Set(commands)];
+}
+
+/**
  * Load missing_tool messages from agent output.
  * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
@@ -997,11 +1059,13 @@ function loadMissingToolMessages(items) {
     for (const item of resolvedItems) {
       if (item.type === "missing_tool") {
         if (item.reason) {
+          const deniedCommandsFromItem = Array.isArray(item.denied_commands) ? item.denied_commands.filter(cmd => typeof cmd === "string" && cmd.trim()) : [];
+          const deniedCommands = deniedCommandsFromItem.length > 0 ? deniedCommandsFromItem : extractDeniedCommandsFromAlternatives(item.alternatives);
           missingToolMessages.push({
             tool: item.tool || null,
             reason: item.reason,
             alternatives: item.alternatives || null,
-            denied_commands: Array.isArray(item.denied_commands) ? item.denied_commands : [],
+            denied_commands: deniedCommands,
           });
         }
       }

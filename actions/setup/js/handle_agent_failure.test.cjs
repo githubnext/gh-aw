@@ -2252,6 +2252,22 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("`ls /usr/local/go/bin/go`");
     });
 
+    it("parses denied commands from alternatives when denied_commands is omitted", () => {
+      writePermissionDeniedTemplate();
+      const items = [
+        {
+          type: "missing_tool",
+          tool: "tool/permission",
+          reason: "permission denied",
+          alternatives:
+            "Verify token scopes, repository permissions, and MCP/tool access configuration. Denied commands: shell(find specs -type f -name '*.md' | sort) | read(/home/runner/work/gh-aw/gh-aw/specs)",
+        },
+      ];
+      const result = buildPermissionDeniedContext(items);
+      expect(result).toContain("`shell(find specs -type f -name '*.md' | sort)`");
+      expect(result).toContain("`read(/home/runner/work/gh-aw/gh-aw/specs)`");
+    });
+
     it("deduplicates denied commands across multiple tool/permission items", () => {
       writePermissionDeniedTemplate();
       const items = [
