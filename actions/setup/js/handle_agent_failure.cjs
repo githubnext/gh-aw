@@ -2613,13 +2613,15 @@ async function main() {
         // Build missing_data context (only when report-as-failure is enabled for this signal type)
         const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
 
-        // Build missing_tool context (only when report-as-failure is enabled for this signal type)
-        const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
-
-        // Build permission denied context (denied commands list + fix prompt)
-        const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
         // Build tool-denials-exceeded guard context from events.jsonl
         const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
+        // Build missing_tool context (only when report-as-failure is enabled for this signal type).
+        // Suppress when tool-denials-exceeded is present: excessive tool denials take precedence.
+        const missingToolContext = missingToolReportAsFailure && !hasToolDenialsExceeded ? buildMissingToolContext(agentOutputResult.items) : "";
+
+        // Build permission denied context (denied commands list + fix prompt).
+        // Suppress when tool-denials-exceeded is present: that context already covers the denied errors.
+        const permissionDeniedContext = hasToolDenialsExceeded ? "" : buildPermissionDeniedContext(agentOutputResult.items, workflowID);
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
@@ -2833,16 +2835,18 @@ async function main() {
         // Build missing_data context (only when report-as-failure is enabled for this signal type)
         const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
 
-        // Build missing_tool context (only when report-as-failure is enabled for this signal type)
-        const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
+        // Build tool-denials-exceeded guard context from events.jsonl
+        const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
+        // Build missing_tool context (only when report-as-failure is enabled for this signal type).
+        // Suppress when tool-denials-exceeded is present: excessive tool denials take precedence.
+        const missingToolContext = missingToolReportAsFailure && !hasToolDenialsExceeded ? buildMissingToolContext(agentOutputResult.items) : "";
 
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
-        // Build permission denied context (denied commands list + fix prompt)
-        const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
-        // Build tool-denials-exceeded guard context from events.jsonl
-        const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
+        // Build permission denied context (denied commands list + fix prompt).
+        // Suppress when tool-denials-exceeded is present: that context already covers the denied errors.
+        const permissionDeniedContext = hasToolDenialsExceeded ? "" : buildPermissionDeniedContext(agentOutputResult.items, workflowID);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
