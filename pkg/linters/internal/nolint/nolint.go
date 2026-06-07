@@ -52,7 +52,7 @@ func BuildLineIndex(pass *analysis.Pass, linterName string) map[string]map[int]s
 					payload = payload[:i]
 				}
 				matched := false
-				for _, token := range strings.Split(payload, ",") {
+				for token := range strings.SplitSeq(payload, ",") {
 					name := strings.TrimSpace(token)
 					if name == linterName || name == "all" {
 						matched = true
