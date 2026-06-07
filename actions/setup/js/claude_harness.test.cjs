@@ -505,23 +505,24 @@ process.exit(1);
       const stubPath = path.join(tempDir, "stub.cjs");
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
-      fs.writeFileSync(stubPath, "process.exit(0);", "utf8");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.exit(0);`,
+        "utf8"
+      );
       fs.writeFileSync(promptPath, "fix the bug", "utf8");
 
-      const result = spawnSync(
-        process.execPath,
-        ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath],
-        {
-          cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-          env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
-          encoding: "utf8",
-          timeout: 10000,
-        }
-      );
+      const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./claude_harness.cjs")),
+        env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        encoding: "utf8",
+        timeout: 10000,
+      });
       // Agent stub should never have been invoked
-      const stubCallCount = fs.existsSync(callsPath)
-        ? fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length
-        : 0;
+      const stubCallCount = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length : 0;
       expect(stubCallCount).toBe(0);
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("pre-flight: noop message found in safe-outputs");
@@ -546,16 +547,12 @@ process.exit(1);`,
       );
       fs.writeFileSync(promptPath, "fix the bug", "utf8");
 
-      const result = spawnSync(
-        process.execPath,
-        ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath],
-        {
-          cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-          env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
-          encoding: "utf8",
-          timeout: 10000,
-        }
-      );
+      const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./claude_harness.cjs")),
+        env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        encoding: "utf8",
+        timeout: 10000,
+      });
       const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
       // Only one attempt — no retries after noop detected
       expect(callCount).toBe(1);
