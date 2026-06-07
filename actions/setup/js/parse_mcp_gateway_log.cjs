@@ -33,7 +33,7 @@ const AMBIENT_REPO_MARKER_END = "<!-- GH_AW_AMBIENT_REPO_CONTEXT_END -->";
 const AMBIENT_USER_MARKER_START = "<!-- GH_AW_AMBIENT_USER_CONTENT_BEGIN -->";
 const AMBIENT_USER_MARKER_END = "<!-- GH_AW_AMBIENT_USER_CONTENT_END -->";
 const MAX_AMBIENT_SECTION_LENGTH = 8000;
-const MAX_MESSAGES_SEARCH_DEPTH = 3;
+const MAX_PAYLOAD_RECURSION_DEPTH = 3;
 const SYSTEM_TAG_OPEN = "<system>";
 const SYSTEM_TAG_CLOSE = "</system>";
 const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
@@ -594,7 +594,7 @@ function truncateSummaryValue(value, maxLength) {
  * @param {string} text
  * @returns {string}
  */
-function sanitizeForTextCodeBlock(text) {
+function escapeMarkdownCodeFences(text) {
   return String(text || "").replace(/```/g, "&#96;&#96;&#96;");
 }
 
@@ -634,13 +634,15 @@ function splitAmbientContextFromFirstPrompt(text) {
   }
 
   const systemStart = raw.indexOf(SYSTEM_TAG_OPEN);
-  const systemEnd = raw.indexOf(SYSTEM_TAG_CLOSE, systemStart >= 0 ? systemStart + SYSTEM_TAG_OPEN.length : 0);
-  if (systemStart !== -1 && systemEnd !== -1 && systemStart < systemEnd) {
-    return {
-      engineAmbientContext: raw.slice(0, systemStart).trim(),
-      ghAwAmbientContext: raw.slice(systemStart + SYSTEM_TAG_OPEN.length, systemEnd).trim(),
-      userContent: raw.slice(systemEnd + SYSTEM_TAG_CLOSE.length).trim(),
-    };
+  if (systemStart !== -1) {
+    const systemEnd = raw.indexOf(SYSTEM_TAG_CLOSE, systemStart + SYSTEM_TAG_OPEN.length);
+    if (systemEnd !== -1 && systemStart < systemEnd) {
+      return {
+        engineAmbientContext: raw.slice(0, systemStart).trim(),
+        ghAwAmbientContext: raw.slice(systemStart + SYSTEM_TAG_OPEN.length, systemEnd).trim(),
+        userContent: raw.slice(systemEnd + SYSTEM_TAG_CLOSE.length).trim(),
+      };
+    }
   }
 
   return {
@@ -690,7 +692,7 @@ function extractMessageText(value) {
  * @returns {Array<any>|null}
  */
 function findMessagesArray(payload, depth = 0) {
-  if (!payload || typeof payload !== "object" || depth >= MAX_MESSAGES_SEARCH_DEPTH) {
+  if (!payload || typeof payload !== "object" || depth >= MAX_PAYLOAD_RECURSION_DEPTH) {
     return null;
   }
   const obj = /** @type {Record<string, any>} */ (payload);
@@ -819,19 +821,19 @@ function generateAmbientContextSummary(sections) {
 
   lines.push("#### Ambient context (agentic engine)");
   lines.push("```text");
-  lines.push(sanitizeForTextCodeBlock(engineAmbientContext || "(empty or not detected)"));
+  lines.push(escapeMarkdownCodeFences(engineAmbientContext || "(empty or not detected)"));
   lines.push("```");
   lines.push("");
 
   lines.push("#### Ambient context (gh-aw)");
   lines.push("```text");
-  lines.push(sanitizeForTextCodeBlock(ghAwAmbientContext || "(empty or not detected)"));
+  lines.push(escapeMarkdownCodeFences(ghAwAmbientContext || "(empty or not detected)"));
   lines.push("```");
   lines.push("");
 
   lines.push("#### User content (first goal)");
   lines.push("```text");
-  lines.push(sanitizeForTextCodeBlock(userContent || "(empty or not detected)"));
+  lines.push(escapeMarkdownCodeFences(userContent || "(empty or not detected)"));
   lines.push("```");
   lines.push("");
 
