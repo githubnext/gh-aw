@@ -281,6 +281,45 @@ func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
 	}
 }
 
+func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-caveman-optimizer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	parsed, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		t.Fatalf("Failed to parse workflow frontmatter: %v", err)
+	}
+
+	experiments, ok := parsed.Frontmatter["experiments"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-caveman-optimizer workflow to define experiments")
+	}
+	modelSize, ok := experiments["model_size"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-caveman-optimizer workflow to define experiments.model_size")
+	}
+	variants, ok := modelSize["variants"].([]any)
+	if !ok {
+		t.Fatal("Expected daily-caveman-optimizer workflow to define experiments.model_size.variants")
+	}
+	if len(variants) != 2 || variants[0] != "claude-sonnet-4.6" || variants[1] != "claude-haiku-4.5" {
+		t.Fatalf("Expected concrete Claude variants [claude-sonnet-4.6, claude-haiku-4.5], got %#v", variants)
+	}
+	for _, variant := range variants {
+		if variant == "agent" || variant == "small-agent" {
+			t.Fatalf("Expected concrete model variants, found alias %q", variant)
+		}
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
