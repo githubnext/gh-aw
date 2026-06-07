@@ -146,20 +146,33 @@ describe("collect_ndjson_output.cjs", () => {
         expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUTS not set, no output to collect"));
     }),
     it("should handle missing output file", async () => {
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, '{"noop": true}'));
       ((process.env.GH_AW_SAFE_OUTPUTS = "/tmp/gh-aw/nonexistent-file.txt"),
         await eval(`(async () => { ${collectScript}; await main(); })()`),
-        expect(mockCore.setOutput).toHaveBeenCalledWith("output", ""),
-        expect(mockCore.setOutput).toHaveBeenCalledWith("output_types", ""),
+        expect(mockCore.setOutput).toHaveBeenCalledWith("output_types", "noop"),
         expect(mockCore.setOutput).toHaveBeenCalledWith("has_patch", "false"),
         expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/gh-aw/nonexistent-file.txt"));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].type).toBe("noop"));
     }),
     it("should handle empty output file", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, '{"noop": true}'));
       (fs.writeFileSync(testFile, ""),
         (process.env.GH_AW_SAFE_OUTPUTS = testFile),
         await eval(`(async () => { ${collectScript}; await main(); })()`),
-        expect(mockCore.setOutput).toHaveBeenCalledWith("output", '{"items":[],"errors":[]}'),
+        expect(mockCore.setOutput).toHaveBeenCalledWith("output_types", "noop"),
         expect(mockCore.info).toHaveBeenCalledWith("Output file is empty"));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].type).toBe("noop"));
     }),
     it("should validate and parse valid JSONL content", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
