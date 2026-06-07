@@ -118,8 +118,8 @@ on: push
 
 			// Collect includes
 			var dependencies []IncludeDependency
-			seen := make(map[string]struct{})
-			err := collectLocalIncludeDependenciesRecursive(tt.content, tmpDir, &dependencies, stringSetToBoolMap(seen), false)
+			seen := make(map[string]bool)
+			err := collectLocalIncludeDependenciesRecursive(tt.content, tmpDir, &dependencies, seen, false)
 
 			// Check error expectation
 			if tt.expectedError && err == nil {
@@ -135,9 +135,9 @@ on: push
 			}
 
 			// Check paths
-			foundPaths := make(map[string]struct{})
+			foundPaths := make(map[string]bool)
 			for _, dep := range dependencies {
-				foundPaths[dep.TargetPath] = struct{}{}
+				foundPaths[dep.TargetPath] = true
 			}
 			for _, expectedPath := range tt.expectedPaths {
 				if _, ok := foundPaths[expectedPath]; !ok {

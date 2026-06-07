@@ -44,6 +44,25 @@ safe-outputs:
     max: 1
   noop:
 timeout-minutes: 15
+experiments:
+  summary_detail:
+    variants: [brief, detailed]
+    description: "Tests whether brief vs. detailed final-summary instructions reduce token consumption without affecting dispatch accuracy"
+    hypothesis: "H0: no change in output_token_count. H1: brief variant reduces output tokens by ≥25% with no degradation in worker dispatch rate"
+    metric: output_token_count
+    secondary_metrics: [run_duration_ms, worker_invocation_rate]
+    guardrail_metrics:
+      - name: empty_dispatch_rate
+        direction: min
+        threshold: 0.0
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-06-07"
+    issue: 37533 #aw_camp1
+    analysis_type: mann_whitney
+    tags: [cost-efficiency, orchestrator, daily]
+    notify:
+      issue: 37533 #aw_camp1
 steps:
   - name: Compute dependabot campaign scoreboard
     uses: actions/github-script@v9
@@ -220,6 +239,10 @@ For this campaign:
 
 - Do not open a PR from the orchestrator. The worker owns code changes and PR creation.
 - Do not edit generated manifests in the orchestrator.
-- Always mention the deterministic scoreboard value, the number of open PRs in scope, and the selection reason in your final summary.
+{{#if experiments.summary_detail == "brief" }}
+- Final summary: 2–3 sentences only. State: (1) scoreboard score, (2) open-PR count in scope, (3) selection reason. No lists or tables.
+{{else}}
+- Final summary: include scoreboard score, open-PR count, selection reason, a per-PR table of dependency name and version delta, and a sentence on the bundle strategy rationale.
+{{/if}}
 
 {{#runtime-import shared/noop-reminder.md}}

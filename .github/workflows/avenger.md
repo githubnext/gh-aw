@@ -6,7 +6,7 @@ on:
   schedule:
     - cron: "23 * * * *"  # Every hour at minute 23 (offset to avoid thundering herd)
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

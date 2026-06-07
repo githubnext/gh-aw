@@ -2,7 +2,7 @@
 on:
   schedule:
   - cron: daily
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   actions: read
   contents: read

@@ -6,7 +6,7 @@ on:
   schedule:
     - cron: daily
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 timeout-minutes: 30
 
 permissions:

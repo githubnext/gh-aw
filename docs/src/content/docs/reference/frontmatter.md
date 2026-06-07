@@ -124,6 +124,8 @@ cache:
     node-modules-
 ```
 
+For secure Go-specific cache guidance, see [FAQ: How should I configure Go caches safely in agentic workflows?](/gh-aw/reference/faq/#how-should-i-configure-go-caches-safely-in-agentic-workflows).
+
 ### Repository Checkout (`checkout:`)
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.
@@ -229,7 +231,7 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 
 ### AI Credits Guardrail (`max-ai-credits:`)
 
-Sets the AWF AI Credits budget used for cost enforcement. Defaults to `25M` when omitted. Steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and steering.
+Sets the AWF AI Credits budget used for cost enforcement. It is enabled by default and defaults to `1000` (`1k`) when omitted. Steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and steering.
 
 ```yaml wrap
 max-ai-credits: 5M

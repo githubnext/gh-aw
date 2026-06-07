@@ -4,7 +4,7 @@ description: Daily report on GitHub REST API consumption by agentic workflows â€
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
