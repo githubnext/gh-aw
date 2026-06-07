@@ -53,7 +53,7 @@ experiments:
   sub_agent_strategy:
     variants: [single_agent, sub_agents]
     description: "Test whether decomposing issue creation into sub-agents reduces cost"
-    hypothesis: "H0: no change in effective token count. H1: sub-agents reduce token count by 15-25% and improve success rate."
+    hypothesis: "H0: no change in AI credit count. H1: sub-agents reduce AI credit count by 15-25% and improve success rate."
     metric: effective_token_count
     secondary_metrics: [run_duration_seconds, issue_creation_success_rate]
     guardrail_metrics:

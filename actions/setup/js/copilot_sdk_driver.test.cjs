@@ -265,6 +265,44 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({ kind: "approve-once" });
     });
 
+    it("allows read requests when read(path) is explicitly allowlisted", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const createSession = vi.fn().mockResolvedValue({
+        sessionId: "session-read-path-allowed",
+        on: () => {},
+        sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+        disconnect,
+      });
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = createSession;
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        permissionConfig: {
+          allowedTools: ["read(/tmp/gh-aw/agent/*)"],
+        },
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => ({ kind: "approve-once" }),
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      const sessionConfig = createSession.mock.calls[0][0];
+      const onPermissionRequest = sessionConfig.onPermissionRequest;
+      // Copilot SDK treats any granted read capability as global; read(path) entries are
+      // effectively equivalent to read for the onPermissionRequest contract.
+      expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({ kind: "approve-once" });
+      expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({ kind: "approve-once" });
+    });
+
     it("allows read requests when shell access is allowlisted", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);

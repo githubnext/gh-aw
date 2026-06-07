@@ -22,7 +22,7 @@ experiments:
   model_size:
     variants: [agent, small-agent]
     description: "Tests whether a small-agent model produces equivalent instruction conciseness improvements at lower token cost."
-    hypothesis: "H0: no change in PR creation rate or run success rate. H1: small-agent reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
+    hypothesis: "H0: no change in PR creation rate or run success rate. H1: small-agent reduces AI credit usage >=30% with equivalent run success rate (>=0.90)."
     metric: effective_tokens_total
     secondary_metrics: [run_success_rate, run_duration_ms]
     guardrail_metrics:
