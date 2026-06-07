@@ -665,17 +665,18 @@ function extractMessageText(value) {
   if (!value || typeof value !== "object") {
     return "";
   }
-  if (typeof value.text === "string") {
-    return value.text;
+  const obj = /** @type {Record<string, any>} */ value;
+  if (typeof obj.text === "string") {
+    return obj.text;
   }
-  if (typeof value.content === "string") {
-    return value.content;
+  if (typeof obj.content === "string") {
+    return obj.content;
   }
-  if (typeof value.input_text === "string") {
-    return value.input_text;
+  if (typeof obj.input_text === "string") {
+    return obj.input_text;
   }
-  if (Array.isArray(value.content)) {
-    return extractMessageText(value.content);
+  if (Array.isArray(obj.content)) {
+    return extractMessageText(obj.content);
   }
   return "";
 }
@@ -689,12 +690,13 @@ function findMessagesArray(payload, depth = 0) {
   if (!payload || typeof payload !== "object" || depth > 3) {
     return null;
   }
-  if (Array.isArray(payload.messages)) {
-    return payload.messages;
+  const obj = /** @type {Record<string, any>} */ payload;
+  if (Array.isArray(obj.messages)) {
+    return obj.messages;
   }
   const nestedKeys = ["payload", "request", "body", "data", "input"];
   for (const key of nestedKeys) {
-    const nested = payload[key];
+    const nested = obj[key];
     if (nested && typeof nested === "object") {
       const found = findMessagesArray(nested, depth + 1);
       if (found) return found;
@@ -728,16 +730,7 @@ function normalizeRequestPayload(rawPayload) {
  * @returns {object|null}
  */
 function getRequestPayloadFromEventEntry(entry) {
-  const candidates = [
-    entry.payload,
-    entry.request,
-    entry.body,
-    entry.request_body,
-    entry.requestBody,
-    entry.data?.payload,
-    entry.data?.request,
-    entry.data?.body,
-  ];
+  const candidates = [entry.payload, entry.request, entry.body, entry.request_body, entry.requestBody, entry.data?.payload, entry.data?.request, entry.data?.body];
   for (const candidate of candidates) {
     const payload = normalizeRequestPayload(candidate);
     if (payload) {
