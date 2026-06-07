@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"aecf7a80c64ca5c583e1e63c98032903fd359ddafab6fbc14d2f73cd1b230499","body_hash":"52c577572ad4a7aee2a65c5f3bd90dd8e73b1e2d334979ae5a4fa31263e8b14a","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"ce704d9ed0f44f7eb2434f80bb98899bf453fd7fb496eba29f9af59b678fb243","body_hash":"a0703f70d8d67d860e6cd6337ff84f47a0cd87031faba89f1caa7d1d4eb2345c","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60"}}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.65"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.65"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.65"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.23","digest":"sha256:0dd1bd91a41e24a3ccc31b1ec6cb61d36608997fabf91f2d643b64e3fc33180a","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.23@sha256:0dd1bd91a41e24a3ccc31b1ec6cb61d36608997fabf91f2d643b64e3fc33180a"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -22,7 +22,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# ⚠️ INTENTIONALLY BROKEN — Tests that max-daily-ai-credits: 10 is enforced by the activation guardrail and that a limit-exceeded message is posted when the daily budget is consumed.
+# ⚠️ INTENTIONALLY BROKEN — Tests that max-daily-ai-credits: 1 is enforced by the activation guardrail and that a limit-exceeded message is posted when the daily budget is consumed.
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -73,7 +73,7 @@ jobs:
       actions: read
       contents: read
     env:
-      GH_AW_MAX_DAILY_AI_CREDITS: "10"
+      GH_AW_MAX_DAILY_AI_CREDITS: "1"
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -145,7 +145,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
           GH_AW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_MAX_DAILY_AI_CREDITS: "10"
+          GH_AW_MAX_DAILY_AI_CREDITS: "1"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -1161,7 +1161,7 @@ jobs:
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_effective_workflow_total_effective_tokens }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.activation.outputs.daily_effective_workflow_threshold }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧪 [{workflow_name}]({run_url}) — credit limit test running (intentionally broken, limit: 10 AI credits/day).\",\"runSuccess\":\"⚠️ [{workflow_name}]({run_url}) completed without hitting the daily limit — verify that credit accounting is working.\",\"runFailure\":\"🚫 [{workflow_name}]({run_url}) {status} — expected: the daily AI credit limit of 10 was reached and this run was blocked.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧪 [{workflow_name}]({run_url}) — credit limit test running (intentionally broken, limit: 1 AI credit/day).\",\"runSuccess\":\"⚠️ [{workflow_name}]({run_url}) completed without hitting the daily limit of 1 AI credit — verify that credit accounting is working.\",\"runFailure\":\"🚫 [{workflow_name}]({run_url}) {status} — expected: the daily AI credit limit of 1 was reached and this run was blocked.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
@@ -1280,7 +1280,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "Daily Credit Limit Test (Intentionally Broken)"
-          WORKFLOW_DESCRIPTION: "⚠️ INTENTIONALLY BROKEN — Tests that max-daily-ai-credits: 10 is enforced by the activation guardrail and that a limit-exceeded message is posted when the daily budget is consumed."
+          WORKFLOW_DESCRIPTION: "⚠️ INTENTIONALLY BROKEN — Tests that max-daily-ai-credits: 1 is enforced by the activation guardrail and that a limit-exceeded message is posted when the daily budget is consumed."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1442,7 +1442,7 @@ jobs:
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_ENGINE_VERSION: "1.0.60"
       GH_AW_PROJECT_UTC: "-08:00"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧪 [{workflow_name}]({run_url}) — credit limit test running (intentionally broken, limit: 10 AI credits/day).\",\"runSuccess\":\"⚠️ [{workflow_name}]({run_url}) completed without hitting the daily limit — verify that credit accounting is working.\",\"runFailure\":\"🚫 [{workflow_name}]({run_url}) {status} — expected: the daily AI credit limit of 10 was reached and this run was blocked.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧪 [{workflow_name}]({run_url}) — credit limit test running (intentionally broken, limit: 1 AI credit/day).\",\"runSuccess\":\"⚠️ [{workflow_name}]({run_url}) completed without hitting the daily limit of 1 AI credit — verify that credit accounting is working.\",\"runFailure\":\"🚫 [{workflow_name}]({run_url}) {status} — expected: the daily AI credit limit of 1 was reached and this run was blocked.\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_EMOJI: "🧪"
       GH_AW_WORKFLOW_ID: "daily-credit-limit-test"
