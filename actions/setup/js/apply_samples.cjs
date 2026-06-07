@@ -187,9 +187,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
     try {
       return JSON.parse(line);
     } catch (err) {
-      throw new Error(
-        `apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`
-      );
+      throw new Error(`apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`);
     }
   }
 }

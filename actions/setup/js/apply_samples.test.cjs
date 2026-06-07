@@ -172,12 +172,7 @@ describe("apply_samples.cjs sendJsonRpc", () => {
     const stdin = {
       write: chunk => writes.push(chunk),
     };
-    const response = await sendJsonRpc(
-      {},
-      stdin,
-      { jsonrpc: "2.0", id: 99, method: "tools/call", params: {} },
-      fromLines(["[debug] Executing git command: git status", '{"jsonrpc":"2.0","id":99,"result":{"ok":true}}'])
-    );
+    const response = await sendJsonRpc({}, stdin, { jsonrpc: "2.0", id: 99, method: "tools/call", params: {} }, fromLines(["[debug] Executing git command: git status", '{"jsonrpc":"2.0","id":99,"result":{"ok":true}}']));
 
     expect(writes.length).toBe(1);
     expect(writes[0]).toContain('"id":99');
@@ -186,9 +181,7 @@ describe("apply_samples.cjs sendJsonRpc", () => {
 
   it("throws a helpful error for malformed JSON lines that look like protocol frames", async () => {
     const stdin = { write: () => {} };
-    await expect(
-      sendJsonRpc({}, stdin, { jsonrpc: "2.0", id: 4, method: "initialize", params: {} }, fromLines(["{not-json"]))
-    ).rejects.toThrow("failed to parse MCP JSON-RPC response");
+    await expect(sendJsonRpc({}, stdin, { jsonrpc: "2.0", id: 4, method: "initialize", params: {} }, fromLines(["{not-json"]))).rejects.toThrow("failed to parse MCP JSON-RPC response");
   });
 });
 
