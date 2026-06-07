@@ -669,6 +669,12 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		envVars["GH_AW_TRACKER_ID"] = fmt.Sprintf("%q", data.TrackerID)
 	}
 
+	// Bake the repository project UTC offset (from aw.json) into safe-outputs job env
+	// so runtime JavaScript helpers do not need to read aw.json on the runner.
+	if utcOffset := c.getCompiledProjectUTCOffset(); utcOffset != "" {
+		envVars["GH_AW_PROJECT_UTC"] = fmt.Sprintf("%q", utcOffset)
+	}
+
 	// Add engine metadata that's common to all steps
 	if data.EngineConfig != nil {
 		if data.EngineConfig.ID != "" {

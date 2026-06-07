@@ -481,6 +481,21 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 	}
 }
 
+func TestBuildJobLevelSafeOutputEnvVarsIncludesCompiledProjectUTC(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{UTC: "-07:00"}
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+	envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+
+	require.NotNil(t, envVars)
+	assert.Equal(t, `"-07:00"`, envVars["GH_AW_PROJECT_UTC"])
+}
+
 // TestBuildDetectionSuccessCondition tests the detection condition builder
 func TestBuildDetectionSuccessCondition(t *testing.T) {
 	condition := buildDetectionSuccessCondition()

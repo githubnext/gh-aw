@@ -323,6 +323,15 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
 	}
 
+	// Bake the repository project UTC offset (from aw.json) into job env so runtime
+	// JavaScript helpers do not need to read aw.json on the runner.
+	if utcOffset := c.getCompiledProjectUTCOffset(); utcOffset != "" {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env["GH_AW_PROJECT_UTC"] = fmt.Sprintf("%q", utcOffset)
+	}
+
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 

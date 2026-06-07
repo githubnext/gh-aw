@@ -1,7 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import fs from "fs";
-import os from "os";
-import path from "path";
 
 // Mock core global
 const mockCore = {
@@ -14,6 +11,7 @@ describe("ephemerals", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.GH_AW_DEFAULT_UTC;
+    delete process.env.GH_AW_PROJECT_UTC;
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.RUNNER_WORKSPACE;
     delete process.env.GITHUB_REPOSITORY;
@@ -53,11 +51,8 @@ describe("ephemerals", () => {
       expect(result).toContain("UTC");
     });
 
-    it("should use repo timezone ahead of the default timezone", async () => {
-      const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-ephemerals-"));
-      fs.mkdirSync(path.join(workspace, ".github", "workflows"), { recursive: true });
-      fs.writeFileSync(path.join(workspace, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "-08:00" }));
-      process.env.GITHUB_WORKSPACE = workspace;
+    it("should use compiled project timezone ahead of the default timezone", async () => {
+      process.env.GH_AW_PROJECT_UTC = "-08:00";
       process.env.GH_AW_DEFAULT_UTC = "+00:00";
 
       const { createExpirationLine } = await import("./ephemerals.cjs");
@@ -77,30 +72,15 @@ describe("ephemerals", () => {
       expect(result).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
     });
 
-    it("should use repo timezone from RUNNER_WORKSPACE when GITHUB_WORKSPACE is unavailable", async () => {
-      const runnerWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-runner-workspace-"));
-      const repoName = "repo-from-runner-workspace";
-      const repoRoot = path.join(runnerWorkspace, repoName);
-      fs.mkdirSync(path.join(repoRoot, ".github", "workflows"), { recursive: true });
-      fs.writeFileSync(path.join(repoRoot, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "+02:00" }));
+    it("should use compiled project timezone when present", async () => {
+      process.env.GH_AW_PROJECT_UTC = "+02:00";
 
-      process.env.RUNNER_WORKSPACE = runnerWorkspace;
-      process.env.GITHUB_REPOSITORY = `octocat/${repoName}`;
+      const { createExpirationLine } = await import("./ephemerals.cjs");
+      const date = new Date("2026-01-25T15:54:08.894Z");
+      const result = createExpirationLine(date);
 
-      const originalCwd = process.cwd();
-      const unrelatedDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-unrelated-cwd-"));
-      process.chdir(unrelatedDir);
-
-      try {
-        const { createExpirationLine } = await import("./ephemerals.cjs");
-        const date = new Date("2026-01-25T15:54:08.894Z");
-        const result = createExpirationLine(date);
-
-        expect(result).toContain("UTC+02:00");
-        expect(result).not.toMatch(/\sUTC$/);
-      } finally {
-        process.chdir(originalCwd);
-      }
+      expect(result).toContain("UTC+02:00");
+      expect(result).not.toMatch(/\sUTC$/);
     });
   });
 
@@ -190,10 +170,7 @@ describe("ephemerals", () => {
     });
 
     it("should parse a generated expiration line when project utc is configured", async () => {
-      const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-ephemerals-"));
-      fs.mkdirSync(path.join(workspace, ".github", "workflows"), { recursive: true });
-      fs.writeFileSync(path.join(workspace, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "-08:00" }));
-      process.env.GITHUB_WORKSPACE = workspace;
+      process.env.GH_AW_PROJECT_UTC = "-08:00";
 
       const { createExpirationLine, extractExpirationDate } = await import("./ephemerals.cjs");
       const date = new Date("2026-01-25T15:54:08.894Z");

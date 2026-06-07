@@ -66,6 +66,8 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create workflow data
 			compiler := NewCompiler()
+			compiler.repoConfigLoaded = true
+			compiler.repoConfig = &RepoConfig{}
 			data := &WorkflowData{
 				AI:          "claude",
 				RunsOn:      "ubuntu-latest",
@@ -116,6 +118,30 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMainJobIncludesCompiledProjectUTCEnv(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{UTC: "+02:00"}
+
+	data := &WorkflowData{
+		AI:          "claude",
+		Name:        "UTC env test",
+		RunsOn:      "ubuntu-latest",
+		Permissions: "contents: read",
+	}
+
+	job, err := compiler.buildMainJob(data, false)
+	if err != nil {
+		t.Fatalf("Failed to build main job: %v", err)
+	}
+	if job.Env == nil {
+		t.Fatal("Expected environment variables map to be initialized")
+	}
+	if got := job.Env["GH_AW_PROJECT_UTC"]; got != `"+02:00"` {
+		t.Fatalf("GH_AW_PROJECT_UTC = %q, want %q", got, `"+02:00"`)
 	}
 }
 

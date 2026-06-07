@@ -1,10 +1,5 @@
 // @ts-check
 
-const fs = require("fs");
-const path = require("path");
-
-const REPO_CONFIG_PATH = [".github", "workflows", "aw.json"];
-
 function normalizeUTCOffset(utcOffset) {
   const trimmed = typeof utcOffset === "string" ? utcOffset.trim() : "";
   const match = trimmed.match(/^([+-])(\d{2}):(\d{2})$/);
@@ -34,55 +29,21 @@ function parseUTCOffsetMinutes(utcOffset) {
   return sign * (hours * 60 + minutes);
 }
 
-function getRepoConfigPath() {
-  const githubWorkspace = process.env.GITHUB_WORKSPACE?.trim();
-  if (githubWorkspace) {
-    return path.join(githubWorkspace, ...REPO_CONFIG_PATH);
-  }
-
-  const runnerWorkspace = process.env.RUNNER_WORKSPACE?.trim();
-  const repository = process.env.GITHUB_REPOSITORY?.trim();
-  if (runnerWorkspace && repository) {
-    const repoName = path.basename(repository);
-    if (repoName) {
-      return path.join(runnerWorkspace, repoName, ...REPO_CONFIG_PATH);
-    }
-  }
-
-  return path.join(process.cwd(), ...REPO_CONFIG_PATH);
-}
-
 function warn(message) {
   global.core?.warning?.(message);
 }
 
-function readRepoConfigTimeZone() {
-  const repoConfigPath = getRepoConfigPath();
-
-  try {
-    const raw = fs.readFileSync(repoConfigPath, "utf8");
-    const parsed = JSON.parse(raw);
-    const rawUTCOffset = typeof parsed?.utc === "string" ? parsed.utc.trim() : "";
-    if (!rawUTCOffset) {
-      return "";
-    }
-    const utcOffset = normalizeUTCOffset(rawUTCOffset);
-    if (!utcOffset) {
-      warn(`Ignoring invalid repo UTC offset in ${repoConfigPath}: ${rawUTCOffset}`);
-      return "";
-    }
-    return utcOffset;
-  } catch (error) {
-    if (error && typeof error === "object" && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
-      return "";
-    }
-    if (error instanceof SyntaxError) {
-      warn(`Ignoring invalid JSON in ${repoConfigPath}: ${error.message}`);
-      return "";
-    }
-    warn(`Failed to read ${repoConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
+function readCompiledProjectTimeZone() {
+  const raw = process.env.GH_AW_PROJECT_UTC || "";
+  if (!raw.trim()) {
     return "";
   }
+  const utcOffset = normalizeUTCOffset(raw);
+  if (!utcOffset) {
+    warn(`Ignoring invalid GH_AW_PROJECT_UTC offset: ${raw.trim()}`);
+    return "";
+  }
+  return utcOffset;
 }
 
 function readDefaultTimeZone() {
@@ -99,7 +60,7 @@ function readDefaultTimeZone() {
 }
 
 function resolveProjectTimeZone() {
-  return readRepoConfigTimeZone() || readDefaultTimeZone();
+  return readCompiledProjectTimeZone() || readDefaultTimeZone();
 }
 
 function formatDateInProjectTimeZone(date) {
