@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "daily around 12:00 on weekdays"  # ~12 PM UTC, weekdays only
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

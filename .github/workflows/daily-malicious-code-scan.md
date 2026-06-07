@@ -4,7 +4,7 @@ description: Daily security scan that reviews code changes from the last 3 days 
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

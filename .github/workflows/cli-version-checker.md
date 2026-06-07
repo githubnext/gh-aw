@@ -4,7 +4,7 @@ description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   pull-requests: read

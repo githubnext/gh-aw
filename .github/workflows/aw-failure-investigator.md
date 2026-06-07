@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "every 6h"
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

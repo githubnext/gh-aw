@@ -6,7 +6,7 @@ on:
     strategy: centralized
     name: craft
     events: [issues]
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
