@@ -269,11 +269,10 @@ LATEST_TAG=""
 FALLBACK_DOWNLOAD_URL=""
 FALLBACK_CHECKSUMS_URL=""
 if [ "$VERSION" = "latest" ]; then
-    LATEST_RELEASE_RESPONSE=$(curl -sL --connect-timeout 15 --max-time 30 "https://api.github.com/repos/$REPO/releases/latest")
-    LATEST_RELEASE_STATUS=$?
-    if [ "$LATEST_RELEASE_STATUS" -eq 0 ]; then
+    if LATEST_RELEASE_RESPONSE=$(curl -sLf --connect-timeout 15 --max-time 30 "https://api.github.com/repos/$REPO/releases/latest"); then
         LATEST_TAG=$(printf '%s' "$LATEST_RELEASE_RESPONSE" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
     else
+        LATEST_RELEASE_STATUS=$?
         print_warning "Failed to resolve latest release tag from GitHub API (curl exit code: $LATEST_RELEASE_STATUS)."
     fi
     if [ -n "$LATEST_TAG" ]; then
@@ -312,7 +311,7 @@ MAX_RETRIES=3
 RETRY_DELAY=2
 download_binary_with_retry() {
     local url="$1"
-    local delay=2
+    local delay="$RETRY_DELAY"
 
     for attempt in $(seq 1 $MAX_RETRIES); do
         if curl -L -f --connect-timeout 15 --max-time 120 -o "$BINARY_PATH" "$url"; then
