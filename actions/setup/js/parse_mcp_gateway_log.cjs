@@ -594,7 +594,7 @@ function truncateSummaryValue(value, maxLength) {
  * @param {string} text
  * @returns {string}
  */
-function escapeMarkdownCodeFences(text) {
+function escapeTripleBackticksInCodeBlock(text) {
   return String(text || "").replace(/```/g, "&#96;&#96;&#96;");
 }
 
@@ -821,19 +821,19 @@ function generateAmbientContextSummary(sections) {
 
   lines.push("#### Ambient context (agentic engine)");
   lines.push("```text");
-  lines.push(escapeMarkdownCodeFences(engineAmbientContext || "(empty or not detected)"));
+  lines.push(escapeTripleBackticksInCodeBlock(engineAmbientContext || "(empty or not detected)"));
   lines.push("```");
   lines.push("");
 
   lines.push("#### Ambient context (gh-aw)");
   lines.push("```text");
-  lines.push(escapeMarkdownCodeFences(ghAwAmbientContext || "(empty or not detected)"));
+  lines.push(escapeTripleBackticksInCodeBlock(ghAwAmbientContext || "(empty or not detected)"));
   lines.push("```");
   lines.push("");
 
   lines.push("#### User content (first goal)");
   lines.push("```text");
-  lines.push(escapeMarkdownCodeFences(userContent || "(empty or not detected)"));
+  lines.push(escapeTripleBackticksInCodeBlock(userContent || "(empty or not detected)"));
   lines.push("```");
   lines.push("");
 
