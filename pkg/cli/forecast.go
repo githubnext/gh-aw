@@ -896,18 +896,10 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 		return forecastDownloadRunArtifacts(ctx, runID, dir, verbose, "", "", "", filter)
 	}
 	usageFilter := []string{"usage"}
-	fallbackFilter := []string{constants.AgentArtifactName, constants.DetectionArtifactName}
 	if err := tryDownload(usageFilter); err != nil {
 		if errors.Is(err, ErrNoArtifacts) {
-			forecastRunLog.Printf("No usage artifact for run %d; retrying with fallback artifacts %v", runID, fallbackFilter)
-			if fallbackErr := tryDownload(fallbackFilter); fallbackErr != nil {
-				if errors.Is(fallbackErr, ErrNoArtifacts) {
-					forecastRunLog.Printf("No fallback artifacts for run %d; AIC will be 0", runID)
-				} else {
-					forecastRunLog.Printf("Failed fallback artifact download for run %d: %v", runID, fallbackErr)
-				}
-				return 0
-			}
+			forecastRunLog.Printf("No usage artifact for run %d; AIC will be 0", runID)
+			return 0
 		} else if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			forecastRunLog.Printf("Usage artifact download for run %d interrupted: %v", runID, err)
 			if verbose {
@@ -924,14 +916,6 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	}
 
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
-	if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
-		forecastRunLog.Printf("No AIC data in primary usage artifact path for run %d; trying fallback artifacts %v", runID, fallbackFilter)
-		if fallbackErr := tryDownload(fallbackFilter); fallbackErr == nil {
-			tokenUsage, err = forecastAnalyzeTokenUsage(dir, verbose)
-		} else if !errors.Is(fallbackErr, ErrNoArtifacts) {
-			forecastRunLog.Printf("Fallback artifact download failed for run %d after empty usage analysis: %v", runID, fallbackErr)
-		}
-	}
 	if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("No AIC data in usage artifact for run %d (err=%v, tokenUsage=%v)", runID, err, tokenUsage)
 		return 0

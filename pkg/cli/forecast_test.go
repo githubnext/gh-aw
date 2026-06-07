@@ -437,7 +437,7 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 	require.Equal(t, []string{"usage"}, downloaded)
 }
 
-func TestLoadCachedRunAIC_FallsBackToAgentAndDetectionArtifacts(t *testing.T) {
+func TestLoadCachedRunAIC_NoUsageArtifactReturnsZero(t *testing.T) {
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -448,16 +448,14 @@ func TestLoadCachedRunAIC_FallsBackToAgentAndDetectionArtifacts(t *testing.T) {
 	var downloaded []string
 	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
 		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
-		if strings.Join(artifactFilter, ",") == "usage" {
-			return ErrNoArtifacts
-		}
-		return nil
+		return ErrNoArtifacts
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
-		return &TokenUsageSummary{TotalAIC: 4.56}, nil
+		t.Fatal("analyze should not be called when usage artifact is missing")
+		return nil, nil
 	}
 
 	aic := loadCachedRunAIC(context.Background(), 999_000_002, false)
-	require.InDelta(t, 4.56, aic, 1e-9)
-	require.Equal(t, []string{"usage", "agent,detection"}, downloaded)
+	require.Zero(t, aic)
+	require.Equal(t, []string{"usage"}, downloaded)
 }
