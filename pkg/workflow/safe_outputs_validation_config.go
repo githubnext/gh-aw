@@ -118,10 +118,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"assign_milestone": {
-		DefaultMax: 1,
+		DefaultMax:       1,
+		CustomValidation: "requiresOneOf:milestone_number,milestone_title",
 		Fields: map[string]FieldValidation{
 			"issue_number":     {IssueNumberOrTemporaryID: true},
-			"milestone_number": {Required: true, PositiveInteger: true},
+			"milestone_number": {OptionalPositiveInteger: true},
+			"milestone_title":  {Type: "string", Sanitize: true, MaxLength: 128},
 			"repo":             {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
