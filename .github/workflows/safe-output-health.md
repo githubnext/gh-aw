@@ -10,6 +10,7 @@ permissions:
    pull-requests: read
    actions: read
 engine: claude
+max-ai-credits: 1500
 tools:
   cli-proxy: true
 timeout-minutes: 30
