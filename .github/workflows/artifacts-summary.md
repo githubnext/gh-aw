@@ -4,7 +4,7 @@ description: Generates a comprehensive summary of GitHub Actions artifacts usage
 on:
   workflow_dispatch:
   schedule: weekly on sunday around 06:00
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

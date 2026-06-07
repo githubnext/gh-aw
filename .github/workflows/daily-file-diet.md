@@ -3,7 +3,7 @@ on:
   schedule:
   - cron: daily around 13:00 on weekdays
   workflow_dispatch: null
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

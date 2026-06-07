@@ -9,7 +9,7 @@ on:
     events: [issues, issue_comment, pull_request, pull_request_comment]
   reaction: eyes
   status-comment: true
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

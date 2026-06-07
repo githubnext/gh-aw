@@ -6,7 +6,7 @@ on:
   schedule: daily on weekdays
   workflow_dispatch:
   skip-if-match: 'is:pr is:open label:blog in:title "Agent of the Day"'
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

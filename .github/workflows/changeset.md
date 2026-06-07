@@ -8,7 +8,7 @@ on:
     names: ["changeset", "smoke"]
   workflow_dispatch:
   reaction: "rocket"
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:
   contents: read
