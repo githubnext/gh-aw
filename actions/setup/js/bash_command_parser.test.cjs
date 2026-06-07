@@ -146,6 +146,14 @@ describe("extractCommandName", () => {
     expect(extractCommandName("FILES='a b c' echo hi")).toBe("echo");
   });
 
+  it("skips leading env-var assignment with double-quoted spaces", () => {
+    expect(extractCommandName('FILES="a b c" echo hi')).toBe("echo");
+  });
+
+  it("skips leading env-var assignment with escaped quote in double-quoted value", () => {
+    expect(extractCommandName('FILES="a \\"b\\" c" echo hi')).toBe("echo");
+  });
+
   it("handles negation operator ! and returns next command", () => {
     expect(extractCommandName("! ls /tmp")).toBe("ls");
   });

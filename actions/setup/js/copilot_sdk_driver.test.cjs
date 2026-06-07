@@ -847,11 +847,8 @@ describe("copilot_sdk_driver.cjs", () => {
 
     it("reproduces denied multiline daily compiler command when required tools are missing", async () => {
       const handler = await makePermissionHandlerViaSDK([
-        "shell(ls)",
-        "shell(echo)",
-        "shell(find pkg/workflow -name \"compiler*.go\" ! -name \"*_test.go\" -type f)",
-        "shell(sort)",
-        "shell(git log -1 --format=%H --)",
+        "shell(mkdir)",
+        "shell(git:*)",
         "shell(printf)",
         "shell(cat)",
         "shell(wc)",

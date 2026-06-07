@@ -217,7 +217,7 @@ function extractCommandName(segment) {
   if (!remaining) return null;
 
   // Skip leading env-var assignments: IDENTIFIER=anything  (repeat)
-  const envAssignRe = /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s*/;
+  const envAssignRe = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'[^']*'|\S*)\s*/;
   for (;;) {
     const m = remaining.match(envAssignRe);
     if (!m) break;
