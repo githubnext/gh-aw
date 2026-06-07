@@ -363,7 +363,7 @@ To maximize cache hits:
 
 Two top-level frontmatter fields enforce ET budgets directly, independent of the techniques above. Both accept an integer or a `K`/`M` short-form string (e.g. `100M`, `500K`). Typical workflow range: `100` to `2500`.
 
-- **`max-ai-credits:`** — Per-run AI credit budget enforced by the AWF firewall/API proxy (default `25000000`). The agent is steered to stay within budget; set a negative value to disable enforcement and steering.
+- **`max-ai-credits:`** — Per-run AI credit budget enforced by the AWF firewall/API proxy (default `1000`). The agent is steered to stay within budget; set a negative value to disable enforcement and steering.
 - **`max-daily-ai-credits:`** — Per-user 24-hour guardrail. At activation, gh-aw sums the triggering user's AI credits across their runs of this workflow over the last 24 hours and blocks execution once the total exceeds the threshold. Enabled by default with a system default threshold; set `-1` to disable, or an explicit value to override the default.
 
 ```yaml
