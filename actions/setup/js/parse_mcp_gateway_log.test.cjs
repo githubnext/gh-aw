@@ -18,6 +18,9 @@ const {
   printAllGatewayFiles,
   parseTokenUsageJsonl,
   generateTokenUsageSummary,
+  splitAmbientContextFromFirstPrompt,
+  parseFirstRequestAmbientContextFromApiProxyEvents,
+  generateAmbientContextSummary,
   formatDurationMs,
   hasEffectiveTokensRateLimitError,
 } = require("./parse_mcp_gateway_log.cjs");
@@ -1106,6 +1109,61 @@ Some content here.`;
       expect(events[1].request_id).toBe("req-202");
       expect(events[2].data.request_id).toBe("req-203");
       expect(events[3].request_id).toBe("req-204");
+    });
+
+    describe("ambient context rendering", () => {
+      test("splits first prompt using <system> boundaries", () => {
+        const raw = "ENGINE CONTEXT\n<system>\nGH-AW CONTEXT\n</system>\nUSER GOAL";
+        const sections = splitAmbientContextFromFirstPrompt(raw);
+        expect(sections.engineAmbientContext).toBe("ENGINE CONTEXT");
+        expect(sections.ghAwAmbientContext).toBe("GH-AW CONTEXT");
+        expect(sections.userContent).toBe("USER GOAL");
+      });
+
+      test("falls back to full text as user content when boundaries are missing", () => {
+        const raw = "single block prompt";
+        const sections = splitAmbientContextFromFirstPrompt(raw);
+        expect(sections.engineAmbientContext).toBe("");
+        expect(sections.ghAwAmbientContext).toBe("");
+        expect(sections.userContent).toBe("single block prompt");
+      });
+
+      test("extracts ambient context from first api proxy request entry", () => {
+        const fsStub = {
+          existsSync: filepath => filepath === "/tmp/events.jsonl",
+          readFileSync: () =>
+            [
+              JSON.stringify({ event: "request.forwarded", provider: "anthropic", request_id: "req-1", path: "/v1/messages", payload: { messages: [{ role: "user", content: "ENGINE\n<system>\nGHAW\n</system>\nUSER" }] } }),
+              JSON.stringify({ event: "request.forwarded", payload: { messages: [{ role: "user", content: "other request" }] } }),
+            ].join("\n"),
+        };
+
+        const sections = parseFirstRequestAmbientContextFromApiProxyEvents(["/tmp/events.jsonl"], fsStub);
+        expect(sections).not.toBeNull();
+        expect(sections.provider).toBe("anthropic");
+        expect(sections.requestId).toBe("req-1");
+        expect(sections.path).toBe("/v1/messages");
+        expect(sections.engineAmbientContext).toBe("ENGINE");
+        expect(sections.ghAwAmbientContext).toBe("GHAW");
+        expect(sections.userContent).toBe("USER");
+      });
+
+      test("renders ambient context details with three code regions", () => {
+        const markdown = generateAmbientContextSummary({
+          provider: "anthropic",
+          requestId: "req-99",
+          path: "/v1/messages",
+          engineAmbientContext: "engine section",
+          ghAwAmbientContext: "gh-aw section",
+          userContent: "user section",
+        });
+        expect(markdown).toContain("First Request Ambient Context");
+        expect(markdown).toContain("Ambient context (agentic engine)");
+        expect(markdown).toContain("Ambient context (gh-aw)");
+        expect(markdown).toContain("User content (first goal)");
+        expect(markdown).toContain("provider: anthropic");
+        expect(markdown).toContain("request: req-99");
+      });
     });
 
     test("returns empty array when no model alias resolution events are present", () => {

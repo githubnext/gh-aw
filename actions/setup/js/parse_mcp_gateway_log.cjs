@@ -20,6 +20,19 @@ const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
  */
 
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
+const API_PROXY_EVENT_LOG_PATHS = [
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/events.jsonl",
+  "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
+  "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
+];
+const AMBIENT_ENGINE_MARKER_START = "<!-- GH_AW_AMBIENT_ENGINE_CONTEXT_BEGIN -->";
+const AMBIENT_ENGINE_MARKER_END = "<!-- GH_AW_AMBIENT_ENGINE_CONTEXT_END -->";
+const AMBIENT_GHAW_MARKER_START = "<!-- GH_AW_AMBIENT_GH_AW_CONTEXT_BEGIN -->";
+const AMBIENT_GHAW_MARKER_END = "<!-- GH_AW_AMBIENT_GH_AW_CONTEXT_END -->";
+const AMBIENT_USER_MARKER_START = "<!-- GH_AW_AMBIENT_USER_CONTENT_BEGIN -->";
+const AMBIENT_USER_MARKER_END = "<!-- GH_AW_AMBIENT_USER_CONTENT_END -->";
+const MAX_AMBIENT_SECTION_LENGTH = 8000;
 const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
@@ -575,6 +588,262 @@ function truncateSummaryValue(value, maxLength) {
 }
 
 /**
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeForTextCodeBlock(text) {
+  return String(text || "").replace(/```/g, "\\`\\`\\`");
+}
+
+/**
+ * @param {string} text
+ * @returns {{engineAmbientContext: string, ghAwAmbientContext: string, userContent: string}}
+ */
+function splitAmbientContextFromFirstPrompt(text) {
+  const raw = String(text || "");
+  if (!raw.trim()) {
+    return { engineAmbientContext: "", ghAwAmbientContext: "", userContent: "" };
+  }
+
+  const markerEngineStart = raw.indexOf(AMBIENT_ENGINE_MARKER_START);
+  const markerEngineEnd = raw.indexOf(AMBIENT_ENGINE_MARKER_END);
+  const markerGhAwStart = raw.indexOf(AMBIENT_GHAW_MARKER_START);
+  const markerGhAwEnd = raw.indexOf(AMBIENT_GHAW_MARKER_END);
+  const markerUserStart = raw.indexOf(AMBIENT_USER_MARKER_START);
+  const markerUserEnd = raw.indexOf(AMBIENT_USER_MARKER_END);
+
+  if (
+    markerEngineStart !== -1 &&
+    markerEngineEnd !== -1 &&
+    markerGhAwStart !== -1 &&
+    markerGhAwEnd !== -1 &&
+    markerUserStart !== -1 &&
+    markerUserEnd !== -1 &&
+    markerEngineStart < markerEngineEnd &&
+    markerGhAwStart < markerGhAwEnd &&
+    markerUserStart < markerUserEnd
+  ) {
+    return {
+      engineAmbientContext: raw.slice(markerEngineStart + AMBIENT_ENGINE_MARKER_START.length, markerEngineEnd).trim(),
+      ghAwAmbientContext: raw.slice(markerGhAwStart + AMBIENT_GHAW_MARKER_START.length, markerGhAwEnd).trim(),
+      userContent: raw.slice(markerUserStart + AMBIENT_USER_MARKER_START.length, markerUserEnd).trim(),
+    };
+  }
+
+  const systemStart = raw.indexOf("<system>");
+  const systemEnd = raw.indexOf("</system>", systemStart >= 0 ? systemStart + 8 : 0);
+  if (systemStart !== -1 && systemEnd !== -1 && systemStart < systemEnd) {
+    return {
+      engineAmbientContext: raw.slice(0, systemStart).trim(),
+      ghAwAmbientContext: raw.slice(systemStart + "<system>".length, systemEnd).trim(),
+      userContent: raw.slice(systemEnd + "</system>".length).trim(),
+    };
+  }
+
+  return {
+    engineAmbientContext: "",
+    ghAwAmbientContext: "",
+    userContent: raw.trim(),
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function extractMessageText(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map(item => extractMessageText(item))
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+  if (typeof value.text === "string") {
+    return value.text;
+  }
+  if (typeof value.content === "string") {
+    return value.content;
+  }
+  if (typeof value.input_text === "string") {
+    return value.input_text;
+  }
+  if (Array.isArray(value.content)) {
+    return extractMessageText(value.content);
+  }
+  return "";
+}
+
+/**
+ * @param {unknown} payload
+ * @param {number} [depth]
+ * @returns {Array<any>|null}
+ */
+function findMessagesArray(payload, depth = 0) {
+  if (!payload || typeof payload !== "object" || depth > 3) {
+    return null;
+  }
+  if (Array.isArray(payload.messages)) {
+    return payload.messages;
+  }
+  const nestedKeys = ["payload", "request", "body", "data", "input"];
+  for (const key of nestedKeys) {
+    const nested = payload[key];
+    if (nested && typeof nested === "object") {
+      const found = findMessagesArray(nested, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {unknown} rawPayload
+ * @returns {object|null}
+ */
+function normalizeRequestPayload(rawPayload) {
+  if (!rawPayload) return null;
+  if (typeof rawPayload === "object") return rawPayload;
+  if (typeof rawPayload === "string") {
+    const trimmed = rawPayload.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {Record<string, any>} entry
+ * @returns {object|null}
+ */
+function getRequestPayloadFromEventEntry(entry) {
+  const candidates = [
+    entry.payload,
+    entry.request,
+    entry.body,
+    entry.request_body,
+    entry.requestBody,
+    entry.data?.payload,
+    entry.data?.request,
+    entry.data?.body,
+  ];
+  for (const candidate of candidates) {
+    const payload = normalizeRequestPayload(candidate);
+    if (payload) {
+      return payload;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {string[]} [paths]
+ * @param {{existsSync: Function, readFileSync: Function}} [fsImpl]
+ * @returns {{engineAmbientContext: string, ghAwAmbientContext: string, userContent: string, provider: string, requestId: string, path: string} | null}
+ */
+function parseFirstRequestAmbientContextFromApiProxyEvents(paths = API_PROXY_EVENT_LOG_PATHS, fsImpl = fs) {
+  for (const eventPath of paths) {
+    try {
+      if (!fsImpl.existsSync(eventPath)) continue;
+      const content = fsImpl.readFileSync(eventPath, "utf8");
+      if (!content || !content.trim()) continue;
+      const lines = content.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let entry;
+        try {
+          entry = JSON.parse(trimmed);
+        } catch {
+          continue;
+        }
+        if (!entry || typeof entry !== "object") continue;
+        const payload = getRequestPayloadFromEventEntry(entry);
+        if (!payload) continue;
+        const messages = findMessagesArray(payload);
+        if (!messages || messages.length === 0) continue;
+        const firstUserMessage = messages.find(message => message && typeof message === "object" && String(message.role || "").toLowerCase() === "user");
+        if (!firstUserMessage) continue;
+        const firstUserText = extractMessageText(firstUserMessage.content || firstUserMessage);
+        if (!firstUserText.trim()) continue;
+
+        const segmented = splitAmbientContextFromFirstPrompt(firstUserText);
+        return {
+          ...segmented,
+          provider: String(entry.provider || payload.provider || "").trim(),
+          requestId: String(entry.request_id || entry.requestId || payload.request_id || payload.requestId || "").trim(),
+          path: String(entry.path || payload.path || "").trim(),
+        };
+      }
+    } catch {
+      // Continue to fallback locations
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {{engineAmbientContext: string, ghAwAmbientContext: string, userContent: string, provider?: string, requestId?: string, path?: string} | null} sections
+ * @returns {string}
+ */
+function generateAmbientContextSummary(sections) {
+  if (!sections) return "";
+
+  const engineAmbientContext = truncateSummaryValue(sections.engineAmbientContext || "", MAX_AMBIENT_SECTION_LENGTH);
+  const ghAwAmbientContext = truncateSummaryValue(sections.ghAwAmbientContext || "", MAX_AMBIENT_SECTION_LENGTH);
+  const userContent = truncateSummaryValue(sections.userContent || "", MAX_AMBIENT_SECTION_LENGTH);
+  if (!engineAmbientContext && !ghAwAmbientContext && !userContent) {
+    return "";
+  }
+
+  const lines = [];
+  lines.push("<details>");
+  lines.push("<summary>🌫️ First Request Ambient Context</summary>");
+  lines.push("");
+
+  const metadata = [];
+  if (sections.provider) metadata.push(`provider: ${sections.provider}`);
+  if (sections.path) metadata.push(`path: ${sections.path}`);
+  if (sections.requestId) metadata.push(`request: ${sections.requestId}`);
+  if (metadata.length > 0) {
+    lines.push(`_${metadata.join(" · ")}_`);
+    lines.push("");
+  }
+
+  lines.push("#### Ambient context (agentic engine)");
+  lines.push("```text");
+  lines.push(sanitizeForTextCodeBlock(engineAmbientContext || "(empty or not detected)"));
+  lines.push("```");
+  lines.push("");
+
+  lines.push("#### Ambient context (gh-aw)");
+  lines.push("```text");
+  lines.push(sanitizeForTextCodeBlock(ghAwAmbientContext || "(empty or not detected)"));
+  lines.push("```");
+  lines.push("");
+
+  lines.push("#### User content (first goal)");
+  lines.push("```text");
+  lines.push(sanitizeForTextCodeBlock(userContent || "(empty or not detected)"));
+  lines.push("```");
+  lines.push("");
+
+  lines.push("</details>\n");
+  return lines.join("\n");
+}
+
+/**
  * Normalizes an RPC summary label sourced from logs.
  * @param {unknown} value
  * @param {number} maxLength
@@ -899,6 +1168,8 @@ async function main() {
     const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
     let effectiveTokensRateLimitError = false;
+    const ambientContextSummary = parseFirstRequestAmbientContextFromApiProxyEvents();
+    const ambientContextSection = generateAmbientContextSummary(ambientContextSummary);
 
     // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
@@ -965,6 +1236,9 @@ async function main() {
           const modelAliasResolutionSummary = generateModelAliasResolutionSummary(modelAliasResolutionEvents);
           core.summary.addRaw(modelAliasResolutionSummary);
         }
+        if (ambientContextSection) {
+          core.summary.addRaw(ambientContextSection);
+        }
 
         if (difcFilteredEvents.length > 0) {
           const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
@@ -1010,6 +1284,9 @@ async function main() {
         }
         if (modelAliasResolutionEvents.length > 0) {
           core.summary.addRaw(generateModelAliasResolutionSummary(modelAliasResolutionEvents));
+        }
+        if (ambientContextSection) {
+          core.summary.addRaw(ambientContextSection);
         }
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
@@ -1066,7 +1343,7 @@ async function main() {
     const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
     const modelAliasResolutionSummary = generateModelAliasResolutionSummary(modelAliasResolutionEvents);
     const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
-    const fullSummary = [legacySummary, steeringSummary, modelAliasResolutionSummary, difcSummary].filter(s => s.length > 0).join("\n");
+    const fullSummary = [legacySummary, steeringSummary, modelAliasResolutionSummary, ambientContextSection, difcSummary].filter(s => s.length > 0).join("\n");
 
     if (fullSummary.length > 0) {
       core.summary.addRaw(fullSummary);
@@ -1200,6 +1477,9 @@ if (typeof module !== "undefined" && module.exports) {
     printAllGatewayFiles,
     parseTokenUsageJsonl,
     generateTokenUsageSummary,
+    splitAmbientContextFromFirstPrompt,
+    parseFirstRequestAmbientContextFromApiProxyEvents,
+    generateAmbientContextSummary,
     formatDurationMs,
     hasEffectiveTokensRateLimitError,
   };
