@@ -1577,7 +1577,7 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
     return "";
   }
 
-  const templatePath = getPromptPath("daily_effective_workflow_exceeded.md");
+  const templatePath = getPromptPath("daily_workflow_aic_exceeded.md");
   const formattedTotalAIC = formatAICCredits(totalAIC);
   const formattedThreshold = formatAICCredits(threshold);
   return (
