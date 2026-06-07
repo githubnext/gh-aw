@@ -240,6 +240,10 @@ A safe output capability (`assign-to-agent:`) that programmatically assigns the 
 
 A recognized "magic" repository secret name that GitHub Agentic Workflows automatically uses as a fallback Personal Access Token for `assign-to-agent` operations. When set, no explicit `github-token:` reference is needed in workflow frontmatter — the token is injected automatically. Required because GitHub App installation tokens are rejected by the Copilot assignment API. The token fallback chain is: `assign-to-agent.github-token` → `safe-outputs.github-token` → `GH_AW_AGENT_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/).
 
+### GH_AW_GITHUB_TOKEN
+
+A recognized "magic" repository secret name used as the default fallback token for GitHub operations outside engine inference when no explicit `github-token:` is configured. Commonly used for safe outputs and tool operations that require permissions beyond the default `GITHUB_TOKEN`, and as the non-App fallback when `github-app.ignore-if-missing: true` is enabled. Fallback chain: `custom github-token` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Authentication Reference](/gh-aw/reference/auth/).
+
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).

@@ -124,6 +124,37 @@ cache:
     node-modules-
 ```
 
+#### Security-conscious Go cache recipe (`GOMODCACHE` / `GOCACHE`)
+
+For Go workflows, cache module downloads and build artifacts explicitly, and scope cache keys tightly:
+
+```yaml wrap
+cache:
+  key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+  path: |
+    ~/go/pkg/mod
+    ~/.cache/go-build
+  restore-keys: |
+    go-${{ runner.os }}-
+
+jobs:
+  setup:
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+      - run: |
+          echo "GOMODCACHE=$HOME/go/pkg/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$HOME/.cache/go-build" >> "$GITHUB_ENV"
+```
+
+Security guidance:
+
+- Keep keys specific to OS and dependency lock state (`go.sum`) to reduce accidental cross-context restores.
+- Do not share writeable cache keys across trust boundaries (for example, untrusted fork PR runs and protected branch runs).
+- Never place secrets in `GOMODCACHE`/`GOCACHE`; these directories should contain only modules and build outputs.
+
 ### Repository Checkout (`checkout:`)
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.
