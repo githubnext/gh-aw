@@ -11,7 +11,7 @@ permissions:
   issues: read
 engine:
   id: copilot
-  model: small
+  model: gpt-4
 strict: true
 timeout-minutes: 5
 network: {}
