@@ -297,6 +297,8 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result.exitCode).toBe(0);
       const sessionConfig = createSession.mock.calls[0][0];
       const onPermissionRequest = sessionConfig.onPermissionRequest;
+      // Copilot SDK treats any granted read capability as global; read(path) entries are
+      // effectively equivalent to read for the onPermissionRequest contract.
       expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({ kind: "approve-once" });
     });
