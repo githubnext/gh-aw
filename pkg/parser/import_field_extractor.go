@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
-	"reflect"
 	"regexp"
-	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/importinpututil"
 )
 
 // importAccumulator centralizes the builder/slice/set variables used during
@@ -1238,77 +1238,9 @@ func resolveImportInputPath(inputs map[string]any, inputPath string) (string, bo
 	if !ok {
 		return "", false
 	}
-	return formatResolvedImportInputValue(value)
+	return importinpututil.FormatResolvedValue(value)
 }
 
 func resolveImportInputValue(inputs map[string]any, inputPath string) (any, bool) {
-	top, sub, hasDot := strings.Cut(inputPath, ".")
-	if !hasDot {
-		value, ok := inputs[top]
-		return value, ok
-	}
-	topVal, topOK := inputs[top]
-	if !topOK {
-		return nil, false
-	}
-	obj, isMap := topVal.(map[string]any)
-	if !isMap {
-		return nil, false
-	}
-	value, ok := obj[sub]
-	return value, ok
-}
-
-func formatResolvedImportInputValue(value any) (string, bool) {
-	switch v := value.(type) {
-	case []any:
-		return marshalImportInputValue(v)
-	case map[string]any:
-		return marshalImportInputValue(v)
-	case nil:
-		return "", false
-	default:
-		return formatReflectiveImportInputValue(v)
-	}
-}
-
-func formatReflectiveImportInputValue(value any) (string, bool) {
-	rv := reflect.ValueOf(value)
-	switch rv.Kind() {
-	case reflect.Slice:
-		return marshalImportInputValue(normalizeSliceForImportInput(rv))
-	case reflect.Map:
-		return marshalImportInputValue(normalizeMapForImportInput(rv))
-	default:
-		return fmt.Sprintf("%v", value), true
-	}
-}
-
-func marshalImportInputValue(value any) (string, bool) {
-	b, err := json.Marshal(value)
-	if err != nil {
-		return "", false
-	}
-	return string(b), true
-}
-
-func normalizeSliceForImportInput(rv reflect.Value) []any {
-	normalized := make([]any, rv.Len())
-	for i := range rv.Len() {
-		normalized[i] = rv.Index(i).Interface()
-	}
-	return normalized
-}
-
-func normalizeMapForImportInput(rv reflect.Value) map[string]any {
-	keys := make([]string, 0, rv.Len())
-	for _, key := range rv.MapKeys() {
-		keys = append(keys, key.String())
-	}
-	sort.Strings(keys)
-	normalized := make(map[string]any, rv.Len())
-	for _, k := range keys {
-		normalized[k] = rv.MapIndex(reflect.ValueOf(k)).Interface()
-	}
-	return normalized
+	return importinpututil.ResolvePathValue(inputs, inputPath)
 }

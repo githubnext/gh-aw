@@ -3,15 +3,14 @@ package workflow
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/importinpututil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -503,45 +502,12 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 // goccy/go-yaml may produce typed slices (e.g. []string) instead of []any, so
 // a reflection fallback converts any slice kind to []any before JSON marshaling.
 func marshalImportInputValue(value any) string {
-	switch v := value.(type) {
-	case []any:
-		if b, err := json.Marshal(v); err == nil {
-			return string(b)
-		}
-	case map[string]any:
-		if b, err := json.Marshal(v); err == nil {
-			return string(b)
-		}
-	case nil:
+	if formatted, ok := importinpututil.FormatResolvedValue(value); ok {
+		return formatted
+	}
+	if value == nil {
 		// Null import input — return empty string rather than panicking.
 		return ""
-	default:
-		// Handle typed slices (e.g. []string) that goccy/go-yaml may produce
-		// instead of []any, and typed maps.
-		rv := reflect.ValueOf(v)
-		switch rv.Kind() {
-		case reflect.Slice:
-			normalized := make([]any, rv.Len())
-			for i := range rv.Len() {
-				normalized[i] = rv.Index(i).Interface()
-			}
-			if b, err := json.Marshal(normalized); err == nil {
-				return string(b)
-			}
-		case reflect.Map:
-			keys := make([]string, 0, rv.Len())
-			for _, key := range rv.MapKeys() {
-				keys = append(keys, key.String())
-			}
-			sort.Strings(keys)
-			normalized := make(map[string]any, rv.Len())
-			for _, k := range keys {
-				normalized[k] = rv.MapIndex(reflect.ValueOf(k)).Interface()
-			}
-			if b, err := json.Marshal(normalized); err == nil {
-				return string(b)
-			}
-		}
 	}
 	return fmt.Sprintf("%v", value)
 }
@@ -552,20 +518,5 @@ func marshalImportInputValue(value any) string {
 // supporting one level of nesting as defined by import-schema object types.
 // Returns the resolved value and true on success, or nil and false when the path is not found.
 func resolveImportInputPath(importInputs map[string]any, path string) (any, bool) {
-	topKey, subKey, hasDot := strings.Cut(path, ".")
-	if !hasDot {
-		// Scalar: direct lookup
-		value, ok := importInputs[topKey]
-		return value, ok
-	}
-	// Object sub-key: one-level deep lookup
-	topValue, ok := importInputs[topKey]
-	if !ok {
-		return nil, false
-	}
-	if obj, ok := topValue.(map[string]any); ok {
-		value, ok := obj[subKey]
-		return value, ok
-	}
-	return nil, false
+	return importinpututil.ResolvePathValue(importInputs, path)
 }
