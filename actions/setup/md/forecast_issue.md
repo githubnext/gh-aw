@@ -1,4 +1,4 @@
-### Agentic workflow forecast report
+### Agentic Workflows forecast report
 
 Repository: {repository}
 Generated at: {generated_at}

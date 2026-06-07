@@ -89,13 +89,13 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| Workflow | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |");
-    expect(body).toContain("| [wf\\|a](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-a.yml) | 3 | 4,000 | 8,000 | 12,346 | 52,000 |");
+    expect(body).toContain("| Workflow | Runs | P50/Run | Monthly (P50) |");
+    expect(body).toContain("| [wf\\|a](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-a.yml) | 3 | 4,000 | 52,000 |");
     expect(body).toContain("### AW without data");
     expect(body).toContain("| [wf-b](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-b.yml) | 0 |");
     expect(body).toContain("AIC = 0 is treated as missing data and excluded from forecast computation.");
     expect(body).toContain("### How to read this report");
-    expect(body).toContain("It is statistically valid for monthly P50 to be positive while weekly P50 is 0");
+    expect(body).toContain("Monthly values are distribution medians");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
     expect(body).not.toContain("sampled runs but forecast AIC is 0");
   });
@@ -269,7 +269,7 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| **TOTAL** | | | | **10,000** | **42,000** |");
+    expect(body).toContain("| **TOTAL** | | | **42,000** |");
   });
 
   it("sorts workflows by monthly cost descending", async () => {

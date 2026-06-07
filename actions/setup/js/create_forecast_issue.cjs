@@ -89,13 +89,11 @@ function buildForecastIssueBody(report, options) {
 
   const categorized = workflows.map(workflow => {
     const p50PerRun = toFiniteNumber(workflow?.p50_aic_per_run);
-    const p95PerRun = toFiniteNumber(workflow?.p95_aic_per_run);
-    const weeklyP50 = toFiniteNumber(workflow?.weekly_monte_carlo?.p50_projected_aic ?? workflow?.weekly_projected_aic);
     const monthlyP50 = toFiniteNumber(workflow?.monthly_monte_carlo?.p50_projected_aic ?? workflow?.monthly_projected_aic);
-    const hasForecastData = [p50PerRun, p95PerRun, weeklyP50, monthlyP50].some(hasPositiveAIC);
+    const hasForecastData = [p50PerRun, monthlyP50].some(hasPositiveAIC);
     return {
       workflow,
-      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), p50PerRun, p95PerRun, weeklyP50, monthlyP50],
+      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), p50PerRun, monthlyP50],
       hasForecastData,
     };
   });
@@ -119,9 +117,8 @@ function buildForecastIssueBody(report, options) {
         return !hasPositiveAIC(p50);
       });
 
-  const allWeeklyZero = tableRows.length > 0 && tableRows.every(([, , , , weekly]) => Number(weekly) === 0);
-  const allMonthlyZero = tableRows.length > 0 && tableRows.every(([, , , , , monthly]) => Number(monthly) === 0);
-  const allProjectedZero = legacyRows ? legacyRows.length > 0 && legacyRows.every(([, , p50]) => Number(p50) === 0) : allWeeklyZero && allMonthlyZero;
+  const allMonthlyZero = tableRows.length > 0 && tableRows.every(([, , , monthly]) => Number(monthly) === 0);
+  const allProjectedZero = legacyRows ? legacyRows.length > 0 && legacyRows.every(([, , p50]) => Number(p50) === 0) : allMonthlyZero;
 
   let reportTable;
   if (legacyRows) {
@@ -133,13 +130,12 @@ function buildForecastIssueBody(report, options) {
     if (tableRows.length === 0) {
       reportTable = "_No forecast rows were produced._";
     } else {
-      const totalWeekly = tableRows.reduce((s, [, , , , w]) => s + Number(w), 0);
-      const totalMonthly = tableRows.reduce((s, [, , , , , m]) => s + Number(m), 0);
-      const dataRows = tableRows.map(([workflowID, sampledRuns, p50Run, p95Run, weekly, monthly]) => `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(p95Run)} | ${formatAIC(weekly)} | ${formatAIC(monthly)} |`);
+      const totalMonthly = tableRows.reduce((s, [, , , m]) => s + Number(m), 0);
+      const dataRows = tableRows.map(([workflowID, sampledRuns, p50Run, monthly]) => `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(monthly)} |`);
       if (tableRows.length > 1) {
-        dataRows.push(`| **TOTAL** | | | | **${formatAIC(totalWeekly)}** | **${formatAIC(totalMonthly)}** |`);
+        dataRows.push(`| **TOTAL** | | | **${formatAIC(totalMonthly)}** |`);
       }
-      reportTable = ["| Workflow | Runs | P50/Run | P95/Run | Weekly (P50) | Monthly (P50) |", "| --- | ---: | ---: | ---: | ---: | ---: |", ...dataRows].join("\n");
+      reportTable = ["| Workflow | Runs | P50/Run | Monthly (P50) |", "| --- | ---: | ---: | ---: |", ...dataRows].join("\n");
     }
   }
   const withoutDataWorkflows = legacyRows ? legacyNoDataWorkflows : workflowsWithoutData;
@@ -169,10 +165,9 @@ function buildForecastIssueBody(report, options) {
       : [
           "### How to read this report",
           "",
-          "- **P50/Run** and **P95/Run** are per-run percentiles from sampled historical runs.",
-          "- **Weekly (P50)** and **Monthly (P50)** are Monte Carlo medians of total AIC over 7 and 30 days.",
-          "- Weekly and monthly values are distribution medians, not a direct `P50/Run × runs` multiplication.",
-          "- It is statistically valid for monthly P50 to be positive while weekly P50 is 0 when usage is sparse/zero-inflated.",
+          "- **P50/Run** is the median per-run AIC from sampled historical runs.",
+          "- **Monthly (P50)** is the Monte Carlo median of total AIC over 30 days.",
+          "- Monthly values are distribution medians, not a direct `P50/Run × runs` multiplication.",
           "",
         ].join("\n");
 
