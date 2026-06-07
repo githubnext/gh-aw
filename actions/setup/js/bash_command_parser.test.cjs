@@ -384,7 +384,7 @@ describe("extractCommandName – extensive vectors", () => {
     { id: "BP-EC-004", segment: "2>&1", expected: null },
     { id: "BP-EC-005", segment: ">out.txt", expected: null },
     { id: "BP-EC-006", segment: "A=1 B=2 safeoutputs missing_data", expected: "safeoutputs" },
-    { id: "BP-EC-007", segment: "then cat file", expected: null },
+    { id: "BP-EC-007", segment: "then cat file", expected: "cat" },
     { id: "BP-EC-008", segment: "fi", expected: null },
     { id: "BP-EC-009", segment: "do", expected: null },
     { id: "BP-EC-010", segment: "done", expected: null },
