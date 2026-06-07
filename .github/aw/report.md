@@ -67,6 +67,15 @@ Wrap detailed content in `<details><summary>Section Name</summary>` tags. Use fo
 
 Keep critical information visible (summary, critical issues, key metrics).
 
+### Alerts Instead of Emojis
+
+Use GitHub alert syntax for status and warning callouts:
+- `> [!NOTE]` for neutral status/context
+- `> [!WARNING]` for warnings
+- `> [!CAUTION]` for high-risk or blocking issues
+
+Do not use emoji-only severity markers in headings or status lines (for example `✅`, `⚠️`, `❌`, `🧪`).
+
 ### Report Structure Pattern
 
 1. **Overview**: 1–2 paragraphs summarizing key findings
@@ -80,7 +89,9 @@ Keep critical information visible (summary, critical issues, key metrics).
 ### Summary
 - Key metric 1: value
 - Key metric 2: value
-- Status: ✅/⚠️/❌
+
+> [!WARNING]
+> Status: degradation detected in one or more checks.
 
 ### Critical Issues
 [Always visible - these are important]
