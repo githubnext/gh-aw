@@ -1117,7 +1117,8 @@
     },
     "max-runs": {
       "type": "integer|string",
-      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.",
+      "desc": "DEPRECATED: Use `max-turns` instead. Legacy alias for AWF invocation cap (`apiProxy.maxRuns`).",
+      "deprecated": true,
       "leaf": true
     },
     "mcp-servers": {

@@ -509,12 +509,12 @@ max-daily-ai-credits: 15M
 
 See [Cost Management](/gh-aw/reference/cost-management/) and [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
 
-### Max Runs (`max-runs`)
+### Max Runs (`max-runs`, deprecated)
 
-A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
+Deprecated top-level alias for the AWF invocation cap. Use `max-turns` instead. This cap limits the number of times the AWF proxy invokes the AI engine within a single workflow run and maps to `apiProxy.maxRuns` in the compiled lock file. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
-max-runs: 10
+max-turns: 10
 ```
 
 See [Engines Reference](/gh-aw/reference/engines/).

@@ -2543,17 +2543,17 @@ max-effective-tokens: 1
 # Actions expression.
 max-effective-tokens: "example-value"
 
-# AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.
-# Defaults to 500 when omitted.
+# DEPRECATED: Legacy alias for AWF invocation cap (`apiProxy.maxRuns`).
+# Use `max-turns` instead. Defaults to 500 when omitted.
 # (optional)
 # Accepted formats:
 
 # Format 1: Maximum number of LLM invocations allowed per run.
-max-runs: 1
+max-turns: 1
 
 # Format 2: Maximum number of LLM invocations allowed per run as a numeric string
 # or GitHub Actions expression.
-max-runs: "example-value"
+max-turns: "example-value"
 
 # MCP server definitions
 # (optional)
