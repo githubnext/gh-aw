@@ -807,10 +807,19 @@ jobs:
           CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.3.23'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
+      - name: Check for noop safe output
+        id: check-noop
+        env:
+          SAFE_OUTPUTS_FILE: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
+        run: |
+          if [ -f "$SAFE_OUTPUTS_FILE" ] && jq -e '.tool == "noop"' "$SAFE_OUTPUTS_FILE" >/dev/null 2>&1; then
+            echo "noop_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "noop_exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        if: |
-          ! (test -f "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}" && jq -e '.tool == "noop"' "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}" >/dev/null 2>&1)
+        if: steps.check-noop.outputs.noop_exists != 'true'
         # Copilot CLI tool arguments (sorted):
         timeout-minutes: 20
         run: |
