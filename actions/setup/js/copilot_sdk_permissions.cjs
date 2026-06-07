@@ -249,19 +249,29 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
       case "shell": {
         if (allowedToolEntries.has("shell")) return true;
         const commandIdentifiers = Array.isArray(request.commands) ? request.commands.map(cmd => cmd?.identifier).filter(Boolean) : [];
+        const normalizedCommandIdentifiers = [
+          ...new Set(
+            commandIdentifiers.flatMap(identifier => {
+              const text = String(identifier || "").trim();
+              if (!text) return [];
+              const parsedNames = extractCommandNamesFromPipeline(text);
+              return parsedNames.length > 0 ? [text, ...parsedNames] : [text];
+            })
+          ),
+        ];
         const fullCommand = String(request.fullCommandText || "").trim();
 
         // Primary path: the SDK provided command identifiers.
         // Use original matching logic: single-word and :* rules match identifiers,
         // rules with spaces are compared against the full command text.
-        if (commandIdentifiers.length > 0) {
+        if (normalizedCommandIdentifiers.length > 0) {
           return shellRules.some(rule => {
             if (rule.endsWith(":*")) {
               const prefix = rule.slice(0, -2).trim();
-              return prefix.length > 0 && commandIdentifiers.includes(prefix);
+              return prefix.length > 0 && normalizedCommandIdentifiers.includes(prefix);
             }
             if (!rule.includes(" ")) {
-              return commandIdentifiers.includes(rule);
+              return normalizedCommandIdentifiers.includes(rule);
             }
             return fullCommand === rule;
           });

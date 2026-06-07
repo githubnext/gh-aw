@@ -825,6 +825,26 @@ describe("copilot_sdk_driver.cjs", () => {
       });
     });
 
+    it("allows safeoutputs command when SDK identifier includes full command text", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(safeoutputs:*)"]);
+      const result = handler({
+        kind: "shell",
+        commands: [{ identifier: "safeoutputs --help 2>&1" }],
+        fullCommandText: "safeoutputs --help 2>&1",
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
+    it("allows mcpscripts command when SDK identifier includes full command text", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(mcpscripts:*)"]);
+      const result = handler({
+        kind: "shell",
+        commands: [{ identifier: "mcpscripts gh issue list --repo github/gh-aw" }],
+        fullCommandText: "mcpscripts gh issue list --repo github/gh-aw",
+      });
+      expect(result).toEqual({ kind: "approve-once" });
+    });
+
     it("denies when fullCommandText is empty and no identifiers provided", async () => {
       const handler = await makePermissionHandlerViaSDK(["shell(ls)"]);
       const result = handler({
