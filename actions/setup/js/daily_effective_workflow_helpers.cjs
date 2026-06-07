@@ -187,6 +187,35 @@ function sumAICFromUsageJSONLFiles(filePaths) {
     return 0;
   }
 
+  /**
+   * @param {unknown} usage
+   * @returns {Record<string, unknown> | null}
+   */
+  function normalizeUsageRecord(usage) {
+    if (usage && typeof usage === "object" && !Array.isArray(usage)) {
+      return /** @type {Record<string, unknown>} */ (usage);
+    }
+    return null;
+  }
+
+  /**
+   * @param {Record<string, unknown> | null} usage
+   * @param {Record<string, unknown>} parsed
+   * @param {string} snakeCase
+   * @param {string} camelCase
+   * @returns {number}
+   */
+  function getNumericField(usage, parsed, snakeCase, camelCase) {
+    const candidates = [usage?.[snakeCase], usage?.[camelCase], parsed[snakeCase], parsed[camelCase]];
+    for (const candidate of candidates) {
+      const num = Number(candidate);
+      if (Number.isFinite(num)) {
+        return num;
+      }
+    }
+    return 0;
+  }
+
   let total = 0;
   for (const filePath of filePaths) {
     if (!filePath || !fs.existsSync(filePath)) {
@@ -206,21 +235,25 @@ function sumAICFromUsageJSONLFiles(filePaths) {
 
       try {
         const parsed = JSON.parse(line);
-        const usage = parsed?.usage && typeof parsed.usage === "object" ? parsed.usage : parsed;
-        const explicit = Number(usage?.aic ?? usage?.ai_credits ?? usage?.aiCredits);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          continue;
+        }
+
+        const usage = normalizeUsageRecord(parsed.usage);
+        const explicit = Number(usage?.aic ?? usage?.ai_credits ?? usage?.aiCredits ?? parsed.aic ?? parsed.ai_credits ?? parsed.aiCredits);
         if (Number.isFinite(explicit) && explicit > 0) {
           total += explicit;
           continue;
         }
 
         const computed = computeInferenceAIC({
-          provider: String(usage?.provider || parsed?.provider || ""),
-          model: String(usage?.model || parsed?.model || ""),
-          inputTokens: Number(usage?.input_tokens ?? usage?.inputTokens ?? parsed?.input_tokens ?? 0),
-          outputTokens: Number(usage?.output_tokens ?? usage?.outputTokens ?? parsed?.output_tokens ?? 0),
-          cacheReadTokens: Number(usage?.cache_read_tokens ?? usage?.cacheReadTokens ?? parsed?.cache_read_tokens ?? 0),
-          cacheWriteTokens: Number(usage?.cache_write_tokens ?? usage?.cacheWriteTokens ?? parsed?.cache_write_tokens ?? 0),
-          reasoningTokens: Number(usage?.reasoning_tokens ?? usage?.reasoningTokens ?? parsed?.reasoning_tokens ?? 0),
+          provider: String(usage?.provider || parsed.provider || ""),
+          model: String(usage?.model || parsed.model || ""),
+          inputTokens: getNumericField(usage, parsed, "input_tokens", "inputTokens"),
+          outputTokens: getNumericField(usage, parsed, "output_tokens", "outputTokens"),
+          cacheReadTokens: getNumericField(usage, parsed, "cache_read_tokens", "cacheReadTokens"),
+          cacheWriteTokens: getNumericField(usage, parsed, "cache_write_tokens", "cacheWriteTokens"),
+          reasoningTokens: getNumericField(usage, parsed, "reasoning_tokens", "reasoningTokens"),
         });
         if (Number.isFinite(computed) && computed > 0) {
           total += computed;
