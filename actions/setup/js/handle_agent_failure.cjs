@@ -1010,8 +1010,8 @@ function extractDeniedCommandsFromAlternatives(alternatives) {
       current += ch;
       continue;
     }
-    if (ch === ")" && depth > 0) {
-      depth -= 1;
+    if (ch === ")") {
+      depth = Math.max(0, depth - 1);
       current += ch;
       continue;
     }
