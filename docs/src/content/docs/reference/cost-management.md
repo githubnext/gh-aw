@@ -298,7 +298,7 @@ frontmatter.
 
 Use `max-daily-ai-credits` to set a 24-hour AI Credits
 cap for one workflow. The guardrail sums runs from the past 24 hours of the same
-workflow started by the same triggering user.
+workflow across the repository, regardless of who triggered them.
 
 ```aw wrap
 max-daily-ai-credits: 15M

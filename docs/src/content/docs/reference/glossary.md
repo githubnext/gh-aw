@@ -501,7 +501,7 @@ max-ai-credits: 5M
 
 ### Max Daily AI Credits (`max-daily-ai-credits`)
 
-A top-level frontmatter field that sets a 24-hour AI Credits cap for a single workflow, aggregated across recent runs of the same workflow triggered by the same user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and reports a specialized failure. Disabled by default when omitted. Set to `-1` to explicitly disable it. Accepts plain integers or `K`/`M` suffixes (e.g., `100M`). Skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs carrying internal `aw_context` dispatch metadata. Example:
+A top-level frontmatter field that sets a 24-hour AI Credits cap for a single workflow, aggregated across all recent runs of the same workflow in the repository. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and reports a specialized failure. Disabled by default when omitted. Set to `-1` to explicitly disable it. Accepts plain integers or `K`/`M` suffixes (e.g., `100M`). Skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs carrying internal `aw_context` dispatch metadata. Example:
 
 ```aw wrap
 max-daily-ai-credits: 15M

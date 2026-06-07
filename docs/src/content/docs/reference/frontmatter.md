@@ -249,7 +249,7 @@ max-ai-credits: -1
 
 ### Daily Per-Workflow AI Credits Guardrail (`max-daily-ai-credits:`)
 
-Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
+Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent runs of the same workflow in the repository. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
 
 This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 

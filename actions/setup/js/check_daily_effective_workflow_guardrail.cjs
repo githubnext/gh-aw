@@ -356,7 +356,6 @@ async function main() {
     while (page <= MAX_WORKFLOW_RUN_PAGES) {
       logDailyGuardrail("Querying completed workflow runs", {
         workflowId: currentRun.data.workflow_id,
-        actorLogin,
         page,
         perPage: 100,
         cutoff: new Date(cutoffMs).toISOString(),
@@ -365,7 +364,6 @@ async function main() {
         owner,
         repo,
         workflow_id: currentRun.data.workflow_id,
-        actor: actorLogin,
         status: "completed",
         per_page: 100,
         page,
