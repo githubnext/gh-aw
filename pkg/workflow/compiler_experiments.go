@@ -6,6 +6,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -264,13 +265,31 @@ func extractGuardrailMetrics(raw any) []GuardrailMetric {
 			continue
 		}
 		name, _ := m["name"].(string)
-		threshold, _ := m["threshold"].(string)
+		direction, _ := m["direction"].(string)
+		threshold := extractGuardrailThreshold(m["threshold"])
 		if name == "" || threshold == "" {
 			continue
 		}
-		result = append(result, GuardrailMetric{Name: name, Threshold: threshold})
+		result = append(result, GuardrailMetric{Name: name, Direction: direction, Threshold: threshold})
 	}
 	return result
+}
+
+func extractGuardrailThreshold(raw any) string {
+	switch v := raw.(type) {
+	case string:
+		return v
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case uint64:
+		return strconv.FormatUint(v, 10)
+	default:
+		return ""
+	}
 }
 
 // extractIntSlice converts a raw value to a []int, accepting []any of numeric values.

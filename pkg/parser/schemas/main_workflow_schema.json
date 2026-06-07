@@ -2844,10 +2844,22 @@
                       "type": "string",
                       "description": "Name of the guardrail metric (e.g. 'success_rate', 'empty_output_rate')."
                     },
-                    "threshold": {
+                    "direction": {
                       "type": "string",
-                      "pattern": "^(>=|<=|==|>|<)-?\\d+(\\.\\d+)?$",
-                      "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05'). If any guardrail fails for any variant the experiment is automatically abandoned."
+                      "enum": ["min", "max"],
+                      "description": "Optimization direction for the metric. Use 'min' when lower values are better and 'max' when higher values are better."
+                    },
+                    "threshold": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(>=|<=|==|>|<)-?\\d+(\\.\\d+)?$"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05') or a numeric value when paired with direction. If any guardrail fails for any variant the experiment is automatically abandoned."
                     }
                   },
                   "additionalProperties": false

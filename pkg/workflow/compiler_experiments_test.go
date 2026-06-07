@@ -286,8 +286,8 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 						"hypothesis":        "H0: no change. H1: concise reduces tokens by >=15%",
 						"secondary_metrics": []any{"duration_ms", "discussion_word_count"},
 						"guardrail_metrics": []any{
-							map[string]any{"name": "success_rate", "threshold": ">=0.95"},
-							map[string]any{"name": "empty_output_rate", "threshold": "==0"},
+							map[string]any{"name": "success_rate", "direction": "max", "threshold": ">=0.95"},
+							map[string]any{"name": "empty_output_rate", "direction": "min", "threshold": "==0"},
 						},
 						"min_samples": float64(25),
 					},
@@ -301,8 +301,10 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 				assert.Equal(t, []string{"duration_ms", "discussion_word_count"}, cfg.SecondaryMetrics, "secondary_metrics should match")
 				require.Len(t, cfg.GuardrailMetrics, 2, "guardrail_metrics should have 2 entries")
 				assert.Equal(t, "success_rate", cfg.GuardrailMetrics[0].Name, "first guardrail name")
+				assert.Equal(t, "max", cfg.GuardrailMetrics[0].Direction, "first guardrail direction")
 				assert.Equal(t, ">=0.95", cfg.GuardrailMetrics[0].Threshold, "first guardrail threshold")
 				assert.Equal(t, "empty_output_rate", cfg.GuardrailMetrics[1].Name, "second guardrail name")
+				assert.Equal(t, "min", cfg.GuardrailMetrics[1].Direction, "second guardrail direction")
 				assert.Equal(t, "==0", cfg.GuardrailMetrics[1].Threshold, "second guardrail threshold")
 				assert.Equal(t, 25, cfg.MinSamples, "min_samples should match")
 			},
@@ -344,6 +346,28 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 				require.Len(t, cfg.GuardrailMetrics, 1, "only the valid guardrail entry should be kept")
 				assert.Equal(t, "error_rate", cfg.GuardrailMetrics[0].Name, "guardrail name")
 				assert.Equal(t, "<=0.05", cfg.GuardrailMetrics[0].Threshold, "guardrail threshold")
+			},
+		},
+		{
+			name: "numeric guardrail threshold is parsed",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"exp": map[string]any{
+						"variants": []any{"A", "B"},
+						"guardrail_metrics": []any{
+							map[string]any{"name": "empty_dispatch_rate", "direction": "min", "threshold": 0.0},
+						},
+					},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["exp"]
+				require.NotNil(t, cfg, "exp config should exist")
+				require.Len(t, cfg.GuardrailMetrics, 1, "guardrail_metrics should have 1 entry")
+				assert.Equal(t, "empty_dispatch_rate", cfg.GuardrailMetrics[0].Name, "guardrail name")
+				assert.Equal(t, "min", cfg.GuardrailMetrics[0].Direction, "guardrail direction")
+				assert.Equal(t, "0", cfg.GuardrailMetrics[0].Threshold, "guardrail threshold")
 			},
 		},
 		{
