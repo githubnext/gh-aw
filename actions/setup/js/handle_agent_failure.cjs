@@ -57,17 +57,13 @@ function buildWarningAlertLine(title, message) {
 }
 
 /**
- * Render a prompt template, preferring runtime prompts and falling back to source-tree templates.
+ * Render a prompt template from runtime prompts.
  * @param {string} templateName
  * @param {Record<string, string|number|boolean|undefined>} [context]
  * @returns {string}
  */
-function renderPromptTemplateWithSourceFallback(templateName, context = {}) {
-  try {
-    return renderTemplateFromFile(getPromptPath(templateName), context);
-  } catch {
-    return renderTemplateFromFile(path.join(__dirname, "../md", templateName), context);
-  }
+function renderPromptTemplate(templateName, context = {}) {
+  return renderTemplateFromFile(getPromptPath(templateName), context);
 }
 
 /**
@@ -1077,7 +1073,7 @@ function buildPermissionDeniedContext(items, workflowId) {
   const deniedCommandsInline = deniedArray.map(cmd => `\`${cmd}\``).join(", ");
   const deniedCount = String(deniedArray.length);
 
-  const rendered = renderPromptTemplateWithSourceFallback("permission_denied_context.md", {
+  const rendered = renderPromptTemplate("permission_denied_context.md", {
     denied_count: deniedCount,
     denied_commands_list: deniedCommandsList,
     denied_commands_inline: deniedCommandsInline,
@@ -1277,7 +1273,7 @@ function buildMCPPolicyErrorContext(hasMCPPolicyError) {
     return "";
   }
 
-  return "\n" + renderPromptTemplateWithSourceFallback("mcp_policy_error.md");
+  return "\n" + renderPromptTemplate("mcp_policy_error.md");
 }
 
 /**
@@ -1291,7 +1287,7 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
     return "";
   }
 
-  return "\n" + renderPromptTemplateWithSourceFallback("model_not_supported_error.md");
+  return "\n" + renderPromptTemplate("model_not_supported_error.md");
 }
 
 /**
@@ -1331,7 +1327,7 @@ function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
  */
 function buildEngineRateLimit429Context(engineLabel) {
   const normalizedEngineLabel = engineLabel.trim() || "AI";
-  return "\n" + renderPromptTemplateWithSourceFallback("engine_rate_limit_429.md", { engine_label: normalizedEngineLabel });
+  return "\n" + renderPromptTemplate("engine_rate_limit_429.md", { engine_label: normalizedEngineLabel });
 }
 
 /**

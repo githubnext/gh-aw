@@ -1441,6 +1441,7 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_OTEL_JSONL_PATH = path.join(tmpDir, "otel.jsonl");
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/engine_rate_limit_429.md"), path.join(promptsDir, "engine_rate_limit_429.md"));
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
@@ -1811,11 +1812,8 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access");
     });
 
-    it("returns inline fallback message when template is missing", () => {
-      // No template file written
-      const result = buildMCPPolicyErrorContext(true);
-      expect(result).toContain("MCP Servers Blocked by Policy");
-      expect(result).toContain("configure-mcp-server-access");
+    it("throws when template is missing", () => {
+      expect(() => buildMCPPolicyErrorContext(true)).toThrow();
     });
   });
 
@@ -1861,11 +1859,8 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Model Not Supported");
     });
 
-    it("returns inline fallback message when template is missing", () => {
-      // No template file written
-      const result = buildModelNotSupportedErrorContext(true);
-      expect(result).toContain("Model Not Supported");
-      expect(result).toContain("gpt-5-mini");
+    it("throws when template is missing", () => {
+      expect(() => buildModelNotSupportedErrorContext(true)).toThrow();
     });
   });
 
@@ -2157,6 +2152,9 @@ describe("handle_agent_failure", () => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-permission-denied-"));
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/permission_denied_context.md"), path.join(promptsDir, "permission_denied_context.md"));
       ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
     });
 
@@ -2187,16 +2185,14 @@ describe("handle_agent_failure", () => {
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
-    it("returns inline fallback when template is not available (RUNNER_TEMP not set)", () => {
-      delete process.env.RUNNER_TEMP;
+    it("renders template with denied command", () => {
       const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("go version 2>&1");
       expect(result).toContain("Repeated Permission Denied");
     });
 
-    it("renders fallback with denied commands listed", () => {
-      delete process.env.RUNNER_TEMP;
+    it("renders template with denied commands listed", () => {
       const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] }];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("`go version 2>&1`");
@@ -2204,7 +2200,6 @@ describe("handle_agent_failure", () => {
     });
 
     it("deduplicates denied commands across multiple tool/permission items", () => {
-      delete process.env.RUNNER_TEMP;
       const items = [
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] },
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "which go"] },
