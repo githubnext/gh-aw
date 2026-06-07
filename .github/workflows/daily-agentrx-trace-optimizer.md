@@ -3,7 +3,7 @@ emoji: "⚡"
 description: Daily session-driven workflow optimization using AgentRx trajectory diagnostics
 on:
   schedule: daily on weekdays
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

@@ -5,7 +5,7 @@ on:
   schedule: weekly on Monday around 08:00
   workflow_dispatch:
 
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

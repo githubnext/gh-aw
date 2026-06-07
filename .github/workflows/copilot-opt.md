@@ -6,7 +6,7 @@ on:
   schedule:
     - cron: "weekly on monday"
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read

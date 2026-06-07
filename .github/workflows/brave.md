@@ -6,7 +6,7 @@ on:
     strategy: centralized
     name: brave
     events: [issue_comment]
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

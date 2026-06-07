@@ -8,7 +8,7 @@ on:
     name: cloclo
     strategy: decentralized
   status-comment: true
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   pull-requests: read

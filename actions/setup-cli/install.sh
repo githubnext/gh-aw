@@ -262,6 +262,30 @@ fi
 if [ "$OS_NAME" = "windows" ]; then
     DOWNLOAD_URL="${DOWNLOAD_URL}.exe"
 fi
+
+# For latest installs, keep a versioned fallback URL in case the latest redirect
+# endpoint intermittently returns gateway errors.
+LATEST_TAG=""
+FALLBACK_DOWNLOAD_URL=""
+FALLBACK_CHECKSUMS_URL=""
+if [ "$VERSION" = "latest" ]; then
+    if LATEST_RELEASE_RESPONSE=$(curl -sLf --connect-timeout 15 --max-time 30 "https://api.github.com/repos/$REPO/releases/latest"); then
+        LATEST_TAG=$(printf '%s' "$LATEST_RELEASE_RESPONSE" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    else
+        print_warning "Failed to resolve latest release tag from GitHub API."
+    fi
+    if [ -n "$LATEST_TAG" ]; then
+        FALLBACK_DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST_TAG/$PLATFORM"
+        FALLBACK_CHECKSUMS_URL="https://github.com/$REPO/releases/download/$LATEST_TAG/checksums.txt"
+        if [ "$OS_NAME" = "windows" ]; then
+            FALLBACK_DOWNLOAD_URL="${FALLBACK_DOWNLOAD_URL}.exe"
+        fi
+        print_info "Prepared latest fallback URL for resolved tag: $LATEST_TAG"
+    else
+        print_warning "Could not resolve latest release tag; install will use latest redirect URL only."
+    fi
+fi
+
 INSTALL_DIR="$HOME/.local/share/gh/extensions/gh-aw"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
 CHECKSUMS_PATH="$INSTALL_DIR/checksums.txt"
@@ -284,23 +308,42 @@ fi
 print_info "Downloading gh-aw binary..."
 MAX_RETRIES=3
 RETRY_DELAY=2
+download_binary_with_retry() {
+    local url="$1"
+    local delay="$RETRY_DELAY"
 
-for attempt in $(seq 1 $MAX_RETRIES); do
-    if curl -L -f --connect-timeout 15 --max-time 120 -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
-        print_success "Binary downloaded successfully"
-        break
-    else
-        if [ "$attempt" -eq "$MAX_RETRIES" ]; then
+    for attempt in $(seq 1 $MAX_RETRIES); do
+        if curl -L -f --connect-timeout 15 --max-time 120 -o "$BINARY_PATH" "$url"; then
+            print_success "Binary downloaded successfully"
+            return 0
+        fi
+
+        if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+            print_warning "Download attempt $attempt failed. Retrying in ${delay}s..."
+            sleep $delay
+            delay=$((delay * 2))
+        fi
+    done
+
+    return 1
+}
+
+if ! download_binary_with_retry "$DOWNLOAD_URL"; then
+    if [ -n "$FALLBACK_DOWNLOAD_URL" ]; then
+        print_warning "Failed to download from latest redirect URL. Retrying with resolved tag URL ($LATEST_TAG)."
+        DOWNLOAD_URL="$FALLBACK_DOWNLOAD_URL"
+        CHECKSUMS_URL="$FALLBACK_CHECKSUMS_URL"
+        if ! download_binary_with_retry "$DOWNLOAD_URL"; then
             print_error "Failed to download binary from $DOWNLOAD_URL after $MAX_RETRIES attempts"
             print_info "Please check if the version and platform combination exists in the releases."
             exit 1
-        else
-            print_warning "Download attempt $attempt failed. Retrying in ${RETRY_DELAY}s..."
-            sleep $RETRY_DELAY
-            RETRY_DELAY=$((RETRY_DELAY * 2))
         fi
+    else
+        print_error "Failed to download binary from $DOWNLOAD_URL after $MAX_RETRIES attempts"
+        print_info "Please check if the version and platform combination exists in the releases."
+        exit 1
     fi
-done
+fi
 
 # Download and verify checksums if not skipped
 if [ "$SKIP_CHECKSUM" = false ]; then

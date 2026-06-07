@@ -3,7 +3,7 @@ emoji: "🧪"
 description: Test Codex engine with GitHub remote MCP server
 on:
   workflow_dispatch:
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read

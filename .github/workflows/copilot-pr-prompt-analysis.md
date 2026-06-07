@@ -8,7 +8,7 @@ on:
     - cron: daily
   workflow_dispatch:
 
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
