@@ -59,7 +59,7 @@ func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node) {
 	// Walk all statements in the function body, including nested blocks,
 	// but stop at function literals so closures are analysed independently.
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		return inspectFileNode(pass, fileVars, node)
+		return analyzeASTNodeForFileClosePatterns(pass, fileVars, node)
 	})
 
 	// Report files with manual close but no defer
@@ -73,7 +73,7 @@ func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node) {
 	}
 }
 
-func inspectFileNode(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, node ast.Node) bool {
+func analyzeASTNodeForFileClosePatterns(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, node ast.Node) bool {
 	if node == nil {
 		return false
 	}

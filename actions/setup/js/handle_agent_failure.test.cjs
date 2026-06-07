@@ -1948,7 +1948,7 @@ describe("handle_agent_failure", () => {
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
-      expect(result).toContain("Missing Data Reported");
+      expect(result).not.toContain("Missing Data Reported");
       expect(result).toContain("Cache Configuration Problem");
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("<summary>");
@@ -1970,11 +1970,55 @@ describe("handle_agent_failure", () => {
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
-      expect(result).toContain("Missing Data Reported");
+      expect(result).not.toContain("Missing Data Reported");
       expect(result).toContain("Cache Configuration Problem");
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("<summary>");
       expect(result).toContain("<details>");
+    });
+
+    it("shows generic missing-data context for non-cache items while still appending cache warning", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" },
+            { type: "missing_data", data_type: "user_data", reason: "not_provided" },
+          ],
+        })
+      );
+      const templateContent = "> [!WARNING]\n> <details>\n> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n>\n> Details here.\n>\n> </details>";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("user\\_data");
+      expect(result).toContain("Cache Configuration Problem");
+      expect(result).not.toContain("cache\\_memory");
+      expect(result).not.toContain("cache\\_memory\\_miss");
+    });
+
+    it("keeps cache warning and report_incomplete context without duplicate missing-data section", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" },
+            { type: "report_incomplete", reason: "mcp_crash" },
+          ],
+        })
+      );
+      const templateContent = "> [!WARNING]\n> <details>\n> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n>\n> Details here.\n>\n> </details>";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
+      vi.resetModules();
+      const { buildMissingDataContext: buildMissingDataContextFn, buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
+      const missingDataResult = buildMissingDataContextFn(true);
+      const reportIncompleteResult = buildReportIncompleteContext();
+      expect(missingDataResult).not.toContain("Missing Data Reported");
+      expect(missingDataResult).toContain("Cache Configuration Problem");
+      expect(reportIncompleteResult).toContain("Task Could Not Be Completed");
+      expect(reportIncompleteResult).toContain("mcp_crash");
     });
 
     it("does not append cache warning for unrelated missing_data reasons when cacheMemoryEnabled is true", () => {

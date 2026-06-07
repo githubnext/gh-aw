@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestUseSamplesReplacesAgentStep verifies that compiling with
@@ -393,13 +396,11 @@ Runtime-templated sample for workflow_dispatch-driven testing.
 	lock := string(b)
 
 	samplesJSON := extractGHAWSamplesJSON(t, lock)
-	if !strings.Contains(samplesJSON, "${{ github.event.inputs.issue_number }}") {
-		t.Fatalf("expected GH_AW_SAMPLES to preserve the live ${{ github.event.inputs.issue_number }} expression for runtime substitution; got: %s", samplesJSON)
-	}
+	assert.Contains(t, samplesJSON, "${{ github.event.inputs.issue_number }}", "GH_AW_SAMPLES should preserve live runtime expression for substitution")
 	// The marshalled payload must still be valid JSON (the expression sits
 	// inside a JSON string, so no escaping concerns at compile time).
 	var parsed []any
-	if err := json.Unmarshal([]byte(samplesJSON), &parsed); err != nil {
-		t.Fatalf("GH_AW_SAMPLES must remain valid JSON at compile time, got error %v for: %s", err, samplesJSON)
-	}
+	err = json.Unmarshal([]byte(samplesJSON), &parsed)
+	require.NoError(t, err, "GH_AW_SAMPLES should remain valid JSON at compile time")
+	require.NotEmpty(t, parsed, "GH_AW_SAMPLES should include at least one sample entry")
 }
