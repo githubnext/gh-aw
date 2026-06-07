@@ -65,6 +65,15 @@ const SAMPLE_VALIDATION_CONFIG = {
       agent: { type: "string", sanitize: true, maxLength: 128 },
     },
   },
+  assign_milestone: {
+    defaultMax: 1,
+    customValidation: "requiresOneOf:milestone_number,milestone_title",
+    fields: {
+      issue_number: { issueNumberOrTemporaryId: true },
+      milestone_number: { optionalPositiveInteger: true },
+      milestone_title: { type: "string", sanitize: true, maxLength: 128 },
+    },
+  },
   create_pull_request_review_comment: {
     defaultMax: 1,
     customValidation: "startLineLessOrEqualLine",
@@ -646,6 +655,27 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("requires at least one of");
+    });
+
+    it("should validate assign_milestone with milestone_title only", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "assign_milestone", issue_number: 42, milestone_title: "v1.0" }, "assign_milestone", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).toBeDefined();
+      expect(result.normalizedItem.milestone_title).toBe("v1.0");
+    });
+
+    it("should fail assign_milestone when both milestone_number and milestone_title are missing", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "assign_milestone", issue_number: 42 }, "assign_milestone", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("requires at least one of");
+      expect(result.error).toContain("milestone_number");
+      expect(result.error).toContain("milestone_title");
     });
 
     it("should pass for update_pull_request when update_branch is true", async () => {
