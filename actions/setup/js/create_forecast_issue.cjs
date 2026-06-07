@@ -71,6 +71,14 @@ function monthlyCost(workflow) {
 }
 
 /**
+ * @param {Record<string, any>} workflow
+ * @returns {number}
+ */
+function getLegacyP50(workflow) {
+  return toFiniteNumber(workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0);
+}
+
+/**
  * @param {Record<string, any>|null} report
  * @param {{owner: string, repo: string, serverUrl: string, runID?: string, generatedAtISO?: string, outcome?: string, errorMessage?: string}} options
  * @returns {string}
@@ -80,14 +88,14 @@ function buildForecastIssueBody(report, options) {
   workflows.sort((a, b) => monthlyCost(b) - monthlyCost(a));
 
   const categorized = workflows.map(workflow => {
-    const p50PerRun = workflow?.p50_aic_per_run ?? 0;
-    const p95PerRun = workflow?.p95_aic_per_run ?? 0;
-    const weeklyP50 = workflow?.weekly_monte_carlo?.p50_projected_aic ?? workflow?.weekly_projected_aic ?? 0;
-    const monthlyP50 = workflow?.monthly_monte_carlo?.p50_projected_aic ?? workflow?.monthly_projected_aic ?? 0;
+    const p50PerRun = toFiniteNumber(workflow?.p50_aic_per_run);
+    const p95PerRun = toFiniteNumber(workflow?.p95_aic_per_run);
+    const weeklyP50 = toFiniteNumber(workflow?.weekly_monte_carlo?.p50_projected_aic ?? workflow?.weekly_projected_aic);
+    const monthlyP50 = toFiniteNumber(workflow?.monthly_monte_carlo?.p50_projected_aic ?? workflow?.monthly_projected_aic);
     const hasForecastData = [p50PerRun, p95PerRun, weeklyP50, monthlyP50].some(hasPositiveAIC);
     return {
       workflow,
-      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), toFiniteNumber(p50PerRun), toFiniteNumber(p95PerRun), toFiniteNumber(weeklyP50), toFiniteNumber(monthlyP50)],
+      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), p50PerRun, p95PerRun, weeklyP50, monthlyP50],
       hasForecastData,
     };
   });
@@ -100,14 +108,14 @@ function buildForecastIssueBody(report, options) {
     ? null
     : workflows
         .map(workflow => {
-          const p50 = workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
+          const p50 = getLegacyP50(workflow);
           return [escapeCell(workflow.workflow_id), toFiniteNumber(workflow.sampled_runs), toFiniteNumber(p50)];
         })
         .filter(([, , p50]) => hasPositiveAIC(p50));
   const legacyNoDataWorkflows = hasNewFields
     ? []
     : workflows.filter(workflow => {
-        const p50 = workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
+        const p50 = getLegacyP50(workflow);
         return !hasPositiveAIC(p50);
       });
 

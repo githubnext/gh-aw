@@ -582,13 +582,13 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	samples := make([]ForecastRunSample, 0, len(completed))
 
 	for _, r := range completed {
-		if result.WorkflowPath == "" && r.WorkflowPath != "" {
-			result.WorkflowPath = r.WorkflowPath
-		}
 		runAIC := forecastLoadCachedRunAIC(ctx, r.DatabaseID, config.Verbose)
 		if runAIC <= 0 {
 			forecastRunLog.Printf("Skipping run %d for %s: AIC=%.3f treated as missing data", r.DatabaseID, workflowName, runAIC)
 			continue
+		}
+		if result.WorkflowPath == "" && r.WorkflowPath != "" {
+			result.WorkflowPath = r.WorkflowPath
 		}
 		totalAIC += runAIC
 		totalDurSec += r.Duration.Seconds()
@@ -608,6 +608,14 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 		samples = append(samples, sample)
 	}
 	result.RunSamples = samples
+	if result.WorkflowPath == "" {
+		for _, r := range completed {
+			if r.WorkflowPath != "" {
+				result.WorkflowPath = r.WorkflowPath
+				break
+			}
+		}
+	}
 
 	n := len(aicObservations)
 	result.SampledRuns = n
