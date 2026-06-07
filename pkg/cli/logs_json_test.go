@@ -1025,7 +1025,10 @@ func TestBuildLogsDataPreservesExplicitWorkflowPath(t *testing.T) {
 		"engine_id":     "copilot",
 		"workflow_name": "Different Name",
 	}
-	awInfoBytes, _ := json.Marshal(awInfoData)
+	awInfoBytes, err := json.Marshal(awInfoData)
+	if err != nil {
+		t.Fatalf("Failed to marshal aw_info.json content: %v", err)
+	}
 	if err := os.WriteFile(awInfoPath, awInfoBytes, 0644); err != nil {
 		t.Fatalf("Failed to write aw_info.json: %v", err)
 	}

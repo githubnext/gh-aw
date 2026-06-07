@@ -363,8 +363,14 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 					t.Errorf("mentions config missing key %q", k)
 					continue
 				}
-				wantJSON, _ := json.Marshal(wantVal)
-				gotJSON, _ := json.Marshal(gotVal)
+				wantJSON, err := json.Marshal(wantVal)
+				if err != nil {
+					t.Fatalf("failed to marshal expected mentions[%q]: %v", k, err)
+				}
+				gotJSON, err := json.Marshal(gotVal)
+				if err != nil {
+					t.Fatalf("failed to marshal actual mentions[%q]: %v", k, err)
+				}
 				if string(wantJSON) != string(gotJSON) {
 					t.Errorf("mentions[%q]: want %s, got %s", k, wantJSON, gotJSON)
 				}

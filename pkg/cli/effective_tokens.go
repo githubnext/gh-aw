@@ -181,8 +181,17 @@ func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom
 		if usage == nil {
 			continue
 		}
-		eff := computeModelEffectiveTokensWithWeights(model, usage.Provider, usage.InputTokens, usage.OutputTokens,
-			usage.CacheReadTokens, usage.CacheWriteTokens, usage.ReasoningTokens, multipliers, classWeights)
+		eff := computeModelEffectiveTokensWithWeights(computeModelEffectiveTokensOptions{
+			model:            model,
+			provider:         usage.Provider,
+			inputTokens:      usage.InputTokens,
+			outputTokens:     usage.OutputTokens,
+			cacheReadTokens:  usage.CacheReadTokens,
+			cacheWriteTokens: usage.CacheWriteTokens,
+			reasoningTokens:  usage.ReasoningTokens,
+			multipliers:      multipliers,
+			weights:          classWeights,
+		})
 		usage.EffectiveTokens = eff
 		total += eff
 	}
@@ -236,13 +245,33 @@ func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, ty
 
 // computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
 // multiplier table and token class weights instead of the global defaults.
-func computeModelEffectiveTokensWithWeights(model, provider string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
-	base := computeBaseWeightedTokensForUsage(w, provider, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens)
+type computeModelEffectiveTokensOptions struct {
+	model            string
+	provider         string
+	inputTokens      int
+	outputTokens     int
+	cacheReadTokens  int
+	cacheWriteTokens int
+	reasoningTokens  int
+	multipliers      map[string]float64
+	weights          types.TokenClassWeights
+}
+
+func computeModelEffectiveTokensWithWeights(opts computeModelEffectiveTokensOptions) int {
+	base := computeBaseWeightedTokensForUsage(
+		opts.weights,
+		opts.provider,
+		opts.inputTokens,
+		opts.outputTokens,
+		opts.cacheReadTokens,
+		opts.cacheWriteTokens,
+		opts.reasoningTokens,
+	)
 	if base == 0 {
 		return 0
 	}
 
-	mult := getModelMultiplier(model, multipliers)
+	mult := getModelMultiplier(opts.model, opts.multipliers)
 	return int(math.Round(base * mult))
 }
 

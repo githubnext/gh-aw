@@ -138,7 +138,10 @@ func TestLogsJSONRunDataFields(t *testing.T) {
 		"engine_name":   "GitHub Copilot CLI",
 		"workflow_name": "Test Workflow",
 	}
-	awInfoBytes, _ := json.Marshal(awInfo)
+	awInfoBytes, err := json.Marshal(awInfo)
+	if err != nil {
+		t.Fatalf("Failed to marshal aw_info data: %v", err)
+	}
 	if err := os.WriteFile(awInfoPath, awInfoBytes, 0644); err != nil {
 		t.Fatalf("Failed to write mock aw_info.json: %v", err)
 	}

@@ -854,10 +854,17 @@ func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile st
 		if !ok {
 			continue
 		}
-		et := computeModelEffectiveTokensWithWeights(
-			e.Model, e.Provider, e.InputTokens, e.OutputTokens, e.CacheReadTokens, e.CacheWriteTokens, e.ReasoningTokens,
-			multipliers, classWeights,
-		)
+		et := computeModelEffectiveTokensWithWeights(computeModelEffectiveTokensOptions{
+			model:            e.Model,
+			provider:         e.Provider,
+			inputTokens:      e.InputTokens,
+			outputTokens:     e.OutputTokens,
+			cacheReadTokens:  e.CacheReadTokens,
+			cacheWriteTokens: e.CacheWriteTokens,
+			reasoningTokens:  e.ReasoningTokens,
+			multipliers:      multipliers,
+			weights:          classWeights,
+		})
 		etEntries = append(etEntries, entryWithET{ts: ts, et: et})
 	}
 	if len(etEntries) < 2 {

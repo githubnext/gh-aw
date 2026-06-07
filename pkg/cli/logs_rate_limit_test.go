@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -80,6 +81,5 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 
 // jsonInt is a helper that converts an int64 to its JSON number representation.
 func jsonInt(n int64) string {
-	b, _ := json.Marshal(n)
-	return string(b)
+	return strconv.FormatInt(n, 10)
 }
