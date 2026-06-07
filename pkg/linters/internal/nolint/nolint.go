@@ -32,7 +32,6 @@ func HasDirective(position token.Position, idx map[string]map[int]struct{}) bool
 // from filename → set of line numbers that carry a nolint directive for
 // linterName (e.g. "errstringmatch") or "all".
 func BuildLineIndex(pass *analysis.Pass, linterName string) map[string]map[int]struct{} {
-	prefix := "nolint:" + linterName
 	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
 	for _, file := range pass.Files {
 		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
@@ -42,7 +41,25 @@ func BuildLineIndex(pass *analysis.Pass, linterName string) map[string]map[int]s
 		for _, group := range file.Comments {
 			for _, comment := range group.List {
 				text := strings.TrimPrefix(comment.Text, "//")
-				if !strings.HasPrefix(text, prefix) && !strings.HasPrefix(text, "nolint:all") {
+				if !strings.HasPrefix(text, "nolint:") {
+					continue
+				}
+				payload := strings.TrimPrefix(text, "nolint:")
+				if i := strings.Index(payload, "//"); i >= 0 {
+					payload = payload[:i]
+				}
+				if i := strings.IndexAny(payload, " \t"); i >= 0 {
+					payload = payload[:i]
+				}
+				matched := false
+				for _, token := range strings.Split(payload, ",") {
+					name := strings.TrimSpace(token)
+					if name == linterName || name == "all" {
+						matched = true
+						break
+					}
+				}
+				if !matched {
 					continue
 				}
 				line := pass.Fset.PositionFor(comment.Slash, false).Line
