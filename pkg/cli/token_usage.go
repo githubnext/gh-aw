@@ -481,6 +481,83 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	return summary, nil
 }
 
+// analyzeTokenUsageAICOnly parses token usage inputs and computes only TotalAIC.
+// It intentionally skips effective-token computation for callers that only need cost.
+func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, error) {
+	tokenUsageLog.Printf("Analyzing token usage (AIC only) in: %s", runDir)
+
+	filePath := findTokenUsageFile(runDir)
+	if filePath != "" {
+		if verbose {
+			fileInfo, _ := os.Stat(filePath)
+			if fileInfo != nil {
+				fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
+			}
+		}
+
+		file, err := os.Open(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open token usage file: %w", err)
+		}
+		defer file.Close()
+
+		totalAIC := 0.0
+		found := false
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			var entry TokenUsageEntry
+			if err := json.Unmarshal([]byte(line), &entry); err != nil {
+				continue
+			}
+			model := entry.Model
+			if model == "" {
+				model = "unknown"
+			}
+			totalAIC += computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens)
+			found = true
+		}
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("error reading token usage file: %w", err)
+		}
+		if !found {
+			return nil, nil
+		}
+		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
+	}
+
+	agentUsagePath := findAgentUsageFile(runDir)
+	if agentUsagePath == "" {
+		return nil, nil
+	}
+	if verbose {
+		fileInfo, _ := os.Stat(agentUsagePath)
+		if fileInfo != nil {
+			fmt.Fprintf(os.Stderr, "  Found agent usage file: %s (%d bytes)\n", filepath.Base(agentUsagePath), fileInfo.Size())
+		}
+	}
+
+	data, err := os.ReadFile(filepath.Clean(agentUsagePath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read agent usage file: %w", err)
+	}
+	var entry TokenUsageEntry
+	if err := json.Unmarshal(data, &entry); err != nil {
+		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
+	}
+	model := entry.Model
+	if model == "" {
+		model = "unknown"
+	}
+	return &TokenUsageSummary{
+		TotalAIC: computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens),
+	}, nil
+}
+
 func countAPIProxySteeringEvents(runDir string) int {
 	eventsPath := findAPIProxyEventsFile(runDir)
 	if eventsPath == "" {
