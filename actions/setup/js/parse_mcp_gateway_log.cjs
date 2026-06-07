@@ -670,7 +670,7 @@ function extractMessageText(value) {
   if (!value || typeof value !== "object") {
     return "";
   }
-  const obj = /** @type {Record<string, any>} */ (value);
+  const obj = /** @type {Record<string, any>} */ value;
   if (typeof obj.text === "string") {
     return obj.text;
   }
@@ -695,7 +695,7 @@ function findMessagesArray(payload, depth = 0) {
   if (!payload || typeof payload !== "object" || depth >= MAX_PAYLOAD_RECURSION_DEPTH) {
     return null;
   }
-  const obj = /** @type {Record<string, any>} */ (payload);
+  const obj = /** @type {Record<string, any>} */ payload;
   if (Array.isArray(obj.messages)) {
     return obj.messages;
   }
