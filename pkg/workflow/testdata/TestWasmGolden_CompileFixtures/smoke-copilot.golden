@@ -55,7 +55,7 @@ jobs:
       title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -73,7 +73,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-copilot.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.59"
+          GH_AW_INFO_VERSION: "1.0.60"
           GH_AW_INFO_AWF_VERSION: "v0.25.65"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Generate agentic run info
@@ -82,8 +82,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'default' }}
-          GH_AW_INFO_VERSION: "1.0.59"
-          GH_AW_INFO_AGENT_VERSION: "1.0.59"
+          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_AGENT_VERSION: "1.0.60"
           GH_AW_INFO_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -125,7 +125,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Checkout .github and .agents folders
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -409,6 +409,7 @@ jobs:
       issues: read
       pull-requests: read
     env:
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: smokecopilot
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -426,7 +427,7 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -443,11 +444,11 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-copilot.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.59"
+          GH_AW_INFO_VERSION: "1.0.60"
           GH_AW_INFO_AWF_VERSION: "v0.25.65"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Setup Go for CLI build
@@ -521,7 +522,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.59
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.60
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -926,7 +927,7 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -941,7 +942,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-copilot.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.59"
+          GH_AW_INFO_VERSION: "1.0.60"
           GH_AW_INFO_AWF_VERSION: "v0.25.65"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Check team membership for workflow

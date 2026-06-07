@@ -188,7 +188,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2",
+			expectedUses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3",
 		},
 	}
 
@@ -260,7 +260,7 @@ func TestGetLatestActionPinByRepo(t *testing.T) {
 			repo:          "actions/checkout",
 			expectExists:  true,
 			expectRepo:    "actions/checkout",
-			expectVersion: "v6.0.2",
+			expectVersion: "v6.0.3",
 		},
 		{
 			repo:                "actions/setup-node",

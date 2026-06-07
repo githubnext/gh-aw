@@ -41,7 +41,7 @@ jobs:
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -59,7 +59,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.165"
+          GH_AW_INFO_VERSION: "2.1.168"
           GH_AW_INFO_AWF_VERSION: "v0.25.65"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Generate agentic run info
@@ -68,8 +68,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'agent' }}
-          GH_AW_INFO_VERSION: "2.1.165"
-          GH_AW_INFO_AGENT_VERSION: "2.1.165"
+          GH_AW_INFO_VERSION: "2.1.168"
+          GH_AW_INFO_AGENT_VERSION: "2.1.168"
           GH_AW_INFO_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -111,7 +111,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Checkout .github and .agents folders
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -287,6 +287,7 @@ jobs:
     permissions:
       contents: read
     env:
+      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: workflow
     outputs:
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
@@ -300,7 +301,7 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -317,11 +318,11 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.165"
+          GH_AW_INFO_VERSION: "2.1.168"
           GH_AW_INFO_AWF_VERSION: "v0.25.65"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
@@ -365,7 +366,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.65
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.165
+        run: npm install -g @anthropic-ai/claude-code@2.1.168
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -722,7 +723,7 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -737,7 +738,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.165"
+          GH_AW_INFO_VERSION: "2.1.168"
           GH_AW_INFO_AWF_VERSION: "v0.25.65"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Check team membership for workflow
