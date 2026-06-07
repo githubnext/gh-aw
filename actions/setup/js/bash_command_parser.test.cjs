@@ -110,6 +110,11 @@ describe("splitOnPipelineOperators", () => {
     expect(segments).toEqual(["pwd", "ls -la", "safeoutputs --help"]);
   });
 
+  it("does not split on escaped newline continuations", () => {
+    const segments = splitOnPipelineOperators("git log \\\n  --oneline \\\n  --max-count=1");
+    expect(segments).toEqual(["git log --oneline --max-count=1"]);
+  });
+
   it("trims leading/trailing whitespace from each segment", () => {
     const segments = splitOnPipelineOperators("  ls /tmp  &&  cat file  ");
     expect(segments[0]).toBe("ls /tmp");
@@ -332,6 +337,10 @@ if [ -f "$CACHE_DIR/file-hashes.json" ]; then cat "$CACHE_DIR/file-hashes.json";
 printf '\n---FILES---\n'
 for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`;
     expect(extractCommandNamesFromPipeline(cmd)).toEqual(["set", "mkdir", "git", "sed", "printf", "cat", "wc"]);
+  });
+
+  it("keeps continued multiline command as one extracted command", () => {
+    expect(extractCommandNamesFromPipeline("git log \\\n  --oneline \\\n  --max-count=1")).toEqual(["git"]);
   });
 });
 

@@ -846,13 +846,7 @@ describe("copilot_sdk_driver.cjs", () => {
     });
 
     it("denies multiline shell command when required tools are missing", async () => {
-      const handler = await makePermissionHandlerViaSDK([
-        "shell(mkdir)",
-        "shell(git:*)",
-        "shell(printf)",
-        "shell(cat)",
-        "shell(wc)",
-      ]);
+      const handler = await makePermissionHandlerViaSDK(["shell(mkdir)", "shell(git:*)", "shell(printf)", "shell(cat)", "shell(wc)"]);
       const result = handler({
         kind: "shell",
         commands: [],
@@ -873,15 +867,7 @@ for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`
     });
 
     it("approves multiline shell command when all required tools are permitted", async () => {
-      const handler = await makePermissionHandlerViaSDK([
-        "shell(set)",
-        "shell(mkdir)",
-        "shell(git:*)",
-        "shell(sed)",
-        "shell(printf)",
-        "shell(cat)",
-        "shell(wc)",
-      ]);
+      const handler = await makePermissionHandlerViaSDK(["shell(set)", "shell(mkdir)", "shell(git:*)", "shell(sed)", "shell(printf)", "shell(cat)", "shell(wc)"]);
       const result = handler({
         kind: "shell",
         commands: [],

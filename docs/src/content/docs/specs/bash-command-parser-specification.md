@@ -162,7 +162,7 @@ letter         = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
 ### 4.1 `splitOnPipelineOperators(commandText)`
 
 1. Non-string or empty/falsy input MUST return `[]`.
-2. The implementation MUST split at top-level operators `&&`, `||`, `|`, `;`, and line breaks (`\n`, `\r\n`, `\r`).
+2. The implementation MUST split at top-level operators `&&`, `||`, `|`, `;`, and line breaks (`\n`, `\r\n`, `\r`), except escaped line continuations (`\\` immediately before the line break).
 3. Operators inside single quotes, double quotes, or `$(` `)` regions MUST NOT split.
 4. Output segments MUST be trimmed.
 5. Empty segments MUST be removed.
@@ -215,7 +215,7 @@ Implementations SHOULD consume machine-readable vectors and run identical assert
 A minimal suite MUST include all categories below:
 
 - **S-CORE (4 tests)**:
-  1. top-level split on each operator `&&`, `||`, `|`, `;`, and newline
+  1. top-level split on each operator `&&`, `||`, `|`, `;`, and newline (excluding escaped line continuations)
   2. no split when operators occur in single quotes
   3. no split when operators occur in double quotes
   4. no split when operators occur inside `$(` `)`

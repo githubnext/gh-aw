@@ -60,6 +60,12 @@
         "source": "verification",
         "input": "pwd\nls -la\nsafeoutputs --help",
         "expected": ["pwd", "ls -la", "safeoutputs --help"]
+      },
+      {
+        "id": "BP-SP-154",
+        "source": "verification",
+        "input": "git log \\\n  --oneline \\\n  --max-count=1",
+        "expected": ["git log --oneline --max-count=1"]
       }
     ],
     "extractCommandName": [
@@ -173,6 +179,12 @@
         "note": "Multiline control-flow script fixture to verify extraction of set/mkdir/git/sed/printf/cat/wc across for/if blocks.",
         "input": "set -euo pipefail\nmkdir -p \"$ANALYSES_DIR\"\nfor f in $FILES; do git -C \"$REPO\" log -1 -- \"$f\" | sed \"s|^|$f |\"; done\nprintf '---ROTATION---\\n'\nif [ -f \"$CACHE_DIR/rotation.json\" ]; then cat \"$CACHE_DIR/rotation.json\"; fi\nfor f in $FILES; do wc -l \"$f\"; done",
         "expected": ["set", "mkdir", "git", "sed", "printf", "cat", "wc"]
+      },
+      {
+        "id": "BP-EP-155",
+        "source": "verification",
+        "input": "git log \\\n  --oneline \\\n  --max-count=1",
+        "expected": ["git"]
       }
     ]
   },
