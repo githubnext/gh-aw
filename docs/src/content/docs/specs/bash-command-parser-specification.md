@@ -134,9 +134,9 @@ ident          = ("_" | letter) , { "_" | letter | digit } ;
 core           = negation | brace | keyword | redirection | word | empty ;
 negation       = "!" , ws , core ;
 brace          = ("{" | "}") , ws , core ;
-keyword        = clause_keyword | structure_keyword ;
+keyword        = clause_keyword | structural_keyword ;
 clause_keyword = "then" | "else" | "elif" | "do" ;
-structure_keyword
+structural_keyword
                = "if" | "fi" | "for" | "done" | "while" | "until"
                | "case" | "esac" | "select" | "in"
                | "function" | "time" | "coproc" ;
