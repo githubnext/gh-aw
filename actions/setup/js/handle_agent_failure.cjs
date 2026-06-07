@@ -13,7 +13,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
 const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
-const { formatAIC } = require("./model_costs.cjs");
+const { formatAICCredits } = require("./daily_effective_workflow_helpers.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
@@ -65,19 +65,6 @@ function buildWarningAlertLine(title, message) {
  */
 function renderPromptTemplate(templateName, context = {}) {
   return renderTemplateFromFile(getPromptPath(templateName), context);
-}
-
-/**
- * Format AIC for report messaging as an approximate rounded-up value.
- * @param {string} raw
- * @returns {string}
- */
-function formatApproximateAIC(raw) {
-  const value = Number(raw || "");
-  if (!Number.isFinite(value) || value <= 0) {
-    return "";
-  }
-  return formatAIC(Math.ceil(value));
 }
 
 /**
@@ -1503,8 +1490,8 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return "";
   }
 
-  const formattedAICredits = formatApproximateAIC(aiCredits);
-  const formattedMaxAICredits = formatApproximateAIC(maxAICredits);
+  const formattedAICredits = formatAICCredits(aiCredits);
+  const formattedMaxAICredits = formatAICCredits(maxAICredits);
   const usageLine = formattedAICredits ? `\n- AI credits used: \`${formattedAICredits}\`` : "";
   const budgetLine = formattedMaxAICredits ? `\n- Configured AI credits budget: \`${formattedMaxAICredits}\`` : "";
   const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
@@ -1591,8 +1578,8 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
   }
 
   const templatePath = getPromptPath("daily_effective_workflow_exceeded.md");
-  const formattedTotalAIC = formatApproximateAIC(totalAIC);
-  const formattedThreshold = formatApproximateAIC(threshold);
+  const formattedTotalAIC = formatAICCredits(totalAIC);
+  const formattedThreshold = formatAICCredits(threshold);
   return (
     "\n" +
     renderTemplateFromFile(templatePath, {

@@ -388,7 +388,8 @@ function formatEffectiveTokens(value) {
  * @returns {string}
  */
 function formatAICCredits(value) {
-  const safeValue = Number.isFinite(value) ? Math.max(0, Math.ceil(Number(value || 0))) : 0;
+  const numericValue = Number(value || 0);
+  const safeValue = Number.isFinite(numericValue) ? Math.max(0, Math.ceil(numericValue)) : 0;
   return formatAIC(safeValue);
 }
 
