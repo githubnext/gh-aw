@@ -310,12 +310,16 @@ func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T
 	if !ok {
 		t.Fatal("Expected daily-caveman-optimizer workflow to define experiments.model_size.variants")
 	}
-	if len(variants) != 2 || variants[0] != "claude-sonnet-4.6" || variants[1] != "claude-haiku-4.5" {
-		t.Fatalf("Expected concrete Claude variants [claude-sonnet-4.6, claude-haiku-4.5], got %#v", variants)
+	if len(variants) != 2 {
+		t.Fatalf("Expected exactly 2 concrete Claude variants, got %#v", variants)
+	}
+	expected := map[any]bool{
+		"claude-sonnet-4.6": true,
+		"claude-haiku-4.5":  true,
 	}
 	for _, variant := range variants {
-		if variant == "agent" || variant == "small-agent" {
-			t.Fatalf("Expected concrete model variants, found alias %q", variant)
+		if !expected[variant] {
+			t.Fatalf("Expected concrete Claude variants [claude-sonnet-4.6, claude-haiku-4.5], got %#v", variants)
 		}
 	}
 }
