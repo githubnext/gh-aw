@@ -518,7 +518,7 @@ Read the pre-fetched test diff and extract per-test JavaScript vitest stats:
 cat /tmp/gh-aw/agent/test-diff.txt | awk '
 /^\+(it|test)\(/ {
   if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
-  match($0, /(it|test)\(["'"'"']([^"'"'"']+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
+  match($0, /(it|test)\(["\047]([^"\047]+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
 }
 test_name && /^\+.*expect\(/ { assertions++ }
 test_name && /^\+.*(\.toThrow|\.rejects|\.toThrowError)/ { errors++ }
