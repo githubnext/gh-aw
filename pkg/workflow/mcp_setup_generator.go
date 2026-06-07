@@ -710,7 +710,6 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		if err == nil {
 			escapedCLIServersJSON := shellEscapeArg(string(cliServersJSON))
 			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS=" + escapedCLIServersJSON + "\n")
-			yaml.WriteString("          echo GH_AW_MCP_CLI_SERVERS=" + escapedCLIServersJSON + " >> \"$GITHUB_ENV\"\n")
 		}
 	}
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
