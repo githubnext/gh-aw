@@ -263,7 +263,7 @@ func TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched(t *te
 			"id": "${{ inputs.id }}",
 		},
 	}
-	out := substituteRuntimeExpressionsForValidation(in).(map[string]any)
+	out := substituteRuntimeExpressionsForValidation(in, nil).(map[string]any)
 
 	if out["title"] != "literal title" {
 		t.Errorf("expected literal string to be unchanged, got %v", out["title"])
@@ -286,5 +286,133 @@ func TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched(t *te
 	// Original input must not be mutated.
 	if in["nested"].(map[string]any)["id"] != "${{ inputs.id }}" {
 		t.Error("substituteRuntimeExpressionsForValidation must not mutate its input")
+	}
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionWithEmbeddedBrace covers
+// expressions whose body contains `}` characters (e.g. fromJSON literals).
+// The substitution regex must use non-greedy `.*?` rather than `[^}]*`, so
+// the entire `${{ ... }}` token is recognized and substituted.
+func TestValidateSafeOutputsSamples_RuntimeExpressionWithEmbeddedBrace(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		AddLabels: &AddLabelsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"item_number": `${{ fromJSON('{"n":42}').n }}`,
+						"labels":      []any{"embedded-brace"},
+					},
+				},
+			},
+		},
+	}
+	if err := validateSafeOutputsSamples(cfg); err != nil {
+		t.Fatalf("expected expression containing `}` inside string literal to be substituted, got: %v", err)
+	}
+	if cfg.AddLabels.Samples[0]["item_number"] != `${{ fromJSON('{"n":42}').n }}` {
+		t.Errorf("validation must not mutate the original sample")
+	}
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionInEnumField verifies that
+// substitution is schema-aware: an enum-constrained field (e.g.
+// create_code_scanning_alert.severity) gets replaced with the first allowed
+// enum value rather than the generic `aw_sample` string, so the substituted
+// sample still validates.
+func TestValidateSafeOutputsSamples_RuntimeExpressionInEnumField(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"file":     "src/foo.go",
+						"line":     1,
+						"message":  "demo",
+						"severity": "${{ github.event.inputs.severity }}",
+					},
+				},
+			},
+		},
+	}
+	if err := validateSafeOutputsSamples(cfg); err != nil {
+		t.Fatalf("expected runtime expression on enum-constrained field to substitute to a valid enum value, got: %v", err)
+	}
+}
+
+// TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField covers
+// schema-aware substitution for a boolean-typed field
+// (create_pull_request.draft).
+func TestValidateSafeOutputsSamples_RuntimeExpressionInBooleanField(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"title":  "PR",
+						"body":   "Body",
+						"branch": "br",
+						"draft":  "${{ github.event.inputs.draft }}",
+					},
+				},
+			},
+		},
+	}
+	if err := validateSafeOutputsSamples(cfg); err != nil {
+		t.Fatalf("expected runtime expression on boolean field to substitute to a boolean, got: %v", err)
+	}
+}
+
+// TestPlaceholderForSchema covers the schema-driven placeholder lookup for
+// the common shapes used inside safe_outputs_tools.json.
+func TestPlaceholderForSchema(t *testing.T) {
+	cases := []struct {
+		name   string
+		schema map[string]any
+		want   any
+	}{
+		{name: "nil schema", schema: nil, want: sampleRuntimeExpressionPlaceholder},
+		{
+			name:   "enum picks first value",
+			schema: map[string]any{"type": "string", "enum": []any{"APPROVE", "REQUEST_CHANGES", "COMMENT"}},
+			want:   "APPROVE",
+		},
+		{
+			name:   "boolean",
+			schema: map[string]any{"type": "boolean"},
+			want:   true,
+		},
+		{
+			name:   "number",
+			schema: map[string]any{"type": "number"},
+			want:   float64(1),
+		},
+		{
+			name:   "integer",
+			schema: map[string]any{"type": "integer"},
+			want:   float64(1),
+		},
+		{
+			name:   "type union prefers string",
+			schema: map[string]any{"type": []any{"number", "string"}},
+			want:   sampleRuntimeExpressionPlaceholder,
+		},
+		{
+			name:   "date format",
+			schema: map[string]any{"type": "string", "format": "date"},
+			want:   "2024-01-01",
+		},
+		{
+			name:   "uri format",
+			schema: map[string]any{"type": "string", "format": "uri"},
+			want:   "https://example.com",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := placeholderForSchema(tc.schema)
+			if got != tc.want {
+				t.Errorf("placeholderForSchema(%v) = %v, want %v", tc.schema, got, tc.want)
+			}
+		})
 	}
 }
