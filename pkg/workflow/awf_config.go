@@ -286,11 +286,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		engineConfig := config.WorkflowData.EngineConfig
-		if config.WorkflowData.EngineConfig.MaxEffectiveTokens != 0 {
-			maxEffectiveTokens = config.WorkflowData.EngineConfig.MaxEffectiveTokens
+		if engineConfig.MaxEffectiveTokens != 0 {
+			maxEffectiveTokens = engineConfig.MaxEffectiveTokens
 		}
-		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
-			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
+		if engineConfig.MaxAICredits != 0 {
+			maxAICredits = engineConfig.MaxAICredits
 		}
 		maxRuns = engineConfig.GetMaxRuns()
 		// Claude max-turns is enforced by AWF API proxy maxRuns.
