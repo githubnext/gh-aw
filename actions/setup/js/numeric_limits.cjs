@@ -1,12 +1,12 @@
 // @ts-check
 
-const POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_REGEX = /^([1-9]\d*)([kKmM])?$/;
+const POSITIVE_LIMIT_WITH_SUFFIX_REGEX = /^([1-9]\d*)([kKmM])?$/;
 
 /**
  * @param {unknown} value
  * @returns {bigint|null}
  */
-function parsePositiveEffectiveTokenLimitBigInt(value) {
+function parsePositiveCompactNumberBigInt(value) {
   if (typeof value === "number" && Number.isFinite(value) && Number.isSafeInteger(value) && value > 0) {
     return BigInt(value);
   }
@@ -16,7 +16,7 @@ function parsePositiveEffectiveTokenLimitBigInt(value) {
   }
 
   const trimmed = value.trim();
-  const match = POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_REGEX.exec(trimmed);
+  const match = POSITIVE_LIMIT_WITH_SUFFIX_REGEX.exec(trimmed);
   if (!match) {
     return null;
   }
@@ -36,8 +36,8 @@ function parsePositiveEffectiveTokenLimitBigInt(value) {
  * @param {unknown} value
  * @returns {string}
  */
-function parsePositiveEffectiveTokenLimitString(value) {
-  const parsed = parsePositiveEffectiveTokenLimitBigInt(value);
+function parsePositiveCompactNumberString(value) {
+  const parsed = parsePositiveCompactNumberBigInt(value);
   if (parsed == null) {
     return "";
   }
@@ -48,8 +48,8 @@ function parsePositiveEffectiveTokenLimitString(value) {
  * @param {unknown} value
  * @returns {number}
  */
-function parsePositiveEffectiveTokenLimitNumber(value) {
-  const normalized = parsePositiveEffectiveTokenLimitString(value);
+function parsePositiveCompactNumber(value) {
+  const normalized = parsePositiveCompactNumberString(value);
   if (!normalized) {
     return 0;
   }
@@ -59,6 +59,7 @@ function parsePositiveEffectiveTokenLimitNumber(value) {
 }
 
 module.exports = {
-  parsePositiveEffectiveTokenLimitString,
-  parsePositiveEffectiveTokenLimitNumber,
+  parsePositiveCompactNumber,
+  parsePositiveCompactNumberBigInt,
+  parsePositiveCompactNumberString,
 };

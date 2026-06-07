@@ -75,7 +75,7 @@ function monthlyCost(workflow) {
  * @returns {number}
  */
 function getLegacyP50(workflow) {
-  return toFiniteNumber(workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0);
+  return toFiniteNumber(workflow?.monte_carlo?.p50_projected_aic ?? workflow?.projected_aic ?? 0);
 }
 
 /**

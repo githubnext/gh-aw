@@ -11,8 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState, resolveAICreditsFailureState } = require("./effective_tokens_context.cjs");
-const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
+const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog } = require("./ai_credits_context.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
@@ -191,7 +190,6 @@ function buildFailureMatchCategories(options) {
   if (options.inferenceAccessError) categories.push("inference_access_error");
   if (options.mcpPolicyError) categories.push("mcp_policy_error");
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
-  if (options.effectiveTokensRateLimitError) categories.push("effective_tokens_rate_limit_error");
   if (options.aiCreditsRateLimitError) categories.push("ai_credits_rate_limit_error");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
@@ -1441,43 +1439,6 @@ function readTokenUsageMarkdown() {
 }
 
 /**
- * Build a context string when ET budget exhaustion/rate-limit is detected from gateway logs.
- * @param {boolean} hasEffectiveTokensRateLimitError
- * @param {string} maxEffectiveTokens
- * @returns {string}
- */
-function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, maxEffectiveTokens) {
-  if (!hasEffectiveTokensRateLimitError) {
-    return "";
-  }
-
-  const EFFECTIVE_TOKENS_PER_AI_CREDIT = 10000;
-  const legacyBudgetET = Number.parseInt(maxEffectiveTokens || "", 10);
-  const suggestedAICredits = Number.isInteger(legacyBudgetET) && legacyBudgetET > 0 ? Math.floor(legacyBudgetET / EFFECTIVE_TOKENS_PER_AI_CREDIT) : 0;
-  const budgetLine = suggestedAICredits > 0 ? `\n- Suggested \`max-ai-credits\`: \`${suggestedAICredits.toLocaleString("en-US")}\`` : "";
-  const templateName = "effective_tokens_rate_limit_error.md";
-  let templatePath = "";
-  try {
-    templatePath = getPromptPath(templateName);
-  } catch (error) {
-    throw new Error(`failed to resolve template path for ${templateName} (${getErrorMessage(error)}); ` + "ensure RUNNER_TEMP or GH_AW_PROMPTS_DIR is set and the template file exists");
-  }
-
-  try {
-    return (
-      "\n" +
-      renderTemplateFromFile(templatePath, {
-        ai_credits_spec_link: "https://github.github.com/gh-aw/specs/ai-credits-specification/",
-        cost_management_link: "https://github.github.com/gh-aw/reference/cost-management/",
-        budget_line: budgetLine,
-      })
-    );
-  } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "{ai_credits_spec_link}, {cost_management_link}, {budget_line}");
-  }
-}
-
-/**
  * Build a context string when AI credits budget exhaustion/rate-limit is detected from gateway logs.
  * @param {boolean} hasAICreditsRateLimitError
  * @param {string} aiCredits
@@ -1862,13 +1823,6 @@ function buildEngineFailureContext() {
     // Use the already-loaded logContent directly to avoid a redundant file read.
     if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
       core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
-      return "";
-    }
-
-    // Special handling for provider-side 429/rate-limit failures. These can appear
-    // in agent stdio output or only in mirrored OTLP telemetry payloads.
-    if (isMaxEffectiveTokensExceededError(logContent)) {
-      core.info("Detected maximum effective tokens exceeded signal — deferring to ET budget context");
       return "";
     }
 
@@ -2278,7 +2232,6 @@ async function main() {
     const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
-    const { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError } = resolveEffectiveTokensFailureState();
     const { aiCredits, maxAICredits, aiCreditsRateLimitError } = resolveAICreditsFailureState();
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
@@ -2341,9 +2294,9 @@ async function main() {
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
-    core.info(`Effective tokens: ${effectiveTokens || "(none)"}`);
-    core.info(`Configured max effective tokens: ${maxEffectiveTokens || "(none)"}`);
-    core.info(`Effective tokens rate-limit error: ${effectiveTokensRateLimitError}`);
+    core.info(`AI credits: ${aiCredits || "(none)"}`);
+    core.info(`Configured max AI credits: ${maxAICredits || "(none)"}`);
+    core.info(`AI credits rate-limit error: ${aiCreditsRateLimitError}`);
     core.info(`Daily workflow AIC guardrail exceeded: ${hasDailyAICExceeded}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
@@ -2513,14 +2466,13 @@ async function main() {
       !hasDailyAICExceeded &&
       !hasReportIncomplete &&
       !hasCacheMissMisconfiguration &&
-      !effectiveTokensRateLimitError &&
       !aiCreditsRateLimitError &&
       !hasMissingTool &&
       !hasMissingData &&
       !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-et/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-aic/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
@@ -2622,7 +2574,6 @@ async function main() {
       inferenceAccessError,
       mcpPolicyError,
       modelNotSupportedError,
-      effectiveTokensRateLimitError,
       aiCreditsRateLimitError,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
@@ -2741,7 +2692,6 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
@@ -2792,7 +2742,6 @@ async function main() {
           inference_access_error_context: inferenceAccessErrorContext,
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
-          effective_tokens_rate_limit_error_context: effectiveTokensRateLimitErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
@@ -2964,7 +2913,6 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
-        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, maxEffectiveTokens);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
@@ -3016,7 +2964,6 @@ async function main() {
           inference_access_error_context: inferenceAccessErrorContext,
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
-          effective_tokens_rate_limit_error_context: effectiveTokensRateLimitErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
@@ -3111,14 +3058,13 @@ module.exports = {
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
-  buildEffectiveTokensRateLimitErrorContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
   buildEngineRateLimit429Context,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
-  parseMaxEffectiveTokensFromAuditLog,
-  parseEffectiveTokensErrorInfoFromAuditLog,
+  parseMaxAICreditsFromAuditLog,
+  parseAICreditsErrorInfoFromAuditLog,
   getActionFailureIssueExpiresHours,
   hasAgentTerminalReasonCompleted,
   detectAndHandleFailureCascade,
