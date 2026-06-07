@@ -110,7 +110,7 @@ Each element of `.runs` is a `RunData` object with (among others):
 | `workflow_path` | string | `.github/workflows/....lock.yml` |
 | `aic` | float | AI Credits (AIC); preferred cost metric |
 | `token_usage` | int | Raw token total (`omitempty` — treat missing/null as 0) |
-| `effective_tokens` | int | Legacy effective-token metric retained for compatibility |
+| `effective_tokens` | int | Legacy metric retained for compatibility (prefer AI Credits) |
 | `action_minutes` | float | Billable GitHub Actions minutes |
 | `turns` | int | Number of agent turns |
 | `duration` | string | Human-readable duration |

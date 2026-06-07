@@ -29,7 +29,7 @@ You are the Lockfile Statistics Analysis Agent. Analyze `.github/workflows/*.loc
 
 ## Performance contract (must follow)
 
-- Target **effective tokens ≤ 1M** (the sum of input and output tokens as reported by the engine usage metrics for this workflow run).
+- Target **AI credits ≤ 1M** (the sum of input and output tokens as reported by the engine usage metrics for this workflow run).
 - Use **≤ 5 bash turns total** (each bash command execution counts as one turn).
 - If you are about to exceed either limit, call the `noop` safe-output action exposed by the runtime import (`{{#runtime-import shared/noop-reminder.md}}`) with a short reason and stop. Do not create a discussion in that case.
 - **Do not** open individual `.lock.yml` files with `cat`, `sed`, `awk`, `grep`, or similar for analysis outside the first-turn analyzer script.
