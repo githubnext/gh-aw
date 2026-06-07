@@ -277,7 +277,21 @@ func placeholderForType(t string, schema map[string]any) any {
 	case "array":
 		return []any{}
 	case "object":
-		return map[string]any{}
+		props, _ := schema["properties"].(map[string]any)
+		required, _ := schema["required"].([]any)
+		out := make(map[string]any, len(required))
+		for _, rv := range required {
+			k, ok := rv.(string)
+			if !ok || k == "" {
+				continue
+			}
+			var propSchema map[string]any
+			if props != nil {
+				propSchema, _ = props[k].(map[string]any)
+			}
+			out[k] = placeholderForSchema(propSchema)
+		}
+		return out
 	case "null":
 		return nil
 	}
