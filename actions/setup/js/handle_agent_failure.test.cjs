@@ -3087,6 +3087,18 @@ describe("handle_agent_failure", () => {
       });
     });
 
+    it("derives ET-equivalent max budgets from whole AI credits", () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "15000";
+      process.env.GH_AW_MAX_AI_CREDITS = "2";
+      process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "15000",
+        maxEffectiveTokens: "20000",
+        effectiveTokensRateLimitError: false,
+      });
+    });
+
     it("uses max_ai_credits instead of max_effective_tokens when both are present", () => {
       const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
       fs.mkdirSync(auditDir, { recursive: true });

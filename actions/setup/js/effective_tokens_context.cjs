@@ -361,6 +361,8 @@ function resolveEffectiveTokensFailureState() {
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxAICredits = parseMaxAICreditsFromAuditLog() || envMaxAICredits || "";
+  // max_effective_tokens is deprecated for ET failure-state reconciliation.
+  // We only derive the ET ceiling from max_ai_credits.
   const maxEffectiveTokens = deriveMaxEffectiveTokensFromAICredits(maxAICredits);
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
