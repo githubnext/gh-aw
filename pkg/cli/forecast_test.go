@@ -446,16 +446,18 @@ func TestLoadCachedRunAIC_NoUsageArtifactReturnsZero(t *testing.T) {
 	})
 
 	var downloaded []string
+	analyzeCalled := false
 	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
 		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
 		return ErrNoArtifacts
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
-		t.Fatal("analyze should not be called when usage artifact is missing")
+		analyzeCalled = true
 		return nil, nil
 	}
 
 	aic := loadCachedRunAIC(context.Background(), 999_000_002, false)
 	require.Zero(t, aic)
+	require.False(t, analyzeCalled)
 	require.Equal(t, []string{"usage"}, downloaded)
 }
