@@ -845,7 +845,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result).toEqual({ kind: "approve-once" });
     });
 
-    it("reproduces denied multiline daily compiler command when required tools are missing", async () => {
+    it("denies multiline shell command when required tools are missing", async () => {
       const handler = await makePermissionHandlerViaSDK([
         "shell(mkdir)",
         "shell(git:*)",
@@ -872,7 +872,7 @@ for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`
       expect(result).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
     });
 
-    it("allows multiline daily compiler command after adding missing tool permissions", async () => {
+    it("approves multiline shell command when all required tools are permitted", async () => {
       const handler = await makePermissionHandlerViaSDK([
         "shell(set)",
         "shell(mkdir)",

@@ -318,7 +318,7 @@ describe("extractCommandNamesFromPipeline", () => {
     expect(extractCommandNamesFromPipeline("date +%Y-%m-%d && echo done")).toEqual(["date", "echo"]);
   });
 
-  it("handles daily compiler quality multiline command shape", () => {
+  it("extracts all command names from multiline script with variables and control flow", () => {
     const cmd = `set -euo pipefail
 CACHE_DIR='cache/gh-aw/cache-memory/compiler-quality'
 ANALYSES_DIR="$CACHE_DIR/analyses"
