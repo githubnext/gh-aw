@@ -88,7 +88,10 @@ experiments:
 - `description:` - Human-readable experiment description for governance tooling (no runtime effect).
 - `metric:` - Primary metric name for governance tooling (no runtime effect).
 - `issue:` - Linked tracking issue number for governance tooling (no runtime effect).
-- `guardrail_metrics:` - Array of guardrail objects. Each entry must have `name` (metric identifier) and `threshold` (either a comparison string like `">=0.95"` or a bare number like `0.0`). The optional `direction` field (`"min"` or `"max"`) sets the optimization direction: `"min"` means lower values are better (e.g. error rates, latency), `"max"` means higher values are better (e.g. success rates). When `threshold` is a bare number, pair it with `direction` — for `direction: min` the metric must be ≤ threshold, for `direction: max` the metric must be ≥ threshold. If any guardrail fails for any variant, the experiment is automatically abandoned.
+- `guardrail_metrics:` - Array of guardrail objects for metrics that must not degrade. If any guardrail fails for any variant, the experiment is automatically abandoned. Each entry has:
+  - `name` (required) — metric identifier (e.g. `"success_rate"`, `"empty_output_rate"`).
+  - `threshold` (required) — either a comparison string like `">=0.95"` or `"==0"`, **or** a bare number like `0.0` when paired with `direction`.
+  - `direction` (optional, `"min"` or `"max"`) — optimization direction. `"min"` = lower is better (e.g. error rates, latency); `"max"` = higher is better (e.g. success rates). When `threshold` is a bare number, `direction: min` requires the metric ≤ threshold and `direction: max` requires the metric ≥ threshold.
 - `hypothesis:` - Null and alternative hypothesis for the experiment (no runtime effect).
 
 **Bare array and object forms can be mixed** in the same `experiments:` map — each experiment is independent.

@@ -200,7 +200,7 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `hypothesis` | `string` | | Null and alternative hypothesis (e.g. `"H0: no change. H1: concise reduces AIC by >=15%"`) |
 | `metric` | `string` | | Primary metric to observe (e.g. `aic`, `duration_ms`) |
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
-| `guardrail_metrics` | `object[]` | | List of guardrail objects that must not degrade. Each entry has: `name` (string, required), `threshold` (comparison string like `>=0.95` or bare number like `0.0`, required), and `direction` (`"min"` or `"max"`, optional — `"min"` means lower is better, `"max"` means higher is better). When `threshold` is a bare number, `direction` determines the pass condition (≤ for `min`, ≥ for `max`). |
+| `guardrail_metrics` | `object[]` | | List of guardrail objects with `name` (string), `threshold` (comparison string like `>=0.95` or bare number like `0.0`), and optional `direction` (`"min"` or `"max"`). When `threshold` is a bare number, `direction` governs the pass condition (≤ for `min`, ≥ for `max`). See [experiments-specification §4.4](./experiments-specification#44-guardrail-metrics) for full semantics. |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
