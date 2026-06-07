@@ -266,15 +266,16 @@ func TestUpdatePullRequestValidationConfig(t *testing.T) {
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{
-		"requiresOneOf:status,title,body":        true,
-		"requiresOneOf:title,body":               true,
-		"requiresOneOf:title,body,update_branch": true,
-		"requiresOneOf:title,body,labels":        true,
-		"requiresOneOf:issue_number,pull_number": true,
-		"requiresOneOf:field_name,field_node_id": true,
-		"requiresOneOf:reviewers,team_reviewers": true,
-		"startLineLessOrEqualLine":               true,
-		"parentAndSubDifferent":                  true,
+		"requiresOneOf:status,title,body":                true,
+		"requiresOneOf:title,body":                       true,
+		"requiresOneOf:title,body,update_branch":         true,
+		"requiresOneOf:title,body,labels":                true,
+		"requiresOneOf:issue_number,pull_number":         true,
+		"requiresOneOf:milestone_number,milestone_title": true,
+		"requiresOneOf:field_name,field_node_id":         true,
+		"requiresOneOf:reviewers,team_reviewers":         true,
+		"startLineLessOrEqualLine":                       true,
+		"parentAndSubDifferent":                          true,
 	}
 
 	for typeName, config := range ValidationConfig {
@@ -350,6 +351,44 @@ func TestCreatePullRequestBaseValidationMaxLength(t *testing.T) {
 
 	if baseField.MaxLength != 128 {
 		t.Errorf("base field MaxLength = %d, want 128", baseField.MaxLength)
+	}
+}
+
+func TestAssignMilestoneValidationConfig(t *testing.T) {
+	config, ok := ValidationConfig["assign_milestone"]
+	if !ok {
+		t.Fatal("assign_milestone not found in ValidationConfig")
+	}
+
+	if config.CustomValidation != "requiresOneOf:milestone_number,milestone_title" {
+		t.Errorf("assign_milestone customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:milestone_number,milestone_title")
+	}
+
+	if _, ok := config.Fields["milestone_number"]; !ok {
+		t.Error("assign_milestone Fields is missing the 'milestone_number' field")
+	}
+	if _, ok := config.Fields["milestone_title"]; !ok {
+		t.Error("assign_milestone Fields is missing the 'milestone_title' field")
+	}
+}
+
+func TestAssignMilestoneValidationConfigJSON(t *testing.T) {
+	jsonStr, err := GetValidationConfigJSON([]string{"assign_milestone"}, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	cfg, ok := parsed["assign_milestone"]
+	if !ok {
+		t.Fatal("assign_milestone not found in serialized validation config")
+	}
+	if cfg.CustomValidation != "requiresOneOf:milestone_number,milestone_title" {
+		t.Errorf("assign_milestone customValidation in JSON = %q, want %q", cfg.CustomValidation, "requiresOneOf:milestone_number,milestone_title")
 	}
 }
 

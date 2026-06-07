@@ -45,12 +45,12 @@ func initModelPrices() {
 		modelPriceRecords = make([]modelPriceRecord, 0)
 		for providerName, providerData := range data.Providers {
 			normalizedProvider := strings.ToLower(strings.TrimSpace(providerName))
-			if normalizedProvider == "" {
+			if normalizedProvider == "" { //nolint:tolowerequalfold
 				continue
 			}
 			for modelName, entry := range providerData.Models {
 				normalizedModel := strings.ToLower(strings.TrimSpace(modelName))
-				if normalizedModel == "" {
+				if normalizedModel == "" { //nolint:tolowerequalfold
 					continue
 				}
 				normalizedID := normalizedProvider + "/" + normalizedModel
@@ -77,7 +77,7 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 	normalizedProvider := normalizeCatalogProvider(provider)
 	normalizedModel := strings.ToLower(strings.TrimSpace(model))
 	comparableModel := normalizeComparableModelID(normalizedModel)
-	if normalizedModel == "" {
+	if normalizedModel == "" { //nolint:tolowerequalfold
 		return nil, false
 	}
 

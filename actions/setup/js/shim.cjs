@@ -13,14 +13,24 @@
  */
 
 if (!global.core) {
+  /**
+   * Write shim log lines to stderr so MCP servers that speak JSON-RPC on stdout
+   * never interleave protocol frames with diagnostic output.
+   * @param {string} level
+   * @param {string} message
+   */
+  const writeShimLog = (level, message) => {
+    process.stderr.write(`[${level}] ${message}\n`);
+  };
+
   global.core = {
-    debug: /** @param {string} message */ message => console.debug(`[debug] ${message}`),
-    info: /** @param {string} message */ message => console.info(`[info] ${message}`),
-    notice: /** @param {string} message */ message => console.info(`[notice] ${message}`),
-    warning: /** @param {string} message */ message => console.warn(`[warning] ${message}`),
-    error: /** @param {string} message */ message => console.error(`[error] ${message}`),
+    debug: /** @param {string} message */ message => writeShimLog("debug", message),
+    info: /** @param {string} message */ message => writeShimLog("info", message),
+    notice: /** @param {string} message */ message => writeShimLog("notice", message),
+    warning: /** @param {string} message */ message => writeShimLog("warning", message),
+    error: /** @param {string} message */ message => writeShimLog("error", message),
     setFailed: /** @param {string} message */ message => {
-      console.error(`[error] ${message}`);
+      writeShimLog("error", message);
       if (typeof process !== "undefined") {
         if (process.exitCode === null || process.exitCode === undefined || process.exitCode === 0) {
           process.exitCode = 1;
@@ -28,7 +38,7 @@ if (!global.core) {
       }
     },
     setOutput: /** @param {string} name @param {unknown} value */ (name, value) => {
-      console.info(`[output] ${name}=${value}`);
+      writeShimLog("output", `${name}=${value}`);
     },
   };
 }

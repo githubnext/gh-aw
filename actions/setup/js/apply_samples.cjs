@@ -171,11 +171,25 @@ function preStagePatch(entry, index, workspace) {
  */
 async function sendJsonRpc(child, stdin, request, responseIterator) {
   stdin.write(JSON.stringify(request) + "\n");
-  const { value, done } = await responseIterator.next();
-  if (done) {
-    throw new Error(`apply_samples: MCP server closed stdout before responding to request id=${request.id}`);
+  while (true) {
+    const { value, done } = await responseIterator.next();
+    if (done) {
+      throw new Error(`apply_samples: MCP server closed stdout before responding to request id=${request.id}`);
+    }
+    const line = typeof value === "string" ? value.trim() : "";
+    if (!line) {
+      continue;
+    }
+    if (!line.startsWith("{")) {
+      core.debug(`apply_samples: ignoring non-JSON stdout line: ${line}`);
+      continue;
+    }
+    try {
+      return JSON.parse(line);
+    } catch (err) {
+      throw new Error(`apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`);
+    }
   }
-  return JSON.parse(value);
 }
 
 /**
@@ -360,4 +374,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, loadSamples, preStagePatch, resolveMcpServerPath };
+module.exports = { main, loadSamples, preStagePatch, resolveMcpServerPath, sendJsonRpc };

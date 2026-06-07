@@ -940,16 +940,22 @@ function buildMissingDataContext(cacheMemoryEnabled, items) {
 
   core.info(`Found ${missingDataMessages.length} missing_data message(s)`);
 
-  // Format the missing data using the existing formatter
-  const formattedList = formatMissingData(missingDataMessages);
-
-  let context = buildWarningAlertLine("Missing Data Reported", "The agent reported missing data during execution.") + "\n**Missing Data:**\n";
-  context += formattedList;
-  context += "\n\n";
-
   // Detect cache_miss: if cache-memory is available and the agent reported a cache miss,
   // this indicates the prompt is referencing an incorrect file path within the cache directory.
   const hasCacheMiss = missingDataMessages.some(m => m.reason === "cache_memory_miss");
+
+  // When cache-memory is configured and cache_miss is present, avoid repeating the same
+  // signal in the generic "Missing Data" section. Keep the specialised cache warning below.
+  const displayableMissingData = cacheMemoryEnabled && hasCacheMiss ? missingDataMessages.filter(m => m.reason !== "cache_memory_miss") : missingDataMessages;
+
+  let context = "";
+  if (displayableMissingData.length > 0) {
+    const formattedList = formatMissingData(displayableMissingData);
+    context += buildWarningAlertLine("Missing Data Reported", "The agent reported missing data during execution.") + "\n**Missing Data:**\n";
+    context += formattedList;
+    context += "\n\n";
+  }
+
   if (cacheMemoryEnabled && hasCacheMiss) {
     core.info("Cache-miss detected despite cache-memory being available — likely a configuration problem");
     const templatePath = getPromptPath("cache_memory_miss.md");

@@ -143,10 +143,10 @@ func classifyScheduleFrequency(scheduleStr string) string {
 	}
 
 	// Fuzzy cron placeholder matches (produced by the compiler during preprocessing)
-	if strings.HasPrefix(normalized, "fuzzy:hourly/1 ") || normalized == "fuzzy:hourly/1" {
+	if strings.HasPrefix(normalized, "fuzzy:hourly/1 ") || normalized == "fuzzy:hourly/1" { //nolint:tolowerequalfold
 		return "hourly"
 	}
-	if strings.HasPrefix(normalized, "fuzzy:hourly/3 ") || normalized == "fuzzy:hourly/3" {
+	if strings.HasPrefix(normalized, "fuzzy:hourly/3 ") || normalized == "fuzzy:hourly/3" { //nolint:tolowerequalfold
 		return "3-hourly"
 	}
 	if strings.HasPrefix(normalized, "fuzzy:daily") {

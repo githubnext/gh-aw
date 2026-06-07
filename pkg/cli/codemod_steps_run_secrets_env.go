@@ -179,7 +179,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 		shellMatch, shellValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "shell")
 		if shellMatch {
 			v := strings.ToLower(strings.TrimSpace(shellValue))
-			if v == "pwsh" || v == "powershell" {
+			if v == "pwsh" || v == "powershell" { //nolint:tolowerequalfold
 				shellIsPowerShell = true
 			}
 			break

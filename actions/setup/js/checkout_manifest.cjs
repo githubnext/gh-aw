@@ -93,7 +93,29 @@ function _resetCache() {
   cached = null;
 }
 
+/**
+ * Return all checkout manifest entries as a Map keyed by lowercase repo slug.
+ * Each value has the shape { repository, path, default_branch }.
+ *
+ * @returns {Map<string, { repository: string, path: string, default_branch: string }>}
+ */
+function loadAllCheckouts() {
+  const manifest = loadManifest();
+  const map = new Map();
+  for (const [key, entry] of Object.entries(manifest)) {
+    if (!entry || typeof entry !== "object") continue;
+    const slug = key.trim().toLowerCase();
+    if (!slug) continue;
+    const repository = typeof entry.repository === "string" ? entry.repository : slug;
+    const entryPath = typeof entry.path === "string" ? entry.path : "";
+    const defaultBranch = typeof entry.default_branch === "string" ? entry.default_branch : "";
+    map.set(slug, { repository, path: entryPath, default_branch: defaultBranch });
+  }
+  return map;
+}
+
 module.exports = {
   lookupCheckout,
+  loadAllCheckouts,
   _resetCache,
 };

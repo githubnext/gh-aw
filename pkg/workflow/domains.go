@@ -244,7 +244,7 @@ func extractProviderFromModel(model string) (string, error) {
 		return "", nil
 	}
 	provider := strings.ToLower(parts[0])
-	if provider == "" {
+	if provider == "" { //nolint:tolowerequalfold
 		return "", fmt.Errorf("invalid engine.model %q: provider prefix is empty; use provider/model format (for example: openai/gpt-4.1, anthropic/claude-sonnet-4)", model)
 	}
 	return provider, nil

@@ -461,6 +461,7 @@ export default defineConfig({
 						{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
 						{ label: 'Monitoring with Projects', link: '/experimental/monitoring-with-projects/' },
 						{ label: 'OpenTelemetry', link: '/experimental/opentelemetry/' },
+						{ label: 'Safe-Outputs Samples', link: '/experimental/safe-outputs-samples/' },
 						{ label: 'TrialOps', link: '/experimental/trial-ops/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 
