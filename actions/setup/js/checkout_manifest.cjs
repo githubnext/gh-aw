@@ -104,10 +104,12 @@ function loadAllCheckouts() {
   const map = new Map();
   for (const [key, entry] of Object.entries(manifest)) {
     if (!entry || typeof entry !== "object") continue;
-    const repository = typeof entry.repository === "string" ? entry.repository : key;
+    const slug = key.trim().toLowerCase();
+    if (!slug) continue;
+    const repository = typeof entry.repository === "string" ? entry.repository : slug;
     const entryPath = typeof entry.path === "string" ? entry.path : "";
     const defaultBranch = typeof entry.default_branch === "string" ? entry.default_branch : "";
-    map.set(key, { repository, path: entryPath, default_branch: defaultBranch });
+    map.set(slug, { repository, path: entryPath, default_branch: defaultBranch });
   }
   return map;
 }
