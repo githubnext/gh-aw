@@ -10,7 +10,7 @@ import (
 )
 
 func TestBuildLineIndex_ParsesDirectiveTokens(t *testing.T) {
-	const filename = "/tmp/nolint_tokens.go"
+	const filename = "nolint_tokens.go"
 	const src = `package p
 
 //nolint:gosec,tolowerequalfold // second token should match
@@ -50,18 +50,18 @@ var _ = 5
 
 func TestHasDirective_SameLineAndPreviousLine(t *testing.T) {
 	idx := map[string]map[int]struct{}{
-		"/tmp/test.go": {
+		"test.go": {
 			3: struct{}{},
 		},
 	}
 
-	if !HasDirective(token.Position{Filename: "/tmp/test.go", Line: 3}, idx) {
+	if !HasDirective(token.Position{Filename: "test.go", Line: 3}, idx) {
 		t.Fatalf("expected same-line directive match")
 	}
-	if !HasDirective(token.Position{Filename: "/tmp/test.go", Line: 4}, idx) {
+	if !HasDirective(token.Position{Filename: "test.go", Line: 4}, idx) {
 		t.Fatalf("expected previous-line directive match")
 	}
-	if HasDirective(token.Position{Filename: "/tmp/test.go", Line: 5}, idx) {
+	if HasDirective(token.Position{Filename: "test.go", Line: 5}, idx) {
 		t.Fatalf("unexpected directive match for unrelated line")
 	}
 }
