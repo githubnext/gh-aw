@@ -33,6 +33,9 @@ const AMBIENT_GHAW_MARKER_END = "<!-- GH_AW_AMBIENT_GH_AW_CONTEXT_END -->";
 const AMBIENT_USER_MARKER_START = "<!-- GH_AW_AMBIENT_USER_CONTENT_BEGIN -->";
 const AMBIENT_USER_MARKER_END = "<!-- GH_AW_AMBIENT_USER_CONTENT_END -->";
 const MAX_AMBIENT_SECTION_LENGTH = 8000;
+const MAX_MESSAGES_SEARCH_DEPTH = 3;
+const SYSTEM_TAG_OPEN = "<system>";
+const SYSTEM_TAG_CLOSE = "</system>";
 const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
@@ -630,13 +633,13 @@ function splitAmbientContextFromFirstPrompt(text) {
     };
   }
 
-  const systemStart = raw.indexOf("<system>");
-  const systemEnd = raw.indexOf("</system>", systemStart >= 0 ? systemStart + 8 : 0);
+  const systemStart = raw.indexOf(SYSTEM_TAG_OPEN);
+  const systemEnd = raw.indexOf(SYSTEM_TAG_CLOSE, systemStart >= 0 ? systemStart + SYSTEM_TAG_OPEN.length : 0);
   if (systemStart !== -1 && systemEnd !== -1 && systemStart < systemEnd) {
     return {
       engineAmbientContext: raw.slice(0, systemStart).trim(),
-      ghAwAmbientContext: raw.slice(systemStart + "<system>".length, systemEnd).trim(),
-      userContent: raw.slice(systemEnd + "</system>".length).trim(),
+      ghAwAmbientContext: raw.slice(systemStart + SYSTEM_TAG_OPEN.length, systemEnd).trim(),
+      userContent: raw.slice(systemEnd + SYSTEM_TAG_CLOSE.length).trim(),
     };
   }
 
@@ -665,7 +668,7 @@ function extractMessageText(value) {
   if (!value || typeof value !== "object") {
     return "";
   }
-  const obj = /** @type {Record<string, any>} */ value;
+  const obj = /** @type {Record<string, any>} */ (value);
   if (typeof obj.text === "string") {
     return obj.text;
   }
@@ -687,10 +690,10 @@ function extractMessageText(value) {
  * @returns {Array<any>|null}
  */
 function findMessagesArray(payload, depth = 0) {
-  if (!payload || typeof payload !== "object" || depth > 3) {
+  if (!payload || typeof payload !== "object" || depth > MAX_MESSAGES_SEARCH_DEPTH) {
     return null;
   }
-  const obj = /** @type {Record<string, any>} */ payload;
+  const obj = /** @type {Record<string, any>} */ (payload);
   if (Array.isArray(obj.messages)) {
     return obj.messages;
   }
