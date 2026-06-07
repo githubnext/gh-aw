@@ -19,9 +19,9 @@ engine:
 strict: true
 experiments:
   model_size:
-    variants: [gpt-5.4, gpt-5.4-mini]
-    description: "Tests whether a small-agent model identifies cache issues and produces equivalent analysis at lower token cost."
-    hypothesis: "H0: no change in issue creation rate or run success rate. H1: small-agent reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
+    variants: [gpt-5.4, gpt-5-mini]
+    description: "Tests whether a mini model identifies cache issues and produces equivalent analysis at lower token cost."
+    hypothesis: "H0: no change in issue creation rate or run success rate. H1: mini model reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
     metric: effective_tokens_total
     secondary_metrics: [run_success_rate, run_duration_ms]
     guardrail_metrics:
