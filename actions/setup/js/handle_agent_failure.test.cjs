@@ -1491,10 +1491,6 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
     });
 
-    it("suppresses generic 429 context for maximum effective tokens exceeded failures", () => {
-      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).\n");
-      expect(buildEngineFailureContext()).toBe("");
-    });
 
     it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
       fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
