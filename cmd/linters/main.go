@@ -26,6 +26,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
@@ -60,6 +61,7 @@ func main() {
 		seenmapbool.Analyzer,
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
+		lenstringzero.Analyzer,
 		tolowerequalfold.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 	)
