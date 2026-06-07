@@ -854,7 +854,7 @@ func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile st
 		if !ok {
 			continue
 		}
-		et := computeModelEffectiveTokensWithWeights(computeModelEffectiveTokensOptions{
+		et := computeModelEffectiveTokensWithWeights(effectiveTokensOptions{
 			model:            e.Model,
 			provider:         e.Provider,
 			inputTokens:      e.InputTokens,
