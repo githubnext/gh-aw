@@ -74,7 +74,7 @@ Use GitHub alert syntax for status and warning callouts:
 - `> [!WARNING]` for warnings
 - `> [!CAUTION]` for high-risk or blocking issues
 
-Do not use emoji-only severity markers in headings or status lines (for example `✅`, `⚠️`, `❌`, `🧪`).
+Do not use emoji-only severity markers in headings or status lines (e.g., `✅`, `⚠️`, `❌`, `🧪`).
 
 ### Report Structure Pattern
 
