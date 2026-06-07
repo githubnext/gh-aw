@@ -6,7 +6,6 @@ on:
   schedule:
     - cron: daily
   workflow_dispatch:
-
 permissions:
   contents: read
   issues: read
@@ -17,6 +16,8 @@ engine:
   id: copilot
   copilot-sdk: true
   copilot-sdk-driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
+  env:
+    COPILOT_GITHUB_TOKEN: "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 strict: true
 timeout-minutes: 30
 

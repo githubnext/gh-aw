@@ -43,7 +43,7 @@ name: Daily Documentation Healer
 strict: true
 experiments:
   model_size:
-    variants: [claude-sonnet-4-6, claude-haiku-4-5-20251001]
+    variants: [claude-sonnet-4.6, claude-haiku-4.5]
     description: "Tests whether Claude Haiku detects and corrects documentation gaps with equivalent quality at lower token cost versus Claude Sonnet."
     hypothesis: "H0: no change in issue/PR creation rate or run success rate. H1: Claude Haiku reduces effective token usage >=30% with equivalent run success rate (>=0.90)."
     metric: effective_tokens_total
