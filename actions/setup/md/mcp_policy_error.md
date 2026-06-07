@@ -1,5 +1,5 @@
-
-**🔒 MCP Servers Blocked by Policy**: The Copilot CLI blocked MCP server connections due to an organization or enterprise policy. The agent ran without access to MCP tools (GitHub API, safe outputs, etc.).
+> [!WARNING]
+> **MCP Servers Blocked by Policy**: The Copilot CLI blocked MCP server connections due to an organization or enterprise policy. The agent ran without access to MCP tools (GitHub API, safe outputs, etc.).
 
 This is a **policy configuration issue**, not a transient error — retrying will not help.
 

@@ -110,7 +110,7 @@ safe-outputs:
     title-prefix: "Designer Drift Audit"
     labels: ["drift-audit", "automated"]
     close-older-issues: true
-    expires: 7
+    expires: 7d
 network:
   allowed:
     - defaults

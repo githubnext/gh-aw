@@ -53,6 +53,7 @@ steps:
   - name: Prepare recent-change dataset (deterministic)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       set -euo pipefail
       : "${GH_TOKEN:?GH_TOKEN is required for gh CLI queries}"
@@ -71,7 +72,7 @@ steps:
         > /tmp/gh-aw/code-simplifier/recent-files.txt
 
       gh pr list \
-        --repo "${{ github.repository }}" \
+        --repo "$EXPR_GITHUB_REPOSITORY" \
         --state merged \
         --search "merged:>=$YESTERDAY" \
         --limit 100 \
@@ -96,12 +97,13 @@ steps:
   - name: Prepare workflow history summary (deterministic)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       set -euo pipefail
       : "${GH_TOKEN:?GH_TOKEN is required for gh CLI queries}"
       mkdir -p /tmp/gh-aw/code-simplifier
 
-      gh api "repos/${{ github.repository }}/actions/workflows/code-simplifier.lock.yml/runs?per_page=30" \
+      gh api "repos/$EXPR_GITHUB_REPOSITORY/actions/workflows/code-simplifier.lock.yml/runs?per_page=30" \
         > /tmp/gh-aw/code-simplifier/workflow-runs.json || echo '{"workflow_runs":[]}' > /tmp/gh-aw/code-simplifier/workflow-runs.json
 
       jq '

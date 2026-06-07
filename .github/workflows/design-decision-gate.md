@@ -18,9 +18,9 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+max-turns: 20
 engine:
   id: claude
-  max-turns: 20
 safe-outputs:
   add-comment:
     max: 2

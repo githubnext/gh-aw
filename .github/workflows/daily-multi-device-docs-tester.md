@@ -15,9 +15,9 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-multi-device-docs-tester
+max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 engine:
   id: claude
-  max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 strict: true
 timeout-minutes: 30
 runtimes:

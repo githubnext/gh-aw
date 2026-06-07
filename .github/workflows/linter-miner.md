@@ -71,7 +71,7 @@ safe-outputs:
     protected-files: fallback-to-issue
   noop:
 timeout-minutes: 120
-max-runs: 1000
+max-turns: 1000
 ---
 
 # Linter Miner

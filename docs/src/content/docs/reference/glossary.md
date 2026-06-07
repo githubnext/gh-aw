@@ -240,10 +240,6 @@ A safe output capability (`assign-to-agent:`) that programmatically assigns the 
 
 A recognized "magic" repository secret name that GitHub Agentic Workflows automatically uses as a fallback Personal Access Token for `assign-to-agent` operations. When set, no explicit `github-token:` reference is needed in workflow frontmatter — the token is injected automatically. Required because GitHub App installation tokens are rejected by the Copilot assignment API. The token fallback chain is: `assign-to-agent.github-token` → `safe-outputs.github-token` → `GH_AW_AGENT_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/).
 
-### GH_AW_GITHUB_TOKEN
-
-A recognized "magic" repository secret name used as the default fallback token for GitHub operations outside engine inference when no explicit `github-token:` is configured. Commonly used for safe outputs and tool operations that require permissions beyond the default `GITHUB_TOKEN`, and as the non-App fallback when `github-app.ignore-if-missing: true` is enabled. Fallback chain: `custom github-token` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Authentication Reference](/gh-aw/reference/auth/).
-
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).
@@ -497,7 +493,7 @@ A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to 
 
 ### Max AI Credits (`max-ai-credits`)
 
-A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxAiCredits` in the compiled lock file. Enabled by default and defaults to `1000` (`1k`) when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
+A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxAiCredits` in the compiled lock file. Defaults to `25M` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
 max-ai-credits: 5M
@@ -513,12 +509,12 @@ max-daily-ai-credits: 15M
 
 See [Cost Management](/gh-aw/reference/cost-management/) and [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
 
-### Max Runs (`max-runs`)
+### Max Runs (`max-runs`, deprecated)
 
-A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
+Deprecated top-level alias for the AWF invocation cap. Use `max-turns` instead. This cap limits the number of times the AWF proxy invokes the AI engine within a single workflow run and maps to `apiProxy.maxRuns` in the compiled lock file. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
-max-runs: 10
+max-turns: 10
 ```
 
 See [Engines Reference](/gh-aw/reference/engines/).

@@ -31,10 +31,9 @@ runtimes:
     version: "22"
 
 # AI engine configuration
+max-turns: 90  # Reduce from avg 115 turns
 engine:
   id: claude
-  max-turns: 90  # Reduce from avg 115 turns
-
 # Shared instructions
 imports:
   - uses: shared/daily-pr-base.md
@@ -431,4 +430,3 @@ Return a JSON object only — no prose, no extra text:
   "top_bloat_reason": "Excessive bullet lists in Tool Configuration and Features sections with repetitive What/Why/How patterns."
 }
 ```
-

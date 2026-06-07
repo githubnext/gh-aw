@@ -14,9 +14,9 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+max-turns: 100
 engine:
   id: claude
-  max-turns: 100
 tools:
   cli-proxy: true
   github:

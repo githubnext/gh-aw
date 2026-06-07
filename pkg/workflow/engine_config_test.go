@@ -45,12 +45,21 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxRuns: 25},
 		},
 		{
+			name: "top-level max-turns takes precedence over deprecated max-runs",
+			frontmatter: map[string]any{
+				"max-runs":  25,
+				"max-turns": 30,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxTurns: "30", MaxRuns: 30},
+		},
+		{
 			name: "top-level max-turns without engine",
 			frontmatter: map[string]any{
 				"max-turns": 25,
 			},
 			expectedEngineSetting: "",
-			expectedConfig:        &EngineConfig{MaxTurns: "25"},
+			expectedConfig:        &EngineConfig{MaxTurns: "25", MaxRuns: 25},
 		},
 		{
 			name: "top-level max-turns expression without engine",
@@ -231,7 +240,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				"max-turns": 12,
 			},
 			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", MaxTurns: "12"},
+			expectedConfig:        &EngineConfig{ID: "codex", MaxTurns: "12", MaxRuns: 12},
 		},
 		{
 			name: "object format - with top-level max-tool-denials",

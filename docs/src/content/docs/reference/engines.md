@@ -33,7 +33,7 @@ Not all features are available across all engines. The table below summarizes pe
 
 | Feature | Copilot | Claude | Codex | Gemini | Crush | OpenCode | Pi |
 |---------|:-------:|:------:|:-----:|:------:|:-----:|:--------:|:--:|
-| `max-runs` (AWF invocation cap) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `max-turns` (AWF invocation cap; `max-runs` deprecated) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -44,7 +44,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 
-`max-runs` (default `500`) and `max-ai-credits` (default `1000` / `1k`) are top-level frontmatter fields supported by all engines. `max-turns` limits Claude iterations per run; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
+`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `25M`) are top-level frontmatter fields supported by all engines. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
 
 ## Extended Coding Agent Configuration
 

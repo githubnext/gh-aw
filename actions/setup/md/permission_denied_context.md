@@ -1,5 +1,5 @@
-
-**🚫 Repeated Permission Denied**: The agent was denied permission to run {denied_count} command(s) and stopped retrying.
+> [!WARNING]
+> **Repeated Permission Denied**: The agent was denied permission to run {denied_count} command(s) and stopped retrying.
 
 **Denied Commands:**
 {denied_commands_list}

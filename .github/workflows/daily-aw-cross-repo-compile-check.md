@@ -12,9 +12,9 @@ permissions:
   pull-requests: read
   actions: read
 tracker-id: daily-aw-cross-repo-compile-check
+max-turns: 140
 engine:
   id: claude
-  max-turns: 140
 tools:
   cli-proxy: true
   github:

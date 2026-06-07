@@ -57,6 +57,16 @@ function buildWarningAlertLine(title, message) {
 }
 
 /**
+ * Render a prompt template from runtime prompts.
+ * @param {string} templateName
+ * @param {Record<string, string|number|boolean|undefined>} [context]
+ * @returns {string}
+ */
+function renderPromptTemplate(templateName, context = {}) {
+  return renderTemplateFromFile(getPromptPath(templateName), context);
+}
+
+/**
  * Attempt to find a pull request for the current branch
  * @returns {Promise<{number: number, html_url: string, head_sha: string, mergeable: boolean | null, mergeable_state: string, updated_at: string} | null>} PR info or null if not found
  */
@@ -1063,24 +1073,13 @@ function buildPermissionDeniedContext(items, workflowId) {
   const deniedCommandsInline = deniedArray.map(cmd => `\`${cmd}\``).join(", ");
   const deniedCount = String(deniedArray.length);
 
-  try {
-    const templatePath = getPromptPath("permission_denied_context.md");
-    const template = fs.readFileSync(templatePath, "utf8");
-    const rendered = renderTemplate(template, {
-      denied_count: deniedCount,
-      denied_commands_list: deniedCommandsList,
-      denied_commands_inline: deniedCommandsInline,
-      workflow_id: workflowId || "the workflow",
-    });
-    return "\n" + rendered;
-  } catch {
-    // Template not available — return inline fallback message
-    return (
-      `\n**🚫 Repeated Permission Denied**: The agent was denied permission for ${deniedCount} command(s).\n\n` +
-      `**Denied Commands:**\n${deniedCommandsList}\n\n` +
-      `Update the workflow prompt to use built-in tools instead of the denied commands.\n`
-    );
-  }
+  const rendered = renderPromptTemplate("permission_denied_context.md", {
+    denied_count: deniedCount,
+    denied_commands_list: deniedCommandsList,
+    denied_commands_inline: deniedCommandsInline,
+    workflow_id: workflowId || "the workflow",
+  });
+  return "\n" + rendered;
 }
 
 /**
@@ -1274,18 +1273,7 @@ function buildMCPPolicyErrorContext(hasMCPPolicyError) {
     return "";
   }
 
-  const templatePath = getPromptPath("mcp_policy_error.md");
-  try {
-    const template = fs.readFileSync(templatePath, "utf8");
-    return "\n" + template;
-  } catch {
-    // Template not available — return inline message
-    return (
-      "\n**🔒 MCP Servers Blocked by Policy**: The Copilot CLI blocked MCP server connections due to an organization or enterprise policy.\n\n" +
-      'An administrator must enable the **"MCP servers in Copilot"** policy. ' +
-      "See: [Configure MCP server access](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access)\n"
-    );
-  }
+  return "\n" + renderPromptTemplate("mcp_policy_error.md");
 }
 
 /**
@@ -1299,18 +1287,7 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
     return "";
   }
 
-  const templatePath = getPromptPath("model_not_supported_error.md");
-  try {
-    const template = fs.readFileSync(templatePath, "utf8");
-    return "\n" + template;
-  } catch {
-    // Template not available — return inline message
-    return (
-      "\n**🚫 Model Not Supported**: The requested model is not available for your Copilot subscription tier (e.g., Copilot Pro or Education).\n\n" +
-      "Specify a supported model in the workflow frontmatter, for example `model: gpt-5-mini`. " +
-      "See: [Supported models](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line#supported-models)\n"
-    );
-  }
+  return "\n" + renderPromptTemplate("model_not_supported_error.md");
 }
 
 /**
@@ -1350,16 +1327,7 @@ function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
  */
 function buildEngineRateLimit429Context(engineLabel) {
   const normalizedEngineLabel = engineLabel.trim() || "AI";
-  const templatePath = getPromptPath("engine_rate_limit_429.md");
-  try {
-    return "\n" + renderTemplateFromFile(templatePath, { engine_label: normalizedEngineLabel });
-  } catch {
-    return (
-      `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${normalizedEngineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
-      "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
-      "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
-    );
-  }
+  return "\n" + renderPromptTemplate("engine_rate_limit_429.md", { engine_label: normalizedEngineLabel });
 }
 
 /**

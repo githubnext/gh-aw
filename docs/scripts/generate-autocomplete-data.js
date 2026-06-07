@@ -167,6 +167,14 @@ function buildEntry(propSchema, depth) {
     entry.enum = [true, false];
   }
 
+  if (resolved.deprecated === true) {
+    entry.deprecated = true;
+  }
+
+  if (typeof resolved['x-deprecation-message'] === 'string' && resolved['x-deprecation-message']) {
+    entry['x-deprecation-message'] = resolved['x-deprecation-message'];
+  }
+
   if (depth < MAX_DEPTH) {
     const childProps = getObjectProperties(resolved);
     if (childProps) {

@@ -164,7 +164,10 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 	topLevelMaxToolDenials := parseMaxToolDenialsValue(frontmatter["max-tool-denials"])
 	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
 	topLevelMaxAICredits := parseMaxAICreditsValue(frontmatter["max-ai-credits"])
-	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-runs"])
+	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-turns"])
+	if topLevelMaxRuns == 0 {
+		topLevelMaxRuns = parseMaxRunsValue(frontmatter["max-runs"])
+	}
 
 	if engine, exists := frontmatter["engine"]; exists {
 		engineLog.Print("Extracting engine configuration from frontmatter")

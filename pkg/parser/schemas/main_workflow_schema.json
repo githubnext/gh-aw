@@ -3736,7 +3736,9 @@
     "max-runs": {
       "$ref": "#/$defs/templatable_integer",
       "default": 500,
-      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted. Supports GitHub Actions expressions."
+      "description": "Deprecated legacy alias for AWF invocation cap (`apiProxy.maxRuns`). Use `max-turns` instead. Defaults to 500 when omitted. Supports GitHub Actions expressions.",
+      "deprecated": true,
+      "x-deprecation-message": "'max-runs' is deprecated. Use top-level 'max-turns' instead. Run 'gh aw fix' to automatically migrate."
     },
     "mcp-servers": {
       "type": "object",

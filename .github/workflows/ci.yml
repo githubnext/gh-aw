@@ -1561,6 +1561,148 @@ jobs:
         echo "The existing \`sh-difc-proxy\` job uses the full Docker-based DIFC proxy; this job" >> $GITHUB_STEP_SUMMARY
         echo "provides a lightweight local-proxy repro that does not require Docker." >> $GITHUB_STEP_SUMMARY
 
+  integration-fix:
+    name: Integration Fix --write and Compile
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-fix
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Set up isolated test workspace
+      run: |
+        set -e
+        mkdir -p /tmp/test-fix-workspace/.github/workflows
+        cd /tmp/test-fix-workspace
+        git init -q
+        git config user.email "test@example.com"
+        git config user.name "Test"
+        # Copy pkg/cli/workflows .md files to simulate a user workflow directory
+        MD_FILES=$(find "$GITHUB_WORKSPACE/pkg/cli/workflows" -maxdepth 1 -name '*.md' | sort)
+        if [ -z "$MD_FILES" ]; then
+          echo "❌ No .md files found in pkg/cli/workflows" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+        echo "$MD_FILES" | xargs -I{} cp {} .github/workflows/
+        WORKFLOW_COUNT=$(ls .github/workflows/*.md | wc -l | tr -d ' ')
+        echo "✅ Test workspace set up with ${WORKFLOW_COUNT} workflow files" >> $GITHUB_STEP_SUMMARY
+
+    - name: Run fix --write
+      run: |
+        set -e
+        cd /tmp/test-fix-workspace
+        echo "## Integration Fix --write and Compile" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Running \`fix --write\`" >> $GITHUB_STEP_SUMMARY
+        "$GITHUB_WORKSPACE/gh-aw" fix --write 2>&1 | tee /tmp/fix-output.log
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ \`fix --write\` completed" >> $GITHUB_STEP_SUMMARY
+
+    - name: Compile fixed workflows
+      run: |
+        set -e
+        # Use same approach as make compile-cli-workflows:
+        # copy pkg/cli/workflows to a temp dir, replace .md files with fixed
+        # versions, compile only workflows that have a companion .lock.yml file.
+        TMP_WORKFLOWS_DIR=$(mktemp -d)
+        trap 'rm -rf "$TMP_WORKFLOWS_DIR"' EXIT
+        cp -R "$GITHUB_WORKSPACE/pkg/cli/workflows" "$TMP_WORKFLOWS_DIR/workflows"
+
+        # Replace .md files with the fixed versions from the isolated workspace
+        for fixed_md in /tmp/test-fix-workspace/.github/workflows/*.md; do
+          base=$(basename "$fixed_md")
+          if [ -f "$TMP_WORKFLOWS_DIR/workflows/$base" ]; then
+            cp "$fixed_md" "$TMP_WORKFLOWS_DIR/workflows/$base"
+          fi
+        done
+
+        # Find workflows with lock files (same pattern as compile-cli-workflows make target)
+        # $WORKFLOWS is intentionally unquoted: word-splitting is required to pass
+        # multiple space-separated file paths as separate arguments to compile.
+        WORKFLOWS=$(find "$TMP_WORKFLOWS_DIR/workflows" -maxdepth 1 -type f -name '*.lock.yml' \
+          | sed 's/\.lock\.yml$/.md/' | sort | tr '\n' ' ')
+
+        if [ -z "$WORKFLOWS" ]; then
+          echo "❌ No .lock.yml companion files found in pkg/cli/workflows" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        # Verify each .md path derived from a .lock.yml actually exists
+        MISSING=false
+        for wf in $WORKFLOWS; do
+          if [ ! -f "$wf" ]; then
+            echo "❌ Expected .md file not found after fix: $wf" >> $GITHUB_STEP_SUMMARY
+            MISSING=true
+          fi
+        done
+        if [ "$MISSING" = "true" ]; then
+          exit 1
+        fi
+
+        echo "### Compiling fixed workflows" >> $GITHUB_STEP_SUMMARY
+
+        if "$GITHUB_WORKSPACE/gh-aw" compile --fix --no-check-update $WORKFLOWS 2>&1 | tee /tmp/compile-output.log; then
+          echo "✅ **SUCCESS**: Workflows compile correctly after \`fix --write\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **FAILURE**: \`fix --write\` broke compilation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/compile-output.log >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
   windows-redirect-tests:
     name: Redirect Resolution Tests (${{ matrix.os }})
     if: ${{ needs.changes.outputs.has_changes == 'true' }}

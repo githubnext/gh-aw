@@ -15,9 +15,9 @@ tracker-id: hourly-ci-cleaner
 # - Target: Focus on systematic fix application with minimal iteration
 # - Budget target: 15-20 turns for typical CI fixes
 # - max-turns: 20 (hard limit via Claude engine)
+max-turns: 20
 engine:
   id: claude
-  max-turns: 20
   agent: ci-cleaner
 network:
   allowed:

@@ -1,5 +1,5 @@
-
-**🚫 Model Not Supported**: The Copilot CLI failed because the requested model is not available for your subscription tier. This typically affects Copilot Pro and Education users.
+> [!WARNING]
+> **Model Not Supported**: The Copilot CLI failed because the requested model is not available for your subscription tier. This typically affects Copilot Pro and Education users.
 
 This is a **configuration issue**, not a transient error — retrying will not help.
 

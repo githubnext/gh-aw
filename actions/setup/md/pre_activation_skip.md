@@ -1,4 +1,5 @@
-## ⏭️ Workflow Activation Skipped
+> [!NOTE]
+> **Workflow Activation Skipped**
 
 > {reason}
 
