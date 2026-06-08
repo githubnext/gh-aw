@@ -1456,7 +1456,7 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
   const numericMaxAICredits = Number(maxAICredits);
   const formattedAICredits = Number.isFinite(numericAICredits) && numericAICredits > 0 ? formatAIC(numericAICredits) : "";
   const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
-  const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) ? numericAICredits - numericMaxAICredits : NaN;
+  const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) && numericAICredits > numericMaxAICredits ? numericAICredits - numericMaxAICredits : NaN;
   const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
   const metricsRows = [];
   if (formattedAICredits) {
