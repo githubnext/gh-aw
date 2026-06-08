@@ -22,6 +22,9 @@ safe-outputs:
     title-prefix: "[windows-integration] "
     allowed-files:
       - .github/workflows/windows-cli-integration.yml
+  create-issue:
+    title-prefix: "[windows-integration] "
+    labels: [workflow, windows]
   noop:
 ---
 
@@ -41,6 +44,7 @@ If it is missing, create it. If it exists, improve it only when needed to match 
 - Use multiple jobs (traditional workflow orchestration).
 - Build job must run on `ubuntu-latest` and compile the Windows CLI binary (`gh-aw.exe`), then upload it as an artifact.
 - Integration test job must run on `windows-latest`, download the artifact, and run integration checks across several CLI commands, including help output.
+- Integration tests must cover weird-but-popular Windows terminal setup combinations (for example `pwsh`, Windows PowerShell, and `cmd` execution paths) to catch shell-specific integration regressions.
 - Integration test commands must defend against Windows hangs by using timeouts and clearly surfacing timeout failures.
 - Include explicit checks for Windows-specific integration issues, especially command hanging behavior.
 - Add a final `conclusion` job that runs with `if: always()`, aggregates prior job outcomes, and determines overall success/failure.
@@ -56,4 +60,5 @@ If it is missing, create it. If it exists, improve it only when needed to match 
 ## Output rules
 
 - If changes are required, use `create-pull-request` with only `.github/workflows/windows-cli-integration.yml` modified.
+- If required changes are outside allowed write scope (for example this builder file), use `create-issue` to request those updates instead of attempting a pull request.
 - If no changes are needed, use `noop` with a short explanation.
