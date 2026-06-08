@@ -15,13 +15,14 @@ Take the current pull request from "almost done" to "ready to merge" by running 
 
 1. Confirm the pull request context for the current branch.
 2. Run `make fmt`.
-3. Run `make lint` and fix any lint failures.
-4. Run `make test-unit` and fix any failing unit tests.
-5. Check the current GitHub checks for the pull request and identify every failing check.
-6. If `make test` is failing locally or the failing checks show the equivalent failure in CI, fix those failures too.
-7. If wasm golden tests fail, or a test fix changes the expected wasm compiler output, run `make update-wasm-golden`.
-8. Re-run the affected local validation until it passes.
-9. Push the final changes.
+3. Run the `copilot-review` skill to collect and address all in-scope pull request review comments.
+4. Run `make lint` and fix any lint failures.
+5. Run `make test-unit` and fix any failing unit tests.
+6. Check the current GitHub checks for the pull request and identify every failing check.
+7. If `make test` is failing locally or the failing checks show the equivalent failure in CI, fix those failures too.
+8. If wasm golden tests fail, or a test fix changes the expected wasm compiler output, run `make update-wasm-golden`.
+9. Re-run the affected local validation until it passes.
+10. Push the final changes.
 
 ## Check Inspection
 
@@ -64,6 +65,7 @@ Then re-run the relevant tests.
 The task is complete only when all of the following are true:
 
 - `make fmt` has been run.
+- The `copilot-review` skill was run and all in-scope review comments were addressed.
 - `make lint` passes, or any unrelated pre-existing failure is explicitly identified.
 - `make test-unit` passes, or any unrelated pre-existing failure is explicitly identified.
 - Failing pull request checks were inspected and summarized.
