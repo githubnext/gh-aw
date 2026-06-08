@@ -74,9 +74,12 @@ Quick decision matrix:
 | User intent | Trigger | Typical read tools | Typical safe output |
 |---|---|---|---|
 | Review PR changes, comment on quality, suggest fixes | `pull_request` | `github` (`gh-proxy`), optional `playwright` for UI diffs | `add-comment` |
-| Investigate failed CI/deploy runs and summarize incident | `workflow_run` | `github` (`gh-proxy`) with `actions: read` | `create-issue` |
+| Investigate failed CI/Actions runs and summarize incident | `workflow_run` | `github` (`gh-proxy`) with `actions: read` | `create-issue` |
+| Monitor external service deployment failures (Heroku, Vercel, Fly.io) | `deployment_status` | `github` (`gh-proxy`) with `deployments: read` | `create-issue` |
 | Run visual regression checks on PR UI changes | `pull_request` | `playwright` + `cache-memory` | `add-comment` |
 | Publish weekly stakeholder/product digest | `schedule` | `github` (`gh-proxy`) | `create-issue` (default), `create-discussion` only if explicitly requested |
+
+> **`workflow_run` vs `deployment_status`**: Use `workflow_run` when monitoring another GitHub Actions workflow in the same repository. Use `deployment_status` when an external service (Heroku, Vercel, Fly.io) reports deployment results back to GitHub via the Deployments API. See [deployment-status.md](deployment-status.md) for the full pattern.
 
 Use [workflow-patterns.md](workflow-patterns.md) for trigger-selection guidance.
 
@@ -222,6 +225,15 @@ safe-outputs:
 - Use the configured safe outputs for visible actions.
 - Use `noop` with a short explanation when no action is required.
 ```
+
+## PR-Report Checklist
+
+Before finalizing any `pull_request`-triggered reporting workflow, verify:
+
+- [ ] **Permissions**: `contents: read` + `pull-requests: read` in the agent job; no write permissions
+- [ ] **Safe outputs**: `add-comment` for inline findings; `create-issue` for incidents needing follow-up
+- [ ] **Network**: infer ecosystem from repository lock files; never use `defaults` alone when packages are installed
+- [ ] **`noop` required**: prompt instructs the agent to call `noop` with a brief explanation when no issues are found
 
 ## Multi-Repository Requests
 
