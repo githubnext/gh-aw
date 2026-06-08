@@ -21,6 +21,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
@@ -47,7 +48,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 21 analyzer
+// "Public API > Subpackages" table. The README documents 22 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -55,10 +56,10 @@ type docAnalyzer struct {
 //
 //	contextcancelnotdeferred, ctxbackground, excessivefuncparams, errormessage,
 //	errstringmatch, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
-//	jsonmarshalignoredeerror, largefunc, manualmutexunlock, osexitinlibrary,
-//	ossetenvlibrary, panic-in-library-code, rawloginlib, regexpcompileinfunction,
-//	seenmapbool, ssljson, strconvparseignorederror, tolowerequalfold,
-//	uncheckedtypeassertion
+//	jsonmarshalignoredeerror, largefunc, lenstringzero, manualmutexunlock,
+//	osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
+//	regexpcompileinfunction, seenmapbool, ssljson, strconvparseignorederror,
+//	tolowerequalfold, uncheckedtypeassertion
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
@@ -71,6 +72,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"fprintlnsprintf", fprintlnsprintf.Analyzer},
 		{"jsonmarshalignoredeerror", jsonmarshalignoredeerror.Analyzer},
 		{"largefunc", largefunc.Analyzer},
+		{"lenstringzero", lenstringzero.Analyzer},
 		{"manualmutexunlock", manualmutexunlock.Analyzer},
 		{"osexitinlibrary", osexitinlibrary.Analyzer},
 		{"ossetenvlibrary", ossetenvlibrary.Analyzer},
