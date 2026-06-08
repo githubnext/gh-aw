@@ -331,9 +331,10 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 
 #### 6.1.1 `harness.budget`
 
-The `harness.budget` key is **OPTIONAL**. When present, it **MUST** contain:
+The `harness.budget` key is **OPTIONAL**. When present, it **MUST** contain at least one of the following keys:
 
 - `max-effective-tokens` (number): Maximum effective token count for the run. The cost-tracker extension **MUST** abort the current session if this limit is exceeded. Using token count rather than cost makes this budget reliable across providers where pricing is unknown.
+- `max-ai-credits` (number): Maximum AI credits consumed for the run. The cost-tracker extension **MUST** abort the current session if this limit is exceeded. AI credits are the AWF-normalized billing unit reported by the firewall proxy; this key maps directly to the `max-ai-credits` guardrail enforced by the AWF proxy.
 
 #### 6.1.2 `harness.context`
 
@@ -1018,18 +1019,19 @@ This section specifies normative failure-mode responses that a conforming implem
 
 #### 11.2.2 Budget Exhaustion
 
-**Failure mode:** The cumulative effective token count across all turns exceeds `harness.budget.max-effective-tokens` during an active session.
+**Failure mode:** The cumulative effective token count across all turns exceeds `harness.budget.max-effective-tokens`, or the cumulative AI credits consumed across all turns exceeds `harness.budget.max-ai-credits`, during an active session.
 
 **Normative response:**
 
-- When effective tokens reach the **soft limit** (default: 80% of `max-effective-tokens`), the cost-tracker extension **MUST** inject a steering message via `session.steer()` informing the agent that it is approaching the token budget and **SHOULD** conclude its work soon.
-- When effective tokens reach the **hard limit** (`max-effective-tokens`), the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached.
-- Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative token count and the configured limit.
-- The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final token count versus the limit.
+- When the budget metric reaches the **soft limit** (default: 80% of the configured limit), the cost-tracker extension **MUST** inject a steering message via `session.steer()` informing the agent that it is approaching the budget and **SHOULD** conclude its work soon.
+- When the budget metric reaches the **hard limit**, the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached.
+- Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative budget metric value and the configured limit.
+- Upon hard-limit abort, the harness **MUST** append a `budget_exceeded` audit entry to the firewall audit log (`/tmp/gh-aw/sandbox/firewall/audit/log.jsonl`) so that the conclusion job can detect the condition without parsing stderr. The entry **MUST** include `"max_ai_credits_exceeded": true`, the final `"ai_credits"` consumed, and the configured `"max_ai_credits"` limit. When `max-effective-tokens` is the active budget key, the entry **MUST** still be written with `"max_ai_credits_exceeded": true` using an estimated AI-credits equivalent so that the conclusion job detection path is uniform across budget key types.
+- The `budget_exceeded` event **MUST** explicitly signal forced termination (`reason: "hard_limit"` and `forced_termination: true`) so downstream consumers can distinguish budget aborts from other session failures.
+- The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final metric value versus the limit.
 - On forced budget termination, the harness **MUST** preserve durable artifacts that were finalized before abort (`safe-outputs.ndjson` entries already appended, JSONL events already emitted, and step-summary rows for completed turns).
 - On forced budget termination, the harness **MUST** discard in-flight turn state that did not reach a completed turn boundary (partial assistant output, partially collected tool results, and uncommitted per-turn aggregates).
 - A "completed turn boundary" means the `turn_end` event has been emitted and all per-turn persistence for that turn (JSONL line, counters, and step-summary row) has succeeded.
-- The `budget_exceeded` event **MUST** explicitly signal forced termination (`reason: "hard_limit"` and `forced_termination: true`) so downstream consumers can distinguish budget aborts from other session failures.
 - The harness **MUST** exit with code `1` (session failure) after a hard-limit abort, so that the GitHub Actions job is marked as failed.
 
 #### 11.2.3 Extension Crash Isolation
@@ -1054,14 +1056,14 @@ The following matrix records where each normative harness requirement is enforce
 | §5.4 | MUST write diagnostics to stderr and summary to `$GITHUB_STEP_SUMMARY` | `actions/setup/js/aw_harness.cjs` output routing and summary writer | Pending (`aw_harness.cjs` not present) |
 | §6.2 | MUST force-enable `gh-proxy` and `cli-proxy`; MUST NOT allow disabling | `actions/setup/js/aw_harness.cjs` config normalization guard | Pending (`aw_harness.cjs` not present) |
 | §11.2.1 | MUST fail fast with exit `2` when Pi SDK cannot load; MUST NOT create partial session | `actions/setup/js/aw_harness.cjs` SDK import try/catch guard | Pending (`aw_harness.cjs` not present) |
-| §11.2.2 | MUST hard-abort on budget limit; MUST NOT continue turns after hard limit | `actions/setup/js/aw_harness.cjs` cost-tracker abort gate and post-abort turn guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.2 | MUST hard-abort on budget limit; MUST NOT continue turns after hard limit; MUST append `budget_exceeded` audit entry to firewall audit log with `max_ai_credits_exceeded: true` | `actions/setup/js/aw_harness.cjs` cost-tracker abort gate, post-abort turn guard, and firewall audit log writer | Pending (`aw_harness.cjs` not present) |
 | §11.2.3 | MUST isolate crashing user extensions; built-in extension failures are fatal | `actions/setup/js/aw_harness.cjs` extension loader policy checks | Pending (`aw_harness.cjs` not present) |
 
 ### 11.4 Degraded Mode & Safeguards
 
 This section defines normative safeguard requirements for scenarios where the harness enters a degraded operating mode due to resource exhaustion, infrastructure unavailability, or partial subsystem failure. A conforming implementation **MUST** apply all safeguards numbered below.
 
-1. **Budget-exhaustion shutdown path**: When the effective token budget is exhausted (hard limit reached), the harness **MUST** execute an orderly shutdown sequence: (a) immediately abort the active `AgentSession` turn via the session abort API; (b) flush all in-progress JSONL events and the step-summary buffer to their respective sinks; (c) emit a `budget_exceeded` event with `forced_termination: true` and the final cumulative token count; and (d) exit with code `1`. The harness **MUST NOT** start a new turn or accept additional tool calls after the hard-limit threshold is crossed, even if the session's internal queue contains pending callbacks.
+1. **Budget-exhaustion shutdown path**: When the effective token budget or AI credits budget is exhausted (hard limit reached), the harness **MUST** execute an orderly shutdown sequence: (a) immediately abort the active `AgentSession` turn via the session abort API; (b) flush all in-progress JSONL events and the step-summary buffer to their respective sinks; (c) emit a `budget_exceeded` event with `forced_termination: true` and the final cumulative metric value; (d) append a `budget_exceeded` audit entry to the firewall audit log at `/tmp/gh-aw/sandbox/firewall/audit/log.jsonl` containing `"max_ai_credits_exceeded": true`, `"ai_credits"`, and `"max_ai_credits"` so the conclusion job can detect the condition; and (e) exit with code `1`. The harness **MUST NOT** start a new turn or accept additional tool calls after the hard-limit threshold is crossed, even if the session's internal queue contains pending callbacks.
 
 2. **Partial observability failure behavior**: When the OTLP exporter or the context-provenance file writer fails (e.g., network unreachable, disk full, OTLP endpoint returns a non-retryable error), the harness **MUST** continue session execution and **MUST NOT** abort the session or exit with a non-zero code solely due to the observability failure. The harness **SHOULD** emit a structured JSONL warning event to stderr identifying the failed observability sink and the error reason. Observability subsystem failures **MUST** be treated as non-fatal degraded-mode conditions; data loss in telemetry **MUST NOT** propagate as a session-level failure.
 
@@ -1104,9 +1106,9 @@ Each test case specifies:
 ### T-AW-003: Budget Gate
 
 **ID**: `T-AW-003`  
-**Precondition**: `config.json` sets `harness.budget.max-effective-tokens` to a very low value (e.g., `1000` tokens). The Pi SDK is running in a mode where token counts can be simulated or observed. The agent session is active.  
-**Stimulus**: Drive the session to consume effective tokens exceeding the configured hard limit.  
-**Expected Result**: The cost-tracker extension aborts the session. A `budget_exceeded` JSONL event is emitted to stderr. The harness exits with code `1`. The step summary (if `$GITHUB_STEP_SUMMARY` is set) contains a budget exhaustion notice with the final token count and configured limit.
+**Precondition**: `config.json` sets `harness.budget.max-ai-credits` (or `max-effective-tokens`) to a very low value (e.g., `1000`). The Pi SDK is running in a mode where token counts can be simulated or observed. The agent session is active.  
+**Stimulus**: Drive the session to consume AI credits (or effective tokens) exceeding the configured hard limit.  
+**Expected Result**: The cost-tracker extension aborts the session. A `budget_exceeded` JSONL event is emitted to stderr. The harness appends a `budget_exceeded` audit entry to `/tmp/gh-aw/sandbox/firewall/audit/log.jsonl` containing `"max_ai_credits_exceeded": true`, `"ai_credits"`, and `"max_ai_credits"`. The harness exits with code `1`. The step summary (if `$GITHUB_STEP_SUMMARY` is set) contains a budget exhaustion notice with the final metric value and configured limit.
 
 ---
 

@@ -260,7 +260,40 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
             .find(line => /^[0-9a-f]{40}\s+HEAD$/.test(line));
           if (headLine) {
             core.info(`Bundle has no refs/heads entries; fetching HEAD directly into ${bundleTempRef}`);
-            await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
+            // Use getExecOutput with ignoreReturnCode so we can read actual stderr
+            // and perform prerequisite recovery before failing — same pattern as the
+            // initial bundle fetch above.  When the agent ran on a non-default branch
+            // the bundle prerequisite is that branch tip, which isn't reachable from
+            // the local main-only checkout, so a bare exec() would throw and lose the
+            // "lacks these prerequisite commits" text needed for recovery.
+            const headBundleFetch = await execApi.getExecOutput("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`], { ignoreReturnCode: true });
+            if (headBundleFetch.exitCode !== 0) {
+              const headFetchErrorOutput = headBundleFetch.stderr || `exit code ${headBundleFetch.exitCode}`;
+              const headPrereqCommits = extractBundlePrerequisiteCommits(headFetchErrorOutput);
+              if (headPrereqCommits.length > 0) {
+                core.warning(`HEAD bundle fetch failed due to ${headPrereqCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
+                core.info(`Prerequisite commits: ${summarizeListForLog(headPrereqCommits)}`);
+                const useBlobFilter = await isShallowOrSparseCheckout(execApi);
+                const headPrereqFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...headPrereqCommits] : ["fetch", "origin", ...headPrereqCommits];
+                if (useBlobFilter) {
+                  core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
+                }
+                await execApi.exec("git", headPrereqFetchArgs);
+                core.info("Fetched HEAD bundle prerequisite commits from origin successfully");
+                try {
+                  core.info(`Retrying HEAD bundle fetch into ${bundleTempRef} after prerequisite recovery`);
+                  await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
+                  core.info("HEAD bundle fetch retry succeeded after prerequisite recovery");
+                } catch (retryError) {
+                  const retryErrorMessage = retryError instanceof Error ? retryError.message : String(retryError);
+                  throw new Error(`HEAD bundle fetch failed after fetching ${headPrereqCommits.length} prerequisite commit(s): ${retryErrorMessage}`, {
+                    cause: retryError,
+                  });
+                }
+              } else {
+                throw new Error(`Failed to apply HEAD-only bundle: ${headFetchErrorOutput}`);
+              }
+            }
           } else {
             throw new Error(`Failed to resolve bundle branch ref from list-heads: bundle contains no refs/heads entries and no HEAD ref`);
           }

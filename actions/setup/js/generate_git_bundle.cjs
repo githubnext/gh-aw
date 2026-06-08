@@ -310,15 +310,34 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
               // refs/heads/<branchName> — required by create_pull_request.cjs when applying the bundle.
               let rangeEnd = "HEAD";
               if (branchName) {
+                // Check whether the current branch already IS branchName.
+                // `git branch -f` refuses to update the currently checked-out branch
+                // ("cannot force update the branch used by worktree"), which would cause
+                // rangeEnd to fall back to "HEAD" and produce a bundle with only a HEAD
+                // ref instead of refs/heads/<branchName>.  This is the common case when
+                // a worker agent checks out the new branch, commits on it, and then calls
+                // create_pull_request — HEAD is already pointing to branchName.
+                let currentBranch = "";
                 try {
-                  // Use -f (force) to overwrite any stale local branch from previous runs,
-                  // since Strategy 1 verified the named branch does not exist as a proper local ref.
-                  // Use -- so a branch name beginning with "-" is not parsed as another option.
-                  execGitSync(["branch", "-f", "--", branchName, "HEAD"], { cwd });
+                  currentBranch = execGitSync(["rev-parse", "--abbrev-ref", "HEAD"], { cwd }).trim();
+                } catch {
+                  // Unable to determine current branch; fall through to git branch -f attempt.
+                }
+
+                if (currentBranch === branchName) {
                   rangeEnd = branchName;
-                  debugLog(`Strategy 2: Created local branch '${branchName}' pointing to HEAD for bundle ref`);
-                } catch (branchErr) {
-                  debugLog(`Strategy 2: Could not create branch '${branchName}': ${getErrorMessage(branchErr)}, using HEAD`);
+                  debugLog(`Strategy 2: HEAD is already on '${branchName}', using as range end directly`);
+                } else {
+                  try {
+                    // Use -f (force) to overwrite any stale local branch from previous runs,
+                    // since Strategy 1 verified the named branch does not exist as a proper local ref.
+                    // Use -- so a branch name beginning with "-" is not parsed as another option.
+                    execGitSync(["branch", "-f", "--", branchName, "HEAD"], { cwd });
+                    rangeEnd = branchName;
+                    debugLog(`Strategy 2: Created local branch '${branchName}' pointing to HEAD for bundle ref`);
+                  } catch (branchErr) {
+                    debugLog(`Strategy 2: Could not create branch '${branchName}': ${getErrorMessage(branchErr)}, using HEAD`);
+                  }
                 }
               }
               execGitSync(["bundle", "create", bundlePath, `${githubSha}..${rangeEnd}`], { cwd });
