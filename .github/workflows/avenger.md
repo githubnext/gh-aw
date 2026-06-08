@@ -13,7 +13,7 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: avenger-ci
-max-turns: 50
+max-turns: 100
 engine:
   id: claude
   agent: ci-cleaner
