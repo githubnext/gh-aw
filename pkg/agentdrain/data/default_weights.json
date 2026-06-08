@@ -5,40 +5,18 @@
         "id": 1,
         "size": 14,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "reason=missing",
-          "tool/permission",
-          "issue:",
-          "numerous",
-          "permission",
-          "denied",
-          "errors",
-          "detected",
-          "tool=tool/permission",
-          "type=missing_tool"
-        ]
+        "template": ["stage=error", "reason=missing", "tool/permission", "issue:", "numerous", "permission", "denied", "errors", "detected", "tool=tool/permission", "type=missing_tool"]
       },
       {
         "id": 2,
         "size": 1,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "data_type=cache_memory",
-          "reason=cache_memory_miss",
-          "type=missing_data"
-        ]
+        "template": ["stage=error", "data_type=cache_memory", "reason=cache_memory_miss", "type=missing_data"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -84,21 +62,12 @@
         "id": 1,
         "size": 500,
         "stage": "finish",
-        "template": [
-          "stage=finish",
-          "\u003c*\u003e",
-          "tokens=\u003cNUM\u003e"
-        ]
+        "template": ["stage=finish", "\u003c*\u003e", "tokens=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -144,21 +113,12 @@
         "id": 1,
         "size": 405,
         "stage": "plan",
-        "template": [
-          "stage=plan",
-          "errors=\u003cNUM\u003e",
-          "turns=\u003cNUM\u003e"
-        ]
+        "template": ["stage=plan", "errors=\u003cNUM\u003e", "turns=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -202,12 +162,7 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -251,12 +206,7 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -586,20 +536,7 @@
         "id": 4,
         "size": 72,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=smoke-ci:",
-          "push",
-          "event",
-          "-",
-          "no",
-          "PR",
-          "context,",
-          "no",
-          "action",
-          "needed",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=smoke-ci:", "push", "event", "-", "no", "PR", "context,", "no", "action", "needed", "status=noop"]
       },
       {
         "id": 50,
@@ -1435,25 +1372,7 @@
         "id": 26,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "open",
-          "PR",
-          "action",
-          "needed;",
-          "PR",
-          "#37634",
-          "skipped",
-          "because",
-          "the",
-          "latest",
-          "comment",
-          "is",
-          "from",
-          "pr-sous-chef.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "open", "PR", "action", "needed;", "PR", "#37634", "skipped", "because", "the", "latest", "comment", "is", "from", "pr-sous-chef.", "status=noop"]
       },
       {
         "id": 38,
@@ -2222,26 +2141,7 @@
         "id": 32,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=First",
-          "run:",
-          "daily",
-          "credit",
-          "limit",
-          "not",
-          "yet",
-          "exhausted.",
-          "Subsequent",
-          "runs",
-          "will",
-          "be",
-          "blocked",
-          "by",
-          "the",
-          "guardrail.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=First", "run:", "daily", "credit", "limit", "not", "yet", "exhausted.", "Subsequent", "runs", "will", "be", "blocked", "by", "the", "guardrail.", "status=noop"]
       },
       {
         "id": 37,
@@ -2423,28 +2323,7 @@
         "id": 48,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "eligible",
-          "PRs",
-          "required",
-          "nudges;",
-          "processed",
-          "4",
-          "PRs",
-          "and",
-          "skipped",
-          "all",
-          "based",
-          "on",
-          "latest",
-          "comments",
-          "/",
-          "workflow",
-          "state.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "eligible", "PRs", "required", "nudges;", "processed", "4", "PRs", "and", "skipped", "all", "based", "on", "latest", "comments", "/", "workflow", "state.", "status=noop"]
       },
       {
         "id": 63,
@@ -2488,26 +2367,7 @@
         "id": 86,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "PR",
-          "action",
-          "needed:",
-          "both",
-          "eligible",
-          "PRs",
-          "were",
-          "skipped",
-          "because",
-          "the",
-          "latest",
-          "comment",
-          "is",
-          "from",
-          "pr-sous-chef.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "PR", "action", "needed:", "both", "eligible", "PRs", "were", "skipped", "because", "the", "latest", "comment", "is", "from", "pr-sous-chef.", "status=noop"]
       },
       {
         "id": 88,
@@ -2786,11 +2646,7 @@
         "id": 45,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=test",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=test", "status=noop"]
       },
       {
         "id": 46,
@@ -3018,24 +2874,7 @@
         "id": 79,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "eligible",
-          "PR",
-          "actions:",
-          "PR",
-          "#37359",
-          "skipped",
-          "because",
-          "latest",
-          "comment",
-          "contains",
-          "pr-sous-chef",
-          "workflow",
-          "marker.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "eligible", "PR", "actions:", "PR", "#37359", "skipped", "because", "latest", "comment", "contains", "pr-sous-chef", "workflow", "marker.", "status=noop"]
       },
       {
         "id": 81,
@@ -3059,14 +2898,7 @@
         "id": 28,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=Starting",
-          "max-ai-credits",
-          "guardrail",
-          "test.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=Starting", "max-ai-credits", "guardrail", "test.", "status=noop"]
       },
       {
         "id": 9,
@@ -3333,30 +3165,13 @@
         "id": 23,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=Starting",
-          "max-ai-credits",
-          "multi-turn",
-          "guardrail",
-          "test.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=Starting", "max-ai-credits", "multi-turn", "guardrail", "test.", "status=noop"]
       },
       {
         "id": 33,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "open",
-          "non-draft",
-          "PRs",
-          "to",
-          "process",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "open", "non-draft", "PRs", "to", "process", "status=noop"]
       },
       {
         "id": 67,
@@ -3694,26 +3509,7 @@
         "id": 82,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "unlabeled",
-          "issues",
-          "found",
-          "in",
-          "pre-fetched",
-          "data;",
-          "fallback",
-          "GitHub",
-          "issue",
-          "search",
-          "was",
-          "unavailable",
-          "in",
-          "this",
-          "environment.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "unlabeled", "issues", "found", "in", "pre-fetched", "data;", "fallback", "GitHub", "issue", "search", "was", "unavailable", "in", "this", "environment.", "status=noop"]
       },
       {
         "id": 19,
@@ -3912,25 +3708,7 @@
         "id": 41,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=pr-sous-chef:",
-          "no",
-          "writable",
-          "GitHub",
-          "action",
-          "could",
-          "be",
-          "completed",
-          "in",
-          "this",
-          "environment;",
-          "completed",
-          "PR",
-          "triage",
-          "only",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=pr-sous-chef:", "no", "writable", "GitHub", "action", "could", "be", "completed", "in", "this", "environment;", "completed", "PR", "triage", "only", "status=noop"]
       },
       {
         "id": 47,
@@ -4135,12 +3913,7 @@
         "id": 3,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=noop",
-          "test",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=noop", "test", "status=noop"]
       },
       {
         "id": 14,
@@ -5197,12 +4970,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
