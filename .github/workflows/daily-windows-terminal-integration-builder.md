@@ -55,6 +55,5 @@ If it is missing, create it. If it exists, improve it only when needed to match 
 
 ## Output rules
 
-- If changes are required, use `create-issue` to request updates to `.github/workflows/windows-cli-integration.yml`.
-- If required changes are outside allowed write scope (for example this builder file), use `create-issue` to request those updates.
+- If changes are required (including updates to `.github/workflows/windows-cli-integration.yml` or this builder file), use `create-issue` to request those updates.
 - If no changes are needed, use `noop` with a short explanation.
