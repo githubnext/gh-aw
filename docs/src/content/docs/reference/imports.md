@@ -293,6 +293,7 @@ Shared workflow files (without `on:` field) can define the fields below. Other f
 | `mcp-servers` | Model Context Protocol server configurations |
 | `mcp-scripts` | MCP Scripts configurations |
 | `services` | Docker services for workflow execution |
+| `sandbox` | Sandbox settings (for example `sandbox.agent.mounts`) merged from imports |
 | `safe-outputs` | Safe output handlers and configuration |
 | `network` | Network permission specifications |
 | `permissions` | GitHub Actions permissions (validated, not merged) |

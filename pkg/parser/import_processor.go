@@ -39,6 +39,7 @@ type ImportsResult struct {
 	MergedRuntimes                string                // Merged runtimes configuration from all imports
 	MergedRunInstallScripts       bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	MergedServices                string                // Merged services configuration from all imports
+	MergedSandbox                 string                // Merged sandbox configuration from all imports (JSON, one object per line)
 	MergedNetwork                 string                // Merged network configuration from all imports
 	MergedPermissions             string                // Merged permissions configuration from all imports
 	MergedSecretMasking           string                // Merged secret-masking steps from all imports

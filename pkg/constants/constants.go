@@ -324,7 +324,7 @@ var IgnoredFrontmatterFields = []string{"user-invokable"}
 //   - Workflow triggers: on (defines it as a main workflow)
 //   - Workflow execution: run-name, runs-on, concurrency, if, timeout-minutes
 //   - Workflow metadata: name, tracker-id, strict
-//   - Workflow features: container, environment, sandbox, features
+//   - Workflow features: container, environment, features
 //   - Access control: github-token
 //
 // All other fields defined in main_workflow_schema.json can be used in shared workflows
@@ -340,7 +340,6 @@ var SharedWorkflowForbiddenFields = []string{
 	"name",            // Workflow name
 	"run-name",        // Run display name
 	"runs-on",         // Runner specification
-	"sandbox",         // Sandbox configuration
 	"strict",          // Strict mode
 	"timeout-minutes", // Timeout in minutes
 	"tracker-id",      // Tracker ID

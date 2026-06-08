@@ -30,6 +30,7 @@ type importAccumulator struct {
 	preAgentStepsBuilder     strings.Builder
 	runtimesBuilder          strings.Builder
 	servicesBuilder          strings.Builder
+	sandboxBuilder           strings.Builder
 	networkBuilder           strings.Builder
 	permissionsBuilder       strings.Builder
 	secretMaskingBuilder     strings.Builder
@@ -354,7 +355,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // Side effects: acc.mergedMaxTurns, acc.mergedMaxToolDenials, acc.mergedMaxRuns, acc.mergedMaxAICredits,
 // acc.mergedMaxDailyAICredits, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
-// acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
+// acc.servicesBuilder, acc.sandboxBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
 func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath string) {
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turns", &acc.mergedMaxTurns)
@@ -369,6 +370,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
 	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
 	acc.appendYAMLBuilderField(fm, "services", &acc.servicesBuilder)
+	acc.appendJSONBuilderField(fm, "sandbox", "{}", &acc.sandboxBuilder)
 	acc.appendJSONBuilderField(fm, "network", "{}", &acc.networkBuilder)
 	acc.appendJSONBuilderField(fm, "permissions", "{}", &acc.permissionsBuilder)
 	acc.appendJSONBuilderField(fm, "secret-masking", "{}", &acc.secretMaskingBuilder)
@@ -706,6 +708,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedRuntimes:                acc.runtimesBuilder.String(),
 		MergedRunInstallScripts:       acc.runInstallScripts,
 		MergedServices:                acc.servicesBuilder.String(),
+		MergedSandbox:                 acc.sandboxBuilder.String(),
 		MergedNetwork:                 acc.networkBuilder.String(),
 		MergedPermissions:             acc.permissionsBuilder.String(),
 		MergedSecretMasking:           acc.secretMaskingBuilder.String(),

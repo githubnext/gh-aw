@@ -656,6 +656,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 		"mcp-scripts":          map[string]any{"setup": "echo first"},
 		"runtimes":             map[string]any{"node": map[string]any{"version": "20"}},
 		"network":              map[string]any{"allow": []any{"github.com"}},
+		"sandbox":              map[string]any{"agent": map[string]any{"mounts": []any{"/tmp/a:/tmp/a:ro"}}},
 		"permissions":          map[string]any{"contents": "read"},
 		"secret-masking":       map[string]any{"enabled": true},
 	}
@@ -670,6 +671,7 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 		"mcp-scripts":          map[string]any{"teardown": "echo second"},
 		"runtimes":             map[string]any{"python": map[string]any{"version": "3.12"}},
 		"network":              map[string]any{"allow": []any{"api.github.com"}},
+		"sandbox":              map[string]any{"agent": map[string]any{"mounts": []any{"/tmp/b:/tmp/b:ro"}}},
 		"permissions":          map[string]any{"issues": "write"},
 		"secret-masking":       map[string]any{"log-mask": true},
 	}
@@ -691,6 +693,8 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Contains(t, acc.runtimesBuilder.String(), "python")
 	assert.Contains(t, acc.networkBuilder.String(), "github.com")
 	assert.Contains(t, acc.networkBuilder.String(), "api.github.com")
+	assert.Contains(t, acc.sandboxBuilder.String(), "/tmp/a:/tmp/a:ro")
+	assert.Contains(t, acc.sandboxBuilder.String(), "/tmp/b:/tmp/b:ro")
 	assert.Contains(t, acc.permissionsBuilder.String(), "contents")
 	assert.Contains(t, acc.permissionsBuilder.String(), "issues")
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "enabled")

@@ -51,6 +51,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		return nil, err
 	}
+	sandboxConfig = c.mergeImportedSandboxMounts(sandboxConfig, importsResult.MergedSandbox)
 	engineSetting, engineConfig, err = c.resolveEngineFromIncludesAndImports(result, markdownDir, importsResult, engineSetting, engineConfig)
 	if err != nil {
 		return nil, err

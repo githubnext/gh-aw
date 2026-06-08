@@ -106,6 +106,10 @@ func TestAllowedFieldsImportSuccess(t *testing.T) {
 		"post-steps": `post-steps:
   - name: Upload summary
     run: echo "uploading summary"`,
+		"sandbox": `sandbox:
+  agent:
+    mounts:
+      - /tmp/tool:/tmp/tool:ro`,
 		"inputs": `inputs:
   test_input:
     description: "Test input"
