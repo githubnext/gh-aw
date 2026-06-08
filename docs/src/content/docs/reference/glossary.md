@@ -240,6 +240,10 @@ A safe output capability (`assign-to-agent:`) that programmatically assigns the 
 
 A recognized "magic" repository secret name that GitHub Agentic Workflows automatically uses as a fallback Personal Access Token for `assign-to-agent` operations. When set, no explicit `github-token:` reference is needed in workflow frontmatter — the token is injected automatically. Required because GitHub App installation tokens are rejected by the Copilot assignment API. The token fallback chain is: `assign-to-agent.github-token` → `safe-outputs.github-token` → `GH_AW_AGENT_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/).
 
+### GH_AW_GITHUB_TOKEN
+
+A recognized "magic" repository secret name used as the default fallback token for GitHub operations outside engine inference when no explicit `github-token:` is configured. Commonly used for safe outputs and tool operations that require permissions beyond the default `GITHUB_TOKEN`, and as the non-App fallback when `github-app.ignore-if-missing: true` is enabled. Fallback chain: `custom github-token` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Authentication Reference](/gh-aw/reference/auth/).
+
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).
@@ -683,6 +687,10 @@ A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool 
 
 Passing two or more run IDs to `gh aw audit` activates diff mode: the first ID is the base and the rest are compared against it. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags across firewall, MCP tool usage, and run metrics dimensions. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/).
 
+### `usage` Artifact
+
+A compact artifact produced by the conclusion job, containing workflow-run metadata and aggregated token-usage data used by lightweight reporting and forecasting paths. Unlike the full `agent` artifact, `usage` carries only summarized usage summaries — making it faster to download when detailed agent logs are not needed. Download with `gh aw logs <run-id> --artifacts usage`. See [Artifacts Reference](/gh-aw/reference/artifacts/).
+
 ### Behavior Fingerprint
 
 A multi-dimensional characterization of a single workflow run produced by `gh aw audit`. Captures the task domain, network access patterns, tool usage profile, token consumption, and agentic assessments in a compact summary. Two runs with the same fingerprint exhibit identical observable behavior; diverging fingerprints signal regressions or unexpected changes. See [Audit Commands](/gh-aw/reference/audit/).
@@ -694,6 +702,14 @@ A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across
 ### Deploy (`gh aw deploy`)
 
 A CLI command that orchestrates full workflow rollout to a target repository in a single invocation. `gh aw deploy` clones the target repository, runs `update` to refresh any sourced workflows, runs `add` to install the requested workflows, runs `compile --purge` to regenerate lock files and remove stale outputs, then opens a pull request with all changes for review. Replaces the manual sequence of `clone → update → add → compile → pr` commands and skips the add phase for workflows that already carry a `source:` frontmatter field to prevent duplicate installations. Accepts `--repo` to specify the target repository and `--cool-down` to set the default scheduling interval. See [CLI Reference](/gh-aw/setup/cli/).
+
+### AI Credits (AIC)
+
+The primary inference-cost metric for GitHub Agentic Workflows. One AI Credit equals `0.01 USD` and is computed from input, output, cache-read, cache-write, and reasoning tokens multiplied by per-model pricing weights. AIC provides a model-normalized spend unit across all supported engines, enabling consistent budget governance and cost comparison. Reports from `gh aw audit` and `gh aw logs` expose AIC as `total_aic` (per episode or run) and per-request values. Use `max-ai-credits` and `max-daily-ai-credits` in workflow frontmatter to set budget caps. See [AI Credits Specification](/gh-aw/specs/ai-credits-specification/).
+
+### Effective Tokens (ET)
+
+The predecessor cost metric to [AI Credits (AIC)](#ai-credits-aic), computed as a weighted sum of input and output tokens to approximate relative inference cost. Deprecated in 2026 in favor of AI Credits, which provides direct monetary normalization (1 AIC = 0.01 USD) across all supported model providers. The `effective_tokens` field in audit JSON output is retained for backward compatibility; use `total_aic` for cost analysis in new workflows. See [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/).
 
 ### Forecast (`gh aw forecast`)
 
