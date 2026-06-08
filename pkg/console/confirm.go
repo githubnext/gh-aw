@@ -55,7 +55,7 @@ func showTextConfirm(title, affirmative, negative string, reader io.Reader) (boo
 	fmt.Fprintf(os.Stderr, "\n%s\n\n", title)
 	fmt.Fprintf(os.Stderr, "  1) %s\n", affirmative)
 	fmt.Fprintf(os.Stderr, "  2) %s\n", negative)
-	fmt.Fprintf(os.Stderr, "\nEnter y/yes to confirm, n/no to cancel: ")
+	fmt.Fprintf(os.Stderr, "\nEnter y/yes/1 to confirm, n/no/2 to cancel: ")
 
 	var input string
 	_, err := fmt.Fscan(reader, &input)
