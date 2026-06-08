@@ -79,32 +79,71 @@ steps:
       go-version-file: go.mod
       cache: true
   
-  - name: Install development dependencies
-    run: make deps-dev
-  
-  - name: Run linter
-    run: make lint
-  
-  - name: Lint error messages
-    run: make lint-errors
-  
-  - name: Install npm dependencies
-    run: npm ci
-    working-directory: ./actions/setup/js
-  
-  - name: Build code
-    run: make build
-  
-  - name: Recompile workflows
+  # Pre-flight validation. All steps run non-fatally so the agent can analyze
+  # broken CI state instead of the job dying before the agent starts. Each
+  # step's exit code and tail of output are recorded under
+  # /tmp/gh-aw/agent/validation/ and summarized in validation-status.json.
+  - name: Pre-flight validation (non-fatal)
+    id: preflight
+    continue-on-error: true
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: make recompile
-  
-  - name: Run unit tests
-    continue-on-error: true
     run: |
+      set +e
+      mkdir -p /tmp/gh-aw/agent/validation
+      STATUS_FILE=/tmp/gh-aw/agent/validation/validation-status.json
+      echo '{"steps":[]}' > "$STATUS_FILE"
+
+      run_step() {
+        local name="$1"; shift
+        local workdir="$1"; shift
+        local log="/tmp/gh-aw/agent/validation/${name}.log"
+        echo "::group::preflight: $name"
+        echo "+ $*" | tee "$log"
+        if [ -n "$workdir" ]; then
+          (cd "$workdir" && "$@") >>"$log" 2>&1
+        else
+          "$@" >>"$log" 2>&1
+        fi
+        local code=$?
+        echo "::endgroup::"
+        echo "preflight: $name exit=$code"
+        # tail kept short so the agent can read all logs cheaply
+        tail -c 8000 "$log" > "${log}.tail"
+        jq --arg n "$name" --arg log "$log" --argjson code "$code" \
+           '.steps += [{name:$n, exit_code:$code, log:$log, ok:($code==0)}]' \
+           "$STATUS_FILE" > "$STATUS_FILE.tmp" && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
+      }
+
+      run_step deps-dev    ""                       make deps-dev
+      run_step lint        ""                       make lint
+      run_step lint-errors ""                       make lint-errors
+      run_step npm-ci      ./actions/setup/js       npm ci
+      run_step build       ""                       make build
+      run_step recompile   ""                       make recompile
+
       mkdir -p /tmp/gh-aw/agent
-      go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/agent/test-results.json
+      go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... \
+        | tee /tmp/gh-aw/agent/test-results.json >/dev/null
+      TEST_EXIT=${PIPESTATUS[0]}
+      jq --argjson code "$TEST_EXIT" \
+         '.steps += [{name:"test-unit", exit_code:$code, log:"/tmp/gh-aw/agent/test-results.json", ok:($code==0)}]' \
+         "$STATUS_FILE" > "$STATUS_FILE.tmp" && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
+
+      # Summary line for the agent and step summary
+      OK=$(jq '[.steps[] | select(.ok)] | length' "$STATUS_FILE")
+      TOTAL=$(jq '.steps | length' "$STATUS_FILE")
+      FAILED=$(jq -r '[.steps[] | select(.ok|not) | .name] | join(",")' "$STATUS_FILE")
+      echo "preflight summary: $OK/$TOTAL ok; failed=[$FAILED]"
+      {
+        echo "## Pre-flight validation"
+        echo ""
+        echo "- passed: $OK / $TOTAL"
+        echo "- failed: ${FAILED:-none}"
+      } >> "$GITHUB_STEP_SUMMARY"
+
+      # Always succeed: the agent owns the decision about how to react.
+      exit 0
 ---
 
 # CI Data Analysis
@@ -135,6 +174,11 @@ Pre-downloaded CI run data and artifacts are available for analysis:
 6. **Test Results**: `/tmp/gh-aw/agent/test-results.json`
    - JSON output from Go unit tests with performance and timing data
 
+7. **Pre-flight Validation Status**: `/tmp/gh-aw/agent/validation/validation-status.json`
+   - Per-step exit codes for `deps-dev`, `lint`, `lint-errors`, `npm-ci`, `build`, `recompile`, `test-unit`
+   - Per-step logs at `/tmp/gh-aw/agent/validation/<step>.log` (full) and `<step>.log.tail` (last 8KB)
+   - Steps are run non-fatally — if any of them failed, **that is itself a high-priority CI problem** the coach should investigate and fix.
+
 ## Test Case Locations
 
 Go test cases are located throughout the repository:
@@ -147,15 +191,26 @@ Go test cases are located throughout the repository:
 
 ## Environment Setup
 
-The workflow has already completed:
-- ✅ **Linting**: Dev dependencies installed, linters run successfully
-- ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-- ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
+The workflow has attempted (non-fatally) to:
+- Install dev dependencies (`make deps-dev`)
+- Lint (`make lint`, `make lint-errors`)
+- Install JS deps (`npm ci` in `actions/setup/js`)
+- Build (`make build`)
+- Recompile lock files (`make recompile`)
+- Run unit tests (`go test ... -tags '!integration'`)
 
-This means you can:
+**Each step may have failed**. Check `/tmp/gh-aw/agent/validation/validation-status.json` first:
+
+```bash
+jq '.steps[] | {name, exit_code, ok}' /tmp/gh-aw/agent/validation/validation-status.json
+# For any failed step, read the tail of its log:
+cat /tmp/gh-aw/agent/validation/<step>.log.tail
+```
+
+If pre-flight validation is broken, fixing it is the most valuable thing the coach can do this run — it unblocks all future CI runs. You can still:
 - Make changes to code or configuration files
-- Validate changes immediately by running `make lint`, `make build`, or `make test-unit`
-- Ensure proposed optimizations don't break functionality before creating a PR
+- Re-run only the steps you affected (e.g., `make lint` after JS edits, `make recompile` after workflow markdown edits)
+- Ensure proposed changes don't break functionality before creating a PR
 
 ## Analyzing Run Data
 
