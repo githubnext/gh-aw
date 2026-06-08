@@ -50,12 +50,11 @@ Instead of mounting, we could locate the Node binary on the host and copy it (pl
 
 ### Tool Cache Visibility in the AWF Chroot
 
-1. The generated AWF command **MUST** resolve the active tool cache from `RUNNER_TOOL_CACHE`, falling back to `/opt/hostedtoolcache` when it is unset.
+1. The generated AWF command **MUST** resolve the active tool cache from `RUNNER_TOOL_CACHE` when it is set. When `RUNNER_TOOL_CACHE` is unset, the command **MUST** fall back to `/opt/hostedtoolcache` if that directory exists, and otherwise **MUST** fall back to the legacy `/home/runner/work/_tool` directory if that directory exists.
 2. When the resolved tool cache exists and lies outside `/opt/*`, the generated command **MUST** emit a read-only bind-mount of that path into the chroot.
 3. When the resolved tool cache lies under `/opt/*`, the generated command **MUST NOT** emit an additional tool-cache mount.
-4. When the resolved tool cache does not exist but the legacy `/home/runner/work/_tool` directory is present, the generated command **SHOULD** emit a read-only bind-mount of `/home/runner/work/_tool`.
-5. Tool-cache mounts emitted by this mechanism **MUST** be read-only (`:ro`).
-6. The tool-cache mount argument **MUST** be injected into the `awf` invocation via a dedicated shell variable (`GH_AW_TOOL_CACHE_MOUNT`) consistent with the existing dynamic-args injection pattern.
+4. Tool-cache mounts emitted by this mechanism **MUST** be read-only (`:ro`).
+5. The tool-cache mount argument **MUST** be injected into the `awf` invocation via a dedicated shell variable (`GH_AW_TOOL_CACHE_MOUNT`) consistent with the existing dynamic-args injection pattern.
 
 ### Conformance
 
