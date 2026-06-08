@@ -21,39 +21,39 @@ func getCodemodByID(id string) *Codemod {
 		if cm.ID == id {
 			return &cm
 		}
-
-		func TestProcessWorkflowFileWithInfo_WriteOutputUsesSingleCheckmark(t *testing.T) {
-			tmpDir := t.TempDir()
-			workflowFile := filepath.Join(tmpDir, "test-workflow.md")
-
-			content := `---
-		timeout_minutes: 30
-		---`
-			require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
-
-			timeoutCodemod := getCodemodByID("timeout-minutes-migration")
-			require.NotNil(t, timeoutCodemod)
-
-			originalStderr := os.Stderr
-			r, w, err := os.Pipe()
-			require.NoError(t, err)
-			os.Stderr = w
-			t.Cleanup(func() { os.Stderr = originalStderr })
-
-			fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*timeoutCodemod}, true, false)
-			require.NoError(t, err)
-			require.True(t, fixed)
-
-			require.NoError(t, w.Close())
-			outputBytes, err := io.ReadAll(r)
-			require.NoError(t, err)
-			output := string(outputBytes)
-
-			assert.Contains(t, output, "✓ test-workflow.md")
-			assert.NotContains(t, output, "✓ ✓ test-workflow.md")
-		}
 	}
 	return nil
+}
+
+func TestProcessWorkflowFileWithInfo_WriteOutputUsesSingleCheckmark(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	content := `---
+timeout_minutes: 30
+---`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	timeoutCodemod := getCodemodByID("timeout-minutes-migration")
+	require.NotNil(t, timeoutCodemod)
+
+	originalStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = originalStderr })
+
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*timeoutCodemod}, true, false)
+	require.NoError(t, err)
+	require.True(t, fixed)
+
+	require.NoError(t, w.Close())
+	outputBytes, err := io.ReadAll(r)
+	require.NoError(t, err)
+	output := string(outputBytes)
+
+	assert.Contains(t, output, "✓ test-workflow.md")
+	assert.NotContains(t, output, "✓ ✓ test-workflow.md")
 }
 
 func TestFixCommand_TimeoutMinutesMigration(t *testing.T) {
