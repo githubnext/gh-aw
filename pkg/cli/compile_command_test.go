@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -17,6 +18,15 @@ import (
 
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+// absoluteTestPath returns a path that filepath.IsAbs reports as absolute on
+// the current OS.
+func absoluteTestPath() string {
+	if runtime.GOOS == "windows" {
+		return `C:\absolute\path`
+	}
+	return "/absolute/path"
+}
 
 // TestCompileConfig tests the CompileConfig structure
 func TestCompileConfig(t *testing.T) {
@@ -319,7 +329,7 @@ func TestCompileWorkflows_WorkflowDirValidation(t *testing.T) {
 	}{
 		{
 			name:        "absolute path not allowed",
-			workflowDir: "/absolute/path",
+			workflowDir: absoluteTestPath(),
 			expectError: true,
 			errorMsg:    "must be a relative path",
 		},

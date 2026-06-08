@@ -230,6 +230,9 @@ Please check the repository for any open issues and create a summary.
 }
 
 func TestCompileWithIncludeWithEmptyFrontmatterUnderPty(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PTY-based test is not supported on Windows")
+	}
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
