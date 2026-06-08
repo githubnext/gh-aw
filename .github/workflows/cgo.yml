@@ -3,10 +3,26 @@ name: CGO
 on:
   push:
     branches: [main]
+    paths:
+    - '**/*.go'
+    - 'cmd/**'
+    - 'pkg/**'
+    - 'scripts/**'
+    - 'go.mod'
+    - 'go.sum'
+    - 'Makefile'
+    - 'actions/setup/sh/**'
+    - '.github/workflows/ci.yml'
+    - '.github/workflows/cgo.yml'
+    - '.github/aw/releases.json'
+    - '.github/aw/releases.schema.json'
+    - '.github/aw/compat.json'
+    - '.github/aw/compat.schema.json'
+    - 'install-gh-aw.sh'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-    - '**.go'
+    - '**/*.go'
     - 'cmd/**'
     - 'pkg/**'
     - 'scripts/**'

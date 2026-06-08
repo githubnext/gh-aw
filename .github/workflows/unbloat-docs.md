@@ -320,6 +320,28 @@ Make targeted edits to improve clarity:
 - Code examples (though you can consolidate duplicates)
 - Critical warnings or notes
 - Frontmatter metadata
+- **Mermaid diagram code blocks** — never delete a ```` ```mermaid ```` block; diagrams are intentional visual content and must be preserved
+
+### 6a. Upgrade Mermaid Node IDs In-Place
+
+When you encounter a Mermaid diagram that uses single-letter node IDs (e.g., `A`, `B`, `C`, `D`), upgrade them in-place to descriptive IDs while keeping the same label text. This improves traceability without deleting content.
+
+**Example upgrade** (make this change atomically with your other edits in the same file):
+```
+# Before (single-letter IDs)
+graph TD
+    A[Start] --> B[Process]
+    B --> C{Decision}
+    C -->|Yes| D[Action]
+
+# After (descriptive IDs)
+graph TD
+    Start[Start] --> Process[Process]
+    Process --> Decision{Decision}
+    Decision -->|Yes| Action[Action]
+```
+
+Only rename the IDs; do not change labels, edges, or diagram structure.
 
 ### 7. Create a Branch for Your Changes
 
