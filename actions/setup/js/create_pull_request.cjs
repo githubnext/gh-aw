@@ -285,7 +285,10 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
                   await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
                   core.info("HEAD bundle fetch retry succeeded after prerequisite recovery");
                 } catch (retryError) {
-                  throw new Error(`HEAD bundle fetch failed after fetching ${headPrereqCommits.length} prerequisite commit(s): ${retryError instanceof Error ? retryError.message : String(retryError)}`, { cause: retryError });
+                  const retryErrorMessage = retryError instanceof Error ? retryError.message : String(retryError);
+                  throw new Error(`HEAD bundle fetch failed after fetching ${headPrereqCommits.length} prerequisite commit(s): ${retryErrorMessage}`, {
+                    cause: retryError,
+                  });
                 }
               } else {
                 throw new Error(`Failed to apply HEAD-only bundle: ${headFetchErrorOutput}`);
