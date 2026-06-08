@@ -50,7 +50,7 @@ safe-outputs:
     close-older-key: "daily-byok-ollama-test"
     labels: [automation, testing]
   messages:
-    footer: "> 🦙 *BYOK test via [{workflow_name}]({run_url})*{effective_tokens_suffix}"
+    footer: "> 🦙 *BYOK test via [{workflow_name}]({run_url})*{ai_credits_suffix}"
     run-started: "🦙 BYOK Ollama test starting... [{workflow_name}]({run_url})"
     run-success: "✅ [{workflow_name}]({run_url}) — BYOK endpoint responded."
     run-failure: "❌ [{workflow_name}]({run_url}) — BYOK endpoint test failed: {status}"

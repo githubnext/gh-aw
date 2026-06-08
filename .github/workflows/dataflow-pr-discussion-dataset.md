@@ -77,7 +77,7 @@ safe-outputs:
     close-older-discussions: true
     title-prefix: "[dataflow-dataset] "
   messages:
-    footer: "> 🌊 *Dataset built by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🌊 *Dataset built by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🌊 DataFlow Dataset Builder starting! [{workflow_name}]({run_url}) is processing discussions and PRs with OpenDCAI/DataFlow..."
     run-success: "✅ DataFlow dataset ready! [{workflow_name}]({run_url}) produced a cleaned, deduplicated dataset. Artifacts uploaded. 📊"
     run-failure: "⚠️ DataFlow pipeline failed! [{workflow_name}]({run_url}) {status}. Check the run logs."

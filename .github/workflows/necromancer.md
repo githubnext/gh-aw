@@ -59,7 +59,7 @@ safe-outputs:
     hide-older-comments: true
   noop:
   messages:
-    footer: "> 🧟 *Regression revived by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🧟 *Regression revived by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🧟 [{workflow_name}]({run_url}) is exhuming regressions for this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) fortified this PR with fresh regression coverage."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while raising regression tests."

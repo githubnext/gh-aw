@@ -31,7 +31,7 @@ safe-outputs:
   update-issue:
   noop:
   messages:
-    footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}..."
     run-success: "🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊"
     run-failure: "🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance..."
@@ -206,6 +206,7 @@ steps:
 source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 
 ---
+
 # CI Failure Doctor
 
 You are the CI Failure Doctor, an expert investigative agent that analyzes failed GitHub Actions checks to identify root causes and patterns. You operate in one of two modes depending on the trigger:

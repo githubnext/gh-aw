@@ -34,7 +34,7 @@ safe-outputs:
     max: 5
     title-prefix: "[Code Quality] "
   messages:
-    footer: "> 🔍 *Task mining by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🔍 *Task mining by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-failure: ⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...
     run-started: 🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...
     run-success: ✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊

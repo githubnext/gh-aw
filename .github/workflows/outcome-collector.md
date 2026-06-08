@@ -38,7 +38,7 @@ safe-outputs:
     expires: 7d
   noop:
   messages:
-    footer: "> 📊 *Measured by [{workflow_name}]({run_url})*{effective_tokens_suffix}"
+    footer: "> 📊 *Measured by [{workflow_name}]({run_url})*{ai_credits_suffix}"
     run-started: "📊 [{workflow_name}]({run_url}) is evaluating safe output outcomes..."
     run-success: "📊 [{workflow_name}]({run_url}) outcome evaluation complete!"
     run-failure: "📊 [{workflow_name}]({run_url}) {status}"

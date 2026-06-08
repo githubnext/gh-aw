@@ -61,7 +61,7 @@ safe-outputs:
     add-labels:
       allowed: [smoke-pi]
     messages:
-      footer: "> 🥧 *[{workflow_name}]({run_url}) — Powered by Pi*{effective_tokens_suffix}{history_link}"
+      footer: "> 🥧 *[{workflow_name}]({run_url}) — Powered by Pi*{ai_credits_suffix}{history_link}"
       run-started: "🥧 Pi initializing... [{workflow_name}]({run_url}) begins on this {event_type}..."
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Pi delivered. 🥧"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Pi encountered unexpected challenges..."

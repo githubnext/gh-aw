@@ -58,7 +58,7 @@ safe-outputs:
       - "**/*.jpg"
       - "**/*.svg"
   messages:
-    footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories."
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."

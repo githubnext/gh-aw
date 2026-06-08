@@ -41,7 +41,7 @@ safe-outputs:
     allowed: ["awaiting-approach-approval", "approach-approved", "approach-rejected"]
   noop:
   messages:
-    footer: "> 🔬 *Approach validated by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🔬 *Approach validated by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔬 [{workflow_name}]({run_url}) is analyzing the proposed approach on this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the approach validation. Review the report and react with ✅ or ❌."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during approach validation."
