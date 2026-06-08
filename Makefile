@@ -240,7 +240,7 @@ test-impacted-js: build-js
 		exit 0; \
 	fi; \
 	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
-	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --related $(JS_IMPACTED_TEST_EXCLUDES)
+	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism $(JS_IMPACTED_TEST_EXCLUDES)
 
 # Test impacted Go unit tests only (excluding integration tests)
 .PHONY: test-impacted-go
