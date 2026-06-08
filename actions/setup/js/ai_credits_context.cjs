@@ -216,17 +216,11 @@ function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
  */
 function parseMaxAICreditsExceededFromAuditEntry(entry) {
   if (!entry || typeof entry !== "object") return false;
-  const typedEntry = /** @type {Record<string, unknown>} */ (entry);
+  const typedEntry = /** @type {Record<string, unknown>} */ entry;
   for (const field of MAX_AI_CREDITS_EXCEEDED_FIELDS) {
     if (field in typedEntry && isTrueLike(typedEntry[field])) return true;
   }
-  if (
-    typeof typedEntry.event === "string" &&
-    typedEntry.event === BUDGET_EXCEEDED_EVENT &&
-    typeof typedEntry.reason === "string" &&
-    typedEntry.reason === "hard_limit" &&
-    isTrueLike(typedEntry.forced_termination)
-  ) {
+  if (typeof typedEntry.event === "string" && typedEntry.event === BUDGET_EXCEEDED_EVENT && typeof typedEntry.reason === "string" && typedEntry.reason === "hard_limit" && isTrueLike(typedEntry.forced_termination)) {
     return true;
   }
   return false;
@@ -244,7 +238,6 @@ function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
     (acc, entry) => acc || parseMaxAICreditsExceededFromAuditEntry(entry)
   );
 }
-
 
 /**
  * Single-pass combined read of the audit log, returning all AI credits fields at once.

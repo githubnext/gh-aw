@@ -68,7 +68,10 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
     });
 
     it("returns false when no matching signal is present", () => {
-      writeAuditLog([{ type: "request", ai_credits: 5000, max_ai_credits: 100000 }, { type: "response", status: 200 }]);
+      writeAuditLog([
+        { type: "request", ai_credits: 5000, max_ai_credits: 100000 },
+        { type: "response", status: 200 },
+      ]);
       expect(parseMaxAICreditsExceededFromAuditLog()).toBe(false);
     });
 
