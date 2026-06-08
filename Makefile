@@ -246,15 +246,15 @@ test-impacted-go:
 		echo "Set BASE_REF explicitly, for example: make test-impacted-go BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
-	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD -- '**/*.go'); \
+	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD | grep -E '\.go$$' || true); \
 	if [ -z "$$CHANGED_GO_FILES" ]; then \
 		echo "No changed Go files; skipping impacted Go tests."; \
 		exit 0; \
 	fi; \
 	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
 	echo "Running impacted Go unit tests in packages: $$CHANGED_GO_PACKAGES"; \
-	# Use -short to exclude integration tests and -run '^Test' to keep this target focused on unit tests only. \
-	go test -v -parallel=4 -timeout=10m -run='^Test' -short $$CHANGED_GO_PACKAGES
+	# Use -short to exclude integration tests and keep execution to unit-test scope. \
+	go test -v -parallel=4 -timeout=10m -short $$CHANGED_GO_PACKAGES
 
 # Test both impacted JavaScript and Go unit tests
 .PHONY: test-impacted
