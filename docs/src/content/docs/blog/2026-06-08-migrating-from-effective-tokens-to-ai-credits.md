@@ -16,9 +16,9 @@ replaced by AI Credits (AIC) as the primary spend metric.
 > AIC is now the default cost metric in gh-aw output. ET remains
 > available only as a legacy compatibility field.
 
-This change reflects pricing in GitHub Copilot models and billing,
-and models.dev pricing. It makes spend tracking directly aligned to
-monetary cost instead of a normalized token proxy.
+This change reflects GitHub Copilot billing and models.dev pricing.
+It makes spend tracking directly aligned to monetary cost instead of
+a normalized token proxy.
 
 ## What this means in practice
 
