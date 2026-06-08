@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -79,6 +80,12 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// which causes validation errors since they start with numbers but contain spaces
 	yamlStr = parser.QuoteCronExpressions(yamlStr)
 
+	// For top-level env values, quote plain scalars containing ": " because YAML
+	// treats this token sequence as a mapping separator in plain style.
+	if key == "env" {
+		yamlStr = quoteEnvValuesContainingColonSpace(yamlStr)
+	}
+
 	// Clean up null values - replace `: null` with `:` for cleaner output
 	// GitHub Actions treats `workflow_dispatch:` and `workflow_dispatch: null` identically
 	yamlStr = CleanYAMLNullValues(yamlStr)
@@ -99,6 +106,37 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	}
 
 	return yamlStr
+}
+
+func quoteEnvValuesContainingColonSpace(yamlStr string) string {
+	lines := strings.Split(yamlStr, "\n")
+	for i, line := range lines {
+		if i == 0 || !strings.HasPrefix(line, "  ") {
+			continue
+		}
+
+		idx := strings.Index(line, ": ")
+		if idx < 0 {
+			continue
+		}
+
+		value := line[idx+2:]
+		if value == "" ||
+			strings.HasPrefix(value, "\"") ||
+			strings.HasPrefix(value, "'") ||
+			strings.HasPrefix(value, "|") ||
+			strings.HasPrefix(value, ">") ||
+			strings.HasPrefix(value, "{") ||
+			strings.HasPrefix(value, "[") {
+			continue
+		}
+
+		if strings.Contains(value, ": ") {
+			lines[i] = line[:idx+2] + strconv.Quote(value)
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, labels, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, lock-for-agent, steps, permissions, needs, and stale-check fields in the on section

@@ -5,6 +5,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -35,6 +36,7 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	// Post-process to move version comments outside of quoted uses values
 	// This handles cases like: uses: "slug@sha # v1"  ->  uses: slug@sha # v1
 	yamlStr = unquoteUsesWithComments(yamlStr)
+	yamlStr = quoteStepEnvValuesContainingColonSpace(yamlStr)
 
 	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
 	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
@@ -153,7 +155,11 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 				// For complex fields like "with" or "env" — sort keys for stable output.
 				fmt.Fprintf(out, "%s:\n", field)
 				for _, key := range slices.Sorted(maps.Keys(v)) {
-					fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
+					if field == "env" {
+						fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(v[key]))
+					} else {
+						fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
+					}
 				}
 			default:
 				fmt.Fprintf(out, "%s: %v\n", field, v)
@@ -190,10 +196,74 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 			// Sort keys for stable output.
 			fmt.Fprintf(out, "%s:\n", field)
 			for _, key := range slices.Sorted(maps.Keys(v)) {
-				fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
+				if field == "env" {
+					fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(v[key]))
+				} else {
+					fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
+				}
 			}
 		default:
 			fmt.Fprintf(out, "%s: %v\n", field, v)
 		}
 	}
+}
+
+func formatStepEnvValueForYAML(value any) string {
+	strValue, ok := value.(string)
+	if !ok {
+		return fmt.Sprint(value)
+	}
+	if strings.Contains(strValue, ": ") {
+		return strconv.Quote(strValue)
+	}
+	return strValue
+}
+
+func quoteStepEnvValuesContainingColonSpace(yamlStr string) string {
+	lines := strings.Split(yamlStr, "\n")
+	inEnv := false
+	envIndent := 0
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		if inEnv && indent <= envIndent {
+			inEnv = false
+		}
+
+		if trimmed == "env:" || trimmed == "- env:" {
+			inEnv = true
+			envIndent = indent
+			continue
+		}
+		if !inEnv || indent != envIndent+2 {
+			continue
+		}
+
+		idx := strings.Index(line, ": ")
+		if idx < 0 {
+			continue
+		}
+
+		value := line[idx+2:]
+		if value == "" ||
+			strings.HasPrefix(value, "\"") ||
+			strings.HasPrefix(value, "'") ||
+			strings.HasPrefix(value, "|") ||
+			strings.HasPrefix(value, ">") ||
+			strings.HasPrefix(value, "{") ||
+			strings.HasPrefix(value, "[") {
+			continue
+		}
+
+		if strings.Contains(value, ": ") {
+			lines[i] = line[:idx+2] + strconv.Quote(value)
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }

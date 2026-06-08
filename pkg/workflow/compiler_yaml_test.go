@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 )
 
 func TestCompileWorkflowWithInvalidYAML(t *testing.T) {
@@ -788,6 +789,52 @@ Test content.`
 	// Check for environment in output
 	if !strings.Contains(yamlStr, "environment:") {
 		t.Error("Expected environment in generated YAML")
+	}
+}
+
+func TestGenerateYAMLWithEnvironmentValueContainingColonSpace(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-env-colon-space-test")
+
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine:
+  id: copilot
+  env:
+    ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	yamlStr := string(content)
+
+	if !strings.Contains(yamlStr, `ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"`) {
+		t.Fatalf("Expected quoted env value in generated YAML, got:\n%s", yamlStr)
+	}
+
+	var parsed map[string]any
+	if err := yaml.Unmarshal(content, &parsed); err != nil {
+		t.Fatalf("Generated lock file should be valid YAML: %v\nYAML:\n%s", err, yamlStr)
 	}
 }
 
