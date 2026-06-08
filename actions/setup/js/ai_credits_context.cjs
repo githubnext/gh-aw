@@ -216,11 +216,20 @@ function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
  */
 function parseMaxAICreditsExceededFromAuditEntry(entry) {
   if (!entry || typeof entry !== "object") return false;
-  const typedEntry = /** @type {Record<string, unknown>} */ entry;
-  for (const field of MAX_AI_CREDITS_EXCEEDED_FIELDS) {
-    if (field in typedEntry && isTrueLike(typedEntry[field])) return true;
+  /** @type {unknown} */
+  let event;
+  /** @type {unknown} */
+  let reason;
+  /** @type {unknown} */
+  let forcedTermination;
+
+  for (const [key, value] of Object.entries(entry)) {
+    if (MAX_AI_CREDITS_EXCEEDED_FIELDS.has(key) && isTrueLike(value)) return true;
+    if (key === "event") event = value;
+    if (key === "reason") reason = value;
+    if (key === "forced_termination") forcedTermination = value;
   }
-  if (typeof typedEntry.event === "string" && typedEntry.event === BUDGET_EXCEEDED_EVENT && typeof typedEntry.reason === "string" && typedEntry.reason === "hard_limit" && isTrueLike(typedEntry.forced_termination)) {
+  if (typeof event === "string" && event === BUDGET_EXCEEDED_EVENT && typeof reason === "string" && reason === "hard_limit" && isTrueLike(forcedTermination)) {
     return true;
   }
   return false;
