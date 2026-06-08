@@ -97,7 +97,15 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found|Session was no
 // Pattern to detect authentication failures returned by Copilot API.
 // After a first-attempt auth failure, retrying is futile because the entrypoint unsets
 // COPILOT_GITHUB_TOKEN between attempts.
-const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
+//
+// Also matches the Copilot CAPI 400 response emitted when the supplied token is a
+// Personal Access Token (classic or fine-grained):
+//   "400 400 checking third-party user token: bad request: Personal Access Tokens
+//    are not supported for this endpoint"
+// PAT rejection is a persistent credential-type problem — retrying with the same
+// token always produces the same 400.  Treating it as an auth failure short-circuits
+// the retry loop instead of burning all 4 attempts.
+const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?|checking third-party user token:[^\n]*Personal Access Tokens are not supported/i;
 // Pattern: Copilot CLI inference access denied
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/;
 // Pattern: Agentic engine process killed by signal (timeout)

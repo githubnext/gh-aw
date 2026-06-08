@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
@@ -25,6 +27,12 @@ Available subcommands:
 Examples:
   gh aw secrets set MY_SECRET --value "secret123"    # Set a secret directly
   gh aw secrets bootstrap                             # Check all required secrets`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

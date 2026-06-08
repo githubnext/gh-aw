@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"io"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -84,4 +85,17 @@ func TestSecretsBootstrapEngineFlagIncludesGemini(t *testing.T) {
 	engineFlag := bootstrapCmd.Flags().Lookup("engine")
 	require.NotNil(t, engineFlag, "--engine flag should exist on bootstrap")
 	assert.Contains(t, engineFlag.Usage, "gemini", "--engine help should include gemini engine")
+}
+
+func TestSecretsCommandUnknownSubcommandReturnsError(t *testing.T) {
+	cmd := NewSecretsCommand()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"unknown-cmd"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Equal(t, `unknown command "unknown-cmd" for "secrets"`, err.Error())
 }

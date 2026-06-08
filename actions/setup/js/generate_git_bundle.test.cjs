@@ -137,6 +137,89 @@ describe("generateGitBundle (incremental)", () => {
     expect(generatedBundleHeads).toBe(naiveBundleHeads);
   });
 
+  it("includes refs/heads/<branchName> in bundle when agent is on the target branch (non-main dispatch scenario)", async () => {
+    // Simulates: scanner dispatches worker from a feature branch (non-main ref).
+    // The worker checks out the feature branch, creates a new fix branch, commits on
+    // it, then calls create_pull_request.  In this scenario, HEAD is on fix-branch
+    // when generateGitBundle is called.  Strategy 1 (merge-base) fails in a shallow
+    // clone because the common ancestor of main and the fix branch is beyond the
+    // shallow boundary.  Strategy 2 must then produce a bundle that includes
+    // refs/heads/fix-branch (not just HEAD) so applyBundleToBranch can locate the ref.
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-nonmain-remote-"));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-nonmain-work-"));
+    tempDirs.push(remoteDir, workDir);
+
+    // Build origin: main and feature-branch diverge from a common ancestor
+    execGit(["init", "--bare"], { cwd: remoteDir });
+    const seedDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-nonmain-seed-"));
+    tempDirs.push(seedDir);
+    execGit(["clone", remoteDir, seedDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: seedDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: seedDir });
+
+    // Common ancestor commit A
+    fs.writeFileSync(path.join(seedDir, "base.txt"), "base\n");
+    execGit(["add", "base.txt"], { cwd: seedDir });
+    execGit(["commit", "-m", "common ancestor"], { cwd: seedDir });
+    execGit(["branch", "-M", "main"], { cwd: seedDir });
+    execGit(["push", "-u", "origin", "main"], { cwd: seedDir });
+
+    // Advance main with extra commits so its tip diverges from feature-branch
+    fs.writeFileSync(path.join(seedDir, "main-extra.txt"), "main-extra\n");
+    execGit(["add", "main-extra.txt"], { cwd: seedDir });
+    execGit(["commit", "-m", "main advance"], { cwd: seedDir });
+    execGit(["push", "origin", "main"], { cwd: seedDir });
+
+    // Create feature-branch from common ancestor (before main diverged)
+    execGit(["checkout", "-b", "feature-branch", "HEAD~1"], { cwd: seedDir });
+    fs.writeFileSync(path.join(seedDir, "feature.txt"), "feature\n");
+    execGit(["add", "feature.txt"], { cwd: seedDir });
+    execGit(["commit", "-m", "feature commit"], { cwd: seedDir });
+    const featureBranchTip = execGit(["rev-parse", "HEAD"], { cwd: seedDir }).stdout.trim();
+    execGit(["push", "-u", "origin", "feature-branch"], { cwd: seedDir });
+
+    // Simulate Actions checkout: shallow clone of feature-branch (depth=1)
+    execGit(["clone", "--depth=1", "--no-local", "--branch=feature-branch", remoteDir, workDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: workDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
+
+    // Worker agent creates and checks out a new fix branch
+    execGit(["checkout", "-b", "fix-branch"], { cwd: workDir });
+
+    // Agent makes new commits on fix-branch
+    fs.writeFileSync(path.join(workDir, "fix1.txt"), "fix 1\n");
+    execGit(["add", "fix1.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "fix commit 1"], { cwd: workDir });
+    fs.writeFileSync(path.join(workDir, "fix2.txt"), "fix 2\n");
+    execGit(["add", "fix2.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "fix commit 2"], { cwd: workDir });
+
+    const fixBranchHead = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+    const savedGithubSha = process.env.GITHUB_SHA;
+    try {
+      // GITHUB_SHA is the feature-branch tip at workflow trigger time
+      process.env.GITHUB_SHA = featureBranchTip;
+
+      const { generateGitBundle } = require("./generate_git_bundle.cjs");
+      const result = await generateGitBundle("fix-branch", "main", { mode: "full", cwd: workDir });
+      expect(result.success).toBe(true);
+      expect(result.bundlePath).toBeTruthy();
+      bundlePaths.push(result.bundlePath);
+
+      // The bundle MUST contain refs/heads/fix-branch so applyBundleToBranch can locate the ref
+      const bundleHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
+      expect(bundleHeads).toContain(fixBranchHead);
+      expect(bundleHeads).toContain("refs/heads/fix-branch");
+    } finally {
+      if (savedGithubSha === undefined) {
+        delete process.env.GITHUB_SHA;
+      } else {
+        process.env.GITHUB_SHA = savedGithubSha;
+      }
+    }
+  });
+
   it("returns actionable guidance when branch is missing in incremental mode", async () => {
     const { generateGitBundle } = require("./generate_git_bundle.cjs");
 
