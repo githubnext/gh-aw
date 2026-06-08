@@ -101,14 +101,13 @@ type OverviewData struct {
 
 // MetricsData contains execution metrics
 type MetricsData struct {
-	TokenUsage      int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
-	EffectiveTokens int                    `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
-	AIC             float64                `json:"aic,omitempty"`
-	AmbientContext  *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
-	ActionMinutes   float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
-	Turns           int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
-	ErrorCount      int                    `json:"error_count" console:"header:Errors"`
-	WarningCount    int                    `json:"warning_count" console:"header:Warnings"`
+	TokenUsage     int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
+	AIC            float64                `json:"aic,omitempty"`
+	AmbientContext *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
+	ActionMinutes  float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
+	Turns          int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount     int                    `json:"error_count" console:"header:Errors"`
+	WarningCount   int                    `json:"warning_count" console:"header:Warnings"`
 }
 
 // JobData contains information about individual jobs
@@ -321,13 +320,6 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		metricsData.Turns = fallbackMetrics.Turns
 	}
 
-	// Populate effective tokens from the firewall proxy summary when available,
-	// otherwise fall back to the effective tokens stored on the run itself.
-	if processedRun.TokenUsage != nil && processedRun.TokenUsage.TotalEffectiveTokens > 0 {
-		metricsData.EffectiveTokens = processedRun.TokenUsage.TotalEffectiveTokens
-	} else if run.EffectiveTokens > 0 {
-		metricsData.EffectiveTokens = run.EffectiveTokens
-	}
 	if processedRun.TokenUsage != nil && processedRun.TokenUsage.TotalAIC > 0 {
 		metricsData.AIC = processedRun.TokenUsage.TotalAIC
 	}

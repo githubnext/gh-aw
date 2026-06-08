@@ -298,8 +298,8 @@ func renderTokenUsageDiffMarkdownSection(run1ID, run2ID int64, diff *TokenUsageD
 	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
 		fmt.Fprintf(os.Stdout, "| Cache write | %d | %d | %s |\n", diff.Run1CacheWriteTokens, diff.Run2CacheWriteTokens, diff.CacheWriteTokensChange)
 	}
-	if diff.Run1EffectiveTokens > 0 || diff.Run2EffectiveTokens > 0 {
-		fmt.Fprintf(os.Stdout, "| Effective | %d | %d | %s |\n", diff.Run1EffectiveTokens, diff.Run2EffectiveTokens, diff.EffectiveTokensChange)
+	if diff.Run1AIC > 0 || diff.Run2AIC > 0 {
+		fmt.Fprintf(os.Stdout, "| AI Credits | %.3f | %.3f | %s |\n", diff.Run1AIC, diff.Run2AIC, diff.AICChange)
 	}
 	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
 		fmt.Fprintf(os.Stdout, "| API requests | %d | %d | %s |\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsDelta)
@@ -578,12 +578,12 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 			diff.CacheWriteTokensChange,
 		})
 	}
-	if diff.Run1EffectiveTokens > 0 || diff.Run2EffectiveTokens > 0 {
+	if diff.Run1AIC > 0 || diff.Run2AIC > 0 {
 		config.Rows = append(config.Rows, []string{
-			"Effective",
-			strconv.Itoa(diff.Run1EffectiveTokens),
-			strconv.Itoa(diff.Run2EffectiveTokens),
-			diff.EffectiveTokensChange,
+			"AI Credits",
+			fmt.Sprintf("%.3f", diff.Run1AIC),
+			fmt.Sprintf("%.3f", diff.Run2AIC),
+			diff.AICChange,
 		})
 	}
 	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {

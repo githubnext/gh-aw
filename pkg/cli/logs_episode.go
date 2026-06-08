@@ -55,7 +55,7 @@ type EpisodeData struct {
 	PrimaryWorkflow                string            `json:"primary_workflow,omitempty"`
 	TotalRuns                      int               `json:"total_runs"`
 	TotalTokens                    int               `json:"total_tokens"`
-	TotalEffectiveTokens           int               `json:"total_effective_tokens"`
+	TotalAIC                       float64           `json:"total_aic,omitempty"`
 	TotalDuration                  string            `json:"total_duration"`
 	RiskyNodeCount                 int               `json:"risky_node_count"`
 	ChangedNodeCount               int               `json:"changed_node_count"`
@@ -169,7 +169,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 
 		acc.metadata.TotalRuns++
 		acc.metadata.TotalTokens += run.TokenUsage
-		acc.metadata.TotalEffectiveTokens += run.EffectiveTokens
+		acc.metadata.TotalAIC += run.AIC
 		acc.metadata.ManifestEntryCount += run.ManifestEntryCount
 		acc.metadata.TemporaryIDMappings += run.TemporaryIDMappings
 		acc.metadata.ChainedTargetCount += run.ChainedTargetCount

@@ -35,7 +35,7 @@ func renderLogsTSV(data LogsData) {
 	// Header
 	headers := []string{
 		"run_id", "workflow", "engine", "status", "duration",
-		"tokens", "eff_tokens", "turns", "errors",
+		"tokens", "aic", "turns", "errors",
 		"event", "branch", "created_at", "classification", "url",
 	}
 	fmt.Fprintln(os.Stdout, strings.Join(headers, "\t"))
@@ -67,7 +67,7 @@ func renderLogsTSV(data LogsData) {
 			conclusion,
 			duration,
 			strconv.Itoa(r.TokenUsage),
-			strconv.Itoa(r.EffectiveTokens),
+			fmt.Sprintf("%.3f", r.AIC),
 			strconv.Itoa(r.Turns),
 			strconv.Itoa(r.ErrorCount),
 			r.Event,
@@ -117,7 +117,7 @@ func renderLogsTSVVerbose(data LogsData) {
 
 	headers := []string{
 		"run_id", "workflow", "engine", "status", "duration",
-		"tokens", "eff_tokens", "turns", "errors",
+		"tokens", "aic", "turns", "errors",
 		"warnings", "missing_tools", "missing_data", "github_api",
 		"event", "branch", "actor", "created_at", "tbt",
 		"classification", "action_min", "display_title", "url",
@@ -153,7 +153,7 @@ func renderLogsTSVVerbose(data LogsData) {
 			conclusion,
 			duration,
 			strconv.Itoa(r.TokenUsage),
-			strconv.Itoa(r.EffectiveTokens),
+			fmt.Sprintf("%.3f", r.AIC),
 			strconv.Itoa(r.Turns),
 			strconv.Itoa(r.ErrorCount),
 			strconv.Itoa(r.WarningCount),

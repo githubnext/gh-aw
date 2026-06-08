@@ -705,7 +705,7 @@ func TestComputeTokenUsageDiff_WithData(t *testing.T) {
 		TotalOutputTokens:     2000,
 		TotalCacheReadTokens:  5000,
 		TotalCacheWriteTokens: 1000,
-		TotalEffectiveTokens:  8000,
+		TotalAIC:              0.8,
 		TotalRequests:         10,
 		CacheEfficiency:       0.333,
 	}
@@ -714,7 +714,7 @@ func TestComputeTokenUsageDiff_WithData(t *testing.T) {
 		TotalOutputTokens:     3000,
 		TotalCacheReadTokens:  7000,
 		TotalCacheWriteTokens: 800,
-		TotalEffectiveTokens:  12000,
+		TotalAIC:              1.4,
 		TotalRequests:         14,
 		CacheEfficiency:       0.318,
 	}
@@ -738,9 +738,9 @@ func TestComputeTokenUsageDiff_WithData(t *testing.T) {
 	assert.Equal(t, 800, diff.Run2CacheWriteTokens, "Run2 cache write tokens should be 800")
 	assert.Equal(t, "-20%", diff.CacheWriteTokensChange, "Cache write tokens should decrease by 20%")
 
-	assert.Equal(t, 8000, diff.Run1EffectiveTokens, "Run1 effective tokens should be 8000")
-	assert.Equal(t, 12000, diff.Run2EffectiveTokens, "Run2 effective tokens should be 12000")
-	assert.Equal(t, "+50%", diff.EffectiveTokensChange, "Effective tokens should increase by 50%")
+	assert.InDelta(t, 0.8, diff.Run1AIC, 1e-9, "Run1 AI Credits should be 0.8")
+	assert.InDelta(t, 1.4, diff.Run2AIC, 1e-9, "Run2 AI Credits should be 1.4")
+	assert.Equal(t, "+0.600", diff.AICChange, "AI Credits delta should be +0.600")
 
 	assert.Equal(t, 10, diff.Run1TotalRequests, "Run1 requests should be 10")
 	assert.Equal(t, 14, diff.Run2TotalRequests, "Run2 requests should be 14")
@@ -785,22 +785,22 @@ func TestComputeRunMetricsDiff_WithTokenUsageDetails(t *testing.T) {
 		RunID: 100,
 		Run:   WorkflowRun{Duration: 5 * time.Minute, Turns: 4},
 		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:     8000,
-			TotalOutputTokens:    1500,
-			TotalEffectiveTokens: 6000,
-			TotalRequests:        8,
-			CacheEfficiency:      0.25,
+			TotalInputTokens:  8000,
+			TotalOutputTokens: 1500,
+			TotalAIC:          0.6,
+			TotalRequests:     8,
+			CacheEfficiency:   0.25,
 		},
 	}
 	summary2 := &RunSummary{
 		RunID: 200,
 		Run:   WorkflowRun{Duration: 7 * time.Minute, Turns: 6},
 		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:     12000,
-			TotalOutputTokens:    2000,
-			TotalEffectiveTokens: 9000,
-			TotalRequests:        11,
-			CacheEfficiency:      0.30,
+			TotalInputTokens:  12000,
+			TotalOutputTokens: 2000,
+			TotalAIC:          0.9,
+			TotalRequests:     11,
+			CacheEfficiency:   0.30,
 		},
 	}
 
@@ -813,9 +813,9 @@ func TestComputeRunMetricsDiff_WithTokenUsageDetails(t *testing.T) {
 	assert.Equal(t, 12000, diff.TokenUsageDetails.Run2InputTokens, "Run2 input tokens should be 12000")
 	assert.Equal(t, "+50%", diff.TokenUsageDetails.InputTokensChange, "Input tokens change should be +50%")
 
-	assert.Equal(t, 6000, diff.TokenUsageDetails.Run1EffectiveTokens, "Run1 effective tokens should be 6000")
-	assert.Equal(t, 9000, diff.TokenUsageDetails.Run2EffectiveTokens, "Run2 effective tokens should be 9000")
-	assert.Equal(t, "+50%", diff.TokenUsageDetails.EffectiveTokensChange, "Effective tokens change should be +50%")
+	assert.InDelta(t, 0.6, diff.TokenUsageDetails.Run1AIC, 1e-9, "Run1 AI Credits should be 0.6")
+	assert.InDelta(t, 0.9, diff.TokenUsageDetails.Run2AIC, 1e-9, "Run2 AI Credits should be 0.9")
+	assert.Equal(t, "+0.300", diff.TokenUsageDetails.AICChange, "AI Credits delta should be +0.300")
 }
 
 func TestComputeRunMetricsDiff_TokenUsageDetailsAloneNotNil(t *testing.T) {
@@ -1320,14 +1320,14 @@ func TestComputeRunMetricsDiff_TokensPerTurn(t *testing.T) {
 	diff := computeRunMetricsDiff(summary1, summary2)
 	require.NotNil(t, diff, "Should produce metrics diff")
 
-	// Without effective tokens, falls back to engine token count
+	// Uses engine token counts for tokens/turn.
 	assert.Equal(t, 2000, diff.Run1TokensPerTurn, "Run1 tokens/turn should be 10000/5=2000")
 	assert.Equal(t, 3000, diff.Run2TokensPerTurn, "Run2 tokens/turn should be 18000/6=3000")
 	assert.Equal(t, "+50%", diff.TokensPerTurnChange, "Tokens/turn should increase by 50%")
 }
 
-func TestComputeRunMetricsDiff_TokensPerTurnFromEffective(t *testing.T) {
-	// When effective token data is available it should be used for tokens/turn
+func TestComputeRunMetricsDiff_TokensPerTurnIgnoresEffectiveTokenTotals(t *testing.T) {
+	// Tokens/turn should continue to use engine token usage even when effective totals exist.
 	summary1 := &RunSummary{
 		Run: WorkflowRun{
 			TokenUsage: 10000,
@@ -1354,9 +1354,8 @@ func TestComputeRunMetricsDiff_TokensPerTurnFromEffective(t *testing.T) {
 	diff := computeRunMetricsDiff(summary1, summary2)
 	require.NotNil(t, diff, "Should produce metrics diff")
 
-	// Effective tokens should be used: 8000/4=2000, 12000/4=3000
-	assert.Equal(t, 2000, diff.Run1TokensPerTurn, "Run1 tokens/turn should use effective: 8000/4=2000")
-	assert.Equal(t, 3000, diff.Run2TokensPerTurn, "Run2 tokens/turn should use effective: 12000/4=3000")
+	assert.Equal(t, 2500, diff.Run1TokensPerTurn, "Run1 tokens/turn should use engine tokens: 10000/4=2500")
+	assert.Equal(t, 4000, diff.Run2TokensPerTurn, "Run2 tokens/turn should use engine tokens: 16000/4=4000")
 }
 
 func TestComputeRunMetricsDiff_TokensPerTurnZeroTurns(t *testing.T) {

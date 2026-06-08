@@ -260,9 +260,9 @@ type TokenUsageDiff struct {
 	Run1CacheWriteTokens   int     `json:"run1_cache_write_tokens"`
 	Run2CacheWriteTokens   int     `json:"run2_cache_write_tokens"`
 	CacheWriteTokensChange string  `json:"cache_write_tokens_change,omitempty"`
-	Run1EffectiveTokens    int     `json:"run1_effective_tokens"`
-	Run2EffectiveTokens    int     `json:"run2_effective_tokens"`
-	EffectiveTokensChange  string  `json:"effective_tokens_change,omitempty"`
+	Run1AIC                float64 `json:"run1_aic,omitempty"`
+	Run2AIC                float64 `json:"run2_aic,omitempty"`
+	AICChange              string  `json:"aic_change,omitempty"`
 	Run1TotalRequests      int     `json:"run1_total_requests"`
 	Run2TotalRequests      int     `json:"run2_total_requests"`
 	RequestsDelta          string  `json:"requests_delta,omitempty"` // Absolute request-count delta, e.g. "+4"
@@ -327,8 +327,8 @@ type RunMetricsDiff struct {
 	Run1Turns              int                  `json:"run1_turns,omitempty"`
 	Run2Turns              int                  `json:"run2_turns,omitempty"`
 	TurnsChange            int                  `json:"turns_change,omitempty"`
-	Run1TokensPerTurn      int                  `json:"run1_tokens_per_turn,omitempty"`      // Avg effective tokens per turn in run 1
-	Run2TokensPerTurn      int                  `json:"run2_tokens_per_turn,omitempty"`      // Avg effective tokens per turn in run 2
+	Run1TokensPerTurn      int                  `json:"run1_tokens_per_turn,omitempty"`      // Avg token usage per turn in run 1
+	Run2TokensPerTurn      int                  `json:"run2_tokens_per_turn,omitempty"`      // Avg token usage per turn in run 2
 	TokensPerTurnChange    string               `json:"tokens_per_turn_change,omitempty"`    // e.g. "+20%", "-10%"
 	TokenUsageDetails      *TokenUsageDiff      `json:"token_usage_details,omitempty"`       // Detailed breakdown from firewall proxy
 	GitHubRateLimitDetails *GitHubRateLimitDiff `json:"github_rate_limit_details,omitempty"` // GitHub API quota consumption diff
@@ -561,21 +561,14 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 		}
 	}
 
-	// Compute tokens per turn using effective tokens from firewall proxy when available,
-	// otherwise fall back to the engine-level token count.
-	run1Effective := run1Tokens
-	run2Effective := run2Tokens
-	if tu1 != nil && tu1.TotalEffectiveTokens > 0 {
-		run1Effective = tu1.TotalEffectiveTokens
-	}
-	if tu2 != nil && tu2.TotalEffectiveTokens > 0 {
-		run2Effective = tu2.TotalEffectiveTokens
-	}
+	// Compute tokens per turn using engine-level token usage.
+	run1PerTurn := run1Tokens
+	run2PerTurn := run2Tokens
 	if run1Turns > 0 {
-		diff.Run1TokensPerTurn = run1Effective / run1Turns
+		diff.Run1TokensPerTurn = run1PerTurn / run1Turns
 	}
 	if run2Turns > 0 {
-		diff.Run2TokensPerTurn = run2Effective / run2Turns
+		diff.Run2TokensPerTurn = run2PerTurn / run2Turns
 	}
 	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
 		diff.TokensPerTurnChange = formatVolumeChange(diff.Run1TokensPerTurn, diff.Run2TokensPerTurn)
@@ -861,7 +854,7 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 		run1Output, run2Output         int
 		run1CacheRead, run2CacheRead   int
 		run1CacheWrite, run2CacheWrite int
-		run1Effective, run2Effective   int
+		run1AIC, run2AIC               float64
 		run1Requests, run2Requests     int
 		run1CacheEff, run2CacheEff     float64
 	)
@@ -871,7 +864,7 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 		run1Output = tu1.TotalOutputTokens
 		run1CacheRead = tu1.TotalCacheReadTokens
 		run1CacheWrite = tu1.TotalCacheWriteTokens
-		run1Effective = tu1.TotalEffectiveTokens
+		run1AIC = tu1.TotalAIC
 		run1Requests = tu1.TotalRequests
 		run1CacheEff = tu1.CacheEfficiency
 	}
@@ -880,7 +873,7 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 		run2Output = tu2.TotalOutputTokens
 		run2CacheRead = tu2.TotalCacheReadTokens
 		run2CacheWrite = tu2.TotalCacheWriteTokens
-		run2Effective = tu2.TotalEffectiveTokens
+		run2AIC = tu2.TotalAIC
 		run2Requests = tu2.TotalRequests
 		run2CacheEff = tu2.CacheEfficiency
 	}
@@ -894,8 +887,8 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 		Run2CacheReadTokens:  run2CacheRead,
 		Run1CacheWriteTokens: run1CacheWrite,
 		Run2CacheWriteTokens: run2CacheWrite,
-		Run1EffectiveTokens:  run1Effective,
-		Run2EffectiveTokens:  run2Effective,
+		Run1AIC:              run1AIC,
+		Run2AIC:              run2AIC,
 		Run1TotalRequests:    run1Requests,
 		Run2TotalRequests:    run2Requests,
 		Run1CacheEfficiency:  run1CacheEff,
@@ -914,8 +907,8 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 	if run1CacheWrite > 0 || run2CacheWrite > 0 {
 		diff.CacheWriteTokensChange = formatVolumeChange(run1CacheWrite, run2CacheWrite)
 	}
-	if run1Effective > 0 || run2Effective > 0 {
-		diff.EffectiveTokensChange = formatVolumeChange(run1Effective, run2Effective)
+	if run1AIC > 0 || run2AIC > 0 {
+		diff.AICChange = formatFloatDelta(run1AIC, run2AIC)
 	}
 	if run1Requests > 0 || run2Requests > 0 {
 		diff.RequestsDelta = formatCountChange(run1Requests, run2Requests)

@@ -40,7 +40,7 @@ analyzes their data, and produces a diff showing:
 - Anomaly flags (new denied domains, previously-denied now allowed)
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns) when cached data is available
-- Detailed token usage breakdown (input/output/cache/effective tokens) from firewall proxy
+- Detailed token usage breakdown (input/output/cache + AI Credits) from firewall proxy
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346                               # Compare two runs

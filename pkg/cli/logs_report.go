@@ -57,7 +57,6 @@ type LogsSummary struct {
 	TotalRuns                     int     `json:"total_runs" console:"header:Total Runs"`
 	TotalDuration                 string  `json:"total_duration" console:"header:Total Duration"`
 	TotalTokens                   int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
-	TotalEffectiveTokens          int     `json:"total_effective_tokens" console:"header:Total Effective Tokens,format:number"`
 	TotalAIC                      float64 `json:"total_aic,omitempty"`
 	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
 	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
@@ -109,7 +108,6 @@ type RunData struct {
 	Duration                   string                 `json:"duration,omitempty" console:"header:Duration,omitempty"`
 	ActionMinutes              float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	TokenUsage                 int                    `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
-	EffectiveTokens            int                    `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
 	AIC                        float64                `json:"aic,omitempty"`
 	AmbientContext             *AmbientContextMetrics `json:"ambient_context,omitempty" console:"-"`
 	Turns                      int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
@@ -160,7 +158,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build summary
 	var totalDuration time.Duration
 	var totalTokens int
-	var totalEffectiveTokens int
 	var totalAIC float64
 	var totalActionMinutes float64
 	var totalTurns int
@@ -195,7 +192,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			totalDuration += run.Duration
 		}
 		totalTokens += run.TokenUsage
-		totalEffectiveTokens += run.EffectiveTokens
 		if pr.TokenUsage != nil {
 			totalAIC += pr.TokenUsage.TotalAIC
 		}
@@ -277,7 +273,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Conclusion:                 run.Conclusion,
 			Classification:             deriveRunClassification(comparison),
 			TokenUsage:                 run.TokenUsage,
-			EffectiveTokens:            run.EffectiveTokens,
 			AIC:                        0,
 			AmbientContext:             ambientContext,
 			ActionMinutes:              run.ActionMinutes,
@@ -353,7 +348,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalRuns:                     len(processedRuns),
 		TotalDuration:                 timeutil.FormatDuration(totalDuration),
 		TotalTokens:                   totalTokens,
-		TotalEffectiveTokens:          totalEffectiveTokens,
 		TotalAIC:                      totalAIC,
 		TotalActionMinutes:            totalActionMinutes,
 		TotalTurns:                    totalTurns,

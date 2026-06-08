@@ -48,3 +48,12 @@ func formatCountChange(count1, count2 int) string {
 	}
 	return strconv.Itoa(delta)
 }
+
+// formatFloatDelta formats an absolute delta between two floating-point values.
+func formatFloatDelta(value1, value2 float64) string {
+	delta := value2 - value1
+	if delta >= 0 {
+		return fmt.Sprintf("+%.3f", delta)
+	}
+	return fmt.Sprintf("%.3f", delta)
+}

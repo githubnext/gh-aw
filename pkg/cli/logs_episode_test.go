@@ -167,21 +167,21 @@ func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
 	assert.Empty(t, ep.ToolCalls, "tool_calls should be absent when no MCP usage data")
 }
 
-func TestBuildEpisodeDataAggregatesEffectiveTokens(t *testing.T) {
+func TestBuildEpisodeDataAggregatesAIC(t *testing.T) {
 	runs := []RunData{
 		{
-			RunID:           501,
-			WorkflowName:    "effective-a",
-			Status:          "completed",
-			EffectiveTokens: 1200,
-			CreatedAt:       time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+			RunID:        501,
+			WorkflowName: "effective-a",
+			Status:       "completed",
+			AIC:          1.2,
+			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
-			RunID:           502,
-			WorkflowName:    "effective-b",
-			Status:          "completed",
-			EffectiveTokens: 345,
-			CreatedAt:       time.Date(2024, 1, 1, 12, 1, 0, 0, time.UTC),
+			RunID:        502,
+			WorkflowName: "effective-b",
+			Status:       "completed",
+			AIC:          0.345,
+			CreatedAt:    time.Date(2024, 1, 1, 12, 1, 0, 0, time.UTC),
 		},
 	}
 
@@ -194,8 +194,8 @@ func TestBuildEpisodeDataAggregatesEffectiveTokens(t *testing.T) {
 		byRunID[episode.RunIDs[0]] = episode
 	}
 
-	assert.Equal(t, 1200, byRunID[501].TotalEffectiveTokens, "episode should preserve effective tokens from run 501")
-	assert.Equal(t, 345, byRunID[502].TotalEffectiveTokens, "episode should preserve effective tokens from run 502")
+	assert.InDelta(t, 1.2, byRunID[501].TotalAIC, 1e-9, "episode should preserve AIC from run 501")
+	assert.InDelta(t, 0.345, byRunID[502].TotalAIC, 1e-9, "episode should preserve AIC from run 502")
 }
 
 func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
