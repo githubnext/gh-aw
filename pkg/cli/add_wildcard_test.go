@@ -67,6 +67,15 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 			expectedPath:   "agentic-workflows/pr-review.md",
 		},
 		{
+			name:           "direct_workflow_path_with_long_hyphenated_repo_name",
+			spec:           "owner/long-repository-name-with-many-hyphens-in-it/agentic-workflows/business-deviation-tracker.md",
+			expectWildcard: false,
+			expectError:    false,
+			expectedRepo:   "owner/long-repository-name-with-many-hyphens-in-it",
+			expectedVer:    "",
+			expectedPath:   "agentic-workflows/business-deviation-tracker.md",
+		},
+		{
 			name:           "invalid_spec_too_few_parts",
 			spec:           "owner/*",
 			expectWildcard: false,

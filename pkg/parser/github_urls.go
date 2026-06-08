@@ -352,11 +352,15 @@ func ParseRepoFileURL(fileURL string) (owner, repo, ref, filePath string, err er
 	}
 }
 
-// IsValidGitHubIdentifier checks if a string is a valid GitHub username or repository name
-func IsValidGitHubIdentifier(s string) bool {
-	// GitHub identifiers can contain alphanumeric characters, hyphens, and underscores
-	// They cannot start or end with a hyphen and must be 1-39 characters long
-	if len(s) == 0 || len(s) > 39 {
+const (
+	maxGitHubOwnerIdentifierLength = 39
+	maxGitHubRepositoryNameLength  = 100
+)
+
+func isValidGitHubNameWithMaxLength(s string, maxLength int) bool {
+	// GitHub identifiers can contain alphanumeric characters, hyphens, and underscores.
+	// They cannot start or end with a hyphen.
+	if len(s) == 0 || len(s) > maxLength {
 		return false
 	}
 	if s[0] == '-' || s[len(s)-1] == '-' {
@@ -368,4 +372,14 @@ func IsValidGitHubIdentifier(s string) bool {
 		}
 	}
 	return true
+}
+
+// IsValidGitHubIdentifier checks if a string is a valid GitHub user or organization identifier.
+func IsValidGitHubIdentifier(s string) bool {
+	return isValidGitHubNameWithMaxLength(s, maxGitHubOwnerIdentifierLength)
+}
+
+// IsValidGitHubRepositoryName checks if a string is a valid GitHub repository name.
+func IsValidGitHubRepositoryName(s string) bool {
+	return isValidGitHubNameWithMaxLength(s, maxGitHubRepositoryNameLength)
 }
