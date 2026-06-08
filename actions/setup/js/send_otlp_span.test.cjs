@@ -3809,18 +3809,23 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.otlp.export_errors"]).toBe(2);
   });
 
-  it("omits effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is absent", async () => {
+  it("never emits effective_tokens and emits gh-aw.aic when GH_AW_EFFECTIVE_TOKENS is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_EFFECTIVE_TOKENS = "9800";
+    process.env.GH_AW_AIC = "0.125";
+    process.env.INPUT_JOB_NAME = "agent";
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
     expect(keys).not.toContain("gh-aw.effective_tokens");
+    expect(attrs["gh-aw.aic"]).toBe(0.125);
   });
 
   it("uses GH_AW_INFO_VERSION as scope version when aw_info.json is absent", async () => {
