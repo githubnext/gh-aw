@@ -71,6 +71,6 @@ func showTextConfirm(title, affirmative, negative string, reader io.Reader) (boo
 		confirmLog.Print("User declined (text mode)")
 		return false, nil
 	default:
-		return false, fmt.Errorf("invalid input %q: enter y/yes or n/no", input)
+		return false, fmt.Errorf("invalid input %q: enter y/yes/1 or n/no/2", input)
 	}
 }
