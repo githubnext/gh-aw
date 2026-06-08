@@ -4,6 +4,8 @@ package main
 
 import (
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -16,10 +18,16 @@ func TestVersionIsSetDuringBuild(t *testing.T) {
 		// Build a test binary with a specific version
 		testVersion := "v0.0.0-test"
 
+		binaryName := "gh-aw-test-version"
+		if runtime.GOOS == "windows" {
+			binaryName += ".exe"
+		}
+		binaryPath := filepath.Join(t.TempDir(), binaryName)
+
 		// Build the binary with version set via ldflags
 		cmd := exec.Command("go", "build",
 			"-ldflags", "-X main.version="+testVersion,
-			"-o", "/tmp/gh-aw-test-version",
+			"-o", binaryPath,
 			".")
 		cmd.Dir = "."
 
@@ -29,7 +37,7 @@ func TestVersionIsSetDuringBuild(t *testing.T) {
 		}
 
 		// Run the test binary to check its version
-		versionCmd := exec.Command("/tmp/gh-aw-test-version", "version")
+		versionCmd := exec.Command(binaryPath, "version")
 		versionOutput, err := versionCmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("Failed to run version command: %v", err)
