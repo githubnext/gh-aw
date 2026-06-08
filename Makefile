@@ -233,9 +233,8 @@ test-impacted-js: build-js
 		echo "No changed JavaScript/TypeScript files under actions/setup/js; skipping impacted JS tests."; \
 		exit 0; \
 	fi; \
-	REL_CHANGED_JS_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' ' '); \
 	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
-	cd actions/setup/js && npm run test:js -- --no-file-parallelism --related $$REL_CHANGED_JS_FILES $(JS_IMPACTED_TEST_EXCLUDES)
+	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --related $(JS_IMPACTED_TEST_EXCLUDES)
 
 # Test impacted Go unit tests only (excluding integration tests)
 .PHONY: test-impacted-go
@@ -254,7 +253,7 @@ test-impacted-go:
 	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
 	echo "Running impacted Go unit tests in packages: $$CHANGED_GO_PACKAGES"; \
 	# Use -short to exclude integration tests and keep execution to unit-test scope. \
-	go test -v -parallel=4 -timeout=10m -short $$CHANGED_GO_PACKAGES
+	printf '%s\n' "$$CHANGED_GO_PACKAGES" | tr '\n' '\0' | xargs -0 -r go test -v -parallel=4 -timeout=10m -short
 
 # Test both impacted JavaScript and Go unit tests
 .PHONY: test-impacted
