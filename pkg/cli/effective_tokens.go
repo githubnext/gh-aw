@@ -1,6 +1,5 @@
 package cli
 
-// This file provides command-line interface functionality for gh-aw.
 // This file (effective_tokens.go) implements the Effective Tokens (ET) specification
 // defined in docs/src/content/docs/specs/effective-tokens-specification.md.
 //
@@ -25,40 +24,6 @@ package cli
 //   - Applying token class weights before the model multiplier
 //   - Computing effective tokens from raw per-model token usage data
 //   - Populating effective token counts on TokenUsageSummary after parsing
-
-import (
-	_ "embed"
-
-	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/types"
-)
-
-var effectiveTokensLog = logger.New("cli:effective_tokens")
-
-//go:embed data/model_multipliers.json
-var modelMultipliersJSON []byte
-
-const (
-	defaultMergedModelMultipliersPath = "/tmp/gh-aw/model_multipliers.json"
-	mergedModelMultipliersPathEnvVar  = "GH_AW_MERGED_MODEL_MULTIPLIERS_PATH"
-	modelMultipliersEnvVar            = "GH_AW_MODEL_MULTIPLIERS"
-)
-
-// modelMultipliersData is the top-level structure of model_multipliers.json.
-type modelMultipliersData struct {
-	Version           string                  `json:"version"`
-	Description       string                  `json:"description"`
-	ReferenceModel    string                  `json:"reference_model"`
-	TokenClassWeights types.TokenClassWeights `json:"token_class_weights"`
-	Multipliers       map[string]float64      `json:"multipliers"`
-}
-
-// loadedMultipliers is the parsed multiplier table, keyed by lowercase model name.
-// Initialized once on first call to effectiveTokenMultiplier.
-var loadedMultipliers map[string]float64
-
-// loadedTokenWeights holds the token class weights from the JSON file.
-var loadedTokenWeights types.TokenClassWeights
 
 func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// Cache read accounting is provider-specific:
