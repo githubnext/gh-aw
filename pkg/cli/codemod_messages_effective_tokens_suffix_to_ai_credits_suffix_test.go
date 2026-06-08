@@ -93,7 +93,7 @@ safe-outputs:
 	assert.Equal(t, content, result)
 }
 
-func TestMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod_PreservesCommentsIndentationBodyAndBlockScalars(t *testing.T) {
+func TestMessagesETSuffixCodemod_PreservesFormattingAndBlockScalars(t *testing.T) {
 	codemod := getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod()
 
 	content := `---
