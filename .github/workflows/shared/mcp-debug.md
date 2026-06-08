@@ -21,9 +21,9 @@ safe-outputs:
         pull-requests: write
       steps:
         - name: Checkout repository
-          uses: actions/checkout@v6.0.2
+          uses: actions/checkout@v6.0.3
         - name: Post diagnostic report to pull request
-          uses: actions/github-script@v9
+          uses: actions/github-script@v9.0.0
           with:
             script: |
               const fs = require('fs');

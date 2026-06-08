@@ -4,11 +4,23 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+// platformAbsolutePath returns an absolute path that is recognized as absolute
+// on the current OS. On POSIX, "/absolute/path" is absolute; on Windows we need
+// a drive-qualified path like "C:\absolute\path".
+func platformAbsolutePath() string {
+	if runtime.GOOS == "windows" {
+		return `C:\absolute\path`
+	}
+	return "/absolute/path"
+}
 
 // TestCompileWorkflowsWithCustomWorkflowDir tests the --workflows-dir flag functionality
 func TestCompileWorkflowsWithCustomWorkflowDir(t *testing.T) {
@@ -87,13 +99,14 @@ This is a test workflow in a custom directory.
 	}
 
 	// Test 2: Using absolute path should fail
+	absPath := platformAbsolutePath()
 	config = CompileConfig{
 		MarkdownFiles:        []string{},
 		Verbose:              false,
 		EngineOverride:       "",
 		Validate:             false,
 		Watch:                false,
-		WorkflowDir:          "/absolute/path",
+		WorkflowDir:          absPath,
 		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
@@ -104,7 +117,8 @@ This is a test workflow in a custom directory.
 	if err == nil {
 		t.Error("CompileWorkflows with absolute workflows-dir should fail")
 	}
-	if err != nil && err.Error() != "--dir must be a relative path, got: /absolute/path" {
+	expectedErr := fmt.Sprintf("--dir must be a relative path, got: %s", absPath)
+	if err != nil && err.Error() != expectedErr {
 		t.Errorf("Expected specific error message for absolute path, got: %v", err)
 	}
 
@@ -165,9 +179,9 @@ func TestCompileWorkflowsCustomDirValidation(t *testing.T) {
 		},
 		{
 			name:        "absolute path is invalid",
-			workflowDir: "/absolute/path",
+			workflowDir: platformAbsolutePath(),
 			expectError: true,
-			errorMsg:    "--dir must be a relative path, got: /absolute/path",
+			errorMsg:    fmt.Sprintf("--dir must be a relative path, got: %s", platformAbsolutePath()),
 		},
 		{
 			name:        "path with .. is cleaned but valid",

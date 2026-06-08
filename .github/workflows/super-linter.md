@@ -31,7 +31,7 @@ jobs:
       statuses: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
         with:
           # super-linter needs the full git history to get the
           # list of files that changed across commits

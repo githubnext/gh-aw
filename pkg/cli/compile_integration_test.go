@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +48,11 @@ func TestMain(m *testing.M) {
 		}
 		binaryTempDir = tempDir
 
-		globalBinaryPath = filepath.Join(tempDir, "gh-aw")
+		binaryName := "gh-aw"
+		if runtime.GOOS == "windows" {
+			binaryName = "gh-aw.exe"
+		}
+		globalBinaryPath = filepath.Join(tempDir, binaryName)
 
 		// Build the gh-aw binary
 		buildCmd := exec.Command("make", "build")
@@ -58,7 +63,7 @@ func TestMain(m *testing.M) {
 		}
 
 		// Copy binary to temp directory
-		srcBinary := filepath.Join(projectRoot, "gh-aw")
+		srcBinary := filepath.Join(projectRoot, binaryName)
 		if err := fileutil.CopyFile(srcBinary, globalBinaryPath); err != nil {
 			panic("Failed to copy gh-aw binary to temp directory: " + err.Error())
 		}
@@ -120,8 +125,10 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Copy the pre-built binary to this test's temp directory
-	binaryPath := filepath.Join(tempDir, "gh-aw")
+	// Copy the pre-built binary to this test's temp directory, preserving the
+	// executable extension (e.g. ".exe" on Windows) so the OS can execute it.
+	binaryName := "gh-aw" + filepath.Ext(globalBinaryPath)
+	binaryPath := filepath.Join(tempDir, binaryName)
 	if err := fileutil.CopyFile(globalBinaryPath, binaryPath); err != nil {
 		t.Fatalf("Failed to copy gh-aw binary to temp directory: %v", err)
 	}
@@ -223,6 +230,9 @@ Please check the repository for any open issues and create a summary.
 }
 
 func TestCompileWithIncludeWithEmptyFrontmatterUnderPty(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PTY-based test is not supported on Windows")
+	}
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 

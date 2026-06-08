@@ -175,7 +175,7 @@ func TestSpec_DesignDecision_FormatResolvedValue_DeterministicMapKeyOrder(t *tes
 
 	// Run multiple times to confirm the output is stable and lexically ordered.
 	const want = `{"apple":1,"banana":2,"cherry":3}`
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		s, ok := importinpututil.FormatResolvedValue(value)
 		assert.True(t, ok, "FormatResolvedValue should succeed for deterministic map output")
 		assert.Equal(t, want, s,
