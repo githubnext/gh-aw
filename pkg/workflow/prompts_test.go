@@ -364,9 +364,6 @@ func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelForExperiment(t *test
 		if !expected[variant] {
 			t.Fatalf("Expected codex-compatible variants [gpt-5.4, gpt-5-codex], got %#v", variants)
 		}
-		if variant == "gpt-5-mini" {
-			t.Fatalf("Expected gpt-5-mini to be removed because codex cannot run it, got %#v", variants)
-		}
 	}
 }
 
