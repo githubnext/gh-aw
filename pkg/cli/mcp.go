@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
@@ -30,6 +32,12 @@ Examples:
   gh aw mcp inspect weekly-research           # Inspect MCP servers in workflow
   gh aw mcp add my-workflow tavily            # Add Tavily MCP server to workflow
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Inspect specific tool`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

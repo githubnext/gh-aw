@@ -5,7 +5,7 @@ description: Full trending-analysis patterns, best practices, and reporting guid
 
 ## Option C: Charts with Trending (Full Guide)
 
-**Use when**: You need full trending analysis with cache-memory persistence and comprehensive guidance.
+Use when you need full trending analysis with cache-memory persistence.
 
 ### Frontmatter
 
@@ -288,12 +288,12 @@ ax.annotate(f'Peak: {max_val:.2f}',
 ## Embedding Charts in Reports
 
 1. Save chart to `/tmp/gh-aw/python/charts/`
-2. Upload via the `upload asset` tool → returns a raw GitHub URL
-3. Embed in issue or discussion body: `![Chart description](URL_FROM_UPLOAD_ASSET)`
+2. Upload via `upload asset` tool → raw GitHub URL
+3. Embed: `![Chart description](URL_FROM_UPLOAD_ASSET)`
 
-**Assets are published to an orphaned git branch and become URL-addressable after workflow completion.**
+Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
 
-Example report structure:
+Example report:
 
 ```markdown
 ## 📈 Trending Analysis
@@ -312,24 +312,16 @@ Analysis shows:
 
 ## Session Analysis Chart Pattern
 
-For workflows tracking Copilot coding agent session data:
+For Copilot coding agent session data, generate two charts:
 
-**Two required charts**:
+**Chart 1: Session Completion Trends** — multi-line: successful (green), failed/abandoned (red), completion rate % (secondary y-axis). X: last 30 days. Save as `/tmp/gh-aw/python/charts/session_completion_trends.png`.
 
-**Chart 1: Session Completion Trends**
-- Multi-line chart: successful completions (green), failed/abandoned (red), completion rate % (secondary y-axis)
-- X-axis: Date (last 30 days)
-- Save as: `/tmp/gh-aw/python/charts/session_completion_trends.png`
-
-**Chart 2: Session Duration & Efficiency**
-- Average duration (line), median duration (line), sessions with loops (bar overlay)
-- X-axis: Date (last 30 days), Y-axis: Duration in minutes
-- Save as: `/tmp/gh-aw/python/charts/session_duration_trends.png`
+**Chart 2: Session Duration & Efficiency** — avg duration (line), median (line), sessions with loops (bar overlay). X: last 30 days. Y: minutes. Save as `/tmp/gh-aw/python/charts/session_duration_trends.png`.
 
 **Data files**:
 - `session_completion.csv` — date, successful, failed, completion_rate
 - `session_duration.csv` — date, avg_duration_min, median_duration_min, loop_count
 
-**Error handling**: If fewer than 7 days of data, use bar charts instead of line charts and note the limited range.
+If fewer than 7 days of data, use bar charts instead of line charts and note the limited range.
 
 ---
