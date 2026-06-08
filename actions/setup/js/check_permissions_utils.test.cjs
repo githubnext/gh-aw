@@ -311,7 +311,7 @@ describe("check_permissions_utils", () => {
       });
     });
 
-    it("should use role_name when permission is broader than required role", async () => {
+    it("should use role_name over permission for authorization decisions", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write", role_name: "maintain" },
       });

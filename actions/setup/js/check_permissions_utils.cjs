@@ -239,7 +239,8 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     });
 
     const permission = repoPermission.data.permission;
-    const roleName = typeof repoPermission.data.role_name === "string" ? repoPermission.data.role_name : "";
+    const rawRoleName = repoPermission.data.role_name;
+    const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
     const normalizedRoleName = roleName === "maintainer" ? "maintain" : roleName;
     const normalizedPermission = permission === "maintainer" ? "maintain" : permission;
     const effectiveRole = normalizedRoleName || normalizedPermission;
