@@ -28,15 +28,15 @@ const (
 )
 
 type defaultsFile struct {
-	DefaultMaxAICredits       *string `yaml:"default_max_ai_credits"`
-	DefaultMaxDailyAICredits  *string `yaml:"default_max_daily_ai_credits"`
-	DefaultMaxTurns           *string `yaml:"default_max_turns"`
-	DefaultTimeoutMinutes     *string `yaml:"default_timeout_minutes"`
-	DefaultDetectionModel     *string `yaml:"default_detection_model"`
-	DefaultUTC                *string `yaml:"default_utc"`
-	DefaultModelCopilot       *string `yaml:"default_model_copilot"`
-	DefaultModelClaude        *string `yaml:"default_model_claude"`
-	DefaultModelCodex         *string `yaml:"default_model_codex"`
+	DefaultMaxAICredits      *string `yaml:"default_max_ai_credits"`
+	DefaultMaxDailyAICredits *string `yaml:"default_max_daily_ai_credits"`
+	DefaultMaxTurns          *string `yaml:"default_max_turns"`
+	DefaultTimeoutMinutes    *string `yaml:"default_timeout_minutes"`
+	DefaultDetectionModel    *string `yaml:"default_detection_model"`
+	DefaultUTC               *string `yaml:"default_utc"`
+	DefaultModelCopilot      *string `yaml:"default_model_copilot"`
+	DefaultModelClaude       *string `yaml:"default_model_claude"`
+	DefaultModelCodex        *string `yaml:"default_model_codex"`
 }
 
 type defaultsBinding struct {
