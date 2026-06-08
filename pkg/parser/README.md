@@ -37,7 +37,9 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `DeprecatedField` | struct | A deprecated frontmatter field with migration guidance |
 | `FileReader` | func type | `func(filePath string) ([]byte, error)` — abstraction for file reading |
 | `InlineSubAgent` | struct | A single inline sub-agent definition extracted via the `## agent: \`name\`` syntax |
+| `InlineSkill` | struct | A single inline skill definition extracted via the `## skill: \`name\`` syntax |
 | `BodyLevelImport` | struct | A `{{#runtime-import}}` directive found in the markdown body, with `Path` (workspace-root-relative) and `Optional` flag |
+| `PromptImportEntry` | struct | A single import contribution to prompt assembly; either a runtime-import path or inlined markdown |
 
 ### Functions
 
@@ -170,6 +172,16 @@ Inline sub-agents are secondary agent definitions embedded in the same markdown 
 | `GetEngineSubAgentDir` | `func(engineID string) string` | Returns the relative directory used for sub-agent files for a given engine (`claude` → `.claude/agents`, etc.) |
 | `GetEngineSubAgentExt` | `func(engineID string) string` | Returns the file extension for sub-agent files for a given engine (`.md` for `claude`/`codex`/`gemini`, `.agent.md` otherwise) |
 
+#### Inline Skill Processing
+
+Inline skills are secondary skill definitions embedded in the same markdown file as the primary workflow, delimited by `## skill: \`name\`` level-2 headings. Each skill may carry its own frontmatter block (only `description` is a valid field) plus a content body.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ExtractInlineSkills` | `func(markdown string) (mainMarkdown string, skills []InlineSkill, err error)` | Splits markdown into the main workflow section and any inline skill definitions |
+| `ValidateInlineSkillsFrontmatter` | `func(markdown string) []string` | Validates inline skill frontmatter in a full workflow file (strips top-level frontmatter first); returns advisory warning strings |
+| `ValidateInlineSkillsInBody` | `func(body string) []string` | Validates inline skill frontmatter in an already-stripped markdown body |
+
 #### Virtual Filesystem and Workflow Update Helpers
 
 | Function | Signature | Description |
@@ -181,6 +193,7 @@ Inline sub-agents are secondary agent definitions embedded in the same markdown 
 | `ReadFile` | `func(path string) ([]byte, error)` | Reads file content through parser virtual/builtin-aware file resolution |
 | `MergeTools` | `func(base, additional map[string]any) (map[string]any, error)` | Merges two tool configuration maps with MCP-aware conflict handling |
 | `UpdateWorkflowFrontmatter` | `func(workflowPath string, updateFunc func(frontmatter map[string]any) error, verbose bool) error` | Reads, updates, and rewrites workflow frontmatter with a callback |
+| `ReconstructWorkflowFile` | `func(frontmatterYAML, markdownContent string) (string, error)` | Reconstructs a complete workflow file string from frontmatter YAML and markdown content |
 | `EnsureToolsSection` | `func(frontmatter map[string]any) map[string]any` | Ensures `tools` exists and is a map in frontmatter |
 | `QuoteCronExpressions` | `func(yamlContent string) string` | Ensures schedule cron values in YAML are quoted |
 
@@ -188,6 +201,7 @@ Inline sub-agents are secondary agent definitions embedded in the same markdown 
 
 | Name | Type | Description |
 |------|------|-------------|
+| `BuiltinPathPrefix` | `string` | Path prefix `"@builtin:"` used to identify registered virtual built-in files |
 | `ValidMCPTypes` | `[]string` | Valid MCP transport types: `"stdio"`, `"http"`, `"local"` |
 | `IncludeDirectivePattern` | `*regexp.Regexp` | Matches `@import`, `@include`, and `{{#import ...}}` directives |
 | `LegacyIncludeDirectivePattern` | `*regexp.Regexp` | Matches legacy `@import`/`@include` forms |
