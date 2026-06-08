@@ -2374,6 +2374,42 @@ describe("handle_agent_failure", () => {
       expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }]);
     });
 
+    it("scans only session ids emitted by agent-stdio.log when available", () => {
+      const baseSessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
+      const realSessionDir = path.join(baseSessionDir, "real-session-id");
+      const fixtureSessionDir = path.join(baseSessionDir, "session-max-tool-denials");
+      fs.mkdirSync(realSessionDir, { recursive: true });
+      fs.mkdirSync(fixtureSessionDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(realSessionDir, "events.jsonl"),
+        JSON.stringify({
+          type: "guard.tool_denials_exceeded",
+          timestamp: "2026-06-06T00:00:01Z",
+          data: { denialCount: 5, threshold: 5, reason: "permission denied: read" },
+        }) + "\n"
+      );
+      fs.writeFileSync(
+        path.join(fixtureSessionDir, "events.jsonl"),
+        JSON.stringify({
+          type: "guard.tool_denials_exceeded",
+          timestamp: "2026-06-06T00:00:02Z",
+          data: { denialCount: 2, threshold: 2, reason: "permission denied: shell(rm -rf /tmp/x)" },
+        }) + "\n"
+      );
+
+      const artifactDir = path.join(tmpDir, "artifact");
+      fs.mkdirSync(artifactDir, { recursive: true });
+      const stdioPath = path.join(artifactDir, "agent-stdio.log");
+      fs.writeFileSync(stdioPath, "[copilot-sdk-driver] [sdk-driver] session created: sessionId=real-session-id\n");
+      process.env.GH_AW_AGENT_OUTPUT = path.join(artifactDir, "agent_output.json");
+
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }]);
+
+      delete process.env.GH_AW_AGENT_OUTPUT;
+    });
+
     it("renders dedicated context for tool denial threshold events", () => {
       const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
@@ -2392,7 +2428,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
 
-      const python3Reason = "permission denied: shell(python3 << 'EOF'\nimport re\n\nfiles = [(\"foo.go\", \"/path/foo.go\")]\nfor f, p in files:\n    print(f)\nEOF)";
+      const python3Reason = 'permission denied: shell(python3 << \'EOF\'\nimport re\n\nfiles = [("foo.go", "/path/foo.go")]\nfor f, p in files:\n    print(f)\nEOF)';
       const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: python3Reason }], "daily-compiler-quality");
       expect(result).toContain("shell(python3 ...)");
       // The full multi-line program body should not appear in the output
@@ -2434,8 +2470,8 @@ describe("handle_agent_failure", () => {
       expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python3 ...)");
     });
 
-    it("collapses shell(python3 << \"EOF\" ...) heredoc with double-quoted marker", () => {
-      const cmd = "shell(python3 << \"EOF\"\nimport sys\nsys.exit(0)\nEOF)";
+    it('collapses shell(python3 << "EOF" ...) heredoc with double-quoted marker', () => {
+      const cmd = 'shell(python3 << "EOF"\nimport sys\nsys.exit(0)\nEOF)';
       expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python3 ...)");
     });
 

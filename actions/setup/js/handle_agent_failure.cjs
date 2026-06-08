@@ -26,6 +26,7 @@ const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
+const COPILOT_SDK_SESSION_CREATED_PATTERN = /session created: sessionId=([A-Za-z0-9._-]+)/;
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded
@@ -65,6 +66,15 @@ function buildWarningAlertLine(title, message) {
  */
 function renderPromptTemplate(templateName, context = {}) {
   return renderTemplateFromFile(getPromptPath(templateName), context);
+}
+
+/**
+ * Resolve the runtime path of agent-stdio.log.
+ * @returns {string}
+ */
+function getAgentStdioLogPath() {
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  return agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
 }
 
 /**
@@ -1187,10 +1197,37 @@ function loadToolDenialsExceededEvents() {
     }
 
     const events = [];
-    const sessionDirs = fs.readdirSync(COPILOT_SESSION_STATE_DIR, { withFileTypes: true });
-    for (const entry of sessionDirs) {
-      if (!entry.isDirectory()) continue;
-      const eventsPath = path.join(COPILOT_SESSION_STATE_DIR, entry.name, "events.jsonl");
+    const stdioLogPath = getAgentStdioLogPath();
+    /** @type {string[]} */
+    let candidateSessionIds = [];
+
+    try {
+      if (fs.existsSync(stdioLogPath)) {
+        const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
+        const sessionIdPattern = new RegExp(COPILOT_SDK_SESSION_CREATED_PATTERN.source, "g");
+        const matched = new Set();
+        let m;
+        while ((m = sessionIdPattern.exec(stdioContent)) !== null) {
+          if (m[1]) {
+            matched.add(m[1]);
+          }
+        }
+        candidateSessionIds = [...matched];
+      }
+    } catch {
+      // Ignore stdio parsing issues and fall back to scanning all session directories.
+    }
+
+    const sessionIdsToScan =
+      candidateSessionIds.length > 0
+        ? candidateSessionIds
+        : fs
+            .readdirSync(COPILOT_SESSION_STATE_DIR, { withFileTypes: true })
+            .filter(entry => entry.isDirectory())
+            .map(entry => entry.name);
+
+    for (const sessionId of sessionIdsToScan) {
+      const eventsPath = path.join(COPILOT_SESSION_STATE_DIR, sessionId, "events.jsonl");
       if (!fs.existsSync(eventsPath)) continue;
       const content = fs.readFileSync(eventsPath, "utf8");
       const lines = content.split("\n");
@@ -1799,8 +1836,7 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
  * @returns {boolean} true if terminal_reason: "completed" was found in the log
  */
 function hasAgentTerminalReasonCompleted() {
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+  const stdioLogPath = getAgentStdioLogPath();
   try {
     if (!fs.existsSync(stdioLogPath)) {
       return false;
@@ -1828,8 +1864,7 @@ function hasAgentTerminalReasonCompleted() {
  */
 function buildEngineFailureContext() {
   // Derive agent-stdio.log path from the agent output file path (same directory)
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+  const stdioLogPath = getAgentStdioLogPath();
 
   // Include engine ID in failure messages when available (e.g. "copilot", "claude", "codex")
   const engineId = process.env.GH_AW_ENGINE_ID || "";
