@@ -324,6 +324,60 @@ func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T
 	}
 }
 
+func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-cache-strategy-analyzer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	parsed, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		t.Fatalf("Failed to parse workflow frontmatter: %v", err)
+	}
+
+	experiments, ok := parsed.Frontmatter["experiments"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-cache-strategy-analyzer workflow to define experiments")
+	}
+	modelSize, ok := experiments["model_size"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected daily-cache-strategy-analyzer workflow to define experiments.model_size")
+	}
+	variants, ok := modelSize["variants"].([]any)
+	if !ok {
+		t.Fatal("Expected daily-cache-strategy-analyzer workflow to define experiments.model_size.variants")
+	}
+	if len(variants) != 2 {
+		t.Fatalf("Expected exactly 2 codex-compatible variants, got %#v", variants)
+	}
+	want := map[string]bool{
+		"gpt-5.4":     true,
+		"gpt-5-codex": true,
+	}
+	got := make(map[string]bool, len(variants))
+	for _, v := range variants {
+		s, ok := v.(string)
+		if !ok {
+			t.Fatalf("Expected all variants to be strings, got %T in %#v", v, variants)
+		}
+		if !want[s] {
+			t.Fatalf("Unexpected variant %q; want exactly [gpt-5.4, gpt-5-codex], got %#v", s, variants)
+		}
+		got[s] = true
+	}
+	for k := range want {
+		if !got[k] {
+			t.Fatalf("Missing expected variant %q; got %#v", k, variants)
+		}
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
