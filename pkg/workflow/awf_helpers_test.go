@@ -565,6 +565,31 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "8080", "Should not include default port when custom port is set")
 	})
 
+	t.Run("includes DIFC proxy port when GitHub mode is gh-proxy", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{
+						"mode": "gh-proxy",
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
+		assert.Contains(t, argsStr, "80,443,8080,18443", "Should allow DIFC proxy port 18443 for gh-proxy mode")
+	})
+
 	t.Run("handles nil SandboxConfig gracefully", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",

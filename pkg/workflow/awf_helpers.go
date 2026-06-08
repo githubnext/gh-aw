@@ -512,6 +512,11 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
 		}
 		hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+		if isGitHubCLIModeEnabled(config.WorkflowData) &&
+			awfSupportsCliProxy(firewallConfig) &&
+			mcpGatewayPort != 18443 {
+			hostPorts += ",18443"
+		}
 		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
 		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
 	} else {
