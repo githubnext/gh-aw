@@ -165,8 +165,8 @@ func migrateMessagesEffectiveTokensSuffixToAICreditsSuffix(lines []string) ([]st
 
 func isBlockScalarIndicator(valueSegment string) bool {
 	valueWithoutComment := valueSegment
-	if idx := strings.Index(valueSegment, "#"); idx >= 0 {
-		valueWithoutComment = valueSegment[:idx]
+	if before, _, found := strings.Cut(valueSegment, "#"); found {
+		valueWithoutComment = before
 	}
 	trimmed := strings.TrimSpace(valueWithoutComment)
 	switch trimmed {

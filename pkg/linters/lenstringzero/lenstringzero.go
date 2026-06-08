@@ -98,7 +98,11 @@ func isLenCall(expr ast.Expr) bool {
 }
 
 func lenCallArg(expr ast.Expr) ast.Expr {
-	return expr.(*ast.CallExpr).Args[0]
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	return call.Args[0]
 }
 
 func isIntZero(expr ast.Expr) bool {
