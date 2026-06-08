@@ -13,6 +13,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog } = require("./ai_credits_context.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
+const { formatAIC } = require("./model_costs.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
@@ -1451,11 +1452,26 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return "";
   }
 
-  const formattedAICredits = formatAICCredits(aiCredits);
-  const formattedMaxAICredits = formatAICCredits(maxAICredits);
-  const usageLine = formattedAICredits ? `\n- AI credits used: \`${formattedAICredits}\`` : "";
-  const budgetLine = formattedMaxAICredits ? `\n- Configured AI credits budget: \`${formattedMaxAICredits}\`` : "";
-  const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
+  const numericAICredits = Number(aiCredits);
+  const numericMaxAICredits = Number(maxAICredits);
+  const formattedAICredits = Number.isFinite(numericAICredits) && numericAICredits > 0 ? formatAIC(numericAICredits) : "";
+  const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
+  const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) ? numericAICredits - numericMaxAICredits : NaN;
+  const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
+  const metricsRows = [];
+  if (formattedAICredits) {
+    metricsRows.push(`| AI credits used | \`${formattedAICredits}\` |`);
+  }
+  if (formattedMaxAICredits) {
+    metricsRows.push(`| Guardrail limit (\`max-ai-credits\`) | \`${formattedMaxAICredits}\` |`);
+  }
+  if (formattedOverage) {
+    metricsRows.push(`| Over the limit by | \`${formattedOverage}\` |`);
+  }
+  if (runUrl) {
+    metricsRows.push(`| Run | [View workflow run](${runUrl}) |`);
+  }
+  const metricsTable = metricsRows.length > 0 ? `\n\n| Metric | Value |\n| --- | --- |\n${metricsRows.join("\n")}` : "";
 
   const templateName = "ai_credits_rate_limit_error.md";
   let templatePath = "";
@@ -1469,13 +1485,11 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        usage_line: usageLine,
-        budget_line: budgetLine,
-        run_line: runLine,
+        metrics_table: metricsTable,
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: usage_line, budget_line, run_line`);
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_table`);
   }
 }
 
