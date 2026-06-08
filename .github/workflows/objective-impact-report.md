@@ -1,6 +1,6 @@
 ---
 emoji: 📊
-description: Objective impact report from closed prioritized issues.
+description: Impact efficiency report from workflow outcomes and linked objectives.
 on:
   workflow_dispatch:
 permissions:
@@ -10,7 +10,7 @@ safe-outputs:
     max: 1
 ---
 
-# Objective Impact Report
+# Impact Efficiency Report
 
 ## Goal
 
