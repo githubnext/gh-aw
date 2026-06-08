@@ -75,9 +75,14 @@ func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr 
 
 func init() {
 	stderrInfo, statErr := os.Stderr.Stat()
-	if stderrInfo == nil && statErr == nil {
+	// Defensive fallback: Stat should not normally return (nil, nil). Treat that
+	// impossible state as an invalid stderr handle so Windows startup probing is
+	// safely skipped.
+	if statErr == nil && stderrInfo == nil {
 		statErr = os.ErrInvalid
 	}
+	// Zero mode means "unknown/unset"; on Windows this keeps the startup probe
+	// disabled unless stderr is explicitly confirmed as a character device.
 	stderrMode := os.FileMode(0)
 	if stderrInfo != nil {
 		stderrMode = stderrInfo.Mode()
