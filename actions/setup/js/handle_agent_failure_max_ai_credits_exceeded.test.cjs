@@ -1,0 +1,58 @@
+// @ts-check
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import path from "path";
+import { fileURLToPath } from "url";
+
+let buildMaxAICreditsExceededContext;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+describe("handle_agent_failure Max AI Credits exceeded context", () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    process.env.GH_AW_PROMPTS_DIR = path.join(__dirname, "../md");
+    const mod = await import("./handle_agent_failure.cjs");
+    const exports = mod.default || mod;
+    buildMaxAICreditsExceededContext = exports.buildMaxAICreditsExceededContext;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.GH_AW_PROMPTS_DIR;
+  });
+
+  it("shows budget exhaustion message with usage, limit, and overage details", () => {
+    const rendered = buildMaxAICreditsExceededContext(true, "105000", "100000", "https://github.com/octo/repo/actions/runs/456");
+
+    expect(rendered).toContain("AI Credits Budget Exhausted");
+    expect(rendered).toContain("per-run AI credits budget (`max-ai-credits`) was exhausted");
+    expect(rendered).toContain("| AI credits used |");
+    expect(rendered).toContain("| Configured limit (`max-ai-credits`) |");
+    expect(rendered).toContain("| Over the limit by |");
+    expect(rendered).toContain("| Run | [View workflow run](https://github.com/octo/repo/actions/runs/456) |");
+    expect(rendered).toContain("<details>");
+    expect(rendered).toContain("<summary>Tips for reducing AI credit usage</summary>");
+    expect(rendered).toContain("https://github.github.com/gh-aw/reference/cost-management/");
+  });
+
+  it("shows message without metrics rows when no credit data is available", () => {
+    const rendered = buildMaxAICreditsExceededContext(true, "", "", "");
+
+    expect(rendered).toContain("AI Credits Budget Exhausted");
+    expect(rendered).not.toContain("| AI credits used |");
+    expect(rendered).not.toContain("| Configured limit");
+    expect(rendered).not.toContain("| Run |");
+  });
+
+  it("does not show overage row when usage does not exceed limit", () => {
+    const rendered = buildMaxAICreditsExceededContext(true, "50000", "100000", "");
+
+    expect(rendered).toContain("AI Credits Budget Exhausted");
+    expect(rendered).toContain("| AI credits used |");
+    expect(rendered).toContain("| Configured limit (`max-ai-credits`) |");
+    expect(rendered).not.toContain("| Over the limit by |");
+  });
+
+  it("returns empty string when max_ai_credits_exceeded is false", () => {
+    expect(buildMaxAICreditsExceededContext(false, "105000", "100000", "https://github.com/octo/repo/actions/runs/456")).toBe("");
+  });
+});

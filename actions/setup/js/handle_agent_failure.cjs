@@ -11,7 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog } = require("./ai_credits_context.cjs");
+const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
@@ -192,6 +192,7 @@ function buildFailureMatchCategories(options) {
   if (options.mcpPolicyError) categories.push("mcp_policy_error");
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
   if (options.aiCreditsRateLimitError) categories.push("ai_credits_rate_limit_error");
+  if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
@@ -1511,6 +1512,61 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
 }
 
 /**
+ * Build a context string when the aw-harness hard-aborted the session due to `max-ai-credits` budget exhaustion.
+ * Reads the firewall audit log for a `budget_exceeded` entry written by the harness (§11.2.2).
+ * @param {boolean} hasMaxAICreditsExceeded
+ * @param {string} aiCredits
+ * @param {string} maxAICredits
+ * @param {string} runUrl
+ * @returns {string}
+ */
+function buildMaxAICreditsExceededContext(hasMaxAICreditsExceeded, aiCredits, maxAICredits, runUrl) {
+  if (!hasMaxAICreditsExceeded) {
+    return "";
+  }
+
+  const numericAICredits = Number(aiCredits);
+  const numericMaxAICredits = Number(maxAICredits);
+  const formattedAICredits = Number.isFinite(numericAICredits) && numericAICredits > 0 ? formatAIC(numericAICredits) : "";
+  const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
+  const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) && numericAICredits > numericMaxAICredits ? numericAICredits - numericMaxAICredits : NaN;
+  const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
+  const metricsRows = [];
+  if (formattedAICredits) {
+    metricsRows.push(`| AI credits used | \`${formattedAICredits}\` |`);
+  }
+  if (formattedMaxAICredits) {
+    metricsRows.push(`| Configured limit (\`max-ai-credits\`) | \`${formattedMaxAICredits}\` |`);
+  }
+  if (formattedOverage) {
+    metricsRows.push(`| Over the limit by | \`${formattedOverage}\` |`);
+  }
+  if (runUrl) {
+    metricsRows.push(`| Run | [View workflow run](${runUrl}) |`);
+  }
+  const metricsTable = metricsRows.length > 0 ? `\n\n| Metric | Value |\n| --- | --- |\n${metricsRows.join("\n")}` : "";
+
+  const templateName = "max_ai_credits_exceeded.md";
+  let templatePath = "";
+  try {
+    templatePath = getPromptPath(templateName);
+  } catch (error) {
+    throw new Error(`failed to resolve template path for ${templateName} (${getErrorMessage(error)}); ensure RUNNER_TEMP or GH_AW_PROMPTS_DIR is set and the template file exists`);
+  }
+
+  try {
+    return (
+      "\n" +
+      renderTemplateFromFile(templatePath, {
+        metrics_table: metricsTable,
+      })
+    );
+  } catch (error) {
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_table`);
+  }
+}
+
+/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -2263,7 +2319,7 @@ async function main() {
     const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
-    const { aiCredits, maxAICredits, aiCreditsRateLimitError } = resolveAICreditsFailureState();
+    const { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded } = resolveAICreditsFailureState();
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
@@ -2328,6 +2384,7 @@ async function main() {
     core.info(`AI credits: ${aiCredits || "(none)"}`);
     core.info(`Configured max AI credits: ${maxAICredits || "(none)"}`);
     core.info(`AI credits rate-limit error: ${aiCreditsRateLimitError}`);
+    core.info(`Max AI credits exceeded (harness budget abort): ${maxAICreditsExceeded}`);
     core.info(`Daily workflow AIC guardrail exceeded: ${hasDailyAICExceeded}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
@@ -2498,12 +2555,13 @@ async function main() {
       !hasReportIncomplete &&
       !hasCacheMissMisconfiguration &&
       !aiCreditsRateLimitError &&
+      !maxAICreditsExceeded &&
       !hasMissingTool &&
       !hasMissingData &&
       !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-aic/ai-credits/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
@@ -2606,6 +2664,7 @@ async function main() {
       mcpPolicyError,
       modelNotSupportedError,
       aiCreditsRateLimitError,
+      maxAICreditsExceeded,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
       hasStaleLockFileFailed,
@@ -2727,6 +2786,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
+        const maxAICreditsExceededContext = buildMaxAICreditsExceededContext(maxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -2777,6 +2837,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
+          max_ai_credits_exceeded_context: maxAICreditsExceededContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -2951,6 +3012,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError, aiCredits, maxAICredits, runUrl);
+        const maxAICreditsExceededContext = buildMaxAICreditsExceededContext(maxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -3002,6 +3064,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
+          max_ai_credits_exceeded_context: maxAICreditsExceededContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -3096,6 +3159,7 @@ module.exports = {
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
+  buildMaxAICreditsExceededContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
   buildEngineRateLimit429Context,
