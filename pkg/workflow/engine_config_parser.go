@@ -8,23 +8,6 @@ import (
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
-// parseMaxEffectiveTokensValue parses max-effective-tokens from either integer
-// or numeric-string frontmatter values.
-//
-// A return value of 0 is a sentinel that means "not configured" (missing or
-// invalid); explicit zero is not a valid user value. Negative values are
-// passed through as-is and signal that budget enforcement and token steering
-// should be disabled.
-func parseMaxEffectiveTokensValue(raw any) int64 {
-	if parsed, ok := parseMaxEffectiveTokenLimitValue(raw); ok {
-		return parsed
-	}
-	if raw != nil {
-		engineLog.Printf("Ignoring invalid max-effective-tokens value of type %T: %v", raw, raw)
-	}
-	return 0
-}
-
 // parseMaxAICreditsValue parses max-ai-credits from either integer
 // or numeric-string frontmatter values.
 //

@@ -637,7 +637,6 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			Config:             detectionEngineConfig.Config,
 			Args:               detectionEngineConfig.Args,
 			APITarget:          detectionEngineConfig.APITarget,
-			MaxEffectiveTokens: detectionEngineConfig.MaxEffectiveTokens,
 			HarnessScript:      detectionEngineConfig.HarnessScript,
 			CopilotSDKDriver:   detectionEngineConfig.CopilotSDKDriver,
 		}
