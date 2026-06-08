@@ -11,6 +11,11 @@ DOCKER_IMAGE=ghcr.io/github/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
 BASE_REF ?= origin/main
 JS_IMPACTED_TEST_EXCLUDES=--exclude '**/*.integration.test.cjs' --exclude '**/frontmatter_hash_github_api.test.cjs'
+CI_WORKFLOW_FILE ?= ci.yml
+CI_COVERAGE_ARTIFACT_PATTERN ?= ci-integration-coverage-*
+CI_COVERAGE_DIR ?= /tmp/gh-aw-ci-coverage
+CI_COVERAGE_ENABLED ?= 1
+CI_RUN_ID ?=
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -250,8 +255,44 @@ test-impacted-go:
 		echo "No changed Go files; skipping impacted Go tests."; \
 		exit 0; \
 	fi; \
-	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
-	echo "Running impacted Go unit tests in packages: $$CHANGED_GO_PACKAGES"; \
+	COVERAGE_GO_PACKAGES=""; \
+	if [ "$(CI_COVERAGE_ENABLED)" = "1" ] && command -v gh >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then \
+		BASE_BRANCH=$$(printf '%s\n' "$(BASE_REF)" | sed 's|^origin/||'); \
+		RUN_ID="$(CI_RUN_ID)"; \
+		if [ -z "$$RUN_ID" ]; then \
+			RUN_ID=$$(gh run list --workflow "$(CI_WORKFLOW_FILE)" --branch "$$BASE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
+		fi; \
+		if [ -n "$$RUN_ID" ]; then \
+			rm -rf "$(CI_COVERAGE_DIR)"; \
+			mkdir -p "$(CI_COVERAGE_DIR)"; \
+			if gh run download "$$RUN_ID" --pattern "$(CI_COVERAGE_ARTIFACT_PATTERN)" --dir "$(CI_COVERAGE_DIR)" >/dev/null 2>&1; then \
+				COVERAGE_FILES=$$(find "$(CI_COVERAGE_DIR)" -type f -name 'coverage-integration-*.out' 2>/dev/null || true); \
+				if [ -n "$$COVERAGE_FILES" ]; then \
+					for coverage_file in $$COVERAGE_FILES; do \
+						if awk -F: 'NR>1 {print $$1}' "$$coverage_file" | sed 's|^github.com/github/gh-aw/||' | while IFS= read -r covered_file; do \
+							printf '%s\n' "$$CHANGED_GO_FILES" | grep -Fx "$$covered_file" >/dev/null 2>&1 && { echo "match"; break; }; \
+						done | grep -q "match"; then \
+							SAFE_NAME=$$(basename "$$coverage_file" .out | sed 's|^coverage-integration-||'); \
+							RESULT_FILE=$$(find "$(CI_COVERAGE_DIR)" -type f -name "test-result-integration-$$SAFE_NAME.json" | head -n 1); \
+							if [ -n "$$RESULT_FILE" ]; then \
+								PACKAGES=$$(jq -r 'select(.Package != null) | .Package' "$$RESULT_FILE" | sort -u | sed 's|^github.com/github/gh-aw|.|'); \
+								if [ -n "$$PACKAGES" ]; then \
+									COVERAGE_GO_PACKAGES=$$(printf '%s\n%s\n' "$$COVERAGE_GO_PACKAGES" "$$PACKAGES" | sed '/^$$/d' | sort -u); \
+								fi; \
+							fi; \
+						fi; \
+					done; \
+				fi; \
+			fi; \
+		fi; \
+	fi; \
+	if [ -n "$$COVERAGE_GO_PACKAGES" ]; then \
+		CHANGED_GO_PACKAGES="$$COVERAGE_GO_PACKAGES"; \
+		echo "Running impacted Go unit tests from CI coverage correlation: $$CHANGED_GO_PACKAGES"; \
+	else \
+		CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
+		echo "Running impacted Go unit tests in changed-file packages: $$CHANGED_GO_PACKAGES"; \
+	fi; \
 	# Use -short to exclude integration tests and keep execution to unit-test scope. \
 	printf '%s\n' "$$CHANGED_GO_PACKAGES" | tr '\n' '\0' | xargs -0 -r go test -v -parallel=4 -timeout=10m -short
 
