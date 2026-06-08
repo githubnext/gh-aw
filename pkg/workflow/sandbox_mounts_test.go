@@ -318,6 +318,48 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 		}
 	})
 
+	t.Run("mounts with shell vars are emitted with double quotes for runtime expansion", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID: "awf",
+					Mounts: []string{
+						"${TERRAFORM_CLI_PATH}/terraform:${TERRAFORM_CLI_PATH}/terraform:ro",
+					},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+		mountSpec := "${TERRAFORM_CLI_PATH}/terraform:${TERRAFORM_CLI_PATH}/terraform:ro"
+
+		if !strings.Contains(stepContent, `--mount "`+mountSpec+`"`) {
+			t.Errorf("Expected mount with shell vars to be double-quoted for expansion, got: %s", stepContent)
+		}
+		if strings.Contains(stepContent, `--mount '`+mountSpec+`'`) {
+			t.Errorf("Did not expect mount with shell vars to be single-quoted: %s", stepContent)
+		}
+		if strings.Count(stepContent, mountSpec) != 1 {
+			t.Errorf("Expected mount with shell vars to be emitted exactly once, got count=%d", strings.Count(stepContent, mountSpec))
+		}
+	})
+
 	t.Run("custom mounts are sorted alphabetically", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",

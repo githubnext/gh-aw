@@ -228,6 +228,22 @@ fi`,
 		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
 	)
 
+	// Add custom mounts containing shell variable references as raw expandable args.
+	// These mounts cannot be passed through shellJoinArgs because it single-quotes
+	// special characters, which suppresses ${VAR} expansion at runtime.
+	// BuildAWFArgs already emits literal custom mounts that do not need expansion.
+	agentConfig := getAgentConfig(config.WorkflowData)
+	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+		sortedMounts := make([]string, len(agentConfig.Mounts))
+		copy(sortedMounts, agentConfig.Mounts)
+		sort.Strings(sortedMounts)
+		for _, mount := range sortedMounts {
+			if strings.Contains(mount, "${") {
+				expandableArgs += fmt.Sprintf(` --mount "%s"`, strings.ReplaceAll(mount, `"`, `\"`))
+			}
+		}
+	}
+
 	// Generate a JSON config file and reference it via --config "${RUNNER_TEMP}/gh-aw/awf-config.json".
 	// This replaces several verbose CLI flags (--allow-domains, --enable-api-proxy, --image-tag,
 	// API targets) with a structured JSON file that is easier to audit and extend.
@@ -479,6 +495,11 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		sort.Strings(sortedMounts)
 
 		for _, mount := range sortedMounts {
+			// Mounts with ${VAR} must be emitted raw in BuildAWFCommand so shell
+			// variable expansion is not suppressed by single-quoting.
+			if strings.Contains(mount, "${") {
+				continue
+			}
 			awfArgs = append(awfArgs, "--mount", mount)
 		}
 		awfHelpersLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
