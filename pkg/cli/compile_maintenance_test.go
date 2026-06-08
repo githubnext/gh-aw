@@ -141,6 +141,7 @@ engine: copilot
 safe-outputs:
   create-issue:
     max: 1
+  noop: false
 ---
 
 Test workflow that creates issues without expiration.
