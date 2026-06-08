@@ -351,7 +351,8 @@ When implementing community work with an agent:
 - Move it to **Ready for review** and approve workflows to run reviewer jobs.
 - Run the `pr-finisher` skill to drive review, checks, and mergeability to green.
 - For features that deeply impact the engine, add the `smoke` label and approve workflows.
-- If additional changes require another smoke run (or the first smoke run did not start), toggle the `smoke` label (remove and re-add) and approve workflows again.
+- If additional changes require another smoke run, toggle the `smoke` label (remove and re-add) and approve workflows again.
+- If the first smoke run does not start after setting `smoke`, toggle the `smoke` label and approve workflows again.
 
 **Remember: As a community contributor, you don't create the PR yourself.** You create an issue with a detailed plan, discuss it with the team, and a core team member creates the PR using agents.
 
