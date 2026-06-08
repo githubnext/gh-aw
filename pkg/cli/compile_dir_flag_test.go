@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,9 +102,9 @@ func TestCompileDirFlagValidation(t *testing.T) {
 		},
 		{
 			name:        "absolute path is invalid",
-			workflowDir: "/absolute/path",
+			workflowDir: platformAbsolutePath(),
 			expectError: true,
-			errorMsg:    "--dir must be a relative path, got: /absolute/path",
+			errorMsg:    fmt.Sprintf("--dir must be a relative path, got: %s", platformAbsolutePath()),
 		},
 		{
 			name:        "empty string defaults to .github/workflows",
