@@ -821,63 +821,6 @@ func extractCustomTokenWeightsFromDir(runDir string) *types.TokenWeights {
 	return awInfo.TokenWeights
 }
 
-// readTokenUsageEntries parses a token-usage.jsonl file and returns the raw
-// ordered list of entries, sorted by timestamp where available.
-func readTokenUsageEntries(filePath string) ([]TokenUsageEntry, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open token usage file: %w", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-
-	type orderedEntry struct {
-		entry        TokenUsageEntry
-		timestamp    time.Time
-		hasTimestamp bool
-		order        int
-	}
-
-	var ordered []orderedEntry
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var entry TokenUsageEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
-			continue
-		}
-		ts, hasTs := parseTokenUsageTimestamp(entry.Timestamp)
-		ordered = append(ordered, orderedEntry{entry: entry, timestamp: ts, hasTimestamp: hasTs, order: lineNum})
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading token usage file: %w", err)
-	}
-
-	sort.SliceStable(ordered, func(i, j int) bool {
-		l, r := ordered[i], ordered[j]
-		if l.hasTimestamp && r.hasTimestamp {
-			return l.timestamp.Before(r.timestamp)
-		}
-		if l.hasTimestamp != r.hasTimestamp {
-			return l.hasTimestamp
-		}
-		return l.order < r.order
-	})
-
-	entries := make([]TokenUsageEntry, len(ordered))
-	for i, o := range ordered {
-		entries[i] = o.entry
-	}
-	return entries, nil
-}
-
 func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
 	_ = tokenUsageFile
 	return toolCalls
