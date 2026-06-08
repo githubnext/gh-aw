@@ -256,7 +256,11 @@ test-impacted-go:
 		exit 0; \
 	fi; \
 	COVERAGE_GO_PACKAGES=""; \
-	if [ "$(CI_COVERAGE_ENABLED)" = "1" ] && command -v gh >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then \
+	if [ "$(CI_COVERAGE_ENABLED)" != "1" ]; then \
+		echo "CI coverage correlation disabled (CI_COVERAGE_ENABLED=$(CI_COVERAGE_ENABLED)); using changed-file package selection."; \
+	elif ! command -v gh >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then \
+		echo "CI coverage correlation requires gh and jq; using changed-file package selection."; \
+	else \
 		BASE_BRANCH=$$(printf '%s\n' "$(BASE_REF)" | sed 's|^origin/||'); \
 		RUN_ID="$(CI_RUN_ID)"; \
 		if [ -z "$$RUN_ID" ]; then \
@@ -268,10 +272,11 @@ test-impacted-go:
 			if gh run download "$$RUN_ID" --pattern "$(CI_COVERAGE_ARTIFACT_PATTERN)" --dir "$(CI_COVERAGE_DIR)" >/dev/null 2>&1; then \
 				COVERAGE_FILES=$$(find "$(CI_COVERAGE_DIR)" -type f -name 'coverage-integration-*.out' 2>/dev/null || true); \
 				if [ -n "$$COVERAGE_FILES" ]; then \
+					CHANGED_FILE_LIST="$(CI_COVERAGE_DIR)/changed-go-files.txt"; \
+					printf '%s\n' "$$CHANGED_GO_FILES" > "$$CHANGED_FILE_LIST"; \
 					for coverage_file in $$COVERAGE_FILES; do \
-						if awk -F: 'NR>1 {print $$1}' "$$coverage_file" | sed 's|^github.com/github/gh-aw/||' | while IFS= read -r covered_file; do \
-							printf '%s\n' "$$CHANGED_GO_FILES" | grep -Fx "$$covered_file" >/dev/null 2>&1 && { echo "match"; break; }; \
-						done | grep -q "match"; then \
+						MATCHED_CHANGED_FILE=$$(awk -F: 'NR>1 {print $$1}' "$$coverage_file" | sed 's|^github.com/github/gh-aw/||' | grep -Fx -f "$$CHANGED_FILE_LIST" | head -n 1 || true); \
+						if [ -n "$$MATCHED_CHANGED_FILE" ]; then \
 							SAFE_NAME=$$(basename "$$coverage_file" .out | sed 's|^coverage-integration-||'); \
 							RESULT_FILE=$$(find "$(CI_COVERAGE_DIR)" -type f -name "test-result-integration-$$SAFE_NAME.json" | head -n 1); \
 							if [ -n "$$RESULT_FILE" ]; then \
@@ -282,8 +287,14 @@ test-impacted-go:
 							fi; \
 						fi; \
 					done; \
+				else \
+					echo "No CI coverage profiles found in downloaded artifacts; using changed-file package selection."; \
 				fi; \
+			else \
+				echo "Unable to download CI coverage artifacts for run $$RUN_ID; using changed-file package selection."; \
 			fi; \
+		else \
+			echo "No successful CI run found for branch $$BASE_BRANCH; using changed-file package selection."; \
 		fi; \
 	fi; \
 	if [ -n "$$COVERAGE_GO_PACKAGES" ]; then \
