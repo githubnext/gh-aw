@@ -1128,9 +1128,8 @@ Uses imported MCP timeout setting.
 	}
 }
 
-// TestImportMaxLimitsFromSharedWorkflow verifies that top-level max-runs and
-// max-effective-tokens can be imported from a shared workflow and resolved from
-// import-schema defaults.
+// TestImportMaxLimitsFromSharedWorkflow verifies that top-level max-runs can be
+// imported from a shared workflow and resolved from import-schema defaults.
 func TestImportMaxLimitsFromSharedWorkflow(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -1140,12 +1139,8 @@ import-schema:
   max-runs:
     type: integer
     default: 37
-  max-effective-tokens:
-    type: integer
-    default: 424242
 
 max-runs: ${{ github.aw.import-inputs.max-runs }}
-max-effective-tokens: ${{ github.aw.import-inputs.max-effective-tokens }}
 ---
 
 # Shared max limits
@@ -1184,9 +1179,6 @@ permissions:
 	lockContent := string(lockFileContent)
 	if !strings.Contains(lockContent, `"maxRuns":37`) {
 		t.Errorf("Expected lock file to contain apiProxy.maxRuns from imported workflow, got:\n%s", lockContent)
-	}
-	if !strings.Contains(lockContent, `"maxEffectiveTokens":424242`) {
-		t.Errorf("Expected lock file to contain apiProxy.maxEffectiveTokens from imported workflow, got:\n%s", lockContent)
 	}
 }
 

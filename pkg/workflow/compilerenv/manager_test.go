@@ -6,33 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
-	t.Run("unset uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxEffectiveTokens, "")
-		assert.Equal(t, int64(10), ResolveDefaultMaxEffectiveTokens(10))
-	})
-
-	t.Run("invalid uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxEffectiveTokens, "abc")
-		assert.Equal(t, int64(10), ResolveDefaultMaxEffectiveTokens(10))
-	})
-
-	t.Run("valid value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxEffectiveTokens, "424242")
-		assert.Equal(t, int64(424242), ResolveDefaultMaxEffectiveTokens(10))
-	})
-
-	t.Run("suffix value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxEffectiveTokens, "100M")
-		assert.Equal(t, int64(100000000), ResolveDefaultMaxEffectiveTokens(10))
-	})
-
-	t.Run("negative value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxEffectiveTokens, "-1")
-		assert.Equal(t, int64(-1), ResolveDefaultMaxEffectiveTokens(10))
-	})
-}
-
 func TestResolveDefaultMaxDailyAICredits(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultMaxDailyAICredits, "")

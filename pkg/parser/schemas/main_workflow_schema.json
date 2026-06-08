@@ -3712,22 +3712,10 @@
       "default": 5,
       "examples": [5, "${{ inputs.max-tool-denials }}"]
     },
-    "max-effective-tokens": {
-      "$ref": "#/$defs/max_effective_tokens_limit",
-      "description": "Explicit ET budget control for firewall cost enforcement. Omit to leave the budget unset. Supports GitHub Actions expressions.",
-      "deprecated": true,
-      "x-deprecation-message": "'max-effective-tokens' is obsolete. Use 'max-ai-credits' instead. Run 'gh aw fix' to automatically migrate numeric values."
-    },
     "max-ai-credits": {
       "$ref": "#/$defs/max_ai_credits_limit",
       "default": 1000,
       "description": "Per-run AI Credits budget control for firewall cost enforcement. Enabled by default at 1000 (1k) when omitted. Set to -1 to disable both budget enforcement and token steering. Supports GitHub Actions expressions."
-    },
-    "max-daily-effective-tokens": {
-      "$ref": "#/$defs/max_daily_ai_credits_limit",
-      "description": "Legacy alias for daily ET guardrails.",
-      "deprecated": true,
-      "x-deprecation-message": "'max-daily-effective-tokens' is obsolete. Use 'max-daily-ai-credits' instead. Run 'gh aw fix' to automatically migrate numeric values."
     },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",

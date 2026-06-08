@@ -491,48 +491,19 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensZeroInvalid(t *testing.T) {
-	t.Parallel()
-
-	invalidFrontmatter := map[string]any{
-		"on":                   "push",
-		"max-effective-tokens": 0,
-	}
-
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-effective-tokens-zero-integer-test.md")
-	if err == nil {
-		t.Fatal("expected max-effective-tokens=0 to fail schema validation")
-	}
-}
-
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensStringZeroInvalid(t *testing.T) {
-	t.Parallel()
-
-	invalidFrontmatter := map[string]any{
-		"on":                   "push",
-		"max-effective-tokens": "0",
-	}
-
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-effective-tokens-zero-string-test.md")
-	if err == nil {
-		t.Fatal("expected max-effective-tokens='0' to fail schema validation")
-	}
-}
-
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpressions(t *testing.T) {
 	t.Parallel()
 
 	validFrontmatter := map[string]any{
 		"on":                   "push",
 		"max-runs":             "${{ inputs.max-runs }}",
-		"max-effective-tokens": "${{ inputs.max-effective-tokens }}",
 		"max-ai-credits":       "${{ inputs.max-ai-credits }}",
 		"max-daily-ai-credits": "${{ inputs.max-daily-ai-credits }}",
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-expression-test.md")
 	if err != nil {
-		t.Fatalf("expected max-runs/max-effective-tokens/max-ai-credits/max-daily-ai-credits expressions to pass schema validation, got: %v", err)
+		t.Fatalf("expected max-runs/max-ai-credits/max-daily-ai-credits expressions to pass schema validation, got: %v", err)
 	}
 }
 
@@ -541,14 +512,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 
 	validFrontmatter := map[string]any{
 		"on":                   "push",
-		"max-effective-tokens": "100M",
 		"max-ai-credits":       "1k",
 		"max-daily-ai-credits": "100k",
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-suffix-test.md")
 	if err != nil {
-		t.Fatalf("expected max-effective-tokens/max-ai-credits/max-daily-ai-credits suffix strings to pass schema validation, got: %v", err)
+		t.Fatalf("expected max-ai-credits/max-daily-ai-credits suffix strings to pass schema validation, got: %v", err)
 	}
 }
 
@@ -557,14 +527,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 
 	validFrontmatter := map[string]any{
 		"on":                   "push",
-		"max-effective-tokens": "100k",
 		"max-ai-credits":       "2M",
 		"max-daily-ai-credits": "100M",
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-suffix-case-variants-test.md")
 	if err != nil {
-		t.Fatalf("expected max-effective-tokens/max-ai-credits/max-daily-ai-credits suffix case variants to pass schema validation, got: %v", err)
+		t.Fatalf("expected max-ai-credits/max-daily-ai-credits suffix case variants to pass schema validation, got: %v", err)
 	}
 }
 
@@ -614,20 +583,6 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsOtherN
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-ai-credits-negative-other-test.md")
 	if err == nil {
 		t.Fatal("expected max-ai-credits=-5 to fail schema validation (only -1 is the disable sentinel)")
-	}
-}
-
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensNegativeAllowed(t *testing.T) {
-	t.Parallel()
-
-	validFrontmatter := map[string]any{
-		"on":                   "push",
-		"max-effective-tokens": -1,
-	}
-
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-effective-tokens-negative-test.md")
-	if err != nil {
-		t.Fatalf("expected negative max-effective-tokens to pass schema validation, got: %v", err)
 	}
 }
 
