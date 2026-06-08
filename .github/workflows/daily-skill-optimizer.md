@@ -29,7 +29,7 @@ jobs:
       run_status: ${{ steps.run_skill_optimizer.outputs.run_status }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
         with:
           persist-credentials: false
 
