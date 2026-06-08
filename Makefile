@@ -15,6 +15,7 @@ CI_WORKFLOW_FILE ?= ci.yml
 CI_COVERAGE_ARTIFACT_PATTERN ?= ci-integration-coverage-*
 CI_COVERAGE_DIR ?= /tmp/gh-aw-ci-coverage
 CI_COVERAGE_ENABLED ?= 1
+CI_COVERAGE_SOURCE_BRANCH ?= main
 CI_RUN_ID ?=
 
 # Build flags
@@ -261,10 +262,10 @@ test-impacted-go:
 	elif ! command -v gh >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then \
 		echo "CI coverage correlation requires gh and jq; using changed-file package selection."; \
 	else \
-		BASE_BRANCH=$$(printf '%s\n' "$(BASE_REF)" | sed 's|^origin/||'); \
+		SOURCE_BRANCH="$(CI_COVERAGE_SOURCE_BRANCH)"; \
 		RUN_ID="$(CI_RUN_ID)"; \
 		if [ -z "$$RUN_ID" ]; then \
-			RUN_ID=$$(gh run list --workflow "$(CI_WORKFLOW_FILE)" --branch "$$BASE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
+			RUN_ID=$$(gh run list --workflow "$(CI_WORKFLOW_FILE)" --branch "$$SOURCE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
 		fi; \
 		if [ -n "$$RUN_ID" ]; then \
 			rm -rf "$(CI_COVERAGE_DIR)"; \
@@ -294,7 +295,7 @@ test-impacted-go:
 				echo "Unable to download CI coverage artifacts for run $$RUN_ID; using changed-file package selection."; \
 			fi; \
 		else \
-			echo "No successful CI run found for branch $$BASE_BRANCH; using changed-file package selection."; \
+			echo "No successful CI run found for branch $$SOURCE_BRANCH; using changed-file package selection."; \
 		fi; \
 	fi; \
 	if [ -n "$$COVERAGE_GO_PACKAGES" ]; then \

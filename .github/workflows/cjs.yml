@@ -7,6 +7,7 @@ on:
       - 'actions/setup/js/**'
       - 'actions/setup/md/**'
       - 'scripts/**/*.js'
+      - 'Makefile'
       - '.github/workflows/ci.yml'
       - '.github/workflows/cjs.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'actions/setup/js/**'
       - 'actions/setup/md/**'
       - 'scripts/**/*.js'
+      - 'Makefile'
       - '.github/workflows/ci.yml'
       - '.github/workflows/cjs.yml'
   workflow_dispatch:
@@ -89,6 +91,29 @@ jobs:
       - name: Run tests
         # Keep no-file-parallelism so Vitest sharding has deterministic test scheduling per shard.
         run: cd actions/setup/js && npm run test:js -- --no-file-parallelism --shard=${{ matrix.shard }}/4
+
+  impacted-js-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-impacted-js-tests
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/js/package-lock.json
+      - name: Run impacted JavaScript unit tests
+        run: make test-impacted-js BASE_REF=origin/main
 
   lint-js:
     runs-on: ubuntu-latest
