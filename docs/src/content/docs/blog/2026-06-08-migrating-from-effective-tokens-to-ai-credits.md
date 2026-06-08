@@ -86,7 +86,9 @@ to long-running trend views.
 ## Common pitfalls
 
 - **Renaming without recalibrating thresholds**: ET thresholds do
-  not translate 1:1 to AIC.
+  not translate 1:1 to AIC. Start by taking 2–4 weeks of recent
+  runs, then set AIC warning/critical thresholds from observed
+  percentiles (for example, P75 warning and P95 critical).
 - **Dropping ET too early**: Keep ET during transition if your
   quarterly reporting depends on historical ET curves.
 - **Updating charts but not automations**: Make sure CI summaries,
