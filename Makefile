@@ -9,6 +9,7 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty)
 DOCKER_IMAGE=ghcr.io/github/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
+BASE_REF ?= origin/main
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -216,6 +217,46 @@ security-govulncheck:
 .PHONY: test-js
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
+
+# Test impacted JavaScript unit tests only (excluding integration tests)
+.PHONY: test-impacted-js
+test-impacted-js:
+	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
+	if [ -z "$$BASE_COMMIT" ]; then \
+		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
+		echo "Set BASE_REF explicitly, for example: make test-impacted-js BASE_REF=origin/main"; \
+		exit 1; \
+	fi; \
+	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"...HEAD -- actions/setup/js | grep -E '\.(cjs|js|ts)$$' || true); \
+	if [ -z "$$CHANGED_JS_FILES" ]; then \
+		echo "No changed JavaScript/TypeScript files under actions/setup/js; skipping impacted JS tests."; \
+		exit 0; \
+	fi; \
+	REL_CHANGED_JS_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' ' '); \
+	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
+	cd actions/setup/js && npm run test:js -- --no-file-parallelism --related $$REL_CHANGED_JS_FILES --exclude '**/*.integration.test.cjs' --exclude '**/frontmatter_hash_github_api.test.cjs'
+
+# Test impacted Go unit tests only (excluding integration tests)
+.PHONY: test-impacted-go
+test-impacted-go:
+	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
+	if [ -z "$$BASE_COMMIT" ]; then \
+		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
+		echo "Set BASE_REF explicitly, for example: make test-impacted-go BASE_REF=origin/main"; \
+		exit 1; \
+	fi; \
+	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"...HEAD -- '*.go'); \
+	if [ -z "$$CHANGED_GO_FILES" ]; then \
+		echo "No changed Go files; skipping impacted Go tests."; \
+		exit 0; \
+	fi; \
+	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | xargs -n1 dirname | sort -u | sed 's|^|./|'); \
+	echo "Running impacted Go unit tests in packages: $$CHANGED_GO_PACKAGES"; \
+	go test -v -parallel=4 -timeout=10m -run='^Test' -short $$CHANGED_GO_PACKAGES
+
+# Test both impacted JavaScript and Go unit tests
+.PHONY: test-impacted
+test-impacted: test-impacted-js test-impacted-go
 
 # Install JavaScript dependencies
 .PHONY: deps-js
@@ -879,6 +920,9 @@ help:
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
+	@echo "  test-impacted-js - Run impacted JavaScript unit tests for current branch changes"
+	@echo "  test-impacted-go - Run impacted Go unit tests for current branch changes"
+	@echo "  test-impacted    - Run impacted JavaScript and Go unit tests for current branch changes"
 	@echo "  test-all         - Run all tests (Go, JavaScript, and wasm golden)"
 	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"
 	@echo "  test-wasm        - Build wasm and run Node.js golden comparison test"
