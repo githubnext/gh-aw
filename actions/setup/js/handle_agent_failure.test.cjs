@@ -2392,7 +2392,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
 
-      const python3Reason = "permission denied: shell(python3 << 'EOF'\nimport re\n\nfiles = [(\"foo.go\", \"/path/foo.go\")]\nfor f, p in files:\n    print(f)\nEOF)";
+      const python3Reason = 'permission denied: shell(python3 << \'EOF\'\nimport re\n\nfiles = [("foo.go", "/path/foo.go")]\nfor f, p in files:\n    print(f)\nEOF)';
       const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: python3Reason }], "daily-compiler-quality");
       expect(result).toContain("shell(python3 ...)");
       // The full multi-line program body should not appear in the output
@@ -2434,8 +2434,8 @@ describe("handle_agent_failure", () => {
       expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python3 ...)");
     });
 
-    it("collapses shell(python3 << \"EOF\" ...) heredoc with double-quoted marker", () => {
-      const cmd = "shell(python3 << \"EOF\"\nimport sys\nsys.exit(0)\nEOF)";
+    it('collapses shell(python3 << "EOF" ...) heredoc with double-quoted marker', () => {
+      const cmd = 'shell(python3 << "EOF"\nimport sys\nsys.exit(0)\nEOF)';
       expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python3 ...)");
     });
 

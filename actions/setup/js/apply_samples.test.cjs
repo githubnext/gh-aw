@@ -205,7 +205,7 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     return `diff --git a/${filePath} b/${filePath}\n` + `new file mode 100644\n` + `index 0000000..1111111\n` + `--- /dev/null\n` + `+++ b/${filePath}\n` + `@@ -0,0 +1,${lines.length} @@\n` + body + "\n";
   }
 
-  it("checks out the requested branch and commits the patch on it (create_pull_request)", () => {
+  it("checks out the requested branch and commits the patch on it (create_pull_request)", async () => {
     const workspace = makeTempDir("gh-aw-prestage-cpr-");
     initRepo(workspace, "main");
 
@@ -227,7 +227,7 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     const prev = process.env.GH_AW_CUSTOM_BASE_BRANCH;
     process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
     try {
-      preStagePatch(entry, 0, workspace);
+      await preStagePatch(entry, 0, workspace);
     } finally {
       if (prev === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
       else process.env.GH_AW_CUSTOM_BASE_BRANCH = prev;
@@ -260,36 +260,110 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     expect(diff).toContain("+hello from a deterministic sample");
   });
 
-  it("defaults the branch name to gh-aw-sample-<i+1> when none is supplied", () => {
-    const workspace = makeTempDir("gh-aw-prestage-default-");
+  it("derives push_to_pull_request_branch branch from pull_request event payload", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-pr-");
     initRepo(workspace, "main");
+
+    const headRef = "feat/copilot-push-branch";
+    const eventPath = path.join(workspace, "event.json");
+    fs.writeFileSync(
+      eventPath,
+      JSON.stringify({
+        pull_request: { number: 654, head: { ref: headRef } },
+      })
+    );
 
     const entry = {
       tool: "push_to_pull_request_branch",
-      arguments: {
-        body: "Sample push body",
-        // branch intentionally omitted — driver should synthesize one.
-      },
+      // No `branch` in arguments — the agent never supplies one now.
+      arguments: { message: "Push update" },
       sidecars: { patch: newFileDiff("push-feature.txt", "from push sample\n") },
     };
 
-    const prev = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
     process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_EVENT_PATH = eventPath;
     try {
-      preStagePatch(entry, 2, workspace);
+      await preStagePatch(entry, 0, workspace);
     } finally {
-      if (prev === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
-      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prev;
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevEvent;
     }
 
-    // Index in preStagePatch is zero-based; the default uses i+1 → "gh-aw-sample-3".
-    expect(entry.arguments.branch).toBe("gh-aw-sample-3");
-    const head = git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim();
-    expect(head).toBe("gh-aw-sample-3");
+    // The staged branch is the PR's head ref (not a synthetic "gh-aw-sample-N").
+    expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
     expect(fs.existsSync(path.join(workspace, "push-feature.txt"))).toBe(true);
+    // The agent input never carries `branch` for this tool.
+    expect(entry.arguments.branch).toBeUndefined();
   });
 
-  it("is a no-op when the sample tool isn't in the patch-sidecar set", () => {
+  it("derives push_to_pull_request_branch branch via PR API for issue_comment events", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-issue-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/issue-comment-branch";
+    const eventPath = path.join(workspace, "event.json");
+    fs.writeFileSync(
+      eventPath,
+      JSON.stringify({
+        issue: { number: 42, pull_request: { url: "https://api.github.com/repos/owner/repo/pulls/42" } },
+      })
+    );
+
+    // Stub global fetch to simulate the GitHub REST API response.
+    const realFetch = global.fetch;
+    global.fetch = async url => {
+      expect(String(url)).toContain("/repos/owner/repo/pulls/42");
+      return { ok: true, status: 200, json: async () => ({ head: { ref: headRef } }) };
+    };
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_EVENT_PATH = eventPath;
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update" },
+        sidecars: { patch: newFileDiff("issue-comment.txt", "from issue comment\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+    } finally {
+      global.fetch = realFetch;
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+    }
+  });
+
+  it("fails fast for push_to_pull_request_branch when no PR context is available", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-nopr-");
+    initRepo(workspace, "main");
+
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    delete process.env.GITHUB_EVENT_PATH;
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update" },
+        sidecars: { patch: newFileDiff("orphan.txt", "no PR context\n") },
+      };
+      await expect(preStagePatch(entry, 0, workspace)).rejects.toThrow(/cannot derive pull-request head branch/);
+    } finally {
+      if (prevEvent !== undefined) process.env.GITHUB_EVENT_PATH = prevEvent;
+    }
+  });
+
+  it("is a no-op when the sample tool isn't in the patch-sidecar set", async () => {
     // We assert this at the driver level (PATCH_SIDECAR_TOOLS gate in main()),
     // but preStagePatch itself should also be a no-op when called with an
     // entry that has no patch sidecar — protecting against misuse.
@@ -300,7 +374,7 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
       tool: "create_issue",
       arguments: { title: "x", body: "y" },
     };
-    preStagePatch(entry, 0, workspace);
+    await preStagePatch(entry, 0, workspace);
 
     // Still on main, no extra commits, no new files.
     expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe("main");

@@ -277,6 +277,20 @@ safe-outputs:
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
+### Destination branch
+
+The agent **does not specify the destination branch**. Both the source and
+destination branches are derived from the triggering pull request:
+
+- The **source branch** is the branch currently checked out in the agent's
+  workspace. The agent must commit its changes onto the PR's head ref before
+  calling the tool.
+- The **destination branch** is always the triggering pull request's head ref,
+  resolved by the apply-time push job via `pulls.get(pull_number).head.ref`.
+
+This eliminates a class of failures where the agent passed a wrong or synthetic
+branch name (see [issue #37835](https://github.com/github/gh-aw/issues/37835)).
+
 By default, pushes are replayed through GitHub's signed commit API because `signed-commits: true` means signed commits are required. Set `signed-commits: false` only for repositories that do not require signed commits; this uses direct `git push` and can preserve merge commits that the signed commit API cannot represent. This field is supported by both `create-pull-request` and `push-to-pull-request-branch`.
 
 ### Cross-repo usage

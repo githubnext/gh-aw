@@ -105,6 +105,10 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_STDIO_LOG: %s\n", logFile)
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
+	// GITHUB_TOKEN lets apply_samples.cjs resolve pull-request head refs via
+	// the REST API for issue_comment / slash_command events, where the head
+	// ref is not present in the event payload.
+	yaml.WriteString("          GITHUB_TOKEN: ${{ github.token }}\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -euo pipefail\n")
 	yaml.WriteString("          mkdir -p \"$(dirname \"$GH_AW_AGENT_STDIO_LOG\")\"\n")

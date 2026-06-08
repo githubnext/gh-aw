@@ -92,6 +92,11 @@ Trivial workflow whose only job is to be compiled with --use-samples.
 		if !strings.Contains(lockContent, "GH_AW_SAMPLES:") {
 			t.Error("Expected GH_AW_SAMPLES env var in lock file")
 		}
+		// GITHUB_TOKEN is required so apply_samples.cjs can resolve the PR head
+		// ref via the REST API for issue_comment / slash-command triggers.
+		if !strings.Contains(lockContent, "GITHUB_TOKEN: ${{ github.token }}") {
+			t.Error("Expected GITHUB_TOKEN env var in samples replay step")
+		}
 		if !strings.Contains(lockContent, `"tool":"create_issue"`) {
 			t.Error("Expected JSON-encoded create_issue tool entry in lock file")
 		}
