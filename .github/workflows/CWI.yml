@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '**.go'
+      - '**/*.go'
       - 'cmd/**'
       - 'pkg/**'
       - 'go.mod'
@@ -13,7 +13,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - '**.go'
+      - '**/*.go'
       - 'cmd/**'
       - 'pkg/**'
       - 'go.mod'
