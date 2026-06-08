@@ -86,12 +86,7 @@ For pull requests that add or modify database migration files:
 - permissions: `contents: read`, `pull-requests: read`; keep agent job read-only
 - reads: changed migration file content via GitHub tools
 - output: `add-comment` with a safety summary flagging risky operations; use `noop` when no concerns are detected
-- safety checks to include in the agent prompt:
-  - **Destructive operations**: `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`, or equivalent
-  - **Backwards compatibility**: schema change remains compatible with the current application code
-  - **Index creation on large tables**: suggest `CONCURRENTLY` (or ORM equivalent) to avoid table locks
-  - **Batching**: data migrations that rewrite many rows without batching
-  - **Rollback path**: a corresponding `down` / rollback migration exists
+- prompt: suggest migration best practices in the agent prompt
 
 ## Cross-Repository Pattern
 
