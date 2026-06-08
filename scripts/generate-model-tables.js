@@ -186,9 +186,7 @@ function generateMarkdown() {
 
   // Approximation callout
   lines.push("> [!CAUTION]");
-  lines.push(
-    "> The multiplier values shown on this page are **approximations** for legacy ET normalization only. gh-aw uses AI Credits (AIC) as the primary billing metric. Do not use ET multipliers for billing or financial calculations."
-  );
+  lines.push("> The multiplier values shown on this page are **approximations** for legacy ET normalization only. gh-aw uses AI Credits (AIC) as the primary billing metric. Do not use ET multipliers for billing or financial calculations.");
   lines.push("");
 
   // -------------------------------------------------------------------------
