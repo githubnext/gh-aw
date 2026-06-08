@@ -5,7 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,14 +126,16 @@ Test workflow to verify default sandbox.agent (awf) does not enable extra tools.
 		// We check that edit is not in the tools list by looking for the edit tool configuration
 		// Since we're not setting tools explicitly, edit should not be added by default
 
-		// Count occurrences of "edit" to see if it's actually configured as a tool
-		// (edit might appear in comments or other contexts)
-		editCount := strings.Count(strings.ToLower(lockStr), "edit")
+		// Count whole-word occurrences of "edit" to detect actual tool configuration.
+		// Use word boundaries to avoid matching substrings like "credits" or "edits"
+		// that appear in variable names such as GH_AW_AI_CREDITS_RATE_LIMIT_ERROR.
+		editWordRe := regexp.MustCompile(`(?i)\bedit\b`)
+		editCount := len(editWordRe.FindAllString(lockStr, -1))
 
-		// If edit appears very few times, it's likely just in comments
-		// A proper tool configuration would have multiple references
-		if editCount > 10 {
-			t.Errorf("Expected edit tool to NOT be enabled by default with sandbox.agent: awf, but found %d occurrences", editCount)
+		// If the edit tool is not configured, only the lock file header comments
+		// should contain "edit" as a standalone word (e.g. "DO NOT EDIT").
+		if editCount > 5 {
+			t.Errorf("Expected edit tool to NOT be enabled by default with sandbox.agent: awf, but found %d whole-word occurrences", editCount)
 		}
 	})
 
