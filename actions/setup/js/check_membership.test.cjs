@@ -307,7 +307,7 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_REQUIRED_ROLES = "maintainer";
 
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "maintain" },
+        data: { permission: "write", role_name: "maintain" },
       });
 
       await runScript();
