@@ -19,10 +19,11 @@ Test whether Impact Efficiency is a more meaningful signal than accepted outcome
 Use this model:
 
 ```text
-Outcome = delivered work from GitHub Agentic Workflow outcomes
+Outcome = recorded work item produced by a GitHub Agentic Workflow run
 Objective = issue/epic/work item linked to the outcome
 Objective Value = value from planning metadata (priority, severity, milestone, project)
-Outcome Value = Outcome × Objective Value
+Outcome Indicator = 1 for accepted/delivered outcomes, 0 otherwise
+Outcome Value = Outcome Indicator × Objective Value
 Impact Efficiency = Σ Outcome Value / AI Credits
 ```
 
