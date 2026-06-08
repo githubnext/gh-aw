@@ -1,14 +1,14 @@
 ---
 title: Model Aliases & Multipliers
-description: Reference tables for the built-in model alias map and per-model Effective Token multipliers used by GitHub Agentic Workflows.
+description: Reference tables for the built-in model alias map and legacy per-model Effective Token multipliers used by GitHub Agentic Workflows.
 sidebar:
   order: 297
 ---
 
-This page lists the built-in model aliases and the per-model Effective Token (ET) multipliers used by GitHub Agentic Workflows.
+This page lists the built-in model aliases and the legacy per-model Effective Token (ET) multipliers used by GitHub Agentic Workflows. AI Credits (AIC) is the primary cost metric.
 
 > [!CAUTION]
-> The multiplier values shown on this page are **approximations**. They are used solely for the purpose of normalizing token usage across models into a single comparable metric (Effective Tokens) and do **not** represent precise cost ratios. Values may be inaccurate for specific model versions and may become out of date as providers update their offerings. Do not use these numbers for billing or financial calculations.
+> The multiplier values shown on this page are **approximations** for legacy ET normalization only. gh-aw uses AI Credits (AIC) as the primary billing metric. Do not use ET multipliers for billing or financial calculations.
 
 ## Model Aliases
 
@@ -66,7 +66,7 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5.3` → `gemini-pro` → `any` |
-| `small-agent` | `haiku` → `gpt-5-mini` → `gemini-flash` → `any` |
+| `small-agent` | `haiku` → `gpt-5-mini` → `gemini-flash` |
 | `copilot` | `agent` |
 | `claude` | `agent` |
 | `codex` | `agent` |
@@ -75,9 +75,9 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 
 ## Model Multipliers
 
-Effective Token multipliers scale the weighted token total for each model relative to the reference model (`claude-sonnet-4.5`, multiplier = 1.0). A multiplier of 5.0 means that a run on that model counts as five times as many Effective Tokens as the same run on the reference model.
+Legacy Effective Token multipliers scale the weighted token total for each model relative to the reference model (`claude-sonnet-4.5`, multiplier = 1.0). A multiplier of 5.0 means that a run on that model counts as five times as many Effective Tokens as the same run on the reference model.
 
-See the [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) for the full formula.
+See the [AI Credits Specification](/gh-aw/specs/ai-credits-specification/) for primary billing details and the [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) for legacy ET formulas.
 
 ### Token Class Weights
 
