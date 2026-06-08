@@ -32,11 +32,8 @@ experiments:
     min_samples: 30
     weight: [50, 50]
     start_date: "2026-06-08"
-    issue: #aw_cop_fmt
     analysis_type: t_test
     tags: [cost-efficiency, output-quality, daily-report]
-    notify:
-      discussion: true
 
 network:
   allowed:

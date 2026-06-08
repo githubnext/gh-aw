@@ -65,7 +65,7 @@ experiments:
       issue: 37533 #aw_camp1
 steps:
   - name: Compute dependabot campaign scoreboard
-    uses: actions/github-script@v9
+    uses: actions/github-script@v9.0.0
     env:
       CAMPAIGN_OBJECTIVE: ${{ inputs.objective }}
     with:
