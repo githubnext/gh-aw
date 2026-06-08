@@ -3,6 +3,21 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '**/*.go'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - 'actions/setup/**'
+      - '.github/workflows/ci.yml'
+      - '.github/aw/releases.json'
+      - '.github/aw/releases.schema.json'
+      - '.github/aw/compat.json'
+      - '.github/aw/compat.schema.json'
+      - 'install-gh-aw.sh'
   schedule:
   - cron: 0 * * * *
   workflow_dispatch: {}

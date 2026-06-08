@@ -5,8 +5,13 @@ on:
     paths:
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/license-check.yml'
   push:
     branches: [main]
+    paths:
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/license-check.yml'
   workflow_dispatch:
 
 jobs:
