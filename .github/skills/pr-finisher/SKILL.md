@@ -19,7 +19,7 @@ Take the current pull request from "almost done" to "ready to merge" by running 
 4. Run `make test-unit` and fix any failing unit tests.
 5. Check the current GitHub checks for the pull request and identify every failing check.
 6. If `make test` is failing locally or the failing checks show the equivalent failure in CI, fix those failures too.
-7. If test fixes change wasm workflow output, run `make update-wasm-golden`.
+7. If wasm golden tests fail, or a test fix changes the expected wasm compiler output, run `make update-wasm-golden`.
 8. Re-run the affected local validation until it passes.
 9. Push the final changes.
 
@@ -47,7 +47,7 @@ Only run `make test` after `make test-unit` and lint are clean, or when failing 
 - Make the smallest changes needed to get the pull request green.
 - Fix lint issues before test issues.
 - Do not change unrelated code just because it is nearby.
-- If a failure is pre-existing and unrelated to the pull request, call it out clearly instead of guessing.
+- If a failure is pre-existing and unrelated to the pull request, report that explicitly in your final user or PR update instead of guessing.
 
 ## Wasm Golden Files
 
