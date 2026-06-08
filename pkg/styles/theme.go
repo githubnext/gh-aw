@@ -75,6 +75,9 @@ func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr 
 
 func init() {
 	stderrInfo, statErr := os.Stderr.Stat()
+	if stderrInfo == nil && statErr == nil {
+		statErr = os.ErrInvalid
+	}
 	stderrMode := os.FileMode(0)
 	if stderrInfo != nil {
 		stderrMode = stderrInfo.Mode()
