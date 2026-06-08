@@ -60,10 +60,11 @@ function logDailyGuardrail(message, details) {
  */
 function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
-  if (eventName === "workflow_call" || eventName === "repository_dispatch") {
-    return true;
-  }
-  return eventName === "workflow_dispatch" && (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "";
+  return (
+    eventName === "workflow_call" ||
+    eventName === "repository_dispatch" ||
+    (eventName === "workflow_dispatch" && (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "")
+  );
 }
 
 /**
@@ -156,7 +157,7 @@ async function getRunAIC(artifactClient, runId, token, owner, repo) {
  * @returns {string}
  */
 function formatInteger(value) {
-  const safeValue = Number.isFinite(value) ? Math.round(value || 0) : 0;
+  const safeValue = Number.isFinite(value) ? Math.round(value) : 0;
   return INTEGER_FORMATTER.format(safeValue);
 }
 
@@ -349,8 +350,6 @@ async function main() {
     const cutoffMs = Date.now() - DAILY_WORKFLOW_WINDOW_MS;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} */
     const candidateRuns = [];
-    /** @type {Array<any>} */
-    let runs = [];
     let page = 1;
     let truncatedByRateLimit = false;
     while (page <= MAX_WORKFLOW_RUN_PAGES) {
@@ -368,7 +367,7 @@ async function main() {
         per_page: 100,
         page,
       });
-      runs = response.data.workflow_runs || [];
+      const runs = response.data.workflow_runs || [];
       logDailyGuardrail("Received workflow runs page", {
         page,
         runCount: runs.length,
@@ -453,8 +452,7 @@ async function main() {
       truncatedByRateLimit,
     };
     logDailyGuardrail("Completed AIC inspection window", {
-      candidateRunsCount: summaryMeta.candidateRunsCount,
-      inspectedRunsCount: summaryMeta.inspectedRunsCount,
+      ...summaryMeta,
       countedRunIds: countedRuns.map(run => run.id),
       currentAIC: totalAIC,
       threshold,
