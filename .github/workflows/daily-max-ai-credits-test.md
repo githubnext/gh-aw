@@ -46,13 +46,13 @@ safe-outputs:
 
 Use **at least four separate assistant turns**. Do not combine all work into one response.
 
-Turn 1: Call `noop` with the message: "Starting max-ai-credits multi-turn guardrail test."
+Turn 1 (Job 1): Read a large file: `pkg/parser/schemas/main_workflow_schema.json`.
 
-Turn 2 (Job 1): Read a large file: `pkg/parser/schemas/main_workflow_schema.json`.
+Turn 2 (Job 2): Read a large file: `.github/workflows/daily-max-ai-credits-test.lock.yml`.
 
-Turn 3 (Job 2): Read a large file: `.github/workflows/daily-max-ai-credits-test.lock.yml`.
+Turn 3 (Job 3): Read a large file: `.github/workflows/daily-credit-limit-test.lock.yml`.
 
-Turn 4 (Job 3): Read a large file: `.github/workflows/daily-credit-limit-test.lock.yml`.
+Turn 4: Call `noop` with the message: "Completed max-ai-credits multi-turn guardrail test."
 
 After each job, briefly summarize what was read, then continue to the next turn.
 
