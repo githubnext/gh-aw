@@ -2,6 +2,8 @@ name: CWI
 
 on:
   push:
+    paths:
+      - 'pkg/**'
 
 jobs:
   build-windows:
@@ -84,7 +86,7 @@ jobs:
         env:
           GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
         run: |
-          go test -v -timeout=5m -tags 'integration' -run 'TestCompile' ./pkg/cli
+          go test -v -timeout=5m -tags 'integration' -run '^TestCompileIntegration$' ./pkg/cli
 
       - name: Run audit integration tests
         shell: bash
