@@ -28,6 +28,12 @@ a normalized token proxy.
   treated as legacy compatibility output.
 - Cost reporting and budget discussions should use AIC values.
 
+For repositories that need automatic workflow updates, run:
+
+```bash
+gh aw fix --write
+```
+
 ## Metric reference
 
 - **AI Credits (AIC)**: primary spend metric (1 AIC = $0.01 USD)
