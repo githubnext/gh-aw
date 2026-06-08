@@ -4,7 +4,7 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Version: 1.21.0 (2026-05-19)
+# Version: 1.22.0 (2026-06-06)
 
 set -euo pipefail
 
@@ -1370,6 +1370,89 @@ check_add_comment_status_target() {
     fi
 }
 check_add_comment_status_target
+
+# TYPE-006: push_to_pull_request_branch base-branch Parameter (Section 7.3, v1.22.0)
+echo "Running TYPE-006: push_to_pull_request_branch base-branch Parameter..."
+check_push_to_pr_branch_base_branch() {
+    local handler="actions/setup/js/push_to_pull_request_branch.cjs"
+    local go_config="pkg/workflow/push_to_pull_request_branch.go"
+    local failed=0
+
+    # Per spec Section 7.3 (v1.22.0): push_to_pull_request_branch MUST support a
+    # base-branch configuration parameter. When omitted, the handler resolves the base
+    # branch via: (1) explicit config, (2) runtime checkout manifest, (3) origin/HEAD,
+    # (4) repository default branch via API.
+
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-006: push_to_pull_request_branch handler missing: $handler"
+        return
+    fi
+
+    # Check that the handler reads a base_branch config value
+    if ! grep -qE "base_branch|base-branch|baseBranch" "$handler"; then
+        log_high "TYPE-006: push_to_pull_request_branch handler does not read base-branch config (Section 7.3 v1.22.0)"
+        failed=1
+    fi
+
+    # Check that Go config struct has a BaseBranch field (spec requires explicit config support)
+    if [ -f "$go_config" ]; then
+        if ! grep -q "BaseBranch\|base-branch" "$go_config"; then
+            log_high "TYPE-006: push_to_pull_request_branch Go config struct missing BaseBranch field (Section 7.3 v1.22.0)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-006: Go config file missing: $go_config — cannot verify BaseBranch field"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-006: push_to_pull_request_branch supports base-branch configuration parameter (Section 7.3 v1.22.0)"
+    fi
+}
+check_push_to_pr_branch_base_branch
+
+# TYPE-007: Hang-Safety for Handler Git Operations (Section 7.3, v1.22.0)
+echo "Running TYPE-007: Hang-Safety for Handler Git Operations..."
+check_git_hang_safety() {
+    local git_helpers="actions/setup/js/git_helpers.cjs"
+    local push_handler="actions/setup/js/push_to_pull_request_branch.cjs"
+    local failed=0
+
+    # Per spec Section 7.3 (v1.22.0): Base-branch resolution MUST NOT depend on
+    # interactive credential prompts; git operations issued by the handler MUST run
+    # with GIT_TERMINAL_PROMPT=0 and an enforced timeout so credential-less
+    # environments fail fast rather than hanging.
+
+    if [ ! -f "$git_helpers" ]; then
+        log_high "TYPE-007: git_helpers.cjs missing — hang-safety cannot be verified: $git_helpers"
+        return
+    fi
+
+    # Check GIT_TERMINAL_PROMPT=0 is set in the shared git helper
+    if ! grep -qE 'GIT_TERMINAL_PROMPT.*"0"|GIT_TERMINAL_PROMPT.*=.*0' "$git_helpers"; then
+        log_critical "TYPE-007: GIT_TERMINAL_PROMPT=0 not set in $git_helpers — interactive prompt hang risk (Section 7.3 v1.22.0)"
+        failed=1
+    fi
+
+    # Check that an enforced timeout is present in the git helper (default 60 s per spec)
+    if ! grep -qE "timeout|TIMEOUT" "$git_helpers"; then
+        log_critical "TYPE-007: No enforced timeout found in $git_helpers — indefinite hang risk (Section 7.3 v1.22.0)"
+        failed=1
+    fi
+
+    # Confirm push_to_pull_request_branch routes git operations through git_helpers
+    if [ -f "$push_handler" ]; then
+        if ! grep -q "git_helpers" "$push_handler"; then
+            log_high "TYPE-007: push_to_pull_request_branch does not import git_helpers.cjs — hang-safety coverage uncertain (Section 7.3 v1.22.0)"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-007: Git operations enforce GIT_TERMINAL_PROMPT=0 and timeout for hang-safety (Section 7.3 v1.22.0)"
+    fi
+}
+check_git_hang_safety
 
 # Summary
 echo ""
