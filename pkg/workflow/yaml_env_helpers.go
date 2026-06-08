@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,6 +23,77 @@ func writeYAMLEnv(b *strings.Builder, indent, key, value string) {
 // Uses %q to produce a valid YAML double-quoted scalar — safe for use anywhere a string is needed.
 func formatYAMLEnv(indent, key, value string) string {
 	return fmt.Sprintf("%s%s: %q\n", indent, key, value)
+}
+
+func quoteYAMLValueContainingColonSpace(value string) string {
+	if value == "" ||
+		strings.HasPrefix(value, "\"") ||
+		strings.HasPrefix(value, "'") ||
+		strings.HasPrefix(value, "|") ||
+		strings.HasPrefix(value, ">") ||
+		strings.HasPrefix(value, "{") ||
+		strings.HasPrefix(value, "[") {
+		return value
+	}
+	if strings.Contains(value, ": ") {
+		return strconv.Quote(value)
+	}
+	return value
+}
+
+// quoteEnvValuesContainingColonSpace patches YAML text in-place for env blocks,
+// quoting direct env values that contain ": " so they remain valid scalars.
+//
+// Assumptions:
+//   - Input YAML is compiler-generated and consistently indented.
+//   - We only rewrite direct children of env: maps (not nested mappings).
+//   - Both "env:" and "- env:" are handled because env can appear either as a
+//     regular mapping key or inline on a list item in YAML syntax.
+func quoteEnvValuesContainingColonSpace(yamlStr string) string {
+	lines := strings.Split(yamlStr, "\n")
+	inEnv := false
+	envIndent := 0
+	envChildIndent := -1
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		if inEnv && indent <= envIndent {
+			inEnv = false
+			envChildIndent = -1
+		}
+
+		if trimmed == "env:" || trimmed == "- env:" {
+			inEnv = true
+			envIndent = indent
+			envChildIndent = -1
+			continue
+		}
+		if !inEnv || indent <= envIndent {
+			continue
+		}
+		if envChildIndent == -1 {
+			envChildIndent = indent
+		}
+		if indent != envChildIndent {
+			continue
+		}
+
+		idx := strings.Index(line, ": ")
+		if idx < 0 {
+			continue
+		}
+		quotedValue := quoteYAMLValueContainingColonSpace(line[idx+2:])
+		if quotedValue != line[idx+2:] {
+			lines[i] = line[:idx+2] + quotedValue
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // writeHeadersToYAML writes a map of headers to YAML format with proper comma placement

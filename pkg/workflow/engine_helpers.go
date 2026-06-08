@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -277,10 +276,8 @@ func yamlStringValue(value string) string {
 	if len(value) == 0 {
 		return value
 	}
-	// YAML plain scalars cannot contain a ": " token sequence without being
-	// interpreted as a mapping separator.
-	if strings.Contains(value, ": ") {
-		return strconv.Quote(value)
+	if quoted := quoteYAMLValueContainingColonSpace(value); quoted != value {
+		return quoted
 	}
 	// Values starting with YAML flow indicators need quoting to be treated as strings.
 	// '{' would be parsed as a YAML flow mapping, '[' as a YAML flow sequence.
