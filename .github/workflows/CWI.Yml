@@ -1,0 +1,167 @@
+name: CWI
+
+on:
+  push:
+
+jobs:
+  build-windows:
+    name: Build Windows CLI
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        shell: bash
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download Go modules
+        if: steps.setup-go.outputs.cache-hit != 'true'
+        shell: bash
+        run: go mod download
+
+      - name: Verify dependencies
+        shell: bash
+        run: go mod verify
+
+      - name: Build Windows binary
+        shell: bash
+        run: go build -ldflags "-s -w" -o gh-aw.exe ./cmd/gh-aw
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: gh-aw-windows-amd64
+          path: gh-aw.exe
+          retention-days: 1
+
+  integration-version:
+    name: "Windows Integration: version"
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+        with:
+          name: gh-aw-windows-amd64
+
+      - name: Run version integration tests
+        shell: bash
+        env:
+          GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
+        run: |
+          go test -v -timeout=5m -tags 'integration' -run 'TestVersion' ./cmd/gh-aw
+
+  integration-compile:
+    name: "Windows Integration: compile"
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+        with:
+          name: gh-aw-windows-amd64
+
+      - name: Run compile integration tests
+        shell: bash
+        env:
+          GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
+        run: |
+          go test -v -timeout=5m -tags 'integration' -run 'TestCompile' ./pkg/cli
+
+  integration-audit:
+    name: "Windows Integration: audit"
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+        with:
+          name: gh-aw-windows-amd64
+
+      - name: Run audit integration tests
+        shell: bash
+        env:
+          GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
+        run: |
+          go test -v -timeout=5m -tags 'integration' -run '^TestAudit' ./pkg/cli
+
+  integration-logs:
+    name: "Windows Integration: logs"
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+        with:
+          name: gh-aw-windows-amd64
+
+      - name: Run logs integration tests
+        shell: bash
+        env:
+          GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
+        run: |
+          go test -v -timeout=5m -tags 'integration' -run 'TestLogs' ./pkg/cli
