@@ -12,6 +12,7 @@ Drive an open PR for the current branch to a merge-ready state from a **GitHub C
 This skill runs inside a GitHub Copilot cloud agent, not on a developer's machine.
 
 - **The agent's pushes do not trigger CI.** Workflows on the PR will not re-run after the agent commits. Any existing `statusCheckRollup` reflects an earlier HEAD and goes stale the moment the agent pushes.
+- **Commit and push on every iteration that changes files.** Changes that are not pushed are not available to the user.
 - **Local `make` targets are the agent's authoritative correctness signal** before push. CI is observational only.
 - **Re-running CI is a hand-off to a human** (close/reopen the PR, `workflow_dispatch`, or a push from a maintainer). The agent must surface this in its summary.
 - **No watch / no sleep loops.** The agent has no async wait state; one pass + summary + stop.
@@ -36,7 +37,8 @@ Top-level PR comments and review bodies are useful feedback but **not** a merge 
 - **Do not post stand-alone PR comments.** Only reply on existing review threads / comments that need a response. Do not ping reviewers or CODEOWNERS.
 - **Always disable pagers** for `gh`: prefix with `GH_PAGER=""` or pipe through `cat`. Without this, commands hang in non-interactive shells.
 - **Never wait for CI to re-run.** No `bash sleep`, no `gh run watch`, no `gh pr checks --watch`, no re-check loop after push. The agent's pushes will not trigger workflows; waiting is futile.
-- **Local validation is non-negotiable before push.** Because CI will not re-run, the only correctness gate the agent gets is `make ...` locally. Treat a green local run as the bar.
+- **Local validation is non-negotiable before each push.** Because CI will not re-run, the only correctness gate the agent gets is `make ...` locally. Treat a green local run as the bar.
+- **Commit and push every iteration that produces file changes.** Unpushed changes are not visible to the user.
 - **Reviews are not done until reply + resolve both succeed.** Code change alone ≠ thread handled.
 - **Smallest fix that works.** Don't change unrelated code. Fix lint before tests.
 - **Pre-existing unrelated failures** → identify explicitly in the summary; do not guess-fix.
@@ -72,7 +74,7 @@ If merged/closed, report and stop. Otherwise classify each condition as ✅ / �
 
 ### 2. Address Reviews
 
-Delegate to the `copilot-review` skill. For each unresolved thread: make change → commit → reply → resolve. A thread is not handled until reply + resolve both succeed. Push only after all in-scope threads are handled (batch with other fixes below).
+Delegate to the `copilot-review` skill. For each unresolved thread: make change → run relevant local validation → commit → push → reply → resolve. A thread is not handled until reply + resolve both succeed.
 
 ### 3. Address Mergeable
 
@@ -111,9 +113,9 @@ GH_PAGER="" gh run view <run_id> --log-failed
 
 Classify as: real product/test bug, infra flake, or third-party flake. Apply the fix in the agent's commits and, where possible, **reproduce the fix locally** via the matching `make` target. If the failure can't be reproduced locally (infra-only), state that in the summary so the human re-triggers CI with eyes open. Per anti-pattern rules: 1–2 narrow attempts, then `ask_user`.
 
-### 5. Push and stop
+### 5. Commit, push, and stop
 
-Push once, after all fixes are in. **Do not re-check `gh pr checks` expecting a new run.** Print the summary and stop.
+After each iteration that changes files, commit and push immediately. Before stopping, ensure there are no uncommitted or unpushed changes left. **Do not re-check `gh pr checks` expecting a new run.** Print the summary and stop.
 
 ## Summary format
 
@@ -153,6 +155,6 @@ The task is complete only when all are true:
 - The `copilot-review` skill addressed all in-scope review threads (reply + resolve succeeded for each).
 - Mergeable condition was checked; conflicts resolved and `BEHIND` updated when present.
 - Prior CI failures were inspected at the log level and either fixed at the root cause (with a local reproduction where possible) or explicitly flagged as not locally reproducible / escalated.
-- Final changes were pushed exactly once at the end. No post-push re-check loop.
+- Every iteration that changed files was committed and pushed, and no local changes were left unpushed at stop. No post-push re-check loop.
 - A structured ✅/❌/⏳/❓ summary was printed, including an explicit hand-off line for the human CI re-trigger.
 - No `gh pr merge` was run.
