@@ -27,7 +27,9 @@ Impact Efficiency = Σ Outcome Value / AI Credits
 ```
 
 Treat an outcome as one recorded result item produced by a GitHub Agentic Workflow run (for example, a PR change, completed fix, or report action), which may later be accepted or not accepted.
+Use workflow run outputs/artifacts and linked GitHub objects (issues, PRs, comments, discussions) as the outcome source of truth.
 Treat AI Credits as total model-credit cost consumed by the workflow runs that produced the analyzed outcomes.
+Retrieve AI Credits from workflow-run usage/billing data available to the run context, and use the same time window as outcomes.
 
 Do not perform workflow attribution.
 Outcomes deliver value.
@@ -93,6 +95,8 @@ Outcome Indicator = 1 for accepted/delivered outcome, 0 for rejected, abandoned,
 Outcome Value = Outcome Indicator × Objective Value
 ```
 
+Treat pending-review outcomes as `Outcome Indicator = 0` until explicitly accepted.
+
 Accepted/delivered outcome means the intended result was accepted in GitHub state (for example: merged PR, closed issue with completion signal, or explicit accepted status in the workflow outcome record).
 
 Then compute:
@@ -100,7 +104,7 @@ Then compute:
 ```text
 Accepted Outcome Count = count(outcomes where Outcome Indicator = 1)
 Total Outcome Value    = sum(Outcome Value)
-Impact Efficiency      = Total Outcome Value / AI Credits  (value points per AI Credit)
+Impact Efficiency      = Total Outcome Value / AI Credits  (value points per AI Credit; undefined when AI Credits = 0)
 ```
 
 If AI Credits is missing or zero, report that Impact Efficiency is not computable and explain whether credits data was unavailable or no credits were consumed in the analysis window.
