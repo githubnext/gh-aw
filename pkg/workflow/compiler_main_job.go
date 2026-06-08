@@ -218,9 +218,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// ambient_context is the first-request context size metric:
 		// input_tokens + (cache_tokens / 10), where cache tokens are normalized as 10x cheaper.
 		"ambient_context": fmt.Sprintf("${{ steps.%s.outputs.ambient_context }}", constants.ParseMCPGatewayStepID),
-		// effective_tokens_rate_limit_error is true when MCP gateway logs indicate ET budget
-		// exhaustion or API rate limiting attributable to ET constraints.
-		"effective_tokens_rate_limit_error": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens_rate_limit_error || 'false' }}", constants.ParseMCPGatewayStepID),
+		// ai_credits_rate_limit_error is true when MCP gateway logs indicate AI credits
+		// budget exhaustion or API rate limiting attributable to credit constraints.
+		"ai_credits_rate_limit_error": fmt.Sprintf("${{ steps.%s.outputs.ai_credits_rate_limit_error || 'false' }}", constants.ParseMCPGatewayStepID),
 		// setup-trace-id propagates the shared OTLP trace ID to downstream jobs (detection, safe_outputs, cache, etc.)
 		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
 		// setup-span-id propagates the setup span parent so downstream setup spans form one tree.

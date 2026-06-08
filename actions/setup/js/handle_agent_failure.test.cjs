@@ -874,7 +874,6 @@ describe("handle_agent_failure", () => {
         inference_access_error_context: "",
         mcp_policy_error_context: "",
         model_not_supported_error_context: "",
-        effective_tokens_rate_limit_error_context: "",
         ai_credits_rate_limit_error_context: "",
         app_token_minting_failed_context: "",
         lockdown_check_failed_context: "",

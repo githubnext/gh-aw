@@ -245,16 +245,12 @@ function hasAICreditsRateLimitError(contents) {
 
 /**
  * Exports ai_credits_rate_limit_error output.
- * Also emits the legacy effective_tokens_rate_limit_error alias so that
- * compiled lock files that still reference the old step-output name continue
- * to receive the correct value during the transition period.
  * @param {typeof import('@actions/core')} coreObj
  * @param {boolean} value
  */
 function setAICreditsRateLimitOutput(coreObj, value) {
   const strValue = value ? "true" : "false";
   coreObj.setOutput("ai_credits_rate_limit_error", strValue);
-  coreObj.setOutput("effective_tokens_rate_limit_error", strValue);
 }
 
 /**

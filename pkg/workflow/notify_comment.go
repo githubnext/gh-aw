@@ -265,9 +265,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
 	}
 
-	// Pass ET usage and ET rate-limit detection outputs from the agent job.
+	// Pass ET usage and AI credits rate-limit detection outputs from the agent job.
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.effective_tokens || '' }}\n", mainJobName))
-	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.effective_tokens_rate_limit_error || 'false' }}\n", mainJobName))
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.ai_credits_rate_limit_error || 'false' }}\n", mainJobName))
 
 	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
 	// These are set by the copilot_harness.cjs logic in the agentic_execution step and cover:
