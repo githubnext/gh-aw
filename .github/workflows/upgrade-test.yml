@@ -109,7 +109,7 @@ jobs:
       issues: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      UPGRADE_JOB_NAME_PREFIX: "Extension upgrade on latest-"
+      UPGRADE_JOB_NAME_PREFIX: "Extension upgrade on "
     steps:
       - name: Collect upgrade test outcomes
         id: outcomes
