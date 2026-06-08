@@ -291,7 +291,7 @@ func TestShouldConfigureLipglossCompat(t *testing.T) {
 		{
 			name:       "windows character device",
 			goos:       "windows",
-			stderrMode: os.ModeCharDevice,
+			stderrMode: os.ModeDevice | os.ModeCharDevice,
 			want:       true,
 		},
 		{
@@ -301,9 +301,21 @@ func TestShouldConfigureLipglossCompat(t *testing.T) {
 			want:       false,
 		},
 		{
+			name:       "windows zero mode stat success",
+			goos:       "windows",
+			stderrMode: os.FileMode(0),
+			want:       false,
+		},
+		{
 			name:    "windows stat error",
 			goos:    "windows",
 			statErr: os.ErrPermission,
+			want:    false,
+		},
+		{
+			name:    "windows ErrInvalid fallback",
+			goos:    "windows",
+			statErr: os.ErrInvalid,
 			want:    false,
 		},
 		{

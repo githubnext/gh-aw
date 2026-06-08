@@ -68,7 +68,7 @@ func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr 
 		if statErr != nil {
 			return false
 		}
-		return stderrMode&os.ModeCharDevice != 0
+		return stderrMode&(os.ModeDevice|os.ModeCharDevice) == (os.ModeDevice | os.ModeCharDevice)
 	}
 	return true
 }
