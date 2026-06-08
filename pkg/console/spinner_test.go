@@ -141,6 +141,16 @@ func TestSpinnerBubbleTeaModel(t *testing.T) {
 		t.Error("Update should return spinnerModel")
 	}
 
+	// With tea.WithInput(nil) configured in NewSpinner, key messages are not expected
+	// in normal execution and should not trigger quit behavior in this model.
+	newModel, cmd = model.Update(tea.KeyPressMsg{})
+	if cmd != nil {
+		t.Error("Update should not return a command for keypress messages")
+	}
+	if _, ok := newModel.(spinnerModel); !ok {
+		t.Error("Update should return spinnerModel for keypress messages")
+	}
+
 	// Note: View() returns an empty View with WithoutRenderer() mode
 	// because rendering is done manually in Update() via render()
 	view := model.View()

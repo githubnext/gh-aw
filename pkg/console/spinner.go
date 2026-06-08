@@ -6,7 +6,7 @@
 // # Spinner Component
 //
 // The spinner provides visual feedback during long-running operations with a minimal
-// dot animation (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷). It automatically adapts to the environment:
+// dot animation (⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏). It automatically adapts to the environment:
 //   - TTY Detection: Spinners only animate in terminal environments (disabled in pipes/redirects)
 //   - Accessibility: Respects ACCESSIBLE environment variable to disable animations
 //   - Color Adaptation: Uses lipgloss adaptive colors for light/dark terminal themes
@@ -72,10 +72,6 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.message = string(msg)
 		m.render()
 		return m, nil
-	case tea.KeyPressMsg:
-		if msg.String() == "ctrl+c" {
-			return m, tea.Quit
-		}
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
