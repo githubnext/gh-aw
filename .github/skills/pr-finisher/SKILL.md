@@ -92,6 +92,7 @@ make fmt
 make lint
 make test-unit
 make test
+make recompile
 ```
 
 If a `make test` fix changes wasm compiler output, or wasm golden tests fail:
