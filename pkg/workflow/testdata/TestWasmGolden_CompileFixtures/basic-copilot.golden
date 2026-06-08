@@ -291,11 +291,11 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: basiccopilot
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
+      ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
       ambient_context: ${{ steps.parse-mcp-gateway.outputs.ambient_context }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
-      effective_tokens_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.effective_tokens_rate_limit_error || 'false' }}
       inference_access_error: ${{ steps.detect-agent-errors.outputs.inference_access_error || 'false' }}
       mcp_policy_error: ${{ steps.detect-agent-errors.outputs.mcp_policy_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}

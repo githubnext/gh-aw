@@ -435,11 +435,11 @@ jobs:
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: changeset
     outputs:
+      ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
       ambient_context: ${{ steps.parse-mcp-gateway.outputs.ambient_context }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
-      effective_tokens_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.effective_tokens_rate_limit_error || 'false' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ needs.activation.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
@@ -1284,7 +1284,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens || '' }}
-          GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR: ${{ needs.agent.outputs.effective_tokens_rate_limit_error || 'false' }}
+          GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.agent.outputs.ai_credits_rate_limit_error || 'false' }}
           GH_AW_ENGINE_API_HOSTS: "api.openai.com"
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
