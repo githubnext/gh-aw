@@ -18,10 +18,6 @@ tools:
     toolsets: [default]
 
 safe-outputs:
-  create-pull-request:
-    title-prefix: "[windows-integration] "
-    allowed-files:
-      - .github/workflows/windows-cli-integration.yml
   create-issue:
     title-prefix: "[windows-integration] "
     labels: [workflow, windows]
@@ -59,6 +55,6 @@ If it is missing, create it. If it exists, improve it only when needed to match 
 
 ## Output rules
 
-- If changes are required, use `create-pull-request` with only `.github/workflows/windows-cli-integration.yml` modified.
-- If required changes are outside allowed write scope (for example this builder file), use `create-issue` to request those updates instead of attempting a pull request.
+- If changes are required, use `create-issue` to request updates to `.github/workflows/windows-cli-integration.yml`.
+- If required changes are outside allowed write scope (for example this builder file), use `create-issue` to request those updates.
 - If no changes are needed, use `noop` with a short explanation.
