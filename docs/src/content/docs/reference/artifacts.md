@@ -20,6 +20,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
 | `prompt` | — | Single-file | Generated prompt (`prompt.txt`) |
 | `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
+| `usage` | `constants.UsageArtifactName` | Multi-file | Compact conclusion-job artifact with workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Single-file | Safe output items manifest |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
 
@@ -36,6 +37,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `mcp` | `firewall-audit-logs` | MCP gateway traffic logs |
 | `detection` | `detection` | Threat detection output |
 | `experiment` | `experiment` | A/B experiment state (only present when experiments are declared) |
+| `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
@@ -189,6 +191,20 @@ The `🧪 A/B Experiments` section of the audit report shows the variant chosen 
 ```
 
 See [A/B Experiments](/gh-aw/experimental/experiments/) for how to declare experiments in workflow frontmatter.
+
+## `usage`
+
+The `usage` artifact is a compact artifact produced by the conclusion job. It carries workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths, so downstream tools can read aggregated usage data without downloading the full `agent` artifact.
+
+### Accessing usage data
+
+```bash
+# Download only the usage artifact
+gh aw logs <run-id> --artifacts usage
+
+# Or with gh run download
+gh run download <run-id> -n usage
+```
 
 ## Naming Compatibility
 
