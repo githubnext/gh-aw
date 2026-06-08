@@ -14,11 +14,14 @@ sidebar:
 
 > ⚠️ **Experimental**: This specification describes a feature that is under active development. The command interface, output schema, and algorithmic parameters are subject to change without notice. Do not depend on this interface in production workflows.
 
+> [!IMPORTANT]
+> AI Credits (AIC) is the primary cost metric in gh-aw. This draft still references legacy Effective Tokens (ET) field names where command output and schema compatibility require them.
+
 ---
 
 ## Abstract
 
-This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows (gh-aw) project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
+This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows (gh-aw) project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) and legacy Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
 
 ---
 

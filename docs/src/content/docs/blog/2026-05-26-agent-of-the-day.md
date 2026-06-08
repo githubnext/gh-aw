@@ -9,6 +9,9 @@ metadata:
   linkedPostText: "How we track Copilot agent PR performance with a daily analysis workflow"
 ---
 
+> [!NOTE]
+> This post references historical **Effective Tokens (ET)** metrics. gh-aw now uses **AI Credits (AIC)** as the primary cost metric.
+
 Every morning someone at GitHub opens their laptop and wonders: how well did the coding agents do yesterday? Did they ship? Did they stall? Did they create more work than they saved? These questions used to require manual spelunking through dashboards, cross-referencing merged PRs with author names, and guessing at patterns from vibes alone.
 
 Not anymore.

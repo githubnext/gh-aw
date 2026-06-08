@@ -9,6 +9,9 @@ metadata:
   linkedPostText: "Agent Performance Analyzer hits 90/100 ecosystem health"
 ---
 
+> [!NOTE]
+> This post references historical **Effective Tokens (ET)** metrics. gh-aw now uses **AI Credits (AIC)** as the primary cost metric.
+
 Every day, 236 agentic workflows run inside the `gh-aw` repository. Most complete quietly. A few fail in patterns worth tracking. And once a week, one workflow reads the entire fleet, scores it, and writes up what it found. That workflow is the **Agent Performance Analyzer**, and its run on May 27, 2026 produced the clearest signal in months.
 
 ## Agent of the Day: Agent Performance Analyzer — Meta-Orchestrator

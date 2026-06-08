@@ -74,7 +74,7 @@ This specification covers:
 This specification does NOT cover:
 
 - Engine-specific API call construction (how parameters are forwarded to the provider REST API)
-- Token budgets, cost accounting, or the Effective Tokens metric (see [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/))
+- Token budgets, cost accounting, or AI Credits billing (see [AI Credits Specification](/gh-aw/specs/ai-credits-specification/) and legacy [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/))
 - Model capability detection at runtime
 - Model routing logic within the Copilot gateway
 

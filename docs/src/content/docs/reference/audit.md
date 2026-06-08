@@ -7,6 +7,9 @@ sidebar:
 
 The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP tool usage and network behavior, and produce structured reports suited for security reviews, debugging, and feeding to AI agents.
 
+> [!NOTE]
+> AI Credits (AIC) are the primary spend metric in gh-aw. Legacy Effective Tokens (ET) fields remain available for backward compatibility in report output.
+
 ## `gh aw audit <run-id-or-url> [<run-id-or-url>...]`
 
 Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report.
@@ -82,7 +85,7 @@ gh aw audit 12345 12346 --repo owner/repo      # Specify repository
 The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run:
 - `ambient_context.input_tokens` — input tokens for the first invocation
 - `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
-- `ambient_context.effective_tokens` — `input_tokens + cached_tokens`
+- `ambient_context.effective_tokens` — legacy ET field (`input_tokens + cached_tokens`) retained for compatibility
 
 **Diff output** includes:
 - New and removed network domains
@@ -91,8 +94,8 @@ The Metrics section includes an `ambient_context` object when available. Ambient
 - Anomaly flags (new denied domains, previously-denied domains now allowed)
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns)
-- Token usage and spend breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, AIC, total API requests, and cache efficiency per run
-- Tokens per turn: effective tokens divided by turn count for each run, with the change between runs
+- Token usage and spend breakdown: input tokens, output tokens, cache read/write tokens, AIC, legacy effective tokens (ET), total API requests, and cache efficiency per run
+- Tokens per turn: legacy ET divided by turn count for each run, with the change between runs
 - AIC reporting: AI Credits are shown alongside token metrics for spend tracking
 - Tool call breakdown: per-tool call counts (new, removed, and changed tools) with max input/output sizes
 - Bash command breakdown: aggregated call counts and max input/output sizes for each distinct bash command invoked
@@ -122,7 +125,7 @@ This feature is built into the `gh aw logs` command via the `--format` flag.
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
-For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, `effective_tokens`).
+For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, and legacy `effective_tokens`).
 
 **`--stdin` mode:** Pass `--stdin` to supply an explicit list of run IDs or URLs instead of letting the command discover runs from the GitHub API. Date, count, and workflow-name filters are ignored; `--engine`, `--firewall`, `--safe-output`, and other content filters still apply. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`.
 
@@ -146,7 +149,8 @@ gh aw logs --format markdown --repo owner/repo --count 10
 
 - [Cost Management](/gh-aw/reference/cost-management/) — Track AIC-first spend and token usage
 - [Artifacts](/gh-aw/reference/artifacts/) — Artifact names, directory structures, and token usage file locations (`token-usage.jsonl` in `firewall-audit-logs`)
-- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) — Legacy effective token computation details
+- [AI Credits Specification](/gh-aw/specs/ai-credits-specification/) — Primary AIC computation details
+- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) — Legacy ET computation details
 - [Network](/gh-aw/reference/network/) — Firewall and domain allow/deny configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — MCP server health and debugging
 - [CLI Commands](/gh-aw/setup/cli/) — Full CLI reference

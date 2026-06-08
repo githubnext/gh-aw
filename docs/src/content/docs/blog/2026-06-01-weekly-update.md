@@ -6,6 +6,9 @@ authors:
 date: 2026-06-01
 ---
 
+> [!NOTE]
+> This post references historical **Effective Tokens (ET)** metrics. gh-aw now uses **AI Credits (AIC)** as the primary cost metric.
+
 It's been a busy week in [github/gh-aw](https://github.com/github/gh-aw)! Five releases landed between May 28 and May 31, capped off by [v0.77.4](https://github.com/github/gh-aw/releases/tag/v0.77.4) — one of the biggest releases in recent memory. Here's everything that shipped.
 
 ## Release: v0.77.4

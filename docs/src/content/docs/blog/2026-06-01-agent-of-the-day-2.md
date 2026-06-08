@@ -9,6 +9,9 @@ metadata:
   linkedPostText: "Catch architectural drift automatically with Architecture Guardian"
 ---
 
+> [!NOTE]
+> This post references historical **Effective Tokens (ET)** metrics. gh-aw now uses **AI Credits (AIC)** as the primary cost metric.
+
 ## 🏗️ Agent of the Day: Architecture Guardian
 
 Architectural drift is quiet and cumulative. A file grows past 600 lines. A function absorbs one more responsibility. An import cycle sneaks in between two packages that "just need to share a little logic." None of it trips a CI gate, no test turns red, and six months later a new engineer opens that directory and wonders how it got this bad. The Architecture Guardian workflow exists precisely to interrupt that pattern before it becomes load-bearing.

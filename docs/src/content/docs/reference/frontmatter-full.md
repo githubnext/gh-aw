@@ -2226,7 +2226,7 @@ engine:
   # (optional)
   api-target: "example-value"
 
-  # Custom model token weights for effective token computation. Overrides or extends
+  # Custom model token weights for legacy Effective Tokens (ET) computation. Overrides or extends
   # the built-in model multipliers from model_multipliers.json. Useful for custom
   # models or adjusted cost ratios.
   # (optional)
@@ -2529,19 +2529,30 @@ engine:
   # the default engine when engine.id is not specified.
   model: "example-value"
 
-# Explicit ET budget control for firewall cost enforcement. Omit this field to
-# leave ET budget protection unset. Set to a negative value to disable budget
-# enforcement and token steering.
+# Explicit AI Credits budget control for firewall cost enforcement. Omit this
+# field to leave AIC budget protection unset. Set to -1 to disable budget
+# enforcement.
 # (optional)
 # Accepted formats:
 
-# Format 1: Maximum effective-token (ET) budget for AWF API proxy enforcement. Use
-# a negative value to disable budget enforcement and token steering.
-max-effective-tokens: 1
+# Format 1: Maximum AI Credits (AIC) budget for AWF API proxy enforcement.
+max-ai-credits: 1
 
-# Format 2: Maximum effective-token (ET) budget as a numeric string or GitHub
-# Actions expression.
-max-effective-tokens: "example-value"
+# Format 2: Maximum AI Credits (AIC) budget as a numeric string with optional
+# K/M suffix or GitHub Actions expression.
+max-ai-credits: "example-value"
+
+# Explicit daily AI Credits guardrail per workflow across the previous 24-hour
+# window. Omit to disable, or set to -1 to explicitly disable.
+# (optional)
+# Accepted formats:
+
+# Format 1: Maximum daily AI Credits (AIC) budget.
+max-daily-ai-credits: 1
+
+# Format 2: Maximum daily AI Credits (AIC) budget as a numeric string with
+# optional K/M suffix or GitHub Actions expression.
+max-daily-ai-credits: "example-value"
 
 # DEPRECATED: Legacy alias for AWF invocation cap (`apiProxy.maxRuns`).
 # Use `max-turns` instead. Defaults to 500 when omitted.
