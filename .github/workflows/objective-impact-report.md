@@ -14,30 +14,36 @@ safe-outputs:
 
 ## Goal
 
-Test whether prioritized GitHub issues are a useful proxy for objective value.
+Test whether Impact Efficiency is a more meaningful signal than accepted outcome counts alone.
 
-Use the simplest possible model:
+Use this model:
 
 ```text
-Issue = objective
-Priority or severity = value
-Closed issue = delivered value
+Outcome = delivered work from GitHub Agentic Workflow outcomes
+Objective = issue/epic/work item linked to the outcome
+Objective Value = value from planning metadata (priority, severity, milestone, project)
+Outcome Value = Outcome × Objective Value
+Impact Efficiency = Σ Outcome Value / AI Credits
 ```
 
-Do not infer complex objectives.
-Do not allocate value to workflows.
-Do not score labels except priority or severity.
+Treat an outcome as one recorded result item produced by a GitHub Agentic Workflow run (for example, a PR change, completed fix, or report action), which may later be accepted or not accepted.
+Treat AI Credits as total model-credit cost consumed by the workflow runs that produced the analyzed outcomes.
+
+Do not perform workflow attribution.
+Outcomes deliver value.
+Objectives provide context and importance.
+AI Credits provide cost.
 Do not use an LLM judge.
 
 ## Scope
 
-Analyze issues from the last 180 days.
+Analyze workflow outcomes and linked objectives from the last 180 days.
 
-Ignore pull requests.
+## Objective value mapping
 
-## Value mapping
+For each outcome, find the associated objective first, then compute `Objective Value`.
 
-Use the first matching priority or severity signal from issue labels or fields.
+Use the first matching priority or severity signal from objective labels or fields as the base value:
 
 ```text
 P0 / urgent / critical = 100
@@ -56,57 +62,101 @@ P2, priority:P2, priority/P2, severity:medium, medium
 P3, priority:P3, priority/P3, severity:low, low
 ```
 
+Then apply planning context adjustments:
+
+```text
+Objective is assigned to a milestone = +10
+Objective is assigned to a project   = +10
+```
+
+Cap `Objective Value` at 120 (`100 + 10 + 10` maximum from base plus planning adjustments).
+
+The cap prevents a small number of heavily tagged objectives from dominating the metric.
+
 All other labels are classification only.
+
+## Outcome association rules
+
+For each workflow outcome, associate one objective using this order:
+
+1. Explicit linked issue or work item reference in the outcome.
+2. Issue linked through the related pull request.
+3. Parent issue/epic if explicitly linked.
+4. If no objective can be found, mark as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
 
 ## Computation
 
-Compute:
+For each outcome:
 
 ```text
-Delivered Impact = sum(value of closed issues)
-Remaining Impact = sum(value of open issues)
-Total Impact     = Delivered Impact + Remaining Impact
-Completion       = Delivered Impact / Total Impact
+Outcome Indicator = 1 for accepted/delivered outcome, 0 for rejected, abandoned, or incomplete outcome
+Outcome Value = Outcome Indicator × Objective Value
 ```
 
-If no prioritized issues exist, use `unknown = 1` and explain that the repository needs priority or severity signals for a meaningful test.
+Accepted/delivered outcome means the intended result was accepted in GitHub state (for example: merged PR, closed issue with completion signal, or explicit accepted status in the workflow outcome record).
+
+Then compute:
+
+```text
+Accepted Outcome Count = count(outcomes where Outcome Indicator = 1)
+Total Outcome Value    = sum(Outcome Value)
+Impact Efficiency      = Total Outcome Value / AI Credits  (value points per AI Credit)
+```
+
+If AI Credits is missing or zero, report that Impact Efficiency is not computable and explain whether credits data was unavailable or no credits were consumed in the analysis window.
 
 ## Report
 
 Create one issue titled:
 
 ```text
-Objective Impact Report - YYYY-MM-DD
+Impact Efficiency Report - YYYY-MM-DD
 ```
 
 The report must include:
 
 ### Summary
 
-- Issues analyzed
-- Closed issues
-- Open issues
-- Delivered Impact
-- Remaining Impact
-- Completion percentage
+- Outcomes analyzed
+- Objectives mapped
+- Unmapped outcomes
+- Accepted outcome count
+- Total outcome value
+- AI Credits
+- Impact Efficiency
 
-### Top closed issues by value
+### Top outcomes by outcome value
 
-| Issue | Value signal | Value | Labels |
-|---|---:|---:|---|
+| Outcome | Associated objective | Objective value signals | Objective Value | Outcome Value |
+|---|---|---|---:|---:|
 
-### Top open issues by value
+### Top objectives by delivered value
 
-| Issue | Value signal | Value | Labels |
-|---|---:|---:|---|
+| Objective | Priority/Severity | Milestone | Project | Delivered Outcome Value |
+|---|---|---|---|---:|
+
+### Unmapped outcomes
+
+| Outcome | Reason objective was not mapped |
+|---|---|
 
 ### Interpretation
 
-Explain whether the result looks useful for maintainers and PMs.
+Compare:
+
+- accepted outcome count alone
+- Impact Efficiency
+
+Explain which one better reflects meaningful delivered value relative to cost.
 
 ### Data quality
 
-Mention whether priority/severity labels were common or missing.
+Mention missing or weak links in:
+
+- outcome-to-objective association
+- priority/severity metadata
+- milestone/project metadata
+- AI Credits availability
 
 ## Safe output
 
