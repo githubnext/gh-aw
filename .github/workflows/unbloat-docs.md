@@ -326,7 +326,7 @@ Make targeted edits to improve clarity:
 
 When you encounter a Mermaid diagram that uses single-letter node IDs (e.g., `A`, `B`, `C`, `D`), upgrade them in-place to descriptive IDs while keeping the same label text. This improves traceability without deleting content.
 
-**Example upgrade** (do this silently as part of your edits — no separate PR needed):
+**Example upgrade** (make this change atomically with your other edits in the same file):
 ```
 # Before (single-letter IDs)
 graph TD
