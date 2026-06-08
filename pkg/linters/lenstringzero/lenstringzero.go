@@ -51,8 +51,10 @@ func run(pass *analysis.Pass) (any, error) {
 			lenArg = lenCallArg(expr.X)
 		} else if isIntZero(expr.X) && isLenCall(expr.Y) {
 			lenArg = lenCallArg(expr.Y)
-		} else if arg, ok := lenAliasArg(pass, expr.X, lenStringAliases); ok && isIntZero(expr.Y) {
-			lenArg = arg
+		} else if isIntZero(expr.Y) {
+			if arg, ok := lenAliasArg(pass, expr.X, lenStringAliases); ok {
+				lenArg = arg
+			}
 		} else if isIntZero(expr.X) {
 			if arg, ok := lenAliasArg(pass, expr.Y, lenStringAliases); ok {
 				lenArg = arg
@@ -220,8 +222,6 @@ func rhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
 	switch {
 	case len(rhs) == 0:
 		return nil, false
-	case len(rhs) == 1 && idx == 0:
-		return rhs[0], true
 	case idx < len(rhs):
 		return rhs[idx], true
 	default:
