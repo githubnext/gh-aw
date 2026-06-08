@@ -47,6 +47,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
+const { checkAPIProxyErrors } = require("./api_proxy_events.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -396,6 +397,20 @@ async function main() {
       break;
     }
 
+    // Check the API proxy event log to determine if there was a rate-limiting error or another error.
+    // This is the authoritative source for error classification, more reliable than pattern matching
+    // on stdout/stderr.
+    const proxyErrors = checkAPIProxyErrors(undefined, log);
+
+    // Prefer API proxy event log classification over output pattern matching
+    const hasRateLimitFromProxy = proxyErrors.hasRateLimitError;
+    const hasOverloadFromProxy = proxyErrors.hasOverloadError;
+    const hasMaxRunsExceeded = proxyErrors.hasMaxRunsExceeded;
+
+    // Use the most authoritative source: proxy event log if available, otherwise output patterns
+    const effectiveRateLimit = hasRateLimitFromProxy || isRateLimit;
+    const effectiveOverload = hasOverloadFromProxy || isOverloaded;
+
     if (attempt === 0 && isAuthenticationFailed) {
       log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
       break;
@@ -405,6 +420,14 @@ async function main() {
       const deniedCommands = extractDeniedCommands(result.output);
       emitMissingToolPermissionIssue({ deniedCommands, logger: log });
       log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
+      break;
+    }
+
+    // max_runs_exceeded from the API proxy is a deterministic terminal condition: the session
+    // ended because the AWF budget was exhausted. This is different from Claude Code's native
+    // max-turns limit. Retrying will not succeed unless the max-runs budget is increased.
+    if (hasMaxRunsExceeded) {
+      log(`attempt ${attempt + 1}: max_runs_exceeded from API proxy — not retriable (budget exhausted, failure_reason=max_runs_exceeded)`);
       break;
     }
 
@@ -447,13 +470,21 @@ async function main() {
       if (isSignalTermination) {
         continueDisabledPermanently = true;
       }
-      const reason = isSignalTermination
-        ? `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`
-        : isOverloaded
-          ? "overloaded_error (transient)"
-          : isRateLimit
-            ? "rate_limit_error (transient)"
-            : "partial execution";
+
+      // Build detailed reason string for logging
+      let reason = "partial execution";
+      if (isSignalTermination) {
+        reason = `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`;
+      } else if (hasRateLimitFromProxy) {
+        reason = "rate_limit_error from API proxy (transient)";
+      } else if (hasOverloadFromProxy) {
+        reason = "overloaded_error from API proxy (transient)";
+      } else if (effectiveRateLimit && !hasRateLimitFromProxy) {
+        reason = "rate_limit_error detected in output (transient)";
+      } else if (effectiveOverload && !hasOverloadFromProxy) {
+        reason = "overloaded_error detected in output (transient)";
+      }
+
       useContinueOnRetry = retryWithContinue;
       const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
       log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
