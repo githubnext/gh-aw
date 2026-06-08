@@ -100,6 +100,7 @@ Use Serena to generate 1-3 simple Mermaid diagrams:
    - `journey` - for user or development journeys
    - `gantt` - for timelines and schedules
    - `pie` - for proportional data
+5. **Descriptive Node IDs**: Always use descriptive node IDs that reflect the node's meaning (e.g., `ValidateInput`, `SendNotification`). Never use single-letter IDs (e.g., `A`, `B`, `C`). Descriptive IDs survive edits and remain traceable.
 
 ### Number of Diagrams
 
@@ -117,10 +118,10 @@ Choose the number based on complexity:
 **Flowchart Example:**
 ```mermaid
 graph TD
-    A[Start] --> B[Process]
-    B --> C{Decision}
-    C -->|Yes| D[Action 1]
-    C -->|No| E[Action 2]
+    Start[Start] --> Process[Process]
+    Process --> Decision{Decision}
+    Decision -->|Yes| ActionYes[Action 1]
+    Decision -->|No| ActionNo[Action 2]
 ```
 
 **Sequence Diagram Example:**
@@ -147,6 +148,7 @@ Before posting, ensure your diagrams:
 - [ ] Syntax follows Mermaid specification
 - [ ] No advanced styling or custom themes
 - [ ] Node labels are clear and concise
+- [ ] Node IDs are descriptive (not single letters like `A`, `B`, `C`)
 - [ ] Relationships are properly defined
 - [ ] Total diagrams: between 1 and 3
 
@@ -228,6 +230,7 @@ If generating multiple diagrams, wrap diagrams 2 and 3 in `<details><summary>Vie
 A successful Archie run:
 - ✅ Analyzes the trigger context and any linked references
 - ✅ Generates between 1 and 3 valid Mermaid diagrams
+- ✅ Uses descriptive node IDs (never single-letter IDs like `A`, `B`, `C`)
 - ✅ Ensures diagrams are GitHub Markdown-compatible
 - ✅ Posts diagrams as a well-formatted comment
 - ✅ Uses Serena for diagram generation consistency

@@ -3,7 +3,25 @@ name: Integration Test Agentics
 on:
   push:
     branches: [main]
+    paths:
+      - '**/*.go'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/integration-agentics.yml'
   pull_request:
+    paths:
+      - '**/*.go'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/integration-agentics.yml'
   workflow_dispatch:
 
 permissions:
