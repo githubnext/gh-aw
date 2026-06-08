@@ -2,8 +2,24 @@ name: CWI
 
 on:
   push:
+    branches: [main]
     paths:
+      - '**/*.go'
+      - 'cmd/**'
       - 'pkg/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/CWI.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '**/*.go'
+      - 'cmd/**'
+      - 'pkg/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/CWI.yml'
+  workflow_dispatch:
 
 jobs:
   build-windows:

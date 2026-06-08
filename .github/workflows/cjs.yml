@@ -3,6 +3,12 @@ name: CJS
 on:
   push:
     branches: [main]
+    paths:
+      - 'actions/setup/js/**'
+      - 'actions/setup/md/**'
+      - 'scripts/**/*.js'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/cjs.yml'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
