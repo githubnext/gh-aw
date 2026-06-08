@@ -2386,11 +2386,69 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("daily-spdd-spec-planner");
       expect(result).toContain("> [!WARNING]");
     });
+
+    it("normalizes Python 3 heredoc reason to a single-line summary", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
+
+      const python3Reason = "permission denied: shell(python3 << 'EOF'\nimport re\n\nfiles = [(\"foo.go\", \"/path/foo.go\")]\nfor f, p in files:\n    print(f)\nEOF)";
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: python3Reason }], "daily-compiler-quality");
+      expect(result).toContain("shell(python3 ...)");
+      // The full multi-line program body should not appear in the output
+      expect(result).not.toContain("import re");
+      expect(result).not.toContain("for f, p in files");
+    });
   });
 
   // ──────────────────────────────────────────────────────
-  // report-as-failure feature flags (GH_AW_MISSING_TOOL_REPORT_AS_FAILURE / GH_AW_MISSING_DATA_REPORT_AS_FAILURE)
+  // normalizeDeniedPermissionCommand
   // ──────────────────────────────────────────────────────
+
+  describe("normalizeDeniedPermissionCommand", () => {
+    let normalizeDeniedPermissionCommand;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ normalizeDeniedPermissionCommand } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("returns empty string for empty/non-string input", () => {
+      expect(normalizeDeniedPermissionCommand("")).toBe("");
+      expect(normalizeDeniedPermissionCommand(null)).toBe("");
+      expect(normalizeDeniedPermissionCommand(undefined)).toBe("");
+    });
+
+    it("collapses read(path) to read(...)", () => {
+      expect(normalizeDeniedPermissionCommand("read(/some/path/file.go)")).toBe("read(...)");
+      expect(normalizeDeniedPermissionCommand("read(/home/runner/work/repo/go.mod)")).toBe("read(...)");
+    });
+
+    it("returns non-read single-line commands unchanged", () => {
+      expect(normalizeDeniedPermissionCommand("bash(echo hello)")).toBe("bash(echo hello)");
+      expect(normalizeDeniedPermissionCommand("permission denied: shell(python3 --version)")).toBe("shell(python3 --version)");
+    });
+
+    it("collapses shell(python3 << 'EOF' ...) heredoc to shell(python3 ...)", () => {
+      const cmd = "shell(python3 << 'EOF'\nimport re\nprint('hello')\nEOF)";
+      expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python3 ...)");
+    });
+
+    it("collapses shell(python3 << \"EOF\" ...) heredoc with double-quoted marker", () => {
+      const cmd = "shell(python3 << \"EOF\"\nimport sys\nsys.exit(0)\nEOF)";
+      expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python3 ...)");
+    });
+
+    it("collapses shell(python << 'EOF' ...) heredoc for unversioned python", () => {
+      const cmd = "shell(python << 'EOF'\nprint(1)\nEOF)";
+      expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(python ...)");
+    });
+
+    it("collapses any shell heredoc program, not just python3", () => {
+      const cmd = "shell(node << 'EOF'\nconsole.log('hi');\nEOF)";
+      expect(normalizeDeniedPermissionCommand(cmd)).toBe("shell(node ...)");
+    });
+  });
 
   describe("missing_tool and missing_data report-as-failure flags", () => {
     const fs = require("fs");
