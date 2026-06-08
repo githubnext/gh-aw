@@ -154,6 +154,7 @@ To build and test repository custom linters:
 - @jsoref: #27230 _(direct issue)_
 - @jtracey93: #26176 _(direct issue)_
 - @kaovilai: #32596 _(direct issue)_, #32587 _(direct issue)_, #32482 _(direct issue)_, #32467 _(direct issue)_
+- @karl-petter-sj: #36209 _(direct issue)_
 - @kbreit-insight: #24930 _(direct issue)_, #23940 _(direct issue)_, #23725 _(direct issue)_, #22430 _(direct issue)_, #21978 _(direct issue)_
 - @kkruel8100: #30867 _(direct issue)_
 - @kthompson: #25550 _(direct issue)_
@@ -207,7 +208,7 @@ To build and test repository custom linters:
 - @stacktick: #21361 _(direct issue)_
 - @stefankrzyz: #27260 _(direct issue)_
 - @straub: #24569 _(direct issue)_
-- @strawgate: #33597 _(direct issue)_, #24422 _(direct issue)_, #24199 _(direct issue)_, #23935 _(direct issue)_, #23768 _(direct issue)_, #21157 _(direct issue)_, #21144 _(direct issue)_
+- @strawgate: #33597 _(direct issue)_, #24422 _(direct issue)_, #24199 _(direct issue)_, #23935 _(direct issue)_, #23768 _(direct issue)_, #21157 _(direct issue)_
 - @susmahad: #26276 _(direct issue)_, #25866 _(direct issue)_, #25710 _(direct issue)_
 - @szabta89: #29064 _(direct issue)_, #29063 _(direct issue)_, #24037 _(direct issue)_
 - @tadelesh: #26001 _(direct issue)_
@@ -232,6 +233,7 @@ To build and test repository custom linters:
 - @zkoppert: #27741 _(direct issue)_
 
 </details>
+
 ## Share Feedback
 
 We welcome your feedback on GitHub Agentic Workflows! 

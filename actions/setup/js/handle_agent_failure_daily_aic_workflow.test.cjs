@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 let buildDailyAICExceededContext;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe("handle_agent_failure daily workflow ET context", () => {
+describe("handle_agent_failure daily workflow AI Credits context", () => {
   beforeEach(async () => {
     vi.resetModules();
     process.env.GH_AW_PROMPTS_DIR = path.join(__dirname, "../md");
@@ -19,7 +19,7 @@ describe("handle_agent_failure daily workflow ET context", () => {
     delete process.env.GH_AW_PROMPTS_DIR;
   });
 
-  it("renders the daily workflow ET guardrail context when exceeded", () => {
+  it("renders the daily workflow AI Credits guardrail context when exceeded", () => {
     const rendered = buildDailyAICExceededContext(true, "17.329230000000003", "10");
     expect(rendered).toContain("Daily Workflow AIC Guardrail Exceeded");
     expect(rendered).toContain("**24h AIC usage:** `18` AI Credits");

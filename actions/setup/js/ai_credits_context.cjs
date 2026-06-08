@@ -6,6 +6,8 @@ const path = require("path");
 const MAX_AI_CREDITS_FIELDS = new Set(["max_ai_credits", "maxAiCredits"]);
 const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
 const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error", "aiCreditsRateLimitError"]);
+// Note: these text fields are intentionally broad (common field names like "error", "message") because
+// rate-limit signals can appear in any of them. This asymmetry vs parseMaxAICreditsFromAuditLog is deliberate.
 const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
 
@@ -74,12 +76,12 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
   candidateBases.push("/tmp/gh-aw/sandbox/firewall/logs");
 
   for (const base of candidateBases) {
-    const logPath = path.join(base, "log.jsonl");
-    if (fs.existsSync(logPath)) return logPath;
-    const auditPath = path.join(base, "audit.jsonl");
-    if (fs.existsSync(auditPath)) return auditPath;
+    for (const filename of ["log.jsonl", "audit.jsonl"]) {
+      const candidate = path.join(base, filename);
+      if (fs.existsSync(candidate)) return candidate;
+    }
   }
-  return path.join(candidateBases[0] || "/tmp/gh-aw/sandbox/firewall/audit", "log.jsonl");
+  return path.join(candidateBases[0], "log.jsonl");
 }
 
 /**
@@ -131,31 +133,53 @@ function parseAICreditsErrorInfoFromAuditEntry(entry) {
 }
 
 /**
- * @param {string} [auditJsonlPathOverride]
- * @returns {string}
+ * Reads a firewall audit JSONL file and calls accumulate for each parsed entry.
+ * Returns the accumulated result, or defaultValue on missing file or any error.
+ *
+ * @template T
+ * @param {string | undefined} auditJsonlPathOverride
+ * @param {T} defaultValue
+ * @param {((content: string) => boolean) | null} contentGuard - When non-null, called with raw file
+ *   content before iteration; return false to skip parsing entirely (fast-path optimization).
+ * @param {(acc: T, entry: unknown) => T | undefined} accumulate - Callers should return a defined
+ *   value; undefined is ignored defensively to preserve the previous accumulator.
+ * @returns {T}
  */
-function parseMaxAICreditsFromAuditLog(auditJsonlPathOverride) {
+function iterateAuditEntries(auditJsonlPathOverride, defaultValue, contentGuard, accumulate) {
   try {
     const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
-    if (!fs.existsSync(auditJsonlPath)) return "";
+    if (!fs.existsSync(auditJsonlPath)) return defaultValue;
     const content = fs.readFileSync(auditJsonlPath, "utf8");
-    if (!content.trim() || !/(?:max_ai_credits|maxAiCredits)/.test(content)) return "";
-    let parsedMaxAICredits = "";
+    if (!content.trim()) return defaultValue;
+    if (contentGuard && !contentGuard(content)) return defaultValue;
+    let result = defaultValue;
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed || trimmed[0] !== "{") continue;
       try {
-        const entry = JSON.parse(trimmed);
-        const value = parseMaxAICreditsFromAuditEntry(entry);
-        if (value) parsedMaxAICredits = value;
+        const nextResult = accumulate(result, JSON.parse(trimmed));
+        if (nextResult !== undefined) result = nextResult;
       } catch {
         // ignore malformed lines
       }
     }
-    return parsedMaxAICredits;
+    return result;
   } catch {
-    return "";
+    return defaultValue;
   }
+}
+
+/**
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {string}
+ */
+function parseMaxAICreditsFromAuditLog(auditJsonlPathOverride) {
+  return iterateAuditEntries(
+    auditJsonlPathOverride,
+    "",
+    content => /(?:max_ai_credits|maxAiCredits)/.test(content),
+    (acc, entry) => parseMaxAICreditsFromAuditEntry(entry) || acc
+  );
 }
 
 /**
@@ -163,41 +187,54 @@ function parseMaxAICreditsFromAuditLog(auditJsonlPathOverride) {
  * @returns {{ aiCredits: string, rateLimitError: boolean }}
  */
 function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
-  try {
-    const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
-    if (!fs.existsSync(auditJsonlPath)) return { aiCredits: "", rateLimitError: false };
-    const content = fs.readFileSync(auditJsonlPath, "utf8");
-    if (!content.trim()) return { aiCredits: "", rateLimitError: false };
-    let parsedAICredits = "";
-    let hasRateLimitError = false;
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed[0] !== "{") continue;
-      try {
-        const entry = JSON.parse(trimmed);
-        const parsed = parseAICreditsErrorInfoFromAuditEntry(entry);
-        if (parsed.aiCredits) parsedAICredits = parsed.aiCredits;
-        if (parsed.rateLimitError) hasRateLimitError = true;
-      } catch {
-        // ignore malformed lines
-      }
-    }
-    return { aiCredits: parsedAICredits, rateLimitError: hasRateLimitError };
-  } catch {
-    return { aiCredits: "", rateLimitError: false };
-  }
+  // No content-guard fast-path: the rate-limit signal appears in common field names
+  // (error, message, reason…) that are present in almost every entry, making a
+  // field-name pre-scan near-useless. The asymmetry vs parseMaxAICreditsFromAuditLog
+  // is intentional — see AI_CREDITS_RATE_LIMIT_TEXT_FIELDS comment above.
+  /** @type {{ aiCredits: string, rateLimitError: boolean }} */
+  const initial = { aiCredits: "", rateLimitError: false };
+  return iterateAuditEntries(auditJsonlPathOverride, initial, null, (acc, entry) => {
+    const parsed = parseAICreditsErrorInfoFromAuditEntry(entry);
+    return {
+      aiCredits: parsed.aiCredits || acc.aiCredits,
+      rateLimitError: acc.rateLimitError || parsed.rateLimitError,
+    };
+  });
+}
+
+/**
+ * Single-pass combined read of the audit log, returning all AI credits fields at once.
+ * Used by resolveAICreditsFailureState to avoid reading the same file twice.
+ * No contentGuard is applied: rate-limit signal detection must scan all entries anyway,
+ * so a single full pass is cheaper than two guarded passes.
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean }}
+ */
+function parseAuditLogCombined(auditJsonlPathOverride) {
+  /** @type {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean }} */
+  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false };
+  return iterateAuditEntries(auditJsonlPathOverride, initial, null, (acc, entry) => {
+    const errorInfo = parseAICreditsErrorInfoFromAuditEntry(entry);
+    const max = parseMaxAICreditsFromAuditEntry(entry);
+    return {
+      aiCredits: errorInfo.aiCredits || acc.aiCredits,
+      maxAICredits: max || acc.maxAICredits,
+      rateLimitError: acc.rateLimitError || errorInfo.rateLimitError,
+    };
+  });
 }
 
 /**
  * @returns {{ aiCredits: string, maxAICredits: string, aiCreditsRateLimitError: boolean }}
  */
 function resolveAICreditsFailureState() {
-  const parsedAICreditsErrorInfo = parseAICreditsErrorInfoFromAuditLog();
+  const { aiCredits: auditAICredits, maxAICredits: auditMaxAICredits, rateLimitError: auditRateLimitError } = parseAuditLogCombined();
   const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
-  const aiCredits = parsedAICreditsErrorInfo.aiCredits || envAICredits || "";
-  const maxAICredits = parseMaxAICreditsFromAuditLog() || envMaxAICredits || "";
-  const rawAICreditsRateLimitError = parsedAICreditsErrorInfo.rateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
+  const aiCredits = auditAICredits || envAICredits || "";
+  const maxAICredits = auditMaxAICredits || envMaxAICredits || "";
+  const rawAICreditsRateLimitError = auditRateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
   const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError, aiCredits, maxAICredits);
   return { aiCredits, maxAICredits, aiCreditsRateLimitError };
 }

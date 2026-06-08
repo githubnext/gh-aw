@@ -276,6 +276,9 @@ func yamlStringValue(value string) string {
 	if len(value) == 0 {
 		return value
 	}
+	if quoted := quoteYAMLValueContainingColonSpace(value); quoted != value {
+		return quoted
+	}
 	// Values starting with YAML flow indicators need quoting to be treated as strings.
 	// '{' would be parsed as a YAML flow mapping, '[' as a YAML flow sequence.
 	first := value[0]

@@ -28,6 +28,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
+	lenStringAliases := collectLenStringAliases(pass)
 
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
 
@@ -50,6 +51,14 @@ func run(pass *analysis.Pass) (any, error) {
 			lenArg = lenCallArg(expr.X)
 		} else if isIntZero(expr.X) && isLenCall(expr.Y) {
 			lenArg = lenCallArg(expr.Y)
+		} else if isIntZero(expr.Y) {
+			if arg, ok := lenAliasArg(pass, expr.X, lenStringAliases); ok {
+				lenArg = arg
+			}
+		} else if isIntZero(expr.X) {
+			if arg, ok := lenAliasArg(pass, expr.Y, lenStringAliases); ok {
+				lenArg = arg
+			}
 		}
 		if lenArg == nil {
 			return
@@ -95,4 +104,147 @@ func lenCallArg(expr ast.Expr) ast.Expr {
 func isIntZero(expr ast.Expr) bool {
 	lit, ok := expr.(*ast.BasicLit)
 	return ok && lit.Kind == token.INT && lit.Value == "0"
+}
+
+func collectLenStringAliases(pass *analysis.Pass) map[types.Object]ast.Expr {
+	aliases := make(map[types.Object]ast.Expr)
+	for _, file := range pass.Files {
+		ast.Inspect(file, func(node ast.Node) bool {
+			switch n := node.(type) {
+			case *ast.AssignStmt:
+				collectLenStringAliasesFromAssignStmt(pass, n, aliases)
+			case *ast.ValueSpec:
+				collectLenStringAliasesFromValueSpec(pass, n, aliases)
+			case *ast.IncDecStmt:
+				if ident, ok := n.X.(*ast.Ident); ok {
+					delete(aliases, pass.TypesInfo.ObjectOf(ident))
+				}
+			case *ast.RangeStmt:
+				if n.Tok == token.ASSIGN {
+					deleteLenStringAliasForExpr(pass, aliases, n.Key)
+					deleteLenStringAliasForExpr(pass, aliases, n.Value)
+				}
+			}
+			return true
+		})
+	}
+	return aliases
+}
+
+func collectLenStringAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, aliases map[types.Object]ast.Expr) {
+	for i, lhs := range stmt.Lhs {
+		ident, ok := lhs.(*ast.Ident)
+		if !ok || ident.Name == "_" {
+			continue
+		}
+		obj := pass.TypesInfo.ObjectOf(ident)
+		if obj == nil || !isLocalObject(obj) {
+			continue
+		}
+
+		switch stmt.Tok {
+		case token.DEFINE:
+			if obj.Pos() != ident.Pos() {
+				delete(aliases, obj)
+				continue
+			}
+			rhs, ok := rhsExprForIndex(stmt.Rhs, i)
+			if !ok {
+				delete(aliases, obj)
+				continue
+			}
+			if arg, ok := lenStringArg(pass, rhs); ok {
+				aliases[obj] = arg
+			} else {
+				delete(aliases, obj)
+			}
+		case token.ASSIGN:
+			delete(aliases, obj)
+		}
+	}
+}
+
+func collectLenStringAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, aliases map[types.Object]ast.Expr) {
+	for i, name := range spec.Names {
+		if name.Name == "_" {
+			continue
+		}
+		obj := pass.TypesInfo.ObjectOf(name)
+		if obj == nil || !isLocalObject(obj) {
+			continue
+		}
+		rhs, ok := rhsExprForIndex(spec.Values, i)
+		if !ok {
+			delete(aliases, obj)
+			continue
+		}
+		if arg, ok := lenStringArg(pass, rhs); ok {
+			aliases[obj] = arg
+		} else {
+			delete(aliases, obj)
+		}
+	}
+}
+
+func lenAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Object]ast.Expr) (ast.Expr, bool) {
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return nil, false
+	}
+	arg, ok := aliases[obj]
+	if !ok {
+		return nil, false
+	}
+	return arg, true
+}
+
+func lenStringArg(pass *analysis.Pass, expr ast.Expr) (ast.Expr, bool) {
+	if !isLenCall(expr) {
+		return nil, false
+	}
+	arg := lenCallArg(expr)
+	t := pass.TypesInfo.TypeOf(arg)
+	if t == nil {
+		return nil, false
+	}
+	basic, ok := t.Underlying().(*types.Basic)
+	if !ok || basic.Kind() != types.String {
+		return nil, false
+	}
+	return arg, true
+}
+
+func rhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
+	switch {
+	case len(rhs) == 0:
+		return nil, false
+	case idx < len(rhs):
+		return rhs[idx], true
+	default:
+		return nil, false
+	}
+}
+
+func deleteLenStringAliasForExpr(pass *analysis.Pass, aliases map[types.Object]ast.Expr, expr ast.Expr) {
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return
+	}
+	delete(aliases, pass.TypesInfo.ObjectOf(ident))
+}
+
+func isLocalObject(obj types.Object) bool {
+	if obj == nil {
+		return false
+	}
+	parent := obj.Parent()
+	if parent == nil {
+		return false
+	}
+	pkg := obj.Pkg()
+	return pkg == nil || parent != pkg.Scope()
 }

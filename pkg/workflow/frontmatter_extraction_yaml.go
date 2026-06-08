@@ -79,6 +79,12 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// which causes validation errors since they start with numbers but contain spaces
 	yamlStr = parser.QuoteCronExpressions(yamlStr)
 
+	// For top-level env values, quote plain scalars containing ": " because YAML
+	// treats this token sequence as a mapping separator in plain style.
+	if key == "env" {
+		yamlStr = quoteEnvValuesContainingColonSpace(yamlStr)
+	}
+
 	// Clean up null values - replace `: null` with `:` for cleaner output
 	// GitHub Actions treats `workflow_dispatch:` and `workflow_dispatch: null` identically
 	yamlStr = CleanYAMLNullValues(yamlStr)

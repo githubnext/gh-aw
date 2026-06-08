@@ -18,12 +18,15 @@ import (
 // containerPinRE matches Docker image digest pins of the form @sha256:<64 hex chars>.
 var testContainerPinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
 var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
+var testProjectUTCEnvLineRE = regexp.MustCompile(`(?m)^\s*GH_AW_PROJECT_UTC:.*(?:\r?\n|$)`)
 
 // normalizeOutput applies all stable-comparison normalizations to compiled workflow output
 // before golden comparison: heredoc delimiter normalization and container pin normalization.
 // Mirrors normalize() in scripts/test-wasm-golden.mjs.
 func normalizeOutput(content string) string {
 	normalized := testContainerPinRE.ReplaceAllString(normalizeHeredocDelimiters(content), "")
+	// Keep golden fixtures stable across native-vs-wasm GH_AW_PROJECT_UTC emission differences.
+	normalized = testProjectUTCEnvLineRE.ReplaceAllString(normalized, "")
 	// Keep golden fixtures stable across copilot default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across codex default model fallback updates.

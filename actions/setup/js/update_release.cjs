@@ -16,7 +16,53 @@ const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-// Content sanitization: message.body is sanitized by updateBody() helper
+
+/**
+ * Infer the release tag from event context or dispatch inputs.
+ * @param {typeof context} ctx
+ * @param {typeof github} client
+ * @returns {Promise<string | undefined>}
+ */
+async function inferReleaseTag(ctx, client) {
+  if (ctx.eventName === "release") {
+    const tag = ctx.payload.release?.tag_name;
+    if (tag) {
+      core.info(`Inferred release tag from event context: ${tag}`);
+      return tag;
+    }
+  }
+
+  if (ctx.eventName === "workflow_dispatch" && ctx.payload.inputs) {
+    const { release_url: releaseUrl, release_id: releaseId } = ctx.payload.inputs;
+
+    if (releaseUrl) {
+      const match = releaseUrl.match(/github\.com\/[^/]+\/[^/]+\/releases\/tag\/([^/?#]+)/);
+      const tag = match?.[1] ? decodeURIComponent(match[1]) : undefined;
+      if (tag) {
+        core.info(`Inferred release tag from release_url input: ${tag}`);
+        return tag;
+      }
+    }
+
+    if (releaseId) {
+      const releaseIdValue = `${releaseId}`.trim();
+      if (!/^[1-9]\d*$/.test(releaseIdValue)) {
+        throw new Error(`${ERR_VALIDATION}: Invalid release_id input '${releaseIdValue}'. Expected a positive integer.`);
+      }
+
+      core.info(`Fetching release with ID: ${releaseIdValue}`);
+      const { data: release } = await client.rest.repos.getRelease({
+        owner: ctx.repo.owner,
+        repo: ctx.repo.repo,
+        release_id: Number(releaseIdValue),
+      });
+      core.info(`Inferred release tag from release_id input: ${release.tag_name}`);
+      return release.tag_name;
+    }
+  }
+
+  return undefined;
+}
 
 /**
  * Create a handler for update-release messages
@@ -28,7 +74,6 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
  * @returns {Promise<Function>} Handler function that processes a single message
  */
 async function main(config = {}) {
-  // Check if we're in staged mode
   const isStaged = isStagedMode(config);
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const includeFooter = parseBoolTemplatable(config.footer, true);
@@ -41,7 +86,6 @@ async function main(config = {}) {
    * @returns {Promise<Object>} Result with release info
    */
   return async function handleUpdateRelease(message, resolvedTemporaryIds = {}) {
-    // In staged mode, skip actual processing (preview is handled elsewhere)
     if (isStaged) {
       logStagedPreviewInfo(`Would update release with tag ${message.tag || "(inferred)"}`);
       return { skipped: true, reason: "staged_mode" };
@@ -50,43 +94,13 @@ async function main(config = {}) {
     core.info(`Processing update-release message`);
 
     try {
-      // Infer tag from event context if not provided
-      let releaseTag = message.tag;
-      if (!releaseTag) {
-        // Try to get tag from release event context
-        if (context.eventName === "release" && context.payload.release && context.payload.release.tag_name) {
-          releaseTag = context.payload.release.tag_name;
-          core.info(`Inferred release tag from event context: ${releaseTag}`);
-        } else if (context.eventName === "workflow_dispatch" && context.payload.inputs) {
-          // Try to extract from release_url input
-          const releaseUrl = context.payload.inputs.release_url;
-          if (releaseUrl) {
-            const urlMatch = releaseUrl.match(/github\.com\/[^\/]+\/[^\/]+\/releases\/tag\/([^\/\?#]+)/);
-            if (urlMatch && urlMatch[1]) {
-              releaseTag = decodeURIComponent(urlMatch[1]);
-              core.info(`Inferred release tag from release_url input: ${releaseTag}`);
-            }
-          }
-          // Try to fetch from release_id input
-          if (!releaseTag && context.payload.inputs.release_id) {
-            const releaseId = context.payload.inputs.release_id;
-            core.info(`Fetching release with ID: ${releaseId}`);
-            const { data: release } = await githubClient.rest.repos.getRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: parseInt(releaseId, 10),
-            });
-            releaseTag = release.tag_name;
-            core.info(`Inferred release tag from release_id input: ${releaseTag}`);
-          }
-        }
+      const messageTag = typeof message.tag === "string" ? message.tag.trim() : message.tag;
+      const releaseTag = messageTag || (await inferReleaseTag(context, githubClient));
 
-        if (!releaseTag) {
-          throw new Error(`${ERR_CONFIG}: Release tag is required but not provided and cannot be inferred from event context`);
-        }
+      if (!releaseTag) {
+        throw new Error(`${ERR_CONFIG}: Release tag is required but not provided and cannot be inferred from event context`);
       }
 
-      // Get the release by tag
       core.info(`Fetching release with tag: ${releaseTag}`);
       const { data: release } = await githubClient.rest.repos.getReleaseByTag({
         owner: context.repo.owner,
@@ -96,22 +110,19 @@ async function main(config = {}) {
 
       core.info(`Found release: ${release.name || release.tag_name} (ID: ${release.id})`);
 
-      // Get workflow run URL for AI attribution
       const runUrl = buildWorkflowRunUrl(context, context.repo);
       const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
 
-      // Use shared helper to update body based on operation
       const newBody = updateBody({
-        currentBody: release.body || "",
+        currentBody: release.body ?? "",
         newContent: message.body,
         operation: message.operation || "append",
         workflowName,
         runUrl,
         workflowId,
-        includeFooter, // Pass footer flag to helper
+        includeFooter,
       });
 
-      // Update the release
       const { data: updatedRelease } = await githubClient.rest.repos.updateRelease({
         owner: context.repo.owner,
         repo: context.repo.repo,
@@ -121,7 +132,6 @@ async function main(config = {}) {
 
       core.info(`Successfully updated release: ${updatedRelease.html_url}`);
 
-      // Return result with release info
       return {
         tag: releaseTag,
         url: updatedRelease.html_url,
@@ -132,9 +142,12 @@ async function main(config = {}) {
       const errorMessage = getErrorMessage(error);
       const tagInfo = message.tag || "inferred from context";
 
-      // Check for specific error cases
       if (errorMessage.includes("Not Found")) {
         throw new Error(`${ERR_VALIDATION}: Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
+      }
+
+      if (errorMessage.startsWith(`${ERR_CONFIG}:`) || errorMessage.startsWith(`${ERR_VALIDATION}:`)) {
+        throw new Error(errorMessage);
       }
 
       throw new Error(`${ERR_API}: Failed to update release with tag ${tagInfo}: ${errorMessage}`);

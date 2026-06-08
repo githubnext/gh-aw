@@ -82,23 +82,23 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(exports.computeMaxInspectableRuns(120)).toBeGreaterThan(0);
   });
 
-  it("formats structured daily ET log messages", () => {
-    const message = exports.formatDailyGuardrailLogMessage("Resolved current workflow ET guardrail context", {
+  it("formats structured daily AI Credits log messages", () => {
+    const message = exports.formatDailyGuardrailLogMessage("Resolved current workflow AI Credits guardrail context", {
       currentRunId: 123,
       workflowId: 456,
-      currentEffectiveTokens: 789,
+      currentAIC: 789,
     });
-    const prefix = "[daily-workflow-et] Resolved current workflow ET guardrail context: ";
+    const prefix = "[daily-workflow-aic] Resolved current workflow AI Credits guardrail context: ";
     expect(message).toContain(prefix);
     expect(JSON.parse(message.slice(prefix.length))).toEqual({
       currentRunId: 123,
       workflowId: 456,
-      currentEffectiveTokens: 789,
+      currentAIC: 789,
     });
-    expect(exports.formatDailyGuardrailLogMessage("Completed ET inspection window")).toBe("[daily-workflow-et] Completed ET inspection window");
+    expect(exports.formatDailyGuardrailLogMessage("Completed AI Credits inspection window")).toBe("[daily-workflow-aic] Completed AI Credits inspection window");
   });
 
-  it("renders a daily ET details summary with stats and prior runs", () => {
+  it("renders a daily AI Credits details summary with stats and prior runs", () => {
     const markdown = exports.renderDailyAICSummary(
       "Nightly triage",
       "copilot-swe-agent[bot]",

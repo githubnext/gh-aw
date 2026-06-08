@@ -13,6 +13,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog } = require("./ai_credits_context.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
+const { formatAIC } = require("./model_costs.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
@@ -1039,17 +1040,30 @@ function extractDeniedCommandsFromAlternatives(alternatives) {
 /**
  * Normalize denied command strings for permission-context deduplication.
  * `read(path)` grants are path-agnostic once enabled, so collapse all reads.
+ * Shell heredoc programs (e.g. `shell(python3 << 'EOF'\n...\nEOF)`) are collapsed
+ * to `shell(<program> ...)` so the display stays single-line and actionable.
  * @param {string} command
  * @returns {string}
  */
 function normalizeDeniedPermissionCommand(command) {
   const trimmed = typeof command === "string" ? command.trim() : "";
   if (!trimmed) return "";
-  const readMatch = trimmed.match(/^read\s*\((.*)\)$/i);
+  // Strip optional "permission denied: " prefix present in tool_denials_exceeded reason strings.
+  const cmd = trimmed.replace(/^permission denied:\s*/i, "");
+  const readMatch = cmd.match(/^read\s*\((.*)\)$/i);
   if (readMatch && !/[\r\n]/.test(readMatch[1] || "")) {
     return "read(...)";
   }
-  return trimmed;
+  // Normalize shell heredoc programs: shell(python3 << 'EOF'\n...\nEOF) → shell(python3 ...)
+  // Matches any shell(...) invocation that opens a heredoc with << so the multi-line
+  // program body is replaced by an ellipsis, keeping the display single-line.
+  // Only the opening line needs to match — we don't need to parse the body or closing delimiter.
+  // The \w+ captures common heredoc markers (e.g. EOF, EOL, HEREDOC, PYTHON).
+  const shellHeredocMatch = cmd.match(/^shell\s*\(\s*(\S+)\s+<<\s*['"]?\w+['"]?[\r\n]/);
+  if (shellHeredocMatch) {
+    return `shell(${shellHeredocMatch[1]} ...)`;
+  }
+  return cmd;
 }
 
 /**
@@ -1225,6 +1239,10 @@ function buildToolDenialsExceededContext(events, workflowId) {
   const threshold = String(latestEvent.threshold);
   const reason = latestEvent.reason || "permission denied by workflow tool permissions";
 
+  // Normalize the reason for display: multi-line programs (e.g. Python 3 heredocs) are
+  // collapsed to a single-line summary so the issue body renders cleanly.
+  const normalizedReason = normalizeDeniedPermissionCommand(reason);
+
   try {
     const templatePath = getPromptPath("tool_denials_exceeded_context.md");
     const template = fs.readFileSync(templatePath, "utf8");
@@ -1233,14 +1251,14 @@ function buildToolDenialsExceededContext(events, workflowId) {
       renderTemplate(template, {
         denial_count: denialCount,
         threshold,
-        reason: `\`${reason}\``,
+        reason: `\`${normalizedReason}\``,
         workflow_id: workflowId || "the workflow",
       })
     );
   } catch {
     return (
       buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
-      `**Last denied request:** \`${reason}\`\n\n` +
+      `**Last denied request:** \`${normalizedReason}\`\n\n` +
       "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
     );
   }
@@ -1451,11 +1469,26 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return "";
   }
 
-  const formattedAICredits = formatAICCredits(aiCredits);
-  const formattedMaxAICredits = formatAICCredits(maxAICredits);
-  const usageLine = formattedAICredits ? `\n- AI credits used: \`${formattedAICredits}\`` : "";
-  const budgetLine = formattedMaxAICredits ? `\n- Configured AI credits budget: \`${formattedMaxAICredits}\`` : "";
-  const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
+  const numericAICredits = Number(aiCredits);
+  const numericMaxAICredits = Number(maxAICredits);
+  const formattedAICredits = Number.isFinite(numericAICredits) && numericAICredits > 0 ? formatAIC(numericAICredits) : "";
+  const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
+  const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) && numericAICredits > numericMaxAICredits ? numericAICredits - numericMaxAICredits : NaN;
+  const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
+  const metricsRows = [];
+  if (formattedAICredits) {
+    metricsRows.push(`| AI credits used | \`${formattedAICredits}\` |`);
+  }
+  if (formattedMaxAICredits) {
+    metricsRows.push(`| Guardrail limit (\`max-ai-credits\`) | \`${formattedMaxAICredits}\` |`);
+  }
+  if (formattedOverage) {
+    metricsRows.push(`| Over the limit by | \`${formattedOverage}\` |`);
+  }
+  if (runUrl) {
+    metricsRows.push(`| Run | [View workflow run](${runUrl}) |`);
+  }
+  const metricsTable = metricsRows.length > 0 ? `\n\n| Metric | Value |\n| --- | --- |\n${metricsRows.join("\n")}` : "";
 
   const templateName = "ai_credits_rate_limit_error.md";
   let templatePath = "";
@@ -1469,13 +1502,11 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        usage_line: usageLine,
-        budget_line: budgetLine,
-        run_line: runLine,
+        metrics_table: metricsTable,
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: usage_line, budget_line, run_line`);
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_table`);
   }
 }
 
@@ -2678,8 +2709,11 @@ async function main() {
         // Build fork context hint
         const forkContext = buildForkContextHint();
 
-        // Build engine failure context (surfaces terminal errors from agent-stdio.log)
-        const engineFailureContext = agentConclusion === "failure" ? buildEngineFailureContext() : "";
+        // Build engine failure context (surfaces terminal errors from agent-stdio.log).
+        // Suppress when tool-denials-exceeded is present: the engine termination is a
+        // direct consequence of the SDK hitting the denial threshold, so the tool-denials
+        // context is the more actionable signal.
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2899,8 +2933,11 @@ async function main() {
         // Build fork context hint
         const forkContext = buildForkContextHint();
 
-        // Build engine failure context (surfaces terminal errors from agent-stdio.log)
-        const engineFailureContext = agentConclusion === "failure" ? buildEngineFailureContext() : "";
+        // Build engine failure context (surfaces terminal errors from agent-stdio.log).
+        // Suppress when tool-denials-exceeded is present: the engine termination is a
+        // direct consequence of the SDK hitting the denial threshold, so the tool-denials
+        // context is the more actionable signal.
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -3054,6 +3091,7 @@ module.exports = {
   buildMissingDataContext,
   buildMissingToolContext,
   buildPermissionDeniedContext,
+  normalizeDeniedPermissionCommand,
   loadToolDenialsExceededEvents,
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
