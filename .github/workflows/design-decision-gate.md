@@ -33,7 +33,7 @@ safe-outputs:
     commit-title-suffix: " [design-decision-gate]"
   noop:
   messages:
-    footer: "> 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is checking for design decision records on this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the design decision gate check."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during design decision gate check."

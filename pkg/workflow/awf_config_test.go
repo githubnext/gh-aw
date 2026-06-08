@@ -100,46 +100,6 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "my-proxy.internal.example.com", "should include the openai host")
 	})
 
-	t.Run("configured max-effective-tokens is emitted in apiProxy config", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			AllowedDomains: "github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{
-					ID:                 "copilot",
-					MaxEffectiveTokens: 424242,
-				},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
-			},
-		}
-
-		jsonStr, err := BuildAWFConfigJSON(config)
-		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
-	})
-
-	t.Run("enterprise default max-effective-tokens env var is used when frontmatter is unset", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxEffectiveTokens, "123456")
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			AllowedDomains: "github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{
-					ID: "copilot",
-				},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
-			},
-		}
-
-		jsonStr, err := BuildAWFConfigJSON(config)
-		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxEffectiveTokens":123456`, "apiProxy should emit env var default maxEffectiveTokens")
-	})
-
 	t.Run("default max-ai-credits is enabled when frontmatter is unset", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -196,27 +156,6 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"enableTokenSteering":true`, "apiProxy should emit enableTokenSteering by default")
-	})
-
-	t.Run("token steering is disabled when max-effective-tokens is negative", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			AllowedDomains: "github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{
-					ID:                 "copilot",
-					MaxEffectiveTokens: -1,
-				},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
-			},
-		}
-
-		jsonStr, err := BuildAWFConfigJSON(config)
-		require.NoError(t, err)
-		assert.NotContains(t, jsonStr, `"enableTokenSteering"`, "apiProxy should omit enableTokenSteering when max-effective-tokens is negative")
-		assert.NotContains(t, jsonStr, `"maxEffectiveTokens"`, "apiProxy should omit maxEffectiveTokens when negative (disabled)")
 	})
 
 	t.Run("token steering is disabled when max-ai-credits is negative", func(t *testing.T) {

@@ -48,7 +48,7 @@ safe-outputs:
   add-comment:
     max: 2
   messages:
-    footer: "> 🌊 *Ruflo-backed run by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🌊 *Ruflo-backed run by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🌊 [{workflow_name}]({run_url}) is coordinating this task with Ruflo..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the Ruflo-backed task."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while coordinating the Ruflo-backed task."

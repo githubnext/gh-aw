@@ -13,9 +13,6 @@ import (
 var managerLog = logger.New("compilerenv:manager")
 
 const (
-	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
-	// when max-effective-tokens is not explicitly configured in workflow frontmatter.
-	DefaultMaxEffectiveTokens = "GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS"
 	// DefaultMaxDailyAICredits is the enterprise override for the top-level
 	// max-daily-ai-credits guardrail when it is not explicitly configured in
 	// workflow frontmatter.
@@ -44,25 +41,6 @@ const (
 	// DefaultModelCodex is the enterprise override for Codex fallback model selection.
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
 )
-
-// ResolveDefaultMaxEffectiveTokens returns fallback when the env var is unset/invalid,
-// otherwise returns the parsed override.
-func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
-	raw := strings.TrimSpace(os.Getenv(DefaultMaxEffectiveTokens))
-	if raw == "" {
-		return fallback
-	}
-	if raw == "-1" {
-		managerLog.Printf("Applying enterprise override %s=%q (fallback was %d)", DefaultMaxEffectiveTokens, raw, fallback)
-		return -1
-	}
-	if parsed, ok := typeutil.ParseInt64KMSuffix(raw); ok {
-		managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxEffectiveTokens, parsed, fallback)
-		return parsed
-	}
-	managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxEffectiveTokens, raw, fallback)
-	return fallback
-}
 
 // ResolveDefaultMaxDailyAICredits returns the resolved daily AI Credits guardrail
 // default, checking the enterprise env var GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS.

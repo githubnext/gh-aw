@@ -3477,23 +3477,6 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.workflow.name"]).toBe("");
   });
 
-  it("includes effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is set", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
-    vi.stubGlobal("fetch", mockFetch);
-
-    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
-    process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-    process.env.INPUT_JOB_NAME = "agent";
-
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
-
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
-    expect(etAttr).toBeDefined();
-    expect(etAttr.value.intValue).toBe(5000);
-  });
-
   it("includes gh-aw.aic when GH_AW_AIC is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -3515,7 +3498,6 @@ describe("sendJobConclusionSpan", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
-    process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
     process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
     process.env.GH_AW_DETECTION_CONCLUSION = "warning";
     process.env.GH_AW_TRACKER_ID = "copilot-token-optimizer";
@@ -3546,7 +3528,6 @@ describe("sendJobConclusionSpan", () => {
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
 
-    expect(attrs["gh-aw.effective_tokens"]).toBe(5000);
     expect(attrs["gh-aw.action_minutes"]).toBeGreaterThan(0);
     expect(attrs["gh-aw.turns"]).toBe(7);
     expect(attrs["gh-aw.error_count"]).toBe(2);
@@ -5345,7 +5326,7 @@ describe("sendJobConclusionSpan", () => {
       });
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, effective_tokens: 650, ai_credits: 0.125 };
+      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, ai_credits: 0.125 };
       readFileSpy.mockImplementation(filePath => {
         if (filePath === "/tmp/gh-aw/agent_usage.json") {
           return JSON.stringify(usage);
@@ -5361,7 +5342,6 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gen_ai.usage.output_tokens"]).toBe(200);
       expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(5200);
-      expect(attrs["gh-aw.effective_tokens"]).toBe(650);
       expect(attrs["gh-aw.aic"]).toBe(0.125);
       expect(attrs["gh-aw.detection.conclusion"]).toBe("success");
     });

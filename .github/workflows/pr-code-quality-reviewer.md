@@ -28,7 +28,7 @@ safe-outputs:
   submit-pull-request-review:
     max: 1
   messages:
-    footer: "> 🔎 *Code quality review by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🔎 *Code quality review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."

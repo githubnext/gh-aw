@@ -6,7 +6,7 @@ const os = require("os");
 const path = require("path");
 
 const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
-const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
+const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 
@@ -289,7 +289,7 @@ async function main() {
   core.setOutput("daily_effective_workflow_total_effective_tokens", "");
   core.setOutput("daily_effective_workflow_total_ai_credits", "");
   core.setOutput("daily_effective_workflow_threshold", "");
-  const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS);
+  const threshold = parsePositiveCompactNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS);
   if (threshold <= 0) {
     return;
   }

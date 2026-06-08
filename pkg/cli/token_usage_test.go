@@ -85,7 +85,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		require.NotNil(t, summary.AmbientContext, "ambient context should be present")
 		assert.Equal(t, 7, summary.AmbientContext.InputTokens, "ambient input tokens should come from first invocation")
 		assert.Equal(t, 3, summary.AmbientContext.CachedTokens, "ambient cached tokens should come from first invocation")
-		assert.Equal(t, 10, summary.AmbientContext.EffectiveTokens, "ambient effective tokens should be input + cached")
+		assert.Equal(t, 0, summary.AmbientContext.EffectiveTokens, "ambient effective tokens are no longer computed")
 	})
 
 	t.Run("ambient context defaults cached tokens to zero when absent", func(t *testing.T) {
@@ -101,7 +101,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		require.NotNil(t, summary.AmbientContext, "ambient context should be present")
 		assert.Equal(t, 11, summary.AmbientContext.InputTokens, "ambient input tokens should match")
 		assert.Equal(t, 0, summary.AmbientContext.CachedTokens, "missing cached tokens should default to zero")
-		assert.Equal(t, 11, summary.AmbientContext.EffectiveTokens, "ambient effective tokens should fall back to input only")
+		assert.Equal(t, 0, summary.AmbientContext.EffectiveTokens, "ambient effective tokens are no longer computed")
 	})
 
 	t.Run("empty file returns nil", func(t *testing.T) {
@@ -358,12 +358,12 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.NotNil(t, summary, "should return summary from agent_usage.json")
 		assert.Equal(t, 5944, summary.TotalInputTokens, "input tokens should match agent usage")
 		assert.Equal(t, 8698, summary.TotalOutputTokens, "output tokens should match agent usage")
-		assert.Equal(t, 2141114, summary.TotalEffectiveTokens, "effective tokens should be recomputed from raw usage, not copied from stored ET")
+		assert.Equal(t, 0, summary.TotalEffectiveTokens, "effective tokens are no longer computed")
 		assert.Greater(t, summary.TotalAIC, 0.0, "AI Credits should be recomputed from raw usage")
 		assert.Equal(t, 1, summary.TotalRequests, "agent usage fallback should synthesize one request")
 	})
 
-	t.Run("recomputes ET from raw usage even when agent_usage has stale effective_tokens", func(t *testing.T) {
+	t.Run("does not recompute ET from raw usage", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "analyze-agent-usage-recompute")
 		agentUsageFile := filepath.Join(tmpDir, "agent_usage.json")
 		content := `{"model":"unknown","input_tokens":10,"output_tokens":5,"cache_read_tokens":0,"cache_write_tokens":0,"effective_tokens":9999}`
@@ -372,12 +372,12 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		summary, err := analyzeTokenUsage(tmpDir, false)
 		require.NoError(t, err, "should parse agent_usage.json without error")
 		require.NotNil(t, summary, "should return summary from agent_usage.json")
-		assert.Equal(t, 30, summary.TotalEffectiveTokens, "ET should be recomputed from raw usage")
+		assert.Equal(t, 0, summary.TotalEffectiveTokens, "ET should not be recomputed")
 		require.Contains(t, summary.ByModel, "unknown")
-		assert.Equal(t, 30, summary.ByModel["unknown"].EffectiveTokens, "per-model ET should ignore stored effective_tokens when raw exists")
+		assert.Equal(t, 0, summary.ByModel["unknown"].EffectiveTokens, "per-model ET should remain unset")
 	})
 
-	t.Run("unknown model falls back to multiplier 1.0 when recomputing ET", func(t *testing.T) {
+	t.Run("unknown model keeps ET unset", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "analyze-agent-usage-unknown-model")
 		awInfoFile := filepath.Join(tmpDir, "aw_info.json")
 		awInfoContent := `{"token_weights":{"multipliers":{"known-model":5}}}`
@@ -390,12 +390,12 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		summary, err := analyzeTokenUsage(tmpDir, false)
 		require.NoError(t, err, "should parse agent_usage.json with unknown model")
 		require.NotNil(t, summary, "should return summary from agent_usage.json")
-		assert.Equal(t, 30, summary.TotalEffectiveTokens, "unknown model should use 1.0 multiplier fallback")
+		assert.Equal(t, 0, summary.TotalEffectiveTokens, "effective tokens should remain unset")
 		require.Contains(t, summary.ByModel, "mystery-model")
-		assert.Equal(t, 30, summary.ByModel["mystery-model"].EffectiveTokens, "per-model ET should use fallback multiplier")
+		assert.Equal(t, 0, summary.ByModel["mystery-model"].EffectiveTokens, "per-model ET should remain unset")
 	})
 
-	t.Run("applies custom weights from aw_info when agent_usage effective_tokens is missing", func(t *testing.T) {
+	t.Run("custom weights do not affect ET because ET is disabled", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "analyze-agent-usage-custom-weights")
 		awInfoFile := filepath.Join(tmpDir, "aw_info.json")
 		awInfoContent := `{"token_weights":{"multipliers":{"unknown":2}}}`
@@ -408,9 +408,9 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		summary, err := analyzeTokenUsage(tmpDir, false)
 		require.NoError(t, err, "should parse agent_usage.json with custom weights")
 		require.NotNil(t, summary, "should return summary from agent_usage.json")
-		assert.Equal(t, 60, summary.TotalEffectiveTokens, "custom multiplier should be applied to computed effective tokens")
+		assert.Equal(t, 0, summary.TotalEffectiveTokens, "effective tokens should remain unset")
 		require.Contains(t, summary.ByModel, "unknown", "unknown model bucket should be present")
-		assert.Equal(t, 60, summary.ByModel["unknown"].EffectiveTokens, "per-model effective tokens should use custom weights")
+		assert.Equal(t, 0, summary.ByModel["unknown"].EffectiveTokens, "per-model effective tokens should remain unset")
 	})
 
 	t.Run("records requested sub-agent models and mismatch when token logs do not show requested model", func(t *testing.T) {
@@ -481,7 +481,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 }
 
 func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {
-	t.Run("assigns delta to tool calls bracketed by API calls", func(t *testing.T) {
+	t.Run("does not assign deltas from token usage", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "token-delta")
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
 		// Two API calls; tool call happens between them.
@@ -503,7 +503,7 @@ func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {
 		}
 		result := correlateToolCallsWithTokenDelta(toolCalls, filePath)
 		require.Len(t, result, 1)
-		assert.Equal(t, 620, result[0].EffectiveTokenDelta, "expected delta = ET(next) - ET(prev)")
+		assert.Equal(t, 0, result[0].EffectiveTokenDelta, "effective-token deltas are no longer computed")
 	})
 
 	t.Run("leaves delta zero when tool call has no preceding API call", func(t *testing.T) {
@@ -549,7 +549,7 @@ func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {
 		assert.Equal(t, 0, result[0].EffectiveTokenDelta, "no delta with empty file path")
 	})
 
-	t.Run("assigns correct deltas to multiple sequential tool calls", func(t *testing.T) {
+	t.Run("keeps deltas zero for multiple sequential tool calls", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "token-delta-multi")
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
 		// Three API calls, two tool calls between consecutive pairs.
@@ -567,8 +567,8 @@ func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {
 		}
 		result := correlateToolCallsWithTokenDelta(toolCalls, filePath)
 		require.Len(t, result, 2)
-		assert.Equal(t, 620, result[0].EffectiveTokenDelta, "delta for tool-a")
-		assert.Equal(t, 580, result[1].EffectiveTokenDelta, "delta for tool-b")
+		assert.Equal(t, 0, result[0].EffectiveTokenDelta, "delta for tool-a")
+		assert.Equal(t, 0, result[1].EffectiveTokenDelta, "delta for tool-b")
 	})
 }
 

@@ -29,14 +29,6 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        nil,
 		},
 		{
-			name: "top-level max-effective-tokens without engine",
-			frontmatter: map[string]any{
-				"max-effective-tokens": 10000000,
-			},
-			expectedEngineSetting: "",
-			expectedConfig:        &EngineConfig{MaxEffectiveTokens: 10000000},
-		},
-		{
 			name: "top-level max-runs without engine",
 			frontmatter: map[string]any{
 				"max-runs": 25,
@@ -100,14 +92,6 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "",
 			expectedConfig:        nil,
-		},
-		{
-			name: "top-level negative max-effective-tokens disables budget and steering",
-			frontmatter: map[string]any{
-				"max-effective-tokens": -1,
-			},
-			expectedEngineSetting: "",
-			expectedConfig:        &EngineConfig{MaxEffectiveTokens: -1},
 		},
 		{
 			name:                  "string format - claude",
@@ -210,17 +194,6 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", MaxTurns: "5"},
 		},
 		{
-			name: "object format - with top-level max-effective-tokens",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id": "claude",
-				},
-				"max-effective-tokens": 10000000,
-			},
-			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 10000000},
-		},
-		{
 			name: "object format - with top-level max-runs",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -275,39 +248,6 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "claude",
 			expectedConfig:        &EngineConfig{ID: "claude", MaxRuns: 12},
-		},
-		{
-			name: "object format - with top-level max-effective-tokens as string",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id": "claude",
-				},
-				"max-effective-tokens": "10000000",
-			},
-			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 10000000},
-		},
-		{
-			name: "object format - with top-level max-effective-tokens as suffix string",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id": "claude",
-				},
-				"max-effective-tokens": "100M",
-			},
-			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 100000000},
-		},
-		{
-			name: "object format - with top-level negative max-effective-tokens",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id": "claude",
-				},
-				"max-effective-tokens": -1,
-			},
-			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: -1},
 		},
 		{
 			name: "object format - complete with max-turns",
@@ -476,9 +416,6 @@ func TestExtractEngineConfig(t *testing.T) {
 				}
 				if config.MaxToolDenials != test.expectedConfig.MaxToolDenials {
 					t.Errorf("Expected config.MaxToolDenials '%s', got '%s'", test.expectedConfig.MaxToolDenials, config.MaxToolDenials)
-				}
-				if config.MaxEffectiveTokens != test.expectedConfig.MaxEffectiveTokens {
-					t.Errorf("Expected config.MaxEffectiveTokens '%d', got '%d'", test.expectedConfig.MaxEffectiveTokens, config.MaxEffectiveTokens)
 				}
 
 				if config.MaxRuns != test.expectedConfig.MaxRuns {

@@ -37,18 +37,16 @@ type TokenUsageEntry struct {
 	CacheReadTokens  int    `json:"cache_read_tokens"`
 	CacheWriteTokens int    `json:"cache_write_tokens"`
 	ReasoningTokens  int    `json:"reasoning_tokens"`
-	// EffectiveTokens is populated by agent_usage.json fallback data. token-usage.jsonl
-	// entries usually omit this field and rely on computed effective token totals.
-	EffectiveTokens int `json:"effective_tokens"`
-	DurationMs      int `json:"duration_ms"`
-	ResponseBytes   int `json:"response_bytes"`
+	EffectiveTokens  int    `json:"effective_tokens"`
+	DurationMs       int    `json:"duration_ms"`
+	ResponseBytes    int    `json:"response_bytes"`
 }
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
 type AmbientContextMetrics struct {
 	InputTokens     int `json:"input_tokens" console:"header:Ambient Input,format:number"`
 	CachedTokens    int `json:"cached_tokens" console:"header:Ambient Cached,format:number"`
-	EffectiveTokens int `json:"effective_tokens" console:"header:Ambient Effective,format:number"`
+	EffectiveTokens int `json:"effective_tokens,omitempty"`
 }
 
 // TokenUsageSummary contains aggregated token usage from the firewall proxy
@@ -62,7 +60,7 @@ type TokenUsageSummary struct {
 	TotalDurationMs       int                         `json:"total_duration_ms"`
 	TotalResponseBytes    int                         `json:"total_response_bytes"`
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
-	TotalEffectiveTokens  int                         `json:"total_effective_tokens" console:"header:Effective Tokens,format:number"`
+	TotalEffectiveTokens  int                         `json:"total_effective_tokens,omitempty"`
 	TotalAIC              float64                     `json:"total_aic,omitempty"`
 	AmbientContext        *AmbientContextMetrics      `json:"ambient_context,omitempty"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
@@ -83,7 +81,7 @@ type ModelTokenUsage struct {
 	Requests         int     `json:"requests" console:"header:Requests"`
 	DurationMs       int     `json:"duration_ms"`
 	ResponseBytes    int     `json:"response_bytes"`
-	EffectiveTokens  int     `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	EffectiveTokens  int     `json:"effective_tokens,omitempty"`
 	AIC              float64 `json:"aic,omitempty"`
 }
 
@@ -95,7 +93,7 @@ type ModelTokenUsageRow struct {
 	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
 	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
 	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	EffectiveTokens  int     `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
+	EffectiveTokens  int     `json:"effective_tokens,omitempty"`
 	AIC              float64 `json:"aic,omitempty"`
 	Requests         int     `json:"requests" console:"header:Requests"`
 	AvgDuration      string  `json:"avg_duration" console:"header:Avg Duration"`
@@ -134,7 +132,7 @@ var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 // Custom weights, when non-nil, override the built-in model multipliers and token class
 // weights for effective token computation.
-func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*TokenUsageSummary, error) {
+func parseTokenUsageFile(filePath string, _ *types.TokenWeights) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
 	file, err := os.Open(filePath)
@@ -212,8 +210,6 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
 		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
 
-	// Compute effective tokens using per-model multipliers (with optional custom overrides)
-	populateEffectiveTokensWithCustomWeights(summary, customWeights)
 	populateAIC(summary)
 	summary.AmbientContext = extractAmbientContextMetrics(entries)
 
@@ -257,9 +253,8 @@ func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetr
 
 	firstCall := ordered[0].entry
 	return &AmbientContextMetrics{
-		InputTokens:     firstCall.InputTokens,
-		CachedTokens:    firstCall.CacheReadTokens,
-		EffectiveTokens: firstCall.InputTokens + firstCall.CacheReadTokens,
+		InputTokens:  firstCall.InputTokens,
+		CachedTokens: firstCall.CacheReadTokens,
 	}
 }
 
@@ -369,7 +364,7 @@ func findAgentUsageFile(runDir string) string {
 	return found
 }
 
-func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*TokenUsageSummary, error) {
+func parseAgentUsageFile(filePath string, _ *types.TokenWeights) (*TokenUsageSummary, error) {
 	cleanPath := filepath.Clean(filePath)
 	data, err := os.ReadFile(cleanPath)
 	if err != nil {
@@ -399,7 +394,7 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		summary.TotalCacheReadTokens > 0 ||
 		summary.TotalCacheWriteTokens > 0 ||
 		entry.ReasoningTokens > 0
-	hasTokenData := hasRawTokenData || entry.EffectiveTokens > 0
+	hasTokenData := hasRawTokenData
 	if hasTokenData {
 		summary.TotalRequests = 1
 		summary.ByModel[model] = &ModelTokenUsage{
@@ -409,28 +404,21 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 			CacheReadTokens:  entry.CacheReadTokens,
 			CacheWriteTokens: entry.CacheWriteTokens,
 			ReasoningTokens:  entry.ReasoningTokens,
-			EffectiveTokens:  entry.EffectiveTokens,
 			Requests:         1,
 		}
 	}
 
 	summary.AmbientContext = &AmbientContextMetrics{
-		InputTokens:     entry.InputTokens,
-		CachedTokens:    entry.CacheReadTokens,
-		EffectiveTokens: entry.InputTokens + entry.CacheReadTokens,
+		InputTokens:  entry.InputTokens,
+		CachedTokens: entry.CacheReadTokens,
 	}
 
-	// Effective tokens are derived data; recompute from raw token usage whenever
-	// raw usage exists, otherwise keep fallback effective_tokens from the file.
 	if hasRawTokenData {
-		populateEffectiveTokensWithCustomWeights(summary, customWeights)
 		populateAIC(summary)
-	} else {
-		summary.TotalEffectiveTokens = entry.EffectiveTokens
 	}
 
-	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d, effective=%d",
-		summary.TotalInputTokens, summary.TotalOutputTokens, summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalEffectiveTokens)
+	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d",
+		summary.TotalInputTokens, summary.TotalOutputTokens, summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens)
 	return summary, nil
 }
 
@@ -890,95 +878,9 @@ func readTokenUsageEntries(filePath string) ([]TokenUsageEntry, error) {
 	return entries, nil
 }
 
-// correlateToolCallsWithTokenDelta correlates each tool call with the effective-token
-// delta introduced by its result being appended to the LLM context.
-//
-// For each tool call at timestamp T, the algorithm finds:
-//   - prev: the last token-usage entry whose timestamp is before T (the API call
-//     that produced the tool call decision)
-//   - next: the first token-usage entry whose timestamp is after T (the API call
-//     that consumed the tool call result)
-//
-// delta = effectiveTokens(next) − effectiveTokens(prev).
-//
-// Tool calls that cannot be bracketed by a prev/next pair receive delta = 0.
-// The function is a no-op when tokenUsageFile is empty or unreadable.
 func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
-	if len(toolCalls) == 0 || tokenUsageFile == "" {
-		return toolCalls
-	}
-
-	entries, err := readTokenUsageEntries(tokenUsageFile)
-	if err != nil {
-		tokenUsageLog.Printf("correlateToolCallsWithTokenDelta: failed to read %s: %v", tokenUsageFile, err)
-		return toolCalls
-	}
-	if len(entries) < 2 {
-		return toolCalls
-	}
-
-	// Resolve weights once for all entries
-	multipliers, classWeights := resolveEffectiveWeights(nil)
-
-	// Pre-compute effective tokens for each entry
-	type entryWithET struct {
-		ts time.Time
-		et int
-	}
-	etEntries := make([]entryWithET, 0, len(entries))
-	for _, e := range entries {
-		ts, ok := parseTokenUsageTimestamp(e.Timestamp)
-		if !ok {
-			continue
-		}
-		et := computeModelEffectiveTokensWithWeights(effectiveTokensOptions{
-			model:            e.Model,
-			provider:         e.Provider,
-			inputTokens:      e.InputTokens,
-			outputTokens:     e.OutputTokens,
-			cacheReadTokens:  e.CacheReadTokens,
-			cacheWriteTokens: e.CacheWriteTokens,
-			reasoningTokens:  e.ReasoningTokens,
-			multipliers:      multipliers,
-			weights:          classWeights,
-		})
-		etEntries = append(etEntries, entryWithET{ts: ts, et: et})
-	}
-	if len(etEntries) < 2 {
-		return toolCalls
-	}
-
-	updated := make([]MCPToolCall, len(toolCalls))
-	copy(updated, toolCalls)
-
-	for i, tc := range updated {
-		callTS, ok := parseTokenUsageTimestamp(tc.Timestamp)
-		if !ok {
-			continue
-		}
-
-		// Find prev (last entry with ts < callTS) and next (first entry with ts > callTS)
-		prevIdx := -1
-		nextIdx := -1
-		for j, e := range etEntries {
-			if e.ts.Before(callTS) {
-				prevIdx = j // keep updating to get the last one before callTS
-			} else if e.ts.After(callTS) && nextIdx == -1 {
-				nextIdx = j // first entry after callTS
-			}
-		}
-
-		if prevIdx == -1 || nextIdx == -1 {
-			continue
-		}
-
-		delta := etEntries[nextIdx].et - etEntries[prevIdx].et
-		if delta > 0 {
-			updated[i].EffectiveTokenDelta = delta
-		}
-	}
-
-	return updated
+	_ = tokenUsageFile
+	return toolCalls
 }
 
 // TotalTokens returns the sum of all token types
@@ -1009,7 +911,6 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 			OutputTokens:     usage.OutputTokens,
 			CacheReadTokens:  usage.CacheReadTokens,
 			CacheWriteTokens: usage.CacheWriteTokens,
-			EffectiveTokens:  usage.EffectiveTokens,
 			AIC:              usage.AIC,
 			Requests:         usage.Requests,
 			AvgDuration:      timeutil.FormatDurationMs(avgDur),

@@ -28,16 +28,15 @@ const (
 )
 
 type defaultsFile struct {
-	DefaultMaxEffectiveTokens *string `yaml:"default_max_effective_tokens"`
-	DefaultMaxAICredits       *string `yaml:"default_max_ai_credits"`
-	DefaultMaxDailyAICredits  *string `yaml:"default_max_daily_ai_credits"`
-	DefaultMaxTurns           *string `yaml:"default_max_turns"`
-	DefaultTimeoutMinutes     *string `yaml:"default_timeout_minutes"`
-	DefaultDetectionModel     *string `yaml:"default_detection_model"`
-	DefaultUTC                *string `yaml:"default_utc"`
-	DefaultModelCopilot       *string `yaml:"default_model_copilot"`
-	DefaultModelClaude        *string `yaml:"default_model_claude"`
-	DefaultModelCodex         *string `yaml:"default_model_codex"`
+	DefaultMaxAICredits      *string `yaml:"default_max_ai_credits"`
+	DefaultMaxDailyAICredits *string `yaml:"default_max_daily_ai_credits"`
+	DefaultMaxTurns          *string `yaml:"default_max_turns"`
+	DefaultTimeoutMinutes    *string `yaml:"default_timeout_minutes"`
+	DefaultDetectionModel    *string `yaml:"default_detection_model"`
+	DefaultUTC               *string `yaml:"default_utc"`
+	DefaultModelCopilot      *string `yaml:"default_model_copilot"`
+	DefaultModelClaude       *string `yaml:"default_model_claude"`
+	DefaultModelCodex        *string `yaml:"default_model_codex"`
 }
 
 type defaultsBinding struct {
@@ -93,7 +92,6 @@ func (e *defaultsGHError) Unwrap() error {
 }
 
 var defaultsBindings = []defaultsBinding{
-	{envName: compilerenv.DefaultMaxEffectiveTokens, fieldName: "default_max_effective_tokens", get: func(f *defaultsFile) **string { return &f.DefaultMaxEffectiveTokens }},
 	{envName: compilerenv.DefaultMaxAICredits, fieldName: "default_max_ai_credits", get: func(f *defaultsFile) **string { return &f.DefaultMaxAICredits }},
 	{envName: compilerenv.DefaultMaxDailyAICredits, fieldName: "default_max_daily_ai_credits", get: func(f *defaultsFile) **string { return &f.DefaultMaxDailyAICredits }},
 	{envName: compilerenv.DefaultMaxTurns, fieldName: "default_max_turns", get: func(f *defaultsFile) **string { return &f.DefaultMaxTurns }},
@@ -302,7 +300,6 @@ func defaultsValidateFile(file *defaultsFile) error {
 		}
 	}
 
-	validateNonZeroInt("default_max_effective_tokens", file.DefaultMaxEffectiveTokens)
 	validateNonZeroInt("default_max_ai_credits", file.DefaultMaxAICredits)
 	validateNonZeroInt("default_max_daily_ai_credits", file.DefaultMaxDailyAICredits)
 	validatePositiveInt("default_max_turns", file.DefaultMaxTurns)

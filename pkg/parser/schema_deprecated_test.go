@@ -180,21 +180,6 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 		}
 	}
 
-	// Legacy ET budget fields must be detected with migration guidance.
-	maxEffectiveTokens, ok := byPath["max-effective-tokens"]
-	if !ok {
-		t.Error("expected 'max-effective-tokens' in deep deprecated fields, not found")
-	} else if maxEffectiveTokens.DeprecationMessage == "" {
-		t.Error("max-effective-tokens: DeprecationMessage should not be empty")
-	}
-
-	maxDailyEffectiveTokens, ok := byPath["max-daily-effective-tokens"]
-	if !ok {
-		t.Error("expected 'max-daily-effective-tokens' in deep deprecated fields, not found")
-	} else if maxDailyEffectiveTokens.DeprecationMessage == "" {
-		t.Error("max-daily-effective-tokens: DeprecationMessage should not be empty")
-	}
-
 	// These legacy fields are fixed by codemods and should not remain in the main schema.
 	if _, ok := byPath["features.inline-agents"]; ok {
 		t.Error("did not expect 'features.inline-agents' in deep deprecated fields")

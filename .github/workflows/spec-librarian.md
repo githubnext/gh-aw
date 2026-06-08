@@ -39,7 +39,7 @@ safe-outputs:
     max: 1
     title-prefix: "[spec-librarian] "
   messages:
-    footer: "> 📚 *Specification review by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 📚 *Specification review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-failure: 📚 Specification review failed! [{workflow_name}]({run_url}) {status}.
     run-started: 📚 Specification Librarian online! [{workflow_name}]({run_url}) is reviewing all package specifications...
     run-success: ✅ Specification review complete! [{workflow_name}]({run_url}) has audited all package specs. Report delivered! 📋

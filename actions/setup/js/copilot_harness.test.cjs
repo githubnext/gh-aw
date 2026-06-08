@@ -26,7 +26,6 @@ const {
   hasNoopInSafeOutputs,
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
-  isMaxEffectiveTokensExceededError,
   isDetectionPhase,
   isAuthenticationFailedError,
   isModelAvailableInReflectData,
@@ -115,7 +114,6 @@ describe("copilot_harness.cjs", () => {
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
-      if (isMaxEffectiveTokensExceededError(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -157,16 +155,6 @@ describe("copilot_harness.cjs", () => {
     it("numerous permission-denied issues are treated as non-retryable", () => {
       const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
       expect(hasNumerousPermissionDeniedIssues(result.output)).toBe(true);
-      expect(shouldRetry(result, 0)).toBe(false);
-    });
-
-    it("does not retry maximum effective tokens exceeded hard rails", () => {
-      const result = {
-        exitCode: 1,
-        hasOutput: true,
-        output: "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).",
-      };
-      expect(isMaxEffectiveTokensExceededError(result.output)).toBe(true);
       expect(shouldRetry(result, 0)).toBe(false);
     });
   });
@@ -1424,7 +1412,6 @@ describe("copilot_harness.cjs", () => {
     function blendedRetryDecision(result, attempt, copilotSDKMode, continueDisabledPermanently = false) {
       if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry: false };
       if (hasNumerousPermissionDeniedIssues(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
-      if (isMaxEffectiveTokensExceededError(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
       if (attempt >= MAX_RETRIES || !result.hasOutput) return { shouldRetry: false, useContinueOnRetry: false };
       // --continue is only enabled in CLI mode and only when not permanently disabled.
       const useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;

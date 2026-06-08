@@ -64,7 +64,7 @@ safe-outputs:
     add-labels:
       allowed: [smoke-antigravity]
     messages:
-      footer: "> ✨ *[{workflow_name}]({run_url}) — Powered by Antigravity*{effective_tokens_suffix}{history_link}"
+      footer: "> ✨ *[{workflow_name}]({run_url}) — Powered by Antigravity*{ai_credits_suffix}{history_link}"
       run-started: "✨ Antigravity awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}..."
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Antigravity has spoken. ✨"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Antigravity encountered unexpected challenges..."

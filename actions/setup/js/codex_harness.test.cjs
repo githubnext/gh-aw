@@ -10,7 +10,6 @@ const {
   resolveCodexPromptFileArgs,
   injectJsonFlag,
   isRateLimitError,
-  isMaxEffectiveTokensExceededError,
   isAuthenticationFailedError,
   isMissingApiKeyError,
   isServerError,
@@ -86,16 +85,6 @@ describe("codex_harness.cjs", () => {
   describe("isRateLimitError", () => {
     it("returns true for rate_limit_exceeded error", () => {
       expect(isRateLimitError("Error: rate_limit_exceeded")).toBe(true);
-    });
-
-    describe("isMaxEffectiveTokensExceededError", () => {
-      it("returns true for AWF effective-token hard rails", () => {
-        expect(isMaxEffectiveTokensExceededError("CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).")).toBe(true);
-      });
-
-      it("returns false for ordinary rate-limit output", () => {
-        expect(isMaxEffectiveTokensExceededError("RateLimitError: You exceeded your current quota")).toBe(false);
-      });
     });
 
     it("returns true for 429 Too Many Requests", () => {
@@ -402,7 +391,6 @@ env_key = "OPENAI_API_KEY"
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
-      if (isMaxEffectiveTokensExceededError(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }
@@ -450,15 +438,6 @@ env_key = "OPENAI_API_KEY"
 
     it("does not retry when numerous permission-denied issues are present", () => {
       const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
-      expect(shouldRetry(result, 0)).toBe(false);
-    });
-
-    it("does not retry maximum effective tokens exceeded hard rails", () => {
-      const result = {
-        exitCode: 1,
-        hasOutput: true,
-        output: "CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).",
-      };
       expect(shouldRetry(result, 0)).toBe(false);
     });
   });

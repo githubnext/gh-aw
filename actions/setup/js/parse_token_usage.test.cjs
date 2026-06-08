@@ -252,7 +252,7 @@ describe("parse_token_usage", () => {
       expect(mockCore.summary.write).not.toHaveBeenCalled();
     });
 
-    test("writes agent_usage.json with aggregated token totals including effective_tokens and primary_model", async () => {
+    test("writes agent_usage.json with aggregated token totals and primary_model", async () => {
       const agentUsageFile = path.join(tmpDir, "agent_usage.json");
 
       fs.existsSync = vi.fn(p => {
@@ -287,50 +287,9 @@ describe("parse_token_usage", () => {
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
       expect(agentUsage.ambient_context).toBe(900);
-      expect(typeof agentUsage.effective_tokens).toBe("number");
       expect(typeof agentUsage.ai_credits).toBe("number");
       // primary_model is the actual model from token-usage data (not a user alias)
       expect(agentUsage.primary_model).toBe("claude-sonnet-4-6");
-    });
-
-    test("exports effective_tokens as step output and env var when non-zero", async () => {
-      const agentUsageFile = path.join(tmpDir, "agent_usage.json");
-
-      fs.existsSync = vi.fn(p => {
-        if (p === TOKEN_USAGE_PATH) return true;
-        if (p === TOKEN_USAGE_AUDIT_PATH) return false;
-        return originalExistsSync(p);
-      });
-      fs.statSync = vi.fn(p => {
-        if (p === TOKEN_USAGE_PATH) return { size: singleEntry.length };
-        if (p === TOKEN_USAGE_AUDIT_PATH) return { size: 0 };
-        return originalStatSync(p);
-      });
-      fs.readFileSync = vi.fn((p, enc) => {
-        if (p === TOKEN_USAGE_PATH) return singleEntry;
-        if (p === TOKEN_USAGE_AUDIT_PATH) return "";
-        return originalReadFileSync(p, enc);
-      });
-      fs.writeFileSync = vi.fn((p, data) => {
-        if (p === AGENT_USAGE_PATH) originalWriteFileSync(agentUsageFile, data);
-        else originalWriteFileSync(p, data);
-      });
-
-      await main();
-
-      const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
-      if (agentUsage.effective_tokens > 0) {
-        expect(mockCore.setOutput).toHaveBeenCalledWith("effective_tokens", String(agentUsage.effective_tokens));
-        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", String(agentUsage.effective_tokens));
-      }
-      if (agentUsage.ai_credits > 0) {
-        expect(mockCore.setOutput).toHaveBeenCalledWith("aic", agentUsage.ai_credits.toFixed(3));
-        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", agentUsage.ai_credits.toFixed(3));
-      }
-      if (agentUsage.ambient_context > 0) {
-        expect(mockCore.setOutput).toHaveBeenCalledWith("ambient_context", String(agentUsage.ambient_context));
-        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AMBIENT_CONTEXT", String(agentUsage.ambient_context));
-      }
     });
 
     test("handles multiple model entries", async () => {

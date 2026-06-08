@@ -100,7 +100,7 @@ function buildAmbientContextSuffix() {
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return "";
   }
-  // Format similarly to effective tokens: e.g. 1200 → "1.2K"
+  // Format compact integer values: e.g. 1200 → "1.2K"
   const formatted = parsed >= 1000 ? `${(parsed / 1000).toFixed(1)}K` : String(parsed);
   return ` · ⊞ ${formatted}`;
 }

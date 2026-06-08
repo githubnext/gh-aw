@@ -269,10 +269,6 @@ const DefaultMCPStartupTimeout = 120 * time.Second
 // DefaultHTTPClientTimeout is the default timeout for internal HTTP clients
 const DefaultHTTPClientTimeout = 30 * time.Second
 
-// DefaultMaxEffectiveTokens is the fallback ET budget value when no explicit value is configured.
-// A value of 0 means "unset" (do not emit an ET budget in AWF config).
-const DefaultMaxEffectiveTokens int64 = 0
-
 // DefaultMaxAICredits is the default AI Credits budget enforced by the AWF API proxy.
 const DefaultMaxAICredits int64 = 1000
 

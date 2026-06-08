@@ -498,22 +498,6 @@ describe("messages.cjs", () => {
       expect(result).not.toContain("99K");
     });
 
-    it("should expose effective_tokens_suffix from env var in custom footer templates", async () => {
-      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        footer: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
-      });
-
-      const { getFooterMessage } = await import("./messages.cjs");
-
-      const result = getFooterMessage({
-        workflowName: "Test Workflow",
-        runUrl: "https://github.com/test/repo/actions/runs/123",
-      });
-
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K");
-    });
-
     it("should expose ai_credits_suffix in custom footer templates", async () => {
       process.env.GH_AW_AIC = "1.25";
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
@@ -545,57 +529,6 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⌖ 0.25 AIC");
-    });
-
-    it("should include AI Credits next to effective_tokens_suffix in generated custom footers", async () => {
-      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-      process.env.GH_AW_AIC = "1.25";
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        footer: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
-      });
-
-      const { getFooterMessage } = await import("./messages.cjs");
-
-      const result = getFooterMessage({
-        workflowName: "Test Workflow",
-        runUrl: "https://github.com/test/repo/actions/runs/123",
-      });
-
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K · 1.25 AIC");
-    });
-
-    it("should not duplicate AI Credits when custom footer explicitly includes ai_credits_suffix", async () => {
-      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-      process.env.GH_AW_AIC = "1.25";
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        footer: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}{ai_credits_suffix}",
-      });
-
-      const { getFooterMessage } = await import("./messages.cjs");
-
-      const result = getFooterMessage({
-        workflowName: "Test Workflow",
-        runUrl: "https://github.com/test/repo/actions/runs/123",
-      });
-
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K · 1.25 AIC");
-    });
-
-    it("should include reduced model identifier in effective_tokens_suffix for custom templates", async () => {
-      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-      process.env.GH_AW_ENGINE_MODEL = "gpt-5.5";
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        footer: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
-      });
-
-      const { getFooterMessage } = await import("./messages.cjs");
-
-      const result = getFooterMessage({
-        workflowName: "Test Workflow",
-        runUrl: "https://github.com/test/repo/actions/runs/123",
-      });
-
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · gpt55 5K");
     });
 
     it("should not include mini-tier model identifiers in default footer suffixes", async () => {
@@ -1152,22 +1085,6 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)");
       expect(result).not.toContain("●");
     });
-
-    it("should allow custom footer template to include effective tokens via placeholder", async () => {
-      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        agentFailureIssue: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
-      });
-
-      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
-
-      const result = getFooterAgentFailureIssueMessage({
-        workflowName: "Test Workflow",
-        runUrl: "https://github.com/test/repo/actions/runs/123",
-      });
-
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K");
-    });
   });
 
   describe("getFooterAgentFailureCommentMessage", () => {
@@ -1226,22 +1143,6 @@ describe("messages.cjs", () => {
 
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)");
       expect(result).not.toContain("●");
-    });
-
-    it("should allow custom footer template to include effective tokens via placeholder", async () => {
-      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        agentFailureComment: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
-      });
-
-      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
-
-      const result = getFooterAgentFailureCommentMessage({
-        workflowName: "Test Workflow",
-        runUrl: "https://github.com/test/repo/actions/runs/123",
-      });
-
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 5K");
     });
   });
 

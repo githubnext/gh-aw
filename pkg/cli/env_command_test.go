@@ -71,23 +71,21 @@ func TestResolveDefaultsTarget(t *testing.T) {
 
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
-		DefaultMaxEffectiveTokens: new("10000"),
-		DefaultMaxAICredits:       new("1000"),
-		DefaultMaxDailyAICredits:  new("500000"),
-		DefaultMaxTurns:           new("42"),
-		DefaultTimeoutMinutes:     new("90"),
-		DefaultDetectionModel:     new("claude-sonnet-4.6"),
-		DefaultUTC:                new("-08:00"),
-		DefaultModelCopilot:       new("claude-sonnet-4.7"),
-		DefaultModelClaude:        new("claude-opus-4.7"),
-		DefaultModelCodex:         new("gpt-5.5"),
+		DefaultMaxAICredits:      new("1000"),
+		DefaultMaxDailyAICredits: new("500000"),
+		DefaultMaxTurns:          new("42"),
+		DefaultTimeoutMinutes:    new("90"),
+		DefaultDetectionModel:    new("claude-sonnet-4.6"),
+		DefaultUTC:               new("-08:00"),
+		DefaultModelCopilot:      new("claude-sonnet-4.7"),
+		DefaultModelClaude:       new("claude-opus-4.7"),
+		DefaultModelCodex:        new("gpt-5.5"),
 	}
 
 	data, err := yaml.Marshal(&file)
 	require.NoError(t, err)
 
 	yml := string(data)
-	assert.Contains(t, yml, "default_max_effective_tokens:")
 	assert.Contains(t, yml, "default_max_ai_credits:")
 	assert.Contains(t, yml, "default_max_daily_ai_credits:")
 	assert.Contains(t, yml, "default_max_turns:")
@@ -134,32 +132,29 @@ func TestDefaultsParseFileDisallowsUnknownFields(t *testing.T) {
 func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("accepts valid values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
-			DefaultMaxEffectiveTokens: new("-1"),
-			DefaultMaxAICredits:       new("1000"),
-			DefaultMaxDailyAICredits:  new("500000"),
-			DefaultMaxTurns:           new("12"),
-			DefaultTimeoutMinutes:     new("30"),
-			DefaultDetectionModel:     new("claude-sonnet-4.6"),
-			DefaultUTC:                new("-08:00"),
-			DefaultModelCopilot:       new("gpt-5-mini"),
-			DefaultModelClaude:        new("claude-haiku-4.5"),
-			DefaultModelCodex:         new("gpt-5.4-mini"),
+			DefaultMaxAICredits:      new("1000"),
+			DefaultMaxDailyAICredits: new("500000"),
+			DefaultMaxTurns:          new("12"),
+			DefaultTimeoutMinutes:    new("30"),
+			DefaultDetectionModel:    new("claude-sonnet-4.6"),
+			DefaultUTC:               new("-08:00"),
+			DefaultModelCopilot:      new("gpt-5-mini"),
+			DefaultModelClaude:       new("claude-haiku-4.5"),
+			DefaultModelCodex:        new("gpt-5.4-mini"),
 		})
 		require.NoError(t, err)
 	})
 
 	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
-			DefaultMaxEffectiveTokens: new("0"),
-			DefaultMaxAICredits:       new("0"),
-			DefaultMaxDailyAICredits:  new("0"),
-			DefaultMaxTurns:           new("abc"),
-			DefaultTimeoutMinutes:     new("0"),
-			DefaultUTC:                new("west"),
-			DefaultModelCopilot:       new("   "),
+			DefaultMaxAICredits:      new("0"),
+			DefaultMaxDailyAICredits: new("0"),
+			DefaultMaxTurns:          new("abc"),
+			DefaultTimeoutMinutes:    new("0"),
+			DefaultUTC:               new("west"),
+			DefaultModelCopilot:      new("   "),
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_daily_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
@@ -182,24 +177,35 @@ func TestDefaultsTargetEndpoints(t *testing.T) {
 
 func TestDefaultsBuildUpdateChanges(t *testing.T) {
 	changes := defaultsBuildUpdateChanges(&defaultsFile{
-		DefaultMaxEffectiveTokens: new("10000"),
-		DefaultModelCodex:         new("gpt-5.5"),
+		DefaultModelCodex: new("gpt-5.5"),
 	})
 
 	require.Len(t, changes, len(defaultsBindings))
-	assert.Equal(t, "default_max_effective_tokens", changes[0].field)
-	assert.Equal(t, "10000", changes[0].value)
-	assert.False(t, changes[0].delete)
-	assert.Equal(t, "default_max_ai_credits", changes[1].field)
-	assert.True(t, changes[1].delete)
-	assert.Equal(t, "default_max_daily_ai_credits", changes[2].field)
-	assert.True(t, changes[2].delete)
-	assert.Equal(t, "default_max_turns", changes[3].field)
-	assert.True(t, changes[3].delete)
-	assert.Equal(t, "default_utc", changes[6].field)
-	assert.True(t, changes[6].delete)
-	assert.Equal(t, "default_model_codex", changes[len(changes)-1].field)
-	assert.Equal(t, "gpt-5.5", changes[len(changes)-1].value)
+
+	byField := make(map[string]defaultsUpdateChange, len(changes))
+	for _, change := range changes {
+		byField[change.field] = change
+	}
+
+	for _, field := range []string{
+		"default_max_ai_credits",
+		"default_max_daily_ai_credits",
+		"default_max_turns",
+		"default_timeout_minutes",
+		"default_detection_model",
+		"default_utc",
+		"default_model_copilot",
+		"default_model_claude",
+	} {
+		change, ok := byField[field]
+		require.True(t, ok, "missing change for %s", field)
+		assert.True(t, change.delete, "expected %s to be deleted", field)
+	}
+
+	change, ok := byField["default_model_codex"]
+	require.True(t, ok, "missing change for default_model_codex")
+	assert.False(t, change.delete)
+	assert.Equal(t, "gpt-5.5", change.value)
 }
 
 func TestConfirmDefaultsUpdate(t *testing.T) {

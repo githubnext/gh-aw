@@ -31,7 +31,7 @@ tools:
     - "cat:*"
 safe-outputs:
   messages:
-    footer: "> 🏛️ *Architecture report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🏛️ *Architecture report by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"
     run-started: "🏛️ Architecture Guardian online! [{workflow_name}]({run_url}) is scanning code structure on this {event_type}..."
     run-success: "✅ Architecture scan complete! [{workflow_name}]({run_url}) has reviewed code structure. Report delivered! 📋"

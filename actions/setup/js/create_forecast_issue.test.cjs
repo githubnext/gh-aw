@@ -152,24 +152,6 @@ describe("create_forecast_issue", () => {
     expect(body).not.toContain("All projected AIC values are 0 even after cache warm-up.");
   });
 
-  it("falls back to legacy projected effective token fields when AIC fields are absent", async () => {
-    const module = await import("./create_forecast_issue.cjs");
-    const body = module.buildForecastIssueBody(
-      {
-        period: "month",
-        workflows: [{ workflow_id: "wf-legacy", sampled_runs: 2, monte_carlo: { p50_projected_effective_tokens: 9999 } }],
-      },
-      {
-        owner: "octo",
-        repo: "repo",
-        serverUrl: "https://github.com",
-        generatedAtISO: "2026-01-01T00:00:00.000Z",
-      }
-    );
-
-    expect(body).toContain("| wf-legacy | 2 | 9,999 |");
-  });
-
   it("renders run samples section in step summary, not issue body", async () => {
     const module = await import("./create_forecast_issue.cjs");
     const report = {

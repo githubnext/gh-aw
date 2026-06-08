@@ -72,7 +72,7 @@ safe-outputs:
     max: 1
   noop:
   messages:
-    footer: "> 🧪 *Test quality analysis by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🧪 *Test quality analysis by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔬 [{workflow_name}]({run_url}) is analyzing test quality on this {event_type}..."
     run-success: "🧪 [{workflow_name}]({run_url}) completed test quality analysis."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during test quality analysis."

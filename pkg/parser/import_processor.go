@@ -66,7 +66,6 @@ type ImportsResult struct {
 	MergedMaxTurns                string                // First max-turns value found across all imports (JSON-encoded, first-wins)
 	MergedMaxToolDenials          string                // First max-tool-denials value found across all imports (JSON-encoded, first-wins)
 	MergedMaxRuns                 string                // First max-runs value found across all imports (JSON-encoded, first-wins)
-	MergedMaxEffectiveTokens      string                // First max-effective-tokens value found across all imports (JSON-encoded, first-wins)
 	MergedMaxAICredits            string                // First max-ai-credits value found across all imports (JSON-encoded, first-wins)
 	MergedMaxDailyAICredits       string                // First max-daily-ai-credits value found across all imports (JSON-encoded, first-wins)
 	ImportedFiles                 []string              // List of imported file paths (for manifest)

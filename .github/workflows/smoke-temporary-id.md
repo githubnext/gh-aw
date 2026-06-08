@@ -40,7 +40,7 @@ safe-outputs:
     hide-older-comments: true
   messages:
     append-only-comments: true
-    footer: "> 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality..."
     run-success: "✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed."
     run-failure: "❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details."

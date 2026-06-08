@@ -149,16 +149,14 @@ async function main() {
 
     // Write agent_usage.json so the aggregated totals are bundled in the agent
     // artifact and accessible to third-party tools without parsing the step summary.
-    const effectiveTokens = Math.round(summary.totalEffectiveTokens || 0);
-
-    // Determine the primary model: the one with the highest effective tokens.
+    // Determine the primary model: the one with the highest AI credits.
     // This is the actual model name from the API call logs, which may differ from
     // GH_AW_ENGINE_MODEL when the user specified a model alias (e.g. "agent").
     let primaryModel = "";
-    let primaryModelET = -1;
+    let primaryModelAIC = -1;
     for (const [model, usage] of Object.entries(summary.byModel || {})) {
-      if (model !== "unknown" && usage && typeof usage.effectiveTokens === "number" && usage.effectiveTokens > primaryModelET) {
-        primaryModelET = usage.effectiveTokens;
+      if (model !== "unknown" && usage && typeof usage.aic === "number" && usage.aic > primaryModelAIC) {
+        primaryModelAIC = usage.aic;
         primaryModel = model;
       }
     }
@@ -169,19 +167,11 @@ async function main() {
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
       ambient_context: Math.round(summary.ambientContextTokens || 0),
-      effective_tokens: effectiveTokens,
       ai_credits: Number((summary.totalAIC || 0).toFixed(3)),
       ...(primaryModel ? { primary_model: primaryModel } : {}),
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
 
-    if (effectiveTokens > 0) {
-      // Export as env var so messages_footer.cjs can read GH_AW_EFFECTIVE_TOKENS,
-      // and as a step output so it can flow to downstream jobs.
-      core.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(effectiveTokens));
-      core.setOutput("effective_tokens", String(effectiveTokens));
-      core.info(`Effective tokens: ${effectiveTokens}`);
-    }
     if (summary.totalAIC > 0) {
       const aic = summary.totalAIC.toFixed(3);
       core.exportVariable("GH_AW_AIC", aic);

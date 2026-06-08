@@ -83,7 +83,7 @@ safe-outputs:
   submit-pull-request-review:
     max: 1
   messages:
-    footer: "> 🧠 *Reviewed using Matt Pocock's skills by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer: "> 🧠 *Reviewed using Matt Pocock's skills by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills..."
     run-success: "🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅"
     run-failure: "🧠 [{workflow_name}]({run_url}) {status} during the skills-based review."

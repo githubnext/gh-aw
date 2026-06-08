@@ -5,7 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
-const { computeEffectiveTokens, formatModelEmojiAlias } = require("./effective_tokens.cjs");
+const { formatModelEmojiAlias } = require("./model_aliases.cjs");
 const { computeInferenceAIC, formatAIC } = require("./model_costs.cjs");
 const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
 
@@ -24,14 +24,10 @@ const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
 const TOP_LEVEL_RPC_IGNORED_KEYS = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
-// ET/rate-limit indicators seen in gateway/runtime logs, e.g.:
-// - "effective_tokens limit exceeded"
-// - "rate limit ... effective tokens"
-// - "429 too many requests ... ET budget"
-const ET_RATE_LIMIT_PATTERNS = [
-  /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
-  /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
-  /\b429\b.*(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?)/i,
+const AI_CREDITS_RATE_LIMIT_PATTERNS = [
+  /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
+  /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i,
+  /\b429\b.*(?:rate[\s-]*limit|too many requests|ai[\s_-]*credits?)/i,
 ];
 
 /**
@@ -50,9 +46,8 @@ function formatDurationMs(ms) {
 
 /**
  * Parses token-usage.jsonl content and returns an aggregated summary.
- * Computes effective tokens (ET) per model using merged multipliers, env fallback, then built-in multipliers.
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, ambientContextTokens: number|undefined, byModel: Object, entries: Array} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalAIC: number, ambientContextTokens: number|undefined, byModel: Object, entries: Array} | null}
  * ambientContextTokens records first-request context size as:
  * input_tokens + ((cache_read_tokens + cache_write_tokens) / 10).
  */
@@ -64,11 +59,10 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalCacheWriteTokens: 0,
     totalRequests: 0,
     totalDurationMs: 0,
-    totalEffectiveTokens: 0,
     totalAIC: 0,
     ambientContextTokens: undefined,
     byModel: {},
-    /** @type {{ model: string, provider: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, reasoningTokens: number, durationMs: number, deltaET: number, deltaAIC: number }[]} */
+    /** @type {{ model: string, provider: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, reasoningTokens: number, durationMs: number, deltaAIC: number }[]} */
     entries: [],
   };
 
@@ -108,7 +102,6 @@ function parseTokenUsageJsonl(jsonlContent) {
         reasoningTokens: 0,
         requests: 0,
         durationMs: 0,
-        effectiveTokens: 0,
         aic: 0,
       };
       const m = summary.byModel[model];
@@ -120,7 +113,7 @@ function parseTokenUsageJsonl(jsonlContent) {
       m.requests++;
       m.durationMs += durationMs;
 
-      summary.entries.push({ model, provider: m.provider, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens, durationMs, deltaET: 0, deltaAIC: 0 });
+      summary.entries.push({ model, provider: m.provider, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens, durationMs, deltaAIC: 0 });
     } catch {
       // skip malformed lines
     }
@@ -128,11 +121,8 @@ function parseTokenUsageJsonl(jsonlContent) {
 
   if (summary.totalRequests === 0) return null;
 
-  // Compute effective tokens per model and aggregate total
-  let totalEffectiveTokens = 0;
   let totalAIC = 0;
   for (const [model, usage] of Object.entries(summary.byModel)) {
-    const et = computeEffectiveTokens(model, usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens, usage.reasoningTokens || 0, usage.provider || "");
     const aic = computeInferenceAIC({
       provider: usage.provider || "",
       model,
@@ -142,17 +132,13 @@ function parseTokenUsageJsonl(jsonlContent) {
       cacheWriteTokens: usage.cacheWriteTokens,
       reasoningTokens: usage.reasoningTokens || 0,
     });
-    usage.effectiveTokens = et;
     usage.aic = aic;
-    totalEffectiveTokens += et;
     totalAIC += aic;
   }
-  summary.totalEffectiveTokens = totalEffectiveTokens;
   summary.totalAIC = totalAIC;
 
-  // Compute per-turn delta ET
+  // Compute per-request AI credits.
   for (const entry of summary.entries) {
-    entry.deltaET = computeEffectiveTokens(entry.model, entry.inputTokens, entry.outputTokens, entry.cacheReadTokens, entry.cacheWriteTokens, entry.reasoningTokens || 0, entry.provider || "");
     entry.deltaAIC = computeInferenceAIC({
       provider: entry.provider || "",
       model: entry.model,
@@ -171,7 +157,7 @@ function parseTokenUsageJsonl(jsonlContent) {
  * Generates a markdown summary section for token usage data.
  * Renders one row per request in chronological order with per-request AI credits,
  * a running AI credits total, followed by an aggregate totals row and legend.
- * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, totalAIC: number, byModel: Object, entries: Array} | null} summary
+ * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalAIC: number, byModel: Object, entries: Array} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
 function generateTokenUsageSummary(summary) {
@@ -205,7 +191,7 @@ function generateTokenUsageSummary(summary) {
 }
 
 /**
- * Writes the step summary and exports GH_AW_EFFECTIVE_TOKENS when token usage data exists.
+ * Writes the step summary and exports AI credit metadata when token usage data exists.
  * Token Usage rendering is handled by parse_token_usage.cjs to avoid duplicate sections.
  * This is the final call in each main() exit path — it consolidates the summary write
  * so callers don't need to chain addRaw() + write() themselves.
@@ -219,17 +205,6 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
       const parsedSummary = parseTokenUsageJsonl(content);
-      // Export total effective tokens as a GitHub Actions env var for use in
-      // generated footers (GH_AW_EFFECTIVE_TOKENS is read by messages_footer.cjs)
-      if (parsedSummary && parsedSummary.totalEffectiveTokens > 0) {
-        const roundedET = Math.round(parsedSummary.totalEffectiveTokens);
-        coreObj.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(roundedET));
-        // Also set as a step output so the value can flow to the safe_outputs job
-        // via the agent job's effective_tokens output (job-level env vars are not
-        // inherited by downstream jobs — only job outputs are).
-        coreObj.setOutput("effective_tokens", String(roundedET));
-        coreObj.info(`Effective tokens: ${roundedET}`);
-      }
       if (parsedSummary && parsedSummary.totalAIC > 0) {
         const roundedAIC = parsedSummary.totalAIC.toFixed(3);
         coreObj.exportVariable("GH_AW_AIC", roundedAIC);
@@ -258,23 +233,28 @@ function writeStepSummaryWithTokenUsage(coreObj) {
 }
 
 /**
- * Detects ET-budget/rate-limit failures from gateway-related logs.
+ * Detects AI credit budget/rate-limit failures from gateway-related logs.
  * @param {string[]} contents
  * @returns {boolean}
  */
-function hasEffectiveTokensRateLimitError(contents) {
+function hasAICreditsRateLimitError(contents) {
   const joined = contents.filter(Boolean).join("\n");
   if (!joined) return false;
-  return ET_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(joined));
+  return AI_CREDITS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(joined));
 }
 
 /**
- * Exports effective_tokens_rate_limit_error output.
+ * Exports ai_credits_rate_limit_error output.
+ * Also emits the legacy effective_tokens_rate_limit_error alias so that
+ * compiled lock files that still reference the old step-output name continue
+ * to receive the correct value during the transition period.
  * @param {typeof import('@actions/core')} coreObj
  * @param {boolean} value
  */
-function setEffectiveTokensRateLimitOutput(coreObj, value) {
-  coreObj.setOutput("effective_tokens_rate_limit_error", value ? "true" : "false");
+function setAICreditsRateLimitOutput(coreObj, value) {
+  const strValue = value ? "true" : "false";
+  coreObj.setOutput("ai_credits_rate_limit_error", strValue);
+  coreObj.setOutput("effective_tokens_rate_limit_error", strValue);
 }
 
 /**
@@ -382,7 +362,7 @@ function generateTokenSteeringSummary(steeringEvents) {
   lines.push("<details>");
   lines.push(`<summary>⚠️ Token Steering Events (${steeringEvents.length})</summary>\n`);
   lines.push("");
-  lines.push("The firewall API proxy injected effective-token budget warnings into upstream requests.\n");
+  lines.push("The firewall API proxy injected AI credit budget warnings into upstream requests.\n");
   lines.push("");
   lines.push("| Time | Provider | Request ID | Message |");
   lines.push("|------|----------|------------|---------|");
@@ -703,80 +683,14 @@ function buildRpcSummaryRow(cells) {
 }
 
 /**
- * Computes effective-token deltas for each REQUEST entry relative to the surrounding
- * LLM API calls recorded in token-usage.jsonl.
- *
- * For each request at timestamp T, the algorithm finds:
- *   - prev: the last token-usage entry with timestamp < T
- *   - next: the first token-usage entry with timestamp > T
- * and returns delta = effectiveTokens(next) − effectiveTokens(prev).
- *
- * @param {string} tokenUsageContent - Raw content of token-usage.jsonl
- * @param {Array<Object>} requests - REQUEST entries from rpc-messages.jsonl
- * @returns {Map<number, number>} Map from request index to ΔET (omits entries with delta ≤ 0)
- */
-function computeToolCallTokenDeltas(tokenUsageContent, requests) {
-  const deltas = new Map();
-  if (!tokenUsageContent || !requests || requests.length === 0) return deltas;
-
-  // Parse and sort token-usage entries by timestamp
-  /** @type {Array<{ts: number, et: number}>} */
-  const etEntries = [];
-  for (const line of tokenUsageContent.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const entry = JSON.parse(trimmed);
-      if (!entry || typeof entry !== "object" || !entry.timestamp) continue;
-      const ts = new Date(entry.timestamp).getTime();
-      if (isNaN(ts)) continue;
-      const et = computeEffectiveTokens(entry.model || "", entry.input_tokens || 0, entry.output_tokens || 0, entry.cache_read_tokens || 0, entry.cache_write_tokens || 0, entry.reasoning_tokens || 0, entry.provider || "");
-      etEntries.push({ ts, et });
-    } catch {
-      // skip malformed lines
-    }
-  }
-
-  etEntries.sort((a, b) => a.ts - b.ts);
-  if (etEntries.length < 2) return deltas;
-
-  for (let i = 0; i < requests.length; i++) {
-    const req = requests[i];
-    if (!req.timestamp) continue;
-    const callTs = new Date(req.timestamp).getTime();
-    if (isNaN(callTs)) continue;
-
-    let prevIdx = -1;
-    let nextIdx = -1;
-    for (let j = 0; j < etEntries.length; j++) {
-      if (etEntries[j].ts < callTs) {
-        prevIdx = j; // keep updating to get the last one before callTs
-      } else if (etEntries[j].ts > callTs && nextIdx === -1) {
-        nextIdx = j; // first entry after callTs
-      }
-    }
-
-    if (prevIdx === -1 || nextIdx === -1) continue;
-
-    const delta = etEntries[nextIdx].et - etEntries[prevIdx].et;
-    if (delta > 0) {
-      deltas.set(i, delta);
-    }
-  }
-
-  return deltas;
-}
-
-/**
  * Generates a markdown step summary for rpc-messages.jsonl entries (mcpg v0.2.0+ format).
  * Shows a table of REQUEST entries (tool calls), a count of RESPONSE entries, any other
  * message types, and the DIFC_FILTERED section if there are blocked events.
  * @param {{requests: Array<Object>, responses: Array<Object>, other: Array<Object>}} entries
  * @param {Array<Object>} difcFilteredEvents - DIFC_FILTERED events parsed separately
- * @param {Map<number, number>} [tokenDeltas] - Optional map of request index → ΔET
  * @returns {string} Markdown summary, or empty string if nothing to show
  */
-function generateRpcMessagesSummary(entries, difcFilteredEvents, tokenDeltas) {
+function generateRpcMessagesSummary(entries, difcFilteredEvents) {
   const { requests, responses, other } = entries;
   const blockedCount = difcFilteredEvents ? difcFilteredEvents.length : 0;
   const totalMessages = requests.length + responses.length + other.length + blockedCount;
@@ -818,29 +732,17 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents, tokenDeltas) {
     callLines.push("");
 
     if (requests.length > 0) {
-      const hasDeltas = tokenDeltas && tokenDeltas.size > 0;
       callLines.push("#### REQUEST");
       callLines.push("");
-      if (hasDeltas) {
-        callLines.push("| Time | Server | Tool / Method | ΔET |");
-        callLines.push("|------|--------|---------------|----:|");
-      } else {
-        callLines.push("| Time | Server | Tool / Method |");
-        callLines.push("|------|--------|---------------|");
-      }
+      callLines.push("| Time | Server | Tool / Method |");
+      callLines.push("|------|--------|---------------|");
 
       for (let i = 0; i < requests.length; i++) {
         const req = requests[i];
         const time = formatRpcMessageTime(req.timestamp);
         const server = escapeMarkdownTableCell(req.server_id || "-");
         const label = formatRpcInlineCodeLabel(getRpcRequestLabel(req));
-        if (hasDeltas) {
-          const delta = tokenDeltas.get(i);
-          const deltaCell = delta ? `+${delta.toLocaleString()}` : "-";
-          callLines.push(`| ${time} | ${server} | ${label} | ${escapeMarkdownTableCell(deltaCell)} |`);
-        } else {
-          callLines.push(`| ${time} | ${server} | ${label} |`);
-        }
+        callLines.push(`| ${time} | ${server} | ${label} |`);
       }
 
       callLines.push("");
@@ -898,7 +800,7 @@ async function main() {
     const gatewayMdPath = "/tmp/gh-aw/mcp-logs/gateway.md";
     const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
-    let effectiveTokensRateLimitError = false;
+    let aiCreditsRateLimitError = false;
 
     // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
@@ -912,7 +814,7 @@ async function main() {
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(jsonlContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(jsonlContent);
-      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([jsonlContent]);
+      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
@@ -931,7 +833,7 @@ async function main() {
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(rpcMessagesContent);
-      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([rpcMessagesContent]);
+      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
@@ -950,7 +852,7 @@ async function main() {
       const gatewayMdContent = fs.readFileSync(gatewayMdPath, "utf8");
       if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
-        effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([gatewayMdContent]);
+        aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayMdContent]);
 
         // Write the markdown directly to the step summary
         core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
@@ -971,7 +873,7 @@ async function main() {
           core.summary.addRaw(difcSummary);
         }
 
-        setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
+        setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
         writeStepSummaryWithTokenUsage(core);
         return;
       }
@@ -988,20 +890,7 @@ async function main() {
       core.info(`rpc-messages.jsonl: ${rpcEntries.requests.length} request(s), ${rpcEntries.responses.length} response(s), ${rpcEntries.other.length} other, ${difcFilteredEvents.length} DIFC_FILTERED`);
 
       if (totalMessages > 0 || difcFilteredEvents.length > 0) {
-        // Compute effective-token deltas by correlating request timestamps with token-usage.jsonl
-        let tokenDeltas = new Map();
-        if (fs.existsSync(TOKEN_USAGE_PATH) && rpcEntries.requests.length > 0) {
-          try {
-            const tokenUsageContent = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
-            tokenDeltas = computeToolCallTokenDeltas(tokenUsageContent, rpcEntries.requests);
-            if (tokenDeltas.size > 0) {
-              core.info(`Computed effective-token deltas for ${tokenDeltas.size} of ${rpcEntries.requests.length} request(s)`);
-            }
-          } catch {
-            // Non-fatal: delta column is omitted when token-usage.jsonl is unreadable
-          }
-        }
-        const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents, tokenDeltas);
+        const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents);
         if (rpcSummary.length > 0) {
           core.summary.addRaw(rpcSummary);
         }
@@ -1014,7 +903,7 @@ async function main() {
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
       }
-      setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
+      setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
       writeStepSummaryWithTokenUsage(core);
       return;
     }
@@ -1027,7 +916,7 @@ async function main() {
     if (fs.existsSync(gatewayLogPath)) {
       gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
       core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
-      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([gatewayLogContent]);
+      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayLogContent]);
     } else {
       core.info(`No gateway.log found at: ${gatewayLogPath}`);
     }
@@ -1036,7 +925,7 @@ async function main() {
     if (fs.existsSync(stderrLogPath)) {
       stderrLogContent = fs.readFileSync(stderrLogPath, "utf8");
       core.info(`Found stderr.log (${stderrLogContent.length} bytes)`);
-      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([stderrLogContent]);
+      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([stderrLogContent]);
     } else {
       core.info(`No stderr.log found at: ${stderrLogPath}`);
     }
@@ -1050,7 +939,7 @@ async function main() {
       modelAliasResolutionEvents.length === 0
     ) {
       core.info("MCP gateway log files are empty or missing");
-      setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
+      setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
       writeStepSummaryWithTokenUsage(core);
       return;
     }
@@ -1071,7 +960,7 @@ async function main() {
     if (fullSummary.length > 0) {
       core.summary.addRaw(fullSummary);
     }
-    setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
+    setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
     writeStepSummaryWithTokenUsage(core);
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
@@ -1196,12 +1085,11 @@ if (typeof module !== "undefined" && module.exports) {
     parseRpcMessagesJsonl,
     getRpcRequestLabel,
     generateRpcMessagesSummary,
-    computeToolCallTokenDeltas,
     printAllGatewayFiles,
     parseTokenUsageJsonl,
     generateTokenUsageSummary,
     formatDurationMs,
-    hasEffectiveTokensRateLimitError,
+    hasAICreditsRateLimitError,
   };
 }
 
