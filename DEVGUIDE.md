@@ -951,7 +951,7 @@ This documentation provides:
    - Run the `pr-finisher` skill to drive review, checks, and mergeability to green
    - For features that deeply impact the engine, add the `smoke` label and approve workflows
    - If additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
-   - If the first smoke run does not start after setting `smoke`, toggle the `smoke` label, then approve workflows again
+   - If no smoke run is queued after setting `smoke`, toggle the `smoke` label, then approve workflows again
 
 ## Release Process
 
