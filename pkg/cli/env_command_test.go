@@ -181,16 +181,31 @@ func TestDefaultsBuildUpdateChanges(t *testing.T) {
 	})
 
 	require.Len(t, changes, len(defaultsBindings))
-	assert.Equal(t, "default_max_ai_credits", changes[0].field)
-	assert.True(t, changes[0].delete)
-	assert.Equal(t, "default_max_daily_ai_credits", changes[1].field)
-	assert.True(t, changes[1].delete)
-	assert.Equal(t, "default_max_turns", changes[2].field)
-	assert.True(t, changes[2].delete)
-	assert.Equal(t, "default_utc", changes[5].field)
-	assert.True(t, changes[5].delete)
-	assert.Equal(t, "default_model_codex", changes[len(changes)-1].field)
-	assert.Equal(t, "gpt-5.5", changes[len(changes)-1].value)
+
+	byField := make(map[string]defaultsUpdateChange, len(changes))
+	for _, change := range changes {
+		byField[change.field] = change
+	}
+
+	for _, field := range []string{
+		"default_max_ai_credits",
+		"default_max_daily_ai_credits",
+		"default_max_turns",
+		"default_timeout_minutes",
+		"default_detection_model",
+		"default_utc",
+		"default_model_copilot",
+		"default_model_claude",
+	} {
+		change, ok := byField[field]
+		require.True(t, ok, "missing change for %s", field)
+		assert.True(t, change.delete, "expected %s to be deleted", field)
+	}
+
+	change, ok := byField["default_model_codex"]
+	require.True(t, ok, "missing change for default_model_codex")
+	assert.False(t, change.delete)
+	assert.Equal(t, "gpt-5.5", change.value)
 }
 
 func TestConfirmDefaultsUpdate(t *testing.T) {
