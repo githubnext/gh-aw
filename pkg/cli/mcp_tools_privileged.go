@@ -42,7 +42,7 @@ type logsArgs struct {
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
-	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
 }
 
 // The logs tool requires write+ access and checks actor permissions.
@@ -254,7 +254,7 @@ type auditArgs struct {
 	RunID        any      `json:"run_id,omitempty"          jsonschema:"Alias for run_id_or_url. Accepts run ID or run/job URL (including step anchors). String or number."`
 	RunIDOrURL   any      `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Accepts run ID or run/job URL (including step anchors). String or number."`
 	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
-	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
 	MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
 	Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
@@ -472,7 +472,7 @@ Multi-run diff returns JSON describing changes between the base and each compari
 type auditDiffArgs struct {
 	BaseRunID     string   `json:"base_run_id"     jsonschema:"Numeric ID of the base (reference) workflow run"`
 	CompareRunIDs []string `json:"compare_run_ids" jsonschema:"One or more numeric IDs of the comparison runs"`
-	Artifacts     []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+	Artifacts     []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
 }
 
 // registerAuditDiffTool registers the audit-diff tool with the MCP server.
