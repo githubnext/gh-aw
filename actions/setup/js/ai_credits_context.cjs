@@ -141,7 +141,8 @@ function parseAICreditsErrorInfoFromAuditEntry(entry) {
  * @param {T} defaultValue
  * @param {((content: string) => boolean) | null} contentGuard - When non-null, called with raw file
  *   content before iteration; return false to skip parsing entirely (fast-path optimization).
- * @param {(acc: T, entry: unknown) => T} accumulate
+ * @param {(acc: T, entry: unknown) => T | undefined} accumulate - Callers should return a defined
+ *   value; undefined is ignored defensively to preserve the previous accumulator.
  * @returns {T}
  */
 function iterateAuditEntries(auditJsonlPathOverride, defaultValue, contentGuard, accumulate) {
