@@ -60,7 +60,10 @@ function logDailyGuardrail(message, details) {
  */
 function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
-  return eventName === "workflow_call" || eventName === "repository_dispatch" || (eventName === "workflow_dispatch" && (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "");
+  const isWorkflowCall = eventName === "workflow_call";
+  const isRepositoryDispatch = eventName === "repository_dispatch";
+  const hasDispatchContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "";
+  return isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext);
 }
 
 /**
@@ -448,6 +451,7 @@ async function main() {
       truncatedByRateLimit,
     };
     logDailyGuardrail("Completed AIC inspection window", {
+      // Keep these explicit to preserve existing log shape (exclude truncatedByRateLimit).
       candidateRunsCount: summaryMeta.candidateRunsCount,
       inspectedRunsCount: summaryMeta.inspectedRunsCount,
       countedRunIds: countedRuns.map(run => run.id),
