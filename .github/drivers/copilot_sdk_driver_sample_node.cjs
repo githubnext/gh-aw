@@ -40,7 +40,7 @@ function buildSessionConfig(model, onPermissionRequest) {
 }
 
 async function main() {
-  const { CopilotClient, approveAll } = require("@github/copilot-sdk");
+  const { CopilotClient, RuntimeConnection, approveAll } = require("@github/copilot-sdk");
   const promptPath = readRequiredEnv("GH_AW_PROMPT");
   const sdkUri = readRequiredEnv("COPILOT_SDK_URI");
   const connectionToken = readRequiredEnv("COPILOT_CONNECTION_TOKEN");
