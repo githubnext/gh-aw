@@ -46,7 +46,7 @@ func runDockerBuildWithRetry(t *testing.T, repoRoot string) {
 	t.Helper()
 
 	const maxAttempts = 3
-	const retryDelay = 5 * time.Second
+	const baseRetryDelay = 5 * time.Second
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		dockerBuildCmd := exec.Command("make", "docker-build")
@@ -58,8 +58,9 @@ func runDockerBuildWithRetry(t *testing.T, repoRoot string) {
 
 		output := string(dockerOutput)
 		if attempt < maxAttempts && isTransientDockerBuildFailure(output) {
+			retryDelay := baseRetryDelay * time.Duration(1<<(attempt-1))
 			t.Logf("Docker build attempt %d/%d failed with transient network error, retrying in %s...", attempt, maxAttempts, retryDelay)
-			t.Logf("Docker build output (attempt %d): %s", attempt, output)
+			t.Logf("Docker build output (attempt %d, truncated): %s", attempt, truncateDockerBuildOutput(output))
 			time.Sleep(retryDelay)
 			continue
 		}
@@ -67,6 +68,14 @@ func runDockerBuildWithRetry(t *testing.T, repoRoot string) {
 		t.Logf("Docker build output: %s", output)
 		t.Fatalf("Failed to build Docker image: %v", err)
 	}
+}
+
+func truncateDockerBuildOutput(output string) string {
+	const maxChars = 1200
+	if len(output) <= maxChars {
+		return output
+	}
+	return output[:maxChars] + "\n...[truncated]..."
 }
 
 func TestIsTransientDockerBuildFailure(t *testing.T) {
