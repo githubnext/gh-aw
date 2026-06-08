@@ -4,7 +4,6 @@
 **Status**: Draft
 **Deciders**: Unknown (PR authored by `app/copilot-swe-agent`; human deciders TBD)
 
-
 > **Migration note:** This ADR references the legacy Effective Tokens (ET) terminology for historical context. gh-aw now uses AI Credits (AIC) as the primary cost metric.
 
 ---

@@ -35,7 +35,6 @@ Recompute ET once when usage is written and persist the corrected value. Rejecte
 - Reporting/output shape is unchanged; only the *source* of the ET value changed.
 - The unknown-model fallback multiplier (`1.0`) and longest-prefix matching behavior are preserved.
 
-
 > **Migration note:** This ADR references the legacy Effective Tokens (ET) terminology for historical context. gh-aw now uses AI Credits (AIC) as the primary cost metric.
 
 ---

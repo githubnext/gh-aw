@@ -34,7 +34,6 @@ Accept short-form only at validation time and have the schema (or a pre-processi
 - Documentation now defaults to short-form notation, so existing long-form examples in user workflows differ stylistically from the docs (both remain valid).
 - Schema default values remain expressed as plain integers (`25000000`) even though docs prefer `25M`.
 
-
 > **Migration note:** This ADR references the legacy Effective Tokens (ET) terminology for historical context. gh-aw now uses AI Credits (AIC) as the primary cost metric.
 
 ---

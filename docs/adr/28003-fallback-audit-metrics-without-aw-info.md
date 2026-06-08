@@ -4,7 +4,6 @@
 **Status**: Draft
 **Deciders**: pelikhan
 
-
 > **Migration note:** This ADR references the legacy Effective Tokens (ET) terminology for historical context. gh-aw now uses AI Credits (AIC) as the primary cost metric.
 
 ---
