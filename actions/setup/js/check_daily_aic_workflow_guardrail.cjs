@@ -33,7 +33,7 @@ async function getArtifactClient() {
  */
 function formatDailyGuardrailLogMessage(message, details) {
   if (!details || Object.keys(details).length === 0) {
-    return `[daily-workflow-et] ${message}`;
+    return `[daily-workflow-aic] ${message}`;
   }
   let serializedDetails = "";
   try {
@@ -41,11 +41,11 @@ function formatDailyGuardrailLogMessage(message, details) {
   } catch {
     serializedDetails = JSON.stringify({ error: "failed to serialize log details" });
   }
-  return `[daily-workflow-et] ${message}: ${serializedDetails}`;
+  return `[daily-workflow-aic] ${message}: ${serializedDetails}`;
 }
 
 /**
- * Emit a consistently prefixed daily workflow ET diagnostic log line.
+ * Emit a consistently prefixed daily workflow AI Credits diagnostic log line.
  *
  * @param {string} message
  * @param {Record<string, unknown>} [details]
@@ -278,9 +278,9 @@ async function appendDailyAICSummary(workflowName, actorLogin, threshold, counte
  * Requires github-script globals (`core`, `github`, `context`) provided by setupGlobals().
  *
  * Error handling: all GitHub API interactions after the initial guard checks are wrapped
- * in a top-level try-catch.  Any unexpected error (network failure, permission error, etc.)
+ * in a top-level try-catch. Any unexpected error (network failure, permission error, etc.)
  * is logged as a warning and the function returns cleanly with `daily_effective_workflow_exceeded`
- * left at its default value of `"false"`.  This design ensures the step never fails the
+ * left at its default value of `"false"`. This design ensures the step never fails the
  * activation job — a guardrail error results in a safe bypass (agent allowed to run) rather
  * than a confusing workflow failure that blocks the agent entirely.
  */
@@ -294,13 +294,13 @@ async function main() {
     return;
   }
   if (shouldSkipDailyAICGuardrail()) {
-    core.info("Skipping daily workflow ET guardrail for workflow_call, repository_dispatch, or workflow_dispatch with aw_context.");
+    core.info("Skipping daily workflow AI Credits guardrail for workflow_call, repository_dispatch, or workflow_dispatch with aw_context.");
     return;
   }
 
   const token = process.env.GH_AW_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
   if (!token) {
-    core.warning("Skipping daily workflow ET guardrail because no GitHub token was available for artifact lookup.");
+    core.warning("Skipping daily workflow AI Credits guardrail because no GitHub token was available for artifact lookup.");
     return;
   }
 
@@ -325,11 +325,11 @@ async function main() {
     const actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || currentRun.data.triggering_actor?.login || currentRun.data.actor?.login || process.env.GITHUB_ACTOR || "";
 
     if (!currentRun.data.workflow_id) {
-      core.warning("Skipping daily workflow ET guardrail because the current workflow could not be resolved.");
+      core.warning("Skipping daily workflow AI Credits guardrail because the current workflow could not be resolved.");
       return;
     }
 
-    logDailyGuardrail("Resolved current workflow ET guardrail context", {
+    logDailyGuardrail("Resolved current workflow AI Credits guardrail context", {
       owner,
       repo,
       currentRunId: context.runId,
@@ -342,7 +342,7 @@ async function main() {
     });
     const maxInspectableRuns = computeMaxInspectableRuns(rateLimit.remaining);
     if (maxInspectableRuns <= 0) {
-      core.warning(`Skipping daily workflow ET guardrail because the GitHub API rate limit is too low (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
+      core.warning(`Skipping daily workflow AI Credits guardrail because the GitHub API rate limit is too low (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
       return;
     }
 
@@ -474,7 +474,7 @@ async function main() {
     // Treat any unexpected error as a non-blocking skip so the step never fails the
     // activation job.  The output stays at the default "false", allowing the agent to
     // run.  The guardrail is effectively bypassed for this invocation.
-    core.warning(`Daily workflow ET guardrail encountered an unexpected error and will be skipped: ${getErrorMessage(error)}`);
+    core.warning(`Daily workflow AI Credits guardrail encountered an unexpected error and will be skipped: ${getErrorMessage(error)}`);
   }
 }
 
