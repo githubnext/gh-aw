@@ -222,5 +222,5 @@ func TestFormal_P10_DriftReportEmittedOnDetection(t *testing.T) {
 		[]string{"container.dockerHostPathPrefix"},
 	)
 	assert.NotNil(t, empty)
-	assert.Len(t, empty, 0)
+	assert.Empty(t, empty)
 }
