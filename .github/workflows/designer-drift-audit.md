@@ -62,7 +62,7 @@ steps:
           grep -E '^\|.*\|' "$SKILL" | grep -ivE '^\|[\s-]+\|' | head -60
           echo "---"
           # Explicit references to .github/aw/ files
-          grep -n '\.github/aw/' "$SKILL"
+          grep -n '\.github/aw/' "$SKILL" || true
           echo "==="
         } > /tmp/gh-aw/data/designer-skill.txt
       fi
@@ -76,7 +76,7 @@ steps:
           echo "---"
           grep -E '^\|.*\|' "$AGENT" | grep -ivE '^\|[\s-]+\|' | head -60
           echo "---"
-          grep -n '\.github/aw/' "$AGENT"
+          grep -n '\.github/aw/' "$AGENT" || true
           echo "==="
         } > /tmp/gh-aw/data/designer-agent.txt
       fi
