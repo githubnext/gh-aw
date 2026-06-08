@@ -1,98 +1,37 @@
 ---
-title: "Migrating from Effective Tokens to AI Credits"
-description: "A practical guide to updating dashboards, alerts, and workflows after gh-aw moved from Effective Tokens (ET) to AI Credits (AIC)."
+title: "Effective Tokens replaced by AI Credits"
+description: "The latest gh-aw build uses AI Credits (AIC) as the primary spend metric and keeps Effective Tokens (ET) as a legacy compatibility field."
 authors:
   - copilot
 date: 2026-06-08
 metadata:
-  seoDescription: "Learn how to migrate ET-based reporting to AIC in gh-aw with compatibility tips, field mappings, and rollout steps."
-  linkedPostText: "Migrate ET-based reporting to AIC"
+  seoDescription: "gh-aw now reports AI Credits (AIC) as the primary spend metric, aligned with GitHub Copilot billing and models.dev pricing."
+  linkedPostText: "ET replaced by AIC in latest build"
 ---
 
+In the latest gh-aw build, Effective Tokens (ET) have been
+replaced by AI Credits (AIC) as the primary spend metric.
+
 > [!IMPORTANT]
-> **AI Credits (AIC)** are now the primary spend metric in
-> gh-aw. **Effective Tokens (ET)** are deprecated and kept only
-> for backward compatibility in report output.
+> AIC is now the default cost metric in gh-aw output. ET remains
+> available only as a legacy compatibility field.
 
-If your dashboards, budgets, or alerts still depend on Effective
-Tokens, this migration is mostly a naming and interpretation
-update. The workflow data is still there, but the default metric
-for cost tracking has changed to AI Credits so spend is easier to
-understand and compare.
+This change reflects pricing in GitHub Copilot models and billing,
+and models.dev pricing. It makes spend tracking directly aligned to
+monetary cost instead of a normalized token proxy.
 
-## Why the metric changed
+## What this means in practice
 
-Effective Tokens normalized token usage into a single synthetic
-number. That was useful for cross-model analysis, but it was not
-directly tied to money.
+- `gh aw audit` and `gh aw logs` report AI Credits as the primary
+  spend metric.
+- Effective Tokens are deprecated in documentation and should be
+  treated as legacy compatibility output.
+- Cost reporting and budget discussions should use AIC values.
 
-AI Credits are simpler for operations and planning:
+## Metric reference
 
-- **1 AIC = $0.01 USD**
-- AIC aligns with provider pricing and real spend
-- AIC is easier to use for budgets, alerts, and forecasting
-
-For the formal details, see the
-[AI Credits Specification](/gh-aw/specs/ai-credits-specification/)
-and the
-[deprecated Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/).
-
-## What to update first
-
-Start with anything that drives financial decisions:
-
-1. Dashboard primary KPI labels (`ET` → `AIC`)
-2. Alert thresholds and pager rules
-3. Weekly or monthly cost rollups
-4. Internal docs and runbooks
-
-Keep ET fields visible during rollout if your team still uses
-historical ET baselines.
-
-## Field mapping for migration
-
-Use this mapping when updating parsers and report consumers:
-
-| Existing usage | Preferred replacement |
-| --- | --- |
-| Effective Tokens (ET) as primary spend metric | AI Credits (AIC) as primary spend metric |
-| ET budget thresholds | AIC budget thresholds |
-| ET trend chart headline | AIC trend chart headline |
-| ET-only incident criteria | AIC-first criteria, ET optional for diagnostics |
-
-> [!NOTE]
-> `gh aw audit` and `gh aw logs` still include legacy ET fields so
-> existing integrations can migrate without a hard cutover.
-
-## Rollout strategy that avoids breakage
-
-Use a two-phase migration:
-
-### Phase 1: Dual reporting
-
-Update consumers to read AIC and ET in parallel. Display AIC first
-in UI and summaries, but keep ET available for historical
-comparisons.
-
-### Phase 2: AIC-first operations
-
-After your alerting and dashboard baselines are stable, switch
-operational decisions to AIC and move ET to a secondary or hidden
-field.
-
-This phased approach reduces noisy alerts and avoids sudden changes
-to long-running trend views.
-
-## Common pitfalls
-
-- **Renaming without recalibrating thresholds**: ET thresholds do
-  not translate 1:1 to AIC. Start by taking 2–4 weeks of recent
-  runs, then set AIC warning/critical thresholds from observed
-  percentiles (for example, P75 warning and P95 critical).
-- **Dropping ET too early**: Keep ET during transition if your
-  quarterly reporting depends on historical ET curves.
-- **Updating charts but not automations**: Make sure CI summaries,
-  issue templates, and workflow notifications use AIC language too.
+- **AI Credits (AIC)**: primary spend metric (1 AIC = $0.01 USD)
+- **Effective Tokens (ET)**: deprecated legacy metric
 
 ## Where to read more
 
