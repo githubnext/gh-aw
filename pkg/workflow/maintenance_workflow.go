@@ -122,7 +122,7 @@ type GenerateMaintenanceWorkflowOptions struct {
 	RepoSlug         string
 }
 
-const noopRunsIssueExpiresHours = 24 * 30
+const defaultNoOpIssueExpirationHours = 24 * 30
 
 func isNoOpReportAsIssueEnabled(reportAsIssue *string) bool {
 	return reportAsIssue == nil || !strings.EqualFold(strings.TrimSpace(*reportAsIssue), "false")
@@ -353,8 +353,8 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 		if workflowData.SafeOutputs.NoOp != nil {
 			if isNoOpReportAsIssueEnabled(workflowData.SafeOutputs.NoOp.ReportAsIssue) {
 				hasExpires = true
-				expires := noopRunsIssueExpiresHours
-				maintenanceLog.Printf("Workflow %s has noop report-as-issue enabled, using %d-hour noop issue expiration", workflowData.Name, expires)
+				expires := defaultNoOpIssueExpirationHours
+				maintenanceLog.Printf("Workflow %s has no-op report-as-issue enabled, using %d-hour no-op issue expiration", workflowData.Name, expires)
 				if minExpires == 0 || expires < minExpires {
 					minExpires = expires
 				}
