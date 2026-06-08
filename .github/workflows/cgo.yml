@@ -244,6 +244,31 @@ jobs:
           executed-tests.txt
         retention-days: 7
 
+  impacted-go-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-impacted-go-tests
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Run impacted Go unit tests
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: make test-impacted-go BASE_REF=origin/main CI_COVERAGE_SOURCE_BRANCH=main
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15

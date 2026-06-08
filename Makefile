@@ -9,6 +9,14 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty)
 DOCKER_IMAGE=ghcr.io/github/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
+BASE_REF ?= origin/main
+JS_IMPACTED_TEST_EXCLUDES=--exclude '**/*.integration.test.cjs' --exclude '**/frontmatter_hash_github_api.test.cjs'
+CI_WORKFLOW_FILE ?= ci.yml
+CI_COVERAGE_ARTIFACT_PATTERN ?= ci-integration-coverage-*
+CI_COVERAGE_DIR ?= /tmp/gh-aw-ci-coverage
+CI_COVERAGE_ENABLED ?= 1
+CI_COVERAGE_SOURCE_BRANCH ?= main
+CI_RUN_ID ?=
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -216,6 +224,93 @@ security-govulncheck:
 .PHONY: test-js
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
+
+# Test impacted JavaScript unit tests only (excluding integration tests)
+.PHONY: test-impacted-js
+test-impacted-js: build-js
+	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
+	if [ -z "$$BASE_COMMIT" ]; then \
+		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
+		echo "Set BASE_REF explicitly, for example: make test-impacted-js BASE_REF=origin/main"; \
+		exit 1; \
+	fi; \
+	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD -- actions/setup/js | grep -E '\.(cjs|js|mjs|ts)$$' || true); \
+	if [ -z "$$CHANGED_JS_FILES" ]; then \
+		echo "No changed JavaScript/TypeScript files under actions/setup/js; skipping impacted JS tests."; \
+		exit 0; \
+	fi; \
+	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
+	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --related $(JS_IMPACTED_TEST_EXCLUDES)
+
+# Test impacted Go unit tests only (excluding integration tests)
+.PHONY: test-impacted-go
+test-impacted-go:
+	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
+	if [ -z "$$BASE_COMMIT" ]; then \
+		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
+		echo "Set BASE_REF explicitly, for example: make test-impacted-go BASE_REF=origin/main"; \
+		exit 1; \
+	fi; \
+	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD | grep -E '\.go$$' || true); \
+	if [ -z "$$CHANGED_GO_FILES" ]; then \
+		echo "No changed Go files; skipping impacted Go tests."; \
+		exit 0; \
+	fi; \
+	COVERAGE_GO_PACKAGES=""; \
+	if [ "$(CI_COVERAGE_ENABLED)" != "1" ]; then \
+		echo "CI coverage correlation disabled (CI_COVERAGE_ENABLED=$(CI_COVERAGE_ENABLED)); using changed-file package selection."; \
+	elif ! command -v gh >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then \
+		echo "CI coverage correlation requires gh and jq; using changed-file package selection."; \
+	else \
+		COVERAGE_SOURCE_BRANCH="$(CI_COVERAGE_SOURCE_BRANCH)"; \
+		RUN_ID="$(CI_RUN_ID)"; \
+		if [ -z "$$RUN_ID" ]; then \
+			RUN_ID=$$(gh run list --workflow "$(CI_WORKFLOW_FILE)" --branch "$$COVERAGE_SOURCE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
+		fi; \
+		if [ -n "$$RUN_ID" ]; then \
+			rm -rf "$(CI_COVERAGE_DIR)"; \
+			mkdir -p "$(CI_COVERAGE_DIR)"; \
+			if gh run download "$$RUN_ID" --pattern "$(CI_COVERAGE_ARTIFACT_PATTERN)" --dir "$(CI_COVERAGE_DIR)" >/dev/null 2>&1; then \
+				COVERAGE_FILES=$$(find "$(CI_COVERAGE_DIR)" -type f -name 'coverage-integration-*.out' 2>/dev/null || true); \
+				if [ -n "$$COVERAGE_FILES" ]; then \
+					CHANGED_FILE_LIST="$(CI_COVERAGE_DIR)/changed-go-files.txt"; \
+					printf '%s\n' "$$CHANGED_GO_FILES" > "$$CHANGED_FILE_LIST"; \
+					for coverage_file in $$COVERAGE_FILES; do \
+						MATCHED_CHANGED_FILE=$$(awk -F: 'NR>1 {print $$1}' "$$coverage_file" | sed 's|^github.com/github/gh-aw/||' | grep -Fx -f "$$CHANGED_FILE_LIST" | head -n 1 || true); \
+						if [ -n "$$MATCHED_CHANGED_FILE" ]; then \
+							SAFE_NAME=$$(basename "$$coverage_file" .out | sed 's|^coverage-integration-||'); \
+							RESULT_FILE=$$(find "$(CI_COVERAGE_DIR)" -type f -name "test-result-integration-$$SAFE_NAME.json" | head -n 1); \
+							if [ -n "$$RESULT_FILE" ]; then \
+								PACKAGES=$$(jq -r 'select(.Package != null) | .Package' "$$RESULT_FILE" | sort -u | sed 's|^github.com/github/gh-aw|.|'); \
+								if [ -n "$$PACKAGES" ]; then \
+									COVERAGE_GO_PACKAGES=$$(printf '%s\n%s\n' "$$COVERAGE_GO_PACKAGES" "$$PACKAGES" | sed '/^$$/d' | sort -u); \
+								fi; \
+							fi; \
+						fi; \
+					done; \
+				else \
+					echo "No CI coverage profiles found in downloaded artifacts; using changed-file package selection."; \
+				fi; \
+			else \
+				echo "Unable to download CI coverage artifacts for run $$RUN_ID; using changed-file package selection."; \
+			fi; \
+		else \
+			echo "No successful CI run found for branch $$COVERAGE_SOURCE_BRANCH; using changed-file package selection."; \
+		fi; \
+	fi; \
+	if [ -n "$$COVERAGE_GO_PACKAGES" ]; then \
+		CHANGED_GO_PACKAGES="$$COVERAGE_GO_PACKAGES"; \
+		echo "Running impacted Go unit tests from CI coverage correlation: $$CHANGED_GO_PACKAGES"; \
+	else \
+		CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
+		echo "Running impacted Go unit tests in changed-file packages: $$CHANGED_GO_PACKAGES"; \
+	fi; \
+	# Use -short to exclude integration tests and keep execution to unit-test scope. \
+	printf '%s\n' "$$CHANGED_GO_PACKAGES" | tr '\n' '\0' | xargs -0 -r go test -v -parallel=4 -timeout=10m -short
+
+# Test both impacted JavaScript and Go unit tests
+.PHONY: test-impacted
+test-impacted: test-impacted-js test-impacted-go
 
 # Install JavaScript dependencies
 .PHONY: deps-js
@@ -879,6 +974,9 @@ help:
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
+	@echo "  test-impacted-js - Run impacted JavaScript unit tests for current branch changes"
+	@echo "  test-impacted-go - Run impacted Go unit tests for current branch changes"
+	@echo "  test-impacted    - Run impacted JavaScript and Go unit tests for current branch changes"
 	@echo "  test-all         - Run all tests (Go, JavaScript, and wasm golden)"
 	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"
 	@echo "  test-wasm        - Build wasm and run Node.js golden comparison test"

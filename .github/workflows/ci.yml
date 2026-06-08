@@ -277,6 +277,16 @@ jobs:
         path: test-result-integration-*.json
         retention-days: 3
 
+    - name: Upload integration coverage artifacts
+      if: always() && hashFiles(format('coverage-integration-{0}.out', steps.run-tests.outputs.safe_name)) != ''
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: ci-integration-coverage-${{ steps.run-tests.outputs.safe_name }}
+        path: |
+          coverage-integration-${{ steps.run-tests.outputs.safe_name }}.out
+          test-result-integration-${{ steps.run-tests.outputs.safe_name }}.json
+        retention-days: 3
+
     - name: Convert integration coverage to Cobertura
       if: always() && hashFiles(format('coverage-integration-{0}.out', steps.run-tests.outputs.safe_name)) != ''
       run: |
