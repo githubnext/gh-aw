@@ -19,7 +19,6 @@ tools:
 
 safe-outputs:
   create-pull-request:
-    branch-name: automation/daily-windows-terminal-integration
     title-prefix: "[windows-integration] "
     allowed-files:
       - .github/workflows/windows-cli-integration.yml
