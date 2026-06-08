@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'actions/setup/js/pi_*.cjs'
-      - '.github/workflows/chi.yml'
+      - '.github/workflows/cpi.yml'
   workflow_dispatch:
 
 jobs:

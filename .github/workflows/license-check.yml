@@ -7,6 +7,10 @@ on:
       - 'go.sum'
   push:
     branches: [main]
+    paths:
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/license-check.yml'
   workflow_dispatch:
 
 jobs:
