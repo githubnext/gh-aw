@@ -280,6 +280,63 @@ func TestConfigureLipglossCompatUsesStderr(t *testing.T) {
 	}
 }
 
+func TestShouldConfigureLipglossCompat(t *testing.T) {
+	tests := []struct {
+		name       string
+		goos       string
+		stderrMode os.FileMode
+		statErr    error
+		want       bool
+	}{
+		{
+			name:       "windows character device",
+			goos:       "windows",
+			stderrMode: os.ModeDevice | os.ModeCharDevice,
+			want:       true,
+		},
+		{
+			name:       "windows redirected pipe",
+			goos:       "windows",
+			stderrMode: os.ModeNamedPipe,
+			want:       false,
+		},
+		{
+			name:       "windows zero mode stat success",
+			goos:       "windows",
+			stderrMode: os.FileMode(0),
+			want:       false,
+		},
+		{
+			name:    "windows stat error",
+			goos:    "windows",
+			statErr: os.ErrPermission,
+			want:    false,
+		},
+		{
+			name:    "windows ErrInvalid fallback",
+			goos:    "windows",
+			statErr: os.ErrInvalid,
+			want:    false,
+		},
+		{
+			name:       "non-windows still configures",
+			goos:       "linux",
+			stderrMode: os.ModeNamedPipe,
+			statErr:    os.ErrPermission,
+			want:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldConfigureLipglossCompat(tt.goos, tt.stderrMode, tt.statErr)
+			if got != tt.want {
+				t.Fatalf("shouldConfigureLipglossCompat(%q, %v, %v) = %v, want %v", tt.goos, tt.stderrMode, tt.statErr, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestBordersExist verifies that all expected border definitions are defined
 func TestBordersExist(t *testing.T) {
 	borders := map[string]lipgloss.Border{

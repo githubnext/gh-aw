@@ -48,6 +48,7 @@ package styles
 
 import (
 	"os"
+	"runtime"
 
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
@@ -59,8 +60,36 @@ func configureLipglossCompat() {
 	compat.Profile = colorprofile.Detect(os.Stderr, os.Environ())
 }
 
+func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr error) bool {
+	// On Windows, querying terminal capabilities against redirected/pipe handles
+	// can hang under some wrapper environments. Skip startup probing unless stderr
+	// is attached to a character device.
+	if goos == "windows" {
+		if statErr != nil {
+			return false
+		}
+		return stderrMode&(os.ModeDevice|os.ModeCharDevice) == (os.ModeDevice | os.ModeCharDevice)
+	}
+	return true
+}
+
 func init() {
-	configureLipglossCompat()
+	stderrInfo, statErr := os.Stderr.Stat()
+	// Defensive fallback: Stat should not normally return (nil, nil). Treat that
+	// impossible state as an invalid stderr handle so Windows startup probing is
+	// safely skipped.
+	if statErr == nil && stderrInfo == nil {
+		statErr = os.ErrInvalid
+	}
+	// Zero mode means "unknown/unset"; on Windows this keeps the startup probe
+	// disabled unless stderr is explicitly confirmed as a character device.
+	stderrMode := os.FileMode(0)
+	if stderrInfo != nil {
+		stderrMode = stderrInfo.Mode()
+	}
+	if shouldConfigureLipglossCompat(runtime.GOOS, stderrMode, statErr) {
+		configureLipglossCompat()
+	}
 }
 
 // Hex color constants for light and dark variants.
