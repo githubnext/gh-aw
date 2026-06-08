@@ -212,5 +212,5 @@ func formatStepEnvValueForYAML(value any) string {
 	if !ok {
 		return fmt.Sprint(value)
 	}
-	return quoteYAMLValueContainingColonSpace(strValue)
+	return yamlStringValue(strValue)
 }
