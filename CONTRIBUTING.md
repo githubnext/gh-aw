@@ -345,11 +345,11 @@ All community-sourced pull requests are created and managed by core team members
 
 ### PR Lifecycle Tip (Core Team)
 
-When implementing community work with an agent:
+When implementing community contributions using an agent:
 
 - Create the pull request as **draft**.
 - Move it to **Ready for review** and approve workflows to run reviewer jobs.
-- Run the `pr-finisher` skill to drive review, checks, and mergeability to green.
+- Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green.
 - For features that deeply impact the engine, add the `smoke` label and approve workflows.
 - If additional changes require another smoke run, toggle the `smoke` label (remove and re-add) and approve workflows again.
 - If no smoke run is queued after setting `smoke`, toggle the `smoke` label and approve workflows again.

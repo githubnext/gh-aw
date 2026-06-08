@@ -948,7 +948,7 @@ This documentation provides:
 5. **Follow PR lifecycle discipline**:
    - Open PRs as **draft**
    - Move to **Ready for review** and approve workflows to run reviewer jobs
-   - Run the `pr-finisher` skill to drive review, checks, and mergeability to green
+   - Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green
    - For features that deeply impact the engine, add the `smoke` label and approve workflows
    - If additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
    - If no smoke run is queued after setting `smoke`, toggle the `smoke` label, then approve workflows again
