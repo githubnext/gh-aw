@@ -34,6 +34,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
+	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
@@ -59,6 +60,7 @@ func main() {
 		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,
 		seenmapbool.Analyzer,
+		sortslice.Analyzer,
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
