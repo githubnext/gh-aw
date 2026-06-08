@@ -156,7 +156,8 @@ function iterateAuditEntries(auditJsonlPathOverride, defaultValue, contentGuard,
       const trimmed = line.trim();
       if (!trimmed || trimmed[0] !== "{") continue;
       try {
-        result = accumulate(result, JSON.parse(trimmed));
+        const nextResult = accumulate(result, JSON.parse(trimmed));
+        if (nextResult !== undefined) result = nextResult;
       } catch {
         // ignore malformed lines
       }
@@ -189,42 +190,38 @@ function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
   // (error, message, reason…) that are present in almost every entry, making a
   // field-name pre-scan near-useless. The asymmetry vs parseMaxAICreditsFromAuditLog
   // is intentional — see AI_CREDITS_RATE_LIMIT_TEXT_FIELDS comment above.
-  return iterateAuditEntries(
-    auditJsonlPathOverride,
-    { aiCredits: "", rateLimitError: false },
-    null,
-    (acc, entry) => {
-      const parsed = parseAICreditsErrorInfoFromAuditEntry(entry);
-      return {
-        aiCredits: parsed.aiCredits || acc.aiCredits,
-        rateLimitError: acc.rateLimitError || parsed.rateLimitError,
-      };
-    }
-  );
+  /** @type {{ aiCredits: string, rateLimitError: boolean }} */
+  const initial = { aiCredits: "", rateLimitError: false };
+  return iterateAuditEntries(auditJsonlPathOverride, initial, null, (acc, entry) => {
+    const parsed = parseAICreditsErrorInfoFromAuditEntry(entry);
+    return {
+      aiCredits: parsed.aiCredits || acc.aiCredits,
+      rateLimitError: acc.rateLimitError || parsed.rateLimitError,
+    };
+  });
 }
 
 /**
  * Single-pass combined read of the audit log, returning all AI credits fields at once.
  * Used by resolveAICreditsFailureState to avoid reading the same file twice.
+ * No contentGuard is applied: rate-limit signal detection must scan all entries anyway,
+ * so a single full pass is cheaper than two guarded passes.
  *
  * @param {string} [auditJsonlPathOverride]
  * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean }}
  */
 function parseAuditLogCombined(auditJsonlPathOverride) {
-  return iterateAuditEntries(
-    auditJsonlPathOverride,
-    { aiCredits: "", maxAICredits: "", rateLimitError: false },
-    null,
-    (acc, entry) => {
-      const errorInfo = parseAICreditsErrorInfoFromAuditEntry(entry);
-      const max = parseMaxAICreditsFromAuditEntry(entry);
-      return {
-        aiCredits: errorInfo.aiCredits || acc.aiCredits,
-        maxAICredits: max || acc.maxAICredits,
-        rateLimitError: acc.rateLimitError || errorInfo.rateLimitError,
-      };
-    }
-  );
+  /** @type {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean }} */
+  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false };
+  return iterateAuditEntries(auditJsonlPathOverride, initial, null, (acc, entry) => {
+    const errorInfo = parseAICreditsErrorInfoFromAuditEntry(entry);
+    const max = parseMaxAICreditsFromAuditEntry(entry);
+    return {
+      aiCredits: errorInfo.aiCredits || acc.aiCredits,
+      maxAICredits: max || acc.maxAICredits,
+      rateLimitError: acc.rateLimitError || errorInfo.rateLimitError,
+    };
+  });
 }
 
 /**

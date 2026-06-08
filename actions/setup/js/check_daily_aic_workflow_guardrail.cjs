@@ -60,11 +60,7 @@ function logDailyGuardrail(message, details) {
  */
 function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
-  return (
-    eventName === "workflow_call" ||
-    eventName === "repository_dispatch" ||
-    (eventName === "workflow_dispatch" && (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "")
-  );
+  return eventName === "workflow_call" || eventName === "repository_dispatch" || (eventName === "workflow_dispatch" && (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "");
 }
 
 /**
@@ -157,7 +153,7 @@ async function getRunAIC(artifactClient, runId, token, owner, repo) {
  * @returns {string}
  */
 function formatInteger(value) {
-  const safeValue = Number.isFinite(value) ? Math.round(value) : 0;
+  const safeValue = typeof value === "number" && Number.isFinite(value) ? Math.round(value) : 0;
   return INTEGER_FORMATTER.format(safeValue);
 }
 
@@ -452,7 +448,8 @@ async function main() {
       truncatedByRateLimit,
     };
     logDailyGuardrail("Completed AIC inspection window", {
-      ...summaryMeta,
+      candidateRunsCount: summaryMeta.candidateRunsCount,
+      inspectedRunsCount: summaryMeta.inspectedRunsCount,
       countedRunIds: countedRuns.map(run => run.id),
       currentAIC: totalAIC,
       threshold,
