@@ -157,6 +157,14 @@ function normalizeAWFImageTagDigests(content) {
   return content.replace(/,[a-z-]+=sha256:[0-9a-f]{64}/g, "");
 }
 
+// ── Normalize GH_AW_PROJECT_UTC env line ───────────────────────────────
+// Keep wasm-vs-native comparison stable when GH_AW_PROJECT_UTC is emitted
+// by one compiler path but not the other.
+// Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
+function normalizeProjectUTC(content) {
+  return content.replace(/^\s*GH_AW_PROJECT_UTC:.*(?:\r?\n|$)/gm, "");
+}
+
 // ── Normalize copilot model fallback ───────────────────────────────────
 // Keep golden fixtures stable across copilot default model fallback updates.
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
@@ -174,8 +182,10 @@ function normalizeCopilotDefaultModel(content) {
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalize(content) {
   return normalizeCopilotDefaultModel(
-    normalizeAWFImageTagDigests(
-      normalizeContainerPins(normalizeHeredocDelimiters(content))
+    normalizeProjectUTC(
+      normalizeAWFImageTagDigests(
+        normalizeContainerPins(normalizeHeredocDelimiters(content))
+      )
     )
   );
 }

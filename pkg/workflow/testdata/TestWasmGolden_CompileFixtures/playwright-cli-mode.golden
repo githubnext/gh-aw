@@ -297,7 +297,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     env:
-      GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_WORKFLOW_ID_SANITIZED: playwrightclimode
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}

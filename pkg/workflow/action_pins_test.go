@@ -14,6 +14,7 @@ import (
 
 const setupNodeV6ExpectedUsesPlaceholder = "__setup_node_v6__"
 const checkoutV6ExpectedUsesPlaceholder = "__checkout_v6__"
+const checkoutSHAExpectedUsesPlaceholder = "__checkout_sha__"
 
 func expectedPinnedUses(t *testing.T, repo, version string) string {
 	t.Helper()
@@ -188,7 +189,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3",
+			expectedUses: checkoutSHAExpectedUsesPlaceholder,
 		},
 	}
 
@@ -226,6 +227,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 				}
 				if expectedUses == checkoutV6ExpectedUsesPlaceholder {
 					expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
+				}
+				if expectedUses == checkoutSHAExpectedUsesPlaceholder {
+					expectedUses = expectedPinnedUses(t, "actions/checkout", "de0fac2e4500dabe0009e67214ff5f5447ce83dd")
 				}
 				if usesStr != expectedUses {
 					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, expectedUses)
