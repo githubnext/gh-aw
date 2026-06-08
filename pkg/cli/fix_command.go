@@ -328,7 +328,7 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 			return false, nil, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
 		}
 
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage("✓ "+fileName))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fileName))
 		for _, codemodName := range appliedCodemods {
 			fmt.Fprintf(os.Stderr, "    • %s\n", codemodName)
 		}
