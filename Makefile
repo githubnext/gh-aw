@@ -221,14 +221,14 @@ test-js: build-js
 
 # Test impacted JavaScript unit tests only (excluding integration tests)
 .PHONY: test-impacted-js
-test-impacted-js:
+test-impacted-js: build-js
 	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
 	if [ -z "$$BASE_COMMIT" ]; then \
 		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
 		echo "Set BASE_REF explicitly, for example: make test-impacted-js BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
-	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"...HEAD -- actions/setup/js | grep -E '\.(cjs|js|ts)$$' || true); \
+	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"...HEAD -- actions/setup/js | grep -E '\.(cjs|js|mjs|ts)$$' || true); \
 	if [ -z "$$CHANGED_JS_FILES" ]; then \
 		echo "No changed JavaScript/TypeScript files under actions/setup/js; skipping impacted JS tests."; \
 		exit 0; \
@@ -246,14 +246,14 @@ test-impacted-go:
 		echo "Set BASE_REF explicitly, for example: make test-impacted-go BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
-	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"...HEAD -- '*.go'); \
+	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"...HEAD -- '**/*.go'); \
 	if [ -z "$$CHANGED_GO_FILES" ]; then \
 		echo "No changed Go files; skipping impacted Go tests."; \
 		exit 0; \
 	fi; \
-	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | xargs -n1 dirname | sort -u | sed 's|^|./|'); \
+	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
 	echo "Running impacted Go unit tests in packages: $$CHANGED_GO_PACKAGES"; \
-	# Use -short to exclude integration tests and keep execution to unit-test scope. \
+	# Use -short to exclude integration tests and -run '^Test' to keep this target focused on unit tests only. \
 	go test -v -parallel=4 -timeout=10m -run='^Test' -short $$CHANGED_GO_PACKAGES
 
 # Test both impacted JavaScript and Go unit tests
