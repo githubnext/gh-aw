@@ -361,8 +361,8 @@ export default defineConfig({
 				{
 					label: 'Practices',
 					items: [
-						{ label: 'Safe Rollout in Organziations', link: '/practices/safe-rollout/' },
-						{ label: 'Sharing Workflows  in Organziations', link: '/practices/sharing-workflows/' },
+						{ label: 'Safe Rollout in Organizations', link: '/practices/safe-rollout/' },
+						{ label: 'Sharing Workflows in Organizations', link: '/practices/sharing-workflows/' },
 					],
 				},
 				{
