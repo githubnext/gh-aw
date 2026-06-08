@@ -348,11 +348,10 @@ All community-sourced pull requests are created and managed by core team members
 When implementing community contributions using an agent:
 
 - Create the pull request as **draft**.
-- Move it to **Ready for review** and approve workflows to run reviewer jobs.
+- Move it to **Ready for review** and approve required CI workflows.
 - Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green.
 - For features that deeply impact the engine, add the `smoke` label and approve workflows.
-- If additional changes require another smoke run, toggle the `smoke` label (remove and re-add) and approve workflows again.
-- If no smoke run is queued after setting `smoke`, toggle the `smoke` label and approve workflows again.
+- If no smoke run is queued after setting `smoke`, or additional changes require another smoke run, toggle the `smoke` label (remove and re-add) and approve workflows again.
 
 **Remember: As a community contributor, you don't create the PR yourself.** You create an issue with a detailed plan, discuss it with the team, and a core team member creates the PR using agents.
 

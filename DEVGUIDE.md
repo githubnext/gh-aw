@@ -947,11 +947,10 @@ This documentation provides:
 4. **Validate thoroughly**: Use `go run test_validation.go` before pull requests
 5. **Follow PR lifecycle discipline**:
    - Open PRs as **draft**
-   - Move to **Ready for review** and approve workflows to run reviewer jobs
+   - Move to **Ready for review** and approve required CI workflows
    - Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green
    - For features that deeply impact the engine, add the `smoke` label and approve workflows
-   - If additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
-   - If no smoke run is queued after setting `smoke`, toggle the `smoke` label, then approve workflows again
+   - If no smoke run is queued after setting `smoke`, or additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
 
 ## Release Process
 
