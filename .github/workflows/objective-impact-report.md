@@ -105,7 +105,7 @@ Then compute:
 ```text
 Accepted Outcome Count = count(outcomes where Outcome Indicator = 1)
 Total Outcome Value    = sum(Outcome Value)
-Impact Efficiency      = Total Outcome Value / AI Credits  (value points per AI Credit; undefined when AI Credits = 0)
+Impact Efficiency      = Total Outcome Value / AI Credits  (value units per AI Credit; undefined when AI Credits = 0)
 ```
 
 If AI Credits is missing or zero, report that Impact Efficiency is not computable and explain whether credits data was unavailable or no credits were consumed in the analysis window.
