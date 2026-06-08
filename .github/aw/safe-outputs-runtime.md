@@ -103,7 +103,7 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
 
     With `[]`, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``, preventing timeline clutter while preserving information.
 - `messages:` - Custom message templates for safe-output footer and notification messages (object)
-  - Available placeholders: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{operation}`, `{event_type}`, `{status}`, `{effective_tokens}`, `{effective_tokens_formatted}`, `{effective_tokens_suffix}`
+  - Available placeholders: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{operation}`, `{event_type}`, `{status}`, `{ai_credits}`, `{ai_credits_formatted}`, `{ai_credits_suffix}`
   - Message types:
     - `footer:` - Custom footer for AI-generated content
     - `footer-install:` - Installation instructions appended to footer

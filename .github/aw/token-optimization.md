@@ -33,7 +33,7 @@ gh aw audit <run-id> --json
 
 Key fields in the output:
 
-- `agent_usage.effective_tokens` — the normalized cost metric (accounts for model price differences and cache discounts)
+- `agent_usage.aic` — AI Credits (AIC), the normalized cost metric (1 AIC = $0.01; accounts for model price differences and cache discounts); `agent_usage.effective_tokens` remains available as the underlying token-normalized value
 - `agent_usage.input_tokens` / `agent_usage.output_tokens` — raw token counts
 - `agent_usage.cache_read_tokens` / `agent_usage.cache_write_tokens` — tokens served from the prompt cache
 
@@ -361,7 +361,7 @@ To maximize cache hits:
 
 ## Technique 9 — Cap Spend with AI-Credit Guardrails
 
-Two top-level frontmatter fields enforce ET budgets directly, independent of the techniques above. Both accept an integer or a `K`/`M` short-form string (e.g. `100M`, `500K`). Typical workflow range: `100` to `2500`.
+Two top-level frontmatter fields enforce AI Credit budgets directly, independent of the techniques above. Both accept an integer or a `K`/`M` short-form string (e.g. `100M`, `500K`). Typical workflow range: `100` to `2500`.
 
 - **`max-ai-credits:`** — Per-run AI credit budget enforced by the AWF firewall/API proxy (default `1000`). The agent is steered to stay within budget; set a negative value to disable enforcement and steering.
 - **`max-daily-ai-credits:`** — Per-user 24-hour guardrail. At activation, gh-aw sums the triggering user's AI credits across their runs of this workflow over the last 24 hours and blocks execution once the total exceeds the threshold. Enabled by default with a system default threshold; set `-1` to disable, or an explicit value to override the default.
