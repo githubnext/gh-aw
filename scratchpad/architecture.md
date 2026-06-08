@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-05-25 · Source: [Issue created by workflow run §26394747908](https://github.com/github/gh-aw/actions/runs/26394747908)
+> Last updated: 2026-06-08 · Source: [Workflow run §27130523118](https://github.com/github/gh-aw/actions/runs/27130523118)
 
 ## Overview
 
@@ -12,58 +12,57 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
 │                                    ENTRY POINTS                                          │
 │                                                                                          │
-│        ┌─────────────────┐                       ┌─────────────────────┐                │
-│        │   cmd/gh-aw     │                       │  cmd/gh-aw-wasm     │                │
-│        │  (main binary)  │                       │  (WebAssembly target│                │
-│        └────────┬────────┘                       └──────────┬──────────┘                │
-│                 │                                            │                           │
-├─────────────────┼────────────────────────────────────────────┼───────────────────────────┤
-│                 ▼              CORE PACKAGES                 ▼                           │
+│   ┌──────────────────┐      ┌──────────────────────┐      ┌─────────────────────┐        │
+│   │   cmd/gh-aw      │      │   cmd/gh-aw-wasm      │      │    cmd/linters      │       │
+│   │   (main binary)  │      │   (WebAssembly target)│      │    (linter runner)  │       │
+│   └────────┬─────────┘      └──────────┬────────────┘      └──────────┬──────────┘       │
+│            │                            │                               │                │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│            ▼           CORE PACKAGES    ▼                               ▼                │
+│                                                                    pkg/linters/*         │
 │                                                                                          │
-│   ┌─────────────────────────┐      ┌───────────────────────────────────────┐            │
-│   │         cli             │      │              workflow                  │            │
-│   │  Command implementations│─────▶│  Compilation engine (MD → YAML)       │            │
-│   │  compile, run, audit,   │      │  Frontmatter eval, engine dispatch,   │            │
-│   │  mcp, logs, campaigns   │      │  lock file generation                 │            │
-│   └──────────┬──────────────┘      └──────────────────┬──────────────────-─┘            │
-│              │                            │            │                                 │
-│              │              ┌─────────────┘            │                                 │
-│              ▼              ▼                          ▼                                 │
-│   ┌──────────────────┐  ┌──────────────────────────────────────┐                        │
-│   │     console      │  │               parser                 │                        │
-│   │  Terminal UI     │  │  Markdown frontmatter + YAML parsing │                        │
-│   │  rendering &     │  │  Schema validation, expression       │                        │
-│   │  msg formatting  │  │  extraction                          │                        │
-│   └────────┬─────────┘  └──────────────────────────────────────┘                        │
-│            │                                                                             │
-│            ▼                                                                             │
-│   ┌──────────────────┐   ┌──────────────────────────────────┐                           │
-│   │     types        │◀──│           constants               │                           │
-│   │  Shared domain   │   │  Semantic type aliases, engine/   │                           │
-│   │  type definitions│   │  job names, feature flags         │                           │
-│   └──────────────────┘   └──────────────────────────────────┘                           │
+│   ┌──────────────────────────┐   ┌──────────────────────────────────────────────────┐    │
+│   │          cli             │   │                  workflow                         │   │
+│   │  Command implementations │──▶│  Compilation engine (MD → GH Actions YAML)       │    │
+│   │  compile, run, audit,    │   │  Frontmatter eval, engine dispatch,              │    │
+│   │  mcp, logs, campaigns    │   │  lock file generation                            │    │
+│   └──────────┬───────────────┘   └──────────────────┬───────────────────────────────┘    │
+│              │             ┌────────────────────────┘                                    │
+│              ▼             ▼                                                             │
+│   ┌──────────────────────┐   ┌────────────────────────────────────────────────────┐      │
+│   │       console        │   │                      parser                         │     │
+│   │  Terminal UI         │   │  Markdown frontmatter & YAML parsing, schema        │     │
+│   │  rendering and msg   │   │  validation, expression extraction                  │     │
+│   └──────────────────────┘   └────────────────────────────────────────────────────┘      │
 │                                                                                          │
-├──────────────────────────────── DOMAIN PACKAGES ─────────────────────────────────────── ┤
+│   ┌──────────────────┐  ┌────────────────────────────────┐  ┌────────────────────────┐   │
+│   │      types       │  │           constants             │  │  workflow/compilerenv  │  │
+│   │  Shared domain   │  │  Semantic type aliases,         │  │  Compiler env          │  │
+│   │  type definitions│  │  engine/job names, flags        │  │  management            │  │
+│   └──────────────────┘  └────────────────────────────────┘  │  (used by cli+workflow)│   │
+│                                                              └────────────────────────┘  │
+├──────────────────────────────────── DOMAIN PACKAGES ─────────────────────────────────────┤
 │                                                                                          │
-│   ┌──────────────────┐  ┌──────────────────┐  ┌────────────┐  ┌────────────┐           │
-│   │   actionpins     │  │   agentdrain     │  │  linters   │  │   stats    │           │
-│   │  Action pin      │  │  Agent lifecycle │  │  Custom Go │  │  Numerical │           │
-│   │  resolution      │  │  & drain helpers │  │  vet-style │  │  statistics│           │
-│   └──────────────────┘  └──────────────────┘  │  analyzers │  └────────────┘           │
-│                                                └────────────┘                           │
-├──────────────────────────────── UTILITY PACKAGES ────────────────────────────────────── ┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌───────────────────────┐  ┌────────────┐     │
+│  │   actionpins    │  │   agentdrain    │  │        linters         │  │   stats    │    │
+│  │  Action pin     │  │  Agent lifecycle│  │  Custom Go vet-style   │  │ Numerical  │    │
+│  │  resolution &   │  │  & drain helpers│  │  code analyzers        │  │ statistics │    │
+│  │  version mgmt   │  └─────────────────┘  └───────────────────────┘  └────────────┘     │
+│  └─────────────────┘                                                                     │
+├──────────────────────────────────── UTILITY PACKAGES ────────────────────────────────────┤
 │                                                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐       │
-│  │ fileutil │ │ gitutil  │ │ stringutil │ │  logger │ │ envutil │ │ errorutil│       │
-│  └──────────┘ └──────────┘ └────────────┘ └─────────┘ └─────────┘ └──────────┘       │
+│  ┌──────────┐ ┌─────────┐ ┌────────────┐ ┌────────┐ ┌─────────┐ ┌──────────┐             │
+│  │ fileutil │ │ gitutil │ │ stringutil │ │ logger │ │ envutil │ │ errorutil│             │
+│  └──────────┘ └─────────┘ └────────────┘ └────────┘ └─────────┘ └──────────┘             │
 │                                                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐       │
-│  │ jsonutil │ │ repoutil │ │ semverutil │ │sliceutil│ │ syncutil│ │ timeutil │       │
-│  └──────────┘ └──────────┘ └────────────┘ └─────────┘ └─────────┘ └──────────┘       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐ ┌─────┐      │
+│  │ jsonutil │ │ repoutil │ │semverutil│ │ sliceutil│ │syncutil│ │ timeutil │ │ tty │     │
+│  └──────────┘ └──────────┘ └──────────┘ └─────────┘ └────────┘ └──────────┘ └─────┘      │
 │                                                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌──────────────────────────────────┐        │
-│  │   tty    │ │ typeutil │ │   styles   │ │  testutil  (test helpers only)   │        │
-│  └──────────┘ └──────────┘ └────────────┘ └──────────────────────────────────┘        │
+│  ┌──────────┐ ┌──────────┐  ┌───────────────────────────────┐  ┌──────────────────┐      │
+│  │ typeutil │ │  styles  │  │  importinpututil               │  │ testutil         │     │
+│  └──────────┘ └──────────┘  │  import path/sub-key resolver  │  │ (test-only)      │     │
+│                              └───────────────────────────────┘  └──────────────────┘     │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,6 +76,7 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `console` | Core | Terminal UI rendering and message formatting |
 | `types` | Core | Shared domain type definitions |
 | `constants` | Core | Semantic type aliases, engine/job names, feature flags |
+| `workflow/compilerenv` | Core | Compiler environment management (used by cli + workflow) |
 | `actionpins` | Domain | GitHub Actions pin resolution and version management |
 | `agentdrain` | Domain | Agent drain/lifecycle utilities |
 | `linters` | Domain | Custom Go analysis linters (vet-style checks) |
@@ -96,4 +96,5 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `tty` | Util | TTY detection utilities |
 | `typeutil` | Util | General-purpose type conversion utilities |
 | `styles` | Util | Centralized terminal color/style definitions |
+| `importinpututil` | Util | Import path / sub-key resolver |
 | `testutil` | Util | Test helpers (test-only, not used in production) |
