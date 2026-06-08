@@ -1512,19 +1512,6 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
 }
 
 /**
- * Build a context string when the aw-harness hard-aborted the session due to `max-ai-credits` budget exhaustion.
- * Delegates to buildAICreditsRateLimitErrorContext using the unified ai_credits_rate_limit_error.md template.
- * @param {boolean} hasMaxAICreditsExceeded
- * @param {string} aiCredits
- * @param {string} maxAICredits
- * @param {string} runUrl
- * @returns {string}
- */
-function buildMaxAICreditsExceededContext(hasMaxAICreditsExceeded, aiCredits, maxAICredits, runUrl) {
-  return buildAICreditsRateLimitErrorContext(hasMaxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
-}
-
-/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -3113,7 +3100,6 @@ module.exports = {
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
-  buildMaxAICreditsExceededContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
   buildEngineRateLimit429Context,

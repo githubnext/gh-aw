@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import path from "path";
 import { fileURLToPath } from "url";
 
-let buildMaxAICreditsExceededContext;
+let buildAICreditsRateLimitErrorContext;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("handle_agent_failure Max AI Credits exceeded context", () => {
@@ -12,7 +12,7 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
     process.env.GH_AW_PROMPTS_DIR = path.join(__dirname, "../md");
     const mod = await import("./handle_agent_failure.cjs");
     const exports = mod.default || mod;
-    buildMaxAICreditsExceededContext = exports.buildMaxAICreditsExceededContext;
+    buildAICreditsRateLimitErrorContext = exports.buildAICreditsRateLimitErrorContext;
   });
 
   afterEach(() => {
@@ -21,7 +21,7 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("shows budget exhaustion message with usage, limit, and overage details", () => {
-    const rendered = buildMaxAICreditsExceededContext(true, "105000", "100000", "https://github.com/octo/repo/actions/runs/456");
+    const rendered = buildAICreditsRateLimitErrorContext(true, "105000", "100000", "https://github.com/octo/repo/actions/runs/456");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).toContain("hit the configured `max-ai-credits` guardrail");
@@ -35,7 +35,7 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("shows message without metrics rows when no credit data is available", () => {
-    const rendered = buildMaxAICreditsExceededContext(true, "", "", "");
+    const rendered = buildAICreditsRateLimitErrorContext(true, "", "", "");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).not.toContain("| AI credits used |");
@@ -44,7 +44,7 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("does not show overage row when usage does not exceed limit", () => {
-    const rendered = buildMaxAICreditsExceededContext(true, "50000", "100000", "");
+    const rendered = buildAICreditsRateLimitErrorContext(true, "50000", "100000", "");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).toContain("| AI credits used |");
@@ -53,6 +53,6 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("returns empty string when max_ai_credits_exceeded is false", () => {
-    expect(buildMaxAICreditsExceededContext(false, "105000", "100000", "https://github.com/octo/repo/actions/runs/456")).toBe("");
+    expect(buildAICreditsRateLimitErrorContext(false, "105000", "100000", "https://github.com/octo/repo/actions/runs/456")).toBe("");
   });
 });
