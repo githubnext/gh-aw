@@ -76,12 +76,12 @@ type importAccumulator struct {
 	// max-daily-ai-credits found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
-	mergedMaxTurns                string
-	mergedMaxToolDenials          string
-	mergedMaxRuns                 string
-	mergedMaxEffectiveTokens      string
-	mergedMaxAICredits            string
-	mergedMaxDailyAICredits string
+	mergedMaxTurns           string
+	mergedMaxToolDenials     string
+	mergedMaxRuns            string
+	mergedMaxEffectiveTokens string
+	mergedMaxAICredits       string
+	mergedMaxDailyAICredits  string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -743,7 +743,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMaxRuns:                 acc.mergedMaxRuns,
 		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
 		MergedMaxAICredits:            acc.mergedMaxAICredits,
-		MergedMaxDailyAICredits: acc.mergedMaxDailyAICredits,
+		MergedMaxDailyAICredits:       acc.mergedMaxDailyAICredits,
 		Warnings:                      acc.warnings,
 	}
 }
