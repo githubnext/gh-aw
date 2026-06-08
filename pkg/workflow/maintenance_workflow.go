@@ -122,8 +122,10 @@ type GenerateMaintenanceWorkflowOptions struct {
 	RepoSlug         string
 }
 
+const noopRunsIssueExpiresHours = 24 * 30
+
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
-// if any workflows use the expires field for discussions or issues.
+// if any workflows use expiring safe outputs or noop issue reporting.
 // When opts.RepoConfig is non-nil and opts.RepoConfig.MaintenanceDisabled is true the
 // maintenance workflow is deleted and the function returns immediately.
 // opts.RepoSlug is the owner/repo slug used to determine the default branch for the push
@@ -338,6 +340,19 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 				hasExpires = true
 				expires := workflowData.SafeOutputs.CreatePullRequests.Expires
 				maintenanceLog.Printf("Workflow %s has expires field set to %d hours for pull requests", workflowData.Name, expires)
+				if minExpires == 0 || expires < minExpires {
+					minExpires = expires
+				}
+			}
+		}
+		// Check for no-op runs issue expiration (runtime defaults to 30 days)
+		if workflowData.SafeOutputs.NoOp != nil {
+			reportAsIssue := workflowData.SafeOutputs.NoOp.ReportAsIssue
+			noopReportAsIssueEnabled := reportAsIssue == nil || !strings.EqualFold(strings.TrimSpace(*reportAsIssue), "false")
+			if noopReportAsIssueEnabled {
+				hasExpires = true
+				expires := noopRunsIssueExpiresHours
+				maintenanceLog.Printf("Workflow %s has noop report-as-issue enabled, using %d-hour noop issue expiration", workflowData.Name, expires)
 				if minExpires == 0 || expires < minExpires {
 					minExpires = expires
 				}
