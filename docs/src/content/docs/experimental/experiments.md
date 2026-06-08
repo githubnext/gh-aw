@@ -200,10 +200,9 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `hypothesis` | `string` | | Null and alternative hypothesis (e.g. `"H0: no change. H1: concise reduces AIC by >=15%"`) |
 | `metric` | `string` | | Primary metric to observe (e.g. `aic`, `duration_ms`) |
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
-| `guardrail_metrics` | `object[]` | | List of guardrail objects with `name` (string), `threshold` (comparison string like `>=0.95` or bare number like `0.0`), and optional `direction` (`"min"` or `"max"`). When `threshold` is a bare number, `direction` governs the pass condition (≤ for `min`, ≥ for `max`). See [experiments-specification §4.4](./experiments-specification#44-guardrail-metrics) for full semantics. |
+| `guardrail_metrics` | `object[]` | | List of guardrail objects with `name` (string), `threshold` (comparison string like `>=0.95` or bare number like `0.0`), and optional `direction` (`"min"` or `"max"`). When `threshold` is a bare number, `direction` governs the pass condition (≤ for `min`, ≥ for `max`). See [experiments-specification §4.4](/gh-aw/experimental/experiments-specification/#44-guardrail-metrics) for full semantics. |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
 | `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
-
