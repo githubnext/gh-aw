@@ -153,7 +153,7 @@ async function fetchPullRequestHeadRef({ owner, repo, pullNumber }) {
       core.warning(`apply_samples: GET ${url} returned HTTP ${resp.status}`);
       return null;
     }
-    const body = await resp.json();
+    const body = /** @type {{head?: {ref?: string}}} */ (await resp.json());
     const ref = body && body.head && typeof body.head.ref === "string" ? body.head.ref : null;
     return ref || null;
   } catch (err) {
