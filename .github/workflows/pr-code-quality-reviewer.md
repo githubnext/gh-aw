@@ -15,6 +15,7 @@ engine:
 permissions:
   contents: read
   pull-requests: read
+  copilot-requests: write
 imports:
   - uses: shared/pr-review-base.md
     with:
