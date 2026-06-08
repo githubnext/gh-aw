@@ -156,7 +156,7 @@ This workflow has invalid frontmatter.
 			verbose:        false,
 			engineOverride: "",
 			expectError:    true,
-			errorContains:  "no such file",
+			errorContains:  "failed to read file",
 		},
 		{
 			name: "compilation with invalid engine override",
