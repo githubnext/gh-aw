@@ -814,9 +814,7 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("matches PAT-not-supported 400 from Copilot CAPI", () => {
-      expect(
-        isAuthenticationFailedError("400 400 checking third-party user token: bad request: Personal Access Tokens are not supported for this endpoint")
-      ).toBe(true);
+      expect(isAuthenticationFailedError("400 400 checking third-party user token: bad request: Personal Access Tokens are not supported for this endpoint")).toBe(true);
     });
   });
 

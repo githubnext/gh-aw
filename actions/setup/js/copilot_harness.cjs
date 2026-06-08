@@ -105,8 +105,7 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found|Session was no
 // PAT rejection is a persistent credential-type problem — retrying with the same
 // token always produces the same 400.  Treating it as an auth failure short-circuits
 // the retry loop instead of burning all 4 attempts.
-const AUTHENTICATION_FAILED_PATTERN =
-  /Authentication failed(?:\s*\(Request ID:[^)]+\))?|checking third-party user token:[^\n]*Personal Access Tokens are not supported/i;
+const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?|checking third-party user token:[^\n]*Personal Access Tokens are not supported/i;
 // Pattern: Copilot CLI inference access denied
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/;
 // Pattern: Agentic engine process killed by signal (timeout)
