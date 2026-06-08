@@ -124,6 +124,10 @@ type GenerateMaintenanceWorkflowOptions struct {
 
 const noopRunsIssueExpiresHours = 24 * 30
 
+func isNoOpReportAsIssueEnabled(reportAsIssue *string) bool {
+	return reportAsIssue == nil || !strings.EqualFold(strings.TrimSpace(*reportAsIssue), "false")
+}
+
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use expiring safe outputs or noop issue reporting.
 // When opts.RepoConfig is non-nil and opts.RepoConfig.MaintenanceDisabled is true the
@@ -347,9 +351,7 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 		}
 		// Check for no-op runs issue expiration (runtime defaults to 30 days)
 		if workflowData.SafeOutputs.NoOp != nil {
-			reportAsIssue := workflowData.SafeOutputs.NoOp.ReportAsIssue
-			noopReportAsIssueEnabled := reportAsIssue == nil || !strings.EqualFold(strings.TrimSpace(*reportAsIssue), "false")
-			if noopReportAsIssueEnabled {
+			if isNoOpReportAsIssueEnabled(workflowData.SafeOutputs.NoOp.ReportAsIssue) {
 				hasExpires = true
 				expires := noopRunsIssueExpiresHours
 				maintenanceLog.Printf("Workflow %s has noop report-as-issue enabled, using %d-hour noop issue expiration", workflowData.Name, expires)
