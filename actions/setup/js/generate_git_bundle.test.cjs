@@ -179,7 +179,7 @@ describe("generateGitBundle (incremental)", () => {
     execGit(["push", "-u", "origin", "feature-branch"], { cwd: seedDir });
 
     // Simulate Actions checkout: shallow clone of feature-branch (depth=1)
-    execGit(["clone", "--depth=1", "--branch=feature-branch", remoteDir, workDir]);
+    execGit(["clone", "--depth=1", "--no-local", "--branch=feature-branch", remoteDir, workDir]);
     execGit(["config", "user.name", "Test User"], { cwd: workDir });
     execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
 

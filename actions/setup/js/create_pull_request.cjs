@@ -274,15 +274,19 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
                 core.warning(`HEAD bundle fetch failed due to ${headPrereqCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
                 core.info(`Prerequisite commits: ${summarizeListForLog(headPrereqCommits)}`);
                 const useBlobFilter = await isShallowOrSparseCheckout(execApi);
-                const headPrereqFetchArgs = useBlobFilter
-                  ? ["fetch", "--filter=blob:none", "origin", ...headPrereqCommits]
-                  : ["fetch", "origin", ...headPrereqCommits];
+                const headPrereqFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...headPrereqCommits] : ["fetch", "origin", ...headPrereqCommits];
                 if (useBlobFilter) {
                   core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
                 }
                 await execApi.exec("git", headPrereqFetchArgs);
                 core.info("Fetched HEAD bundle prerequisite commits from origin successfully");
-                await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
+                try {
+                  core.info(`Retrying HEAD bundle fetch into ${bundleTempRef} after prerequisite recovery`);
+                  await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
+                  core.info("HEAD bundle fetch retry succeeded after prerequisite recovery");
+                } catch (retryError) {
+                  throw new Error(`HEAD bundle fetch failed after fetching ${headPrereqCommits.length} prerequisite commit(s): ${retryError instanceof Error ? retryError.message : String(retryError)}`, { cause: retryError });
+                }
               } else {
                 throw new Error(`Failed to apply HEAD-only bundle: ${headFetchErrorOutput}`);
               }
