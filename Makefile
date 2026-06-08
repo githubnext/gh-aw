@@ -10,6 +10,7 @@ VERSION ?= $(shell git describe --tags --always --dirty)
 DOCKER_IMAGE=ghcr.io/github/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
 BASE_REF ?= origin/main
+JS_IMPACTED_TEST_EXCLUDES=--exclude '**/*.integration.test.cjs' --exclude '**/frontmatter_hash_github_api.test.cjs'
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -234,7 +235,7 @@ test-impacted-js:
 	fi; \
 	REL_CHANGED_JS_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' ' '); \
 	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
-	cd actions/setup/js && npm run test:js -- --no-file-parallelism --related $$REL_CHANGED_JS_FILES --exclude '**/*.integration.test.cjs' --exclude '**/frontmatter_hash_github_api.test.cjs'
+	cd actions/setup/js && npm run test:js -- --no-file-parallelism --related $$REL_CHANGED_JS_FILES $(JS_IMPACTED_TEST_EXCLUDES)
 
 # Test impacted Go unit tests only (excluding integration tests)
 .PHONY: test-impacted-go
@@ -252,6 +253,7 @@ test-impacted-go:
 	fi; \
 	CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | xargs -n1 dirname | sort -u | sed 's|^|./|'); \
 	echo "Running impacted Go unit tests in packages: $$CHANGED_GO_PACKAGES"; \
+	# Use -short to exclude integration tests and keep execution to unit-test scope. \
 	go test -v -parallel=4 -timeout=10m -run='^Test' -short $$CHANGED_GO_PACKAGES
 
 # Test both impacted JavaScript and Go unit tests
