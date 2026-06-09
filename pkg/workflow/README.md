@@ -530,7 +530,6 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 
 **External**:
 - `github.com/goccy/go-yaml` — YAML 1.1/1.2 compatible marshaling
-- `go.yaml.in/yaml/v3` — standard YAML marshaling for non-Actions YAML
 - `github.com/cli/go-gh/v2` — GitHub CLI API and repository integration
 - `github.com/santhosh-tekuri/jsonschema/v6` — JSON schema validation
 
