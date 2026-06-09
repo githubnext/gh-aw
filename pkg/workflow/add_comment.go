@@ -38,7 +38,7 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	configData, _ := outputMap["add-comment"].(map[string]any)
 
 	if err := preprocessHideOlderCommentsConfig(configData, addCommentLog); err != nil {
-		addCommentLog.Printf("Invalid hide-older-comments value: %v", err)
+		addCommentLog.Printf("Invalid hide-older-comments configuration: %v", err)
 		return nil
 	}
 

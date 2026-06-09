@@ -275,7 +275,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
  */
 async function hideOlderComments(github, owner, repo, itemNumber, workflowIds, isDiscussion, reason = "outdated", allowedReasons = null) {
   if (!Array.isArray(workflowIds) || workflowIds.length === 0) {
-    core.info("No workflow ID available, skipping hide-older-comments");
+    core.info("No workflow IDs provided, skipping hide-older-comments");
     return 0;
   }
 
