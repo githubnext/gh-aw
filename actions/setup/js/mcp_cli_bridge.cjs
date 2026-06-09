@@ -54,6 +54,9 @@ const KEEPALIVE_PING_INTERVAL_MS = 10000;
 /** Starting JSON-RPC ID for keepalive ping requests */
 const KEEPALIVE_PING_ID_START = 1000;
 
+/** Preferred max lines for generated CLI help output */
+const HELP_MAX_LINES = 20;
+
 // ---------------------------------------------------------------------------
 // Audit logging
 // ---------------------------------------------------------------------------
@@ -763,20 +766,27 @@ function loadTools(toolsFile) {
  * @param {Array<{name: string, description?: string}>} tools - Tool list
  */
 function showHelp(serverName, tools) {
-  const lines = [`Usage: ${serverName} <command> [options]`, ""];
-  lines.push("Available commands:");
+  const lines = [
+    `Usage: ${serverName} <command> [--param value ...]`,
+    `Tip: ${serverName} <command> --help`,
+    "",
+    `Commands (${tools.length}):`,
+  ];
   if (tools.length > 0) {
-    // Calculate column width for aligned output
-    const maxNameLen = Math.max(...tools.map(t => t.name.length));
-    for (const tool of tools) {
-      const padded = tool.name.padEnd(maxNameLen + 2);
-      lines.push(`  ${padded}${tool.description || "No description"}`);
+    const reservedLines = 3; // blank + footer + potential overflow marker
+    const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - reservedLines);
+    const shownTools = tools.slice(0, maxCommandLines);
+    for (const tool of shownTools) {
+      lines.push(`  ${tool.name} — ${summarizeHelpText(tool.description || "No description", 68)}`);
+    }
+    if (tools.length > shownTools.length) {
+      lines.push(`  ... +${tools.length - shownTools.length} more command(s)`);
     }
   } else {
     lines.push("  (tool list unavailable)");
   }
   lines.push("");
-  lines.push(`Run '${serverName} <command> --help' for more information on a command.`);
+  lines.push(`Run '${serverName} <command> --help' for option details.`);
   process.stdout.write(lines.join("\n") + "\n");
 }
 
@@ -796,26 +806,32 @@ function showToolHelp(serverName, toolName, tools) {
     return;
   }
 
-  const lines = [`Command: ${toolName}`, `Description: ${tool.description || "No description"}`];
+  const lines = [
+    `Command: ${toolName}`,
+    `Description: ${summarizeHelpText(tool.description || "No description", 90)}`,
+    `Usage: ${serverName} ${toolName} [--param value ...]`,
+    `JSON mode: printf '{"param":"value",...}' | ${serverName} ${toolName} .`,
+  ];
 
   const props = tool.inputSchema?.properties;
   const required = new Set(tool.inputSchema?.required || []);
   if (props && Object.keys(props).length > 0) {
     lines.push("");
-    lines.push("Options:");
-    const maxKeyLen = Math.max(...Object.keys(props).map(k => k.length));
-    for (const [key, val] of Object.entries(props)) {
-      const flagPad = `--${key}`.padEnd(maxKeyLen + 4);
-      const parts = [getTypeStr(val.type)];
-      if (required.has(key)) parts.push("(required)");
-      if (val.description) parts.push(val.description);
-      lines.push(`  ${flagPad}${parts.join(" ")}`);
+    lines.push(`Options (${Object.keys(props).length}):`);
+    const optionEntries = Object.entries(props);
+    const reservedLines = 2; // footer + potential overflow marker
+    const maxOptionLines = Math.max(1, HELP_MAX_LINES - lines.length - reservedLines);
+    const shownOptions = optionEntries.slice(0, maxOptionLines);
+    for (const [key, val] of shownOptions) {
+      const requiredMark = required.has(key) ? "*" : "";
+      const description = val.description ? ` - ${summarizeHelpText(val.description, 62)}` : "";
+      lines.push(`  --${key} ${getTypeStr(val.type)}${requiredMark}${description}`);
     }
-
-    lines.push("");
-    lines.push(`Usage: ${serverName} ${toolName} [--param value ...]`);
-    lines.push(`  or:  printf '{"param":"value",...}' | ${serverName} ${toolName} .`);
+    if (optionEntries.length > shownOptions.length) {
+      lines.push(`  ... +${optionEntries.length - shownOptions.length} more option(s)`);
+    }
   }
+  lines.push("Required options are marked with *.");
 
   process.stdout.write(lines.join("\n") + "\n");
 }
@@ -830,6 +846,23 @@ function getTypeStr(type) {
   if (!type) return "(string)";
   const types = Array.isArray(type) ? type.filter(t => t !== "null") : [type];
   return `(${types.length > 0 ? types.join("|") : "null"})`;
+}
+
+/**
+ * Collapse whitespace and trim long help text for compact output.
+ *
+ * @param {string} value
+ * @param {number} maxLen
+ * @returns {string}
+ */
+function summarizeHelpText(value, maxLen) {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (normalized.length <= maxLen) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxLen - 1))}…`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1130,6 +1163,8 @@ module.exports = {
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
+  showHelp,
+  showToolHelp,
   hasStdinJsonPayload,
   readStdinSync,
   main,

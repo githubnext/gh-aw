@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
+import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -210,6 +210,42 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(stderrChunks.join("")).toContain("Progress: 2/5");
     expect(stdoutChunks.join("")).toBe("ok\n");
     expect(process.exitCode).toBe(0);
+  });
+
+  it("keeps top-level help compact for many commands", () => {
+    const tools = Array.from({ length: 25 }, (_, i) => ({
+      name: `tool_${i + 1}`,
+      description: `Description for command ${i + 1} that is intentionally verbose for truncation checks.`,
+    }));
+
+    showHelp("safeoutputs", tools);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    expect(outputLines.length).toBeLessThanOrEqual(20);
+    expect(outputLines.join("\n")).toContain("... +");
+  });
+
+  it("keeps command help compact for many options", () => {
+    const properties = {};
+    for (let i = 1; i <= 24; i++) {
+      properties[`field_${i}`] = { type: "string", description: `Field ${i} description with additional details for truncation.` };
+    }
+
+    showToolHelp("safeoutputs", "create_issue", [
+      {
+        name: "create_issue",
+        description: "Create an issue with many available fields and optional metadata.",
+        inputSchema: {
+          properties,
+          required: ["field_1", "field_2"],
+        },
+      },
+    ]);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    expect(outputLines.length).toBeLessThanOrEqual(20);
+    expect(outputLines.join("\n")).toContain("... +");
+    expect(outputLines.join("\n")).toContain("Required options are marked with *.");
   });
 
   describe("stdin placeholder removed — '-' is always a literal value", () => {
