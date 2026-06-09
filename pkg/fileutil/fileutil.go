@@ -91,6 +91,11 @@ func ValidatePathWithinBase(base, candidate string) error {
 
 // EnsureParentDir ensures the parent directory for path exists, creating it recursively when needed.
 func EnsureParentDir(path string, perm os.FileMode) error {
+	if path == "" {
+		fileutilLog.Print("EnsureParentDir: rejected empty path")
+		return errors.New("path cannot be empty")
+	}
+
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, perm); err != nil {
 		fileutilLog.Printf("EnsureParentDir: failed for %s: %v", dir, err)
