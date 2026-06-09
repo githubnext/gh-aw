@@ -28,6 +28,7 @@ function readManifestEntriesFromEnv() {
     entries.push({
       repository: process.env[`GH_AW_CHECKOUT_REPO_${i}`] || "",
       path: process.env[`GH_AW_CHECKOUT_PATH_${i}`] || "",
+      token: process.env[`GH_AW_CHECKOUT_TOKEN_${i}`] || "",
     });
   }
   return entries;
@@ -54,9 +55,14 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
 
   if (defaultBranch === "") {
     try {
-      defaultBranch = runGH(["api", `repos/${repository}`, "--jq", ".default_branch"], {
+      const checkoutToken = String(options.checkoutToken || "");
+      const ghExecOptions = {
         stdio: ["ignore", "pipe", "pipe"],
-      }).trim();
+      };
+      if (checkoutToken !== "") {
+        ghExecOptions.env = { ...process.env, GH_TOKEN: checkoutToken };
+      }
+      defaultBranch = runGH(["api", `repos/${repository}`, "--jq", ".default_branch"], ghExecOptions).trim();
       core.debug(`build_checkout_manifest: gh api resolved default branch for ${repository}: ${defaultBranch}`);
     } catch (error) {
       core.debug(`build_checkout_manifest: gh api default branch lookup failed for ${repository}: ${getErrorMessage(error)}`);
@@ -96,6 +102,7 @@ function buildCheckoutManifest(entries, options = {}) {
       workspace: options.workspace,
       runGit,
       runGH,
+      checkoutToken: String(entry.token || ""),
     });
     manifest[repository.toLowerCase()] = {
       repository,

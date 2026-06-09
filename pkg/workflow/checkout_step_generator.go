@@ -84,16 +84,21 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 	type manifestEntry struct {
 		repository string
 		path       string
+		token      string
 	}
 	var entries []manifestEntry
-	for _, entry := range cm.ordered {
+	for i, entry := range cm.ordered {
 		if entry.key.wiki {
 			continue
 		}
 		if entry.key.repository == "" {
 			continue
 		}
-		entries = append(entries, manifestEntry{repository: entry.key.repository, path: entry.key.path})
+		entries = append(entries, manifestEntry{
+			repository: entry.key.repository,
+			path:       entry.key.path,
+			token:      resolveCheckoutTokenExpression(entry, i, false),
+		})
 	}
 	if len(entries) == 0 {
 		return nil
@@ -119,6 +124,14 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 			fmt.Fprintf(&sb, "          %s: %s\n", pathKey, githubExpressionWhitespaceReplacer.Replace(e.path))
 		} else {
 			writeYAMLEnv(&sb, "          ", pathKey, e.path)
+		}
+		if e.token != "" {
+			tokenKey := fmt.Sprintf("GH_AW_CHECKOUT_TOKEN_%d", i)
+			if strings.Contains(e.token, "${{") {
+				fmt.Fprintf(&sb, "          %s: %s\n", tokenKey, githubExpressionWhitespaceReplacer.Replace(e.token))
+			} else {
+				writeYAMLEnv(&sb, "          ", tokenKey, e.token)
+			}
 		}
 	}
 	sb.WriteString("        with:\n")
@@ -328,15 +341,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
 	// Determine effective token: github-app-minted token takes precedence
-	effectiveToken := entry.token
-	if entry.githubApp != nil {
-		// The token is minted in the agent job itself (same-job step reference).
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		effectiveToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
-		if entry.githubApp.shouldIgnoreMissingKey() {
-			effectiveToken = combineTokenExpressions(effectiveToken, getEffectiveGitHubToken(entry.token))
-		}
-	}
+	effectiveToken := resolveCheckoutTokenExpression(entry, index, false)
 	if effectiveToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
 	}
@@ -458,18 +463,7 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	}
 
 	// Determine authentication token
-	token := entry.token
-	if entry.githubApp != nil {
-		// The token is minted in the agent job itself (same-job step reference).
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
-		if entry.githubApp.shouldIgnoreMissingKey() {
-			token = combineTokenExpressions(token, getEffectiveGitHubToken(entry.token))
-		}
-	}
-	if token == "" {
-		token = getEffectiveGitHubToken("")
-	}
+	token := resolveCheckoutTokenExpression(entry, index, true)
 
 	// Build refspecs
 	refspecs := make([]string, 0, len(entry.fetchRefs))
@@ -506,4 +500,20 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: Basic ${header}" fetch origin%s %s`+"\n",
 		gitPrefix, depthFlag, strings.Join(refspecs, " "))
 	return sb.String()
+}
+
+func resolveCheckoutTokenExpression(entry *resolvedCheckout, index int, defaultWhenEmpty bool) string {
+	token := entry.token
+	if entry.githubApp != nil {
+		// The token is minted in the agent job itself (same-job step reference).
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+		if entry.githubApp.shouldIgnoreMissingKey() {
+			token = combineTokenExpressions(token, getEffectiveGitHubToken(entry.token))
+		}
+	}
+	if token == "" && defaultWhenEmpty {
+		token = getEffectiveGitHubToken("")
+	}
+	return token
 }

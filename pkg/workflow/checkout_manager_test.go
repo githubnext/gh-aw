@@ -1408,7 +1408,7 @@ func TestGenerateCheckoutManifestStep(t *testing.T) {
 
 	t.Run("cross-repo additional checkout emits entry", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Repository: "owner/other", Path: "./other"},
+			{Repository: "owner/other", Path: "./other", GitHubToken: "${{ secrets.CROSS_REPO_PAT }}"},
 		})
 		steps := cm.GenerateCheckoutManifestStep(getActionPin)
 		require.Len(t, steps, 1, "should emit one manifest step")
@@ -1419,6 +1419,7 @@ func TestGenerateCheckoutManifestStep(t *testing.T) {
 		assert.Contains(t, out, `GH_AW_CHECKOUT_MANIFEST_COUNT: "1"`)
 		assert.Contains(t, out, `GH_AW_CHECKOUT_REPO_0: "owner/other"`)
 		assert.Contains(t, out, `GH_AW_CHECKOUT_PATH_0: "./other"`)
+		assert.Contains(t, out, "GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.CROSS_REPO_PAT }}")
 		assert.Contains(t, out, "build_checkout_manifest.cjs")
 		assert.NotContains(t, out, "run: |", "manifest step should use github-script instead of shell run block")
 	})
@@ -1467,5 +1468,22 @@ func TestGenerateCheckoutManifestStep(t *testing.T) {
 		steps := cm.GenerateCheckoutManifestStep(getActionPin)
 		require.Len(t, steps, 1)
 		assert.Contains(t, steps[0], "GH_AW_CHECKOUT_REPO_0: ${{ github.event.inputs.trigger_ref }}")
+	})
+
+	t.Run("github-app token expression preserves checkout index in manifest env", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "./local"},
+			{
+				Repository: "owner/private",
+				Path:       "./private",
+				GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		})
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
+		require.Len(t, steps, 1)
+		assert.Contains(t, steps[0], "GH_AW_CHECKOUT_TOKEN_0: ${{ steps.checkout-app-token-1.outputs.token }}")
 	})
 }

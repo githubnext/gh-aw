@@ -53,12 +53,13 @@ describe("build_checkout_manifest.cjs", () => {
     setEnv("GH_AW_CHECKOUT_MANIFEST_COUNT", "2");
     setEnv("GH_AW_CHECKOUT_REPO_0", "owner/a");
     setEnv("GH_AW_CHECKOUT_PATH_0", "./a");
+    setEnv("GH_AW_CHECKOUT_TOKEN_0", "${{ secrets.REPO_A_TOKEN }}");
     setEnv("GH_AW_CHECKOUT_REPO_1", "owner/b");
     setEnv("GH_AW_CHECKOUT_PATH_1", "");
 
     expect(readManifestEntriesFromEnv()).toEqual([
-      { repository: "owner/a", path: "./a" },
-      { repository: "owner/b", path: "" },
+      { repository: "owner/a", path: "./a", token: "${{ secrets.REPO_A_TOKEN }}" },
+      { repository: "owner/b", path: "", token: "" },
     ]);
   });
 
@@ -88,13 +89,19 @@ describe("build_checkout_manifest.cjs", () => {
   it("falls back to gh api when local git default branch is unavailable", () => {
     const workspace = createTempDir("checkout-manifest-workspace-");
     tempDirs.push(workspace);
+    let ghOptions = null;
 
     const defaultBranch = resolveDefaultBranch("owner/repo", "missing", {
       workspace,
-      runGH: () => "trunk\n",
+      checkoutToken: "${{ secrets.CROSS_REPO_PAT }}",
+      runGH: (_args, options) => {
+        ghOptions = options;
+        return "trunk\n";
+      },
     });
 
     expect(defaultBranch).toBe("trunk");
+    expect(ghOptions?.env?.GH_TOKEN).toBe("${{ secrets.CROSS_REPO_PAT }}");
   });
 
   it("writes manifest with lowercase keys", () => {
