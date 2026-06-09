@@ -136,11 +136,7 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
 
     it("detects max-ai-credits exceeded signal from agent-stdio log", () => {
       writeAuditLog([{ type: "response", status: 429 }]);
-      fs.writeFileSync(
-        path.join(tmpDir, "agent-stdio.log"),
-        "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).",
-        "utf8"
-      );
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
       const result = resolveAICreditsFailureState();
       expect(result.aiCredits).toBe("1002.381900");
       expect(result.maxAICredits).toBe("1000");
