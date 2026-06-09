@@ -33,6 +33,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION, ERR_PARSE, ERR_SYSTEM, ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
@@ -59,7 +60,7 @@ function loadSamples() {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${getErrorMessage(err)}`);
+    throw new Error(`${ERR_PARSE}: apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${getErrorMessage(err)}`);
   }
   // Tolerate a literal JSON `null` payload (older compiler emitted it for
   // workflows with --use-samples but no `samples:` entries). Treat as empty.
@@ -68,14 +69,14 @@ function loadSamples() {
     return [];
   }
   if (!Array.isArray(parsed)) {
-    throw new Error("apply_samples: GH_AW_SAMPLES must be a JSON array");
+    throw new Error(`${ERR_VALIDATION}: apply_samples: GH_AW_SAMPLES must be a JSON array`);
   }
   for (const [i, entry] of parsed.entries()) {
     if (!entry || typeof entry !== "object" || typeof entry.tool !== "string") {
-      throw new Error(`apply_samples: entry ${i} is missing a string "tool" field`);
+      throw new Error(`${ERR_VALIDATION}: apply_samples: entry ${i} is missing a string "tool" field`);
     }
     if (!entry.arguments || typeof entry.arguments !== "object") {
-      throw new Error(`apply_samples: entry ${i} (tool=${entry.tool}) is missing an "arguments" object`);
+      throw new Error(`${ERR_VALIDATION}: apply_samples: entry ${i} (tool=${entry.tool}) is missing an "arguments" object`);
     }
   }
   return parsed;
@@ -91,7 +92,7 @@ function runGit(args, cwd) {
   const { spawnSync } = require("child_process");
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed (exit ${result.status}): ${result.stderr || result.stdout}`);
+    throw new Error(`${ERR_SYSTEM}: git ${args.join(" ")} failed (exit ${result.status}): ${result.stderr || result.stdout}`);
   }
   return result.stdout;
 }
@@ -174,7 +175,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
   while (true) {
     const { value, done } = await responseIterator.next();
     if (done) {
-      throw new Error(`apply_samples: MCP server closed stdout before responding to request id=${request.id}`);
+      throw new Error(`${ERR_API}: apply_samples: MCP server closed stdout before responding to request id=${request.id}`);
     }
     const line = typeof value === "string" ? value.trim() : "";
     if (!line) {
@@ -187,7 +188,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
     try {
       return JSON.parse(line);
     } catch (err) {
-      throw new Error(`apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`);
+      throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`);
     }
   }
 }
@@ -231,7 +232,7 @@ function resolveMcpServerPath() {
       return candidate;
     }
   }
-  throw new Error(`apply_samples: could not locate safe_outputs_mcp_server.cjs. Looked in: ${candidates.join(", ")}`);
+  throw new Error(`${ERR_CONFIG}: apply_samples: could not locate safe_outputs_mcp_server.cjs. Looked in: ${candidates.join(", ")}`);
 }
 
 /**
@@ -309,7 +310,7 @@ async function main() {
       stdoutIter
     );
     if (initRsp.error) {
-      throw new Error(`MCP initialize failed: ${JSON.stringify(initRsp.error)}`);
+      throw new Error(`${ERR_API}: MCP initialize failed: ${JSON.stringify(initRsp.error)}`);
     }
 
     // Send one tools/call per sample.
@@ -363,7 +364,7 @@ async function main() {
   writeSyntheticStdioLog(logPath, samples.length);
 
   if (failures.length > 0) {
-    throw new Error(`apply_samples: ${failures.length} sample(s) failed:\n  - ${failures.join("\n  - ")}`);
+    throw new Error(`${ERR_API}: apply_samples: ${failures.length} sample(s) failed:\n  - ${failures.join("\n  - ")}`);
   }
   core.info(`apply_samples: ${samples.length} sample(s) replayed successfully.`);
 }
