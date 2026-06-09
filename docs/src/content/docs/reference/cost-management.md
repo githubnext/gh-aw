@@ -244,6 +244,16 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 
 Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
 
+### Prevent Runaway Costs from Agents
+
+GitHub Agentic Workflows includes default guardrails to help prevent runaway agent costs:
+
+- 20-minute timeout on the agentic step
+- 1000 AI Credits per workflow run
+- 5000 AI Credits per workflow per day (24-hour window)
+
+These defaults can be overridden with frontmatter (`timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) and enterprise environment variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
+
 ### Cap AI Credits per Run
 
 Use the top-level `max-ai-credits` frontmatter field to cap
