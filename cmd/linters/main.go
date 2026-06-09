@@ -21,6 +21,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
+	"github.com/github/gh-aw/pkg/linters/execcommand"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
@@ -46,6 +47,7 @@ func main() {
 		contextcancelnotdeferred.Analyzer,
 		ctxbackground.Analyzer,
 		errormessage.Analyzer,
+		execcommand.Analyzer,
 		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
 		excessivefuncparams.Analyzer,

@@ -11,6 +11,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
 - `errormessage` — reports non-actionable error-message patterns in changed files.
 - `errstringmatch` — reports `strings.Contains(err.Error(), "...")` patterns and recommends `errors.Is` / `errors.As`.
+- `execcommand` — reports `exec.Command()` calls inside functions that already receive a `context.Context` parameter, suggesting `exec.CommandContext(ctx, ...)`.
 - `fileclosenotdeferred` — reports non-deferred file `Close()` calls that can leak resources.
 - `fmterrorfnoverbs` — reports `fmt.Errorf` calls whose format string contains no verbs, recommending `errors.New` instead.
 - `fprintlnsprintf` — reports `fmt.Fprintln(..., fmt.Sprintf(...))` patterns and recommends direct formatting calls.
@@ -42,6 +43,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
 | `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files |
 | `errstringmatch` | Custom `go/analysis` analyzer that flags brittle `strings.Contains(err.Error(), "...")` checks |
+| `execcommand` | Custom `go/analysis` analyzer that flags `exec.Command()` calls inside functions that already receive a `context.Context` parameter, suggesting `exec.CommandContext(ctx, ...)` |
 | `fileclosenotdeferred` | Custom `go/analysis` analyzer that flags file `Close()` calls that are not deferred immediately |
 | `fmterrorfnoverbs` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls with no format verbs, recommending `errors.New` |
 | `fprintlnsprintf` | Custom `go/analysis` analyzer that flags `fmt.Fprintln(..., fmt.Sprintf(...))` patterns |
@@ -112,6 +114,7 @@ _ = ssljson.Analyzer
 - `github.com/github/gh-aw/pkg/linters/ctxbackground` — context-background analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/errormessage` — error-message analyzer subpackage (also re-exported as `ErrorMessageAnalyzer`)
 - `github.com/github/gh-aw/pkg/linters/errstringmatch` — err-string-match analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/execcommand` — exec-command analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/excessivefuncparams` — excessive-func-params analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/fileclosenotdeferred` — file-close-not-deferred analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs` — fmt-errorf-no-verbs analyzer subpackage
