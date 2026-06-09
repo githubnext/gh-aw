@@ -6,6 +6,7 @@ package sortslice
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -52,7 +53,12 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		pkgIdent, ok := sel.X.(*ast.Ident)
-		if !ok || pkgIdent.Name != "sort" {
+		if !ok {
+			return
+		}
+		obj := pass.TypesInfo.ObjectOf(pkgIdent)
+		pkgName, ok := obj.(*types.PkgName)
+		if !ok || pkgName.Imported().Path() != "sort" {
 			return
 		}
 
