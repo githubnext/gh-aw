@@ -53,6 +53,13 @@
   --sl-color-gray-7: #010409;
 }
 
+/* Widen central docs content on large screens while avoiding TOC overflow on mid-width viewports. */
+@media (min-width: 1200px) {
+  :root {
+    --sl-content-width: 60rem;
+  }
+}
+
 /* Light Theme Colors */
 :root[data-theme='light'] {
   --sl-color-accent-low: #5b3da3;
