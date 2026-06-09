@@ -155,7 +155,7 @@ func rewriteWorkflowDispatchRequiredFalse(lines []string) ([]string, bool) {
 			}
 		}
 
-		// Enter individual input entries and handle inline input maps
+		// Enter an individual input entry and handle inline input maps
 		// (for example: "pr_number: { required: true }").
 		if inInputs && !inInputEntry && len(indent) > len(inputsIndent) {
 			if strings.Contains(trimmed, "{") && strings.Contains(trimmed, "required: true") {
