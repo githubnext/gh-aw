@@ -14,7 +14,7 @@
 
 const childProcess = require("child_process");
 const fs = require("fs");
-const { ERR_VALIDATION, ERR_API } = require("./error_codes.cjs");
+const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
@@ -44,7 +44,7 @@ function runSafeOutputsCLI(toolName, args) {
     const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";
     const message = typeof err.message === "string" ? err.message : String(error);
     const keysSummary = Object.keys(args).join(", ");
-    throw new Error(stderr ? `${ERR_API}: safeoutputs ${toolName}(${keysSummary}) failed: ${message}: ${stderr}` : `${ERR_API}: safeoutputs ${toolName}(${keysSummary}) failed: ${message}`);
+    throw new Error(stderr ? `${ERR_SYSTEM}: safeoutputs ${toolName}(${keysSummary}) failed: ${message}: ${stderr}` : `${ERR_SYSTEM}: safeoutputs ${toolName}(${keysSummary}) failed: ${message}`);
   }
 }
 
