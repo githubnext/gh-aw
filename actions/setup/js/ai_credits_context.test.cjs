@@ -133,5 +133,36 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.aiCreditsRateLimitError).toBe(true);
       expect(result.maxAICreditsExceeded).toBe(true);
     });
+
+    it("detects max-ai-credits exceeded signal from agent-stdio log", () => {
+      // Set GH_AW_AGENT_OUTPUT so the derived stdio-log path resolves to tmpDir.
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+      const result = resolveAICreditsFailureState();
+      expect(result.aiCredits).toBe("1002.381900");
+      expect(result.maxAICredits).toBe("1000");
+      expect(result.aiCreditsRateLimitError).toBe(true);
+      expect(result.maxAICreditsExceeded).toBe(true);
+    });
+
+    it("detects max-ai-credits exceeded from stdio log alone (no audit rate-limit signal)", () => {
+      // Audit log has a successful response (status 200); rate-limit must come only from stdio.
+      writeAuditLog([{ type: "response", status: 200 }]);
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+      const result = resolveAICreditsFailureState();
+      expect(result.aiCreditsRateLimitError).toBe(true);
+      expect(result.maxAICreditsExceeded).toBe(true);
+      expect(result.aiCredits).toBe("1002.381900");
+    });
+
+    it("sets exceeded flags but leaves credit amounts empty when no parenthetical is present", () => {
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Fatal: Maximum AI credits exceeded.", "utf8");
+      const result = resolveAICreditsFailureState();
+      expect(result.aiCreditsRateLimitError).toBe(true);
+      expect(result.maxAICreditsExceeded).toBe(true);
+      expect(result.aiCredits).toBe("");
+      expect(result.maxAICredits).toBe("");
+    });
   });
 });
