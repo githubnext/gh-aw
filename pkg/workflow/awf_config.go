@@ -279,8 +279,8 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// ── API proxy section ─────────────────────────────────────────────────────
 	// maxAICredits is taken from frontmatter/imports only; when unset (0) the
 	// runtime value is resolved from vars.GH_AW_DEFAULT_MAX_AI_CREDITS via a
-	// GitHub Actions expression that is patched into the config JSON at action
-	// runtime (see buildMaxAICreditsRuntimePatchScript in awf_helpers.go).
+	// GitHub Actions expression injected directly into the JSON string in
+	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
 	maxAICredits := int64(0)
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
@@ -292,8 +292,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// Token steering is enabled by default. Setting max-ai-credits to a negative
 	// value (-1) omits that budget from the AWF config and disables token steering.
-	// When maxAICredits is 0 (runtime default), token steering stays enabled here
-	// and can be disabled at runtime by the patch script if the vars value is -1.
+	// When maxAICredits is 0 (runtime default), token steering stays enabled here.
 	enableTokenSteering := maxAICredits >= 0
 	if maxAICredits < 0 {
 		// Negative signals "disabled" — omit the budget from the AWF config.

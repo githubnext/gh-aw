@@ -771,7 +771,7 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 		stepContent := strings.Join(steps[0], "\n")
 
 		// API target is in the JSON config (in the printf command), not as a CLI flag
-		assert.Contains(t, stepContent, `"openai"`, "Should include openai target in config JSON")
+		assert.Contains(t, stepContent, `\"openai\"`, "Should include openai target in config JSON")
 		assert.Contains(t, stepContent, "llm-router.internal.example.com", "Should include custom hostname in config JSON")
 		assert.NotContains(t, stepContent, "--openai-api-target", "Should not emit --openai-api-target as CLI flag")
 	})
@@ -801,7 +801,7 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 		stepContent := strings.Join(steps[0], "\n")
 
 		// API target is in the JSON config (in the printf command), not as a CLI flag
-		assert.Contains(t, stepContent, `"anthropic"`, "Should include anthropic target in config JSON")
+		assert.Contains(t, stepContent, `\"anthropic\"`, "Should include anthropic target in config JSON")
 		assert.Contains(t, stepContent, "claude-proxy.internal.company.com", "Should include custom hostname in config JSON")
 		assert.NotContains(t, stepContent, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag")
 	})
@@ -903,7 +903,7 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 	stepContent := strings.Join(steps[0], "\n")
 
 	// With config file support, Copilot API target is in the JSON config (not as CLI flag)
-	assert.Contains(t, stepContent, `"copilot"`, "Should include copilot target in config JSON")
+	assert.Contains(t, stepContent, `\"copilot\"`, "Should include copilot target in config JSON")
 	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname in config JSON")
 	assert.NotContains(t, stepContent, "--copilot-api-target", "Should not emit --copilot-api-target as CLI flag")
 }
@@ -1585,7 +1585,7 @@ func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 	stepContent := strings.Join(steps[1], "\n")
 
 	// With config file support, Gemini target is in the JSON config (not as CLI flag)
-	assert.Contains(t, stepContent, `"gemini"`, "Should include gemini target in config JSON")
+	assert.Contains(t, stepContent, `\"gemini\"`, "Should include gemini target in config JSON")
 	assert.Contains(t, stepContent, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
 	assert.NotContains(t, stepContent, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
 }

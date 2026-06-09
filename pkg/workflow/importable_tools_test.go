@@ -1177,7 +1177,7 @@ permissions:
 	}
 
 	lockContent := string(lockFileContent)
-	if !strings.Contains(lockContent, `"maxRuns":37`) {
+	if !strings.Contains(lockContent, `\"maxRuns\":37`) {
 		t.Errorf("Expected lock file to contain apiProxy.maxRuns from imported workflow, got:\n%s", lockContent)
 	}
 }

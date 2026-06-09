@@ -115,55 +115,31 @@ func buildModelsJSONPathExportScript() string {
 	return fmt.Sprintf(`export GH_AW_MODELS_JSON_PATH="%s"`, awfModelsJSONPathExpr)
 }
 
-// buildMaxAICreditsRuntimePatchScript returns a Python heredoc that resolves
-// max-ai-credits at action runtime by patching the AWF config JSON in-place.
+// injectMaxAICreditsExpression inserts "maxAiCredits":expr into the apiProxy
+// JSON object of awfConfigJSON directly after the "maxRuns" field value.
 //
-// The script embeds defaultExpr (a GitHub Actions vars expression such as
-// "${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}") directly in the Python
-// source. GitHub Actions evaluates all ${{ }} expressions in a run: step before
-// passing the script to the shell, so the Python literal receives the resolved
-// integer string (e.g. "1000" or "5000") rather than the raw expression.
+// expr is a GitHub Actions expression such as
+// "${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}". GitHub Actions
+// evaluates all ${{ }} expressions in a run: step before the shell executes,
+// so expr is resolved to a bare integer (e.g. 1000) before printf writes the
+// file, resulting in valid JSON on disk.
 //
-// Behaviour:
-//   - Positive integer  → sets apiProxy.maxAiCredits to that value.
-//   - -1                → removes apiProxy.maxAiCredits and sets enableTokenSteering=false.
-//   - Non-integer value → falls back to builtinDefault.
-func buildMaxAICreditsRuntimePatchScript(defaultExpr string, builtinDefault int64) string {
-	return fmt.Sprintf(`python3 - <<'GH_AW_CREDITS_PY'
-import json, os
-from pathlib import Path
-
-runner_temp = os.environ.get("RUNNER_TEMP")
-if not runner_temp:
-    raise SystemExit("RUNNER_TEMP is not set")
-
-config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
-try:
-    config = json.loads(config_path.read_text())
-except FileNotFoundError as exc:
-    raise SystemExit(f"Missing AWF config file at {config_path}") from exc
-except json.JSONDecodeError as exc:
-    raise SystemExit(f"Invalid AWF config JSON at {config_path}: {exc}") from exc
-except OSError as exc:
-    raise SystemExit(f"Failed to read AWF config file at {config_path}: {exc}") from exc
-
-raw = "%s"
-api_proxy = config.setdefault("apiProxy", {})
-try:
-    val = int(raw)
-    if val < 0:
-        api_proxy.pop("maxAiCredits", None)
-        api_proxy["enableTokenSteering"] = False
-    else:
-        api_proxy["maxAiCredits"] = val
-except ValueError:
-    api_proxy["maxAiCredits"] = %d
-
-try:
-    config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
-except OSError as exc:
-    raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
-GH_AW_CREDITS_PY`, defaultExpr, builtinDefault)
+// This approach requires no post-processing scripts: shellEscapeArg detects
+// the expression in the combined JSON string and uses double-quote wrapping,
+// which preserves the ${{ }} syntax for GitHub Actions evaluation.
+func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {
+	const maxRunsKey = `"maxRuns":`
+	idx := strings.Index(awfConfigJSON, maxRunsKey)
+	if idx == -1 {
+		awfHelpersLog.Print("Warning: could not find maxRuns in AWF config JSON; maxAiCredits expression not injected")
+		return awfConfigJSON
+	}
+	// Scan past the integer value of maxRuns.
+	valueEnd := idx + len(maxRunsKey)
+	for valueEnd < len(awfConfigJSON) && awfConfigJSON[valueEnd] >= '0' && awfConfigJSON[valueEnd] <= '9' {
+		valueEnd++
+	}
+	return awfConfigJSON[:valueEnd] + `,"maxAiCredits":` + expr + awfConfigJSON[valueEnd:]
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
@@ -295,14 +271,24 @@ fi`,
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
+		// When max-ai-credits is not set by frontmatter/imports, inject the GitHub Actions
+		// expression ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }} directly into the
+		// "maxAiCredits" field of the apiProxy JSON object. GitHub Actions evaluates all
+		// ${{ }} expressions in a run: step before the shell executes, so the expression is
+		// resolved to a bare integer (e.g. 1000) before printf writes the file.
+		// shellEscapeArg detects the expression and uses double-quote wrapping, which
+		// preserves the ${{ }} syntax for GitHub Actions while escaping bare $ signs
+		// (e.g. "$schema" → "\$schema") so bash does not expand them.
+		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
+			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
+			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, expr)
+			awfHelpersLog.Printf("Injected maxAiCredits runtime expression into AWF config JSON")
+		}
 		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
-		// printf '%s\n' '...' is safe here because JSON uses only double quotes (never
-		// single quotes), so single-quoting the JSON string requires no further escaping
-		// in practice. shellEscapeArg handles the edge case where a domain value might
-		// somehow contain a single quote.
-		// Write the config to ${RUNNER_TEMP}/gh-aw/awf-config.json (host path read by AWF at
-		// startup) and also copy it to /tmp/gh-aw/awf-config.json so the unified agent artifact
-		// upload can include it alongside the other /tmp/gh-aw/ files.
+		// When no expression is embedded, shellEscapeArg uses single-quote wrapping (safe
+		// because JSON uses only double quotes). When a GitHub Actions expression is present,
+		// shellEscapeArg uses double-quote wrapping and escapes bare $ signs.
+		// Also copy it to /tmp/gh-aw/awf-config.json for the unified agent artifact upload.
 		configFileSetup = fmt.Sprintf(
 			"printf '%%s\\n' %s > %q",
 			shellEscapeArg(awfConfigJSON),
@@ -315,14 +301,6 @@ fi`,
 			} else {
 				configFileSetup += "\n" + updateScript
 			}
-		}
-		// When max-ai-credits is not set by frontmatter/imports, maxAiCredits is omitted
-		// from the base JSON (see BuildAWFConfigJSON). Resolve it at action runtime from
-		// vars.GH_AW_DEFAULT_MAX_AI_CREDITS using a Python script that patches the JSON
-		// in-place. This matches how GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS is resolved.
-		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
-			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
-			configFileSetup += "\n" + buildMaxAICreditsRuntimePatchScript(expr, constants.DefaultMaxAICredits)
 		}
 		configFileSetup += "\n" + buildModelMultipliersFromFileScript()
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)

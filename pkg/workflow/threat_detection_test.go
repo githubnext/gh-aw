@@ -1308,7 +1308,7 @@ func TestBuildDetectionEngineExecutionStepPropagatesAPITarget(t *testing.T) {
 
 			if tt.expectedTarget != "" {
 				// With config file support, copilot API target is in the JSON config
-				if !strings.Contains(allSteps, `"copilot"`) {
+				if !strings.Contains(allSteps, `\"copilot\"`) {
 					t.Errorf("Expected detection steps to contain copilot target in config JSON.\nGenerated steps:\n%s", allSteps)
 				}
 				if !strings.Contains(allSteps, tt.expectedTarget) {

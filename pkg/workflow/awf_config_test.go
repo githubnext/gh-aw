@@ -1114,9 +1114,11 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// Should NOT have --image-tag as a CLI flag (moved to config file)
 	assert.NotContains(t, command, "--image-tag", "expected --image-tag to be absent from CLI args")
 
-	// The JSON content in the printf command should have the expected structure
-	assert.Contains(t, command, `"allowDomains"`, "config JSON should include allowDomains")
-	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
+	// The JSON content in the printf command should have the expected structure.
+	// With the maxAiCredits expression injected, shellEscapeArg uses double-quote
+	// wrapping, so JSON double-quotes appear as \" in the shell command.
+	assert.Contains(t, command, `\"allowDomains\"`, "config JSON should include allowDomains")
+	assert.Contains(t, command, `\"enabled\":true`, "config JSON should have apiProxy enabled")
 }
 
 func TestBuildAWFCommand_ModelMultipliersLoadedFromFile(t *testing.T) {
