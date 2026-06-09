@@ -515,22 +515,14 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
 			mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
 		}
-		hostPortValues := []int{80, 443, mcpGatewayPort}
-		if isGitHubCLIModeEnabled(config.WorkflowData) {
-			hostPortValues = append(hostPortValues, 18443)
+		hostPortValues := []string{"80", "443", strconv.Itoa(mcpGatewayPort)}
+		// Avoid duplicate host ports if the MCP gateway is explicitly configured to 18443.
+		if isGitHubCLIModeEnabled(config.WorkflowData) && mcpGatewayPort != 18443 {
+			hostPortValues = append(hostPortValues, "18443")
 		}
-		seenHostPorts := make(map[int]struct{}, len(hostPortValues))
-		hostPortStrings := make([]string, 0, len(hostPortValues))
-		for _, port := range hostPortValues {
-			if _, exists := seenHostPorts[port]; exists {
-				continue
-			}
-			seenHostPorts[port] = struct{}{}
-			hostPortStrings = append(hostPortStrings, strconv.Itoa(port))
-		}
-		hostPorts := strings.Join(hostPortStrings, ",")
+		hostPorts := strings.Join(hostPortValues, ",")
 		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
-		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
+		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway and CLI proxy access", hostPorts)
 	} else {
 		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
 	}
