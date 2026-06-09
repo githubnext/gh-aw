@@ -210,7 +210,7 @@ try {
   state = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
 } catch (error) {
   if (error.code !== 'ENOENT') {
-    console.warn(`Warning: failed to parse existing state file ${stateFile}: ${error.message}`)
+    console.warn(`Warning: failed to parse existing state file ${stateFile}: ${error.message}. Proceeding with default state.`)
   }
 }
 

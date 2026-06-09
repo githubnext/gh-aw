@@ -1,5 +1,4 @@
 #!/bin/bash
-set +o histexpand
 
 # check-workflow-prompts-no-inline-python.sh - Enforce no inline shell(python -c ...) snippets in workflow prompts
 #

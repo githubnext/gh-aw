@@ -659,7 +659,7 @@ The compiler codebase maintains **good overall quality** with an average score o
 
 - Do **not** use inline Python shell snippets such as `shell(python3 -c "...")` or similar one-liners for reading/parsing files.
 - When you need file discovery or file content, prefer native tools (`glob`, `grep`, `view`) instead of ad-hoc shell scripting.
-- If Serena is unavailable, use allowed shell utilities (`grep`, `sed`, `head`, `tail`) rather than Python wrappers.
+- If Serena (the semantic MCP code-analysis server) is unavailable, use allowed shell utilities (`grep`, `sed`, `head`, `tail`) rather than Python wrappers.
 
 ### Analysis Best Practices
 
