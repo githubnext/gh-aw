@@ -1827,7 +1827,8 @@ function hasAgentTerminalReasonCompleted() {
  * The log file is available in the conclusion job after the agent artifact is downloaded.
  * @returns {string} Formatted context string, or empty string if no engine failure found
  */
-function buildEngineFailureContext() {
+function buildEngineFailureContext(options = {}) {
+  const suppressEngineRateLimit429 = options.suppressEngineRateLimit429 === true;
   // Derive agent-stdio.log path from the agent output file path (same directory)
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
@@ -1858,7 +1859,7 @@ function buildEngineFailureContext() {
       return "";
     }
 
-    if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
+    if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);
     }
@@ -2717,7 +2718,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2941,7 +2942,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);

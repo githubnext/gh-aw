@@ -1490,6 +1490,13 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
     });
 
+    it("suppresses engine 429 context when max-ai-credits-exceeded takes precedence", () => {
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n");
+      const result = buildEngineFailureContext({ suppressEngineRateLimit429: true });
+      expect(result).not.toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("Engine Failure");
+    });
+
     it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
       fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
       fs.writeFileSync(
