@@ -859,6 +859,7 @@ function summarizeHelpText(value, maxLen) {
  */
 function formatCompactNameLines(names, maxLines) {
   if (!Array.isArray(names) || names.length === 0) {
+    // Callers spread the result into help lines, so empty input should contribute no lines.
     return [];
   }
   if (!Number.isFinite(maxLines) || maxLines <= 0) {
@@ -868,6 +869,7 @@ function formatCompactNameLines(names, maxLines) {
   let current = "  ";
   for (const name of names) {
     const token = current.trim() ? `, ${name}` : name;
+    // A single very long name may still exceed the width target; we keep it intact.
     const shouldStartNewLine = current.length + token.length > COMPACT_NAME_LINE_TARGET_WIDTH;
     if (shouldStartNewLine) {
       lines.push(current);
@@ -880,9 +882,10 @@ function formatCompactNameLines(names, maxLines) {
     lines.push(current);
   }
   if (lines.length > maxLines) {
-    // Keep all names visible by collapsing overflow into the last allowed line.
+    // Keep maxLines - 1 full lines and collapse the remaining names into the final allowed line.
     const compactTail = lines
       .slice(maxLines - 1)
+      // Trim per-line indentation before rebuilding a single indented tail line.
       .map(line => line.trim())
       .join(", ");
     return [...lines.slice(0, maxLines - 1), `  ${compactTail}`];
