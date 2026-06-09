@@ -10,7 +10,7 @@ on:
 name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
-strict: false
+strict: true
 engine:
   id: codex
   model: gpt-5.4
@@ -31,6 +31,8 @@ imports:
 tools:
   github:
     mode: gh-proxy
+    toolsets:
+      - default
   cli-proxy: true
 
 ---
@@ -58,24 +60,74 @@ Write agentic workflows in natural language markdown and run them in GitHub Acti
 - **gh-aw-actions**: shared GitHub Actions library — https://github.com/github/gh-aw-actions
 -->
 
-# Daily Status Report
+# Daily Documentation Quality Report
 
-Generate a daily status report for the gh-aw project, focusing on documentation quality.
+Generate a daily documentation quality report for the gh-aw project.
 
-**Requirements:**
+## Step 1: Find Documentation Problems in Issues
 
-1. **Find documentation problems reported in issues**: Search GitHub issues for mentions of documentation bugs, unclear instructions, missing documentation, or incorrect documentation. Look for patterns like "docs", "documentation", "unclear", "wrong", "missing", "broken", "outdated".
+Search GitHub issues for documentation problems using these queries:
+- `repo:${{ github.repository }} is:issue is:open label:documentation`
+- `repo:${{ github.repository }} is:issue is:open docs OR documentation OR "missing docs" OR "unclear" OR "broken link"`
 
-2. **Cross-reference with current documentation**: For each documentation problem found in issues, search the repository documentation to find the relevant section that the issue is referencing or that could answer the question raised.
+For each issue found, record: issue number, title, and a brief description of the documentation problem reported.
 
-3. **Compile a report** summarizing:
-   - Issues that report documentation problems (with issue numbers and titles)
-   - The corresponding documentation sections that may need updating
-   - Any issues where the documentation actually already contains the answer (and the issue could be closed with a pointer)
-   - Gaps where no documentation exists for a reported problem
+## Step 2: Cross-Reference with Current Documentation
 
-4. Post the report as an issue with the date in the title. **If no documentation problems are found in issues**, call `noop` with "No documentation problems found in open issues — no action needed" instead of creating a report issue.
+For the top documentation issues found (up to 10), check whether the relevant documentation section in `docs/` already addresses the issue:
+- If yes, note that the issue could be closed with a pointer to the docs.
+- If no, note the gap.
 
-Keep the report informative but concise.
+## Step 3: Create the Report Issue
+
+**MANDATORY**: After completing Steps 1 and 2, you MUST call one of these safe-output tools:
+
+### If documentation problems were found:
+
+Call `create_issue` with:
+- **Title**: `Documentation Quality Report — YYYY-MM-DD` (use today's date)
+- **Body**: Use this exact template (all sections required — do NOT leave the body empty):
+
+```markdown
+### Documentation Quality Report — YYYY-MM-DD
+
+### Summary
+
+Brief 2-3 sentence overview of what was found.
+
+- **Issues analyzed**: [N]
+- **Issues with documentation gaps**: [N]
+- **Issues already answered in docs**: [N]
+
+### Documentation Issues Found
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| #NNN | [title] | ⚠️ Gap / ✅ Already documented |
+
+### Documentation Gaps
+
+For each issue where documentation is missing or incorrect:
+
+#### Gap 1: [Short description]
+- **Issue**: #NNN — [title]
+- **Missing coverage**: [What is not documented]
+- **Suggested doc location**: `docs/[path]`
+
+### Issues That Could Be Closed
+
+Issues where the documentation already contains the answer:
+
+- #NNN — [title]: See `[doc path]` section "[section heading]"
+
+### Recommendations
+
+1. [Specific actionable recommendation]
+2. [Another recommendation]
+```
+
+### If NO documentation problems were found:
+
+Call `noop` with message: "No documentation problems found in open issues — no action needed."
 
 {{#runtime-import shared/noop-reminder.md}}
