@@ -59,8 +59,7 @@ const HELP_MAX_LINES = 20;
 const COMMAND_DESC_MAX_LEN = 68;
 const TOOL_DESC_MAX_LEN = 90;
 const OPTION_DESC_MAX_LEN = 62;
-const TOP_HELP_RESERVED_LINES = 3;
-const TOOL_HELP_RESERVED_LINES = 2;
+const TOP_HELP_FOOTER_LINES = 2;
 
 // ---------------------------------------------------------------------------
 // Audit logging
@@ -771,15 +770,13 @@ function loadTools(toolsFile) {
  * @param {Array<{name: string, description?: string}>} tools - Tool list
  */
 function showHelp(serverName, tools) {
-  const lines = [
-    `Usage: ${serverName} <command> [--param value ...]`,
-    `Tip: ${serverName} <command> --help`,
-    "",
-    `Commands (${tools.length}):`,
-  ];
+  const lines = [`Usage: ${serverName} <command> [--param value ...]`, `Tip: ${serverName} <command> --help`, "", `Commands (${tools.length}):`];
   if (tools.length > 0) {
-    const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - TOP_HELP_RESERVED_LINES);
-    const shownTools = tools.slice(0, maxCommandLines);
+    const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - TOP_HELP_FOOTER_LINES);
+    let shownTools = tools.slice(0, maxCommandLines);
+    if (tools.length > shownTools.length && lines.length + shownTools.length + TOP_HELP_FOOTER_LINES + 1 > HELP_MAX_LINES) {
+      shownTools = shownTools.slice(0, -1);
+    }
     for (const tool of shownTools) {
       lines.push(`  ${tool.name} — ${summarizeHelpText(tool.description || "No description", COMMAND_DESC_MAX_LEN)}`);
     }
@@ -823,17 +820,24 @@ function showToolHelp(serverName, toolName, tools) {
     lines.push("");
     lines.push(`Options (${Object.keys(props).length}):`);
     const optionEntries = Object.entries(props);
-    const maxOptionLines = Math.max(1, HELP_MAX_LINES - lines.length - TOOL_HELP_RESERVED_LINES);
-    const shownOptions = optionEntries.slice(0, maxOptionLines);
+    const maxOptionLines = Math.max(1, HELP_MAX_LINES - lines.length);
+    let shownOptions = optionEntries.slice(0, maxOptionLines);
+    let hasMoreOptions = optionEntries.length > shownOptions.length;
+    let hasVisibleRequired = shownOptions.some(([key]) => required.has(key));
+    while (shownOptions.length > 0 && lines.length + shownOptions.length + (hasMoreOptions ? 1 : 0) + (hasVisibleRequired ? 1 : 0) > HELP_MAX_LINES) {
+      shownOptions = shownOptions.slice(0, -1);
+      hasMoreOptions = optionEntries.length > shownOptions.length;
+      hasVisibleRequired = shownOptions.some(([key]) => required.has(key));
+    }
     for (const [key, val] of shownOptions) {
       const requiredMark = required.has(key) ? "*" : "";
       const description = val.description ? ` - ${summarizeHelpText(val.description, OPTION_DESC_MAX_LEN)}` : "";
       lines.push(`  --${key} ${getTypeStr(val.type)}${requiredMark}${description}`);
     }
-    if (optionEntries.length > shownOptions.length) {
+    if (hasMoreOptions) {
       lines.push(`  ... +${optionEntries.length - shownOptions.length} more option(s)`);
     }
-    if (required.size > 0) {
+    if (hasVisibleRequired) {
       lines.push("Required options are marked with *.");
     }
   }

@@ -225,6 +225,19 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more command\(s\)/);
   });
 
+  it("does not truncate top-level help when commands exactly fit the line budget", () => {
+    const tools = Array.from({ length: 14 }, (_, i) => ({
+      name: `tool_${i + 1}`,
+      description: `Description for command ${i + 1}.`,
+    }));
+
+    showHelp("safeoutputs", tools);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    expect(outputLines.length).toBe(20);
+    expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more command\(s\)/);
+  });
+
   it("keeps command help compact for many options", () => {
     const properties = {};
     for (let i = 1; i <= 24; i++) {
@@ -246,6 +259,53 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(outputLines.length).toBeLessThanOrEqual(20);
     expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more option\(s\)/);
     expect(outputLines.join("\n")).toContain("Required options are marked with *.");
+    expect(outputLines.join("\n")).toMatch(/--field_1 \(string\)\*/);
+    expect(outputLines.join("\n")).toMatch(/--field_2 \(string\)\*/);
+  });
+
+  it("does not truncate command help when options exactly fit the line budget", () => {
+    const properties = {};
+    for (let i = 1; i <= 13; i++) {
+      properties[`field_${i}`] = { type: "string", description: `Field ${i}.` };
+    }
+
+    showToolHelp("safeoutputs", "create_issue", [
+      {
+        name: "create_issue",
+        description: "Create an issue.",
+        inputSchema: {
+          properties,
+          required: ["field_1"],
+        },
+      },
+    ]);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    expect(outputLines.length).toBe(20);
+    expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(outputLines.join("\n")).toContain("Required options are marked with *.");
+  });
+
+  it("omits required-note when required options are truncated", () => {
+    const properties = {};
+    for (let i = 1; i <= 24; i++) {
+      properties[`field_${i}`] = { type: "string", description: `Field ${i}.` };
+    }
+
+    showToolHelp("safeoutputs", "create_issue", [
+      {
+        name: "create_issue",
+        description: "Create an issue.",
+        inputSchema: {
+          properties,
+          required: ["field_23", "field_24"],
+        },
+      },
+    ]);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(outputLines.join("\n")).not.toContain("Required options are marked with *.");
   });
 
   describe("stdin placeholder removed — '-' is always a literal value", () => {
