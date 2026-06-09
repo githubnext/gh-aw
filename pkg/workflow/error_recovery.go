@@ -13,10 +13,10 @@ import (
 var errorRecoveryLog = logger.New("workflow:error_recovery")
 
 var (
-	duplicateKeyMessagePattern     = regexp.MustCompile(`mapping key "([^"]+)" already defined at \[(\d+):\d+\]`)
-	compilerErrorLinePattern       = regexp.MustCompile(`:(\d+):\d+: error:`)
-	unknownPermissionScopePattern  = regexp.MustCompile(`unknown permission scope "([^"]+)"`)
-	unknownPermissionPropertyRegex = regexp.MustCompile(`unknown property: ([^ \n(]+)`)
+	duplicateKeyMessagePattern    = regexp.MustCompile(`mapping key "([^"]+)" already defined at \[(\d+):\d+\]`)
+	compilerErrorLinePattern      = regexp.MustCompile(`:(\d+):\d+: error:`)
+	unknownPermissionScopePattern = regexp.MustCompile(`unknown permission scope "([^"]+)"`)
+	unknownPropertyPattern        = regexp.MustCompile(`unknown property: ([^ \n(]+)`)
 )
 
 // ErrorSeverity classifies how urgently a compilation error should be fixed.
@@ -314,8 +314,7 @@ func classifyErrorMessage(message string) PrioritizedError {
 			Category:   "tools",
 			Suggestion: "Check the `tools:` and MCP server configuration for missing required fields or unsupported values.",
 		}
-	case strings.Contains(lower, "permission"),
-		strings.Contains(lower, "valid permission scopes"):
+	case isUnknownPermissionScopeMessage(message):
 		return PrioritizedError{
 			Message:    message,
 			Severity:   SeverityMedium,
@@ -331,6 +330,13 @@ func classifyErrorMessage(message string) PrioritizedError {
 			Severity:   SeverityMedium,
 			Category:   "events",
 			Suggestion: "Correct the event or filter name, then re-run compilation.",
+		}
+	case strings.Contains(lower, "permission"):
+		return PrioritizedError{
+			Message:    message,
+			Severity:   SeverityMedium,
+			Category:   "permissions",
+			Suggestion: "Adjust the permissions block to match the workflow's required scopes.",
 		}
 	case strings.Contains(lower, "runtime"),
 		strings.Contains(lower, "node version"),
@@ -395,12 +401,20 @@ func extractCompilerErrorLine(message string) string {
 	return matches[1]
 }
 
+func isUnknownPermissionScopeMessage(message string) bool {
+	lower := strings.ToLower(message)
+	return strings.Contains(lower, "unknown permission scope") ||
+		(strings.Contains(lower, "unknown property:") && strings.Contains(lower, "valid permission scopes"))
+}
+
 func extractUnknownPermissionScope(message string) string {
 	lower := strings.ToLower(message)
 	if matches := unknownPermissionScopePattern.FindStringSubmatch(lower); len(matches) >= 2 {
 		return matches[1]
 	}
-	if matches := unknownPermissionPropertyRegex.FindStringSubmatch(lower); len(matches) >= 2 &&
+	// Schema validation currently reports invalid permission scopes as
+	// "Unknown property: <scope>" plus a "Valid permission scopes" list.
+	if matches := unknownPropertyPattern.FindStringSubmatch(lower); len(matches) >= 2 &&
 		strings.Contains(lower, "valid permission scopes") {
 		return matches[1]
 	}
