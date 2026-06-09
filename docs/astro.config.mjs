@@ -158,7 +158,7 @@ export default defineConfig({
 		'/guides/opentelemetry/': '/gh-aw/guides/open-telemetry/',
 		'/experimental/opentelemetry/': '/gh-aw/guides/open-telemetry/',
 		'/patterns/opentelemetry/': '/gh-aw/guides/open-telemetry/',
-		'/guides/getting-started-mcp/': '/gh-aw/guides/mcps/'
+		'/guides/getting-started-mcp/': '/gh-aw/guides/mcps/',
 		'/patterns/data-ops/': '/gh-aw/patterns/deterministic-ops/',
 		'/patterns/expert-ops/': '/gh-aw/patterns/monitor-ops/',
 		'/patterns/agentic-ops/': '/gh-aw/patterns/monitor-ops/',
