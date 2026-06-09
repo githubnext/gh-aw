@@ -1,5 +1,7 @@
 # stringutil Package
 
+> Utility functions for string manipulation, sanitization, identifier normalization, ANSI stripping, URL parsing, and GitHub PAT validation.
+
 ## Overview
 
 The `stringutil` package provides utility functions for working with strings. It is organized into focused sub-files covering ANSI stripping, identifier normalization, sanitization, URL utilities, and PAT (Personal Access Token) validation.
@@ -20,10 +22,19 @@ The `stringutil` package is organized into focused sub-files:
 
 ### Exported Types
 
-| Type | Description |
-|------|-------------|
-| `SanitizeOptions` | Options for `SanitizeName` (preserved characters, hyphen trimming, and default value) |
-| `PATType` | Type of GitHub Personal Access Token (fine-grained, classic, oauth, unknown) with methods: `String()`, `IsFineGrained()`, `IsValid()` |
+| Type | Kind | Description |
+|------|------|-------------|
+| `SanitizeOptions` | struct | Options for `SanitizeName` (preserved characters, hyphen trimming, and default value) |
+| `PATType` | string alias | Type of GitHub Personal Access Token (fine-grained, classic, oauth, unknown) with methods: `String()`, `IsFineGrained()`, `IsValid()` |
+
+### Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `PATTypeFineGrained` | `PATType` | `"fine-grained"` | Fine-grained PAT (prefix `github_pat_`) |
+| `PATTypeClassic` | `PATType` | `"classic"` | Classic PAT (prefix `ghp_`) |
+| `PATTypeOAuth` | `PATType` | `"oauth"` | OAuth token (prefix `gho_`) |
+| `PATTypeUnknown` | `PATType` | `"unknown"` | Unrecognized token format |
 
 ## General Utilities (`stringutil.go`)
 
@@ -269,11 +280,15 @@ distance := stringutil.LevenshteinDistance("copiliot", "copilot")
 **Internal**:
 - `github.com/github/gh-aw/pkg/logger` — debug logging
 
-## Design Notes
+## Design Decisions
 
 - All debug output uses namespace-prefixed loggers (`stringutil:identifiers`, `stringutil:sanitize`, `stringutil:urls`, `stringutil:pat_validation`) and is only emitted when `DEBUG=stringutil:*`.
 - `SanitizeErrorMessage` is intentionally conservative: it excludes common GitHub Actions keywords to avoid over-redacting legitimate error messages.
 - `StripANSI` handles both CSI sequences (`ESC[`) and other ESC-prefixed sequences to cover the full range of ANSI escape codes found in terminal output.
+
+## Thread Safety
+
+All functions in this package are stateless pure functions operating on immutable string inputs. They are safe to call concurrently from multiple goroutines without synchronization.
 
 ---
 

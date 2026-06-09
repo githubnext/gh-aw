@@ -1,5 +1,7 @@
 # timeutil Package
 
+> Human-readable duration formatting from nanoseconds to hours, following npm `debug` package conventions.
+
 The `timeutil` package provides human-readable duration formatting utilities.
 
 ## Overview
@@ -7,6 +9,14 @@ The `timeutil` package provides human-readable duration formatting utilities.
 This package contains helpers for converting `time.Duration` values and raw numeric durations (milliseconds, nanoseconds) into compact, readable strings. The primary formatting style follows the [debug npm package](https://www.npmjs.com/package/debug) conventions used by the `logger` package.
 
 ## Public API
+
+### Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `FormatDuration` | `func(d time.Duration) string` | Formats a `time.Duration` for human-readable display from nanoseconds to hours |
+| `FormatDurationMs` | `func(ms int) string` | Formats a duration given in **milliseconds** as a human-readable string |
+| `FormatDurationNs` | `func(ns int64) string` | Formats a duration given in **nanoseconds** as a human-readable string; returns `"—"` for zero or negative values |
 
 ### `FormatDuration(d time.Duration) string`
 
@@ -74,11 +84,15 @@ timeutil.FormatDurationNs(2_000_000_000)  // "2s"
 timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
 ```
 
-## Design Notes
+## Design Decisions
 
 - `FormatDuration` is used by the `logger` package to display time-diff between consecutive log calls (the `+500ms` suffix in debug output).
 - `FormatDurationMs` is used for workflow run duration display, where GitHub Actions reports durations in milliseconds.
 - `FormatDurationNs` is used for job duration display, where GitHub Actions reports billing durations in nanoseconds.
+
+## Thread Safety
+
+All functions in this package are stateless pure functions. They are safe to call concurrently from multiple goroutines without synchronization.
 
 ---
 
