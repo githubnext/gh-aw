@@ -674,8 +674,8 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 		"secret-masking":       map[string]any{"log-mask": true},
 	}
 
-	acc.extractConfigFields(first, "first.md")
-	acc.extractConfigFields(second, "second.md")
+	acc.extractConfigFields(first, "first.md", "")
+	acc.extractConfigFields(second, "second.md", "")
 
 	assert.Equal(t, "10", acc.mergedMaxTurns, "max-turns should be first-wins")
 	assert.Equal(t, "5", acc.mergedMaxToolDenials, "max-tool-denials should be first-wins")

@@ -131,7 +131,7 @@ func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCa
 		return err
 	}
 	origin := detectRemoteImportOrigin(filePath)
-	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, origin)
+	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, importSpec.If, origin)
 }
 
 func splitImportPathAndSection(importPath string) (string, string) {
@@ -192,12 +192,12 @@ func detectRemoteImportOrigin(filePath string) *remoteImportOrigin {
 	return origin
 }
 
-func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin) error {
+func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, ifCondition string, origin *remoteImportOrigin) error {
 	if !state.visited[fullPath] {
 		state.visited[fullPath] = true
 		state.visitedInputs[fullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{
-			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: origin,
+			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, ifCondition: ifCondition, remoteOrigin: origin,
 		})
 		parserLog.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		return nil
@@ -557,7 +557,14 @@ func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 					return nil, errors.New("import 'inputs'/'with' must be an object")
 				}
 			}
-			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs})
+			// Extract optional "if" condition
+			var ifCond string
+			if ifVal, hasIf := importItem["if"]; hasIf {
+				if ifStr, ok := ifVal.(string); ok {
+					ifCond = ifStr
+				}
+			}
+			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs, If: ifCond})
 		default:
 			return nil, errors.New("import item must be a string or an object with 'path'/'uses' field")
 		}
