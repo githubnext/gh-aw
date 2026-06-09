@@ -19,7 +19,7 @@ func TestValidateSafeOutputsSamples_Valid(t *testing.T) {
 				Samples: []map[string]any{
 					{
 						"title": "Sample issue",
-						"body":  "Sample body",
+						"body":  "Sample issue body with enough detail.",
 					},
 				},
 			},
@@ -214,7 +214,7 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionsInNestedValues(t *testing.
 				Samples: []map[string]any{
 					{
 						"title": "Issue ${{ github.event.inputs.title_suffix }}",
-						"body":  "Body",
+						"body":  "Body with enough detail.",
 						"labels": []any{
 							"static-label",
 							"${{ github.event.inputs.dynamic_label }}",
