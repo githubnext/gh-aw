@@ -105,8 +105,18 @@ func TestBuildGitHubAppTokenMintStepOwnerDerivation(t *testing.T) {
 			}
 
 			if strings.Contains(stepsStr, "id: safe-outputs-app-token-owner") {
-				ownerIdx := strings.Index(stepsStr, "id: safe-outputs-app-token-owner")
-				mintIdx := strings.Index(stepsStr, "id: safe-outputs-app-token\n")
+				ownerIdx := -1
+				mintIdx := -1
+				for i, step := range steps {
+					if strings.Contains(step, "id: safe-outputs-app-token-owner") {
+						ownerIdx = i
+					}
+					if strings.Contains(step, "id: safe-outputs-app-token\n") {
+						mintIdx = i
+					}
+				}
+				require.NotEqual(t, -1, ownerIdx, "case %q should include owner helper step id", tt.name)
+				require.NotEqual(t, -1, mintIdx, "case %q should include app token mint step id", tt.name)
 				require.Greater(t, mintIdx, ownerIdx, "case %q should emit owner derivation step before mint step", tt.name)
 			}
 		})
