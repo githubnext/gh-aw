@@ -1261,14 +1261,19 @@ function buildToolDenialsExceededContext(events, workflowId) {
       renderTemplate(template, {
         denial_count: denialCount,
         threshold,
-        reason: `\`${normalizedReason}\``,
+        reason: normalizedReason,
         workflow_id: workflowId || "the workflow",
       })
     );
   } catch {
     return (
       buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
-      `**Last denied request:** \`${normalizedReason}\`\n\n` +
+      "<details>\n" +
+      "<summary><strong>Last denied request</strong></summary>\n\n" +
+      "```text\n" +
+      `${normalizedReason}\n` +
+      "```\n\n" +
+      "</details>\n\n" +
       "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
     );
   }
