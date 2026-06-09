@@ -155,7 +155,7 @@ echo "CLI proxy ready on ${CLI_PROXY_LISTEN_ADDR}"
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {
     echo "### CLI proxy startup diagnostics"
-    echo "- Startup result: ✅ ready"
+    echo "- Startup result: READY"
     echo "- Listen address: \`$CLI_PROXY_LISTEN_ADDR\`"
     echo "- IPv4 fallback used: \`$CLI_PROXY_FALLBACK_USED\`"
     echo "- Sidecar dial target: \`$CLI_PROXY_DIAL_TARGET\`"
