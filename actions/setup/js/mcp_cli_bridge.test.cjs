@@ -222,7 +222,7 @@ describe("mcp_cli_bridge.cjs", () => {
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
     expect(outputLines.length).toBeLessThanOrEqual(20);
-    expect(outputLines.join("\n")).toContain("... +");
+    expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more command\(s\)/);
   });
 
   it("keeps command help compact for many options", () => {
@@ -244,7 +244,7 @@ describe("mcp_cli_bridge.cjs", () => {
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
     expect(outputLines.length).toBeLessThanOrEqual(20);
-    expect(outputLines.join("\n")).toContain("... +");
+    expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more option\(s\)/);
     expect(outputLines.join("\n")).toContain("Required options are marked with *.");
   });
 

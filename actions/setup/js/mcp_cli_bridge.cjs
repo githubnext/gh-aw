@@ -856,13 +856,19 @@ function getTypeStr(type) {
  * @returns {string}
  */
 function summarizeHelpText(value, maxLen) {
+  if (!Number.isFinite(maxLen) || maxLen <= 0) {
+    return "";
+  }
   const normalized = String(value || "")
     .replace(/\s+/g, " ")
     .trim();
   if (normalized.length <= maxLen) {
     return normalized;
   }
-  return `${normalized.slice(0, Math.max(0, maxLen - 1))}…`;
+  if (maxLen === 1) {
+    return "…";
+  }
+  return `${normalized.slice(0, maxLen - 1)}…`;
 }
 
 // ---------------------------------------------------------------------------
