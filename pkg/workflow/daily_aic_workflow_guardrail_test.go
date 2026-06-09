@@ -61,6 +61,24 @@ func TestResolveMaxDailyAIC(t *testing.T) {
 			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
 		}
 	})
+
+	// T-AIC-DG-007: Imported workflow max-daily-ai-credits used when no frontmatter value;
+	// frontmatter takes precedence over imports (spec §9.3 (2)).
+	t.Run("spec §9.3(2) / T-AIC-DG-007: imported config used when no frontmatter value", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyAIC(map[string]any{}, `"2000"`)
+		if got == nil || *got != "2000" {
+			t.Fatalf("spec §9.3(2): expected imported config value %q, got %v", "2000", got)
+		}
+	})
+
+	t.Run("spec §9.3(2) / T-AIC-DG-007: frontmatter takes precedence over imported config", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 9999}, `"2000"`)
+		if got == nil || *got != "9999" {
+			t.Fatalf("spec §9.3(2): expected frontmatter value to override imported config, got %v", got)
+		}
+	})
 }
 
 func TestDailyAICWorkflowGuardrailInCompiledWorkflow(t *testing.T) {

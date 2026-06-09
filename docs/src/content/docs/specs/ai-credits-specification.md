@@ -7,7 +7,7 @@ sidebar:
 
 # AI Credits Specification
 
-**Version**: 1.2.0  
+**Version**: 1.3.0  
 **Status**: Draft  
 **Publication Date**: 2026-06-09  
 **Editor**: GitHub Agentic Workflows Team  
@@ -292,15 +292,17 @@ A conforming implementation MUST resolve the effective daily AI Credits threshol
 
 1. **Frontmatter value** (`max-daily-ai-credits`): Resolved at compile time. Numeric values MUST be normalized to integer strings; suffix notation (`K`, `M`) MUST be expanded (e.g., `100M` → `100000000`). When present, the resolved value MUST be emitted literally as the `GH_AW_MAX_DAILY_AI_CREDITS` value.
 
-2. **Runtime organization variable** (`vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`): A GitHub Actions `vars.*` expression resolved at action runtime by the GitHub Actions runner. A conforming implementation MUST NOT read this variable at compile time via the process environment; it MUST instead be embedded in the compiled YAML as a GitHub Actions expression evaluated by the runner.
+2. **Imported workflow configuration** (`max-daily-ai-credits` from imported shared workflows): Resolved at compile time using a first-wins accumulation across all imported workflows. A conforming implementation MUST apply the first usable `max-daily-ai-credits` value found across imports when no frontmatter value is present on the main workflow. Imported values undergo the same normalization and validation rules as frontmatter values.
 
-3. **Built-in constant default** (`5000`): The fallback literal embedded in the GitHub Actions expression when the organization variable is unset. The value `5000` AIC represents the normative built-in default for the daily guardrail threshold.
+3. **Runtime organization variable** (`vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`): A GitHub Actions `vars.*` expression resolved at action runtime by the GitHub Actions runner. A conforming implementation MUST NOT read this variable at compile time via the process environment; it MUST instead be embedded in the compiled YAML as a GitHub Actions expression evaluated by the runner.
+
+4. **Built-in constant default** (`5000`): The fallback literal embedded in the GitHub Actions expression when the organization variable is unset. The value `5000` AIC represents the normative built-in default for the daily guardrail threshold.
 
 A conforming implementation MUST NOT resolve any of these values from repository-local configuration files (e.g., `aw.json`).
 
 ### 9.4 Emitted Expression Form
 
-When no frontmatter value is present, a conforming implementation MUST emit the following GitHub Actions expression as the `GH_AW_MAX_DAILY_AI_CREDITS` environment variable value in the compiled workflow:
+When neither a frontmatter value nor an imported workflow configuration value is present, a conforming implementation MUST emit the following GitHub Actions expression as the `GH_AW_MAX_DAILY_AI_CREDITS` environment variable value in the compiled workflow:
 
 ```
 ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
@@ -331,11 +333,12 @@ A conforming implementation MUST enforce the following at compile time:
 | Test ID | Description | Requirement |
 |---------|-------------|-------------|
 | T-AIC-DG-001 | Frontmatter value emitted literally; no expression wrapper | §9.3 (1) |
-| T-AIC-DG-002 | No frontmatter: emitted expression is `${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS \|\| '5000' }}` | §9.4 |
+| T-AIC-DG-002 | No frontmatter, no imports: emitted expression is `${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS \|\| '5000' }}` | §9.4 |
 | T-AIC-DG-003 | Frontmatter `-1` disables guardrail; no env var emitted | §9.5 |
 | T-AIC-DG-004 | `K`/`M` suffix values expanded in emitted literal | §9.6 |
 | T-AIC-DG-005 | Values below `-1` rejected at compile time | §9.6 |
-| T-AIC-DG-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §9.3 (2) |
+| T-AIC-DG-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §9.3 (3) |
+| T-AIC-DG-007 | Imported workflow `max-daily-ai-credits` used when no frontmatter value; frontmatter takes precedence over imports | §9.3 (2) |
 
 ---
 
@@ -355,15 +358,17 @@ A conforming implementation MUST resolve the effective per-run AI Credits budget
 
 1. **Frontmatter value** (`max-ai-credits`): Resolved at compile time. Numeric values MUST be normalized to integers; suffix notation (`K`, `M`) MUST be expanded (e.g., `1M` → `1000000`). When present, the resolved integer MUST be baked into the AWF firewall config JSON at compile time.
 
-2. **Runtime organization variable** (`vars.GH_AW_DEFAULT_MAX_AI_CREDITS`): A GitHub Actions `vars.*` expression resolved at action runtime by the GitHub Actions runner. A conforming implementation MUST NOT read this variable at compile time via the process environment; it MUST instead embed a GitHub Actions expression evaluated by the runner at execution time.
+2. **Imported workflow configuration** (`max-ai-credits` from imported shared workflows): Resolved at compile time using a first-wins accumulation across all imported workflows. A conforming implementation MUST apply the first usable `max-ai-credits` value found across imports when no frontmatter value is present on the main workflow. Imported values undergo the same normalization rules as frontmatter values.
 
-3. **Built-in constant default** (`1000`): The fallback literal embedded in the GitHub Actions expression when the organization variable is unset. The value `1000` AIC represents the normative built-in default for the per-run budget.
+3. **Runtime organization variable** (`vars.GH_AW_DEFAULT_MAX_AI_CREDITS`): A GitHub Actions `vars.*` expression resolved at action runtime by the GitHub Actions runner. A conforming implementation MUST NOT read this variable at compile time via the process environment; it MUST instead embed a GitHub Actions expression evaluated by the runner at execution time.
+
+4. **Built-in constant default** (`1000`): The fallback literal embedded in the GitHub Actions expression when the organization variable is unset. The value `1000` AIC represents the normative built-in default for the per-run budget.
 
 A conforming implementation MUST NOT resolve any of these values from repository-local configuration files (e.g., `aw.json`).
 
 ### 10.4 Runtime Resolution Mechanism
 
-When no frontmatter value is present, a conforming implementation MUST emit a runtime patch step that applies the following GitHub Actions expression to the AWF firewall configuration JSON:
+When neither a frontmatter value nor an imported workflow configuration value is present, a conforming implementation MUST emit a runtime patch step that applies the following GitHub Actions expression to the AWF firewall configuration JSON:
 
 ```
 ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
@@ -390,11 +395,12 @@ A conforming implementation MUST enforce the following at compile time when a fr
 | Test ID | Description | Requirement |
 |---------|-------------|-------------|
 | T-AIC-PR-001 | Frontmatter value baked into AWF config JSON at compile time | §10.3 (1) |
-| T-AIC-PR-002 | No frontmatter: emitted expression is `${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS \|\| '1000' }}` | §10.4 |
+| T-AIC-PR-002 | No frontmatter, no imports: emitted expression is `${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS \|\| '1000' }}` | §10.4 |
 | T-AIC-PR-003 | Org variable `-1` disables budget steering at runtime | §10.5 |
 | T-AIC-PR-004 | `K`/`M` suffix values expanded in compile-time literal | §10.6 |
 | T-AIC-PR-005 | Values below `-1` rejected at compile time | §10.6 |
-| T-AIC-PR-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §10.3 (2) |
+| T-AIC-PR-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §10.3 (3) |
+| T-AIC-PR-007 | Imported workflow `max-ai-credits` used when no frontmatter value; frontmatter takes precedence over imports | §10.3 (2) |
 
 ---
 
@@ -453,6 +459,16 @@ Pricing catalogs are configuration inputs. Implementations SHOULD:
 ---
 
 ## Change Log
+
+### Version 1.3.0 (2026-06-09)
+
+- **Updated**: §9.3 — Expanded the Daily AI Credits Guardrail resolution order from three levels to four. Added "Imported workflow configuration" as the second priority (between frontmatter and the runtime org variable), documenting that a conforming implementation MUST apply the first usable `max-daily-ai-credits` value found across imported shared workflows when no frontmatter value is present on the main workflow.
+- **Updated**: §9.4 — Clarified that the runtime expression is emitted only when neither frontmatter nor imported config provides a value.
+- **Updated**: §9.7 — Added compliance test T-AIC-DG-007 asserting imported workflow `max-daily-ai-credits` resolution.
+- **Updated**: §10.3 — Expanded the Per-Run AI Credits Budget resolution order from three levels to four. Added "Imported workflow configuration" as the second priority, documenting that a conforming implementation MUST apply the first usable `max-ai-credits` value found across imported shared workflows when no frontmatter value is present.
+- **Updated**: §10.4 — Clarified that the runtime patch step is emitted only when neither frontmatter nor imported config provides a value.
+- **Updated**: §10.7 — Added compliance test T-AIC-PR-007 asserting imported workflow `max-ai-credits` resolution.
+- **Updated**: Version and publication metadata to 1.3.0.
 
 ### Version 1.2.0 (2026-06-09)
 
