@@ -46,7 +46,7 @@ If it is missing, create it. If it exists, improve it only when needed to match 
   - no-profile shells (`pwsh -NoProfile`, `powershell -NoProfile`) and default profile shells
   - PATH order and PATH shadowing quirks (workspace-first, toolcache-first, duplicate entries)
   - PATHEXT and extension resolution behavior for `.exe` invocation from different shells
-  - paths with spaces/parentheses and mixed slash styles (`C:\path with spaces\...` and `/` vs `\`)
+  - paths with spaces/parentheses and mixed slash styles (`C:\\path with spaces\\...` and `/` vs `\\`)
   - unicode and non-ASCII working directories/user-profile-like paths
   - environment toggles commonly used by developers (`NO_COLOR`, `TERM`, `CI`, and empty/minimal env subsets)
   - command invocation variants (`gh-aw.exe help`, `gh-aw.exe --help`, subcommand help, and unknown-command failure paths)
