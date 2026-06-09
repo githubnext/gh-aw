@@ -101,7 +101,7 @@ jobs:
       actions: read
       contents: read
     env:
-      GH_AW_MAX_DAILY_AI_CREDITS: "500000"
+      GH_AW_MAX_DAILY_AI_CREDITS: "5000"
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -177,7 +177,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
           GH_AW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_MAX_DAILY_AI_CREDITS: "500000"
+          GH_AW_MAX_DAILY_AI_CREDITS: "5000"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
