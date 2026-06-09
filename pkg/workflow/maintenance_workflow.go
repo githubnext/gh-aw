@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -251,6 +252,9 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
 	maintenanceLog.Printf("Writing maintenance workflow to %s", maintenanceFile)
 
+	if err := fileutil.EnsureParentDir(maintenanceFile, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create maintenance workflow directory: %w", err)
+	}
 	if err := os.WriteFile(maintenanceFile, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write maintenance workflow: %w", err)
 	}

@@ -76,4 +76,14 @@ const (
 	//	features:
 	//	  group-concurrency-queue: false
 	GroupConcurrencyQueueFeatureFlag FeatureFlag = "group-concurrency-queue"
+	// DangerouslyDisableSandboxAgentFeatureFlag is required to allow sandbox.agent: false.
+	// Without this flag, setting sandbox.agent to false raises a validation error.
+	// This flag is intentionally named with "dangerously" to make the security
+	// implications explicit and visible in the workflow frontmatter.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  dangerously-disable-sandbox-agent: true
+	DangerouslyDisableSandboxAgentFeatureFlag FeatureFlag = "dangerously-disable-sandbox-agent"
 )
