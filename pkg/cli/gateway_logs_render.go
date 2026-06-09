@@ -7,7 +7,7 @@ package cli
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -157,8 +157,14 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 
 			// Sort tools by call count
 			toolNames := sliceutil.MapKeys(server.Tools)
-			sort.Slice(toolNames, func(i, j int) bool {
-				return server.Tools[toolNames[i]].CallCount > server.Tools[toolNames[j]].CallCount
+			slices.SortFunc(toolNames, func(a, b string) int {
+				if server.Tools[a].CallCount > server.Tools[b].CallCount {
+					return -1
+				}
+				if server.Tools[a].CallCount < server.Tools[b].CallCount {
+					return 1
+				}
+				return 0
 			})
 
 			toolRows := make([][]string, 0, len(toolNames))
@@ -187,8 +193,14 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 // getSortedServerNames returns server names sorted by request count
 func getSortedServerNames(metrics *GatewayMetrics) []string {
 	names := sliceutil.MapKeys(metrics.Servers)
-	sort.Slice(names, func(i, j int) bool {
-		return metrics.Servers[names[i]].RequestCount > metrics.Servers[names[j]].RequestCount
+	slices.SortFunc(names, func(a, b string) int {
+		if metrics.Servers[a].RequestCount > metrics.Servers[b].RequestCount {
+			return -1
+		}
+		if metrics.Servers[a].RequestCount < metrics.Servers[b].RequestCount {
+			return 1
+		}
+		return 0
 	})
 	return names
 }

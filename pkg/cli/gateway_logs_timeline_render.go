@@ -23,7 +23,7 @@ package cli
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -711,13 +711,20 @@ func displayUnifiedTimeline(processedRuns []ProcessedRun, verbose bool) {
 
 // sortUnifiedTimelineEvents sorts events in-place by ascending wall-clock time.
 // It is a no-op when the slice is already sorted; otherwise it delegates to
-// sort.SliceStable, which preserves insertion order for equal timestamps.
+// slices.SortStableFunc, which preserves insertion order for equal timestamps.
 func sortUnifiedTimelineEvents(events []UnifiedTimelineEvent) {
 	for i := 1; i < len(events); i++ {
 		if events[i].Time.Before(events[i-1].Time) {
 			// Only sort when the slice is not already in order.
-			sort.SliceStable(events, func(a, b int) bool {
-				return events[a].Time.Before(events[b].Time)
+			slices.SortStableFunc(events, func(a, b UnifiedTimelineEvent) int {
+				switch {
+				case a.Time.Before(b.Time):
+					return -1
+				case b.Time.Before(a.Time):
+					return 1
+				default:
+					return 0
+				}
 			})
 			return
 		}

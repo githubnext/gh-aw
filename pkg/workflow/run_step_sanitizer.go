@@ -47,7 +47,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -126,8 +126,15 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 
 	// Sort longest expressions first to avoid partial replacements when one
 	// expression is a substring of another.
-	sort.Slice(ordered, func(i, j int) bool {
-		return len(ordered[i].Original) > len(ordered[j].Original)
+	slices.SortFunc(ordered, func(a, b sanitizedExpression) int {
+		switch {
+		case len(a.Original) > len(b.Original):
+			return -1
+		case len(a.Original) < len(b.Original):
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// Merge extracted env vars into a copy of the existing env: map.

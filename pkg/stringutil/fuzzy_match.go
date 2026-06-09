@@ -2,7 +2,7 @@
 package stringutil
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -45,11 +45,21 @@ func FindClosestMatches(target string, candidates []string, maxResults int) []st
 	}
 
 	// Sort by distance (lower is better), then alphabetically for ties
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].distance != matches[j].distance {
-			return matches[i].distance < matches[j].distance
+	slices.SortFunc(matches, func(a, b match) int {
+		if a.distance != b.distance {
+			if a.distance < b.distance {
+				return -1
+			}
+			return 1
 		}
-		return matches[i].value < matches[j].value
+		switch {
+		case a.value < b.value:
+			return -1
+		case a.value > b.value:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// Return top matches

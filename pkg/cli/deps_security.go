@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -100,8 +100,16 @@ func DisplaySecurityAdvisories(advisories []SecurityAdvisory) {
 	fmt.Fprintln(os.Stderr, "")
 
 	// Sort by severity (critical first)
-	sort.Slice(advisories, func(i, j int) bool {
-		return severityWeight(advisories[i].Severity) > severityWeight(advisories[j].Severity)
+	slices.SortFunc(advisories, func(a, b SecurityAdvisory) int {
+		aw := severityWeight(a.Severity)
+		bw := severityWeight(b.Severity)
+		if aw > bw {
+			return -1
+		}
+		if aw < bw {
+			return 1
+		}
+		return 0
 	})
 
 	// Display each advisory

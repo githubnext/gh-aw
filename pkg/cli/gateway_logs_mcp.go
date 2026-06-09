@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -234,15 +234,32 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 	}
 
 	// Sort summaries by server name, then tool name
-	sort.Slice(mcpData.Summary, func(i, j int) bool {
-		if mcpData.Summary[i].ServerName != mcpData.Summary[j].ServerName {
-			return mcpData.Summary[i].ServerName < mcpData.Summary[j].ServerName
+	slices.SortFunc(mcpData.Summary, func(a, b MCPToolSummary) int {
+		if a.ServerName != b.ServerName {
+			if a.ServerName < b.ServerName {
+				return -1
+			}
+			return 1
 		}
-		return mcpData.Summary[i].ToolName < mcpData.Summary[j].ToolName
+		switch {
+		case a.ToolName < b.ToolName:
+			return -1
+		case a.ToolName > b.ToolName:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// Sort servers by name
-	sort.Slice(mcpData.Servers, func(i, j int) bool {
-		return mcpData.Servers[i].ServerName < mcpData.Servers[j].ServerName
+	slices.SortFunc(mcpData.Servers, func(a, b MCPServerStats) int {
+		switch {
+		case a.ServerName < b.ServerName:
+			return -1
+		case a.ServerName > b.ServerName:
+			return 1
+		default:
+			return 0
+		}
 	})
 }

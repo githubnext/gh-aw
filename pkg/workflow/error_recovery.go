@@ -2,7 +2,7 @@ package workflow
 
 import (
 	"errors"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -180,14 +180,27 @@ func prioritizeErrorMessages(messages []string) ([]PrioritizedError, int) {
 		suppressedCount = 0
 	}
 
-	sort.SliceStable(prioritized, func(i, j int) bool {
-		if prioritized[i].Severity != prioritized[j].Severity {
-			return prioritized[i].Severity < prioritized[j].Severity
+	slices.SortStableFunc(prioritized, func(a, b PrioritizedError) int {
+		if a.Severity != b.Severity {
+			if a.Severity < b.Severity {
+				return -1
+			}
+			return 1
 		}
-		if prioritized[i].Category != prioritized[j].Category {
-			return prioritized[i].Category < prioritized[j].Category
+		if a.Category != b.Category {
+			if a.Category < b.Category {
+				return -1
+			}
+			return 1
 		}
-		return prioritized[i].Message < prioritized[j].Message
+		switch {
+		case a.Message < b.Message:
+			return -1
+		case a.Message > b.Message:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return prioritized, suppressedCount

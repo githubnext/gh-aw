@@ -20,7 +20,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -547,8 +547,15 @@ func BuildUnifiedTimeline(logDir string, verbose bool) ([]UnifiedTimelineEvent, 
 	events = append(events, firewallEvents...)
 	events = append(events, agentEvents...)
 
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Time.Before(events[j].Time)
+	slices.SortFunc(events, func(a, b UnifiedTimelineEvent) int {
+		switch {
+		case a.Time.Before(b.Time):
+			return -1
+		case b.Time.Before(a.Time):
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	gatewayLogsLog.Printf("Built unified timeline: %d events (gateway=%d, firewall=%d, agent=%d)",
