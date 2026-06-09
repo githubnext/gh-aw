@@ -77,9 +77,9 @@ func TestFormal_CTR016_RedirectChangeRejected(t *testing.T) {
 }
 
 func TestFormal_CTR001_WritePermissionsRejected(t *testing.T) {
+	// PermissionIdToken: id-token:write is allowed for OIDC auth and does not grant repo write access.
+	// PermissionMetadata: metadata is always implicitly read-only, so it is excluded from the write-rejection rule.
 	for _, scope := range GetAllPermissionScopes() {
-		// PermissionIdToken: id-token:write is allowed for OIDC auth and does not grant repo write access.
-		// PermissionMetadata: metadata is always implicitly read-only, so it is excluded from the write-rejection rule.
 		if scope == PermissionIdToken || scope == PermissionMetadata {
 			continue
 		}
@@ -96,6 +96,7 @@ func TestFormal_CTR001_WritePermissionsRejected(t *testing.T) {
 func TestFormal_CTR001_ReadOnlyPermissionsAllowed(t *testing.T) {
 	perms := NewPermissions()
 	for _, scope := range GetAllPermissionScopes() {
+		// PermissionIdToken is intentionally omitted because GitHub Actions treats it as write-or-absent, not read-or-write.
 		if scope == PermissionIdToken {
 			continue
 		}
