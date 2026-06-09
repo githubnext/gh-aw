@@ -397,8 +397,7 @@ func ensureLogsGitignore() error {
 		return err // Not in a git repository, skip
 	}
 
-	logsDir := filepath.Join(gitRoot, ".github", "aw", "logs")
-	gitignorePath := filepath.Join(logsDir, ".gitignore")
+	gitignorePath := filepath.Join(gitRoot, ".github", "aw", "logs", ".gitignore")
 
 	// Check if .gitignore already exists
 	if _, err := os.Stat(gitignorePath); err == nil {
@@ -408,9 +407,9 @@ func ensureLogsGitignore() error {
 
 	gitLog.Print("Creating .github/aw/logs directory and .gitignore")
 	// Create the logs directory if it doesn't exist
-	if err := os.MkdirAll(logsDir, constants.DirPermPublic); err != nil {
-		gitLog.Printf("Failed to create logs directory: %v", err)
-		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
+	if err := fileutil.EnsureParentDir(gitignorePath, constants.DirPermPublic); err != nil {
+		gitLog.Printf("Failed to ensure .github/aw/logs/.gitignore parent directory: %v", err)
+		return fmt.Errorf("failed to create parent directory for .github/aw/logs/.gitignore: %w", err)
 	}
 
 	// Write the .gitignore file with owner-only read/write permissions (0600) for security best practices

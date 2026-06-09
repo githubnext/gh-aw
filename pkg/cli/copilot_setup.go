@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -182,15 +183,12 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 		resolver = workflow.NewActionResolver(cache)
 	}
 
-	// Create workflow directory if it doesn't exist.
 	workflowsDir := constants.GetWorkflowDir()
-	if err := os.MkdirAll(workflowsDir, constants.DirPermPublic); err != nil {
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := fileutil.EnsureParentDir(setupStepsPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create workflows directory: %w", err)
 	}
 	copilotSetupLog.Printf("Ensured directory exists: %s", workflowsDir)
-
-	// Write copilot-setup-steps.yml
-	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
 
 	// Check if file already exists
 	if _, err := os.Stat(setupStepsPath); err == nil {

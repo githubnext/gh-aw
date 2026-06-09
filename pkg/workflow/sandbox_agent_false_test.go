@@ -10,7 +10,7 @@ import (
 )
 
 func TestSandboxAgentMandatory(t *testing.T) {
-	t.Run("sandbox.agent: false is accepted and disables agent sandbox", func(t *testing.T) {
+	t.Run("sandbox.agent: false with feature flag is accepted and disables agent sandbox", func(t *testing.T) {
 		// Create temp directory for test workflows
 		workflowsDir := t.TempDir()
 
@@ -20,13 +20,15 @@ network:
   allowed:
     - defaults
     - github.com
+features:
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
 on: workflow_dispatch
 ---
 
-Test workflow to verify sandbox.agent: false is accepted and disables agent sandbox.
+Test workflow to verify sandbox.agent: false is accepted when the feature flag is set.
 `
 
 		workflowPath := filepath.Join(workflowsDir, "test-agent-false.md")
@@ -35,13 +37,13 @@ Test workflow to verify sandbox.agent: false is accepted and disables agent sand
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
 
-		// Compile the workflow
+		// Compile the workflow (validation runs unconditionally; validateSandboxConfig
+		// is not gated by skipValidation, so this exercises the feature-flag check)
 		compiler := NewCompiler()
-		compiler.SetSkipValidation(true)
 
-		// Should succeed in non-strict mode
+		// Should succeed when the feature flag is set
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
-			t.Fatalf("Expected compilation to succeed with sandbox.agent: false in non-strict mode, but got error: %v", err)
+			t.Fatalf("Expected compilation to succeed with sandbox.agent: false and feature flag, but got error: %v", err)
 		}
 
 		// Read the compiled workflow
@@ -153,6 +155,43 @@ Test workflow to verify default sandbox.agent behavior (awf).
 		// With network restrictions and no sandbox config, firewall should be enabled by default
 		if !strings.Contains(lockStr, "sudo -E awf") {
 			t.Error("Expected firewall to be enabled by default with network restrictions, but did not find 'sudo -E awf' command in lock file")
+		}
+	})
+}
+
+func TestSandboxAgentFalseRequiresFeatureFlag(t *testing.T) {
+	t.Run("sandbox.agent: false without feature flag is rejected", func(t *testing.T) {
+		workflowsDir := t.TempDir()
+
+		markdown := `---
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - github.com
+sandbox:
+  agent: false
+strict: false
+on: workflow_dispatch
+---
+
+Test workflow to verify sandbox.agent: false is rejected without the feature flag.
+`
+
+		workflowPath := filepath.Join(workflowsDir, "test-agent-false-no-flag.md")
+		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := NewCompiler()
+
+		err = compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail when sandbox.agent: false without feature flag, but got nil error")
+		}
+		if !strings.Contains(err.Error(), "dangerously-disable-sandbox-agent") {
+			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox-agent', got: %v", err)
 		}
 	})
 }

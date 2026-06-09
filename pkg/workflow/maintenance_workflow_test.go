@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateMaintenanceCron(t *testing.T) {
@@ -227,6 +228,31 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateMaintenanceWorkflow_CreatesWorkflowDirRecursively(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowDir := filepath.Join(tmpDir, "nested", "workflows")
+
+	err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: []*WorkflowData{
+			{
+				Name: "test-workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateDiscussions: &CreateDiscussionsConfig{
+						Expires: 24,
+					},
+				},
+			},
+		},
+		WorkflowDir: workflowDir,
+		Version:     "dev",
+		ActionMode:  ActionModeDev,
+	})
+	require.NoError(t, err)
+
+	_, statErr := os.Stat(filepath.Join(workflowDir, "agentics-maintenance.yml"))
+	require.NoError(t, statErr)
 }
 
 func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
