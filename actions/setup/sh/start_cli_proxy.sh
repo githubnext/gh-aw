@@ -81,7 +81,7 @@ start_cli_proxy_container() {
 
 wait_for_cli_proxy_ready() {
   local consecutive_ready=0
-  for i in $(seq 1 60); do
+  for _ in $(seq 1 60); do
     if [ -f "$TLS_DIR/ca.crt" ]; then
       if curl -sf --cacert "$TLS_DIR/ca.crt" "$LOCAL_HEALTH_URL" -o /dev/null 2>/dev/null && \
          curl -sf --cacert "$TLS_DIR/ca.crt" --resolve "$CLI_PROXY_RESOLVE_ENTRY" "$SIDECAR_HEALTH_URL" -o /dev/null 2>/dev/null; then
@@ -99,6 +99,10 @@ wait_for_cli_proxy_ready() {
   return 1
 }
 
+tail_cli_proxy_logs() {
+  docker logs awmg-cli-proxy 2>&1 | tail -20 || true
+}
+
 # Wait for TLS cert + health checks (up to 60s).
 # Require consecutive passing checks to survive brief startup blips.
 PROXY_READY=false
@@ -107,7 +111,7 @@ if start_cli_proxy_container "$CLI_PROXY_LISTEN_ADDR" && wait_for_cli_proxy_read
 else
   if [ "$CLI_PROXY_LISTEN_ADDR" = "[::]:${CLI_PROXY_DIAL_PORT}" ]; then
     echo "::warning::CLI proxy dual-stack listen failed to become ready, retrying with IPv4 listen address"
-    docker logs awmg-cli-proxy 2>&1 | tail -20 || true
+    tail_cli_proxy_logs
     CLI_PROXY_LISTEN_ADDR="0.0.0.0:${CLI_PROXY_DIAL_PORT}"
     echo "Retrying CLI proxy with listen address: $CLI_PROXY_LISTEN_ADDR"
     if start_cli_proxy_container "$CLI_PROXY_LISTEN_ADDR" && wait_for_cli_proxy_ready; then
@@ -118,7 +122,7 @@ fi
 
 if [ "$PROXY_READY" = "false" ]; then
   echo "::error::CLI proxy failed to start within 60s (listen=${CLI_PROXY_LISTEN_ADDR}, dial=${CLI_PROXY_DIAL_TARGET})"
-  docker logs awmg-cli-proxy 2>&1 | tail -20 || true
+  tail_cli_proxy_logs
   docker rm -f awmg-cli-proxy 2>/dev/null || true
   exit 1
 fi
