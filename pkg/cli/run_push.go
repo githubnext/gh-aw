@@ -371,6 +371,9 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository
 func pushWorkflowFiles(ctx context.Context, workflowName string, files []string, refOverride string, verbose bool) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	runPushLog.Printf("Pushing %d files for workflow: %s", len(files), workflowName)
 	runPushLog.Printf("Files to push: %v", files)
 
