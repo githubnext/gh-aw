@@ -124,6 +124,7 @@ tail_cli_proxy_logs() {
 # Wait for TLS cert + health checks (up to 60s).
 # Require consecutive passing checks to survive brief startup blips.
 PROXY_READY=false
+CLI_PROXY_FALLBACK_USED=false
 if start_cli_proxy_container "$CLI_PROXY_LISTEN_ADDR" && wait_for_cli_proxy_ready; then
   PROXY_READY=true
 else
@@ -131,6 +132,7 @@ else
     echo "::warning::CLI proxy dual-stack listen failed to become ready, retrying with IPv4 listen address"
     tail_cli_proxy_logs
     CLI_PROXY_LISTEN_ADDR="0.0.0.0:${CLI_PROXY_DIAL_PORT}"
+    CLI_PROXY_FALLBACK_USED=true
     echo "Retrying CLI proxy with listen address: $CLI_PROXY_LISTEN_ADDR"
     if start_cli_proxy_container "$CLI_PROXY_LISTEN_ADDR" && wait_for_cli_proxy_ready; then
       PROXY_READY=true
@@ -145,10 +147,14 @@ if [ "$PROXY_READY" = "false" ]; then
   exit 1
 fi
 
+echo "CLI proxy ready on ${CLI_PROXY_LISTEN_ADDR}"
+
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {
     echo "### CLI proxy startup diagnostics"
+    echo "- Startup result: ✅ ready"
     echo "- Listen address: \`$CLI_PROXY_LISTEN_ADDR\`"
+    echo "- IPv4 fallback used: \`$CLI_PROXY_FALLBACK_USED\`"
     echo "- Sidecar dial target: \`$CLI_PROXY_DIAL_TARGET\`"
     echo "- Readiness threshold: \`$CLI_PROXY_READY_THRESHOLD\` consecutive passing checks"
     echo "- Readiness attempts: \`$CLI_PROXY_MAX_READY_ATTEMPTS\` with \`${CLI_PROXY_READY_RETRY_SECONDS}s\` delay"
