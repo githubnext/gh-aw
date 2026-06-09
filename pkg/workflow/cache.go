@@ -794,7 +794,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		// Build description text
 		descriptionText := ""
 		if cache.Description != "" {
-			descriptionText = " " + cache.Description
+		descriptionText = cache.Description
 		}
 
 		// Build allowed extensions text.
@@ -812,7 +812,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 			Content: cacheMemoryPromptFile,
 			IsFile:  true,
 			EnvVars: map[string]string{
-				"GH_AW_CACHE_DIR":          "`" + cacheDir + "`",
+				"GH_AW_CACHE_DIR":          cacheDir,
 				"GH_AW_CACHE_DESCRIPTION":  descriptionText,
 				"GH_AW_ALLOWED_EXTENSIONS": allowedExtsText,
 			},

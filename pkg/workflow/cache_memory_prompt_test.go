@@ -29,7 +29,7 @@ func TestBuildCacheMemoryPromptSection_SingleDefaultCache(t *testing.T) {
 
 	// Verify environment variables
 	require.NotNil(t, section.EnvVars, "Should have environment variables")
-	assert.Equal(t, "`/tmp/gh-aw/cache-memory/`", section.EnvVars["GH_AW_CACHE_DIR"], "Should have correct cache directory")
+	assert.Equal(t, "/tmp/gh-aw/cache-memory/", section.EnvVars["GH_AW_CACHE_DIR"], "Should have correct cache directory")
 	assert.Empty(t, section.EnvVars["GH_AW_CACHE_DESCRIPTION"], "Should have empty description when not provided")
 	// No file type restrictions → placeholder is replaced with empty string
 	assert.Empty(t, section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"], "Should have empty allowed-extensions when none configured")
@@ -72,8 +72,8 @@ func TestBuildCacheMemoryPromptSection_SingleDefaultCacheWithDescription(t *test
 
 	// Verify environment variables include description
 	require.NotNil(t, section.EnvVars, "Should have environment variables")
-	assert.Equal(t, "`/tmp/gh-aw/cache-memory/`", section.EnvVars["GH_AW_CACHE_DIR"], "Should have correct cache directory")
-	assert.Equal(t, " My custom cache", section.EnvVars["GH_AW_CACHE_DESCRIPTION"], "Description should be prefixed with space")
+	assert.Equal(t, "/tmp/gh-aw/cache-memory/", section.EnvVars["GH_AW_CACHE_DIR"], "Should have correct cache directory")
+	assert.Equal(t, "My custom cache", section.EnvVars["GH_AW_CACHE_DESCRIPTION"], "Description should match input")
 }
 
 func TestBuildCacheMemoryPromptSection_MultipleCaches(t *testing.T) {
