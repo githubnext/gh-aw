@@ -422,10 +422,10 @@ func (acc *importAccumulator) appendConditionalYAMLStepsField(fm map[string]any,
 	builder.WriteString(applyIfConditionToStepsYAML(content, ifCondition) + "\n")
 }
 
-// importConditionToStepRegex matches "experiments.<name>" sub-expressions in an import
+// experimentConditionRegex matches "experiments.<name>" sub-expressions in an import
 // if: condition and rewrites them to "needs.activation.outputs.<name>" for use in
 // GitHub Actions step-level "if:" guards.
-var importConditionToStepRegex = regexp.MustCompile(`experiments\.(\w+)`)
+var experimentConditionRegex = regexp.MustCompile(`experiments\.(\w+)`)
 
 // transformImportConditionForStep converts an import-spec condition expression into the
 // equivalent expression for a GitHub Actions step "if:" field.
@@ -435,7 +435,7 @@ var importConditionToStepRegex = regexp.MustCompile(`experiments\.(\w+)`)
 //	experiments.log_fetch_strategy == 'eager'
 //	→ needs.activation.outputs.log_fetch_strategy == 'eager'
 func transformImportConditionForStep(condition string) string {
-	return importConditionToStepRegex.ReplaceAllString(condition, "needs.activation.outputs.$1")
+	return experimentConditionRegex.ReplaceAllString(condition, "needs.activation.outputs.$1")
 }
 
 // applyIfConditionToStepsYAML adds an "if:" guard to each step in a YAML steps list that
@@ -450,7 +450,7 @@ func applyIfConditionToStepsYAML(stepsYAML string, ifCondition string) string {
 	stepCondition := transformImportConditionForStep(ifCondition)
 	var steps []map[string]any
 	if err := yaml.UnmarshalWithOptions([]byte(stepsYAML), &steps, yaml.UseOrderedMap()); err != nil {
-		parserLog.Printf("Warning: failed to parse steps YAML for if-condition injection, using original: %v", err)
+		parserLog.Printf("Warning: failed to parse steps YAML for if-condition injection (condition=%q), using original: %v", ifCondition, err)
 		return stepsYAML
 	}
 	for i := range steps {
@@ -460,7 +460,7 @@ func applyIfConditionToStepsYAML(stepsYAML string, ifCondition string) string {
 	}
 	out, err := yaml.Marshal(steps)
 	if err != nil {
-		parserLog.Printf("Warning: failed to marshal steps YAML after if-condition injection, using original: %v", err)
+		parserLog.Printf("Warning: failed to marshal steps YAML after if-condition injection (condition=%q), using original: %v", ifCondition, err)
 		return stepsYAML
 	}
 	return strings.TrimSpace(string(out))
