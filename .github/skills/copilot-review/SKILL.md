@@ -41,10 +41,10 @@ When useful, use targeted filters to isolate in-scope items:
 
 ```bash
 # GitHub Actions and Copilot-originated review comments
-GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]?.comments[] | select(.author.login=="github-actions[bot]" or .author.login=="app/github-copilot")'
+GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]? | .comments[]? | select(.author.login=="github-actions[bot]" or .author.login=="app/github-copilot")'
 
 # Team/collaborator review comments by association
-GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]?.comments[] | select(.authorAssociation=="MEMBER" or .authorAssociation=="OWNER" or .authorAssociation=="COLLABORATOR")'
+GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]? | .comments[]? | select(.authorAssociation=="MEMBER" or .authorAssociation=="OWNER" or .authorAssociation=="COLLABORATOR")'
 ```
 
 ## Required Workflow

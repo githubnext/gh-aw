@@ -93,6 +93,7 @@ Use the `--jq` argument to filter and transform the output:
 
 **Find in-scope review feedback (team/collaborator + trusted automation):**
 ```bash
+# Trusted automation is matched by login; humans are matched by association.
 ./query-prs.sh --jq \
   '.[] | {number, title, reviews: [.reviews[]? | select(.author.login == "github-actions[bot]" or .author.login == "app/github-copilot" or .authorAssociation == "MEMBER" or .authorAssociation == "OWNER" or .authorAssociation == "COLLABORATOR")] }'
 ```
