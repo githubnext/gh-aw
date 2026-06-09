@@ -655,6 +655,12 @@ The compiler codebase maintains **good overall quality** with an average score o
 
 - **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
+### Tool Guardrails (Required)
+
+- Do **not** use inline Python shell snippets such as `shell(python3 -c "...")` or similar one-liners for reading/parsing files.
+- When you need file discovery or file content, prefer native tools (`glob`, `grep`, `view`) instead of ad-hoc shell scripting.
+- If Serena is unavailable, use allowed shell utilities (`grep`, `sed`, `head`, `tail`) rather than Python wrappers.
+
 ### Analysis Best Practices
 
 - **Be Objective**: Use concrete metrics from Serena, not subjective opinions

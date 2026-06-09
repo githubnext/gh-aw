@@ -776,9 +776,15 @@ lint-action-sh:
 	@echo "Checking action shell scripts for python/python3 invocations..."
 	@bash scripts/check-action-sh-no-python.sh
 
+# Lint workflow prompts — ensure no inline shell(python -c ...) patterns in workflow markdown
+.PHONY: lint-workflow-prompts
+lint-workflow-prompts:
+	@echo "Checking workflow prompts for inline shell(python -c ...) patterns..."
+	@bash scripts/check-workflow-prompts-no-inline-python.sh
+
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh lint-workflow-prompts
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -1016,6 +1022,7 @@ help:
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  lint-action-sh   - Lint action shell scripts for python/python3 invocations"
+	@echo "  lint-workflow-prompts - Lint workflow prompts for shell(python -c ...) patterns"
 	@echo "  check-file-sizes - Check Go file sizes and function counts (informational)"
 	@echo "  check-validator-sizes - Check *_validation.go files against the 768-line hard limit"
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck)"
