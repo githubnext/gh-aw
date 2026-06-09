@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -68,9 +69,8 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	defaultDevcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	devcontainerPath := defaultDevcontainerPath
 
-	// Create .devcontainer directory if it doesn't exist
 	devcontainerDir := ".devcontainer"
-	if err := os.MkdirAll(devcontainerDir, constants.DirPermPublic); err != nil {
+	if err := fileutil.EnsureParentDir(devcontainerPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .devcontainer directory: %w", err)
 	}
 	devcontainerLog.Printf("Ensured directory exists: %s", devcontainerDir)

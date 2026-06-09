@@ -283,6 +283,41 @@ func TestDirExists(t *testing.T) {
 	}
 }
 
+func TestEnsureParentDir(t *testing.T) {
+	t.Run("creates nested directories", func(t *testing.T) {
+		baseDir := t.TempDir()
+		targetPath := filepath.Join(baseDir, "nested", "deep", "file.txt")
+
+		require.NoError(t, EnsureParentDir(targetPath, 0o755))
+
+		info, err := os.Stat(filepath.Join(baseDir, "nested", "deep"))
+		require.NoError(t, err)
+		assert.True(t, info.IsDir())
+	})
+
+	t.Run("is idempotent when parent already exists", func(t *testing.T) {
+		baseDir := t.TempDir()
+		targetPath := filepath.Join(baseDir, "nested", "deep", "file.txt")
+
+		require.NoError(t, EnsureParentDir(targetPath, 0o755))
+		require.NoError(t, EnsureParentDir(targetPath, 0o755))
+	})
+
+	t.Run("rejects empty path", func(t *testing.T) {
+		err := EnsureParentDir("", 0o755)
+		require.ErrorContains(t, err, "path cannot be empty")
+	})
+
+	t.Run("returns error when parent cannot be created", func(t *testing.T) {
+		baseDir := t.TempDir()
+		blockingFile := filepath.Join(baseDir, "blocking")
+		require.NoError(t, os.WriteFile(blockingFile, []byte{}, 0o644))
+
+		err := EnsureParentDir(filepath.Join(blockingFile, "child", "file.txt"), 0o755)
+		require.ErrorContains(t, err, "failed to create parent directory")
+	})
+}
+
 func TestIsDirEmpty(t *testing.T) {
 	t.Run("empty directory returns true", func(t *testing.T) {
 		dir := t.TempDir()
