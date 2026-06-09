@@ -401,8 +401,7 @@ func ensureLogsGitignore() error {
 		return err // Not in a git repository, skip
 	}
 
-	logsDir := filepath.Join(gitRoot, ".github", "aw", "logs")
-	gitignorePath := filepath.Join(logsDir, ".gitignore")
+	gitignorePath := filepath.Join(gitRoot, ".github", "aw", "logs", ".gitignore")
 
 	// Check if .gitignore already exists
 	if _, err := os.Stat(gitignorePath); err == nil {
