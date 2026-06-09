@@ -161,7 +161,7 @@ jobs:
         shell: pwsh
         run: |
           Add-Content $env:GITHUB_STEP_SUMMARY "## Windows Integration Results"
-          Add-Content $env:GITHUB_STEP_SUMMARY "Completed: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') UTC"
+          Add-Content $env:GITHUB_STEP_SUMMARY "Completed: $(Get-Date -AsUTC -Format 'yyyy-MM-dd HH:mm:ss') UTC"
 
   conclusion:
     name: Conclusion
