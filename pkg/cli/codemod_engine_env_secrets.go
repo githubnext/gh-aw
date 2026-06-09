@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -275,9 +276,15 @@ func getTopLevelEnvSecretsGuidedErrorCodemod() Codemod {
 			}
 
 			var secretRefs []string
+			seenExpressions := make(map[string]bool)
 			for _, expr := range secretExpressions {
+				if seenExpressions[expr] {
+					continue
+				}
+				seenExpressions[expr] = true
 				secretRefs = append(secretRefs, expr)
 			}
+			sort.Strings(secretRefs)
 			engineEnvSecretsCodemodLog.Printf("Found %d secret(s) in top-level env section: %v", len(secretRefs), secretRefs)
 
 			return content, false, fmt.Errorf(

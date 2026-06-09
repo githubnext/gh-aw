@@ -25,7 +25,7 @@ func GetAllCodemods() []Codemod {
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
-		getWorkflowDispatchRequiredFalseCodemod(),  // Set required: false for slash/label command triggers
+		getWorkflowDispatchRequiredFalseCodemod(), // Set required: false for slash/label command triggers
 		getMCPScriptsModeCodemod(),
 		getUploadAssetsCodemod(),
 		getMigrateWritePermissionsToReadCodemod(),

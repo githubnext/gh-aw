@@ -133,17 +133,40 @@ func rewriteWorkflowDispatchRequiredFalse(lines []string) ([]string, bool) {
 			continue
 		}
 
-		// Enter inputs: within workflow_dispatch: (block form only, no inline value).
-		if inWD && !inInputs && strings.HasPrefix(trimmed, "inputs:") &&
-			strings.TrimSpace(strings.TrimPrefix(trimmed, "inputs:")) == "" {
-			inInputs = true
-			inputsIndent = indent
-			result = append(result, line)
-			continue
+		// Enter inputs: within workflow_dispatch: (allow trailing comments).
+		if inWD && !inInputs && strings.HasPrefix(trimmed, "inputs:") {
+			remainder := strings.TrimSpace(strings.TrimPrefix(trimmed, "inputs:"))
+			if remainder == "" || strings.HasPrefix(remainder, "#") {
+				inInputs = true
+				inputsIndent = indent
+				result = append(result, line)
+				continue
+			}
 		}
 
-		// Enter an individual input entry (direct child key of inputs:).
+		// Handle inline inputs maps (for example: "inputs: { pr_number: { required: true } }").
+		if inWD && strings.HasPrefix(trimmed, "inputs:") && strings.Contains(trimmed, "required: true") {
+			newLine := strings.ReplaceAll(line, "required: true", "required: false")
+			if newLine != line {
+				result = append(result, newLine)
+				modified = true
+				workflowDispatchRequiredLog.Print("Rewrote inline workflow_dispatch input required: true to required: false")
+				continue
+			}
+		}
+
+		// Enter individual input entries and handle inline input maps
+		// (for example: "pr_number: { required: true }").
 		if inInputs && !inInputEntry && len(indent) > len(inputsIndent) {
+			if strings.Contains(trimmed, "{") && strings.Contains(trimmed, "required: true") {
+				newLine := strings.ReplaceAll(line, "required: true", "required: false")
+				if newLine != line {
+					result = append(result, newLine)
+					modified = true
+					workflowDispatchRequiredLog.Print("Rewrote inline input entry required: true to required: false")
+					continue
+				}
+			}
 			inInputEntry = true
 			inputEntryIndent = indent
 			result = append(result, line)
