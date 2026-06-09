@@ -208,7 +208,11 @@ const cacheStatus = process.env.CACHE_STATUS
 let state = { cleaned_files: [], last_run: '', last_file: '', cache_hit_history: [] }
 try {
   state = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
-} catch (_) {}
+} catch (error) {
+  if (error.code !== 'ENOENT') {
+    console.warn(`Warning: failed to parse existing state file ${stateFile}: ${error.message}`)
+  }
+}
 
 if (!state.cleaned_files.some((entry) => entry.file === cleanedFile)) {
   state.cleaned_files.push({ file: cleanedFile, cleaned_at: today })

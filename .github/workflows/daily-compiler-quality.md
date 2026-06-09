@@ -685,7 +685,7 @@ The compiler codebase maintains **good overall quality** with an average score o
 
 ### Error Handling
 
-- If Serena is unavailable, fall back to basic static analysis with bash/grep
+- If Serena (the semantic MCP code-analysis server) is unavailable, fall back to basic static analysis with bash/grep
 - If a file cannot be analyzed, document the issue and skip to next file
 - If cache is corrupted, reinitialize and start fresh analysis
 
