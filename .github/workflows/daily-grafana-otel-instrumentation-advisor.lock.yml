@@ -566,8 +566,7 @@ jobs:
                     "required": true,
                     "type": "string",
                     "sanitize": true,
-                    "maxLength": 65000,
-                    "minLength": 20
+                    "maxLength": 65000
                   },
                   "fields": {
                     "type": "array"

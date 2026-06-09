@@ -313,6 +313,22 @@ func TestCreateDiscussionBodyMinLength(t *testing.T) {
 	}
 }
 
+func TestCreateIssueBodyMinLength(t *testing.T) {
+	config, ok := ValidationConfig["create_issue"]
+	if !ok {
+		t.Fatal("create_issue not found in ValidationConfig")
+	}
+
+	bodyField, ok := config.Fields["body"]
+	if !ok {
+		t.Fatal("body field not found in create_issue validation config")
+	}
+
+	if bodyField.MinLength != MinIssueBodyLength {
+		t.Errorf("create_issue body MinLength = %d, want %d", bodyField.MinLength, MinIssueBodyLength)
+	}
+}
+
 func TestFieldValidationMinLengthMarshaling(t *testing.T) {
 	field := FieldValidation{
 		Required:  true,

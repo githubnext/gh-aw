@@ -805,6 +805,26 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
     });
 
+    it("should reject create_issue body at minLength - 1", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const body = "Exactly nineteen ch";
+      expect(body.length).toBe(19);
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body }, "create_issue", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+    });
+
+    it("should reject create_issue body that is only whitespace", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "                         " }, "create_issue", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+    });
+
     it("should reject body shorter than minLength", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
