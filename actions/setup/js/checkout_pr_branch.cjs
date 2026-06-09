@@ -129,19 +129,40 @@ async function assertTrustedCheckoutRuntime() {
     throw new Error("Refusing PR checkout: unable to determine triggering actor");
   }
 
-  const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    username: actor,
-  });
-
-  const permission = permissionData?.permission || "none";
-  const hasWriteOrHigher = TRUSTED_CHECKOUT_PERMISSIONS.includes(permission);
-  if (!hasWriteOrHigher) {
-    throw new Error(`Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
+  // Bot and app actors (e.g. Copilot, dependabot[bot]) are not regular GitHub
+  // users and cannot be resolved via the collaborators API (returns 404).
+  // Trust them implicitly: the non-fork repository check above already ensures
+  // the workflow is running in a controlled context.
+  const senderType = context.payload.sender?.type;
+  if (senderType === "Bot" || senderType === "Mannequin") {
+    core.info(`Runtime safety check passed for bot/app actor '${actor}' (sender type: ${senderType})`);
+    return;
   }
 
-  core.info(`Runtime safety check passed for actor '${actor}' with '${permission}' permission`);
+  try {
+    const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      username: actor,
+    });
+
+    const permission = permissionData?.permission || "none";
+    const hasWriteOrHigher = TRUSTED_CHECKOUT_PERMISSIONS.includes(permission);
+    if (!hasWriteOrHigher) {
+      throw new Error(`Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
+    }
+
+    core.info(`Runtime safety check passed for actor '${actor}' with '${permission}' permission`);
+  } catch (err) {
+    // The collaborators API returns 404 for app/bot actors that are not regular
+    // GitHub users (e.g. when sender.type is unavailable in the event payload).
+    // Treat these as trusted within the already-verified non-fork context.
+    if (err.status === 404) {
+      core.info(`Runtime safety check passed for app actor '${actor}' (not a regular user)`);
+      return;
+    }
+    throw err;
+  }
 }
 
 async function main() {

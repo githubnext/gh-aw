@@ -257,6 +257,54 @@ If the pull request is still open, verify that:
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("requires write or higher"));
       });
+
+      it("should allow checkout for Bot actor without calling the collaborator API", async () => {
+        mockContext.actor = "Copilot";
+        mockContext.payload.sender = { login: "Copilot", type: "Bot" };
+
+        await runScript();
+
+        expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+        expect(mockCore.info).toHaveBeenCalledWith("Runtime safety check passed for bot/app actor 'Copilot' (sender type: Bot)");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      });
+
+      it("should allow checkout for Mannequin actor without calling the collaborator API", async () => {
+        mockContext.actor = "mannequin-user";
+        mockContext.payload.sender = { login: "mannequin-user", type: "Mannequin" };
+
+        await runScript();
+
+        expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+        expect(mockCore.info).toHaveBeenCalledWith("Runtime safety check passed for bot/app actor 'mannequin-user' (sender type: Mannequin)");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("should allow checkout when collaborator API returns 404 (app actor without sender type)", async () => {
+        mockContext.actor = "Copilot";
+        // No sender.type set — simulates an event payload without type info
+        const notAUserError = Object.assign(new Error("Copilot is not a user"), { status: 404 });
+        mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notAUserError);
+
+        await runScript();
+
+        expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
+        expect(mockCore.info).toHaveBeenCalledWith("Runtime safety check passed for app actor 'Copilot' (not a regular user)");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      });
+
+      it("should fail when collaborator API returns a non-404 error", async () => {
+        const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
+        mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(serverError);
+
+        await runScript();
+
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Internal Server Error"));
+      });
     });
 
     it("should handle git fetch errors", async () => {
