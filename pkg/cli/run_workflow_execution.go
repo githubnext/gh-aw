@@ -290,7 +290,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 		}
 
 		// Commit and push the files (includes branch verification if --ref is specified)
-		if err := pushWorkflowFiles(workflowIdOrName, files, opts.RefOverride, opts.Verbose); err != nil {
+		if err := pushWorkflowFiles(ctx, workflowIdOrName, files, opts.RefOverride, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to push workflow files: %w", err)
 		}
 
