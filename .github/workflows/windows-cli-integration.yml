@@ -1,0 +1,213 @@
+name: Daily Windows CLI Integration
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download Go modules
+        if: steps.setup-go.outputs.cache-hit != 'true'
+        run: go mod download
+
+      - name: Build Windows binary (cross-compile)
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go build -ldflags "-s -w" -o gh-aw.exe ./cmd/gh-aw
+          echo "✅ Built gh-aw.exe ($(du -h gh-aw.exe | cut -f1))" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: gh-aw-windows-amd64
+          path: gh-aw.exe
+          retention-days: 1
+
+  integration:
+    name: Windows Integration Tests
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      BINARY: ${{ github.workspace }}\gh-aw.exe
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+        with:
+          name: gh-aw-windows-amd64
+
+      - name: Verify binary
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path $env:BINARY)) { throw "gh-aw.exe not found at $env:BINARY" }
+          $size = (Get-Item $env:BINARY).Length
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Binary found ($size bytes)"
+
+      # pwsh (PowerShell Core) - explicit per-command timeouts via WaitForExit
+      - name: "[pwsh] --help with timeout"
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "--help" -PassThru -NoNewWindow
+          if (-Not $proc.WaitForExit(30000)) {
+            $proc.Kill()
+            throw "TIMEOUT: --help hung for 30s in pwsh"
+          }
+          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] --help OK"
+
+      - name: "[pwsh] version with timeout"
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "version" -PassThru -NoNewWindow
+          if (-Not $proc.WaitForExit(30000)) {
+            $proc.Kill()
+            throw "TIMEOUT: version hung for 30s in pwsh"
+          }
+          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] version OK"
+
+      - name: "[pwsh] compile --help with timeout"
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "compile","--help" -PassThru -NoNewWindow
+          if (-Not $proc.WaitForExit(30000)) {
+            $proc.Kill()
+            throw "TIMEOUT: compile --help hung for 30s in pwsh"
+          }
+          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] compile --help OK"
+
+      # Explicit check for stdin-blocking hang (common bubbletea/TUI regression)
+      - name: "[pwsh] stdin hang detection"
+        shell: pwsh
+        run: |
+          $psi = [System.Diagnostics.ProcessStartInfo]::new($env:BINARY, "--help")
+          $psi.RedirectStandardInput = $true
+          $psi.UseShellExecute = $false
+          $proc = [System.Diagnostics.Process]::Start($psi)
+          $proc.StandardInput.Close()
+          if (-Not $proc.WaitForExit(15000)) {
+            $proc.Kill()
+            throw "HANG DETECTED: binary blocked on stdin - TUI may be reading terminal input inappropriately"
+          }
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] No stdin hang detected"
+
+      # Windows PowerShell (legacy powershell.exe) - catches PS 5.x-specific regressions
+      - name: "[powershell] --help with timeout"
+        shell: powershell
+        run: |
+          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "--help" -PassThru -NoNewWindow
+          if (-Not $proc.WaitForExit(30000)) {
+            $proc.Kill()
+            throw "TIMEOUT: --help hung for 30s in Windows PowerShell"
+          }
+          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          Write-Output "[powershell] --help OK"
+
+      - name: "[powershell] version with timeout"
+        shell: powershell
+        run: |
+          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "version" -PassThru -NoNewWindow
+          if (-Not $proc.WaitForExit(30000)) {
+            $proc.Kill()
+            throw "TIMEOUT: version hung for 30s in Windows PowerShell"
+          }
+          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          Write-Output "[powershell] version OK"
+
+      # cmd.exe - catches Win32 console and PATH resolution regressions
+      # Per-command timeout not available in cmd; job-level timeout-minutes: 20 applies
+      - name: "[cmd] --help"
+        shell: cmd
+        run: |
+          "%BINARY%" --help
+          if errorlevel 1 exit /b 1
+
+      - name: "[cmd] version"
+        shell: cmd
+        run: |
+          "%BINARY%" version
+          if errorlevel 1 exit /b 1
+
+      - name: Integration summary
+        if: always()
+        shell: pwsh
+        run: |
+          Add-Content $env:GITHUB_STEP_SUMMARY "## Windows Integration Results"
+          Add-Content $env:GITHUB_STEP_SUMMARY "Completed: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') UTC"
+
+  conclusion:
+    name: Conclusion
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build, integration]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Evaluate outcomes
+        id: evaluate
+        run: |
+          BUILD="${{ needs.build.result }}"
+          INTEGRATION="${{ needs.integration.result }}"
+          FAILED=""
+          [ "$BUILD" != "success" ] && FAILED="build($BUILD)"
+          [ "$INTEGRATION" != "success" ] && FAILED="${FAILED:+$FAILED, }integration($INTEGRATION)"
+          if [ -n "$FAILED" ]; then
+            echo "failed=true" >> $GITHUB_OUTPUT
+            echo "failed_jobs=$FAILED" >> $GITHUB_OUTPUT
+            echo "❌ Failed jobs: $FAILED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "failed=false" >> $GITHUB_OUTPUT
+            echo "✅ All Windows integration jobs passed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create failure issue
+        if: steps.evaluate.outputs.failed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "❌ Windows integration failure: ${{ steps.evaluate.outputs.failed_jobs }}" \
+            --body "## Windows CLI Integration Failure
+
+          **Failed jobs:** ${{ steps.evaluate.outputs.failed_jobs }}
+
+          **Run:** ${RUN_URL}
+
+          **Date:** $(date -u '+%Y-%m-%d %H:%M UTC')
+
+          This issue was created automatically by the daily Windows CLI integration workflow."
+
+      - name: Fail if any job failed
+        if: steps.evaluate.outputs.failed == 'true'
+        run: exit 1
