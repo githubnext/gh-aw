@@ -1111,11 +1111,11 @@ function loadMissingToolMessages(items) {
 }
 
 /**
- * Determine whether a missing_tool message represents repeated permission denial.
- * @param {{tool: string|null, denied_commands?: Array<string>}} message
+ * Determine whether a missing_tool message represents permission denial.
+ * @param {{tool: string|null, denied_commands: Array<string>}} message
  * @returns {boolean}
  */
-function isRepeatedPermissionDeniedMissingTool(message) {
+function isPermissionDeniedMissingTool(message) {
   return message.tool === "tool/permission" && Array.isArray(message.denied_commands) && message.denied_commands.length > 0;
 }
 
@@ -1125,7 +1125,7 @@ function isRepeatedPermissionDeniedMissingTool(message) {
  * @returns {string} Formatted missing tool context
  */
 function buildMissingToolContext(items) {
-  const missingToolMessages = loadMissingToolMessages(items).filter(message => !isRepeatedPermissionDeniedMissingTool(message));
+  const missingToolMessages = loadMissingToolMessages(items).filter(message => !isPermissionDeniedMissingTool(message));
 
   if (missingToolMessages.length === 0) {
     return "";
@@ -1151,9 +1151,7 @@ function buildMissingToolContext(items) {
  */
 function buildPermissionDeniedContext(items, workflowId) {
   const missingToolMessages = loadMissingToolMessages(items);
-
-  const isPermissionDeniedItem = m => m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0;
-  const permissionItems = missingToolMessages.filter(isPermissionDeniedItem);
+  const permissionItems = missingToolMessages.filter(isPermissionDeniedMissingTool);
 
   if (permissionItems.length === 0) {
     return "";

@@ -2238,6 +2238,20 @@ describe("handle_agent_failure", () => {
       expect(buildMissingToolContext()).toBe("");
     });
 
+    it("does not suppress tool/permission entry when denied_commands is empty", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_tool", tool: "tool/permission", reason: "permission queried", denied_commands: [] }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingToolContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingToolContext();
+      expect(result).toContain("Missing Tools Reported");
+      expect(result).toContain("tool/permission");
+    });
+
     it("keeps non-permission missing tools when permission-denied entries are present", () => {
       fs.writeFileSync(
         path.join(tmpDir, "agent_output.json"),
