@@ -101,6 +101,9 @@ wait_for_cli_proxy_ready() {
   local consecutive_ready=0
   for _ in $(seq 1 "$CLI_PROXY_MAX_READY_ATTEMPTS"); do
     if [ -f "$TLS_DIR/ca.crt" ]; then
+      # Verify both perspectives:
+      # 1) direct local loopback readiness, and
+      # 2) sidecar-equivalent host alias route that AWF uses.
       if curl -sf --cacert "$TLS_DIR/ca.crt" "$LOCAL_HEALTH_URL" -o /dev/null 2>/dev/null && \
          curl -sf --cacert "$TLS_DIR/ca.crt" --resolve "$CLI_PROXY_RESOLVE_ENTRY" "$SIDECAR_HEALTH_URL" -o /dev/null 2>/dev/null; then
         consecutive_ready=$((consecutive_ready + 1))
@@ -129,7 +132,7 @@ if start_cli_proxy_container "$CLI_PROXY_LISTEN_ADDR" && wait_for_cli_proxy_read
   PROXY_READY=true
 else
   if [ "$CLI_PROXY_LISTEN_ADDR" = "[::]:${CLI_PROXY_DIAL_PORT}" ]; then
-    echo "::warning::CLI proxy dual-stack listen failed to become ready, retrying with IPv4 listen address"
+    echo "::warning::CLI proxy dual-stack listen failed; automatically falling back to IPv4-only listen address"
     tail_cli_proxy_logs
     CLI_PROXY_LISTEN_ADDR="0.0.0.0:${CLI_PROXY_DIAL_PORT}"
     CLI_PROXY_FALLBACK_USED=true
