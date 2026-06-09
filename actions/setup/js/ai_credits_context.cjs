@@ -12,7 +12,9 @@ const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason",
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
 const MAX_AI_CREDITS_EXCEEDED_FIELDS = new Set(["max_ai_credits_exceeded", "maxAiCreditsExceeded"]);
 const BUDGET_EXCEEDED_EVENT = "budget_exceeded";
-const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\(([\d.]+)\s*\/\s*([\d.]+)\))?/i;
+const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?/i;
+const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
+const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
 
 /**
  * @param {unknown} value
@@ -296,11 +298,30 @@ function parseAICreditsExceededFromAgentStdio() {
   const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false, maxAICreditsExceeded: false };
   try {
     const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-    const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+    // Derive the stdio log path from GH_AW_AGENT_OUTPUT when set, but always
+    // fall back to the well-known default so directory-valued env vars don't
+    // silently break detection.
+    const derivedPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : null;
+    const stdioLogPath = derivedPath && fs.existsSync(derivedPath) ? derivedPath : DEFAULT_AGENT_STDIO_LOG;
     if (!fs.existsSync(stdioLogPath)) return initial;
-    const content = fs.readFileSync(stdioLogPath, "utf8");
-    if (!content) return initial;
-    const match = content.match(MAX_AI_CREDITS_EXCEEDED_STDIO_RE);
+    // Read only the tail to avoid OOM on large logs; the error token always
+    // appears near the end of the file.
+    const stat = fs.statSync(stdioLogPath);
+    if (stat.size === 0) return initial;
+    const readSize = Math.min(stat.size, AGENT_STDIO_LOG_MAX_TAIL);
+    const buf = Buffer.alloc(readSize);
+    const fd = fs.openSync(stdioLogPath, "r");
+    try {
+      fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
+    } finally {
+      fs.closeSync(fd);
+    }
+    const content = buf.toString("utf8");
+    // Use matchAll and take the last occurrence — in retried runs the final
+    // entry carries the authoritative (highest) credit values.
+    const RE_G = new RegExp(MAX_AI_CREDITS_EXCEEDED_STDIO_RE.source, "gi");
+    const allMatches = [...content.matchAll(RE_G)];
+    const match = allMatches.at(-1);
     if (!match) return initial;
     const aiCredits = parsePositiveNumberString(match[1] || "");
     const maxAICredits = parsePositiveNumberString(match[2] || "");
