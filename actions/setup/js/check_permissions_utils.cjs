@@ -239,18 +239,28 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     });
 
     const permission = repoPermission.data.permission;
-    core.info(`Repository permission level: ${permission}`);
+    const rawRoleName = repoPermission.data.role_name;
+    const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
+    const normalizedRoleName = roleName === "maintainer" ? "maintain" : roleName;
+    const normalizedPermission = permission === "maintainer" ? "maintain" : permission;
+    const effectiveRole = normalizedRoleName || normalizedPermission;
+    const logDetails = normalizedRoleName && normalizedRoleName !== normalizedPermission ? `${normalizedPermission} (role: ${normalizedRoleName})` : normalizedPermission;
+    core.info(`Repository permission level: ${logDetails}`);
 
-    // Check if user has one of the required permission levels
-    const hasPermission = requiredPermissions.some(requiredPerm => permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain"));
+    // Check if user has one of the required permission levels.
+    // Prefer role_name (API's precise repository role) when present; fall back to permission.
+    const hasPermission = requiredPermissions.some(requiredPerm => {
+      const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
+      return normalizedRequired === effectiveRole;
+    });
 
     if (hasPermission) {
-      core.info(`✅ User has ${permission} access to repository`);
-      return { authorized: true, permission };
+      core.info(`✅ User has ${effectiveRole} access to repository`);
+      return { authorized: true, permission: effectiveRole };
     }
 
-    core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-    return { authorized: false, permission };
+    core.warning(`User permission '${effectiveRole}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+    return { authorized: false, permission: effectiveRole };
   } catch (repoError) {
     const errorMessage = getErrorMessage(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);

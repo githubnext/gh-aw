@@ -135,7 +135,7 @@ func validateBlockScalarExpressionSizes(lines []string, maxSize int) error {
 
 		if inBlock {
 			// An empty line is part of the block (blank lines are allowed inside block scalars).
-			if len(strings.TrimSpace(line)) == 0 {
+			if strings.TrimSpace(line) == "" {
 				blockSize += len(line) + 1 // +1 for the newline
 				continue
 			}

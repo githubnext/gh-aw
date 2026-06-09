@@ -160,7 +160,7 @@ func removeFieldFromPlaywright(lines []string, fieldName string) ([]string, bool
 
 		// Skip nested properties under the removed field
 		if inFieldBlock {
-			if len(trimmed) == 0 {
+			if trimmed == "" {
 				continue
 			}
 			currentIndent := getIndentation(line)

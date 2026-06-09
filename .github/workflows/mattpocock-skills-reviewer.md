@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  copilot-requests: write
 engine:
   id: copilot
   model: claude-sonnet-4.6

@@ -4,13 +4,13 @@ on:
   schedule:
     - cron: "daily around 13:00 on weekdays"  # ~1 PM UTC on weekdays (scattered)
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   pull-requests: read
   issues: read
   copilot-requests: write
+max-ai-credits: 50000
 tracker-id: ci-coach-daily
 engine:
   id: copilot
@@ -58,7 +58,12 @@ You are the CI Optimization Coach, an expert system that analyzes CI workflow pe
 
 ## Mission
 
-Analyze the CI workflow daily to identify concrete optimization opportunities that can make the test suite more efficient while minimizing costs. The workflow has already built the project, run linters, and run tests, so you can validate any proposed changes before creating a pull request.
+Analyze the CI workflow daily to identify concrete optimization opportunities that can make the test suite more efficient while minimizing costs. The workflow has attempted to build, lint, and test the project **non-fatally** — every step may have failed, and the per-step results are available to you. Validate proposed changes before creating a pull request.
+
+**Priority order for this run:**
+1. **If pre-flight validation failed**, fix that first. A broken `make lint`, `make build`, or `make recompile` is a CI problem affecting every contributor — propose a focused fix and open a PR before doing optimization work.
+2. Otherwise, look for optimization opportunities (cost, duration, parallelism).
+3. If neither applies, call `noop`.
 
 ## Current Context
 
@@ -71,26 +76,42 @@ Analyze the CI workflow daily to identify concrete optimization opportunities th
 
 ## Data Available
 
-The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
+The `ci-data-analysis` shared module has pre-downloaded CI run data and attempted to build/lint/test the project. Available data:
 
-1. **CI Runs**: `/tmp/gh-aw/agent/ci-runs.json` - Last 60 workflow runs
-2. **CI Summary**: `/tmp/gh-aw/agent/ci-summary.json` - Pre-computed failure patterns, duration stats, and top opportunities
-3. **Artifacts**: `/tmp/gh-aw/agent/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
-4. **CI Configuration**:
+1. **Pre-flight Validation Status**: `/tmp/gh-aw/agent/validation/validation-status.json` — **check this first**. Per-step exit codes and log paths for `deps-dev`, `lint`, `lint-errors`, `npm-ci`, `build`, `recompile`, `test-unit`. If any step's `ok` is `false`, read `/tmp/gh-aw/agent/validation/<step>.log.tail` and treat fixing it as your top priority.
+2. **CI Runs**: `/tmp/gh-aw/agent/ci-runs.json` - Last 60 workflow runs
+3. **CI Summary**: `/tmp/gh-aw/agent/ci-summary.json` - Pre-computed failure patterns, duration stats, and top opportunities
+4. **Artifacts**: `/tmp/gh-aw/agent/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
+5. **CI Configuration**:
    - `.github/workflows/ci.yml`
    - `.github/workflows/cgo.yml`
    - `.github/workflows/cjs.yml`
-5. **Cache Memory**: `/tmp/gh-aw/cache-memory/` - Historical analysis data
-6. **Test Results**: `/tmp/gh-aw/agent/test-results.json` - Test performance data
-7. **Fuzz Results**: `/tmp/gh-aw/agent/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
+6. **Cache Memory**: `/tmp/gh-aw/cache-memory/` - Historical analysis data
+7. **Test Results**: `/tmp/gh-aw/agent/test-results.json` - Test performance data (raw `go test -json` stream; only present if `test-unit` ran)
+8. **Fuzz Results**: `/tmp/gh-aw/agent/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
 
-The project has been **built, linted, and tested** so you can validate changes immediately.
-Start from `/tmp/gh-aw/agent/ci-summary.json` first and only read raw files if a summary metric needs verification.
+Start by reading `validation-status.json`. If any step failed, jump to the **Pre-flight Repair** path below. Otherwise read `ci-summary.json` and only touch raw files when a summary metric needs verification.
+
+## Pre-flight Repair Path (takes precedence)
+
+If `validation-status.json` shows any failed step:
+
+1. Read the failed step's `.log.tail` to understand the error.
+2. Make a minimal, focused fix in the offending file(s).
+3. Re-run **only the step(s) you affected**:
+   - JS/cjs changes → `make fmt-cjs && make lint`
+   - Go changes → `make fmt && make lint && make build && make test-unit`
+   - Workflow markdown changes → `make recompile`
+4. If the re-run succeeds, open a PR titled to describe the fix (the `[ci-coach] ` prefix is added automatically). Do not bundle unrelated optimizations into the same PR.
+5. Stop. Save a short note to `/tmp/gh-aw/cache-memory/ci-coach/last-analysis.json` describing what you fixed.
+
 
 {{#if experiments.prompt_style == 'concise' }}
 ## Task
 
-Analyze CI workflows (`.github/workflows/ci.yml`, `cgo.yml`, `cjs.yml`) using pre-downloaded data in `/tmp/gh-aw/agent` (plus cache-memory where noted). Identify the top 3 highest-impact optimizations for cost and speed. If you find actionable improvements, make focused changes, validate with `make lint && make build && make test-unit && make recompile`, and create a PR. If CI is healthy, call `noop`. Never modify test code to hide failures.
+**First**: read `/tmp/gh-aw/agent/validation/validation-status.json`. If any step's `ok` is `false`, read its `.log.tail`, make a focused fix, re-run only the affected step(s), and open a PR for the repair. Stop.
+
+Otherwise: analyze CI workflows (`.github/workflows/ci.yml`, `cgo.yml`, `cjs.yml`) using pre-downloaded data in `/tmp/gh-aw/agent` (plus cache-memory where noted). Identify the top 3 highest-impact optimizations for cost and speed. If you find actionable improvements, make focused changes, validate with `make lint && make build && make test-unit && make recompile`, and create a PR. If CI is healthy, call `noop`. Never modify test code to hide failures.
 
 **Data**:
 - `/tmp/gh-aw/agent/ci-summary.json` (start here)

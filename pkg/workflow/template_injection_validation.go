@@ -85,7 +85,7 @@ func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regex
 	for line := range strings.SplitSeq(yamlContent, "\n") {
 		// Compute indentation first; skip blank and all-whitespace lines in one step.
 		trimmed := strings.TrimLeft(line, " \t")
-		if len(trimmed) == 0 {
+		if trimmed == "" {
 			// Blank / all-whitespace lines are allowed inside block scalars.
 			continue
 		}

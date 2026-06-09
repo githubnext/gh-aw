@@ -46,6 +46,15 @@ func TestParseGitHubURL(t *testing.T) {
 			wantErr:          false,
 		},
 		{
+			name:             "blob URL with long hyphenated repo name",
+			url:              "https://github.com/owner/this-repository-name-is-significantly-longer-than-thirty-nine/blob/main/workflows/release.md",
+			wantRepo:         "owner/this-repository-name-is-significantly-longer-than-thirty-nine",
+			wantWorkflowPath: "workflows/release.md",
+			wantWorkflowName: "release",
+			wantVersion:      "main",
+			wantErr:          false,
+		},
+		{
 			name:        "invalid - non-github domain",
 			url:         "https://gitlab.com/owner/repo/blob/main/workflows/test.md",
 			wantErr:     true,

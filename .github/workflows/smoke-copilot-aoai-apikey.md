@@ -28,6 +28,10 @@ engine:
   env:
     COPILOT_PROVIDER_BASE_URL: ${{ secrets.FOUNDRY_OPENAI_ENDPOINT }}
     COPILOT_PROVIDER_API_KEY: ${{ secrets.FOUNDRY_API_KEY }}
+    # o4-mini is a reasoning (o-series) model: the Copilot CLI defaults custom
+    # providers to the legacy "completions" wire API, which the Azure o4-mini
+    # deployment rejects with HTTP 400. Force the "responses" wire API instead.
+    COPILOT_PROVIDER_WIRE_API: responses
 imports:
   - shared/github-guard-policy.md
   - shared/gh.md

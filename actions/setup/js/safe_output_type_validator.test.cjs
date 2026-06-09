@@ -14,7 +14,7 @@ const SAMPLE_VALIDATION_CONFIG = {
     defaultMax: 1,
     fields: {
       title: { required: true, type: "string", sanitize: true, maxLength: 128 },
-      body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+      body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 20 },
       labels: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 128 },
       parent: { issueOrPRNumber: true },
       temporary_id: { type: "string" },
@@ -196,7 +196,7 @@ describe("safe_output_type_validator", () => {
     it("should validate create_issue with all required fields", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "Test body" }, "create_issue", 1);
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "Detailed issue body text." }, "create_issue", 1);
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem).toBeDefined();
@@ -205,7 +205,7 @@ describe("safe_output_type_validator", () => {
     it("should fail validation when required title is missing", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", body: "Test body" }, "create_issue", 1);
+      const result = validateItem({ type: "create_issue", body: "Detailed issue body text." }, "create_issue", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("title");
@@ -223,7 +223,7 @@ describe("safe_output_type_validator", () => {
     it("should sanitize string fields", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", title: "Test @mention Issue", body: "Test body" }, "create_issue", 1);
+      const result = validateItem({ type: "create_issue", title: "Test @mention Issue", body: "Detailed issue body text." }, "create_issue", 1);
 
       expect(result.isValid).toBe(true);
       // The sanitizeContent function converts @mentions to backticked format
@@ -263,7 +263,7 @@ describe("safe_output_type_validator", () => {
     it("should not normalize backticked closing references when disabled", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", title: "Test", body: "Closes `#123`" }, "create_issue", 1, { normalizeIssueClosingKeywords: false });
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed context. Closes `#123`" }, "create_issue", 1, { normalizeIssueClosingKeywords: false });
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.body).toContain("`#123`");
@@ -776,6 +776,55 @@ describe("safe_output_type_validator", () => {
   });
 
   describe("minLength validation", () => {
+    it("should reject create_issue body shorter than minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "Short" }, "create_issue", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+      expect(result.error).toContain("20");
+    });
+
+    it("should accept create_issue body that meets minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const body = "Detailed issue body with clear context.";
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should accept create_issue body at exact minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const body = "Exactly twenty chars";
+      expect(body.length).toBe(20);
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should reject create_issue body at minLength - 1", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const body = "Exactly nineteen ch";
+      expect(body.length).toBe(19);
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body }, "create_issue", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+    });
+
+    it("should reject create_issue body that is only whitespace", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "                         " }, "create_issue", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+    });
+
     it("should reject body shorter than minLength", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
@@ -818,7 +867,7 @@ describe("safe_output_type_validator", () => {
     it("should validate array of strings", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", title: "Test", body: "Body", labels: ["bug", "enhancement"] }, "create_issue", 1);
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: ["bug", "enhancement"] }, "create_issue", 1);
 
       expect(result.isValid).toBe(true);
       expect(Array.isArray(result.normalizedItem.labels)).toBe(true);
@@ -827,7 +876,7 @@ describe("safe_output_type_validator", () => {
     it("should reject array with non-string items", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", title: "Test", body: "Body", labels: ["bug", 123] }, "create_issue", 1);
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: ["bug", 123] }, "create_issue", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must contain only strings");
@@ -873,7 +922,7 @@ describe("safe_output_type_validator", () => {
       const item = {
         type: "create_issue",
         title: "Test",
-        body: "Body text",
+        body: "Detailed issue body text.",
         metadata: { project: "test" },
       };
 

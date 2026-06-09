@@ -2,7 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -227,8 +227,15 @@ func FinalizeToolMetrics(opts FinalizeToolMetricsOptions) {
 	}
 
 	// Sort tool calls by name for consistent output
-	sort.Slice(opts.Metrics.ToolCalls, func(i, j int) bool {
-		return opts.Metrics.ToolCalls[i].Name < opts.Metrics.ToolCalls[j].Name
+	slices.SortFunc(opts.Metrics.ToolCalls, func(a, b ToolCallInfo) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	metricsLog.Printf("FinalizeToolMetrics: turns=%d, tokenUsage=%d, toolCalls=%d, sequences=%d",
@@ -255,8 +262,15 @@ func FinalizeToolCallsAndSequence(
 	}
 
 	// Sort tool calls by name for consistent output
-	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
-		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
+	slices.SortFunc(metrics.ToolCalls, func(a, b ToolCallInfo) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	metricsLog.Printf("FinalizeToolCallsAndSequence: toolCalls=%d, sequences=%d", len(metrics.ToolCalls), len(metrics.ToolSequences))

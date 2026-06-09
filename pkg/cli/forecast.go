@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -329,16 +330,22 @@ func RunForecast(config ForecastConfig) error {
 	}
 
 	// Sort results by Monte Carlo P50 (or point estimate when MC unavailable) descending.
-	sort.Slice(results, func(i, j int) bool {
-		pi := results[i].ProjectedAIC
-		if mc := results[i].MonteCarlo; mc != nil {
+	slices.SortFunc(results, func(a, b ForecastWorkflowResult) int {
+		pi := a.ProjectedAIC
+		if mc := a.MonteCarlo; mc != nil {
 			pi = mc.P50ProjectedAIC
 		}
-		pj := results[j].ProjectedAIC
-		if mc := results[j].MonteCarlo; mc != nil {
+		pj := b.ProjectedAIC
+		if mc := b.MonteCarlo; mc != nil {
 			pj = mc.P50ProjectedAIC
 		}
-		return pi > pj
+		if pi > pj {
+			return -1
+		}
+		if pi < pj {
+			return 1
+		}
+		return 0
 	})
 
 	output := ForecastResult{
@@ -837,11 +844,21 @@ func extractExperimentVariantStubs(cfg *workflow.FrontmatterConfig) []ForecastVa
 			})
 		}
 	}
-	sort.Slice(stubs, func(i, j int) bool {
-		if stubs[i].ExperimentName != stubs[j].ExperimentName {
-			return stubs[i].ExperimentName < stubs[j].ExperimentName
+	slices.SortFunc(stubs, func(a, b ForecastVariantResult) int {
+		if a.ExperimentName != b.ExperimentName {
+			if a.ExperimentName < b.ExperimentName {
+				return -1
+			}
+			return 1
 		}
-		return stubs[i].Variant < stubs[j].Variant
+		switch {
+		case a.Variant < b.Variant:
+			return -1
+		case a.Variant > b.Variant:
+			return 1
+		default:
+			return 0
+		}
 	})
 	return stubs
 }
@@ -1032,16 +1049,22 @@ func emitPartialForecastResults(results []ForecastWorkflowResult, config Forecas
 		fmt.Sprintf("Forecast interrupted; emitting partial results for %d workflow(s) processed so far.", len(results))))
 
 	// Sort partial results by Monte Carlo P50 descending (mirrors the full-results sort).
-	sort.Slice(results, func(i, j int) bool {
-		pi := results[i].ProjectedAIC
-		if mc := results[i].MonteCarlo; mc != nil {
+	slices.SortFunc(results, func(a, b ForecastWorkflowResult) int {
+		pi := a.ProjectedAIC
+		if mc := a.MonteCarlo; mc != nil {
 			pi = mc.P50ProjectedAIC
 		}
-		pj := results[j].ProjectedAIC
-		if mc := results[j].MonteCarlo; mc != nil {
+		pj := b.ProjectedAIC
+		if mc := b.MonteCarlo; mc != nil {
 			pj = mc.P50ProjectedAIC
 		}
-		return pi > pj
+		if pi > pj {
+			return -1
+		}
+		if pi < pj {
+			return 1
+		}
+		return 0
 	})
 
 	output := ForecastResult{

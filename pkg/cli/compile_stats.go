@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -252,8 +252,14 @@ func displayStatsTable(statsList []*WorkflowStats) {
 	compileStatsLog.Printf("Displaying stats table: workflow_count=%d", len(statsList))
 
 	// Sort by file size (descending)
-	sort.Slice(statsList, func(i, j int) bool {
-		return statsList[i].FileSize > statsList[j].FileSize
+	slices.SortFunc(statsList, func(a, b *WorkflowStats) int {
+		if a.FileSize > b.FileSize {
+			return -1
+		}
+		if a.FileSize < b.FileSize {
+			return 1
+		}
+		return 0
 	})
 
 	// Calculate totals

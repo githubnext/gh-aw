@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -132,14 +133,27 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 	}
 
 	// Sort transitions by count (descending) for better visualization
-	sort.Slice(transitions, func(i, j int) bool {
-		if transitions[i].Count != transitions[j].Count {
-			return transitions[i].Count > transitions[j].Count
+	slices.SortFunc(transitions, func(a, b ToolTransition) int {
+		if a.Count != b.Count {
+			if a.Count > b.Count {
+				return -1
+			}
+			return 1
 		}
-		if transitions[i].From != transitions[j].From {
-			return transitions[i].From < transitions[j].From
+		if a.From != b.From {
+			if a.From < b.From {
+				return -1
+			}
+			return 1
 		}
-		return transitions[i].To < transitions[j].To
+		switch {
+		case a.To < b.To:
+			return -1
+		case a.To > b.To:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	for _, transition := range transitions {

@@ -91,7 +91,7 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 		trimmed := strings.TrimSpace(line)
 
 		// Skip empty lines without resetting state
-		if len(trimmed) == 0 {
+		if trimmed == "" {
 			result = append(result, line)
 			continue
 		}

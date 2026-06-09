@@ -788,7 +788,7 @@ func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
 	if len(slashParts) < 2 || slashParts[0] == "" || slashParts[1] == "" {
 		return nil, false, nil
 	}
-	if !parser.IsValidGitHubIdentifier(slashParts[0]) || !parser.IsValidGitHubIdentifier(slashParts[1]) {
+	if !parser.IsValidGitHubIdentifier(slashParts[0]) || !parser.IsValidGitHubRepositoryName(slashParts[1]) {
 		return nil, false, nil
 	}
 

@@ -10,6 +10,8 @@ const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error
 // rate-limit signals can appear in any of them. This asymmetry vs parseMaxAICreditsFromAuditLog is deliberate.
 const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
+const MAX_AI_CREDITS_EXCEEDED_FIELDS = new Set(["max_ai_credits_exceeded", "maxAiCreditsExceeded"]);
+const BUDGET_EXCEEDED_EVENT = "budget_exceeded";
 
 /**
  * @param {unknown} value
@@ -203,45 +205,92 @@ function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
 }
 
 /**
+ * Detects a `max_ai_credits_exceeded` signal from a single firewall audit log entry.
+ * Checks for the explicit `max_ai_credits_exceeded` boolean field, its camelCase variant,
+ * or a `budget_exceeded` event with `reason: "hard_limit"` and `forced_termination: true`
+ * as written by the aw-harness upon hard-limit abort (§11.2.2).
+ * Only inspects top-level fields to avoid false positives from nested provider responses.
+ *
+ * @param {unknown} entry
+ * @returns {boolean}
+ */
+function parseMaxAICreditsExceededFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  /** @type {unknown} */
+  let event;
+  /** @type {unknown} */
+  let reason;
+  /** @type {unknown} */
+  let forcedTermination;
+
+  for (const [key, value] of Object.entries(entry)) {
+    if (MAX_AI_CREDITS_EXCEEDED_FIELDS.has(key) && isTrueLike(value)) return true;
+    if (key === "event") event = value;
+    if (key === "reason") reason = value;
+    if (key === "forced_termination") forcedTermination = value;
+  }
+  if (typeof event === "string" && event === BUDGET_EXCEEDED_EVENT && typeof reason === "string" && reason === "hard_limit" && isTrueLike(forcedTermination)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {boolean}
+ */
+function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
+  return iterateAuditEntries(
+    auditJsonlPathOverride,
+    false,
+    content => /(?:max_ai_credits_exceeded|maxAiCreditsExceeded|budget_exceeded)/.test(content),
+    (acc, entry) => acc || parseMaxAICreditsExceededFromAuditEntry(entry)
+  );
+}
+
+/**
  * Single-pass combined read of the audit log, returning all AI credits fields at once.
  * Used by resolveAICreditsFailureState to avoid reading the same file twice.
  * No contentGuard is applied: rate-limit signal detection must scan all entries anyway,
  * so a single full pass is cheaper than two guarded passes.
  *
  * @param {string} [auditJsonlPathOverride]
- * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean }}
+ * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }}
  */
 function parseAuditLogCombined(auditJsonlPathOverride) {
-  /** @type {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean }} */
-  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false };
+  /** @type {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }} */
+  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false, maxAICreditsExceeded: false };
   return iterateAuditEntries(auditJsonlPathOverride, initial, null, (acc, entry) => {
     const errorInfo = parseAICreditsErrorInfoFromAuditEntry(entry);
     const max = parseMaxAICreditsFromAuditEntry(entry);
+    const maxAICreditsExceeded = parseMaxAICreditsExceededFromAuditEntry(entry);
     return {
       aiCredits: errorInfo.aiCredits || acc.aiCredits,
       maxAICredits: max || acc.maxAICredits,
       rateLimitError: acc.rateLimitError || errorInfo.rateLimitError,
+      maxAICreditsExceeded: acc.maxAICreditsExceeded || maxAICreditsExceeded,
     };
   });
 }
 
 /**
- * @returns {{ aiCredits: string, maxAICredits: string, aiCreditsRateLimitError: boolean }}
+ * @returns {{ aiCredits: string, maxAICredits: string, aiCreditsRateLimitError: boolean, maxAICreditsExceeded: boolean }}
  */
 function resolveAICreditsFailureState() {
-  const { aiCredits: auditAICredits, maxAICredits: auditMaxAICredits, rateLimitError: auditRateLimitError } = parseAuditLogCombined();
+  const { aiCredits: auditAICredits, maxAICredits: auditMaxAICredits, rateLimitError: auditRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded } = parseAuditLogCombined();
   const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
   const aiCredits = auditAICredits || envAICredits || "";
   const maxAICredits = auditMaxAICredits || envMaxAICredits || "";
   const rawAICreditsRateLimitError = auditRateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
   const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError, aiCredits, maxAICredits);
-  return { aiCredits, maxAICredits, aiCreditsRateLimitError };
+  return { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded };
 }
 
 module.exports = {
   resolveFirewallAuditLogPath,
   parseMaxAICreditsFromAuditLog,
   parseAICreditsErrorInfoFromAuditLog,
+  parseMaxAICreditsExceededFromAuditLog,
   resolveAICreditsFailureState,
 };

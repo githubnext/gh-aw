@@ -436,7 +436,12 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)
+		appTokenSteps := c.buildGitHubAppTokenMintStepForRepository(
+			data.SafeOutputs.GitHubApp,
+			permissions,
+			appTokenFallbackRepo,
+			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+		)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
 		insertIndex := 0
 
@@ -823,7 +828,7 @@ func scriptNameToHandlerName(scriptName string) string {
 	}
 	if sb.Len() == len("handle") {
 		// Fallback: use the script name as-is when parts are empty
-		if len(scriptName) == 0 {
+		if scriptName == "" {
 			sb.WriteString("Unknown")
 		} else {
 			sb.WriteString(strings.ToUpper(scriptName[:1]) + scriptName[1:])

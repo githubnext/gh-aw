@@ -837,6 +837,44 @@ func TestIsValidGitHubIdentifier(t *testing.T) {
 	}
 }
 
+func TestIsValidGitHubRepositoryName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{
+			name:  "Valid short name",
+			input: "repo",
+			want:  true,
+		},
+		{
+			name:  "Valid long hyphenated name",
+			input: "long-repository-name-with-many-hyphens-that-exceeds-thirty-nine-characters",
+			want:  true,
+		},
+		{
+			name:  "Invalid too long name",
+			input: "this-repository-name-is-intentionally-very-long-to-exceed-the-github-repository-name-limit-of-one-hundred-characters-total",
+			want:  false,
+		},
+		{
+			name:  "Invalid starts with hyphen",
+			input: "-repo",
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsValidGitHubRepositoryName(tt.input)
+			if got != tt.want {
+				t.Errorf("IsValidGitHubRepositoryName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 // TestParseGitHubURL_AdditionalEdgeCases tests additional edge cases for comprehensive coverage
 func TestParseGitHubURL_AdditionalEdgeCases(t *testing.T) {
 	tests := []struct {

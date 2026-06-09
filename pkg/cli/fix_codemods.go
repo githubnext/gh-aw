@@ -25,6 +25,7 @@ func GetAllCodemods() []Codemod {
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
+		getWorkflowDispatchRequiredFalseCodemod(), // Set required: false for slash/label command triggers
 		getMCPScriptsModeCodemod(),
 		getUploadAssetsCodemod(),
 		getMigrateWritePermissionsToReadCodemod(),
@@ -50,6 +51,7 @@ func GetAllCodemods() []Codemod {
 		getEngineMaxTurnsToTopLevelCodemod(),                       // Move engine.max-turns to top-level max-turns
 		getStepsRunSecretsToEnvCodemod(),                           // Move all ${{ ... }} expressions in step run fields to step env bindings
 		getEngineEnvSecretsCodemod(),                               // Remove unsafe secret-bearing engine.env entries
+		getTopLevelEnvSecretsGuidedErrorCodemod(),                  // Detect secrets in top-level env: and emit guided error
 		getAssignToAgentDefaultAgentCodemod(),                      // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(),              // Migrate tools.playwright.allowed_domains to network.allowed
 		getExpiresIntegerToDayStringCodemod(),                      // Convert expires integer (days) to string with 'd' suffix

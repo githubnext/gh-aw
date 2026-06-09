@@ -28,7 +28,7 @@ func PromptSecretInput(title, description string) (string, error) {
 				Description(description).
 				EchoMode(huh.EchoModePassword). // Masks input for security
 				Validate(func(s string) error {
-					if len(s) == 0 {
+					if s == "" {
 						return errors.New("value cannot be empty")
 					}
 					return nil

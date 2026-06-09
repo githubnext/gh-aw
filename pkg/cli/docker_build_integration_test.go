@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // isDockerAvailable checks if Docker is available on the system
@@ -16,6 +17,98 @@ func isDockerAvailable() bool {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	return cmd.Run() == nil
+}
+
+func isTransientDockerBuildFailure(output string) bool {
+	normalized := strings.ToLower(output)
+
+	transientErrorIndicators := []string{
+		"failed to fetch oauth token",
+		"gateway timeout",
+		"i/o timeout",
+		"tls handshake timeout",
+		"connection reset by peer",
+		"temporary failure",
+		"failed to resolve source metadata for docker.io/library/alpine",
+		"warning: fetching https://dl-cdn.alpinelinux.org/alpine/",
+	}
+
+	for _, indicator := range transientErrorIndicators {
+		if strings.Contains(normalized, indicator) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func runDockerBuildWithRetry(t *testing.T, repoRoot string) {
+	t.Helper()
+
+	const maxAttempts = 3
+	const baseRetryDelay = 5 * time.Second
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		dockerBuildCmd := exec.Command("make", "docker-build")
+		dockerBuildCmd.Dir = repoRoot
+		dockerOutput, err := dockerBuildCmd.CombinedOutput()
+		if err == nil {
+			return
+		}
+
+		output := string(dockerOutput)
+		if attempt < maxAttempts && isTransientDockerBuildFailure(output) {
+			retryDelay := baseRetryDelay * time.Duration(1<<(attempt-1))
+			t.Logf("Docker build attempt %d/%d failed with transient network error, retrying in %s...", attempt, maxAttempts, retryDelay)
+			t.Logf("Docker build output (attempt %d, truncated): %s", attempt, truncateDockerBuildOutput(output))
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		t.Logf("Docker build output: %s", output)
+		t.Fatalf("Failed to build Docker image: %v", err)
+	}
+}
+
+func truncateDockerBuildOutput(output string) string {
+	const maxChars = 1200
+	if len(output) <= maxChars {
+		return output
+	}
+	return output[:maxChars] + "\n...[truncated]..."
+}
+
+func TestIsTransientDockerBuildFailure(t *testing.T) {
+	testCases := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{
+			name:   "docker_hub_oauth_timeout",
+			output: "failed to fetch oauth token: unexpected status from POST request to https://auth.docker.io/token: 504 Gateway Timeout",
+			want:   true,
+		},
+		{
+			name:   "alpine_mirror_permission_denied",
+			output: "WARNING: fetching https://dl-cdn.alpinelinux.org/alpine/v3.21/main: Permission denied",
+			want:   true,
+		},
+		{
+			name:   "non_transient_dockerfile_error",
+			output: "ERROR: failed to solve: failed to read dockerfile: open Dockerfile: no such file or directory",
+			want:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isTransientDockerBuildFailure(tc.output)
+			if got != tc.want {
+				t.Fatalf("isTransientDockerBuildFailure() = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
 
 // TestDockerfile_Exists verifies the Dockerfile exists and has expected content
@@ -140,13 +233,7 @@ func TestDockerBuild_WithMake(t *testing.T) {
 
 	// Build Docker image using Makefile
 	t.Log("Building Docker image with make docker-build...")
-	dockerBuildCmd := exec.Command("make", "docker-build")
-	dockerBuildCmd.Dir = repoRoot
-	dockerOutput, err := dockerBuildCmd.CombinedOutput()
-	if err != nil {
-		t.Logf("Docker build output: %s", dockerOutput)
-		t.Fatalf("Failed to build Docker image: %v", err)
-	}
+	runDockerBuildWithRetry(t, repoRoot)
 
 	t.Log("Docker image built successfully")
 
@@ -182,11 +269,7 @@ func TestDockerImage_RunsSuccessfully(t *testing.T) {
 		t.Fatalf("Failed to build Linux binary: %v", err)
 	}
 
-	dockerBuildCmd := exec.Command("make", "docker-build")
-	dockerBuildCmd.Dir = repoRoot
-	if err := dockerBuildCmd.Run(); err != nil {
-		t.Fatalf("Failed to build Docker image: %v", err)
-	}
+	runDockerBuildWithRetry(t, repoRoot)
 
 	// Test running the Docker image with --help
 	t.Log("Testing Docker image with --help...")
@@ -249,11 +332,7 @@ func TestDockerImage_HasRequiredTools(t *testing.T) {
 		t.Fatalf("Failed to build Linux binary: %v", err)
 	}
 
-	dockerBuildCmd := exec.Command("make", "docker-build")
-	dockerBuildCmd.Dir = repoRoot
-	if err := dockerBuildCmd.Run(); err != nil {
-		t.Fatalf("Failed to build Docker image: %v", err)
-	}
+	runDockerBuildWithRetry(t, repoRoot)
 
 	// Test required tools
 	requiredTools := []string{"gh", "git", "jq", "bash"}

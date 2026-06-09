@@ -44,7 +44,7 @@ func CollectSecretReferences(yamlContent string) []string {
 		rest = rest[idx+len(secretsPrefix):]
 
 		// First character of the name must be an uppercase letter
-		if len(rest) == 0 || rest[0] < 'A' || rest[0] > 'Z' {
+		if rest == "" || rest[0] < 'A' || rest[0] > 'Z' {
 			continue
 		}
 

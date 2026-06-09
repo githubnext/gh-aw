@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -99,8 +98,14 @@ func loadPolicyManifest(manifestPath string) (*PolicyManifest, error) {
 	}
 
 	// Sort rules by order for deterministic matching
-	sort.Slice(manifest.Rules, func(i, j int) bool {
-		return manifest.Rules[i].Order < manifest.Rules[j].Order
+	slices.SortFunc(manifest.Rules, func(a, b PolicyRule) int {
+		if a.Order < b.Order {
+			return -1
+		}
+		if a.Order > b.Order {
+			return 1
+		}
+		return 0
 	})
 
 	firewallPolicyLog.Printf("Loaded policy manifest: version=%d, rules=%d, ssl_bump=%v, dlp=%v",

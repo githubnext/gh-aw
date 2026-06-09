@@ -103,6 +103,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 		name                      string
 		configMap                 map[string]any
 		expectedHideOlderComments *string
+		expectedMatch             []string
 	}{
 		{
 			name: "hide-older-comments enabled",
@@ -113,6 +114,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 				},
 			},
 			expectedHideOlderComments: new("true"),
+			expectedMatch:             nil,
 		},
 		{
 			name: "hide-older-comments disabled",
@@ -123,6 +125,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 				},
 			},
 			expectedHideOlderComments: new("false"),
+			expectedMatch:             nil,
 		},
 		{
 			name: "hide-older-comments not specified (default nil)",
@@ -132,6 +135,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 				},
 			},
 			expectedHideOlderComments: nil,
+			expectedMatch:             nil,
 		},
 		{
 			name: "hide-older-comments with other fields",
@@ -144,6 +148,34 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 				},
 			},
 			expectedHideOlderComments: new("true"),
+			expectedMatch:             nil,
+		},
+		{
+			name: "hide-older-comments object form defaults enabled and parses match list",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max": 1,
+					"hide-older-comments": map[string]any{
+						"match": []any{"other_workflow", "yet-another"},
+					},
+				},
+			},
+			expectedHideOlderComments: new("true"),
+			expectedMatch:             []string{"other_workflow", "yet-another"},
+		},
+		{
+			name: "hide-older-comments object form supports explicit enabled false",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max": 1,
+					"hide-older-comments": map[string]any{
+						"enabled": false,
+						"match":   []any{"other_workflow"},
+					},
+				},
+			},
+			expectedHideOlderComments: new("false"),
+			expectedMatch:             []string{"other_workflow"},
 		},
 	}
 
@@ -164,6 +196,21 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					t.Errorf("Expected HideOlderComments = %v, got nil", *tt.expectedHideOlderComments)
 				} else if *config.HideOlderComments != *tt.expectedHideOlderComments {
 					t.Errorf("Expected HideOlderComments = %v, got %v", *tt.expectedHideOlderComments, *config.HideOlderComments)
+				}
+			}
+
+			if tt.expectedMatch == nil {
+				if len(config.HideOlderCommentsMatch) != 0 {
+					t.Errorf("Expected HideOlderCommentsMatch to be empty, got %v", config.HideOlderCommentsMatch)
+				}
+			} else {
+				if len(config.HideOlderCommentsMatch) != len(tt.expectedMatch) {
+					t.Fatalf("Expected %d hide-older match values, got %d", len(tt.expectedMatch), len(config.HideOlderCommentsMatch))
+				}
+				for i := range tt.expectedMatch {
+					if config.HideOlderCommentsMatch[i] != tt.expectedMatch[i] {
+						t.Errorf("Expected HideOlderCommentsMatch[%d] = %q, got %q", i, tt.expectedMatch[i], config.HideOlderCommentsMatch[i])
+					}
 				}
 			}
 		})

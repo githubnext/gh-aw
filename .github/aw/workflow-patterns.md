@@ -1,5 +1,5 @@
 ---
-description: Shared design patterns for command workflows, monitoring workflows, large-repository workflows, and cross-repository operations.
+description: Shared design patterns for command workflows, monitoring workflows, large-repository workflows, database migration reviews, and cross-repository operations.
 ---
 
 # Workflow Patterns
@@ -77,6 +77,16 @@ For pull-request UI validation and screenshot diffs:
 - permissions: read-only repo/PR access in agent job
 - output: `add-comment` with pass/fail summary and links to captured artifacts
 - fallback: use `noop` when no UI-relevant changes are detected
+
+## Database Migration Safety Pattern
+
+For pull requests that add or modify database migration files:
+
+- trigger: `pull_request` with `paths:` scoped to migration directories (e.g. `db/migrate/**`, `migrations/**`, `*.sql`)
+- permissions: `contents: read`, `pull-requests: read`; keep agent job read-only
+- reads: changed migration file content via GitHub tools
+- output: `add-comment` with a safety summary flagging risky operations; use `noop` when no concerns are detected
+- prompt: suggest migration best practices in the agent prompt
 
 ## Cross-Repository Pattern
 

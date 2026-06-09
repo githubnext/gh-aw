@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -178,8 +178,15 @@ func replaceOutsideQuotedHeredocs(s, old, new string) string {
 	templateInjectionValidationLog.Printf("Replacing outside %d quoted heredoc region(s): replacing %q with %q", len(quotedRegions), old, new)
 
 	// Sort regions by start position so we can walk left-to-right.
-	sort.Slice(quotedRegions, func(i, j int) bool {
-		return quotedRegions[i].start < quotedRegions[j].start
+	slices.SortFunc(quotedRegions, func(a, b region) int {
+		switch {
+		case a.start < b.start:
+			return -1
+		case a.start > b.start:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	var result strings.Builder

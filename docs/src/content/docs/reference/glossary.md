@@ -224,6 +224,21 @@ Configuration field in the `create-pull-request` safe output specifying which br
 
 A safe output capability for hiding or minimizing GitHub comments without requiring write permissions. When minimized, comments are classified as SPAM. Requires GraphQL node IDs to identify comments. Useful for content moderation workflows.
 
+### Hide Older Comments (`hide-older-comments`)
+
+A field on `add-comment:` safe outputs that minimizes previous comments before posting a new one. Accepts a boolean (`true`) or an object with `enabled` and `match` keys. The boolean form hides earlier comments from the same workflow only (identified by `GITHUB_WORKFLOW`). The object form adds a `match` list of additional workflow IDs whose older comments are also minimized — using exact full-string matching — so a single run can clean up comments from multiple related workflows.
+
+```aw wrap
+safe-outputs:
+  add-comment:
+    hide-older-comments:
+      enabled: true
+      match:
+        - my-other-workflow
+```
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-older-comments).
+
 ### Add Labels (`add-labels:`)
 
 A safe output capability for adding labels to issues or pull requests. Supports an `allowed` list to restrict which labels can be applied, and a `blocked` list using glob patterns to reject specific labels regardless of the allow list — providing protection against prompt injection via label manipulation. Accepts `target` (`"triggering"`, `"*"`, or a specific number), a `max` limit (default: 3), and cross-repository configuration via `target-repo`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#add-labels-add-labels).

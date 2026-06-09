@@ -12,6 +12,7 @@
         },
         "body": {
           "type": "string",
+          "minLength": 20,
           "description": "Detailed issue description in Markdown. Must be the final intended body \u2014 not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
         },
         "labels": {

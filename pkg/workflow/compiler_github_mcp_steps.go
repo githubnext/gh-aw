@@ -136,15 +136,15 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 	}
 
 	// Generate the token minting step using the existing helper from safe_outputs_app.go
-	rawSteps := c.buildGitHubAppTokenMintStep(app, permissions, "")
-
-	// Replace the default step ID with github-mcp-app-token to differentiate it from
-	// the safe-outputs app token.
-	var steps []string
-	for _, step := range rawSteps {
-		steps = append(steps, strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: github-mcp-app-token"))
-	}
-	return steps
+	rawSteps := c.buildGitHubAppTokenMintStepWithMeta(
+		app,
+		permissions,
+		"",
+		inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+		"Generate GitHub App token",
+		"github-mcp-app-token",
+	)
+	return rawSteps
 }
 
 // generateParseGuardVarsStep generates a step that parses the blocked-users, trusted-users, and

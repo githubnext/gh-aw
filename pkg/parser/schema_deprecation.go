@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -92,8 +92,15 @@ func extractDeprecatedFields(schemaDoc map[string]any) ([]DeprecatedField, error
 	}
 
 	// Sort by field name for consistent output
-	sort.Slice(deprecated, func(i, j int) bool {
-		return deprecated[i].Name < deprecated[j].Name
+	slices.SortFunc(deprecated, func(a, b DeprecatedField) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return deprecated, nil
@@ -164,8 +171,15 @@ func GetMainWorkflowDeprecatedFieldsDeep() ([]DeprecatedField, error) {
 		}
 		var fields []DeprecatedField
 		collectDeprecatedDeep(schemaDoc, "", &fields)
-		sort.Slice(fields, func(i, j int) bool {
-			return fields[i].Path < fields[j].Path
+		slices.SortFunc(fields, func(a, b DeprecatedField) int {
+			switch {
+			case a.Path < b.Path:
+				return -1
+			case a.Path > b.Path:
+				return 1
+			default:
+				return 0
+			}
 		})
 		deprecatedFieldsDeepCache = fields
 		schemaDeprecationLog.Printf("Found %d deprecated fields (deep) in main workflow schema", len(fields))

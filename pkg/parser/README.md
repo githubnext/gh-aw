@@ -74,7 +74,8 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `ParseRunURLExtended` | `func(input string) (*GitHubURLComponents, error)` | Parses a workflow run URL (extended formats) |
 | `ParsePRURL` | `func(prURL string) (owner, repo string, prNumber int, err error)` | Parses a pull request URL |
 | `ParseRepoFileURL` | `func(fileURL string) (owner, repo, ref, filePath string, err error)` | Parses a repository file URL |
-| `IsValidGitHubIdentifier` | `func(s string) bool` | Validates a GitHub username/org/repo name |
+| `IsValidGitHubIdentifier` | `func(s string) bool` | Validates a GitHub username/org identifier |
+| `IsValidGitHubRepositoryName` | `func(s string) bool` | Validates a GitHub repository name |
 | `GetGitHubHost` | `func() string` | Returns the GitHub host (supports GHES via `GH_HOST`) |
 | `GetGitHubHostForRepo` | `func(owner, repo string) string` | Returns the GitHub host for a specific repo |
 | `GetGitHubToken` | `func() (string, error)` | Returns the GitHub auth token from the environment |

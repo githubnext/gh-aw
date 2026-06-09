@@ -98,7 +98,7 @@ func getDiscussionFlagRemovalCodemod() Codemod {
 					// Skip any nested content under the discussion field (shouldn't be any, but for completeness)
 					if inDiscussionField {
 						// Empty lines within the field block should be removed
-						if len(trimmedLine) == 0 {
+						if trimmedLine == "" {
 							continue
 						}
 
