@@ -421,6 +421,11 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).not.toHaveBeenCalled();
       expect(createIssueMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: { "X-GitHub-Api-Version": "2022-11-28" },
+        })
+      );
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"gh-aw-agentic-workflow:"') }));
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test-workflow" in:body') }));
     });
@@ -3160,6 +3165,7 @@ describe("handle_agent_failure", () => {
       expect(createCall.title).toBe(CASCADE_ROLLUP_TITLE);
       expect(createCall.labels).toContain(CASCADE_ROLLUP_LABEL);
       expect(createCall.labels).toContain("agentic-workflows");
+      expect(createCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
 
       // All 10 issues labeled
       expect(addLabelsMock).toHaveBeenCalledTimes(10);
