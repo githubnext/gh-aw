@@ -90,7 +90,7 @@ Create issues to improve tool descriptions when the workflow prompt is correct b
 
 ### Phase 1: Collect Workflow Logs with Safe Output Errors
 
-{{#if experiments.log_fetch_strategy == 'eager'}}
+{{#if experiments.log_fetch_strategy == "eager"}}
 Logs have been pre-downloaded to `/tmp/gh-aw/aw-mcp/logs/` by the setup step. Use this pre-fetched data directly — do **not** call the `logs` MCP tool.
 
 1. **Use Pre-Fetched Logs**:

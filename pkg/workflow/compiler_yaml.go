@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -16,6 +17,12 @@ import (
 )
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
+
+var singleQuotedEqualityConditionRegex = regexp.MustCompile(`==\s*'([^']*)'`)
+
+func normalizeConditionForPromptIf(condition string) string {
+	return singleQuotedEqualityConditionRegex.ReplaceAllString(condition, `== "$1"`)
+}
 
 // effectiveStrictMode computes the effective strict mode for a workflow.
 // Priority: CLI flag (c.strictMode) > frontmatter strict field > default (true).
@@ -503,7 +510,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 					cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 				}
 				if entry.If != "" {
-					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", entry.If))
+					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
 				}
 				chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
 				userPromptChunks = append(userPromptChunks, chunks...)
@@ -522,7 +529,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				if err != nil {
 					compilerYamlLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
 					if entry.If != "" {
-						userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", entry.If))
+						userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
 					}
 					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
 					if entry.If != "" {
@@ -535,7 +542,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 					importedBody = string(rawContent)
 				}
 				if entry.If != "" {
-					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", entry.If))
+					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
 				}
 				chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
 				userPromptChunks = append(userPromptChunks, chunks...)
@@ -546,7 +553,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				continue
 			}
 			if entry.If != "" {
-				userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", entry.If))
+				userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
 			}
 			userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
 			if entry.If != "" {

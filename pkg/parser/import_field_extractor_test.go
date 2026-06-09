@@ -696,3 +696,24 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "enabled")
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "log-mask")
 }
+
+func TestApplyIfConditionToStepsYAML_InsertsAndRewritesImportCondition(t *testing.T) {
+	stepsYAML := `- name: No guard
+  run: echo hello`
+
+	got := applyIfConditionToStepsYAML(stepsYAML, "experiments.log_fetch_strategy == 'eager'")
+
+	assert.Contains(t, got, "needs.activation.outputs.log_fetch_strategy == 'eager'")
+	assert.Contains(t, got, "name: No guard")
+}
+
+func TestApplyIfConditionToStepsYAML_CombinesExistingCondition(t *testing.T) {
+	stepsYAML := `- name: Guarded
+  if: success()
+  run: echo hello`
+
+	got := applyIfConditionToStepsYAML(stepsYAML, "experiments.log_fetch_strategy == 'eager'")
+
+	assert.Contains(t, got, "(needs.activation.outputs.log_fetch_strategy == 'eager') && (success())")
+	assert.Contains(t, got, "name: Guarded")
+}

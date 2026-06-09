@@ -12,8 +12,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/goccy/go-yaml"
 	"github.com/github/gh-aw/pkg/importinpututil"
+	"github.com/goccy/go-yaml"
 )
 
 // importAccumulator centralizes the builder/slice/set variables used during
@@ -438,8 +438,10 @@ func transformImportConditionForStep(condition string) string {
 	return experimentConditionRegex.ReplaceAllString(condition, "needs.activation.outputs.$1")
 }
 
-// applyIfConditionToStepsYAML adds an "if:" guard to each step in a YAML steps list that
-// does not already have one. When ifCondition is empty the original content is returned
+// applyIfConditionToStepsYAML applies an import-level "if:" guard to each step in a YAML
+// steps list. When a step already has an "if:" expression, the import condition is
+// combined with the existing expression using logical AND.
+// When ifCondition is empty the original content is returned
 // unchanged. The YAML is parsed using round-trip semantics: on any parse or marshal error
 // the original content is returned unchanged so that the caller's behaviour degrades
 // gracefully rather than silently discarding steps.
@@ -454,7 +456,14 @@ func applyIfConditionToStepsYAML(stepsYAML string, ifCondition string) string {
 		return stepsYAML
 	}
 	for i := range steps {
-		if _, hasIf := steps[i]["if"]; !hasIf {
+		if existing, hasIf := steps[i]["if"]; hasIf {
+			existingCondition := strings.TrimSpace(fmt.Sprint(existing))
+			if existingCondition == "" {
+				steps[i]["if"] = stepCondition
+				continue
+			}
+			steps[i]["if"] = fmt.Sprintf("(%s) && (%s)", stepCondition, existingCondition)
+		} else {
 			steps[i]["if"] = stepCondition
 		}
 	}
