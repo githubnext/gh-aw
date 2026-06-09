@@ -234,7 +234,7 @@ Returns JSON array with validation results for each workflow:
 		if err != nil {
 			mcpLog.Printf("Compile command exited with error: %v (output length: %d)", err, len(outputStr))
 			// If we have no output, this is a real execution failure
-			if len(outputStr) == 0 {
+			if outputStr == "" {
 				// Try to get stderr for error details
 				var stderr string
 				var exitErr *exec.ExitError

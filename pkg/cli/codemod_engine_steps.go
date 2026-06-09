@@ -85,7 +85,7 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 					line := frontmatterLines[j]
 					trimmed := strings.TrimSpace(line)
 
-					if len(trimmed) == 0 {
+					if trimmed == "" {
 						continue
 					}
 
@@ -128,7 +128,7 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 							for j := i + 1; j < len(frontmatterLines); j++ {
 								l := frontmatterLines[j]
 								t := strings.TrimSpace(l)
-								if len(t) == 0 {
+								if t == "" {
 									continue
 								}
 								if len(getIndentation(l)) > len(topStepsIndent) {
@@ -171,7 +171,7 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 							continue
 						}
 						if inEngine {
-							if len(trimmed) == 0 {
+							if trimmed == "" {
 								continue
 							}
 							lineIndentLen := len(getIndentation(line))
@@ -205,7 +205,7 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 							continue
 						}
 						if inEngine {
-							if len(trimmed) == 0 {
+							if trimmed == "" {
 								continue
 							}
 							if len(getIndentation(line)) <= engineIndentLen {

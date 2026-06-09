@@ -273,7 +273,7 @@ func appendEnvVarLine(lines []string, key, value string) []string {
 // that would cause it to be misinterpreted by YAML parsers, it wraps the value
 // in single quotes. Any embedded single quotes are escaped by doubling them (' becomes ”).
 func yamlStringValue(value string) string {
-	if len(value) == 0 {
+	if value == "" {
 		return value
 	}
 	if quoted := quoteYAMLValueContainingColonSpace(value); quoted != value {

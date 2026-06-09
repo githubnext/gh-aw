@@ -204,7 +204,7 @@ func removeFieldFromMCPServer(lines []string, serverName string, fieldName strin
 		// Skip nested properties under the field
 		if inFieldBlock {
 			// Empty lines within the field block should be removed
-			if len(trimmedLine) == 0 {
+			if trimmedLine == "" {
 				continue
 			}
 
@@ -252,7 +252,7 @@ func addTopLevelNetwork(lines []string, domains []string) []string {
 				for j := i + 1; j < len(lines); j++ {
 					nextLine := lines[j]
 					nextTrimmed := strings.TrimSpace(nextLine)
-					if len(nextTrimmed) == 0 {
+					if nextTrimmed == "" {
 						continue
 					}
 					if hasExitedBlock(nextLine, onIndent) {
@@ -328,7 +328,7 @@ func updateNetworkAllowed(lines []string, domains []string) []string {
 			currentIndent := getIndentation(line)
 
 			// Empty lines - skip
-			if len(trimmedLine) == 0 {
+			if trimmedLine == "" {
 				continue
 			}
 

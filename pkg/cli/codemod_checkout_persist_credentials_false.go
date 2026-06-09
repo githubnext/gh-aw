@@ -95,7 +95,7 @@ func transformSectionCheckoutPersistCredentials(lines []string, sectionName stri
 	sectionEnd := len(lines) - 1
 	for i := sectionStart + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if len(getIndentation(lines[i])) <= len(sectionIndent) {
@@ -135,7 +135,7 @@ func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []
 	jobsEnd := len(lines) - 1
 	for i := jobsStart + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if len(getIndentation(lines[i])) <= len(jobsIndent) {
@@ -168,7 +168,7 @@ func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []
 	agentEnd := len(jobsLines) - 1
 	for i := agentStart + 1; i < len(jobsLines); i++ {
 		trimmed := strings.TrimSpace(jobsLines[i])
-		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if len(getIndentation(jobsLines[i])) <= len(agentIndent) {
@@ -224,7 +224,7 @@ func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionNam
 	sectionEnd := len(lines) - 1
 	for i := sectionStart + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if len(getIndentation(lines[i])) <= len(sectionIndent) {
@@ -252,7 +252,7 @@ func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionNam
 func findDirectChildIndentLen(lines []string, parentStart int, parentIndentLen int) (int, bool) {
 	for i := parentStart + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		indentLen := len(getIndentation(lines[i]))
@@ -280,7 +280,7 @@ func transformCheckoutWithinSection(sectionLines []string, sectionIndent string)
 			stepEnd := len(sectionLines) - 1
 			for j := i + 1; j < len(sectionLines); j++ {
 				t := strings.TrimSpace(sectionLines[j])
-				if len(t) == 0 {
+				if t == "" {
 					continue
 				}
 				jIndent := getIndentation(sectionLines[j])
@@ -343,7 +343,7 @@ func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string)
 			withKeyIndentLen := currentWithKeyIndentLen
 			for j := i + 1; j < len(stepLines); j++ {
 				t := strings.TrimSpace(stepLines[j])
-				if len(t) == 0 {
+				if t == "" {
 					withEnd = j
 					continue
 				}

@@ -86,7 +86,7 @@ func transformSectionStepsRunSecrets(lines []string, sectionName string) ([]stri
 	sectionEnd := len(lines) - 1
 	for i := sectionStart + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if len(getIndentation(lines[i])) <= len(sectionIndent) {
@@ -125,7 +125,7 @@ func transformStepsWithinSection(sectionLines []string, sectionIndent string) ([
 			stepEnd := len(sectionLines) - 1
 			for j := i + 1; j < len(sectionLines); j++ {
 				t := strings.TrimSpace(sectionLines[j])
-				if len(t) == 0 {
+				if t == "" {
 					continue
 				}
 				jIndent := getIndentation(sectionLines[j])
@@ -199,7 +199,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 			envEnd = i
 			for j := i + 1; j < len(stepLines); j++ {
 				t := strings.TrimSpace(stepLines[j])
-				if len(t) == 0 {
+				if t == "" {
 					envEnd = j
 					continue
 				}
@@ -225,7 +225,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 		if runValue == "|" || runValue == "|-" || runValue == ">" || runValue == ">-" {
 			for j := i + 1; j < len(stepLines); j++ {
 				t := strings.TrimSpace(stepLines[j])
-				if len(t) == 0 {
+				if t == "" {
 					continue
 				}
 				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {

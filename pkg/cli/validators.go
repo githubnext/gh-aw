@@ -35,7 +35,7 @@ func ValidateWorkflowName(s string) error {
 func ValidateWorkflowIntent(s string) error {
 	validatorsLog.Printf("Validating workflow intent: length=%d", len(s))
 	trimmed := strings.TrimSpace(s)
-	if len(trimmed) == 0 {
+	if trimmed == "" {
 		validatorsLog.Print("Workflow intent validation failed: empty content")
 		return errors.New("workflow instructions cannot be empty")
 	}

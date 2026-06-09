@@ -70,10 +70,10 @@ func LevenshteinDistance(a, b string) int {
 	bLen := len(b)
 
 	// Early exit for empty strings
-	if aLen == 0 {
+	if a == "" {
 		return bLen
 	}
-	if bLen == 0 {
+	if b == "" {
 		return aLen
 	}
 

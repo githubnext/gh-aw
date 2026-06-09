@@ -494,7 +494,7 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 	}
 
 	// If no changes, skip commit and push
-	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+	if strings.TrimSpace(string(statusOutput)) == "" {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes detected, skipping commit"))
 		}

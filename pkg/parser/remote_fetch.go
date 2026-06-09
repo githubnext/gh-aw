@@ -476,7 +476,7 @@ func resolveRefToSHAViaGit(owner, repo, ref, host string) (string, error) {
 
 	// Parse the output: "<sha> <ref>"
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) == 0 || len(lines[0]) == 0 {
+	if len(lines) == 0 || lines[0] == "" {
 		return "", fmt.Errorf("no matching ref found for %s", ref)
 	}
 

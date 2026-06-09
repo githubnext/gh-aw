@@ -255,7 +255,7 @@ func validateOwner(ctx context.Context, ownerType, owner string, verbose bool) e
 
 // capitalizeFirst capitalizes the first letter of a string
 func capitalizeFirst(s string) string {
-	if len(s) == 0 {
+	if s == "" {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]

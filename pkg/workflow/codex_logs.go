@@ -325,7 +325,7 @@ func (e *CodexEngine) extractOutputSizeFromJSONFallback(jsonStr string) int {
 	for i := 1; i < len(parts); i++ {
 		// Find the quoted string value
 		part := strings.TrimSpace(parts[i])
-		if len(part) == 0 || part[0] != '"' {
+		if part == "" || part[0] != '"' {
 			continue
 		}
 

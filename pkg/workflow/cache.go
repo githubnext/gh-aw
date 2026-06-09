@@ -60,7 +60,7 @@ var validCacheMemoryScopes = []string{"workflow", "repo"}
 // This prevents path-traversal attacks (e.g. "../../etc") when the ID is
 // appended to cacheMemoryDirPrefix to form a filesystem path.
 func isValidCacheID(id string) bool {
-	if len(id) == 0 || len(id) > 64 {
+	if id == "" || len(id) > 64 {
 		return false
 	}
 	for _, c := range id {
