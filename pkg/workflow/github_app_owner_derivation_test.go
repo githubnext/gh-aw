@@ -82,6 +82,16 @@ func TestBuildGitHubAppTokenMintStepOwnerDerivation(t *testing.T) {
 			expectedOwner:    "owner: ${{ steps.safe-outputs-app-token-owner.outputs.owner }}",
 			expectedContains: "repo=\"${GH_AW_TARGET_REPOSITORY%.wiki}\"",
 		},
+		{
+			name: "repository expression is whitespace-normalized before yaml emission",
+			app: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			ownerSourceRepo:  "${{ inputs.target_\nrepo }}",
+			expectedOwner:    "owner: ${{ steps.safe-outputs-app-token-owner.outputs.owner }}",
+			expectedContains: "GH_AW_TARGET_REPOSITORY: ${{ inputs.target_ repo }}",
+		},
 	}
 
 	for _, tt := range tests {
