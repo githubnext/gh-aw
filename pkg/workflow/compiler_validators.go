@@ -165,16 +165,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating labels", validateFn: func() error { return validateLabels(workflowData) }},
 		{logMessage: "Validating workflow_dispatch input requirements for command triggers", validateFn: func() error { return validateCommandWorkflowDispatchInputs(workflowData) }},
 		{logMessage: "Validating max-daily-ai-credits frontmatter", validateFn: func() error { return validateMaxDailyAICFrontmatter(workflowData) }},
-	}
-	// This validation is intentionally outside the table below because strict mode
-	// turns the same validation result into either an error or a warning.
-	workflowLog.Printf("Validating safe-outputs steps for shell expansion patterns")
-	if err := validateSafeOutputsStepsShellExpansion(workflowData.SafeOutputs); err != nil {
-		if c.strictMode {
-			return formatCompilerError(markdownPath, "error", err.Error(), err)
-		}
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", err.Error()))
-		c.IncrementWarningCount()
+		{logMessage: "Validating safe-outputs steps for shell expansion patterns", validateFn: func() error { return validateSafeOutputsStepsShellExpansion(workflowData.SafeOutputs) }},
 	}
 	workflowLog.Printf("Validating push-to-pull-request-branch configuration")
 	c.validatePushToPullRequestBranchWarnings(workflowData.SafeOutputs, workflowData.CheckoutConfigs)
