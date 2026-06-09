@@ -85,7 +85,7 @@ This makes outcome evaluation external and observable. The workflow does not dec
 
 Outcome information appears in OpenTelemetry spans and related artifacts. Workflow-level rollups such as accepted counts and acceptance rate are emitted on outcome summary or conclusion spans, and per-item spans can carry more detailed fields such as object type, URL, comments, review activity, and zero-touch acceptance.
 
-For the span-level attribute inventory, see [OpenTelemetry](/gh-aw/reference/open-telemetry/).
+For the span-level attribute inventory, see [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/).
 
 ## Cost and Rollups
 
@@ -104,6 +104,6 @@ Those questions may matter later, but they are separate from the base outcomes m
 ## Related Documentation
 
 - [Cost Management](/gh-aw/reference/cost-management/) explains how workflow cost is measured and reduced.
-- [OpenTelemetry](/gh-aw/reference/open-telemetry/) describes the span attributes and artifacts that carry workflow telemetry.
+- [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/) describes the span attributes and artifacts that carry workflow telemetry.
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) explains how workflows produce constrained actions.
 - [Safe Output Outcome Evaluation Specification](https://github.com/github/gh-aw/blob/main/specs/safe-output-outcome-evaluation.md) defines the detailed evaluation logic for each safe output type.
