@@ -37,9 +37,9 @@ Test workflow to verify sandbox.agent: false is accepted when the feature flag i
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
 
-		// Compile the workflow
+		// Compile the workflow (validation runs unconditionally; validateSandboxConfig
+		// is not gated by skipValidation, so this exercises the feature-flag check)
 		compiler := NewCompiler()
-		compiler.SetSkipValidation(true)
 
 		// Should succeed when the feature flag is set
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {

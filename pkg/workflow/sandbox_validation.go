@@ -80,14 +80,15 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	// Without the feature flag, setting sandbox.agent: false is a validation error.
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
 		if !isFeatureEnabled(constants.DangerouslyDisableSandboxAgentFeatureFlag, workflowData) {
+			flag := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
 			return NewValidationError(
 				"sandbox.agent",
 				"false",
-				"disabling the agent sandbox requires the 'dangerously-disable-sandbox-agent' feature flag",
-				fmt.Sprintf("Add the feature flag to your workflow frontmatter:\n\nfeatures:\n  dangerously-disable-sandbox-agent: true\nsandbox:\n  agent: false\n\nSee: %s", constants.DocsSandboxURL),
+				fmt.Sprintf("disabling the agent sandbox requires the '%s' feature flag", flag),
+				fmt.Sprintf("Add the feature flag to your workflow frontmatter:\n\nfeatures:\n  %s: true\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
 			)
 		}
-		sandboxValidationLog.Print("sandbox.agent: false permitted by dangerously-disable-sandbox-agent feature flag")
+		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s feature flag", constants.DangerouslyDisableSandboxAgentFeatureFlag)
 	}
 
 	// Validate mounts syntax if specified in agent config
