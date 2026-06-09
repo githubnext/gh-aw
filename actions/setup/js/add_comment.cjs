@@ -50,6 +50,29 @@ function deduplicateCaseInsensitive(aliases) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is { enabled?: boolean | string, match?: unknown[] }}
+ */
+function isHideOlderCommentsObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+/**
+ * @param {unknown[]} ids
+ * @returns {string[]}
+ */
+function normalizeWorkflowIdList(ids) {
+  return [
+    ...new Set(
+      ids
+        .filter(id => typeof id === "string")
+        .map(id => id.trim())
+        .filter(Boolean)
+    ),
+  ];
+}
+
+/**
  * Resolve effective event name/payload for native and forwarded contexts.
  * Supports:
  * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
@@ -375,26 +398,12 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
  */
 async function main(config = {}) {
   // Extract configuration
-  const hideOlderCommentsConfig = config.hide_older_comments && typeof config.hide_older_comments === "object" && !Array.isArray(config.hide_older_comments) ? config.hide_older_comments : null;
+  const hideOlderCommentsConfig = isHideOlderCommentsObject(config.hide_older_comments) ? config.hide_older_comments : null;
   const hideOlderCommentsEnabled = parseBoolTemplatable(hideOlderCommentsConfig ? (hideOlderCommentsConfig.enabled ?? true) : config.hide_older_comments, false);
   const hideOlderCommentsMatch = Array.isArray(hideOlderCommentsConfig?.match)
-    ? [
-        ...new Set(
-          hideOlderCommentsConfig.match
-            .filter(id => typeof id === "string")
-            .map(id => id.trim())
-            .filter(Boolean)
-        ),
-      ]
+    ? normalizeWorkflowIdList(hideOlderCommentsConfig.match)
     : Array.isArray(config.hide_older_comments_match)
-      ? [
-          ...new Set(
-            config.hide_older_comments_match
-              .filter(id => typeof id === "string")
-              .map(id => id.trim())
-              .filter(Boolean)
-          ),
-        ]
+      ? normalizeWorkflowIdList(config.hide_older_comments_match)
       : [];
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
@@ -800,7 +809,7 @@ async function main(config = {}) {
         } else if (appendOnlyComments) {
           core.info("Skipping hide-older-comments because append-only-comments is enabled");
         } else {
-          const hideWorkflowIds = [...new Set([workflowId, ...hideOlderCommentsMatch].filter(Boolean))];
+          const hideWorkflowIds = normalizeWorkflowIdList([workflowId, ...hideOlderCommentsMatch]);
           await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, hideWorkflowIds, isDiscussion);
         }
       }
