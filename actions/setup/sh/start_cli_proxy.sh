@@ -18,6 +18,11 @@ set -e
 
 POLICY="${CLI_PROXY_POLICY:-}"
 CONTAINER_IMAGE="${CLI_PROXY_IMAGE:-}"
+CLI_PROXY_LISTEN_ADDR="${CLI_PROXY_LISTEN_ADDR:-[::]:18443}"
+CLI_PROXY_DIAL_HOST="${CLI_PROXY_DIAL_HOST:-host.docker.internal}"
+CLI_PROXY_DIAL_TARGET="${CLI_PROXY_DIAL_HOST}:18443"
+LOCAL_HEALTH_URL="https://127.0.0.1:18443/api/v3/health"
+SIDECAR_HEALTH_URL="https://${CLI_PROXY_DIAL_TARGET}/api/v3/health"
 
 if [ -z "$CONTAINER_IMAGE" ]; then
   echo "::warning::CLI proxy container image not specified, skipping proxy start"
@@ -33,6 +38,8 @@ mkdir -p "$TLS_DIR" "$MCP_LOG_DIR"
 docker rm -f awmg-cli-proxy 2>/dev/null || true
 
 echo "Starting CLI proxy container: $CONTAINER_IMAGE"
+echo "CLI proxy listen address: $CLI_PROXY_LISTEN_ADDR"
+echo "CLI proxy sidecar dial target: $CLI_PROXY_DIAL_TARGET"
 
 # Build docker run command arguments
 POLICY_ARGS=()
@@ -49,17 +56,26 @@ docker run -d --name awmg-cli-proxy --network host \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
   "$CONTAINER_IMAGE" proxy \
     "${POLICY_ARGS[@]}" \
-    --listen 0.0.0.0:18443 \
+    --listen "$CLI_PROXY_LISTEN_ADDR" \
     --log-dir "$MCP_LOG_DIR" \
     --tls --tls-dir "$TLS_DIR" \
     --guards-mode filter \
     --trusted-bots github-actions[bot],github-actions,dependabot[bot],copilot
 
-# Wait for TLS cert + health check (up to 30s)
+# Wait for TLS cert + health checks (up to 60s).
+# Require consecutive passing checks to survive brief startup blips.
 PROXY_READY=false
-for i in $(seq 1 30); do
+CONSECUTIVE_READY=0
+for i in $(seq 1 60); do
   if [ -f "$TLS_DIR/ca.crt" ]; then
-    if curl -sf --cacert "$TLS_DIR/ca.crt" "https://localhost:18443/api/v3/health" -o /dev/null 2>/dev/null; then
+    if curl -sf --cacert "$TLS_DIR/ca.crt" "$LOCAL_HEALTH_URL" -o /dev/null 2>/dev/null && \
+       curl -sf --cacert "$TLS_DIR/ca.crt" --resolve "${CLI_PROXY_DIAL_TARGET}:127.0.0.1" "$SIDECAR_HEALTH_URL" -o /dev/null 2>/dev/null; then
+      CONSECUTIVE_READY=$((CONSECUTIVE_READY + 1))
+    else
+      CONSECUTIVE_READY=0
+    fi
+
+    if [ "$CONSECUTIVE_READY" -ge 3 ]; then
       echo "CLI proxy ready on port 18443"
       PROXY_READY=true
       break
@@ -69,8 +85,18 @@ for i in $(seq 1 30); do
 done
 
 if [ "$PROXY_READY" = "false" ]; then
-  echo "::error::CLI proxy failed to start within 30s"
+  echo "::error::CLI proxy failed to start within 60s (listen=${CLI_PROXY_LISTEN_ADDR}, dial=${CLI_PROXY_DIAL_TARGET})"
   docker logs awmg-cli-proxy 2>&1 | tail -20 || true
   docker rm -f awmg-cli-proxy 2>/dev/null || true
   exit 1
+fi
+
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  {
+    echo "### CLI proxy startup diagnostics"
+    echo "- Listen address: \`$CLI_PROXY_LISTEN_ADDR\`"
+    echo "- Sidecar dial target: \`$CLI_PROXY_DIAL_TARGET\`"
+    echo "- Local readiness URL: \`$LOCAL_HEALTH_URL\`"
+    echo "- Sidecar-equivalent readiness URL: \`$SIDECAR_HEALTH_URL\` (checked via curl --resolve)"
+  } >> "$GITHUB_STEP_SUMMARY"
 fi
