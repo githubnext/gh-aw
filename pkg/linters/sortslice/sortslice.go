@@ -56,6 +56,9 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
+		if pass.TypesInfo == nil {
+			return
+		}
 		obj := pass.TypesInfo.ObjectOf(pkgIdent)
 		// ObjectOf can be nil when type information is incomplete.
 		if obj == nil {
@@ -68,6 +71,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		switch sel.Sel.Name {
 		case "Slice":
+			// Keep diagnostics on canonical stdlib names even for aliased imports.
 			pass.ReportRangef(call, "sort.Slice is not type-safe; use slices.SortFunc instead")
 		case "SliceStable":
 			pass.ReportRangef(call, "sort.SliceStable is not type-safe; use slices.SortStableFunc instead")
