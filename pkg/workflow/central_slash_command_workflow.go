@@ -143,18 +143,29 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 
 	// Stable ordering for deterministic output.
 	for commandName := range routesByCommand {
-		sort.Slice(routesByCommand[commandName], func(i, j int) bool {
-			left := routesByCommand[commandName][i]
-			right := routesByCommand[commandName][j]
+		slices.SortFunc(routesByCommand[commandName], func(left, right slashCommandRoute) int {
 			if left.Workflow != right.Workflow {
-				return left.Workflow < right.Workflow
+				if left.Workflow < right.Workflow {
+					return -1
+				}
+				return 1
 			}
 			leftEvents := strings.Join(left.Events, ",")
 			rightEvents := strings.Join(right.Events, ",")
 			if leftEvents != rightEvents {
-				return leftEvents < rightEvents
+				if leftEvents < rightEvents {
+					return -1
+				}
+				return 1
 			}
-			return left.AIReaction < right.AIReaction
+			switch {
+			case left.AIReaction < right.AIReaction:
+				return -1
+			case left.AIReaction > right.AIReaction:
+				return 1
+			default:
+				return 0
+			}
 		})
 	}
 
@@ -194,18 +205,29 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 	}
 
 	for labelName := range routesByLabel {
-		sort.Slice(routesByLabel[labelName], func(i, j int) bool {
-			left := routesByLabel[labelName][i]
-			right := routesByLabel[labelName][j]
+		slices.SortFunc(routesByLabel[labelName], func(left, right slashCommandRoute) int {
 			if left.Workflow != right.Workflow {
-				return left.Workflow < right.Workflow
+				if left.Workflow < right.Workflow {
+					return -1
+				}
+				return 1
 			}
 			leftEvents := strings.Join(left.Events, ",")
 			rightEvents := strings.Join(right.Events, ",")
 			if leftEvents != rightEvents {
-				return leftEvents < rightEvents
+				if leftEvents < rightEvents {
+					return -1
+				}
+				return 1
 			}
-			return left.AIReaction < right.AIReaction
+			switch {
+			case left.AIReaction < right.AIReaction:
+				return -1
+			case left.AIReaction > right.AIReaction:
+				return 1
+			default:
+				return 0
+			}
 		})
 	}
 
@@ -343,18 +365,29 @@ func writeCentralRouteTypeSummary(b *strings.Builder, routesByTrigger map[string
 
 	for _, trigger := range triggers {
 		routes := slices.Clone(routesByTrigger[trigger])
-		sort.Slice(routes, func(i, j int) bool {
-			left := routes[i]
-			right := routes[j]
+		slices.SortFunc(routes, func(left, right slashCommandRoute) int {
 			if left.Workflow != right.Workflow {
-				return left.Workflow < right.Workflow
+				if left.Workflow < right.Workflow {
+					return -1
+				}
+				return 1
 			}
 			leftEvents := strings.Join(left.Events, ",")
 			rightEvents := strings.Join(right.Events, ",")
 			if leftEvents != rightEvents {
-				return leftEvents < rightEvents
+				if leftEvents < rightEvents {
+					return -1
+				}
+				return 1
 			}
-			return left.AIReaction < right.AIReaction
+			switch {
+			case left.AIReaction < right.AIReaction:
+				return -1
+			case left.AIReaction > right.AIReaction:
+				return 1
+			default:
+				return 0
+			}
 		})
 		for _, route := range routes {
 			b.WriteString("#     ")

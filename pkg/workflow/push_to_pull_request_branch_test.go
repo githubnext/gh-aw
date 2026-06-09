@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/testutil"
-	"go.yaml.in/yaml/v3"
 )
 
 func extractPushToPullRequestBranchHandlerConfig(t *testing.T, lockContent []byte) map[string]any {

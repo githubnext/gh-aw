@@ -13,6 +13,7 @@
  * - Integration tokens (Brave Search, Notion)
  */
 
+const fs = require("fs");
 const https = require("https");
 const { promisify } = require("util");
 const { exec } = require("child_process");
@@ -32,6 +33,7 @@ const Status = {
 
 /**
  * Secret documentation URLs
+ * @type {Record<string, string>}
  */
 const SECRET_DOCS = {
   GH_AW_GITHUB_TOKEN: "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
@@ -80,6 +82,43 @@ function makeRequest(hostname, path, headers, method = "GET") {
       reject(new Error("Request timeout"));
     });
 
+    req.end();
+  });
+}
+
+/**
+ * Make an HTTPS POST request
+ * @param {string} hostname
+ * @param {string} path
+ * @param {Object} headers
+ * @param {string} body
+ * @returns {Promise<{statusCode: number, data: string}>}
+ */
+function makePostRequest(hostname, path, headers, body) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname,
+      path,
+      method: "POST",
+      headers: { ...headers, "Content-Length": Buffer.byteLength(body) },
+    };
+
+    const req = https.request(options, res => {
+      let data = "";
+      res.on("data", chunk => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        resolve({ statusCode: res.statusCode || 0, data });
+      });
+    });
+
+    req.on("error", reject);
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error("Request timeout"));
+    });
+    req.write(body);
     req.end();
   });
 }
@@ -158,39 +197,17 @@ async function testGitHubGraphQLAPI(token, owner, repo) {
   `;
 
   try {
-    const result = await new Promise((resolve, reject) => {
-      const postData = JSON.stringify({ query });
-      const graphqlUrl = new URL(process.env.GITHUB_GRAPHQL_URL || "https://api.github.com/graphql");
-      const options = {
-        hostname: graphqlUrl.hostname,
-        path: graphqlUrl.pathname,
-        method: "POST",
-        headers: {
-          "User-Agent": "gh-aw-secret-validation",
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(postData),
-        },
-      };
-
-      const req = https.request(options, res => {
-        let data = "";
-        res.on("data", chunk => {
-          data += chunk;
-        });
-        res.on("end", () => {
-          resolve({ statusCode: res.statusCode || 0, data });
-        });
-      });
-
-      req.on("error", reject);
-      req.setTimeout(10000, () => {
-        req.destroy();
-        reject(new Error("Request timeout"));
-      });
-      req.write(postData);
-      req.end();
-    });
+    const graphqlUrl = new URL(process.env.GITHUB_GRAPHQL_URL || "https://api.github.com/graphql");
+    const result = await makePostRequest(
+      graphqlUrl.hostname,
+      graphqlUrl.pathname,
+      {
+        "User-Agent": "gh-aw-secret-validation",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      JSON.stringify({ query })
+    );
 
     if (result.statusCode === 200) {
       const data = JSON.parse(result.data);
@@ -274,43 +291,20 @@ async function testAnthropicAPI(apiKey) {
 
   try {
     // Test with a minimal API call to check authentication
-    const result = await new Promise((resolve, reject) => {
-      const postData = JSON.stringify({
+    const result = await makePostRequest(
+      "api.anthropic.com",
+      "/v1/messages",
+      {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      JSON.stringify({
         model: "claude-3-haiku-20240307",
         max_tokens: 1,
         messages: [{ role: "user", content: "test" }],
-      });
-
-      const options = {
-        hostname: "api.anthropic.com",
-        path: "/v1/messages",
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "Content-Length": Buffer.byteLength(postData),
-        },
-      };
-
-      const req = https.request(options, res => {
-        let data = "";
-        res.on("data", chunk => {
-          data += chunk;
-        });
-        res.on("end", () => {
-          resolve({ statusCode: res.statusCode || 0, data });
-        });
-      });
-
-      req.on("error", reject);
-      req.setTimeout(10000, () => {
-        req.destroy();
-        reject(new Error("Request timeout"));
-      });
-      req.write(postData);
-      req.end();
-    });
+      })
+    );
 
     if (result.statusCode === 200) {
       return {
@@ -507,8 +501,13 @@ function statusEmoji(status) {
 }
 
 /**
+ * @typedef {{ status: string, message: string, details?: any }} ApiTestResult
+ * @typedef {{ secret: string, test: string, status: string, message: string, details?: any }} TestResult
+ */
+
+/**
  * Generate markdown diagnostic report
- * @param {Array} results
+ * @param {TestResult[]} results
  * @returns {string}
  */
 function generateMarkdownReport(results) {
@@ -549,10 +548,7 @@ function generateMarkdownReport(results) {
       report += `> [!WARNING]\n`;
       report += `> **Failed Tests:** ${failedSecrets.length} secret(s) failed validation\n`;
       report += `>\n`;
-      failedSecrets.forEach(secret => {
-        const docsLink = SECRET_DOCS[secret] || "https://docs.github.com";
-        report += `> - [\`${secret}\`](${docsLink})\n`;
-      });
+      report += failedSecrets.map(secret => `> - [\`${secret}\`](${SECRET_DOCS[secret] || "https://docs.github.com"})\n`).join("");
       report += `>\n`;
       report += `> Review the secret values and ensure they have proper permissions.\n\n`;
     }
@@ -561,10 +557,7 @@ function generateMarkdownReport(results) {
       report += `> [!NOTE]\n`;
       report += `> **Not Configured:** ${notSetSecrets.length} secret(s) not set\n`;
       report += `>\n`;
-      notSetSecrets.forEach(secret => {
-        const docsLink = SECRET_DOCS[secret] || "https://docs.github.com";
-        report += `> - [\`${secret}\`](${docsLink})\n`;
-      });
+      report += notSetSecrets.map(secret => `> - [\`${secret}\`](${SECRET_DOCS[secret] || "https://docs.github.com"})\n`).join("");
       report += `>\n`;
       report += `> Configure these secrets in [repository settings](${process.env.GITHUB_SERVER_URL || "https://github.com"}/${repository}/settings/secrets/actions) if needed.\n\n`;
     }
@@ -574,47 +567,40 @@ function generateMarkdownReport(results) {
   report += `## 🔍 Detailed Results\n\n`;
 
   // Group by secret
-  const bySecret = {};
-  results.forEach(result => {
-    if (!bySecret[result.secret]) {
-      bySecret[result.secret] = [];
-    }
-    bySecret[result.secret].push(result);
-  });
+  const bySecret = results.reduce(
+    /** @param {Record<string, TestResult[]>} acc */
+    (acc, result) => {
+      (acc[result.secret] ??= []).push(result);
+      return acc;
+    },
+    {}
+  );
 
-  Object.entries(bySecret).forEach(([secret, tests]) => {
-    // Determine overall status for the secret
-    const hasFailure = tests.some(t => t.status === Status.FAILURE);
-    const hasNotSet = tests.some(t => t.status === Status.NOT_SET);
+  report += Object.entries(bySecret)
+    .map(([secret, tests]) => {
+      const hasFailure = tests.some(t => t.status === Status.FAILURE);
+      const hasNotSet = tests.some(t => t.status === Status.NOT_SET);
 
-    let statusIcon = "✅";
-    if (hasFailure) statusIcon = "❌";
-    else if (hasNotSet) statusIcon = "⚪";
-    else if (tests.some(t => t.status === Status.SKIPPED)) statusIcon = "⏭️";
+      let statusIcon = "✅";
+      if (hasFailure) statusIcon = "❌";
+      else if (hasNotSet) statusIcon = "⚪";
+      else if (tests.some(t => t.status === Status.SKIPPED)) statusIcon = "⏭️";
 
-    // Add documentation link for the secret
-    const docsLink = SECRET_DOCS[secret] || "https://docs.github.com";
+      const docsLink = SECRET_DOCS[secret] || "https://docs.github.com";
+      const testSections = tests
+        .map(test => {
+          let section = `### ${statusEmoji(test.status)} ${test.test}\n\n`;
+          section += `**Status:** ${test.status} | **Message:** ${test.message}\n\n`;
+          if (test.details) {
+            section += `<details>\n<summary>View details</summary>\n\n\`\`\`json\n${JSON.stringify(test.details, null, 2)}\n\`\`\`\n\n</details>\n\n`;
+          }
+          return section;
+        })
+        .join("");
 
-    // Use collapsible sections for each secret
-    report += `<details>\n`;
-    report += `<summary><strong>${statusIcon} <a href="${docsLink}">${secret}</a></strong> (${tests.length} test${tests.length > 1 ? "s" : ""})</summary>\n\n`;
-
-    tests.forEach(test => {
-      report += `### ${statusEmoji(test.status)} ${test.test}\n\n`;
-      report += `**Status:** ${test.status} | **Message:** ${test.message}\n\n`;
-
-      if (test.details) {
-        report += `<details>\n`;
-        report += `<summary>View details</summary>\n\n`;
-        report += `\`\`\`json\n`;
-        report += `${JSON.stringify(test.details, null, 2)}\n`;
-        report += `\`\`\`\n\n`;
-        report += `</details>\n\n`;
-      }
-    });
-
-    report += `</details>\n\n`;
-  });
+      return `<details>\n<summary><strong>${statusIcon} <a href="${docsLink}">${secret}</a></strong> (${tests.length} test${tests.length > 1 ? "s" : ""})</summary>\n\n${testSections}</details>\n\n`;
+    })
+    .join("");
 
   return report;
 }
@@ -736,7 +722,6 @@ async function main() {
     const report = generateMarkdownReport(results);
 
     // Write to file for artifact upload
-    const fs = require("fs");
     fs.writeFileSync("secret-validation-report.md", report);
     core.info("✅ Report written to secret-validation-report.md");
 
@@ -765,6 +750,9 @@ async function main() {
 module.exports = {
   main,
   isForkRepository,
+  statusEmoji,
+  Status,
+  makePostRequest,
   testGitHubRESTAPI,
   testGitHubGraphQLAPI,
   testCopilotCLI,

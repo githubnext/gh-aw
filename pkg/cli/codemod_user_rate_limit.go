@@ -46,7 +46,7 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		if len(trimmed) == 0 {
+		if trimmed == "" {
 			result = append(result, line)
 			continue
 		}

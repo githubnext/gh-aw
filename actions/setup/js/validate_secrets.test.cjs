@@ -1,7 +1,22 @@
 // @ts-check
 
-import { describe, it, expect } from "vitest";
-import { testGitHubRESTAPI, testGitHubGraphQLAPI, testCopilotCLI, testAnthropicAPI, testOpenAIAPI, testBraveSearchAPI, testNotionAPI, generateMarkdownReport, isForkRepository } from "./validate_secrets.cjs";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import https from "https";
+import { EventEmitter } from "events";
+import {
+  makePostRequest,
+  testGitHubRESTAPI,
+  testGitHubGraphQLAPI,
+  testCopilotCLI,
+  testAnthropicAPI,
+  testOpenAIAPI,
+  testBraveSearchAPI,
+  testNotionAPI,
+  generateMarkdownReport,
+  isForkRepository,
+  statusEmoji,
+  Status,
+} from "./validate_secrets.cjs";
 
 describe("validate_secrets", () => {
   describe("testGitHubRESTAPI", () => {
@@ -69,6 +84,69 @@ describe("validate_secrets", () => {
       const result = await testNotionAPI("");
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("Token not set");
+    });
+  });
+
+  describe("makePostRequest", () => {
+    /** @type {EventEmitter & {setTimeout: any, destroy: any, write: any, end: any, timeoutCallback?: () => void}} */
+    let mockRequest;
+    /** @type {EventEmitter & {statusCode: number}} */
+    let mockResponse;
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function setupHttpsMock(onEnd) {
+      mockResponse = Object.assign(new EventEmitter(), { statusCode: 200 });
+      mockRequest = Object.assign(new EventEmitter(), {
+        setTimeout: vi.fn().mockImplementation((ms, cb) => {
+          mockRequest.timeoutCallback = cb;
+        }),
+        destroy: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn().mockImplementation(() => {
+          if (onEnd) onEnd();
+        }),
+      });
+      vi.spyOn(https, "request").mockImplementation((_options, callback) => {
+        process.nextTick(() => callback?.(/** @type {any} */ mockResponse));
+        return /** @type {any} */ mockRequest;
+      });
+    }
+
+    it("resolves with statusCode and data on success", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse.emit("data", '{"ok":true}');
+          mockResponse.emit("end");
+        });
+      });
+
+      const result = await makePostRequest("api.example.com", "/v1/test", { "Content-Type": "application/json" }, '{"query":"test"}');
+      expect(result.statusCode).toBe(200);
+      expect(result.data).toBe('{"ok":true}');
+    });
+
+    it("rejects on request error", async () => {
+      setupHttpsMock(null);
+      const networkError = new Error("connection refused");
+
+      const promise = makePostRequest("api.example.com", "/v1/test", {}, "{}");
+      process.nextTick(() => mockRequest.emit("error", networkError));
+
+      await expect(promise).rejects.toThrow("connection refused");
+    });
+
+    it("rejects with timeout error after 10 s", async () => {
+      setupHttpsMock(null);
+
+      const promise = makePostRequest("api.example.com", "/v1/test", {}, "{}");
+      // Trigger the timeout callback registered via req.setTimeout
+      process.nextTick(() => mockRequest.timeoutCallback?.());
+
+      await expect(promise).rejects.toThrow("Request timeout");
+      expect(mockRequest.destroy).toHaveBeenCalled();
     });
   });
 
@@ -239,6 +317,32 @@ describe("validate_secrets", () => {
 
     it("should return false when payload is undefined", () => {
       expect(isForkRepository(undefined)).toBe(false);
+    });
+  });
+
+  describe("statusEmoji", () => {
+    it("should return ✅ for success", () => {
+      expect(statusEmoji(Status.SUCCESS)).toBe("✅");
+    });
+
+    it("should return ❌ for failure", () => {
+      expect(statusEmoji(Status.FAILURE)).toBe("❌");
+    });
+
+    it("should return ⚪ for not_set", () => {
+      expect(statusEmoji(Status.NOT_SET)).toBe("⚪");
+    });
+
+    it("should return ⏭️ for skipped", () => {
+      expect(statusEmoji(Status.SKIPPED)).toBe("⏭️");
+    });
+
+    it("should return ❓ for unknown status", () => {
+      expect(statusEmoji("unknown")).toBe("❓");
+    });
+
+    it("should return ❓ for empty string", () => {
+      expect(statusEmoji("")).toBe("❓");
     });
   });
 });

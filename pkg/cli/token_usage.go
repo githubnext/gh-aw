@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -239,16 +238,30 @@ func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetr
 		})
 	}
 
-	sort.SliceStable(ordered, func(i, j int) bool {
-		left := ordered[i]
-		right := ordered[j]
+	slices.SortStableFunc(ordered, func(left, right orderedTokenEntry) int {
 		if left.hasTimestamp && right.hasTimestamp {
-			return left.timestamp.Before(right.timestamp)
+			switch {
+			case left.timestamp.Before(right.timestamp):
+				return -1
+			case right.timestamp.Before(left.timestamp):
+				return 1
+			default:
+				return 0
+			}
 		}
 		if left.hasTimestamp != right.hasTimestamp {
-			return left.hasTimestamp
+			if left.hasTimestamp {
+				return -1
+			}
+			return 1
 		}
-		return left.order < right.order
+		if left.order < right.order {
+			return -1
+		}
+		if left.order > right.order {
+			return 1
+		}
+		return 0
 	})
 
 	firstCall := ordered[0].entry
@@ -674,11 +687,21 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 		})
 		observedModels[model] = usage.Provider
 	}
-	sort.SliceStable(actuals, func(i, j int) bool {
-		if actuals[i].Requests != actuals[j].Requests {
-			return actuals[i].Requests > actuals[j].Requests
+	slices.SortStableFunc(actuals, func(a, b SubagentModelActual) int {
+		if a.Requests != b.Requests {
+			if a.Requests > b.Requests {
+				return -1
+			}
+			return 1
 		}
-		return actuals[i].Model < actuals[j].Model
+		switch {
+		case a.Model < b.Model:
+			return -1
+		case a.Model > b.Model:
+			return 1
+		default:
+			return 0
+		}
 	})
 	summary.SubagentModelActuals = actuals
 
@@ -772,11 +795,21 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 			InvocationCount: n,
 		})
 	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].AgentName != rows[j].AgentName {
-			return rows[i].AgentName < rows[j].AgentName
+	slices.SortStableFunc(rows, func(a, b SubagentModelRequest) int {
+		if a.AgentName != b.AgentName {
+			if a.AgentName < b.AgentName {
+				return -1
+			}
+			return 1
 		}
-		return rows[i].RequestedModel < rows[j].RequestedModel
+		switch {
+		case a.RequestedModel < b.RequestedModel:
+			return -1
+		case a.RequestedModel > b.RequestedModel:
+			return 1
+		default:
+			return 0
+		}
 	})
 	return rows
 }
@@ -860,10 +893,16 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 		})
 	}
 	// Sort by total tokens descending
-	sort.Slice(rows, func(i, j int) bool {
-		iTot := rows[i].InputTokens + rows[i].OutputTokens + rows[i].CacheReadTokens + rows[i].CacheWriteTokens
-		jTot := rows[j].InputTokens + rows[j].OutputTokens + rows[j].CacheReadTokens + rows[j].CacheWriteTokens
-		return iTot > jTot
+	slices.SortFunc(rows, func(a, b ModelTokenUsageRow) int {
+		iTot := a.InputTokens + a.OutputTokens + a.CacheReadTokens + a.CacheWriteTokens
+		jTot := b.InputTokens + b.OutputTokens + b.CacheReadTokens + b.CacheWriteTokens
+		if iTot > jTot {
+			return -1
+		}
+		if iTot < jTot {
+			return 1
+		}
+		return 0
 	})
 	return rows
 }

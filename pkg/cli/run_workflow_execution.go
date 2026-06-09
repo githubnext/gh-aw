@@ -78,7 +78,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 		}
 		// Check that key (before '=') is not empty
 		parts := strings.SplitN(input, "=", 2)
-		if len(parts[0]) == 0 {
+		if parts[0] == "" {
 			return fmt.Errorf("invalid input format '%s': key cannot be empty", input)
 		}
 	}

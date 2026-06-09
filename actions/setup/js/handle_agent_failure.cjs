@@ -25,6 +25,7 @@ const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
@@ -571,6 +572,7 @@ gh aw audit <run-id>
       title: parentTitle,
       body: parentBody,
       labels: [parentLabel],
+      headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
     });
 
     core.info(`✓ Created parent issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
@@ -1109,12 +1111,21 @@ function loadMissingToolMessages(items) {
 }
 
 /**
+ * Determine whether a missing_tool message represents permission denial.
+ * @param {{tool: string|null, denied_commands: Array<string>}} message
+ * @returns {boolean}
+ */
+function isPermissionDeniedMissingTool(message) {
+  return message.tool === "tool/permission" && Array.isArray(message.denied_commands) && message.denied_commands.length > 0;
+}
+
+/**
  * Build missing_tool context string for display in failure issues/comments.
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted missing tool context
  */
 function buildMissingToolContext(items) {
-  const missingToolMessages = loadMissingToolMessages(items);
+  const missingToolMessages = loadMissingToolMessages(items).filter(message => !isPermissionDeniedMissingTool(message));
 
   if (missingToolMessages.length === 0) {
     return "";
@@ -1140,9 +1151,7 @@ function buildMissingToolContext(items) {
  */
 function buildPermissionDeniedContext(items, workflowId) {
   const missingToolMessages = loadMissingToolMessages(items);
-
-  const isPermissionDeniedItem = m => m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0;
-  const permissionItems = missingToolMessages.filter(isPermissionDeniedItem);
+  const permissionItems = missingToolMessages.filter(isPermissionDeniedMissingTool);
 
   if (permissionItems.length === 0) {
     return "";
@@ -1244,25 +1253,17 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
 
-  try {
-    const templatePath = getPromptPath("tool_denials_exceeded_context.md");
-    const template = fs.readFileSync(templatePath, "utf8");
-    return (
-      "\n" +
-      renderTemplate(template, {
-        denial_count: denialCount,
-        threshold,
-        reason: `\`${normalizedReason}\``,
-        workflow_id: workflowId || "the workflow",
-      })
-    );
-  } catch {
-    return (
-      buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
-      `**Last denied request:** \`${normalizedReason}\`\n\n` +
-      "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
-    );
-  }
+  const templatePath = getPromptPath("tool_denials_exceeded_context.md");
+  const template = fs.readFileSync(templatePath, "utf8");
+  return (
+    "\n" +
+    renderTemplate(template, {
+      denial_count: denialCount,
+      threshold,
+      reason: normalizedReason,
+      workflow_id: workflowId || "the workflow",
+    })
+  );
 }
 
 /**
@@ -1476,20 +1477,22 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
   const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
   const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) && numericAICredits > numericMaxAICredits ? numericAICredits - numericMaxAICredits : NaN;
   const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
-  const metricsRows = [];
-  if (formattedAICredits) {
-    metricsRows.push(`| AI credits used | \`${formattedAICredits}\` |`);
+
+  // Build inline metrics summary (no table, no run URL)
+  let metricsSummary = "";
+  if (formattedAICredits && formattedMaxAICredits) {
+    metricsSummary = ` Used \`${formattedAICredits}\` of \`${formattedMaxAICredits}\` max`;
+    if (formattedOverage) {
+      metricsSummary += ` (over by \`${formattedOverage}\`)`;
+    }
+    metricsSummary += ".";
+  } else if (formattedAICredits) {
+    metricsSummary = ` Used \`${formattedAICredits}\`.`;
   }
-  if (formattedMaxAICredits) {
-    metricsRows.push(`| Guardrail limit (\`max-ai-credits\`) | \`${formattedMaxAICredits}\` |`);
-  }
-  if (formattedOverage) {
-    metricsRows.push(`| Over the limit by | \`${formattedOverage}\` |`);
-  }
-  if (runUrl) {
-    metricsRows.push(`| Run | [View workflow run](${runUrl}) |`);
-  }
-  const metricsTable = metricsRows.length > 0 ? `\n\n| Metric | Value |\n| --- | --- |\n${metricsRows.join("\n")}` : "";
+
+  // Suggest a new limit: 2x current max, or 2x actual usage if max is unknown, or a reasonable default
+  const baseForSuggestion = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? numericMaxAICredits : Number.isFinite(numericAICredits) && numericAICredits > 0 ? numericAICredits : 0;
+  const suggestedCredits = baseForSuggestion > 0 ? Math.ceil(baseForSuggestion * 2) : 2000;
 
   const templateName = "ai_credits_rate_limit_error.md";
   let templatePath = "";
@@ -1503,11 +1506,12 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        metrics_table: metricsTable,
+        metrics_summary: metricsSummary,
+        suggested_credits: suggestedCredits,
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_table`);
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_summary, suggested_credits`);
   }
 }
 
@@ -1827,7 +1831,8 @@ function hasAgentTerminalReasonCompleted() {
  * The log file is available in the conclusion job after the agent artifact is downloaded.
  * @returns {string} Formatted context string, or empty string if no engine failure found
  */
-function buildEngineFailureContext() {
+function buildEngineFailureContext(options = {}) {
+  const suppressEngineRateLimit429 = options.suppressEngineRateLimit429 === true;
   // Derive agent-stdio.log path from the agent output file path (same directory)
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
@@ -1858,7 +1863,7 @@ function buildEngineFailureContext() {
       return "";
     }
 
-    if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
+    if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);
     }
@@ -2133,6 +2138,7 @@ async function findOrCreateDailyCapRollupIssue(owner, repo) {
       title: DAILY_CAP_ROLLUP_TITLE,
       body,
       labels: ["agentic-workflows", DAILY_CAP_ROLLUP_LABEL],
+      headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
     });
     core.info(`✓ Created daily cap rollup issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
     return { number: newIssue.data.number, html_url: newIssue.data.html_url };
@@ -2216,6 +2222,7 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
         title: CASCADE_ROLLUP_TITLE,
         body: rollupBody,
         labels: ["agentic-workflows", CASCADE_ROLLUP_LABEL],
+        headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
       });
       core.info(`✓ Created cascade rollup issue #${newRollup.data.number}: ${newRollup.data.html_url}`);
     }
@@ -2717,7 +2724,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2941,7 +2948,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -3051,6 +3058,7 @@ async function main() {
           title: issueTitle,
           body: issueBody,
           labels: ["agentic-workflows"],
+          headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
         });
 
         core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);

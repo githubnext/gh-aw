@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -545,8 +546,15 @@ func buildDedupKeyInfos(keys []string) []cacheKeyInfo {
 		}
 		keyInfos[i] = cacheKeyInfo{key: key, versionRef: versionRef}
 	}
-	sort.Slice(keyInfos, func(i, j int) bool {
-		return isMorePreciseVersion(keyInfos[i].versionRef, keyInfos[j].versionRef)
+	slices.SortFunc(keyInfos, func(a, b cacheKeyInfo) int {
+		switch {
+		case isMorePreciseVersion(a.versionRef, b.versionRef):
+			return -1
+		case isMorePreciseVersion(b.versionRef, a.versionRef):
+			return 1
+		default:
+			return 0
+		}
 	})
 	return keyInfos
 }

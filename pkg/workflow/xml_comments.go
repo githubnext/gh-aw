@@ -172,7 +172,7 @@ func isValidCodeBlockMarker(trimmedLine string) bool {
 // isMatchingCodeBlockMarker checks if the trimmed line matches the opening marker
 func isMatchingCodeBlockMarker(trimmedLine string, openMarker string) bool {
 	marker, _ := extractCodeBlockMarker(trimmedLine)
-	if len(marker) == 0 || len(openMarker) == 0 {
+	if marker == "" || openMarker == "" {
 		return false
 	}
 

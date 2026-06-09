@@ -60,6 +60,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
+const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -734,6 +735,15 @@ async function main() {
         if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
           log(`attempt ${attempt + 1}: noop message found in safe-outputs — not retrying (work is already complete or no work needed)`);
           lastExitCode = 0;
+          break;
+        }
+
+        const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
+        if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests) {
+          const reasons = [];
+          if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
+          if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
+          log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
           break;
         }
 

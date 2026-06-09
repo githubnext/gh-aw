@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -118,18 +119,6 @@ func extractLiteralErrorMessage(call *ast.CallExpr) (string, bool) {
 	return unquoted, true
 }
 
-func isFmtErrorf(call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return ident.Name == "fmt" && sel.Sel.Name == "Errorf"
-}
-
 func isNewValidationErrorCall(call *ast.CallExpr) bool {
 	switch fun := call.Fun.(type) {
 	case *ast.Ident:
@@ -142,7 +131,7 @@ func isNewValidationErrorCall(call *ast.CallExpr) bool {
 }
 
 func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename string) {
-	if !strings.HasSuffix(filename, "_validation.go") || !isFmtErrorf(call) {
+	if !strings.HasSuffix(filename, "_validation.go") || !astutil.IsFmtErrorf(pass, call) {
 		return
 	}
 	pass.ReportRangef(call, "use NewValidationError(...) instead of fmt.Errorf(...) in validation files")
@@ -182,7 +171,7 @@ func checkNewValidationSuggestion(pass *analysis.Pass, call *ast.CallExpr) {
 }
 
 func checkFailedToErrorfWrap(pass *analysis.Pass, call *ast.CallExpr, msg string) {
-	if !isFmtErrorf(call) {
+	if !astutil.IsFmtErrorf(pass, call) {
 		return
 	}
 	if strings.HasPrefix(strings.ToLower(msg), "failed to ") && strings.Contains(msg, ": %w") {

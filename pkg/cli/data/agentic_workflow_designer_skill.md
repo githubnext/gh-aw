@@ -117,6 +117,9 @@ Present a structured summary and ask for approval before generation.
 | "every Monday", "weekly" | fuzzy schedule shorthand `on: schedule: weekly` (compiler expands to cron) |
 | "when I say /review" | `on: slash_command:` with `name: review` (or requested command) |
 | "when an issue is labeled bug" | `on: issues:` with `types: [labeled]` and label filter guidance |
+| "run when label ai-review is added" | `on: label_command:` with `name`/`names`, optional event scoping, and label-as-command semantics |
+| "run on PRs from forks" | `on: pull_request:` plus explicit `forks:` allowlist and fork security guardrails |
+| "sometimes automatic, sometimes manual" | semi-active pattern: combine `schedule`/event triggers with `workflow_dispatch` |
 | "manually", "on demand" | `on: workflow_dispatch:` |
 | "when a deployment fails" | `on: deployment_status:` |
 | "when another workflow finishes" | `on: workflow_run:` |
@@ -127,11 +130,26 @@ Present a structured summary and ask for approval before generation.
 |---|---|
 | "post a comment" | `add-comment` |
 | "create an issue" | `create-issue` |
-| "open a PR", "submit changes" | `create-pull-request` |
-| "add labels" | `add-labels` |
-| "remove labels" | `remove-labels` |
+| "update issue title/body" | `update-issue` |
 | "close the issue" | `close-issue` |
-| "assign someone" | `assign-to-user` |
+| "assign someone", "remove assignment" | `assign-to-user`, `unassign-from-user` |
+| "set issue type/field/milestone" | `set-issue-type`, `set-issue-field`, `assign-milestone` |
+| "open a PR", "submit changes" | `create-pull-request` |
+| "update PR description/title" | `update-pull-request` |
+| "close the PR", "merge the PR" | `close-pull-request`, `merge-pull-request` |
+| "mark PR ready", "sync PR branch" | `mark-pull-request-as-ready-for-review`, `update-branch` |
+| "commit a fix to the PR branch" | `push-to-pull-request-branch` |
+| "approve / request changes" | `submit-pull-request-review` |
+| "inline review comment", "reply to review thread" | `create-pull-request-review-comment`, `reply-to-pull-request-review-comment`, `resolve-pull-request-review-thread` |
+| "start or edit discussion", "close discussion" | `create-discussion`, `update-discussion`, `close-discussion` |
+| "request reviewer", "hide comment" | `add-reviewer`, `hide-comment` |
+| "create/update project", "project status update" | `create-project`, `update-project`, `create-project-status-update` |
+| "update release", "upload release asset" | `update-release`, `upload-asset` |
+| "create/auto-fix code scan alert" | `create-code-scanning-alert`, `autofix-code-scanning-alert` |
+| "start an agent session", "assign to an agent" | `create-agent-session`, `assign-to-agent` |
+| "store persistent memory comment" | `comment-memory` |
+| "link a sub-issue" | `link-sub-issue` |
+| "add labels", "remove labels" | `add-labels`, `remove-labels` |
 | "nothing visible", "just analyze" | no safe outputs required |
 
 ### Network Mapping
@@ -149,10 +167,23 @@ Present a structured summary and ask for approval before generation.
 | User says... | Maps to |
 |---|---|
 | "read GitHub issues/PRs/workflows" | `tools.github` with `mode: gh-proxy` and minimal `toolsets` |
+| "use full MCP server/tool definitions" | `tools.github` with `mode: local` |
+| "use other MCP servers but keep token cost down" | `tools.cli-proxy: true` (hybrid CLI-proxy mode) |
 | "edit files" | `edit` tool (default unless restricted) |
 | "run commands/tests" | `bash` tool (default unless restricted) |
 | "browse web pages/docs" | `web-fetch` and/or `web-search` |
 | "test UI flows" | `playwright` |
+
+### Pattern Heuristics
+
+| User says... | Recommended named pattern |
+|---|---|
+| "triage issues automatically" | `IssueOps` |
+| "run on /commands with human approval loops" | `ChatOps` |
+| "run every weekday and keep improving" | `DailyOps` |
+| "monitor workflow failures and trends" | `MonitorOps` |
+| "process a big backlog in chunks" | `BatchOps` |
+| "run manually with input parameters" | `DispatchOps` |
 
 ### Integration Auth Mapping
 
@@ -289,8 +320,8 @@ Before final output, run this internal self-check:
 ## References (load only when needed)
 
 In-repo references:
-- `.github/aw/syntax.md`
-- `.github/aw/safe-outputs.md`
+- `.github/aw/syntax.md` (index → `.github/aw/syntax-core.md`, `.github/aw/syntax-agentic.md`, `.github/aw/syntax-tools-imports.md`)
+- `.github/aw/safe-outputs.md` (index → `.github/aw/safe-outputs-content.md`, `.github/aw/safe-outputs-management.md`, `.github/aw/safe-outputs-automation.md`, `.github/aw/safe-outputs-runtime.md`)
 - `.github/aw/network.md`
 - `.github/aw/patterns.md`
 - `.github/aw/subagents.md`
@@ -299,8 +330,8 @@ In-repo references:
 - `.github/aw/create-agentic-workflow.md`
 
 Portable HTTPS references:
-- `https://github.com/github/gh-aw/blob/main/.github/aw/syntax.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/safe-outputs.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/syntax.md` (index → `.../syntax-core.md`, `.../syntax-agentic.md`, `.../syntax-tools-imports.md`)
+- `https://github.com/github/gh-aw/blob/main/.github/aw/safe-outputs.md` (index → `.../safe-outputs-content.md`, `.../safe-outputs-management.md`, `.../safe-outputs-automation.md`, `.../safe-outputs-runtime.md`)
 - `https://github.com/github/gh-aw/blob/main/.github/aw/network.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/patterns.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/triggers.md`

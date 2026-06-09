@@ -196,8 +196,15 @@ func (c *Compiler) collectNpmDependencies(workflowDataList []*WorkflowData) []Np
 	}
 
 	// Sort by name for deterministic output
-	sort.Slice(deps, func(i, j int) bool {
-		return deps[i].Name < deps[j].Name
+	slices.SortFunc(deps, func(a, b NpmDependency) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	dependabotLog.Printf("Collected %d unique dependencies", len(deps))
@@ -695,8 +702,15 @@ func (c *Compiler) collectPipDependencies(workflowDataList []*WorkflowData) []Pi
 	}
 
 	// Sort by name for deterministic output
-	sort.Slice(deps, func(i, j int) bool {
-		return deps[i].Name < deps[j].Name
+	slices.SortFunc(deps, func(a, b PipDependency) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	dependabotLog.Printf("Collected %d unique pip dependencies", len(deps))
@@ -832,8 +846,15 @@ func (c *Compiler) collectGoDependencies(workflowDataList []*WorkflowData) []GoD
 	}
 
 	// Sort by path for deterministic output
-	sort.Slice(deps, func(i, j int) bool {
-		return deps[i].Path < deps[j].Path
+	slices.SortFunc(deps, func(a, b GoDependency) int {
+		switch {
+		case a.Path < b.Path:
+			return -1
+		case a.Path > b.Path:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	dependabotLog.Printf("Collected %d unique Go dependencies", len(deps))

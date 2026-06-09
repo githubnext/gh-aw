@@ -214,7 +214,7 @@ Model Context Protocol (MCP) servers provide tools to AI agents. Compilation emi
 
 Pre-activation runs gating checks sequentially before any AI execution. Any failure sets `activated=false`, skipping downstream jobs and saving costs:
 
-- **Role checks** (`roles:`) — actor has admin/maintainer/write permission
+- **Role checks** (`roles:`) — actor's role exactly matches one of the entries in the allowlist (default `[admin, maintainer, write]`; no privilege hierarchy — `roles: [write]` rejects `admin` and `maintainer` actors)
 - **Stop-after** (`on.stop-after:`) — workflow has not passed its deadline (e.g., `+30d`, `2024-12-31`)
 - **Skip-if-match** (`skip-if-match:`) — no existing item matches the dedup criteria
 - **Command position** (`on.slash_command:`) — slash command appears in the first 3 lines

@@ -246,8 +246,8 @@ description: Safe-output reference for update, label, milestone, project, releas
     push-to-pull-request-branch:
       target: "*"                     # Optional: "triggering" (default), "*", or number
       branch: "triggering"            # Optional: branch to push to (default: "triggering")
-      title-prefix: "[bot] "          # Optional: require title prefix
-      labels: [automated]             # Optional: require all labels
+      required-title-prefix: "[bot] " # Optional: require title prefix
+      required-labels: [automated]    # Optional: require all labels
       if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
       ignore-missing-branch-failure: false  # Optional: treat deleted PR branches as skipped pushes (default: false)
       commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
@@ -272,7 +272,7 @@ description: Safe-output reference for update, label, milestone, project, releas
 
   **Compile-time warnings for `target: "*"`**: When `target: "*"` is set, the compiler emits warnings if:
   1. The checkout configuration does not include a wildcard fetch pattern — add `fetch: ["*"]` with `fetch-depth: 0` so the agent can access all PR branches at runtime
-  2. No constraints are provided — add `title-prefix` or `labels` to restrict which PRs can receive pushes
+  2. No constraints are provided — add `required-title-prefix` or `required-labels` to restrict which PRs can receive pushes
 
   Example with all recommended settings:
 
@@ -283,4 +283,4 @@ description: Safe-output reference for update, label, milestone, project, releas
   safe-outputs:
     push-to-pull-request-branch:
       target: "*"
-      title-prefix: "[bot] "   # restrict to PRs with this title prefix
+      required-title-prefix: "[bot] "   # restrict to PRs with this title prefix

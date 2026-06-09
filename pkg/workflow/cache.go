@@ -60,7 +60,7 @@ var validCacheMemoryScopes = []string{"workflow", "repo"}
 // This prevents path-traversal attacks (e.g. "../../etc") when the ID is
 // appended to cacheMemoryDirPrefix to form a filesystem path.
 func isValidCacheID(id string) bool {
-	if len(id) == 0 || len(id) > 64 {
+	if id == "" || len(id) > 64 {
 		return false
 	}
 	for _, c := range id {
@@ -794,15 +794,15 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		// Build description text
 		descriptionText := ""
 		if cache.Description != "" {
-			descriptionText = " " + cache.Description
+			descriptionText = cache.Description
 		}
 
 		// Build allowed extensions text.
-		// When non-empty, wrap as an XML element so the agent knows about file-type restrictions.
+		// When non-empty, add a compact plain-text restriction line.
 		// When empty (all extensions allowed), the placeholder is replaced with nothing.
 		var allowedExtsText string
 		if len(cache.AllowedExtensions) > 0 {
-			allowedExtsText = "\n<allowed-extensions>" + strings.Join(cache.AllowedExtensions, ", ") + "</allowed-extensions>"
+			allowedExtsText = "\nAllowed file extensions: " + strings.Join(cache.AllowedExtensions, ", ") + "."
 		}
 
 		cacheLog.Printf("Building cache memory prompt section with env vars: cache_dir=%s, description=%s, allowed_extensions=%v", cacheDir, descriptionText, cache.AllowedExtensions)
@@ -836,7 +836,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 
 	// Build allowed extensions text.
 	// Compute the union of all allowed extensions across all caches.
-	// When non-empty, wrap as an XML element so the agent knows about file-type restrictions.
+	// When non-empty, add a compact plain-text restriction line.
 	// When empty (all extensions allowed for all caches), the placeholder is replaced with nothing.
 	allSame := true
 	for i := 1; i < len(config.Caches); i++ {
@@ -873,7 +873,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 
 	var allowedExtsText string
 	if len(extsUnion) > 0 {
-		allowedExtsText = "\n<allowed-extensions>" + strings.Join(extsUnion, ", ") + "</allowed-extensions>"
+		allowedExtsText = "\nAllowed file extensions: " + strings.Join(extsUnion, ", ") + "."
 	}
 
 	// Build cache examples

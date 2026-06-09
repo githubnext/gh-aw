@@ -349,7 +349,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	}
 
 	// If no changes, skip commit and push
-	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+	if strings.TrimSpace(string(statusOutput)) == "" {
 		trialLog.Print("No new trial results to commit, skipping push")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No new trial results to commit"))

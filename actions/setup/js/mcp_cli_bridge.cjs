@@ -54,6 +54,12 @@ const KEEPALIVE_PING_INTERVAL_MS = 10000;
 /** Starting JSON-RPC ID for keepalive ping requests */
 const KEEPALIVE_PING_ID_START = 1000;
 
+/** Preferred max lines for generated CLI help output */
+const TOP_HELP_MAX_LINES = 20;
+const TOOL_HELP_MAX_LINES = 30;
+const TOOL_DESC_MAX_LEN = 90;
+const COMPACT_NAME_LINE_TARGET_WIDTH = 110;
+
 // ---------------------------------------------------------------------------
 // Audit logging
 // ---------------------------------------------------------------------------
@@ -763,20 +769,18 @@ function loadTools(toolsFile) {
  * @param {Array<{name: string, description?: string}>} tools - Tool list
  */
 function showHelp(serverName, tools) {
-  const lines = [`Usage: ${serverName} <command> [options]`, ""];
-  lines.push("Available commands:");
+  const lines = [`Usage: ${serverName} <command> [--param value ...]`, `Tip: ${serverName} <command> --help`, "", `Commands (${tools.length}):`];
   if (tools.length > 0) {
-    // Calculate column width for aligned output
-    const maxNameLen = Math.max(...tools.map(t => t.name.length));
-    for (const tool of tools) {
-      const padded = tool.name.padEnd(maxNameLen + 2);
-      lines.push(`  ${padded}${tool.description || "No description"}`);
-    }
+    const maxCommandLines = Math.max(1, TOP_HELP_MAX_LINES - lines.length);
+    lines.push(
+      ...formatCompactNameLines(
+        tools.map(tool => tool.name),
+        maxCommandLines
+      )
+    );
   } else {
     lines.push("  (tool list unavailable)");
   }
-  lines.push("");
-  lines.push(`Run '${serverName} <command> --help' for more information on a command.`);
   process.stdout.write(lines.join("\n") + "\n");
 }
 
@@ -796,40 +800,97 @@ function showToolHelp(serverName, toolName, tools) {
     return;
   }
 
-  const lines = [`Command: ${toolName}`, `Description: ${tool.description || "No description"}`];
+  const lines = [
+    `Command: ${toolName}`,
+    `Description: ${summarizeHelpText(tool.description || "No description", TOOL_DESC_MAX_LEN)}`,
+    `Usage: ${serverName} ${toolName} [--param value ...]`,
+    `JSON mode: printf '{"param":"value",...}' | ${serverName} ${toolName} .`,
+  ];
 
   const props = tool.inputSchema?.properties;
   const required = new Set(tool.inputSchema?.required || []);
   if (props && Object.keys(props).length > 0) {
     lines.push("");
-    lines.push("Options:");
-    const maxKeyLen = Math.max(...Object.keys(props).map(k => k.length));
-    for (const [key, val] of Object.entries(props)) {
-      const flagPad = `--${key}`.padEnd(maxKeyLen + 4);
-      const parts = [getTypeStr(val.type)];
-      if (required.has(key)) parts.push("(required)");
-      if (val.description) parts.push(val.description);
-      lines.push(`  ${flagPad}${parts.join(" ")}`);
+    lines.push(`Options (${Object.keys(props).length}):`);
+    const optionEntries = Object.entries(props);
+    const hasRequiredOptions = required.size > 0;
+    const maxOptionLines = Math.max(1, TOOL_HELP_MAX_LINES - lines.length - (hasRequiredOptions ? 1 : 0));
+    lines.push(
+      ...formatCompactNameLines(
+        optionEntries.map(([key]) => `--${key}${required.has(key) ? "*" : ""}`),
+        maxOptionLines
+      )
+    );
+    if (hasRequiredOptions) {
+      lines.push("Required options are marked with *.");
     }
-
-    lines.push("");
-    lines.push(`Usage: ${serverName} ${toolName} [--param value ...]`);
-    lines.push(`  or:  printf '{"param":"value",...}' | ${serverName} ${toolName} .`);
   }
 
   process.stdout.write(lines.join("\n") + "\n");
 }
 
 /**
- * Format a JSON schema type value as a short bracketed string.
+ * Collapse whitespace and trim long help text for compact output.
  *
- * @param {string|string[]|undefined} type
+ * @param {string} value
+ * @param {number} maxLen
  * @returns {string}
  */
-function getTypeStr(type) {
-  if (!type) return "(string)";
-  const types = Array.isArray(type) ? type.filter(t => t !== "null") : [type];
-  return `(${types.length > 0 ? types.join("|") : "null"})`;
+function summarizeHelpText(value, maxLen) {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!Number.isFinite(maxLen) || maxLen <= 0) {
+    return normalized;
+  }
+  if (normalized.length <= maxLen) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLen - 1)}…`;
+}
+
+/**
+ * Render names as comma-separated compact lines and keep all names visible.
+ * Width is a soft target; the final line may exceed it to avoid dropping names.
+ *
+ * @param {string[]} names
+ * @param {number} maxLines - Preferred line budget; non-positive/invalid values force one compact line
+ * @returns {string[]}
+ */
+function formatCompactNameLines(names, maxLines) {
+  if (!Array.isArray(names) || names.length === 0) {
+    // Callers spread the result into help lines, so empty input should contribute no lines.
+    return [];
+  }
+  if (!Number.isFinite(maxLines) || maxLines <= 0) {
+    return [`  ${names.join(", ")}`];
+  }
+  const lines = [];
+  let current = "  ";
+  for (const name of names) {
+    const token = current.trim() ? `, ${name}` : name;
+    // A single very long name may still exceed the width target; we keep it intact.
+    const shouldStartNewLine = current.length + token.length > COMPACT_NAME_LINE_TARGET_WIDTH;
+    if (shouldStartNewLine) {
+      lines.push(current);
+      current = `  ${name}`;
+      continue;
+    }
+    current += token;
+  }
+  if (current.trim()) {
+    lines.push(current);
+  }
+  if (lines.length > maxLines) {
+    // Keep maxLines - 1 full lines and collapse the remaining names into the final allowed line.
+    const compactTail = lines
+      .slice(maxLines - 1)
+      // Trim per-line indentation before rebuilding a single indented tail line.
+      .map(line => line.trim())
+      .join(", ");
+    return [...lines.slice(0, maxLines - 1), `  ${compactTail}`];
+  }
+  return lines;
 }
 
 // ---------------------------------------------------------------------------
@@ -1130,6 +1191,8 @@ module.exports = {
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
+  showHelp,
+  showToolHelp,
   hasStdinJsonPayload,
   readStdinSync,
   main,

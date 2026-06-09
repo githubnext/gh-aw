@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -67,8 +67,14 @@ type GitHubRateLimitUsage struct {
 func (u *GitHubRateLimitUsage) ResourceRows() []*GitHubRateLimitResourceUsage {
 	rows := make([]*GitHubRateLimitResourceUsage, len(u.Resources))
 	copy(rows, u.Resources)
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].RequestsMade > rows[j].RequestsMade
+	slices.SortFunc(rows, func(a, b *GitHubRateLimitResourceUsage) int {
+		if a.RequestsMade > b.RequestsMade {
+			return -1
+		}
+		if a.RequestsMade < b.RequestsMade {
+			return 1
+		}
+		return 0
 	})
 	return rows
 }
@@ -247,8 +253,14 @@ func parseGitHubRateLimitsFile(filePath string) (*GitHubRateLimitUsage, error) {
 	}
 
 	// Sort resources for deterministic output
-	sort.Slice(usage.Resources, func(i, j int) bool {
-		return usage.Resources[i].RequestsMade > usage.Resources[j].RequestsMade
+	slices.SortFunc(usage.Resources, func(a, b *GitHubRateLimitResourceUsage) int {
+		if a.RequestsMade > b.RequestsMade {
+			return -1
+		}
+		if a.RequestsMade < b.RequestsMade {
+			return 1
+		}
+		return 0
 	})
 
 	return usage, nil

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -685,8 +686,15 @@ func experimentDetailsFromState(workflowID, branchName string, state *Experiment
 			Total:    total,
 		})
 	}
-	sort.Slice(experiments, func(i, j int) bool {
-		return experiments[i].Name < experiments[j].Name
+	slices.SortFunc(experiments, func(a, b ExperimentVariantStats) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	recentRuns := state.Runs
@@ -771,7 +779,16 @@ func printExperimentDetails(d *ExperimentDetails) {
 			for k, v := range exp.Variants {
 				pairs = append(pairs, kv{k, v})
 			}
-			sort.Slice(pairs, func(i, j int) bool { return pairs[i].k < pairs[j].k })
+			slices.SortFunc(pairs, func(a, b kv) int {
+				switch {
+				case a.k < b.k:
+					return -1
+				case a.k > b.k:
+					return 1
+				default:
+					return 0
+				}
+			})
 			for _, p := range pairs {
 				pct := 0
 				if exp.Total > 0 {

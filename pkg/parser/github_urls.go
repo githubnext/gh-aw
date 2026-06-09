@@ -360,7 +360,7 @@ const (
 func isValidGitHubNameWithMaxLength(s string, maxLength int) bool {
 	// GitHub identifiers can contain alphanumeric characters, hyphens, and underscores.
 	// They cannot start or end with a hyphen.
-	if len(s) == 0 || len(s) > maxLength {
+	if s == "" || len(s) > maxLength {
 		return false
 	}
 	if s[0] == '-' || s[len(s)-1] == '-' {

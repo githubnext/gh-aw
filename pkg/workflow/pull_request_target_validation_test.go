@@ -36,6 +36,8 @@ on:
     types: [opened]
 tools:
   github: false
+features:
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 checkout: false
@@ -58,6 +60,8 @@ on:
     types: [opened]
 tools:
   github: false
+features:
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -103,6 +107,8 @@ on:
     types: [opened]
 tools:
   github: false
+features:
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -124,6 +130,8 @@ on:
     branches: [main]
 tools:
   github: false
+features:
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---

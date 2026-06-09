@@ -1376,59 +1376,63 @@ func TestWikiCheckout(t *testing.T) {
 // The manifest step is consumed by the safe-outputs MCP server to resolve a
 // per-repo default branch without making any network calls at request time.
 func TestGenerateCheckoutManifestStep(t *testing.T) {
+	getActionPin := func(action string) string {
+		return action + "@pin"
+	}
+
 	t.Run("no configs emits nothing", func(t *testing.T) {
 		cm := NewCheckoutManager(nil)
-		assert.Empty(t, cm.GenerateCheckoutManifestStep(), "empty manager should not emit a manifest step")
+		assert.Empty(t, cm.GenerateCheckoutManifestStep(getActionPin), "empty manager should not emit a manifest step")
 	})
 
 	t.Run("default-only checkout emits nothing", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Path: "."},
 		})
-		assert.Empty(t, cm.GenerateCheckoutManifestStep(), "manifest is for cross-repo entries only; default checkout should not produce one")
+		assert.Empty(t, cm.GenerateCheckoutManifestStep(getActionPin), "manifest is for cross-repo entries only; default checkout should not produce one")
 	})
 
 	t.Run("path-only additional checkout (no repository) emits nothing", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Path: "./workspace"},
 		})
-		assert.Empty(t, cm.GenerateCheckoutManifestStep(), "additional checkout without repository should not be in manifest")
+		assert.Empty(t, cm.GenerateCheckoutManifestStep(getActionPin), "additional checkout without repository should not be in manifest")
 	})
 
 	t.Run("wiki cross-repo checkout is excluded", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Repository: "owner/docs", Path: "./wiki", Wiki: true},
 		})
-		assert.Empty(t, cm.GenerateCheckoutManifestStep(), "wiki checkouts must be excluded from manifest")
+		assert.Empty(t, cm.GenerateCheckoutManifestStep(getActionPin), "wiki checkouts must be excluded from manifest")
 	})
 
 	t.Run("cross-repo additional checkout emits entry", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Repository: "owner/other", Path: "./other"},
+			{Repository: "owner/other", Path: "./other", GitHubToken: "${{ secrets.CROSS_REPO_PAT }}"},
 		})
-		steps := cm.GenerateCheckoutManifestStep()
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
 		require.Len(t, steps, 1, "should emit one manifest step")
 		out := steps[0]
 		assert.Contains(t, out, "name: Build checkout manifest for safe-outputs handlers")
-		assert.Contains(t, out, "${RUNNER_TEMP}/gh-aw/checkout-manifest.json")
+		assert.Contains(t, out, "uses: actions/github-script@pin")
 		assert.Contains(t, out, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
-		assert.Contains(t, out, "resolve_default_branch", "should define the resolver helper")
-		assert.Contains(t, out, "git -C \"${GITHUB_WORKSPACE}/${path}\" symbolic-ref --short refs/remotes/origin/HEAD", "should attempt local git resolution first")
-		assert.Contains(t, out, "gh api \"repos/${repo}\" --jq '.default_branch'", "should fall back to gh api")
-		assert.Contains(t, out, "repo='owner/other'", "repo must be shell-single-quoted")
-		assert.Contains(t, out, "path='./other'", "path must be shell-single-quoted")
-		assert.Contains(t, out, "ascii_downcase", "manifest key must be lowercased via jq")
+		assert.Contains(t, out, `GH_AW_CHECKOUT_MANIFEST_COUNT: "1"`)
+		assert.Contains(t, out, `GH_AW_CHECKOUT_REPO_0: "owner/other"`)
+		assert.Contains(t, out, `GH_AW_CHECKOUT_PATH_0: "./other"`)
+		assert.Contains(t, out, "GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.CROSS_REPO_PAT }}")
+		assert.Contains(t, out, "build_checkout_manifest.cjs")
+		assert.NotContains(t, out, "run: |", "manifest step should use github-script instead of shell run block")
 	})
 
 	t.Run("cross-repo root checkout (empty path) is included", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Repository: "owner/other"},
 		})
-		steps := cm.GenerateCheckoutManifestStep()
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
 		require.Len(t, steps, 1, "cross-repo root checkout must be in manifest")
 		out := steps[0]
-		assert.Contains(t, out, "repo='owner/other'")
-		assert.Contains(t, out, "path=''", "empty path should still be emitted (manifest consumer expects the key)")
+		assert.Contains(t, out, `GH_AW_CHECKOUT_REPO_0: "owner/other"`)
+		assert.Contains(t, out, `GH_AW_CHECKOUT_PATH_0: ""`, "empty path should still be emitted (manifest consumer expects the key)")
 	})
 
 	t.Run("multiple cross-repo entries each get a jq update", func(t *testing.T) {
@@ -1438,24 +1442,48 @@ func TestGenerateCheckoutManifestStep(t *testing.T) {
 			{Path: "./local-only"},               // no repo → skipped
 			{Repository: "owner/c", Path: "./c"}, // included
 		})
-		steps := cm.GenerateCheckoutManifestStep()
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
 		require.Len(t, steps, 1)
 		out := steps[0]
-		assert.Equal(t, 3, strings.Count(out, "resolve_default_branch \"$repo\" \"$path\""), "should invoke resolver once per cross-repo entry")
-		assert.Contains(t, out, "repo='owner/a'")
-		assert.Contains(t, out, "repo='owner/b'")
-		assert.Contains(t, out, "repo='owner/c'")
+		assert.Contains(t, out, `GH_AW_CHECKOUT_MANIFEST_COUNT: "3"`)
+		assert.Contains(t, out, `GH_AW_CHECKOUT_REPO_0: "owner/a"`)
+		assert.Contains(t, out, `GH_AW_CHECKOUT_REPO_1: "owner/b"`)
+		assert.Contains(t, out, `GH_AW_CHECKOUT_REPO_2: "owner/c"`)
 		assert.NotContains(t, out, "./local-only", "path-only entries must not be in the manifest step")
 	})
 
-	t.Run("repository names containing single quotes are escaped", func(t *testing.T) {
-		// Repository names cannot actually contain single quotes per GitHub rules,
-		// but the shellSingleQuote helper must still defend against it.
+	t.Run("repository names containing single quotes are yaml-escaped", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Repository: "weird'owner/repo", Path: "./x"},
 		})
-		steps := cm.GenerateCheckoutManifestStep()
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
 		require.Len(t, steps, 1)
-		assert.Contains(t, steps[0], `repo='weird'\''owner/repo'`, "single quote must be escaped with '\\''")
+		assert.Contains(t, steps[0], `GH_AW_CHECKOUT_REPO_0: "weird'owner/repo"`)
+	})
+
+	t.Run("dynamic repository expressions are emitted as raw env expressions", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "${{ github.event.inputs.trigger_ref }}", Path: "./target"},
+		})
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
+		require.Len(t, steps, 1)
+		assert.Contains(t, steps[0], "GH_AW_CHECKOUT_REPO_0: ${{ github.event.inputs.trigger_ref }}")
+	})
+
+	t.Run("github-app token expression preserves checkout index in manifest env", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "./local"},
+			{
+				Repository: "owner/private",
+				Path:       "./private",
+				GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		})
+		steps := cm.GenerateCheckoutManifestStep(getActionPin)
+		require.Len(t, steps, 1)
+		assert.Contains(t, steps[0], "GH_AW_CHECKOUT_TOKEN_0: ${{ steps.checkout-app-token-1.outputs.token }}")
 	})
 }

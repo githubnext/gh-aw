@@ -1,5 +1,7 @@
 # testutil Package
 
+> Shared test helpers for isolated temporary directories, stderr capture, and YAML comment stripping in Go test files.
+
 The `testutil` package provides shared test helpers for isolating test artifacts and capturing output.
 
 ## Overview
@@ -44,11 +46,15 @@ func TestMyFunction(t *testing.T) {
 **Internal**:
 - `github.com/github/gh-aw/pkg/constants` — shared filesystem permission constants for temp directory creation
 
-## Design Notes
+## Design Decisions
 
 - `GetTestRunDir` uses `sync.Once` so the directory is created exactly once per process even when multiple test packages run concurrently.
 - `TempDir` delegates to `os.MkdirTemp` to generate unique subdirectory names.
 - Test artifacts placed in the test run directory are outside any git repository, which prevents `git` commands executed by tests from picking them up as untracked files.
+
+## Thread Safety
+
+`GetTestRunDir` is safe to call concurrently from multiple goroutines; the underlying `sync.Once` ensures the directory is created exactly once. `TempDir` and `CaptureStderr` require a valid `*testing.T` and MUST be called from a single test goroutine only (as required by the `testing` package).
 
 ---
 

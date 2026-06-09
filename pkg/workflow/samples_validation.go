@@ -288,7 +288,7 @@ func placeholderForType(t string, schema map[string]any) any {
 				return "https://example.com"
 			}
 		}
-		return sampleRuntimeExpressionPlaceholder
+		return stringPlaceholderForSchema(schema)
 	case "array":
 		return []any{}
 	case "object":
@@ -311,6 +311,26 @@ func placeholderForType(t string, schema map[string]any) any {
 		return nil
 	}
 	return nil
+}
+
+func stringPlaceholderForSchema(schema map[string]any) string {
+	placeholder := sampleRuntimeExpressionPlaceholder
+	minLength, hasMinLength := schemaNumberAsInt(schema, "minLength")
+	if !hasMinLength || minLength <= len(placeholder) {
+		return placeholder
+	}
+	return placeholder + strings.Repeat("x", minLength-len(placeholder))
+}
+
+func schemaNumberAsInt(schema map[string]any, key string) (int, bool) {
+	if schema == nil {
+		return 0, false
+	}
+	raw, ok := schema[key].(float64)
+	if !ok || raw < 0 {
+		return 0, false
+	}
+	return int(raw), true
 }
 
 // stripSidecarFields returns a shallow copy of sample with sidecar keys removed.

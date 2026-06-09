@@ -14,6 +14,7 @@
 
 const childProcess = require("child_process");
 const fs = require("fs");
+const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
@@ -31,7 +32,7 @@ function runSafeOutputsCLI(toolName, args) {
   for (const [key, value] of Object.entries(args)) {
     if (typeof value !== "string" || value.length === 0) continue;
     if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
-      throw new Error(`invalid safeoutputs argument key: ${key}`);
+      throw new Error(`${ERR_VALIDATION}: invalid safeoutputs argument key: ${key}`);
     }
     commandArgs.push(`--${key}`);
     commandArgs.push(value);
@@ -43,7 +44,7 @@ function runSafeOutputsCLI(toolName, args) {
     const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";
     const message = typeof err.message === "string" ? err.message : String(error);
     const keysSummary = Object.keys(args).join(", ");
-    throw new Error(stderr ? `safeoutputs ${toolName}(${keysSummary}) failed: ${message}: ${stderr}` : `safeoutputs ${toolName}(${keysSummary}) failed: ${message}`);
+    throw new Error(stderr ? `${ERR_SYSTEM}: safeoutputs ${toolName}(${keysSummary}) failed: ${message}: ${stderr}` : `${ERR_SYSTEM}: safeoutputs ${toolName}(${keysSummary}) failed: ${message}`);
   }
 }
 

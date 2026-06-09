@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -628,7 +629,16 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 		agenticEngineLog.Printf("No engine found matching prefix: %s", prefix)
 		return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
 	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].id < candidates[j].id })
+	slices.SortFunc(candidates, func(a, b engineCandidate) int {
+		switch {
+		case a.id < b.id:
+			return -1
+		case a.id > b.id:
+			return 1
+		default:
+			return 0
+		}
+	})
 	agenticEngineLog.Printf("Found %d engine candidate(s) for prefix %s, using: %s", len(candidates), prefix, candidates[0].id)
 	return candidates[0].engine, nil
 }

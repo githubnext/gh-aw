@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
@@ -142,7 +143,7 @@ func collectLenStringAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.Assign
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(ident)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
 
@@ -152,7 +153,7 @@ func collectLenStringAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.Assign
 				delete(aliases, obj)
 				continue
 			}
-			rhs, ok := rhsExprForIndex(stmt.Rhs, i)
+			rhs, ok := astutil.RhsExprForIndex(stmt.Rhs, i)
 			if !ok {
 				delete(aliases, obj)
 				continue
@@ -174,10 +175,10 @@ func collectLenStringAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSp
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(name)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
-		rhs, ok := rhsExprForIndex(spec.Values, i)
+		rhs, ok := astutil.RhsExprForIndex(spec.Values, i)
 		if !ok {
 			delete(aliases, obj)
 			continue
@@ -222,33 +223,10 @@ func lenStringArg(pass *analysis.Pass, expr ast.Expr) (ast.Expr, bool) {
 	return arg, true
 }
 
-func rhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
-	switch {
-	case len(rhs) == 0:
-		return nil, false
-	case idx < len(rhs):
-		return rhs[idx], true
-	default:
-		return nil, false
-	}
-}
-
 func deleteLenStringAliasForExpr(pass *analysis.Pass, aliases map[types.Object]ast.Expr, expr ast.Expr) {
 	ident, ok := expr.(*ast.Ident)
 	if !ok {
 		return
 	}
 	delete(aliases, pass.TypesInfo.ObjectOf(ident))
-}
-
-func isLocalObject(obj types.Object) bool {
-	if obj == nil {
-		return false
-	}
-	parent := obj.Parent()
-	if parent == nil {
-		return false
-	}
-	pkg := obj.Pkg()
-	return pkg == nil || parent != pkg.Scope()
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -402,11 +403,21 @@ func buildSafeOutputSummary(items []CreatedItemReport, chainMetrics SafeOutputCh
 			Count: count,
 		})
 	}
-	sort.Slice(summary.TypeDetails, func(i, j int) bool {
-		if summary.TypeDetails[i].Count == summary.TypeDetails[j].Count {
-			return summary.TypeDetails[i].Type < summary.TypeDetails[j].Type
+	slices.SortFunc(summary.TypeDetails, func(a, b SafeOutputTypeDetail) int {
+		if a.Count == b.Count {
+			switch {
+			case a.Type < b.Type:
+				return -1
+			case a.Type > b.Type:
+				return 1
+			default:
+				return 0
+			}
 		}
-		return summary.TypeDetails[i].Count > summary.TypeDetails[j].Count
+		if a.Count > b.Count {
+			return -1
+		}
+		return 1
 	})
 
 	// Build human-readable summary string
@@ -537,8 +548,14 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 	}
 
 	// Sort servers by request count (highest first)
-	sort.Slice(health.Servers, func(i, j int) bool {
-		return health.Servers[i].RequestCount > health.Servers[j].RequestCount
+	slices.SortFunc(health.Servers, func(a, b MCPServerHealthDetail) int {
+		if a.RequestCount > b.RequestCount {
+			return -1
+		}
+		if a.RequestCount < b.RequestCount {
+			return 1
+		}
+		return 0
 	})
 
 	// Build summary string
@@ -581,8 +598,14 @@ func buildSlowestToolCalls(calls []MCPToolCall, topN int) []MCPSlowestToolCall {
 	}
 
 	// Sort by duration descending
-	sort.Slice(withDuration, func(i, j int) bool {
-		return withDuration[i].duration > withDuration[j].duration
+	slices.SortFunc(withDuration, func(a, b callWithDuration) int {
+		if a.duration > b.duration {
+			return -1
+		}
+		if a.duration < b.duration {
+			return 1
+		}
+		return 0
 	})
 
 	// Take top N

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -695,11 +696,21 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 	}
 
 	// Sort fuzzy matches by distance (ascending), then path for stable output
-	sort.Slice(fuzzyMatches, func(i, j int) bool {
-		if fuzzyMatches[i].Distance != fuzzyMatches[j].Distance {
-			return fuzzyMatches[i].Distance < fuzzyMatches[j].Distance
+	slices.SortFunc(fuzzyMatches, func(a, b schemaFieldLocation) int {
+		if a.Distance != b.Distance {
+			if a.Distance < b.Distance {
+				return -1
+			}
+			return 1
 		}
-		return fuzzyMatches[i].SchemaPath < fuzzyMatches[j].SchemaPath
+		switch {
+		case a.SchemaPath < b.SchemaPath:
+			return -1
+		case a.SchemaPath > b.SchemaPath:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	schemaSuggestionsLog.Printf("Found %d fuzzy schema locations for field '%s'", len(fuzzyMatches), targetField)

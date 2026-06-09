@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -80,7 +80,7 @@ func ensureMCPConfig(verbose bool) error {
 	}
 	config.MCPServers[ghAwServerName] = ghAwConfig
 
-	if err := os.MkdirAll(filepath.Dir(mcpConfigPath), constants.DirPermPublic); err != nil {
+	if err := fileutil.EnsureParentDir(mcpConfigPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create mcp config directory: %w", err)
 	}
 

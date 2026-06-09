@@ -19,7 +19,7 @@ func TestValidateSafeOutputsSamples_Valid(t *testing.T) {
 				Samples: []map[string]any{
 					{
 						"title": "Sample issue",
-						"body":  "Sample body",
+						"body":  "Sample issue body with enough detail.",
 					},
 				},
 			},
@@ -53,7 +53,7 @@ func TestValidateSafeOutputsSamples_MissingRequired(t *testing.T) {
 				Samples: []map[string]any{
 					{
 						// title intentionally missing
-						"body": "Body without title",
+						"body": "Body text without title.",
 					},
 				},
 			},
@@ -214,7 +214,7 @@ func TestValidateSafeOutputsSamples_RuntimeExpressionsInNestedValues(t *testing.
 				Samples: []map[string]any{
 					{
 						"title": "Issue ${{ github.event.inputs.title_suffix }}",
-						"body":  "Body",
+						"body":  "Body with enough detail.",
 						"labels": []any{
 							"static-label",
 							"${{ github.event.inputs.dynamic_label }}",
@@ -254,6 +254,7 @@ func TestValidateSafeOutputsSamples_NonExpressionErrorsStillReported(t *testing.
 	require.Error(t, err, "missing-title error should still surface even though body is a runtime expression")
 	assert.Contains(t, err.Error(), "create-issue", "error should reference the failing safe-output key")
 	assert.Contains(t, err.Error(), "samples[0]", "error should reference the failing sample entry")
+	assert.Contains(t, err.Error(), "title", "error should still be caused by missing required title")
 }
 
 // TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched
@@ -451,6 +452,11 @@ func TestPlaceholderForSchema(t *testing.T) {
 			name:   "uri format",
 			schema: map[string]any{"type": "string", "format": "uri"},
 			want:   "https://example.com",
+		},
+		{
+			name:   "string minLength pads placeholder",
+			schema: map[string]any{"type": "string", "minLength": float64(20)},
+			want:   "aw_samplexxxxxxxxxxx",
 		},
 	}
 	for _, tc := range cases {

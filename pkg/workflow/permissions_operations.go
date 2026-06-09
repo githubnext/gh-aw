@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -13,8 +14,15 @@ var permissionsOpsLog = logger.New("workflow:permissions_operations")
 
 // SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
 func SortPermissionScopes(s []PermissionScope) {
-	sort.Slice(s, func(i, j int) bool {
-		return string(s[i]) < string(s[j])
+	slices.SortFunc(s, func(a, b PermissionScope) int {
+		switch {
+		case string(a) < string(b):
+			return -1
+		case string(a) > string(b):
+			return 1
+		default:
+			return 0
+		}
 	})
 }
 

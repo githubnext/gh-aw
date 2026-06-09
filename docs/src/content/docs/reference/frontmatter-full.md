@@ -946,21 +946,24 @@ on:
   skip-author-associations:
     {}
 
-  # Repository access roles required to trigger agentic workflows. Defaults to
+  # Exact-match allowlist of repository roles required to trigger agentic workflows.
+  # Each entry is matched literally — there is no privilege hierarchy. Defaults to
   # ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any
   # authenticated user (⚠️ security consideration).
+  # ⚠️ roles: [write] rejects actors with 'admin' or 'maintainer' roles because
+  # matching is exact, not a minimum threshold. List every role you want to accept.
   # (optional)
   # Accepted formats:
 
-  # Format 1: Single repository permission level that can trigger the workflow. Use
+  # Format 1: Single repository role that can trigger the workflow. Use
   # 'all' to allow any authenticated user (⚠️ disables permission checking entirely
   # - use with caution)
   roles: "admin"
 
-  # Format 2: List of repository permission levels that can trigger the workflow.
+  # Format 2: Exact-match allowlist of repository roles that can trigger the workflow.
   # Permission checks are automatically applied to potentially unsafe triggers.
   roles: []
-    # Array items: Repository permission level: 'admin' (full access),
+    # Array items: Repository role (exact match): 'admin' (full access),
     # 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage'
     # (issue management), 'read' (read-only access)
 

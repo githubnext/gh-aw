@@ -76,12 +76,19 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	sandboxConfig := workflowData.SandboxConfig
 
 	// Check if sandbox.agent: false was specified
-	// In non-strict mode, this is allowed (with a warning shown at compile time)
-	// The strict mode check happens in validateStrictFirewall()
+	// This requires the "dangerously-disable-sandbox-agent" feature flag to be enabled.
+	// Without the feature flag, setting sandbox.agent: false is a validation error.
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		// sandbox.agent: false is allowed in non-strict mode, so we don't error here
-		// The warning is emitted in compiler.go
-		sandboxValidationLog.Print("sandbox.agent: false detected, will be validated by strict mode check")
+		if !isFeatureEnabled(constants.DangerouslyDisableSandboxAgentFeatureFlag, workflowData) {
+			flag := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
+			return NewValidationError(
+				"sandbox.agent",
+				"false",
+				fmt.Sprintf("disabling the agent sandbox requires the '%s' feature flag", flag),
+				fmt.Sprintf("Add the feature flag to your workflow frontmatter:\n\nfeatures:\n  %s: true\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
+			)
+		}
+		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s feature flag", constants.DangerouslyDisableSandboxAgentFeatureFlag)
 	}
 
 	// Validate mounts syntax if specified in agent config

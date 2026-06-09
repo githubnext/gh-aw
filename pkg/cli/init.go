@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -416,8 +417,7 @@ func ensureGHESRepoConfig(verbose bool) (bool, error) {
 	}
 	data = append(data, '\n')
 
-	// Ensure the parent directory exists.
-	if mkdirErr := os.MkdirAll(filepath.Dir(configPath), constants.DirPermPublic); mkdirErr != nil {
+	if mkdirErr := fileutil.EnsureParentDir(configPath, constants.DirPermPublic); mkdirErr != nil {
 		return false, fmt.Errorf("failed to create directory for %s: %w", workflow.RepoConfigFileName, mkdirErr)
 	}
 

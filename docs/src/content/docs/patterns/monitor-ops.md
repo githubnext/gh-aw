@@ -37,7 +37,7 @@ Use this pattern when a repository has enough workflow activity that maintainers
 
 - [BatchOps](/gh-aw/patterns/batch-ops/) — Process large volumes in parallel chunks
 - [Audit Commands](/gh-aw/reference/audit/) — Investigate individual runs and regressions
-- [OpenTelemetry](/gh-aw/reference/open-telemetry/) — Workflow telemetry and spans
+- [OpenTelemetry](/gh-aw/guides/open-telemetry/) — Workflow telemetry and spans
 - [Cache Memory](/gh-aw/reference/cache-memory/) — Persistent state across runs
 - [Concurrency](/gh-aw/reference/concurrency/) — Prevent overlapping workflow runs
 - [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) — Durable tracking with Projects

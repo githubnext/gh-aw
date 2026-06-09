@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -341,8 +341,15 @@ func getLatestActionReleaseWithDeps(ctx context.Context, deps actionUpdateDeps, 
 	}
 
 	// Sort releases by semver in descending order (highest first)
-	sort.Slice(validReleases, func(i, j int) bool {
-		return validReleases[i].version.IsNewer(validReleases[j].version)
+	slices.SortFunc(validReleases, func(a, b releaseWithVersion) int {
+		switch {
+		case a.version.IsNewer(b.version):
+			return -1
+		case b.version.IsNewer(a.version):
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// If current version is not valid, return the highest semver release
@@ -468,8 +475,15 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 	}
 
 	// Sort releases by semver in descending order (highest first)
-	sort.Slice(validReleases, func(i, j int) bool {
-		return validReleases[i].version.IsNewer(validReleases[j].version)
+	slices.SortFunc(validReleases, func(a, b releaseWithVersion) int {
+		switch {
+		case a.version.IsNewer(b.version):
+			return -1
+		case b.version.IsNewer(a.version):
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// If current version is not valid, return the highest semver release
