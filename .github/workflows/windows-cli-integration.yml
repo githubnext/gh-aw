@@ -123,23 +123,15 @@ jobs:
       - name: "[powershell] --help with timeout"
         shell: powershell
         run: |
-          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "--help" -PassThru -NoNewWindow
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: --help hung for 30s in Windows PowerShell"
-          }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          & $env:BINARY --help
+          if ($LASTEXITCODE -ne 0) { throw "Exit code $LASTEXITCODE" }
           Write-Output "[powershell] --help OK"
 
       - name: "[powershell] version with timeout"
         shell: powershell
         run: |
-          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "version" -PassThru -NoNewWindow
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: version hung for 30s in Windows PowerShell"
-          }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
+          & $env:BINARY version
+          if ($LASTEXITCODE -ne 0) { throw "Exit code $LASTEXITCODE" }
           Write-Output "[powershell] version OK"
 
       # cmd.exe - catches Win32 console and PATH resolution regressions
