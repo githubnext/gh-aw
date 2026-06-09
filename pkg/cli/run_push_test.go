@@ -449,7 +449,7 @@ func TestPushWorkflowFiles_WithStagedFiles(t *testing.T) {
 	err = os.WriteFile(workflowFile, []byte("# Test"), 0644)
 	require.NoError(t, err)
 
-	err = pushWorkflowFiles("test-workflow", []string{workflowFile}, "", false)
+	err = pushWorkflowFiles(context.Background(), "test-workflow", []string{workflowFile}, "", false)
 
 	// Should return an error about staged files
 	require.Error(t, err)
