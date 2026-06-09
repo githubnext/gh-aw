@@ -55,11 +55,10 @@ const KEEPALIVE_PING_INTERVAL_MS = 10000;
 const KEEPALIVE_PING_ID_START = 1000;
 
 /** Preferred max lines for generated CLI help output */
-const HELP_MAX_LINES = 20;
-const COMMAND_DESC_MAX_LEN = 68;
+const TOP_HELP_MAX_LINES = 20;
+const TOOL_HELP_MAX_LINES = 30;
 const TOOL_DESC_MAX_LEN = 90;
-const OPTION_DESC_MAX_LEN = 62;
-const TOP_HELP_FOOTER_LINES = 2;
+const COMPACT_NAME_LINE_TARGET_WIDTH = 110;
 
 // ---------------------------------------------------------------------------
 // Audit logging
@@ -772,22 +771,16 @@ function loadTools(toolsFile) {
 function showHelp(serverName, tools) {
   const lines = [`Usage: ${serverName} <command> [--param value ...]`, `Tip: ${serverName} <command> --help`, "", `Commands (${tools.length}):`];
   if (tools.length > 0) {
-    const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - TOP_HELP_FOOTER_LINES);
-    let shownTools = tools.slice(0, maxCommandLines);
-    if (tools.length > shownTools.length && lines.length + shownTools.length + TOP_HELP_FOOTER_LINES + 1 > HELP_MAX_LINES) {
-      shownTools = shownTools.slice(0, -1);
-    }
-    for (const tool of shownTools) {
-      lines.push(`  ${tool.name} — ${summarizeHelpText(tool.description || "No description", COMMAND_DESC_MAX_LEN)}`);
-    }
-    if (tools.length > shownTools.length) {
-      lines.push(`  ... +${tools.length - shownTools.length} more command(s)`);
-    }
+    const maxCommandLines = Math.max(1, TOP_HELP_MAX_LINES - lines.length);
+    lines.push(
+      ...formatCompactNameLines(
+        tools.map(tool => tool.name),
+        maxCommandLines
+      )
+    );
   } else {
     lines.push("  (tool list unavailable)");
   }
-  lines.push("");
-  lines.push(`Run '${serverName} <command> --help' for option details.`);
   process.stdout.write(lines.join("\n") + "\n");
 }
 
@@ -820,41 +813,20 @@ function showToolHelp(serverName, toolName, tools) {
     lines.push("");
     lines.push(`Options (${Object.keys(props).length}):`);
     const optionEntries = Object.entries(props);
-    const maxOptionLines = Math.max(1, HELP_MAX_LINES - lines.length);
-    let shownOptions = optionEntries.slice(0, maxOptionLines);
-    let hasMoreOptions = optionEntries.length > shownOptions.length;
-    let hasVisibleRequired = shownOptions.some(([key]) => required.has(key));
-    while (shownOptions.length > 0 && lines.length + shownOptions.length + (hasMoreOptions ? 1 : 0) + (hasVisibleRequired ? 1 : 0) > HELP_MAX_LINES) {
-      shownOptions = shownOptions.slice(0, -1);
-      hasMoreOptions = optionEntries.length > shownOptions.length;
-      hasVisibleRequired = shownOptions.some(([key]) => required.has(key));
-    }
-    for (const [key, val] of shownOptions) {
-      const requiredMark = required.has(key) ? "*" : "";
-      const description = val.description ? ` - ${summarizeHelpText(val.description, OPTION_DESC_MAX_LEN)}` : "";
-      lines.push(`  --${key} ${getTypeStr(val.type)}${requiredMark}${description}`);
-    }
-    if (hasMoreOptions) {
-      lines.push(`  ... +${optionEntries.length - shownOptions.length} more option(s)`);
-    }
-    if (hasVisibleRequired) {
+    const hasRequiredOptions = required.size > 0;
+    const maxOptionLines = Math.max(1, TOOL_HELP_MAX_LINES - lines.length - (hasRequiredOptions ? 1 : 0));
+    lines.push(
+      ...formatCompactNameLines(
+        optionEntries.map(([key]) => `--${key}${required.has(key) ? "*" : ""}`),
+        maxOptionLines
+      )
+    );
+    if (hasRequiredOptions) {
       lines.push("Required options are marked with *.");
     }
   }
 
   process.stdout.write(lines.join("\n") + "\n");
-}
-
-/**
- * Format a JSON schema type value as a short bracketed string.
- *
- * @param {string|string[]|undefined} type
- * @returns {string}
- */
-function getTypeStr(type) {
-  if (!type) return "(string)";
-  const types = Array.isArray(type) ? type.filter(t => t !== "null") : [type];
-  return `(${types.length > 0 ? types.join("|") : "null"})`;
 }
 
 /**
@@ -875,6 +847,46 @@ function summarizeHelpText(value, maxLen) {
     return normalized;
   }
   return `${normalized.slice(0, maxLen - 1)}…`;
+}
+
+/**
+ * Render names as comma-separated compact lines and keep all names visible.
+ *
+ * @param {string[]} names
+ * @param {number} maxLines - Preferred line budget; non-positive/invalid values return one compact line
+ * @returns {string[]}
+ */
+function formatCompactNameLines(names, maxLines) {
+  if (!Array.isArray(names) || names.length === 0) {
+    return [];
+  }
+  if (!Number.isFinite(maxLines) || maxLines <= 0) {
+    return [`  ${names.join(", ")}`];
+  }
+  const lines = [];
+  let current = "  ";
+  for (const name of names) {
+    const token = current.trim() ? `, ${name}` : name;
+    const shouldStartNewLine = current.length + token.length > COMPACT_NAME_LINE_TARGET_WIDTH;
+    if (shouldStartNewLine) {
+      lines.push(current);
+      current = `  ${name}`;
+      continue;
+    }
+    current += token;
+  }
+  if (current.trim()) {
+    lines.push(current);
+  }
+  if (lines.length > maxLines) {
+    // Keep all names visible by collapsing overflow into the last allowed line.
+    const compactTail = lines
+      .slice(maxLines - 1)
+      .map(line => line.trim())
+      .join(", ");
+    return [...lines.slice(0, maxLines - 1), `  ${compactTail}`];
+  }
+  return lines;
 }
 
 // ---------------------------------------------------------------------------

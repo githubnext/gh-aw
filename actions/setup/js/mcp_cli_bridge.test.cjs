@@ -222,7 +222,10 @@ describe("mcp_cli_bridge.cjs", () => {
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
     expect(outputLines.length).toBeLessThanOrEqual(20);
-    expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more command\(s\)/);
+    expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more command\(s\)/);
+    for (const tool of tools) {
+      expect(outputLines.join("\n")).toContain(tool.name);
+    }
   });
 
   it("does not truncate top-level help when commands exactly fit the line budget", () => {
@@ -234,8 +237,11 @@ describe("mcp_cli_bridge.cjs", () => {
     showHelp("safeoutputs", tools);
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
-    expect(outputLines.length).toBe(20);
+    expect(outputLines.length).toBeLessThanOrEqual(20);
     expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more command\(s\)/);
+    for (const tool of tools) {
+      expect(outputLines.join("\n")).toContain(tool.name);
+    }
   });
 
   it("keeps command help compact for many options", () => {
@@ -256,11 +262,14 @@ describe("mcp_cli_bridge.cjs", () => {
     ]);
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
-    expect(outputLines.length).toBeLessThanOrEqual(20);
-    expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(outputLines.length).toBeLessThanOrEqual(30);
+    expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
     expect(outputLines.join("\n")).toContain("Required options are marked with *.");
-    expect(outputLines.join("\n")).toMatch(/--field_1 \(string\)\*/);
-    expect(outputLines.join("\n")).toMatch(/--field_2 \(string\)\*/);
+    for (let i = 1; i <= 24; i++) {
+      expect(outputLines.join("\n")).toContain(`--field_${i}`);
+    }
+    expect(outputLines.join("\n")).toContain("--field_1*");
+    expect(outputLines.join("\n")).toContain("--field_2*");
   });
 
   it("does not truncate command help when options exactly fit the line budget", () => {
@@ -281,12 +290,15 @@ describe("mcp_cli_bridge.cjs", () => {
     ]);
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
-    expect(outputLines.length).toBe(20);
+    expect(outputLines.length).toBeLessThanOrEqual(30);
     expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
     expect(outputLines.join("\n")).toContain("Required options are marked with *.");
+    for (let i = 1; i <= 13; i++) {
+      expect(outputLines.join("\n")).toContain(`--field_${i}`);
+    }
   });
 
-  it("omits required-note when required options are truncated", () => {
+  it("keeps required-note when required options are in the compact list", () => {
     const properties = {};
     for (let i = 1; i <= 24; i++) {
       properties[`field_${i}`] = { type: "string", description: `Field ${i}.` };
@@ -304,8 +316,10 @@ describe("mcp_cli_bridge.cjs", () => {
     ]);
 
     const outputLines = stdoutChunks.join("").trimEnd().split("\n");
-    expect(outputLines.join("\n")).toMatch(/\.\.\. \+\d+ more option\(s\)/);
-    expect(outputLines.join("\n")).not.toContain("Required options are marked with *.");
+    expect(outputLines.join("\n")).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(outputLines.join("\n")).toContain("Required options are marked with *.");
+    expect(outputLines.join("\n")).toContain("--field_23*");
+    expect(outputLines.join("\n")).toContain("--field_24*");
   });
 
   describe("stdin placeholder removed — '-' is always a literal value", () => {
