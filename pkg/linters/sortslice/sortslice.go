@@ -57,6 +57,9 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		obj := pass.TypesInfo.ObjectOf(pkgIdent)
+		if obj == nil {
+			return
+		}
 		pkgName, ok := obj.(*types.PkgName)
 		if !ok || pkgName.Imported().Path() != "sort" {
 			return
