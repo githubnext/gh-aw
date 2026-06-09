@@ -38,10 +38,14 @@ while IFS= read -r file; do
     if [ -n "$matches" ]; then
         echo -e "${RED}WARNING${NC}: $file"
         while IFS= read -r match; do
-            line_number="${match%%:*}"
-            line_content="${match#*:}"
             echo "  $match"
-            echo "::warning file=$file,line=$line_number,title=Inline Python in workflow prompt::$line_content"
+            if [[ "$match" == *:* ]]; then
+                line_number="${match%%:*}"
+                line_content="${match#*:}"
+                echo "::warning file=$file,line=$line_number,title=Inline Python in workflow prompt::$line_content"
+            else
+                echo "::warning file=$file,title=Inline Python in workflow prompt::$match"
+            fi
         done <<< "$matches"
         echo ""
         warning_count=$((warning_count + 1))
