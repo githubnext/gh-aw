@@ -3,16 +3,15 @@ package fmterrorfnoverbs
 
 import (
 	"errors"
-	"fmt"
 	fmtalias "fmt"
 )
 
 func bad() error {
-	return fmt.Errorf("something went wrong") // want `fmt\.Errorf called with no format verbs; use errors\.New`
+	return fmtalias.Errorf("something went wrong") // want `fmt\.Errorf called with no format verbs; use errors\.New`
 }
 
 func badMultiLine() error {
-	return fmt.Errorf("interactive input not available in Wasm") // want `fmt\.Errorf called with no format verbs; use errors\.New`
+	return fmtalias.Errorf("interactive input not available in Wasm") // want `fmt\.Errorf called with no format verbs; use errors\.New`
 }
 
 func good() error {
@@ -20,20 +19,20 @@ func good() error {
 }
 
 func goodWithVerb(name string) error {
-	return fmt.Errorf("failed to process %s", name)
+	return fmtalias.Errorf("failed to process %s", name)
 }
 
 func goodWithWrap(err error) error {
-	return fmt.Errorf("wrapper: %w", err)
+	return fmtalias.Errorf("wrapper: %w", err)
 }
 
 func suppressedPreviousLine() error {
 	//nolint:fmterrorfnoverbs
-	return fmt.Errorf("this is intentionally static")
+	return fmtalias.Errorf("this is intentionally static")
 }
 
 func suppressedSameLine() error {
-	return fmt.Errorf("this is intentionally static") //nolint:fmterrorfnoverbs
+	return fmtalias.Errorf("this is intentionally static") //nolint:fmterrorfnoverbs
 }
 
 func badAliasedImport() error {

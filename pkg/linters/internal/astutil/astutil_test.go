@@ -13,11 +13,11 @@ func TestRhsExprForIndex(t *testing.T) {
 	b := &ast.Ident{Name: "b"}
 
 	tests := []struct {
-		name    string
-		rhs     []ast.Expr
-		idx     int
-		want    ast.Expr
-		wantOK  bool
+		name   string
+		rhs    []ast.Expr
+		idx    int
+		want   ast.Expr
+		wantOK bool
 	}{
 		{name: "empty", rhs: nil, idx: 0, want: nil, wantOK: false},
 		{name: "single-first", rhs: []ast.Expr{a}, idx: 0, want: a, wantOK: true},
@@ -28,7 +28,6 @@ func TestRhsExprForIndex(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got, ok := RhsExprForIndex(tt.rhs, tt.idx)

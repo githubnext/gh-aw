@@ -2,7 +2,6 @@ package errormessage
 
 import (
 	"errors"
-	"fmt"
 	fmtalias "fmt"
 )
 
@@ -11,11 +10,11 @@ func NewValidationError(field, value, reason, suggestion string) error {
 }
 
 func badValidationFormat() error {
-	return fmt.Errorf("invalid input") // want `use NewValidationError\(\.\.\.\) instead of fmt\.Errorf\(\.\.\.\) in validation files` `error message uses negative language without constructive guidance; include expected/requires/should/example details`
+	return fmtalias.Errorf("invalid input") // want `use NewValidationError\(\.\.\.\) instead of fmt\.Errorf\(\.\.\.\) in validation files` `error message uses negative language without constructive guidance; include expected/requires/should/example details`
 }
 
 func badValidationWrap(err error) error {
-	return fmt.Errorf("failed to parse config: %w", err) // want `use NewValidationError\(\.\.\.\) instead of fmt\.Errorf\(\.\.\.\) in validation files` `avoid generic 'failed to \.\.\.: %w' wrapping; add specific recovery guidance` `error message uses negative language without constructive guidance; include expected/requires/should/example details`
+	return fmtalias.Errorf("failed to parse config: %w", err) // want `use NewValidationError\(\.\.\.\) instead of fmt\.Errorf\(\.\.\.\) in validation files` `avoid generic 'failed to \.\.\.: %w' wrapping; add specific recovery guidance` `error message uses negative language without constructive guidance; include expected/requires/should/example details`
 }
 
 func badValidationErrorObject() error {
