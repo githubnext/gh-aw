@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -505,13 +506,29 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
 	// listens on port 8080 (non-privileged), so we must explicitly allow it
 	// when AWF supports --allow-host-ports.
+	//
+	// In GitHub CLI proxy mode, AWF's cli-proxy sidecar also needs to reach the
+	// host DIFC proxy on port 18443.
 	if awfSupportsAllowHostPorts(firewallConfig) {
 		mcpGatewayPort := int(DefaultMCPGatewayPort)
 		if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
 			config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
 			mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
 		}
-		hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+		hostPortValues := []int{80, 443, mcpGatewayPort}
+		if isGitHubCLIModeEnabled(config.WorkflowData) {
+			hostPortValues = append(hostPortValues, 18443)
+		}
+		seenHostPorts := make(map[int]struct{}, len(hostPortValues))
+		hostPortStrings := make([]string, 0, len(hostPortValues))
+		for _, port := range hostPortValues {
+			if _, exists := seenHostPorts[port]; exists {
+				continue
+			}
+			seenHostPorts[port] = struct{}{}
+			hostPortStrings = append(hostPortStrings, strconv.Itoa(port))
+		}
+		hostPorts := strings.Join(hostPortStrings, ",")
 		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
 		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
 	} else {
