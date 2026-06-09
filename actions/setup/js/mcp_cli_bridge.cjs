@@ -56,6 +56,9 @@ const KEEPALIVE_PING_ID_START = 1000;
 
 /** Preferred max lines for generated CLI help output */
 const HELP_MAX_LINES = 20;
+const COMMAND_DESC_MAX_LEN = 68;
+const TOOL_DESC_MAX_LEN = 90;
+const OPTION_DESC_MAX_LEN = 62;
 
 // ---------------------------------------------------------------------------
 // Audit logging
@@ -777,7 +780,7 @@ function showHelp(serverName, tools) {
     const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - reservedLines);
     const shownTools = tools.slice(0, maxCommandLines);
     for (const tool of shownTools) {
-      lines.push(`  ${tool.name} — ${summarizeHelpText(tool.description || "No description", 68)}`);
+      lines.push(`  ${tool.name} — ${summarizeHelpText(tool.description || "No description", COMMAND_DESC_MAX_LEN)}`);
     }
     if (tools.length > shownTools.length) {
       lines.push(`  ... +${tools.length - shownTools.length} more command(s)`);
@@ -808,7 +811,7 @@ function showToolHelp(serverName, toolName, tools) {
 
   const lines = [
     `Command: ${toolName}`,
-    `Description: ${summarizeHelpText(tool.description || "No description", 90)}`,
+    `Description: ${summarizeHelpText(tool.description || "No description", TOOL_DESC_MAX_LEN)}`,
     `Usage: ${serverName} ${toolName} [--param value ...]`,
     `JSON mode: printf '{"param":"value",...}' | ${serverName} ${toolName} .`,
   ];
@@ -824,7 +827,7 @@ function showToolHelp(serverName, toolName, tools) {
     const shownOptions = optionEntries.slice(0, maxOptionLines);
     for (const [key, val] of shownOptions) {
       const requiredMark = required.has(key) ? "*" : "";
-      const description = val.description ? ` - ${summarizeHelpText(val.description, 62)}` : "";
+      const description = val.description ? ` - ${summarizeHelpText(val.description, OPTION_DESC_MAX_LEN)}` : "";
       lines.push(`  --${key} ${getTypeStr(val.type)}${requiredMark}${description}`);
     }
     if (optionEntries.length > shownOptions.length) {
@@ -856,17 +859,14 @@ function getTypeStr(type) {
  * @returns {string}
  */
 function summarizeHelpText(value, maxLen) {
-  if (!Number.isFinite(maxLen) || maxLen <= 0) {
-    return "";
-  }
   const normalized = String(value || "")
     .replace(/\s+/g, " ")
     .trim();
-  if (normalized.length <= maxLen) {
+  if (!Number.isFinite(maxLen) || maxLen <= 0) {
     return normalized;
   }
-  if (maxLen === 1) {
-    return "…";
+  if (normalized.length <= maxLen) {
+    return normalized;
   }
   return `${normalized.slice(0, maxLen - 1)}…`;
 }
