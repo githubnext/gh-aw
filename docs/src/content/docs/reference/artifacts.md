@@ -142,8 +142,8 @@ The unified `agent` artifact contains all agent job outputs.
 - `copilot-otel.jsonl` — OTLP spans emitted by Copilot CLI (only present when `observability.otlp` is configured)
 
 For OTLP configuration, runtime environment variables, and
-span semantics, see
-[OpenTelemetry](/gh-aw/reference/open-telemetry/).
+span semantics, see the
+[OpenTelemetry guide](/gh-aw/guides/open-telemetry/).
 
 ## `activation`
 

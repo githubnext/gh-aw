@@ -148,8 +148,9 @@ OpenTelemetry is most useful for answering questions such as:
 "Which repositories are driving the most token usage?",
 "Which model change caused a cost spike?", and
 "Which workflows should be moved to a smaller model or stricter
-trigger policy?" See [OpenTelemetry](/gh-aw/reference/open-telemetry/)
-for the full attribute reference and collector configuration.
+trigger policy?" See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/)
+for collector configuration and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/)
+for the emitted fields.
 
 ## Trigger Frequency and Cost Risk
 
@@ -547,7 +548,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
+- [OpenTelemetry](/gh-aw/guides/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
