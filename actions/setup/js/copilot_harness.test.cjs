@@ -12,11 +12,13 @@ const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServe
 const { buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cjs");
 const {
   appendSafeOutputLine,
+  buildCopilotAuthEnv,
   buildMissingToolPermissionIssuePayload,
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
   buildPromptFileFallbackInstruction,
+  computeRetryDelayMs,
   countPermissionDeniedIssues,
   detectCopilotErrors,
   emitInfrastructureIncomplete,
@@ -28,6 +30,7 @@ const {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isPersonalAccessToken,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
   resolveCopilotSDKCustomProviderFromReflect,
@@ -39,6 +42,7 @@ const {
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
+  selectCopilotAuthToken,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
@@ -96,6 +100,75 @@ describe("copilot_harness.cjs", () => {
       expect(token).toMatch(/^[a-f0-9]{64}$/);
       expect(token).toBe("ab".repeat(32));
       expect(randomBytes).toHaveBeenCalledWith(32);
+    });
+  });
+
+  describe("copilot sdk auth token selection", () => {
+    it("detects personal access token formats", () => {
+      expect(isPersonalAccessToken("ghp_exampletoken")).toBe(true);
+      expect(isPersonalAccessToken("github_pat_12345_example")).toBe(true);
+      expect(isPersonalAccessToken("ghs_exampletoken")).toBe(false);
+      expect(isPersonalAccessToken("")).toBe(false);
+    });
+
+    it("prefers a non-PAT token over a PAT COPILOT_GITHUB_TOKEN", () => {
+      const selection = selectCopilotAuthToken({
+        COPILOT_GITHUB_TOKEN: "ghp_pat_token",
+        GITHUB_TOKEN: "ghs_actions_token",
+      });
+
+      expect(selection.source).toBe("GITHUB_TOKEN");
+      expect(selection.token).toBe("ghs_actions_token");
+      expect(selection.hasPATOnly).toBe(false);
+      expect(selection.patSources).toEqual(["COPILOT_GITHUB_TOKEN"]);
+    });
+
+    it("can exclude the current token source when searching for an alternate retry token", () => {
+      const selection = selectCopilotAuthToken(
+        {
+          COPILOT_GITHUB_TOKEN: "ghs_primary_token",
+          GITHUB_TOKEN: "ghs_fallback_token",
+        },
+        { excludeSources: ["COPILOT_GITHUB_TOKEN"] }
+      );
+
+      expect(selection.source).toBe("GITHUB_TOKEN");
+      expect(selection.token).toBe("ghs_fallback_token");
+    });
+
+    it("normalizes all Copilot auth env vars to the selected compatible token", () => {
+      const { env, selection } = buildCopilotAuthEnv(
+        {
+          COPILOT_GITHUB_TOKEN: "ghp_pat_token",
+          GITHUB_TOKEN: "ghs_actions_token",
+        },
+        { logger: () => {} }
+      );
+
+      expect(selection.source).toBe("GITHUB_TOKEN");
+      expect(env.COPILOT_GITHUB_TOKEN).toBe("ghs_actions_token");
+      expect(env.GITHUB_TOKEN).toBe("ghs_actions_token");
+      expect(env.GH_TOKEN).toBe("ghs_actions_token");
+    });
+
+    it("fails fast when sdk mode only has PAT tokens available", () => {
+      expect(() =>
+        buildCopilotAuthEnv(
+          {
+            COPILOT_GITHUB_TOKEN: "ghp_pat_token",
+            GH_TOKEN: "github_pat_12345_example",
+          },
+          { logger: () => {}, requireCopilotCompatibleToken: true }
+        )
+      ).toThrow(/requires a Copilot-compatible token/i);
+    });
+  });
+
+  describe("retry delay jitter", () => {
+    it("adds deterministic positive jitter within the configured cap", () => {
+      expect(computeRetryDelayMs(5000, { random: () => 0 })).toBe(5000);
+      expect(computeRetryDelayMs(5000, { random: () => 0.5 })).toBe(5500);
+      expect(computeRetryDelayMs(60000, { random: () => 1 })).toBe(60000);
     });
   });
 

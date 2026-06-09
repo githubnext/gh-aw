@@ -69,6 +69,9 @@ const INITIAL_DELAY_MS = 5000;
 const BACKOFF_MULTIPLIER = 2;
 // Maximum delay cap in milliseconds
 const MAX_DELAY_MS = 60000;
+// Add up to 20% positive jitter to retry sleeps so concurrent failing jobs do not
+// all retry in lockstep against the same auth/backend state.
+const RETRY_JITTER_RATIO = 0.2;
 // Additional startup retry budget for scheduled runs when Copilot exits with code 2
 // before producing any output (typically transient API interruption at startup).
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
@@ -76,6 +79,8 @@ const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
+const COPILOT_AUTH_ENV_KEYS = ["COPILOT_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"];
+const PERSONAL_ACCESS_TOKEN_PATTERN = /^(?:ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+)/i;
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -138,6 +143,131 @@ function generateCopilotConnectionToken(options) {
   // randomBytes injection exists only for unit tests; production uses crypto.randomBytes.
   const randomBytes = options?.randomBytes ?? crypto.randomBytes;
   return randomBytes(32).toString("hex");
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string[]} keys
+ * @returns {NodeJS.ProcessEnv}
+ */
+function omitEnvKeys(env, keys) {
+  /** @type {NodeJS.ProcessEnv} */
+  const nextEnv = { ...env };
+  for (const key of keys) {
+    delete nextEnv[key];
+  }
+  return nextEnv;
+}
+
+/**
+ * @param {string | undefined | null} token
+ * @returns {boolean}
+ */
+function isPersonalAccessToken(token) {
+  return PERSONAL_ACCESS_TOKEN_PATTERN.test(String(token || "").trim());
+}
+
+/**
+ * Select the best available Copilot auth token source, preferring non-PAT tokens.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ excludeSources?: string[] }} [options]
+ * @returns {{
+ *   token: string,
+ *   source: string,
+ *   hasPATOnly: boolean,
+ *   patSources: string[],
+ *   candidates: Array<{ source: string, isPAT: boolean }>
+ * }}
+ */
+function selectCopilotAuthToken(env = process.env, options) {
+  const excludedSources = new Set(options?.excludeSources ?? []);
+  const candidates = COPILOT_AUTH_ENV_KEYS.flatMap(source => {
+    if (excludedSources.has(source)) return [];
+    const rawValue = env[source];
+    const token = typeof rawValue === "string" ? rawValue.trim() : "";
+    if (!token) return [];
+    return [{ source, token, isPAT: isPersonalAccessToken(token) }];
+  });
+
+  if (candidates.length === 0) {
+    return {
+      token: "",
+      source: "",
+      hasPATOnly: false,
+      patSources: [],
+      candidates: [],
+    };
+  }
+
+  const selected = candidates.find(candidate => !candidate.isPAT) ?? candidates[0];
+  return {
+    token: selected.token,
+    source: selected.source,
+    hasPATOnly: candidates.every(candidate => candidate.isPAT),
+    patSources: candidates.filter(candidate => candidate.isPAT).map(candidate => candidate.source),
+    candidates: candidates.map(candidate => ({ source: candidate.source, isPAT: candidate.isPAT })),
+  };
+}
+
+/**
+ * Normalize Copilot auth env vars so the sidecar sees one selected token consistently.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @param {{
+ *   logger?: (msg: string) => void,
+ *   excludeSources?: string[],
+ *   requireCopilotCompatibleToken?: boolean
+ * }} [options]
+ * @returns {{
+ *   env: NodeJS.ProcessEnv,
+ *   selection: ReturnType<typeof selectCopilotAuthToken>
+ * }}
+ */
+function buildCopilotAuthEnv(env, options) {
+  const logger = options?.logger ?? log;
+  const selection = selectCopilotAuthToken(env, { excludeSources: options?.excludeSources });
+
+  if (!selection.source) {
+    return { env: { ...env }, selection };
+  }
+
+  if (options?.requireCopilotCompatibleToken && selection.hasPATOnly) {
+    throw new Error(
+      `copilot-sdk auth requires a Copilot-compatible token, but only PAT sources were found (${selection.patSources.join(", ")}). ` +
+        "Set COPILOT_GITHUB_TOKEN, GITHUB_TOKEN, or GH_TOKEN to a non-PAT token (for GitHub Actions prefer github.token / GITHUB_TOKEN)."
+    );
+  }
+
+  if (selection.patSources.length > 0 || selection.source !== "COPILOT_GITHUB_TOKEN") {
+    const candidatesSummary = selection.candidates.map(candidate => `${candidate.source}=${candidate.isPAT ? "pat" : "compatible"}`).join(",");
+    logger(`copilot-sdk auth selection: source=${selection.source} candidates=${candidatesSummary}`);
+  }
+
+  return {
+    env: {
+      ...env,
+      COPILOT_GITHUB_TOKEN: selection.token,
+      GITHUB_TOKEN: selection.token,
+      GH_TOKEN: selection.token,
+    },
+    selection,
+  };
+}
+
+/**
+ * Compute a jittered retry delay without exceeding MAX_DELAY_MS.
+ *
+ * @param {number} baseDelayMs
+ * @param {{ random?: () => number, jitterRatio?: number }} [options]
+ * @returns {number}
+ */
+function computeRetryDelayMs(baseDelayMs, options) {
+  const random = options?.random ?? Math.random;
+  const jitterRatio = options?.jitterRatio ?? RETRY_JITTER_RATIO;
+  const boundedBaseDelay = Math.max(0, Math.min(baseDelayMs, MAX_DELAY_MS));
+  const jitterMs = Math.floor(boundedBaseDelay * Math.max(0, jitterRatio) * Math.max(0, random()));
+  return Math.min(boundedBaseDelay + jitterMs, MAX_DELAY_MS);
 }
 
 /**
@@ -592,15 +722,34 @@ async function main() {
   // (started by the harness) and the SDK client share the same token.
   // In SDK mode also inject the resolved BYOK provider base URL and model so the driver
   // subprocess does not need to re-read the reflect file.
-  const sdkChildEnv = copilotSDKMode
+  const baseChildEnv = Object.keys(sdkEnv).length > 0 ? { ...process.env, ...sdkEnv } : { ...process.env };
+  let sdkSidecarEnv = baseChildEnv;
+  /** @type {ReturnType<typeof selectCopilotAuthToken>} */
+  let sdkAuthSelection = selectCopilotAuthToken();
+  if (copilotSDKMode) {
+    try {
+      const authEnv = buildCopilotAuthEnv(baseChildEnv, {
+        logger: log,
+        requireCopilotCompatibleToken: true,
+      });
+      sdkSidecarEnv = authEnv.env;
+      sdkAuthSelection = authEnv.selection;
+    } catch (error) {
+      const err = /** @type {Error} */ error;
+      log(`copilot-sdk auth preflight failed: ${err.message}`);
+      process.exit(1);
+    }
+  }
+  const childEnv = copilotSDKMode
     ? {
-        ...sdkEnv,
+        ...omitEnvKeys(baseChildEnv, COPILOT_AUTH_ENV_KEYS),
         COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
         GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: providerBaseUrl,
         COPILOT_MODEL: resolvedModel,
       }
-    : sdkEnv;
-  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
+    : Object.keys(sdkEnv).length > 0
+      ? baseChildEnv
+      : undefined;
 
   // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
   // A noop indicates the work is complete or there is nothing to do — starting the agent
@@ -631,28 +780,42 @@ async function main() {
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
   try {
+    /** @type {string} */
+    let copilotBin = "";
+    /** @type {string[]} */
+    let driverServerArgs = [];
+    const restartCopilotSDKServer = async reason => {
+      if (!copilotSDKMode || !copilotBin) {
+        return false;
+      }
+      await stopCopilotSDKServer(copilotSDKServer, { logger: log });
+      log(`copilot-sdk driver mode: restarting sidecar (${reason})`);
+      copilotSDKServer = await startCopilotSDKServer({
+        command: copilotBin,
+        env: sdkSidecarEnv,
+        serverArgs: driverServerArgs.length > 0 ? driverServerArgs : undefined,
+        logger: log,
+      });
+      return true;
+    };
+
     if (copilotSDKMode) {
       // Driver mode: the harness starts the sidecar; the driver subprocess only opens a client.
       // Server args are provided via GH_AW_COPILOT_SDK_SERVER_ARGS (JSON-encoded CLI arg list
       // generated by the Go engine).  The copilot binary is args[1] in the driver command:
       //   node copilot_harness.cjs $GH_AW_NODE_EXEC copilot_sdk_driver.cjs <copilot-binary>
-      const copilotBin = args[1];
+      copilotBin = args[1];
       if (!copilotBin) {
         log("copilot-sdk driver mode: missing copilot binary path in args[1]");
         lastExitCode = 1;
       } else {
-        let driverServerArgs = parseCopilotSDKServerArgsFromEnv(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, { logger: log });
+        driverServerArgs = parseCopilotSDKServerArgsFromEnv(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, { logger: log });
         if (process.env.GITHUB_WORKSPACE) {
           driverServerArgs = [...driverServerArgs, "--add-dir", process.env.GITHUB_WORKSPACE];
           log(`copilot-sdk driver mode: appended workspace --add-dir ${process.env.GITHUB_WORKSPACE}`);
         }
         log(`copilot-sdk driver mode: starting sidecar command=${copilotBin} args=${driverServerArgs.length}`);
-        copilotSDKServer = await startCopilotSDKServer({
-          command: copilotBin,
-          env: childEnv ?? process.env,
-          serverArgs: driverServerArgs.length > 0 ? driverServerArgs : undefined,
-          logger: log,
-        });
+        await restartCopilotSDKServer("initial startup");
       }
     }
 
@@ -667,8 +830,9 @@ async function main() {
 
         if (attempt > 0) {
           const retryMode = !copilotSDKMode && useContinueOnRetry ? "--continue" : "fresh run";
-          log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
-          await sleep(delay);
+          const retryDelay = computeRetryDelayMs(delay);
+          log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${retryDelay}ms before next attempt (${retryMode}, baseDelay=${delay}ms)`);
+          await sleep(retryDelay);
           delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
           log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
         }
@@ -738,6 +902,21 @@ async function main() {
         }
 
         if (attempt === 0 && isAuthenticationFailed) {
+          log(`auth_marker isAuthenticationFailedError=true` + ` attempt=${attempt + 1}` + ` sdkMode=${copilotSDKMode}` + ` tokenSource=${sdkAuthSelection.source || "(none)"}` + ` patOnly=${sdkAuthSelection.hasPATOnly}`);
+          if (copilotSDKMode && attempt < MAX_RETRIES) {
+            const refreshedAuth = buildCopilotAuthEnv(baseChildEnv, {
+              logger: log,
+              excludeSources: sdkAuthSelection.source ? [sdkAuthSelection.source] : [],
+              requireCopilotCompatibleToken: false,
+            });
+            if (refreshedAuth.selection.source && refreshedAuth.selection.source !== sdkAuthSelection.source && !isPersonalAccessToken(refreshedAuth.selection.token)) {
+              sdkSidecarEnv = refreshedAuth.env;
+              sdkAuthSelection = refreshedAuth.selection;
+              await restartCopilotSDKServer(`auth recovery with alternate token source ${sdkAuthSelection.source}`);
+              log(`attempt ${attempt + 1}: authentication failed — retrying once in SDK mode with alternate token source ${sdkAuthSelection.source}`);
+              continue;
+            }
+          }
           if (proxyAuthDiagnostic) {
             log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying (first-attempt auth failure is non-retryable)`);
           } else {
@@ -894,6 +1073,10 @@ if (typeof module !== "undefined" && module.exports) {
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
     isAuthenticationFailedError,
+    isPersonalAccessToken,
+    selectCopilotAuthToken,
+    buildCopilotAuthEnv,
+    computeRetryDelayMs,
     startCopilotSDKServer,
     stopCopilotSDKServer,
     waitForCopilotSDKServer,
