@@ -80,7 +80,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const COPILOT_AUTH_ENV_KEYS = ["COPILOT_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"];
-const PERSONAL_ACCESS_TOKEN_PATTERN = /^(?:ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+)/i;
+const PERSONAL_ACCESS_TOKEN_PATTERN = /^(?:ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+)$/;
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -164,7 +164,7 @@ function omitEnvKeys(env, keys) {
  * @returns {boolean}
  */
 function isPersonalAccessToken(token) {
-  return PERSONAL_ACCESS_TOKEN_PATTERN.test(String(token || "").trim());
+  return PERSONAL_ACCESS_TOKEN_PATTERN.test((token || "").trim());
 }
 
 /**
@@ -239,6 +239,8 @@ function buildCopilotAuthEnv(env, options) {
     );
   }
 
+  // Log only when selection had to override the default COPILOT_GITHUB_TOKEN path
+  // or when PAT candidates were detected and normalized away.
   if (selection.patSources.length > 0 || selection.source !== "COPILOT_GITHUB_TOKEN") {
     const candidatesSummary = selection.candidates.map(candidate => `${candidate.source}=${candidate.isPAT ? "pat" : "compatible"}`).join(",");
     logger(`copilot-sdk auth selection: source=${selection.source} candidates=${candidatesSummary}`);
@@ -256,6 +258,15 @@ function buildCopilotAuthEnv(env, options) {
 }
 
 /**
+ * @param {string} currentSource
+ * @param {ReturnType<typeof selectCopilotAuthToken>} selection
+ * @returns {boolean}
+ */
+function hasCompatibleAlternateCopilotAuthToken(currentSource, selection) {
+  return Boolean(selection.source && selection.source !== currentSource && !isPersonalAccessToken(selection.token));
+}
+
+/**
  * Compute a jittered retry delay without exceeding MAX_DELAY_MS.
  *
  * @param {number} baseDelayMs
@@ -264,9 +275,10 @@ function buildCopilotAuthEnv(env, options) {
  */
 function computeRetryDelayMs(baseDelayMs, options) {
   const random = options?.random ?? Math.random;
-  const jitterRatio = options?.jitterRatio ?? RETRY_JITTER_RATIO;
+  const jitterRatio = Math.max(0, options?.jitterRatio ?? RETRY_JITTER_RATIO);
+  // Jitter is added to the bounded base delay, then the total is clamped to MAX_DELAY_MS.
   const boundedBaseDelay = Math.max(0, Math.min(baseDelayMs, MAX_DELAY_MS));
-  const jitterMs = Math.floor(boundedBaseDelay * Math.max(0, jitterRatio) * Math.max(0, random()));
+  const jitterMs = Math.floor(boundedBaseDelay * jitterRatio * random());
   return Math.min(boundedBaseDelay + jitterMs, MAX_DELAY_MS);
 }
 
@@ -902,14 +914,22 @@ async function main() {
         }
 
         if (attempt === 0 && isAuthenticationFailed) {
-          log(`auth_marker isAuthenticationFailedError=true` + ` attempt=${attempt + 1}` + ` sdkMode=${copilotSDKMode}` + ` tokenSource=${sdkAuthSelection.source || "(none)"}` + ` patOnly=${sdkAuthSelection.hasPATOnly}`);
+          log(
+            `auth_marker ${JSON.stringify({
+              isAuthenticationFailedError: true,
+              attempt: attempt + 1,
+              sdkMode: copilotSDKMode,
+              tokenSource: sdkAuthSelection.source || "(none)",
+              patOnly: sdkAuthSelection.hasPATOnly,
+            })}`
+          );
           if (copilotSDKMode && attempt < MAX_RETRIES) {
             const refreshedAuth = buildCopilotAuthEnv(baseChildEnv, {
               logger: log,
               excludeSources: sdkAuthSelection.source ? [sdkAuthSelection.source] : [],
               requireCopilotCompatibleToken: false,
             });
-            if (refreshedAuth.selection.source && refreshedAuth.selection.source !== sdkAuthSelection.source && !isPersonalAccessToken(refreshedAuth.selection.token)) {
+            if (hasCompatibleAlternateCopilotAuthToken(sdkAuthSelection.source, refreshedAuth.selection)) {
               sdkSidecarEnv = refreshedAuth.env;
               sdkAuthSelection = refreshedAuth.selection;
               await restartCopilotSDKServer(`auth recovery with alternate token source ${sdkAuthSelection.source}`);
@@ -1076,6 +1096,7 @@ if (typeof module !== "undefined" && module.exports) {
     isPersonalAccessToken,
     selectCopilotAuthToken,
     buildCopilotAuthEnv,
+    hasCompatibleAlternateCopilotAuthToken,
     computeRetryDelayMs,
     startCopilotSDKServer,
     stopCopilotSDKServer,

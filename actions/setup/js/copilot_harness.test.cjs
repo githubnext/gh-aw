@@ -107,13 +107,14 @@ describe("copilot_harness.cjs", () => {
     it("detects personal access token formats", () => {
       expect(isPersonalAccessToken("ghp_exampletoken")).toBe(true);
       expect(isPersonalAccessToken("github_pat_12345_example")).toBe(true);
+      expect(isPersonalAccessToken("GHP_exampletoken")).toBe(false);
       expect(isPersonalAccessToken("ghs_exampletoken")).toBe(false);
       expect(isPersonalAccessToken("")).toBe(false);
     });
 
     it("prefers a non-PAT token over a PAT COPILOT_GITHUB_TOKEN", () => {
       const selection = selectCopilotAuthToken({
-        COPILOT_GITHUB_TOKEN: "ghp_pat_token",
+        COPILOT_GITHUB_TOKEN: "ghp_abc123PATTOKEN",
         GITHUB_TOKEN: "ghs_actions_token",
       });
 
@@ -139,7 +140,7 @@ describe("copilot_harness.cjs", () => {
     it("normalizes all Copilot auth env vars to the selected compatible token", () => {
       const { env, selection } = buildCopilotAuthEnv(
         {
-          COPILOT_GITHUB_TOKEN: "ghp_pat_token",
+          COPILOT_GITHUB_TOKEN: "ghp_abc123PATTOKEN",
           GITHUB_TOKEN: "ghs_actions_token",
         },
         { logger: () => {} }
@@ -155,7 +156,7 @@ describe("copilot_harness.cjs", () => {
       expect(() =>
         buildCopilotAuthEnv(
           {
-            COPILOT_GITHUB_TOKEN: "ghp_pat_token",
+            COPILOT_GITHUB_TOKEN: "ghp_abc123PATTOKEN",
             GH_TOKEN: "github_pat_12345_example",
           },
           { logger: () => {}, requireCopilotCompatibleToken: true }
@@ -168,6 +169,8 @@ describe("copilot_harness.cjs", () => {
     it("adds deterministic positive jitter within the configured cap", () => {
       expect(computeRetryDelayMs(5000, { random: () => 0 })).toBe(5000);
       expect(computeRetryDelayMs(5000, { random: () => 0.5 })).toBe(5500);
+      expect(computeRetryDelayMs(5000, { random: () => 0.9 })).toBe(5900);
+      // Once the base delay reaches MAX_DELAY_MS, the total delay including jitter is capped there.
       expect(computeRetryDelayMs(60000, { random: () => 1 })).toBe(60000);
     });
   });
