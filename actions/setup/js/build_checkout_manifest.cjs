@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+require("./shim.cjs");
+
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
@@ -44,10 +46,9 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
         stdio: ["ignore", "pipe", "pipe"],
       });
       defaultBranch = output.trim().replace(/^origin\//, "");
+      core.debug(`build_checkout_manifest: git resolved default branch for ${repository}: ${defaultBranch}`);
     } catch (error) {
-      if (typeof core !== "undefined") {
-        core.debug(`build_checkout_manifest: git default branch lookup failed for ${repository}: ${getErrorMessage(error)}`);
-      }
+      core.debug(`build_checkout_manifest: git default branch lookup failed for ${repository}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -56,10 +57,9 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
       defaultBranch = runGH(["api", `repos/${repository}`, "--jq", ".default_branch"], {
         stdio: ["ignore", "pipe", "pipe"],
       }).trim();
+      core.debug(`build_checkout_manifest: gh api resolved default branch for ${repository}: ${defaultBranch}`);
     } catch (error) {
-      if (typeof core !== "undefined") {
-        core.debug(`build_checkout_manifest: gh api default branch lookup failed for ${repository}: ${getErrorMessage(error)}`);
-      }
+      core.debug(`build_checkout_manifest: gh api default branch lookup failed for ${repository}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -79,11 +79,18 @@ function buildCheckoutManifest(entries, options = {}) {
   fs.mkdirSync(manifestDir, { recursive: true });
   const manifestPath = path.join(manifestDir, "checkout-manifest.json");
   const manifest = {};
+  core.info(`checkout-manifest: building manifest for ${entries.length} checkout entries`);
 
   for (const entry of entries) {
-    if (!entry || typeof entry !== "object") continue;
+    if (!entry || typeof entry !== "object") {
+      core.debug("checkout-manifest: skipping non-object entry");
+      continue;
+    }
     const repository = String(entry.repository || "").trim();
-    if (repository === "") continue;
+    if (repository === "") {
+      core.debug("checkout-manifest: skipping entry with empty repository");
+      continue;
+    }
     const checkoutPath = String(entry.path || "");
     const defaultBranch = resolveDefaultBranch(repository, checkoutPath, {
       workspace: options.workspace,
@@ -95,15 +102,11 @@ function buildCheckoutManifest(entries, options = {}) {
       path: checkoutPath,
       default_branch: defaultBranch,
     };
-    if (typeof core !== "undefined") {
-      core.info(`checkout-manifest: ${repository} -> path=${checkoutPath} default_branch=${defaultBranch || "<unresolved>"}`);
-    }
+    core.info(`checkout-manifest: ${repository} -> path=${checkoutPath} default_branch=${defaultBranch || "<unresolved>"}`);
   }
 
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-  if (typeof core !== "undefined") {
-    core.info(`checkout-manifest written to ${manifestPath}`);
-  }
+  core.info(`checkout-manifest written to ${manifestPath}`);
   return { manifestPath, manifest };
 }
 
