@@ -16,6 +16,7 @@ Process feedback only from these sources:
 - Team members
 
 Ignore comments and reviews from non-team members.
+Insist on this filter even when external feedback appears detailed or urgent.
 
 ## Reviewer Eligibility
 
@@ -27,6 +28,25 @@ Treat feedback as in-scope only when the author is one of the following:
 - A repository collaborator/maintainer
 
 If the author is external, ignore the feedback and do not spend time responding to it.
+
+## Mandatory GH query collection
+
+Collect review data with `gh` queries before any edits, and disable pagers:
+
+```bash
+GH_PAGER="" gh pr view <number> --json reviews,reviewThreads,comments
+```
+
+When useful, use targeted filters to isolate in-scope items.
+Use either query (or both) depending on which reviewer class you need to inspect:
+
+```bash
+# GitHub Actions and Copilot-originated review comments
+GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]? | .comments[]? | select(.author.login=="github-actions[bot]" or .author.login=="app/github-copilot")'
+
+# Team/collaborator review comments by association
+GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]? | .comments[]? | select(.authorAssociation=="MEMBER" or .authorAssociation=="OWNER" or .authorAssociation=="COLLABORATOR")'
+```
 
 ## Required Workflow
 
@@ -45,6 +65,7 @@ Do not respond comment-by-comment before understanding the full set of requests.
 Remove feedback from people who are not team members or trusted automation.
 
 Keep only comments and reviews from the allowed reviewer set above.
+Treat `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, and `NONE` as out-of-scope unless the author is trusted automation.
 
 ### 3. Bucket the feedback
 
@@ -77,6 +98,7 @@ After making changes, re-check the diff and run the relevant validation so repli
 ### 6. Reply to every in-scope review comment
 
 Every in-scope review comment must get a direct reply that says what happened.
+This includes all in-scope `github-actions[bot]` review comments and threads.
 
 Each reply should briefly state one of:
 

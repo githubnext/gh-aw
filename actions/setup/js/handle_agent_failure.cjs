@@ -1111,12 +1111,21 @@ function loadMissingToolMessages(items) {
 }
 
 /**
+ * Determine whether a missing_tool message represents permission denial.
+ * @param {{tool: string|null, denied_commands: Array<string>}} message
+ * @returns {boolean}
+ */
+function isPermissionDeniedMissingTool(message) {
+  return message.tool === "tool/permission" && Array.isArray(message.denied_commands) && message.denied_commands.length > 0;
+}
+
+/**
  * Build missing_tool context string for display in failure issues/comments.
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted missing tool context
  */
 function buildMissingToolContext(items) {
-  const missingToolMessages = loadMissingToolMessages(items);
+  const missingToolMessages = loadMissingToolMessages(items).filter(message => !isPermissionDeniedMissingTool(message));
 
   if (missingToolMessages.length === 0) {
     return "";
@@ -1142,9 +1151,7 @@ function buildMissingToolContext(items) {
  */
 function buildPermissionDeniedContext(items, workflowId) {
   const missingToolMessages = loadMissingToolMessages(items);
-
-  const isPermissionDeniedItem = m => m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0;
-  const permissionItems = missingToolMessages.filter(isPermissionDeniedItem);
+  const permissionItems = missingToolMessages.filter(isPermissionDeniedMissingTool);
 
   if (permissionItems.length === 0) {
     return "";
@@ -1246,25 +1253,17 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
 
-  try {
-    const templatePath = getPromptPath("tool_denials_exceeded_context.md");
-    const template = fs.readFileSync(templatePath, "utf8");
-    return (
-      "\n" +
-      renderTemplate(template, {
-        denial_count: denialCount,
-        threshold,
-        reason: `\`${normalizedReason}\``,
-        workflow_id: workflowId || "the workflow",
-      })
-    );
-  } catch {
-    return (
-      buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
-      `**Last denied request:** \`${normalizedReason}\`\n\n` +
-      "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
-    );
-  }
+  const templatePath = getPromptPath("tool_denials_exceeded_context.md");
+  const template = fs.readFileSync(templatePath, "utf8");
+  return (
+    "\n" +
+    renderTemplate(template, {
+      denial_count: denialCount,
+      threshold,
+      reason: normalizedReason,
+      workflow_id: workflowId || "the workflow",
+    })
+  );
 }
 
 /**

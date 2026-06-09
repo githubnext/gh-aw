@@ -6,6 +6,7 @@ package sortslice
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -52,12 +53,25 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		pkgIdent, ok := sel.X.(*ast.Ident)
-		if !ok || pkgIdent.Name != "sort" {
+		if !ok {
+			return
+		}
+		if pass.TypesInfo == nil {
+			return
+		}
+		obj := pass.TypesInfo.ObjectOf(pkgIdent)
+		// ObjectOf can be nil when type information is incomplete.
+		if obj == nil {
+			return
+		}
+		pkgName, ok := obj.(*types.PkgName)
+		if !ok || pkgName.Imported().Path() != "sort" {
 			return
 		}
 
 		switch sel.Sel.Name {
 		case "Slice":
+			// Keep diagnostics on canonical stdlib names even for aliased imports.
 			pass.ReportRangef(call, "sort.Slice is not type-safe; use slices.SortFunc instead")
 		case "SliceStable":
 			pass.ReportRangef(call, "sort.SliceStable is not type-safe; use slices.SortStableFunc instead")

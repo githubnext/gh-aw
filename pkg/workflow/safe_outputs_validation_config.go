@@ -44,6 +44,7 @@ const (
 	MaxBodyLength           = 65000
 	MaxGitHubUsernameLength = 39
 	MaxGitHubTeamSlugLength = 100
+	MinIssueBodyLength      = 20 // Minimum body length for create_issue to prevent placeholder-only submissions
 	MinDiscussionBodyLength = 64 // Minimum body length for create_discussion to prevent placeholder-only submissions
 )
 
@@ -54,7 +55,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"title":        {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinIssueBodyLength},
 			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"fields":       {Type: "array"},
 			"parent":       {IssueOrPRNumber: true},

@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { ERR_VALIDATION, ERR_API } = require("./error_codes.cjs");
 
 /**
  * Type constant for handler identification
@@ -53,7 +54,7 @@ async function resolveCommentNodeId(github, repoContext, commentId) {
   if (typeof commentId === "string") {
     const trimmed = commentId.trim();
     if (!trimmed) {
-      throw new Error("comment_id is required");
+      throw new Error(`${ERR_VALIDATION}: comment_id is required`);
     }
 
     // GraphQL node IDs (e.g., IC_kwDOABCD123456) can be used directly.
@@ -65,11 +66,11 @@ async function resolveCommentNodeId(github, repoContext, commentId) {
   }
 
   if (!Number.isInteger(commentId) || commentId <= 0) {
-    throw new Error("comment_id must be a GraphQL node ID string or a positive numeric REST comment ID");
+    throw new Error(`${ERR_VALIDATION}: comment_id must be a GraphQL node ID string or a positive numeric REST comment ID`);
   }
 
   if (!repoContext || !repoContext.owner || !repoContext.repo) {
-    throw new Error("Unable to resolve numeric comment_id: repository context (owner/repo) is not available");
+    throw new Error(`${ERR_VALIDATION}: Unable to resolve numeric comment_id: repository context (owner/repo) is not available`);
   }
 
   const comment = await github.rest.issues.getComment({
@@ -80,7 +81,7 @@ async function resolveCommentNodeId(github, repoContext, commentId) {
 
   const nodeId = comment && comment.data ? comment.data.node_id : null;
   if (!nodeId || typeof nodeId !== "string") {
-    throw new Error(`Failed to resolve GraphQL node ID for comment_id ${commentId}: comment not found or node_id unavailable`);
+    throw new Error(`${ERR_API}: Failed to resolve GraphQL node ID for comment_id ${commentId}: comment not found or node_id unavailable`);
   }
 
   return nodeId;

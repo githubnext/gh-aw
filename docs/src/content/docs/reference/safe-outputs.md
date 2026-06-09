@@ -310,6 +310,20 @@ The author of the parent issue, PR, or discussion receiving the comment is autom
 
 Set `hide-older-comments: true` to minimize previous comments from the same workflow (identified by `GITHUB_WORKFLOW`) before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, `low_quality`.
 
+To also minimize comments from one or more other workflows in the same pass, use the object form with `match`:
+
+```yaml wrap
+safe-outputs:
+  add-comment:
+    hide-older-comments:
+      enabled: true
+      match:
+        - other_workflow
+        - yet-another
+```
+
+`match` is an exact-match list of workflow IDs (the `GITHUB_WORKFLOW` value, not the file name). The current workflow is always included; entries in `match` are added to the set. Set `enabled: false` to disable hiding while keeping the object form. The boolean form (`hide-older-comments: true`) is still supported for the single-workflow case.
+
 #### Append-Only Status Comments
 
 By default, gh-aw posts an activation comment when a workflow starts, then updates that same comment with the final status.

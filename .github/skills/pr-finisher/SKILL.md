@@ -74,7 +74,16 @@ If merged/closed, report and stop. Otherwise classify each condition as ✅ / �
 
 ### 2. Address Reviews
 
-Delegate to the `copilot-review` skill. For each unresolved in-scope thread (including `github-actions[bot]`): make change → run relevant local validation → commit → push → reply → resolve. A thread is not handled until reply + resolve both succeed.
+Delegate to the `copilot-review` skill and treat that delegation as mandatory, not optional. Insist on full handling of each unresolved in-scope thread (including `github-actions[bot]`): make change → run relevant local validation → commit → push → reply → resolve. A thread is not handled until reply + resolve both succeed.
+
+Before editing, gather the full review surface with explicit GH queries:
+
+```bash
+GH_PAGER="" gh pr view <number> --json reviews,reviewThreads,comments
+GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[] | select(.isResolved==false)'
+```
+
+When reviewing collected feedback, apply reviewer scoping from `copilot-review`: trusted automation and team/collaborator reviewers only. Ignore non-team-member feedback.
 
 ### 3. Address Mergeable
 
