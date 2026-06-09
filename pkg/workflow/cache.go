@@ -794,7 +794,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		// Build description text
 		descriptionText := ""
 		if cache.Description != "" {
-		descriptionText = cache.Description
+			descriptionText = cache.Description
 		}
 
 		// Build allowed extensions text.

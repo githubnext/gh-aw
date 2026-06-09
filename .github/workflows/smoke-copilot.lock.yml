@@ -460,7 +460,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ALLOWED_EXTENSIONS: ''
           GH_AW_CACHE_DESCRIPTION: ''
-          GH_AW_CACHE_DIR: '`/tmp/gh-aw/cache-memory/`'
+          GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
           GH_AW_EXPERIMENTS_CAVEMAN: ${{ steps.pick-experiment.outputs.caveman }}
           GH_AW_EXPERIMENTS_SUBAGENT_MODEL: ${{ steps.pick-experiment.outputs.subagent_model }}
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
