@@ -514,6 +514,7 @@ jobs:
           GH_AW_CHECKOUT_MANIFEST_COUNT: "1"
           GH_AW_CHECKOUT_REPO_0: "github/gh-aw-side-repo"
           GH_AW_CHECKOUT_PATH_0: ""
+          GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         with:
           script: |
             const { main } = require('${{ runner.temp }}/gh-aw/actions/build_checkout_manifest.cjs');

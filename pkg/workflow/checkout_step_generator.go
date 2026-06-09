@@ -31,11 +31,11 @@ func wikiRepository(repository string) string {
 func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permissions *Permissions) []string {
 	checkoutManagerLog.Printf("Building app token minting steps for %d checkout entries", len(cm.ordered))
 	var steps []string
-	for i, entry := range cm.ordered {
+	for checkoutIndex, entry := range cm.ordered {
 		if entry.githubApp == nil {
 			continue
 		}
-		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", i, entry.key.repository)
+		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", checkoutIndex, entry.key.repository)
 		// Pass empty fallback so the app token defaults to github.event.repository.name.
 		// Checkout-specific cross-repo scoping is handled via the explicit repository field.
 		steps = append(steps, c.buildGitHubAppTokenMintStepWithMeta(
@@ -43,8 +43,8 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 			permissions,
 			"",
 			entry.key.repository,
-			fmt.Sprintf("Generate GitHub App token for checkout (%d)", i),
-			fmt.Sprintf("checkout-app-token-%d", i),
+			fmt.Sprintf("Generate GitHub App token for checkout (%d)", checkoutIndex),
+			fmt.Sprintf("checkout-app-token-%d", checkoutIndex),
 		)...)
 	}
 	return steps
@@ -56,12 +56,12 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating additional checkout steps from %d configured entries", len(cm.ordered))
 	var lines []string
-	for i, entry := range cm.ordered {
+	for checkoutIndex, entry := range cm.ordered {
 		// Skip the default checkout (handled separately)
 		if entry.key.path == "" && entry.key.repository == "" {
 			continue
 		}
-		lines = append(lines, generateCheckoutStepLines(entry, i, getActionPin)...)
+		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, getActionPin)...)
 	}
 	checkoutManagerLog.Printf("Generated %d additional checkout step(s)", len(lines))
 	return lines
@@ -87,7 +87,7 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 		token      string
 	}
 	var entries []manifestEntry
-	for i, entry := range cm.ordered {
+	for checkoutIndex, entry := range cm.ordered {
 		if entry.key.wiki {
 			continue
 		}
@@ -97,7 +97,7 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 		entries = append(entries, manifestEntry{
 			repository: entry.key.repository,
 			path:       entry.key.path,
-			token:      resolveCheckoutTokenExpression(entry, i, false),
+			token:      resolveCheckoutTokenExpression(entry, checkoutIndex, false),
 		})
 	}
 	if len(entries) == 0 {
@@ -112,9 +112,9 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 	sb.WriteString("        env:\n")
 	sb.WriteString("          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	writeYAMLEnv(&sb, "          ", "GH_AW_CHECKOUT_MANIFEST_COUNT", strconv.Itoa(len(entries)))
-	for i, e := range entries {
-		repoKey := fmt.Sprintf("GH_AW_CHECKOUT_REPO_%d", i)
-		pathKey := fmt.Sprintf("GH_AW_CHECKOUT_PATH_%d", i)
+	for manifestIndex, e := range entries {
+		repoKey := fmt.Sprintf("GH_AW_CHECKOUT_REPO_%d", manifestIndex)
+		pathKey := fmt.Sprintf("GH_AW_CHECKOUT_PATH_%d", manifestIndex)
 		if strings.Contains(e.repository, "${{") {
 			fmt.Fprintf(&sb, "          %s: %s\n", repoKey, githubExpressionWhitespaceReplacer.Replace(e.repository))
 		} else {
@@ -126,7 +126,7 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 			writeYAMLEnv(&sb, "          ", pathKey, e.path)
 		}
 		if e.token != "" {
-			tokenKey := fmt.Sprintf("GH_AW_CHECKOUT_TOKEN_%d", i)
+			tokenKey := fmt.Sprintf("GH_AW_CHECKOUT_TOKEN_%d", manifestIndex)
 			if strings.Contains(e.token, "${{") {
 				fmt.Fprintf(&sb, "          %s: %s\n", tokenKey, githubExpressionWhitespaceReplacer.Replace(e.token))
 			} else {
@@ -502,12 +502,12 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	return sb.String()
 }
 
-func resolveCheckoutTokenExpression(entry *resolvedCheckout, index int, defaultWhenEmpty bool) string {
+func resolveCheckoutTokenExpression(entry *resolvedCheckout, checkoutIndex int, defaultWhenEmpty bool) string {
 	token := entry.token
 	if entry.githubApp != nil {
 		// The token is minted in the agent job itself (same-job step reference).
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", checkoutIndex)
 		if entry.githubApp.shouldIgnoreMissingKey() {
 			token = combineTokenExpressions(token, getEffectiveGitHubToken(entry.token))
 		}

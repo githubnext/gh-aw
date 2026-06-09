@@ -37,7 +37,14 @@ function readManifestEntriesFromEnv() {
 function resolveDefaultBranch(repository, checkoutPath, options = {}) {
   const workspace = options.workspace || process.env.GITHUB_WORKSPACE || "";
   const runGit = options.runGit || ((args, execOptions = {}) => execFileSync("git", args, { encoding: "utf8", ...execOptions }));
-  const runGH = options.runGH || ((args, execOptions = {}) => execFileSync("gh", args, { encoding: "utf8", ...execOptions }));
+  const runGH =
+    options.runGH ||
+    ((args, execOptions = {}) =>
+      execFileSync("gh", args, {
+        encoding: "utf8",
+        env: { ...process.env, ...(execOptions.env || {}) },
+        ...execOptions,
+      }));
   let defaultBranch = "";
 
   const repoPath = checkoutPath ? path.join(workspace, checkoutPath) : workspace;
@@ -55,12 +62,12 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
 
   if (defaultBranch === "") {
     try {
-      const checkoutToken = String(options.checkoutToken || "");
+      const checkoutToken = options.checkoutToken || "";
       const ghExecOptions = {
         stdio: ["ignore", "pipe", "pipe"],
       };
       if (checkoutToken !== "") {
-        ghExecOptions.env = { ...process.env, GH_TOKEN: checkoutToken };
+        ghExecOptions.env = { GH_TOKEN: checkoutToken };
       }
       defaultBranch = runGH(["api", `repos/${repository}`, "--jq", ".default_branch"], ghExecOptions).trim();
       core.debug(`build_checkout_manifest: gh api resolved default branch for ${repository}: ${defaultBranch}`);
@@ -102,7 +109,7 @@ function buildCheckoutManifest(entries, options = {}) {
       workspace: options.workspace,
       runGit,
       runGH,
-      checkoutToken: String(entry.token || ""),
+      checkoutToken: entry.token || "",
     });
     manifest[repository.toLowerCase()] = {
       repository,
