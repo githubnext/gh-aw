@@ -62,6 +62,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure read-only `gh` CLI access without exposing `GITHUB_TOKEN` (requires AWF v0.26.0+). Prerequisite for `integrity-reactions`; the compiler enables it automatically when `integrity-reactions: true` is set.
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
     - `mcp-cli: true` - Deprecated. This flag has been removed; MCP CLI mounting is now always enabled when `tools.cli-proxy: true` is set.
+    - `dangerously-disable-sandbox-agent: "<justification>"` - Required when `sandbox.agent: false` is set. Must be a plain string justification (minimum 20 characters; expressions are not allowed) that explains why disabling the sandbox is safe for this workflow.
 
 - **`experiments:`** - A/B testing experiments for balanced variant selection (object)
   - Maps experiment names to variant lists (bare array) or full config objects
@@ -343,9 +344,11 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         model-fallback: false       # Optional: disable model fallback (default true); set false for BYOK Azure OpenAI to prevent deployment-name rewriting
     ```
 
-  - To disable the agent firewall while keeping MCP gateway enabled (not allowed in strict mode):
+  - To disable the agent firewall while keeping MCP gateway enabled, you must provide the dangerous-disable justification feature:
 
     ```yaml
+    features:
+      dangerously-disable-sandbox-agent: "controlled environment with no internet access"
     sandbox:
       agent: false
     ```

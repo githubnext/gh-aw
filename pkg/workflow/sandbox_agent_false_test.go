@@ -21,7 +21,7 @@ network:
     - defaults
     - github.com
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 strict: false
@@ -192,6 +192,78 @@ Test workflow to verify sandbox.agent: false is rejected without the feature fla
 		}
 		if !strings.Contains(err.Error(), "dangerously-disable-sandbox-agent") {
 			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox-agent', got: %v", err)
+		}
+	})
+
+	t.Run("sandbox.agent: false with short justification is rejected", func(t *testing.T) {
+		workflowsDir := t.TempDir()
+
+		markdown := `---
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - github.com
+features:
+  dangerously-disable-sandbox-agent: "too short"
+sandbox:
+  agent: false
+strict: false
+on: workflow_dispatch
+---
+
+Test workflow to verify sandbox.agent: false is rejected when feature justification is too short.
+`
+
+		workflowPath := filepath.Join(workflowsDir, "test-agent-false-short-flag.md")
+		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := NewCompiler()
+		err = compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail when justification is too short, but got nil error")
+		}
+		if !strings.Contains(err.Error(), "at least 20 characters") {
+			t.Fatalf("Expected error to mention minimum length, got: %v", err)
+		}
+	})
+
+	t.Run("sandbox.agent: false with expression justification is rejected", func(t *testing.T) {
+		workflowsDir := t.TempDir()
+
+		markdown := `---
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - github.com
+features:
+  dangerously-disable-sandbox-agent: "${{ inputs.reason }}"
+sandbox:
+  agent: false
+strict: false
+on: workflow_dispatch
+---
+
+Test workflow to verify sandbox.agent: false is rejected when feature uses an expression.
+`
+
+		workflowPath := filepath.Join(workflowsDir, "test-agent-false-expression-flag.md")
+		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := NewCompiler()
+		err = compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail when justification uses an expression, but got nil error")
+		}
+		if !strings.Contains(err.Error(), "expressions") {
+			t.Fatalf("Expected error to mention expressions are not allowed, got: %v", err)
 		}
 	})
 }
