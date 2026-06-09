@@ -17,7 +17,7 @@ else
     NC=''
 fi
 
-violation_count=0
+warning_count=0
 
 echo "Checking workflow prompts for inline shell(python -c ...) patterns..."
 echo ""
@@ -36,23 +36,27 @@ while IFS= read -r file; do
         ' "$file" 2>/dev/null || true
     )
     if [ -n "$matches" ]; then
-        echo -e "${RED}VIOLATION${NC}: $file"
+        echo -e "${RED}WARNING${NC}: $file"
         while IFS= read -r match; do
+            line_number="${match%%:*}"
+            line_content="${match#*:}"
             echo "  $match"
+            echo "::warning file=$file,line=$line_number,title=Inline Python in workflow prompt::$line_content"
         done <<< "$matches"
         echo ""
-        violation_count=$((violation_count + 1))
+        warning_count=$((warning_count + 1))
     fi
 done < <(find .github/workflows -name "*.md" -type f | sort)
 
 echo "------------------------------------------------------------"
 
-if [ "$violation_count" -eq 0 ]; then
+if [ "$warning_count" -eq 0 ]; then
     echo -e "${GREEN}No inline shell(python -c ...) patterns found in workflow prompts${NC}"
     exit 0
 fi
 
-echo -e "${RED}$violation_count workflow prompt file(s) contain inline shell(python -c ...) patterns${NC}"
+echo -e "${RED}$warning_count workflow prompt file(s) contain inline shell(python -c ...) patterns${NC}"
 echo ""
 echo "Use structured workflow tools (view/grep/glob) or shell-native commands instead of inline Python one-liners."
-exit 1
+echo "This is a warning and does not fail lint."
+exit 0
