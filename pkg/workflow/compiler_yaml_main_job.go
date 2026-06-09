@@ -143,7 +143,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	// Emit a manifest step that records the path and resolved default branch for each
 	// non-default cross-repo checkout. The safe-outputs MCP server reads this file to
 	// resolve base branches without making any credentialed network calls.
-	for _, line := range checkoutMgr.GenerateCheckoutManifestStep() {
+	for _, line := range checkoutMgr.GenerateCheckoutManifestStep(c.getActionPin) {
 		yaml.WriteString(line)
 	}
 
