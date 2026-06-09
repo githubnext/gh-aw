@@ -8,7 +8,7 @@ const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [/\bawf\b.*\bapi[\s_-]*proxy\b.
 
 /**
  * Detect retry guard conditions that should stop harness retries immediately.
- * @param {string} output
+ * @param {unknown} output
  * @returns {{ aiCreditsExceeded: boolean, awfAPIProxyBlockingRequests: boolean }}
  */
 function detectNonRetryableHarnessGuard(output) {

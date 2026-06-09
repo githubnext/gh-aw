@@ -402,7 +402,7 @@ async function main() {
       const reasons = [];
       if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
       if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
-      log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (persistent AWF guard condition)`);
+      log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
       break;
     }
 
