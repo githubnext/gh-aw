@@ -147,7 +147,7 @@ else
     {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
     {"description": "Get PRs with labels", "query": ".[] | {number, title, labels: [.labels[].name]}"},
     {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"},
-    {"description": "Get PRs with action-bot reviews", "query": ".[] | {number, title, botReviewCount: ([.reviews[]? | select(.author.login == \"github-actions[bot]\")] | length)}"}
+    {"description": "Get PRs with actions-bot reviews", "query": ".[] | {number, title, botReviewCount: ([.reviews[]? | select(.author.login == \"github-actions[bot]\")] | length)}"}
   ]
 }
 EOF

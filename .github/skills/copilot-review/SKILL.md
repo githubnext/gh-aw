@@ -37,7 +37,8 @@ Collect review data with `gh` queries before any edits, and disable pagers:
 GH_PAGER="" gh pr view <number> --json reviews,reviewThreads,comments
 ```
 
-When useful, use targeted filters to isolate in-scope items:
+When useful, use targeted filters to isolate in-scope items.
+Use either query (or both) depending on which reviewer class you need to inspect:
 
 ```bash
 # GitHub Actions and Copilot-originated review comments
