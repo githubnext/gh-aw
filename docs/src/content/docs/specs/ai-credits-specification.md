@@ -7,9 +7,9 @@ sidebar:
 
 # AI Credits Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Draft  
-**Publication Date**: 2026-06-05  
+**Publication Date**: 2026-06-09  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [ai-credits-specification](/gh-aw/specs/ai-credits-specification/)  
 **Latest Published Version**: This document
@@ -36,9 +36,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 6. [Copilot Billing Reference Requirements](#6-copilot-billing-reference-requirements)
 7. [Reporting Requirements](#7-reporting-requirements)
 8. [Compliance Testing](#8-compliance-testing)
-9. [Appendices](#appendices)
-10. [References](#references)
-11. [Change Log](#change-log)
+9. [Daily AI Credits Guardrail](#9-daily-ai-credits-guardrail)
+10. [Appendices](#appendices)
+11. [References](#references)
+12. [Change Log](#change-log)
 
 ---
 
@@ -274,6 +275,69 @@ A conformance test suite MUST include at least the following test cases:
 
 ---
 
+## 9. Daily AI Credits Guardrail
+
+### 9.1 Purpose
+
+The daily AI Credits guardrail is a per-workflow cumulative budget limit evaluated at action runtime. It prevents a single workflow from consuming excessive AI Credits across all runs in a rolling 24-hour window. This section specifies the normative resolution order for the guardrail threshold and the mechanism by which the runtime default is resolved.
+
+### 9.2 Guardrail Configuration Field
+
+The guardrail threshold is expressed through the `max-daily-ai-credits` frontmatter field in the workflow YAML source. When set, a conforming compiler MUST emit the resolved threshold as the `GH_AW_MAX_DAILY_AI_CREDITS` environment variable in the compiled workflow YAML. The daily guardrail check step MUST gate its execution on this variable being non-empty.
+
+### 9.3 Normative Resolution Order
+
+A conforming implementation MUST resolve the effective daily AI Credits threshold using the following precedence (highest to lowest):
+
+1. **Frontmatter value** (`max-daily-ai-credits`): Resolved at compile time. Numeric values MUST be normalized to integer strings; suffix notation (`K`, `M`) MUST be expanded (e.g., `100M` → `100000000`). When present, the resolved value MUST be emitted literally as the `GH_AW_MAX_DAILY_AI_CREDITS` value.
+
+2. **Runtime organization variable** (`vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`): A GitHub Actions `vars.*` expression resolved at action runtime by the GitHub Actions runner. A conforming implementation MUST NOT read this variable at compile time via the process environment; it MUST instead be embedded in the compiled YAML as a GitHub Actions expression evaluated by the runner.
+
+3. **Built-in constant default** (`5000`): The fallback literal embedded in the GitHub Actions expression when the organization variable is unset. The value `5000` AIC represents the normative built-in default for the daily guardrail threshold.
+
+A conforming implementation MUST NOT resolve any of these values from repository-local configuration files (e.g., `aw.json`).
+
+### 9.4 Emitted Expression Form
+
+When no frontmatter value is present, a conforming implementation MUST emit the following GitHub Actions expression as the `GH_AW_MAX_DAILY_AI_CREDITS` environment variable value in the compiled workflow:
+
+```
+${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
+```
+
+This expression MUST be emitted verbatim (not pre-evaluated) so that the GitHub Actions runner resolves the organization variable at workflow execution time. The `'5000'` fallback ensures the guardrail is active by default when the organization variable is not configured.
+
+### 9.5 Disable Sentinel
+
+A `max-daily-ai-credits` frontmatter value of `-1` MUST disable the daily guardrail. When this sentinel is present:
+
+- A conforming implementation MUST NOT emit `GH_AW_MAX_DAILY_AI_CREDITS` into the compiled workflow.
+- The daily guardrail check step MUST be skipped at runtime (its `if:` condition evaluates to false).
+
+### 9.6 Value Validation
+
+A conforming implementation MUST enforce the following at compile time:
+
+- Accept positive integers and positive numeric strings.
+- Accept the suffix notation `K` and `M` (case-insensitive) as multipliers (×1,000 and ×1,000,000 respectively).
+- Accept `-1` as the explicit disable sentinel.
+- Accept GitHub Actions expression strings (verbatim, passed through for runtime evaluation).
+- Reject integer values below `-1` with a compile-time validation error.
+- Reject non-numeric, non-expression values.
+
+### 9.7 Compliance Tests
+
+| Test ID | Description | Requirement |
+|---------|-------------|-------------|
+| T-AIC-DG-001 | Frontmatter value emitted literally; no expression wrapper | §9.3 (1) |
+| T-AIC-DG-002 | No frontmatter: emitted expression is `${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS \|\| '5000' }}` | §9.4 |
+| T-AIC-DG-003 | Frontmatter `-1` disables guardrail; no env var emitted | §9.5 |
+| T-AIC-DG-004 | `K`/`M` suffix values expanded in emitted literal | §9.6 |
+| T-AIC-DG-005 | Values below `-1` rejected at compile time | §9.6 |
+| T-AIC-DG-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §9.3 (2) |
+
+---
+
 ## Appendices
 
 ### Appendix A: Worked Example
@@ -329,6 +393,12 @@ Pricing catalogs are configuration inputs. Implementations SHOULD:
 ---
 
 ## Change Log
+
+### Version 1.1.0 (2026-06-09)
+
+- **Added**: Section 9 — Daily AI Credits Guardrail. Specifies the normative three-level resolution order (frontmatter → `vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` at runtime → built-in constant `5000`) and the required GitHub Actions expression form emitted by conforming compilers.
+- **Added**: §9.7 compliance test matrix (T-AIC-DG-001 through T-AIC-DG-006).
+- **Updated**: Table of contents and publication metadata to 1.1.0.
 
 ### Version 1.0.0 (Draft)
 
