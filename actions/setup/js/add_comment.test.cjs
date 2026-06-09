@@ -3248,6 +3248,91 @@ describe("add_comment", () => {
         }
       }
     });
+
+    it("should hide comments matching hide-older-comments.match values", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const originalWorkflowId = process.env.GH_AW_WORKFLOW_ID;
+      process.env.GH_AW_WORKFLOW_ID = "current-workflow";
+
+      try {
+        let hiddenNodeIds = [];
+        mockGithub.rest.issues.listComments = async () => ({
+          data: [
+            {
+              id: 10,
+              node_id: "IC_kwDOTest10",
+              body: "Current\n\n<!-- gh-aw-workflow-id: current-workflow -->",
+            },
+            {
+              id: 11,
+              node_id: "IC_kwDOTest11",
+              body: "Other\n\n<!-- gh-aw-workflow-id: other_workflow -->",
+            },
+            {
+              id: 12,
+              node_id: "IC_kwDOTest12",
+              body: "Unrelated\n\n<!-- gh-aw-workflow-id: unrelated -->",
+            },
+          ],
+        });
+        mockGithub.graphql = async (query, variables) => {
+          if (query.includes("minimizeComment")) hiddenNodeIds.push(variables.nodeId);
+          return { minimizeComment: { minimizedComment: { isMinimized: true } } };
+        };
+        mockGithub.rest.issues.createComment = async () => ({
+          data: { id: 1, html_url: "https://github.com/owner/repo/issues/8535#issuecomment-1" },
+        });
+
+        const handler = await eval(
+          `(async () => { ${addCommentScript}; return await main({ hide_older_comments: { match: ["other_workflow"] } }); })()`
+        );
+
+        const result = await handler({ type: "add_comment", body: "Comment with match list" }, {});
+
+        expect(result.success).toBe(true);
+        expect(hiddenNodeIds).toContain("IC_kwDOTest10");
+        expect(hiddenNodeIds).toContain("IC_kwDOTest11");
+        expect(hiddenNodeIds).not.toContain("IC_kwDOTest12");
+      } finally {
+        if (originalWorkflowId === undefined) {
+          delete process.env.GH_AW_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_WORKFLOW_ID = originalWorkflowId;
+        }
+      }
+    });
+
+    it("should respect hide_older_comments.enabled when object config is used", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const originalWorkflowId = process.env.GH_AW_WORKFLOW_ID;
+      process.env.GH_AW_WORKFLOW_ID = "current-workflow";
+
+      try {
+        let listCommentsCalled = false;
+        mockGithub.rest.issues.listComments = async () => {
+          listCommentsCalled = true;
+          return { data: [] };
+        };
+        mockGithub.rest.issues.createComment = async () => ({
+          data: { id: 1, html_url: "https://github.com/owner/repo/issues/8535#issuecomment-1" },
+        });
+
+        const handler = await eval(
+          `(async () => { ${addCommentScript}; return await main({ hide_older_comments: { enabled: false, match: ["other_workflow"] } }); })()`
+        );
+
+        const result = await handler({ type: "add_comment", body: "Comment with disabled hide" }, {});
+
+        expect(result.success).toBe(true);
+        expect(listCommentsCalled).toBe(false);
+      } finally {
+        if (originalWorkflowId === undefined) {
+          delete process.env.GH_AW_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_WORKFLOW_ID = originalWorkflowId;
+        }
+      }
+    });
   });
 
   let enforceCommentLimits;

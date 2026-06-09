@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"fmt"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -17,6 +19,7 @@ type AddCommentsConfig struct {
 	TargetRepoSlug         string   `yaml:"target-repo,omitempty"`         // Target repository in format "owner/repo" for cross-repository comments
 	AllowedRepos           []string `yaml:"allowed-repos,omitempty"`       // List of additional repositories that comments can be added to (additionally to the target-repo)
 	HideOlderComments      *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
+	HideOlderCommentsMatch []string `yaml:"hide-older-comments-match,omitempty"`
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
 	Issues                 *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
 	PullRequests           *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
@@ -33,6 +36,11 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 
 	// Get config data for pre-processing before YAML unmarshaling
 	configData, _ := outputMap["add-comment"].(map[string]any)
+
+	if err := preprocessHideOlderCommentsConfig(configData, addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid hide-older-comments value: %v", err)
+		return nil
+	}
 
 	// Pre-process templatable bool fields
 	if err := preprocessBoolFieldAsString(configData, "hide-older-comments", addCommentLog); err != nil {
@@ -71,6 +79,40 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	return config
+}
+
+func preprocessHideOlderCommentsConfig(configData map[string]any, debugLog *logger.Logger) error {
+	if configData == nil {
+		return nil
+	}
+
+	raw, exists := configData["hide-older-comments"]
+	if !exists || raw == nil {
+		return nil
+	}
+
+	objectConfig, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	if enabledRaw, hasEnabled := objectConfig["enabled"]; hasEnabled {
+		enabledMap := map[string]any{"enabled": enabledRaw}
+		if err := preprocessBoolFieldAsString(enabledMap, "enabled", debugLog); err != nil {
+			return fmt.Errorf("field %q must be a boolean or a GitHub Actions expression", "hide-older-comments.enabled")
+		}
+		if enabled, ok := enabledMap["enabled"]; ok {
+			configData["hide-older-comments"] = enabled
+		}
+	} else {
+		configData["hide-older-comments"] = "true"
+	}
+
+	if matchRaw, hasMatch := objectConfig["match"]; hasMatch {
+		configData["hide-older-comments-match"] = parseStringSliceAny(matchRaw, debugLog)
+	}
+
+	return nil
 }
 
 // buildAddCommentPermissions computes the permissions for the add_comment job based on config.
