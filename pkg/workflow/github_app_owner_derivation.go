@@ -29,6 +29,10 @@ func inferSingleCheckoutRepositoryForGitHubAppOwner(data *WorkflowData) string {
 		}
 	}
 
+	if repository == "" && hasWorkflowCallTrigger(data.On) {
+		return "${{ needs.activation.outputs.target_repo }}"
+	}
+
 	return repository
 }
 
@@ -50,7 +54,7 @@ func buildGitHubAppOwnerResolutionSteps(repositoryExpr, stepName, stepID string)
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", ownerStepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", ownerStepID))
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GH_AW_TARGET_REPOSITORY: %s\n", repositoryExpr))
+	steps = append(steps, fmt.Sprintf("          GH_AW_TARGET_REPOSITORY: %s\n", githubExpressionWhitespaceReplacer.Replace(repositoryExpr)))
 	steps = append(steps, "        shell: bash\n")
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          set -euo pipefail\n")
