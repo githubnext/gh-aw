@@ -70,7 +70,7 @@ done
 JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup,additions,deletions,changedFiles,labels,assignees,reviewRequests,latestReviews,reviews,comments,url"
 
 # Build and execute gh command with proper quoting
-GH_ARGS=(pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+GH_ARGS=(--state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
 
 if [[ -n "$AUTHOR" ]]; then
     GH_ARGS+=(--author "$AUTHOR")
@@ -83,10 +83,8 @@ if [[ -n "$SEARCH" ]]; then
 fi
 if [[ -n "$REPO" ]]; then
     GH_ARGS+=(--repo "$REPO")
-    OUTPUT=$(gh "${GH_ARGS[@]}")
-else
-    OUTPUT=$(gh "${GH_ARGS[@]}")
 fi
+OUTPUT=$(gh pr list "${GH_ARGS[@]}")
 
 # Apply jq filter if specified
 if [[ -n "$JQ_FILTER" ]]; then

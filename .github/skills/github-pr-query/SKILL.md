@@ -93,12 +93,14 @@ Use the `--jq` argument to filter and transform the output:
 
 **Find in-scope review feedback (team/collaborator + trusted automation):**
 ```bash
-./query-prs.sh --jq '.[] | {number, title, reviews: [.reviews[]? | select(.author.login == "github-actions[bot]" or .author.login == "app/github-copilot" or .authorAssociation == "MEMBER" or .authorAssociation == "OWNER" or .authorAssociation == "COLLABORATOR")] }'
+./query-prs.sh --jq \
+  '.[] | {number, title, reviews: [.reviews[]? | select(.author.login == "github-actions[bot]" or .author.login == "app/github-copilot" or .authorAssociation == "MEMBER" or .authorAssociation == "OWNER" or .authorAssociation == "COLLABORATOR")] }'
 ```
 
 **Ignore external review feedback:**
 ```bash
-./query-prs.sh --jq '.[] | {number, title, external_reviews: [.reviews[]? | select(.authorAssociation == "CONTRIBUTOR" or .authorAssociation == "FIRST_TIME_CONTRIBUTOR" or .authorAssociation == "FIRST_TIMER" or .authorAssociation == "NONE")] }'
+./query-prs.sh --jq \
+  '.[] | {number, title, external_reviews: [.reviews[]? | select(.authorAssociation == "CONTRIBUTOR" or .authorAssociation == "FIRST_TIME_CONTRIBUTOR" or .authorAssociation == "FIRST_TIMER" or .authorAssociation == "NONE")] }'
 ```
 
 **List PRs with their labels:**
