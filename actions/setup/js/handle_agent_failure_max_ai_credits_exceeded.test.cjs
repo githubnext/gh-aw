@@ -20,36 +20,48 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
     delete process.env.GH_AW_PROMPTS_DIR;
   });
 
-  it("shows budget exhaustion message with usage, limit, and overage details", () => {
+  it("shows budget exhaustion message with inline usage, limit, and overage — no table, no run URL", () => {
     const rendered = buildAICreditsRateLimitErrorContext(true, "105000", "100000", "https://github.com/octo/repo/actions/runs/456");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).toContain("hit the configured `max-ai-credits` guardrail");
-    expect(rendered).toContain("| AI credits used |");
-    expect(rendered).toContain("| Guardrail limit (`max-ai-credits`) |");
-    expect(rendered).toContain("| Over the limit by |");
-    expect(rendered).toContain("| Run | [View workflow run](https://github.com/octo/repo/actions/runs/456) |");
+    // inline metrics — no table
+    expect(rendered).toContain("Used `105K` of `100K` max (over by `5K`)");
+    expect(rendered).not.toContain("| AI credits used |");
+    expect(rendered).not.toContain("| Guardrail limit");
+    expect(rendered).not.toContain("| Over the limit by |");
+    // run URL not repeated
+    expect(rendered).not.toContain("https://github.com/octo/repo/actions/runs/456");
+    // suggested limit snippet
+    expect(rendered).toContain("max-ai-credits: 200000");
+    // progressive disclosure
     expect(rendered).toContain("<details>");
+    expect(rendered).toContain("<summary>Increase the limit</summary>");
     expect(rendered).toContain("<summary>Tips for reducing AI credit usage</summary>");
     expect(rendered).toContain("https://github.github.com/gh-aw/reference/cost-management/");
   });
 
-  it("shows message without metrics rows when no credit data is available", () => {
+  it("shows message without metrics when no credit data is available, still shows snippet with default limit", () => {
     const rendered = buildAICreditsRateLimitErrorContext(true, "", "", "");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
+    expect(rendered).not.toContain("Used `");
     expect(rendered).not.toContain("| AI credits used |");
     expect(rendered).not.toContain("| Guardrail limit");
     expect(rendered).not.toContain("| Run |");
+    expect(rendered).toContain("max-ai-credits: 2000");
   });
 
-  it("does not show overage row when usage does not exceed limit", () => {
+  it("does not show overage when usage does not exceed limit", () => {
     const rendered = buildAICreditsRateLimitErrorContext(true, "50000", "100000", "");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
-    expect(rendered).toContain("| AI credits used |");
-    expect(rendered).toContain("| Guardrail limit (`max-ai-credits`) |");
+    expect(rendered).toContain("Used `50K` of `100K` max");
+    expect(rendered).not.toContain("over by");
+    expect(rendered).not.toContain("| AI credits used |");
     expect(rendered).not.toContain("| Over the limit by |");
+    // suggested limit is 2x max
+    expect(rendered).toContain("max-ai-credits: 200000");
   });
 
   it("returns empty string when max_ai_credits_exceeded is false", () => {

@@ -508,32 +508,17 @@ jobs:
           repository: github/gh-aw-side-repo
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
       - name: Build checkout manifest for safe-outputs handlers
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          mkdir -p "${RUNNER_TEMP}/gh-aw"
-          manifest="${RUNNER_TEMP}/gh-aw/checkout-manifest.json"
-          printf '{}' > "$manifest"
-          resolve_default_branch() {
-            local repo="$1" path="$2" db=""
-            if [ -d "${GITHUB_WORKSPACE}/${path}/.git" ]; then
-              db=$(git -C "${GITHUB_WORKSPACE}/${path}" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
-            fi
-            if [ -z "$db" ]; then
-              db=$(gh api "repos/${repo}" --jq '.default_branch' 2>/dev/null || true)
-            fi
-            printf '%s' "$db"
-          }
-          repo='github/gh-aw-side-repo'
-          path=''
-          db=$(resolve_default_branch "$repo" "$path")
-          tmp=$(mktemp)
-          jq --arg repo "$repo" --arg path "$path" --arg db "$db" \
-            '.[($repo | ascii_downcase)] = {repository: $repo, path: $path, default_branch: $db}' \
-            "$manifest" > "$tmp" && mv "$tmp" "$manifest"
-          echo "checkout-manifest: ${repo} -> path=${path} default_branch=${db:-<unresolved>}"
-          cat "$manifest"
+          GH_AW_CHECKOUT_MANIFEST_COUNT: "1"
+          GH_AW_CHECKOUT_REPO_0: "github/gh-aw-side-repo"
+          GH_AW_CHECKOUT_PATH_0: ""
+          GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+        with:
+          script: |
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/build_checkout_manifest.cjs');
+            await main();
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise

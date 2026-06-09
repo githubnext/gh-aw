@@ -1477,20 +1477,22 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
   const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
   const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) && numericAICredits > numericMaxAICredits ? numericAICredits - numericMaxAICredits : NaN;
   const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
-  const metricsRows = [];
-  if (formattedAICredits) {
-    metricsRows.push(`| AI credits used | \`${formattedAICredits}\` |`);
+
+  // Build inline metrics summary (no table, no run URL)
+  let metricsSummary = "";
+  if (formattedAICredits && formattedMaxAICredits) {
+    metricsSummary = ` Used \`${formattedAICredits}\` of \`${formattedMaxAICredits}\` max`;
+    if (formattedOverage) {
+      metricsSummary += ` (over by \`${formattedOverage}\`)`;
+    }
+    metricsSummary += ".";
+  } else if (formattedAICredits) {
+    metricsSummary = ` Used \`${formattedAICredits}\`.`;
   }
-  if (formattedMaxAICredits) {
-    metricsRows.push(`| Guardrail limit (\`max-ai-credits\`) | \`${formattedMaxAICredits}\` |`);
-  }
-  if (formattedOverage) {
-    metricsRows.push(`| Over the limit by | \`${formattedOverage}\` |`);
-  }
-  if (runUrl) {
-    metricsRows.push(`| Run | [View workflow run](${runUrl}) |`);
-  }
-  const metricsTable = metricsRows.length > 0 ? `\n\n| Metric | Value |\n| --- | --- |\n${metricsRows.join("\n")}` : "";
+
+  // Suggest a new limit: 2x current max, or 2x actual usage if max is unknown, or a reasonable default
+  const baseForSuggestion = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? numericMaxAICredits : Number.isFinite(numericAICredits) && numericAICredits > 0 ? numericAICredits : 0;
+  const suggestedCredits = baseForSuggestion > 0 ? Math.ceil(baseForSuggestion * 2) : 2000;
 
   const templateName = "ai_credits_rate_limit_error.md";
   let templatePath = "";
@@ -1504,11 +1506,12 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        metrics_table: metricsTable,
+        metrics_summary: metricsSummary,
+        suggested_credits: suggestedCredits,
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_table`);
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_summary, suggested_credits`);
   }
 }
 
