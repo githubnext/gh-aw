@@ -61,7 +61,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)...)
+		steps = append(steps, c.buildGitHubAppTokenMintStepForRepository(
+			data.SafeOutputs.GitHubApp,
+			permissions,
+			appTokenFallbackRepo,
+			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+		)...)
 	}
 
 	// Add artifact download steps once (shared by noop and conclusion steps).

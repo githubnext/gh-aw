@@ -227,7 +227,7 @@ describe("check_permissions_utils", () => {
 
     it("should return authorized for maintain when maintainer is required", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "maintain" },
+        data: { permission: "write", role_name: "maintain" },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["maintainer"]);
@@ -237,6 +237,7 @@ describe("check_permissions_utils", () => {
         permission: "maintain",
       });
 
+      expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: write (role: maintain)");
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has maintain access to repository");
     });
 
@@ -299,7 +300,7 @@ describe("check_permissions_utils", () => {
 
     it("should handle triage permission", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "triage" },
+        data: { permission: "read", role_name: "triage" },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["triage"]);
@@ -308,6 +309,20 @@ describe("check_permissions_utils", () => {
         authorized: true,
         permission: "triage",
       });
+    });
+
+    it("should use role_name over permission for authorization decisions", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "maintain" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "maintain",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'maintain' does not meet requirements: write");
     });
 
     it("should check permissions in order and stop at first match", async () => {

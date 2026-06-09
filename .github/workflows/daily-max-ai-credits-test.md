@@ -9,6 +9,8 @@ max-daily-ai-credits: -1
 permissions:
   contents: read
   issues: read
+features:
+  copilot-requests: true
 engine:
   id: copilot
 strict: true

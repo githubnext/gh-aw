@@ -89,7 +89,7 @@ const mockCore = {
       }),
       it("should pass validation for maintain permission when maintainer is required", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer"),
-          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "maintain" } }),
+          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write", role_name: "maintain" } }),
           await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has maintain access to repository"),
           expect(mockCore.error).not.toHaveBeenCalled(),
@@ -138,7 +138,7 @@ const mockCore = {
       }),
       it("should handle triage permission correctly", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,write,triage"),
-          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "triage" } }),
+          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "read", role_name: "triage" } }),
           await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has triage access to repository"),
           expect(mockCore.error).not.toHaveBeenCalled(),
@@ -193,7 +193,7 @@ const mockCore = {
           (global.context.eventName = "push"),
           (global.context.actor = "test-user"),
           (global.context.repo = { owner: "my-org", repo: "my_test-repo" }),
-          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "maintain" } }),
+          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write", role_name: "maintain" } }),
           await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "my-org", repo: "my_test-repo", username: "test-user" }),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has maintain access to repository"));

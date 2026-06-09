@@ -767,6 +767,12 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			wantVersion:  "release/2026.05.27-rc_1",
 		},
 		{
+			name:         "repo only package with long hyphenated repo name",
+			spec:         "owner/this-repository-name-is-significantly-longer-than-thirty-nine",
+			wantOK:       true,
+			wantRepoSlug: "owner/this-repository-name-is-significantly-longer-than-thirty-nine",
+		},
+		{
 			name:            "nested package path",
 			spec:            "owner/repo/packages/repo-assist",
 			wantOK:          true,

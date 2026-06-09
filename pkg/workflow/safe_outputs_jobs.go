@@ -70,7 +70,12 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, config.Permissions, appTokenFallbackRepo)...)
+		steps = append(steps, c.buildGitHubAppTokenMintStepForRepository(
+			data.SafeOutputs.GitHubApp,
+			config.Permissions,
+			appTokenFallbackRepo,
+			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+		)...)
 	}
 
 	// Build the step based on action mode

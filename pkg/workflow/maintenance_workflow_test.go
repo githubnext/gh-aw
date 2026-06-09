@@ -145,6 +145,49 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 			expectWorkflowGenerated: true,
 			expectError:             false,
 		},
+		{
+			name: "with noop report-as-issue default - should generate workflow",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "noop-default-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						NoOp: &NoOpConfig{},
+					},
+				},
+			},
+			expectWorkflowGenerated: true,
+			expectError:             false,
+		},
+		{
+			name: "with noop report-as-issue false - should NOT generate workflow",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "noop-disabled-report-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						NoOp: &NoOpConfig{
+							ReportAsIssue: strPtr("false"),
+						},
+					},
+				},
+			},
+			expectWorkflowGenerated: false,
+			expectError:             false,
+		},
+		{
+			name: "with noop report-as-issue true - should generate workflow",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "noop-explicit-report-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						NoOp: &NoOpConfig{
+							ReportAsIssue: strPtr("true"),
+						},
+					},
+				},
+			},
+			expectWorkflowGenerated: true,
+			expectError:             false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -206,7 +206,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	}
 
 	// Validate owner and repo
-	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubIdentifier(repo) {
+	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubRepositoryName(repo) {
 		return nil, fmt.Errorf("invalid GitHub URL: '%s/%s' does not look like a valid GitHub repository", owner, repo)
 	}
 
@@ -371,7 +371,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	}
 
 	// Basic validation that owner and repo look like GitHub identifiers
-	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubIdentifier(repo) {
+	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubRepositoryName(repo) {
 		return nil, fmt.Errorf("invalid workflow specification: '%s/%s' does not look like a valid GitHub repository", owner, repo)
 	}
 

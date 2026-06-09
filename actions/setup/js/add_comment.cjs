@@ -50,6 +50,29 @@ function deduplicateCaseInsensitive(aliases) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is { enabled?: boolean | string, match?: unknown[] }}
+ */
+function isHideOlderCommentsObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+/**
+ * @param {unknown[]} ids
+ * @returns {string[]}
+ */
+function normalizeWorkflowIdList(ids) {
+  return [
+    ...new Set(
+      ids
+        .filter(id => typeof id === "string")
+        .map(id => id.trim())
+        .filter(Boolean)
+    ),
+  ];
+}
+
+/**
  * Resolve effective event name/payload for native and forwarded contexts.
  * Supports:
  * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
@@ -144,15 +167,15 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
 }
 
 /**
- * Find comments on an issue/PR with a specific tracker-id
+ * Find comments on an issue/PR with any matching workflow ID marker
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue/PR number
- * @param {string} workflowId - Workflow ID to search for
+ * @param {string[]} workflowIds - Workflow IDs to search for
  * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
  */
-async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
+async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowIds) {
   const comments = [];
   let page = 1;
   const perPage = 100;
@@ -171,7 +194,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    const filteredComments = data.filter(comment => matchesWorkflowId(comment.body, workflowId)).map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data.filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id))).map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
 
@@ -186,15 +209,15 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
 }
 
 /**
- * Find comments on a discussion with a specific workflow ID
+ * Find comments on a discussion with any matching workflow ID marker
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} discussionNumber - Discussion number
- * @param {string} workflowId - Workflow ID to search for
+ * @param {string[]} workflowIds - Workflow IDs to search for
  * @returns {Promise<Array<{id: string, body: string}>>}
  */
-async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
+async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowIds) {
   const query = /* GraphQL */ `
     query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
@@ -224,7 +247,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
       break;
     }
 
-    const filteredComments = result.repository.discussion.comments.nodes.filter(comment => matchesWorkflowId(comment.body, workflowId)).map(({ id, body }) => ({ id, body }));
+    const filteredComments = result.repository.discussion.comments.nodes.filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id))).map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
 
@@ -244,15 +267,15 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} itemNumber - Issue/PR/Discussion number
- * @param {string} workflowId - Workflow ID to match
+ * @param {string[]} workflowIds - Workflow IDs to match
  * @param {boolean} isDiscussion - Whether this is a discussion
  * @param {string} reason - Reason for hiding (default: outdated)
  * @param {string[] | null} allowedReasons - List of allowed reasons (default: null for all)
  * @returns {Promise<number>} Number of comments hidden
  */
-async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
-  if (!workflowId) {
-    core.info("No workflow ID available, skipping hide-older-comments");
+async function hideOlderComments(github, owner, repo, itemNumber, workflowIds, isDiscussion, reason = "outdated", allowedReasons = null) {
+  if (!Array.isArray(workflowIds) || workflowIds.length === 0) {
+    core.info("No workflow IDs provided, skipping hide-older-comments");
     return 0;
   }
 
@@ -268,13 +291,13 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
     }
   }
 
-  core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
+  core.info(`Searching for previous comments with workflow IDs: ${workflowIds.join(", ")}`);
 
   let comments;
   if (isDiscussion) {
-    comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+    comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowIds);
   } else {
-    comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+    comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowIds);
   }
 
   if (comments.length === 0) {
@@ -375,7 +398,13 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
  */
 async function main(config = {}) {
   // Extract configuration
-  const hideOlderCommentsEnabled = parseBoolTemplatable(config.hide_older_comments, false);
+  const hideOlderCommentsConfig = isHideOlderCommentsObject(config.hide_older_comments) ? config.hide_older_comments : null;
+  const hideOlderCommentsEnabled = parseBoolTemplatable(hideOlderCommentsConfig ? (hideOlderCommentsConfig.enabled ?? true) : config.hide_older_comments, false);
+  const hideOlderCommentsMatch = Array.isArray(hideOlderCommentsConfig?.match)
+    ? normalizeWorkflowIdList(hideOlderCommentsConfig.match)
+    : Array.isArray(config.hide_older_comments_match)
+      ? normalizeWorkflowIdList(config.hide_older_comments_match)
+      : [];
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -406,6 +435,9 @@ async function main(config = {}) {
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   if (hideOlderCommentsEnabled) {
     core.info("Hide-older-comments is enabled");
+    if (hideOlderCommentsMatch.length > 0) {
+      core.info(`Hide-older-comments additional workflow matches: ${hideOlderCommentsMatch.join(", ")}`);
+    }
   }
   if (appendOnlyComments) {
     core.info("Append-only-comments is enabled - will not hide older comments");
@@ -776,8 +808,9 @@ async function main(config = {}) {
           core.info("Skipping hide-older-comments because an existing comment is being updated");
         } else if (appendOnlyComments) {
           core.info("Skipping hide-older-comments because append-only-comments is enabled");
-        } else if (workflowId) {
-          await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
+        } else {
+          const hideWorkflowIds = normalizeWorkflowIdList([workflowId, ...hideOlderCommentsMatch]);
+          await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, hideWorkflowIds, isDiscussion);
         }
       }
 

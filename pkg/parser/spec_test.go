@@ -391,7 +391,7 @@ func TestSpec_PublicAPI_LevenshteinDistance(t *testing.T) {
 // TestSpec_PublicAPI_IsValidGitHubIdentifier validates the documented behavior
 // of IsValidGitHubIdentifier as described in the package README.md.
 //
-// Specification: Validates a GitHub username/org/repo name.
+// Specification: Validates a GitHub username/org identifier.
 func TestSpec_PublicAPI_IsValidGitHubIdentifier(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -423,6 +423,11 @@ func TestSpec_PublicAPI_IsValidGitHubIdentifier(t *testing.T) {
 			input:    "owner/repo",
 			expected: false,
 		},
+		{
+			name:     "owner name over 39 chars is invalid",
+			input:    "this-owner-name-is-longer-than-thirty-nine",
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -430,6 +435,37 @@ func TestSpec_PublicAPI_IsValidGitHubIdentifier(t *testing.T) {
 			result := IsValidGitHubIdentifier(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsValidGitHubIdentifier(%q) should match documented behavior", tt.input)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_IsValidGitHubRepositoryName validates the documented behavior
+// of IsValidGitHubRepositoryName as described in the package README.md.
+//
+// Specification: Validates a GitHub repository name.
+func TestSpec_PublicAPI_IsValidGitHubRepositoryName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "repo name over owner length and within 100 chars is valid",
+			input:    "this-repository-name-is-significantly-longer-than-thirty-nine",
+			expected: true,
+		},
+		{
+			name:     "repo name over 100 chars is invalid",
+			input:    "this-repository-name-is-way-too-long-because-it-exceeds-one-hundred-characters-when-you-keep-adding-more",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsValidGitHubRepositoryName(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"IsValidGitHubRepositoryName(%q) should match documented behavior", tt.input)
 		})
 	}
 }

@@ -40,6 +40,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
 			AddTemplatableBool("hide_older_comments", c.HideOlderComments).
+			AddStringSlice("hide_older_comments_match", c.HideOlderCommentsMatch).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).

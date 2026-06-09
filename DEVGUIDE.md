@@ -945,6 +945,12 @@ This documentation provides:
 2. **Run tests frequently**: Ensure changes don't break existing functionality
 3. **Check formatting**: Run `make fmt` before committing
 4. **Validate thoroughly**: Use `go run test_validation.go` before pull requests
+5. **Follow PR lifecycle discipline**:
+   - Open PRs as **draft**
+   - Move to **Ready for review** and approve required CI workflows
+   - Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green
+   - For features that deeply impact the engine, add the `smoke` label and approve workflows
+   - If no smoke run is queued after setting `smoke`, or additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
 
 ## Release Process
 
@@ -1229,4 +1235,3 @@ git commit -m "docs: update installation instructions"
 - **Current version** comes from git tags (`git describe --tags`)
 - **No manual version files** need to be updated
 - **Build metadata** includes commit hash and build date
-

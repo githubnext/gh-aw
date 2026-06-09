@@ -6266,8 +6266,29 @@
                   ]
                 },
                 "hide-older-comments": {
-                  "$ref": "#/$defs/templatable_boolean",
-                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.hide-older-comments }}'). Default: false."
+                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Supports literal boolean, GitHub Actions expression (e.g. '${{ inputs.hide-older-comments }}'), or object form for advanced matching. Default: false.",
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/templatable_boolean"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "$ref": "#/$defs/templatable_boolean",
+                          "description": "Enable or disable hide-older-comments when using object form. Defaults to true when omitted."
+                        },
+                        "match": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Additional workflow-id values to fully match when selecting older comments to hide."
+                        }
+                      }
+                    }
+                  ]
                 },
                 "allowed-reasons": {
                   "type": "array",
