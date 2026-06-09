@@ -720,7 +720,8 @@ Manage MCP (Model Context Protocol) servers in workflows. `mcp inspect` auto-det
 
 ```bash wrap
 gh aw mcp list workflow                    # List servers for workflow
-gh aw mcp list-tools <mcp-server>          # List tools for server
+gh aw mcp list-tools --server github           # List tools for a server (all workflows)
+gh aw mcp list-tools workflow --server github  # List tools for a server in a specific workflow
 gh aw mcp inspect workflow                 # Inspect and test servers
 gh aw mcp add                              # Add MCP tool to workflow
 ```
