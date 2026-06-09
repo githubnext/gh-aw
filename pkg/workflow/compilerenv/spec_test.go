@@ -79,3 +79,52 @@ func TestSpec_DailyAICreditsGuardrail_RuntimeNotCompileTime(t *testing.T) {
 			"spec §9.3(2): BuildDefaultMaxDailyAICreditsExpression must not read the process env var")
 	})
 }
+
+// TestSpec_MaxAICreditsGuardrail_ExpressionForm validates AIC spec §10.4:
+// the per-run AI credits budget is resolved at action runtime via a GitHub Actions vars
+// expression, not at compiler process environment lookup.
+//
+// Resolution order (highest to lowest priority):
+//  1. Frontmatter max-ai-credits  — compile-time literal baked into AWF config JSON.
+//  2. vars.GH_AW_DEFAULT_MAX_AI_CREDITS — runtime GitHub Actions variable expression.
+//  3. Built-in constant default (1000) — fallback literal embedded in the expression.
+func TestSpec_MaxAICreditsGuardrail_ExpressionForm(t *testing.T) {
+	t.Run("spec §10.3(2): runtime variable embedded as GitHub Actions expression", func(t *testing.T) {
+		expr := compilerenv.BuildDefaultMaxAICreditsExpression("1000")
+		assert.Contains(t, expr, "vars.GH_AW_DEFAULT_MAX_AI_CREDITS",
+			"expression must reference vars.GH_AW_DEFAULT_MAX_AI_CREDITS")
+		assert.Contains(t, expr, "${{",
+			"expression must be a GitHub Actions expression (starts with ${{)")
+	})
+
+	t.Run("spec §10.4 / T-AIC-PR-002: emits verbatim expression with org var and built-in fallback", func(t *testing.T) {
+		got := compilerenv.BuildDefaultMaxAICreditsExpression("1000")
+		assert.Equal(t,
+			"${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}",
+			got,
+			"emitted expression must exactly match the normative form")
+	})
+
+	t.Run("spec §10.3(3): built-in constant default is 1000", func(t *testing.T) {
+		got := compilerenv.BuildDefaultMaxAICreditsExpression("9999")
+		assert.Equal(t,
+			"${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '9999' }}",
+			got,
+			"custom built-in default must appear as the fallback in the expression")
+	})
+}
+
+// TestSpec_MaxAICreditsGuardrail_RuntimeNotCompileTime validates AIC spec §10.3(2) / T-AIC-PR-006:
+// the runtime organization variable MUST be resolved by the GitHub Actions runner, not the
+// compiler process. Setting the process env var MUST NOT affect the emitted expression.
+func TestSpec_MaxAICreditsGuardrail_RuntimeNotCompileTime(t *testing.T) {
+	t.Run("spec §10.3(2) / T-AIC-PR-006: expression produced even when env var is set", func(t *testing.T) {
+		// Setting the process env var should have no effect on the expression-building path.
+		t.Setenv(compilerenv.DefaultMaxAICredits, "99999")
+		got := compilerenv.BuildDefaultMaxAICreditsExpression("1000")
+		assert.Equal(t,
+			"${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}",
+			got,
+			"BuildDefaultMaxAICreditsExpression must not read the process env var")
+	})
+}

@@ -116,10 +116,10 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxAiCredits":1000`, "apiProxy should emit default maxAiCredits=1000 when unset")
+		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "apiProxy should omit maxAiCredits when unset (resolved at runtime via vars expression)")
 	})
 
-	t.Run("enterprise default max-ai-credits env var is used when frontmatter is unset", func(t *testing.T) {
+	t.Run("enterprise default max-ai-credits env var is NOT used at compile time (resolved at action runtime)", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -136,10 +136,11 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxAiCredits":2000`, "apiProxy should emit env var default maxAiCredits when unset")
+		// env var is no longer read at compile time; maxAiCredits is deferred to runtime
+		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "apiProxy should omit maxAiCredits when unset (env var ignored at compile time)")
 	})
 
-	t.Run("frontmatter max-ai-credits takes precedence over enterprise default env var", func(t *testing.T) {
+	t.Run("frontmatter max-ai-credits takes precedence over runtime default", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -157,7 +158,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should prefer frontmatter maxAiCredits over enterprise default")
+		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should bake in frontmatter maxAiCredits (skipping runtime expression)")
 	})
 
 	t.Run("token steering is enabled by default in apiProxy config", func(t *testing.T) {

@@ -7,7 +7,7 @@ sidebar:
 
 # AI Credits Specification
 
-**Version**: 1.1.0  
+**Version**: 1.2.0  
 **Status**: Draft  
 **Publication Date**: 2026-06-09  
 **Editor**: GitHub Agentic Workflows Team  
@@ -37,9 +37,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 7. [Reporting Requirements](#7-reporting-requirements)
 8. [Compliance Testing](#8-compliance-testing)
 9. [Daily AI Credits Guardrail](#9-daily-ai-credits-guardrail)
-10. [Appendices](#appendices)
-11. [References](#references)
-12. [Change Log](#change-log)
+10. [Per-Run AI Credits Budget](#10-per-run-ai-credits-budget)
+11. [Appendices](#appendices)
+12. [References](#references)
+13. [Change Log](#change-log)
 
 ---
 
@@ -338,6 +339,65 @@ A conforming implementation MUST enforce the following at compile time:
 
 ---
 
+## 10. Per-Run AI Credits Budget
+
+### 10.1 Purpose
+
+The per-run AI Credits budget is a per-invocation credit limit applied by the AWF firewall to each individual workflow run. It prevents a single run from consuming excessive AI Credits regardless of daily aggregate usage. This section specifies the normative resolution order for the budget threshold and the mechanism by which the runtime default is resolved.
+
+### 10.2 Budget Configuration Field
+
+The budget threshold is expressed through the `max-ai-credits` frontmatter field in the workflow YAML source. When set, a conforming compiler MUST bake the resolved integer threshold directly into the AWF firewall configuration JSON emitted by the compiled workflow. When not set, a conforming implementation MUST resolve the threshold at action runtime using the mechanism specified in §10.4.
+
+### 10.3 Normative Resolution Order
+
+A conforming implementation MUST resolve the effective per-run AI Credits budget using the following precedence (highest to lowest):
+
+1. **Frontmatter value** (`max-ai-credits`): Resolved at compile time. Numeric values MUST be normalized to integers; suffix notation (`K`, `M`) MUST be expanded (e.g., `1M` → `1000000`). When present, the resolved integer MUST be baked into the AWF firewall config JSON at compile time.
+
+2. **Runtime organization variable** (`vars.GH_AW_DEFAULT_MAX_AI_CREDITS`): A GitHub Actions `vars.*` expression resolved at action runtime by the GitHub Actions runner. A conforming implementation MUST NOT read this variable at compile time via the process environment; it MUST instead embed a GitHub Actions expression evaluated by the runner at execution time.
+
+3. **Built-in constant default** (`1000`): The fallback literal embedded in the GitHub Actions expression when the organization variable is unset. The value `1000` AIC represents the normative built-in default for the per-run budget.
+
+A conforming implementation MUST NOT resolve any of these values from repository-local configuration files (e.g., `aw.json`).
+
+### 10.4 Runtime Resolution Mechanism
+
+When no frontmatter value is present, a conforming implementation MUST emit a runtime patch step that applies the following GitHub Actions expression to the AWF firewall configuration JSON:
+
+```
+${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
+```
+
+This expression MUST be embedded in the compiled YAML (not pre-evaluated at compile time) so that the GitHub Actions runner resolves the organization variable at workflow execution time. The `'1000'` fallback ensures the budget is active by default when the organization variable is not configured.
+
+### 10.5 Disable Sentinel
+
+A `max-ai-credits` frontmatter value of `-1` MUST disable the per-run budget. When this sentinel is present at runtime (via the organization variable resolving to `-1`), a conforming implementation MUST disable AWF budget steering and omit the `maxAiCredits` field from the firewall configuration.
+
+### 10.6 Value Validation
+
+A conforming implementation MUST enforce the following at compile time when a frontmatter value is present:
+
+- Accept positive integers and positive numeric strings.
+- Accept the suffix notation `K` and `M` (case-insensitive) as multipliers (×1,000 and ×1,000,000 respectively).
+- Accept `-1` as the explicit disable sentinel.
+- Reject integer values below `-1` with a compile-time validation error.
+- Reject non-numeric values.
+
+### 10.7 Compliance Tests
+
+| Test ID | Description | Requirement |
+|---------|-------------|-------------|
+| T-AIC-PR-001 | Frontmatter value baked into AWF config JSON at compile time | §10.3 (1) |
+| T-AIC-PR-002 | No frontmatter: emitted expression is `${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS \|\| '1000' }}` | §10.4 |
+| T-AIC-PR-003 | Org variable `-1` disables budget steering at runtime | §10.5 |
+| T-AIC-PR-004 | `K`/`M` suffix values expanded in compile-time literal | §10.6 |
+| T-AIC-PR-005 | Values below `-1` rejected at compile time | §10.6 |
+| T-AIC-PR-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §10.3 (2) |
+
+---
+
 ## Appendices
 
 ### Appendix A: Worked Example
@@ -393,6 +453,12 @@ Pricing catalogs are configuration inputs. Implementations SHOULD:
 ---
 
 ## Change Log
+
+### Version 1.2.0 (2026-06-09)
+
+- **Added**: Section 10 — Per-Run AI Credits Budget. Specifies the normative three-level resolution order (frontmatter → `vars.GH_AW_DEFAULT_MAX_AI_CREDITS` at runtime → built-in constant `1000`) and the required runtime patch mechanism emitted by conforming compilers when no frontmatter value is set.
+- **Added**: §10.7 compliance test matrix (T-AIC-PR-001 through T-AIC-PR-006).
+- **Updated**: Table of contents and publication metadata to 1.2.0.
 
 ### Version 1.1.0 (2026-06-09)
 

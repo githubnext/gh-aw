@@ -26,10 +26,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var awfHelpersLog = logger.New("workflow:awf_helpers")
@@ -111,6 +113,57 @@ func buildModelMultipliersFromFileScript() string {
 
 func buildModelsJSONPathExportScript() string {
 	return fmt.Sprintf(`export GH_AW_MODELS_JSON_PATH="%s"`, awfModelsJSONPathExpr)
+}
+
+// buildMaxAICreditsRuntimePatchScript returns a Python heredoc that resolves
+// max-ai-credits at action runtime by patching the AWF config JSON in-place.
+//
+// The script embeds defaultExpr (a GitHub Actions vars expression such as
+// "${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}") directly in the Python
+// source. GitHub Actions evaluates all ${{ }} expressions in a run: step before
+// passing the script to the shell, so the Python literal receives the resolved
+// integer string (e.g. "1000" or "5000") rather than the raw expression.
+//
+// Behaviour:
+//   - Positive integer  → sets apiProxy.maxAiCredits to that value.
+//   - -1                → removes apiProxy.maxAiCredits and sets enableTokenSteering=false.
+//   - Non-integer value → falls back to builtinDefault.
+func buildMaxAICreditsRuntimePatchScript(defaultExpr string, builtinDefault int64) string {
+	return fmt.Sprintf(`python3 - <<'GH_AW_CREDITS_PY'
+import json, os
+from pathlib import Path
+
+runner_temp = os.environ.get("RUNNER_TEMP")
+if not runner_temp:
+    raise SystemExit("RUNNER_TEMP is not set")
+
+config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
+try:
+    config = json.loads(config_path.read_text())
+except FileNotFoundError as exc:
+    raise SystemExit(f"Missing AWF config file at {config_path}") from exc
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"Invalid AWF config JSON at {config_path}: {exc}") from exc
+except OSError as exc:
+    raise SystemExit(f"Failed to read AWF config file at {config_path}: {exc}") from exc
+
+raw = "%s"
+api_proxy = config.setdefault("apiProxy", {})
+try:
+    val = int(raw)
+    if val < 0:
+        api_proxy.pop("maxAiCredits", None)
+        api_proxy["enableTokenSteering"] = False
+    else:
+        api_proxy["maxAiCredits"] = val
+except ValueError:
+    api_proxy["maxAiCredits"] = %d
+
+try:
+    config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
+except OSError as exc:
+    raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
+GH_AW_CREDITS_PY`, defaultExpr, builtinDefault)
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
@@ -262,6 +315,14 @@ fi`,
 			} else {
 				configFileSetup += "\n" + updateScript
 			}
+		}
+		// When max-ai-credits is not set by frontmatter/imports, maxAiCredits is omitted
+		// from the base JSON (see BuildAWFConfigJSON). Resolve it at action runtime from
+		// vars.GH_AW_DEFAULT_MAX_AI_CREDITS using a Python script that patches the JSON
+		// in-place. This matches how GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS is resolved.
+		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
+			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
+			configFileSetup += "\n" + buildMaxAICreditsRuntimePatchScript(expr, constants.DefaultMaxAICredits)
 		}
 		configFileSetup += "\n" + buildModelMultipliersFromFileScript()
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
