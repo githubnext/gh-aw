@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -79,7 +80,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //  2. `gh api repos/<owner>/<repo> --jq .default_branch` as a credentialed fallback
 //
 // Returns an empty slice when there are no non-default cross-repo checkouts to record.
-func (cm *CheckoutManager) GenerateCheckoutManifestStep() []string {
+func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string) string) []string {
 	type manifestEntry struct {
 		repository string
 		path       string
@@ -102,41 +103,29 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep() []string {
 
 	var sb strings.Builder
 	sb.WriteString("      - name: Build checkout manifest for safe-outputs handlers\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/github-script"))
 	sb.WriteString("        env:\n")
 	sb.WriteString("          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          set -euo pipefail\n")
-	sb.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
-	sb.WriteString("          manifest=\"${RUNNER_TEMP}/gh-aw/checkout-manifest.json\"\n")
-	sb.WriteString("          printf '{}' > \"$manifest\"\n")
-	sb.WriteString("          resolve_default_branch() {\n")
-	sb.WriteString("            local repo=\"$1\" path=\"$2\" db=\"\"\n")
-	sb.WriteString("            if [ -d \"${GITHUB_WORKSPACE}/${path}/.git\" ]; then\n")
-	sb.WriteString("              db=$(git -C \"${GITHUB_WORKSPACE}/${path}\" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)\n")
-	sb.WriteString("            fi\n")
-	sb.WriteString("            if [ -z \"$db\" ]; then\n")
-	sb.WriteString("              db=$(gh api \"repos/${repo}\" --jq '.default_branch' 2>/dev/null || true)\n")
-	sb.WriteString("            fi\n")
-	sb.WriteString("            printf '%s' \"$db\"\n")
-	sb.WriteString("          }\n")
-	for _, e := range entries {
-		// Both repo and path are static at compile time. Use shell-quoted literals.
-		fmt.Fprintf(&sb, "          repo=%s\n", shellSingleQuote(e.repository))
-		fmt.Fprintf(&sb, "          path=%s\n", shellSingleQuote(e.path))
-		sb.WriteString("          db=$(resolve_default_branch \"$repo\" \"$path\")\n")
-		sb.WriteString("          tmp=$(mktemp)\n")
-		sb.WriteString("          jq --arg repo \"$repo\" --arg path \"$path\" --arg db \"$db\" \\\n")
-		sb.WriteString("            '.[($repo | ascii_downcase)] = {repository: $repo, path: $path, default_branch: $db}' \\\n")
-		sb.WriteString("            \"$manifest\" > \"$tmp\" && mv \"$tmp\" \"$manifest\"\n")
-		sb.WriteString("          echo \"checkout-manifest: ${repo} -> path=${path} default_branch=${db:-<unresolved>}\"\n")
+	writeYAMLEnv(&sb, "          ", "GH_AW_CHECKOUT_MANIFEST_COUNT", strconv.Itoa(len(entries)))
+	for i, e := range entries {
+		repoKey := fmt.Sprintf("GH_AW_CHECKOUT_REPO_%d", i)
+		pathKey := fmt.Sprintf("GH_AW_CHECKOUT_PATH_%d", i)
+		if strings.Contains(e.repository, "${{") {
+			fmt.Fprintf(&sb, "          %s: %s\n", repoKey, githubExpressionWhitespaceReplacer.Replace(e.repository))
+		} else {
+			writeYAMLEnv(&sb, "          ", repoKey, e.repository)
+		}
+		if strings.Contains(e.path, "${{") {
+			fmt.Fprintf(&sb, "          %s: %s\n", pathKey, githubExpressionWhitespaceReplacer.Replace(e.path))
+		} else {
+			writeYAMLEnv(&sb, "          ", pathKey, e.path)
+		}
 	}
-	sb.WriteString("          cat \"$manifest\"\n")
+	sb.WriteString("        with:\n")
+	sb.WriteString("          script: |\n")
+	sb.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/build_checkout_manifest.cjs');\n")
+	sb.WriteString("            await main();\n")
 	return []string{sb.String()}
-}
-
-// shellSingleQuote returns s wrapped in single quotes, escaping any embedded single quotes.
-func shellSingleQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // GenerateGitHubFolderCheckoutStep generates YAML step lines for a sparse checkout of
