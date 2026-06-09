@@ -139,6 +139,27 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxAiCredits":2000`, "apiProxy should emit env var default maxAiCredits when unset")
 	})
 
+	t.Run("frontmatter max-ai-credits takes precedence over enterprise default env var", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					MaxAICredits: 333,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should prefer frontmatter maxAiCredits over enterprise default")
+	})
+
 	t.Run("token steering is enabled by default in apiProxy config", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

@@ -39,11 +39,19 @@ func TestResolveMaxDailyAIC(t *testing.T) {
 		}
 	})
 
-	t.Run("uses built-in 500k default when no frontmatter and no env vars", func(t *testing.T) {
+	t.Run("frontmatter value takes precedence over enterprise default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 1234}, "")
+		if got == nil || *got != "1234" {
+			t.Fatalf("expected frontmatter value to override enterprise default, got %v", got)
+		}
+	})
+
+	t.Run("uses built-in 5k default when no frontmatter and no env vars", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "")
 		got := resolveMaxDailyAIC(map[string]any{}, "")
-		if got == nil || *got != "500000" {
-			t.Fatalf("expected built-in 500k default, got %v", got)
+		if got == nil || *got != "5000" {
+			t.Fatalf("expected built-in 5k default, got %v", got)
 		}
 	})
 
