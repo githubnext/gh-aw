@@ -13,10 +13,10 @@ import (
 var errorRecoveryLog = logger.New("workflow:error_recovery")
 
 var (
-	duplicateKeyMessagePattern    = regexp.MustCompile(`mapping key "([^"]+)" already defined at \[(\d+):\d+\]`)
+	duplicateKeyMessagePattern    = regexp.MustCompile(`(?i)mapping key "([^"]+)" already defined at \[(\d+):\d+\]`)
 	compilerErrorLinePattern      = regexp.MustCompile(`:(\d+):\d+: error:`)
-	unknownPermissionScopePattern = regexp.MustCompile(`unknown permission scope "([^"]+)"`)
-	unknownPropertyPattern        = regexp.MustCompile(`unknown property: ([^ \n(]+)`)
+	unknownPermissionScopePattern = regexp.MustCompile(`(?i)unknown permission scope "([^"]+)"`)
+	unknownPropertyPattern        = regexp.MustCompile(`(?i)unknown property: ([^ \n(]+)`)
 )
 
 // ErrorSeverity classifies how urgently a compilation error should be fixed.
@@ -409,12 +409,12 @@ func isUnknownPermissionScopeMessage(message string) bool {
 
 func extractUnknownPermissionScope(message string) string {
 	lower := strings.ToLower(message)
-	if matches := unknownPermissionScopePattern.FindStringSubmatch(lower); len(matches) >= 2 {
+	if matches := unknownPermissionScopePattern.FindStringSubmatch(message); len(matches) >= 2 {
 		return matches[1]
 	}
 	// Schema validation currently reports invalid permission scopes as
 	// "Unknown property: <scope>" plus a "Valid permission scopes" list.
-	if matches := unknownPropertyPattern.FindStringSubmatch(lower); len(matches) >= 2 &&
+	if matches := unknownPropertyPattern.FindStringSubmatch(message); len(matches) >= 2 &&
 		strings.Contains(lower, "valid permission scopes") {
 		return matches[1]
 	}

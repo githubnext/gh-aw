@@ -109,6 +109,15 @@ func TestBuildPrioritizedErrorReportFromMessages_DuplicateKeyErrorsGetSpecificSu
 	assert.Equal(t, "Remove the duplicate engine key at line 10; the first definition is at line 7.", prioritized.Suggestion)
 }
 
+func TestBuildPrioritizedErrorReportFromMessages_DuplicateKeySuggestionPreservesOriginalKeyCasing(t *testing.T) {
+	message := `/tmp/smoke-antigravity-duplicate-engine.md:10:1: error: Mapping key "Engine" already defined at [7:1]`
+
+	report := BuildPrioritizedErrorReportFromMessages([]string{message}, true)
+
+	require.Len(t, report.DisplayedErrors, 1)
+	assert.Equal(t, "Remove the duplicate Engine key at line 10; the first definition is at line 7.", report.DisplayedErrors[0].Suggestion)
+}
+
 func TestBuildPrioritizedErrorReportFromMessages_UnknownPermissionScopesUsePermissionHint(t *testing.T) {
 	message := `/tmp/spec-enforcer-invalid-permission.md:5:3: error: Unknown property: unknown-scope (Valid permission scopes: actions, all, attestations, checks, copilot-requests, contents, deployments, discussions, id-token, issues, metadata, models, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts)
 2 | on:
@@ -128,4 +137,15 @@ func TestBuildPrioritizedErrorReportFromMessages_UnknownPermissionScopesUsePermi
 	assert.Contains(t, prioritized.Message, "5 |   unknown-scope: read")
 	assert.Equal(t, "Remove or replace the unknown permission scope `unknown-scope` in `permissions:` and re-run `gh aw compile`.", prioritized.Suggestion)
 	assert.NotContains(t, prioritized.Suggestion, "event or filter")
+}
+
+func TestBuildPrioritizedErrorReportFromMessages_UnknownPermissionScopeHintPreservesOriginalScopeCasing(t *testing.T) {
+	message := `/tmp/spec-enforcer-invalid-permission.md:5:3: error: unknown permission scope "Contents"
+5 | permissions:
+6 |   Contents: read`
+
+	report := BuildPrioritizedErrorReportFromMessages([]string{message}, true)
+
+	require.Len(t, report.DisplayedErrors, 1)
+	assert.Equal(t, "Remove or replace the unknown permission scope `Contents` in `permissions:` and re-run `gh aw compile`.", report.DisplayedErrors[0].Suggestion)
 }
