@@ -25,6 +25,7 @@ const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
@@ -571,6 +572,7 @@ gh aw audit <run-id>
       title: parentTitle,
       body: parentBody,
       labels: [parentLabel],
+      headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
     });
 
     core.info(`✓ Created parent issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
@@ -1827,7 +1829,8 @@ function hasAgentTerminalReasonCompleted() {
  * The log file is available in the conclusion job after the agent artifact is downloaded.
  * @returns {string} Formatted context string, or empty string if no engine failure found
  */
-function buildEngineFailureContext() {
+function buildEngineFailureContext(options = {}) {
+  const suppressEngineRateLimit429 = options.suppressEngineRateLimit429 === true;
   // Derive agent-stdio.log path from the agent output file path (same directory)
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
@@ -1858,7 +1861,7 @@ function buildEngineFailureContext() {
       return "";
     }
 
-    if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
+    if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);
     }
@@ -2133,6 +2136,7 @@ async function findOrCreateDailyCapRollupIssue(owner, repo) {
       title: DAILY_CAP_ROLLUP_TITLE,
       body,
       labels: ["agentic-workflows", DAILY_CAP_ROLLUP_LABEL],
+      headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
     });
     core.info(`✓ Created daily cap rollup issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
     return { number: newIssue.data.number, html_url: newIssue.data.html_url };
@@ -2216,6 +2220,7 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
         title: CASCADE_ROLLUP_TITLE,
         body: rollupBody,
         labels: ["agentic-workflows", CASCADE_ROLLUP_LABEL],
+        headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
       });
       core.info(`✓ Created cascade rollup issue #${newRollup.data.number}: ${newRollup.data.html_url}`);
     }
@@ -2717,7 +2722,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2941,7 +2946,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext() : "";
+        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -3051,6 +3056,7 @@ async function main() {
           title: issueTitle,
           body: issueBody,
           labels: ["agentic-workflows"],
+          headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
         });
 
         core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);

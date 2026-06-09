@@ -406,7 +406,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 	runPushLog.Printf("Git status output: %s", string(statusOutput))
 
 	// Check if there are no staged changes (nothing to commit)
-	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+	if strings.TrimSpace(string(statusOutput)) == "" {
 		runPushLog.Printf("No staged changes detected")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))

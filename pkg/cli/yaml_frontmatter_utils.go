@@ -52,11 +52,11 @@ func getIndentation(line string) string {
 // isTopLevelKey checks if a line is a top-level YAML key (no indentation, contains colon, not a comment)
 func isTopLevelKey(line string) bool {
 	trimmed := strings.TrimSpace(line)
-	if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 		return false
 	}
 	indent := getIndentation(line)
-	return len(indent) == 0 && strings.Contains(line, ":")
+	return indent == "" && strings.Contains(line, ":")
 }
 
 // isNestedUnder checks if currentLine is nested under (has more indentation than) parentIndent
@@ -68,7 +68,7 @@ func isNestedUnder(currentLine, parentIndent string) bool {
 // hasExitedBlock checks if we've left a YAML block (found a line with same or less indentation that's a key)
 func hasExitedBlock(line, blockIndent string) bool {
 	trimmed := strings.TrimSpace(line)
-	if len(trimmed) == 0 {
+	if trimmed == "" {
 		return false
 	}
 
@@ -206,7 +206,7 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 		// Skip nested properties under the field (lines with greater indentation)
 		if inFieldBlock {
 			// Empty lines within the field block should be removed
-			if len(trimmedLine) == 0 {
+			if trimmedLine == "" {
 				continue
 			}
 

@@ -828,7 +828,7 @@ func scriptNameToHandlerName(scriptName string) string {
 	}
 	if sb.Len() == len("handle") {
 		// Fallback: use the script name as-is when parts are empty
-		if len(scriptName) == 0 {
+		if scriptName == "" {
 			sb.WriteString("Unknown")
 		} else {
 			sb.WriteString(strings.ToUpper(scriptName[:1]) + scriptName[1:])

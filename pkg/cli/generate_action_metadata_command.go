@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -234,8 +235,15 @@ func extractInputs(content string) []ActionInput {
 	}
 
 	// Sort inputs by name for consistency
-	sort.Slice(inputs, func(i, j int) bool {
-		return inputs[i].Name < inputs[j].Name
+	slices.SortFunc(inputs, func(a, b ActionInput) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return inputs
@@ -263,8 +271,15 @@ func extractOutputs(content string) []ActionOutput {
 	}
 
 	// Sort outputs by name for consistency
-	sort.Slice(outputs, func(i, j int) bool {
-		return outputs[i].Name < outputs[j].Name
+	slices.SortFunc(outputs, func(a, b ActionOutput) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return outputs

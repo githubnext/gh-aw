@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -156,8 +156,15 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 	}
 
 	// Sort by original expression for deterministic output
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Original < result[j].Original
+	slices.SortFunc(result, func(a, b *ExpressionMapping) int {
+		switch {
+		case a.Original < b.Original:
+			return -1
+		case a.Original > b.Original:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	expressionExtractionLog.Printf("Extracted %d unique expressions", len(result))
@@ -410,8 +417,15 @@ func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) str
 	for _, mapping := range e.mappings {
 		mappings = append(mappings, mapping)
 	}
-	sort.Slice(mappings, func(i, j int) bool {
-		return len(mappings[i].Original) > len(mappings[j].Original)
+	slices.SortFunc(mappings, func(a, b *ExpressionMapping) int {
+		switch {
+		case len(a.Original) > len(b.Original):
+			return -1
+		case len(a.Original) < len(b.Original):
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// Replace each expression with its environment variable reference

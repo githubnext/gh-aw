@@ -183,7 +183,7 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]bool) ([]st
 		}
 
 		if inEnv && removingKey {
-			if len(trimmed) == 0 {
+			if trimmed == "" {
 				continue
 			}
 			if strings.HasPrefix(trimmed, "#") && len(indent) > len(removingKeyIndent) {
@@ -222,7 +222,7 @@ func removeEmptyEngineEnvBlock(lines []string) []string {
 			j := i + 1
 			for ; j < len(lines); j++ {
 				t := strings.TrimSpace(lines[j])
-				if len(t) == 0 {
+				if t == "" {
 					continue
 				}
 				if len(getIndentation(lines[j])) <= len(envIndent) {

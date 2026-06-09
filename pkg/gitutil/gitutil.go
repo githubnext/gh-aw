@@ -49,7 +49,7 @@ func IsAuthError(errMsg string) bool {
 // IsHexString checks if a string contains only hexadecimal characters.
 // This is used to validate Git commit SHAs and other hexadecimal identifiers.
 func IsHexString(s string) bool {
-	if len(s) == 0 {
+	if s == "" {
 		return false
 	}
 	for _, c := range s {

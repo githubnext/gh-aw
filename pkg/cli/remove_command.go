@@ -419,7 +419,7 @@ func findIncludesInContent(content string) ([]string, error) {
 // Section references (e.g. file.md#Section) are stripped from the returned path.
 func parseIncludePath(line string) string {
 	trimmed := strings.TrimSpace(line)
-	if len(trimmed) == 0 {
+	if trimmed == "" {
 		return ""
 	}
 
@@ -471,7 +471,7 @@ func parseIncludePath(line string) string {
 		rest = rest[1:]
 	}
 	// Require at least one whitespace character after the directive keyword
-	if len(rest) == 0 || (rest[0] != ' ' && rest[0] != '\t') {
+	if rest == "" || (rest[0] != ' ' && rest[0] != '\t') {
 		return ""
 	}
 	path := strings.TrimSpace(rest)

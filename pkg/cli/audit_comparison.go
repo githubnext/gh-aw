@@ -268,11 +268,21 @@ func selectAuditComparisonBaseline(current ProcessedRun, candidates []auditCompa
 		scoreAuditComparisonCandidate(current, &candidates[index])
 	}
 
-	sort.SliceStable(candidates, func(left, right int) bool {
-		if candidates[left].Score != candidates[right].Score {
-			return candidates[left].Score > candidates[right].Score
+	slices.SortStableFunc(candidates, func(left, right auditComparisonCandidate) int {
+		if left.Score != right.Score {
+			if left.Score > right.Score {
+				return -1
+			}
+			return 1
 		}
-		return candidates[left].Run.CreatedAt.After(candidates[right].Run.CreatedAt)
+		switch {
+		case left.Run.CreatedAt.After(right.Run.CreatedAt):
+			return -1
+		case right.Run.CreatedAt.After(left.Run.CreatedAt):
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return &candidates[0]

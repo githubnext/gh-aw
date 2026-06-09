@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -100,8 +100,15 @@ func DisplayOutdatedDependencies(outdated []OutdatedDependency, totalDeps int) {
 	fmt.Fprintln(os.Stderr, "")
 
 	// Sort by module name
-	sort.Slice(outdated, func(i, j int) bool {
-		return outdated[i].Module < outdated[j].Module
+	slices.SortFunc(outdated, func(a, b OutdatedDependency) int {
+		switch {
+		case a.Module < b.Module:
+			return -1
+		case a.Module > b.Module:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	// Display table

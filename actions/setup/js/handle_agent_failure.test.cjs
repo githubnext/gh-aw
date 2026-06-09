@@ -37,6 +37,7 @@ describe("handle_agent_failure", () => {
     delete global.context;
     delete process.env.GITHUB_SHA;
     delete process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
+    delete process.env.GH_AW_GROUP_REPORTS;
   });
 
   describe("getActionFailureIssueExpiresHours", () => {
@@ -421,8 +422,51 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).not.toHaveBeenCalled();
       expect(createIssueMock).toHaveBeenCalledOnce();
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"gh-aw-agentic-workflow:"') }));
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test-workflow" in:body') }));
+    });
+
+    it("creates a parent issue with the API version header when group reports are enabled", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ title }) => ({
+        data: {
+          number: title === "[aw] Failed runs" ? 200 : 201,
+          html_url: `https://github.com/owner/repo/issues/${title === "[aw] Failed runs" ? 200 : 201}`,
+          node_id: title === "[aw] Failed runs" ? "I_parent" : "I_child",
+        },
+      }));
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+        return { data: { total_count: 0, items: [] } };
+      });
+
+      process.env.GH_AW_GROUP_REPORTS = "true";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      const parentCreateCall = createIssueMock.mock.calls.map(([call]) => call).find(call => call.title === "[aw] Failed runs");
+      expect(parentCreateCall).toBeDefined();
+      expect(parentCreateCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"[aw] Failed runs"') }));
     });
 
     it("escapes workflow IDs before searching for legacy XML marker matches", async () => {
@@ -786,7 +830,9 @@ describe("handle_agent_failure", () => {
 
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Daily per-category issue cap reached"));
       expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Summarize-and-stop"));
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Daily failure issue cap exceeded" }));
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.title).toBe("[aw] Daily failure issue cap exceeded");
+      expect(createCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
       expect(createCommentMock).toHaveBeenCalledOnce();
       expect(createCommentMock).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 999 }));
       expect(global.github.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining("is:open") }));
@@ -1488,6 +1534,13 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Engine Rate Limited (HTTP 429)");
       expect(result).toContain("OTLP telemetry");
       expect(result).not.toContain("Last agent output");
+    });
+
+    it("suppresses engine 429 context when max-ai-credits-exceeded takes precedence", () => {
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n");
+      const result = buildEngineFailureContext({ suppressEngineRateLimit429: true });
+      expect(result).not.toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("Engine Failure");
     });
 
     it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
@@ -3160,6 +3213,7 @@ describe("handle_agent_failure", () => {
       expect(createCall.title).toBe(CASCADE_ROLLUP_TITLE);
       expect(createCall.labels).toContain(CASCADE_ROLLUP_LABEL);
       expect(createCall.labels).toContain("agentic-workflows");
+      expect(createCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
 
       // All 10 issues labeled
       expect(addLabelsMock).toHaveBeenCalledTimes(10);
