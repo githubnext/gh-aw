@@ -176,7 +176,7 @@ For each simulation, the sub-agent will:
    - `BRANCH=diverged` → `create_pull_request`, note simulated divergence, then `push_to_pull_request_branch`
 6. Return a structured JSON result
 
-## Phase 3: Collect and Analyse Results
+## Phase 3: Collect and Analyze Results
 
 After all four sub-agents complete, collect their JSON results:
 
@@ -320,10 +320,22 @@ You will receive from the parent agent:
 - `branch_mode`: `clean`, `ahead`, or `diverged`
 - `commit_mode`: `single`, `multi`, or `merge_msg`
 
+**Variable substitution note**: In the bash commands below, angle-bracketed tokens like `<CONFIG_ID>` are placeholders. Before running any bash block, substitute them with the actual values you received from the parent agent. Assign them to bash variables in Step 1 and reference those variables throughout.
+
 ### Step 1: Initialize local git repo
 
+Assign all received parameters to bash variables, then create the work directory:
+
 ```bash
-CONFIG_ID="{config_id}"
+# Substitute the actual values received from the parent agent:
+CONFIG_ID="<config_id>"
+SIZE_ENTRIES=<size_entries>
+HISTORY_ENTRIES=<history_entries>
+FILE_COUNT=<file_count>
+TARGET_KB=<patch_target_kb>
+BRANCH_MODE="<branch_mode>"
+COMMIT_MODE="<commit_mode>"
+
 WORKDIR="/tmp/gh-aw/agent/git-sim-${CONFIG_ID}"
 rm -rf "$WORKDIR"
 mkdir -p "$WORKDIR/sim"
@@ -345,14 +357,14 @@ cat > stuff.md << 'MANIFEST'
 |------|---------|------|
 MANIFEST
 
-for i in $(seq 1 {size_entries}); do
+for i in $(seq 1 $SIZE_ENTRIES); do
   sz=$(( (i * 7 + 13) % 200 + 1 ))
   echo "| src/module${i}/file${i}.go | ${sz} | source |" >> stuff.md
 done
 
 echo "" >> stuff.md
-echo "**Total declared files**: {size_entries}" >> stuff.md
-echo "**Estimated repo size**: $(( {size_entries} * 50 )) KB (synthetic)" >> stuff.md
+echo "**Total declared files**: $SIZE_ENTRIES" >> stuff.md
+echo "**Estimated repo size**: $(( SIZE_ENTRIES * 50 )) KB (synthetic)" >> stuff.md
 ```
 
 ### Step 3: Create history.md (history depth simulation)
@@ -367,15 +379,15 @@ cat > history.md << 'HIST'
 |-------|------|---------|---------------|
 HIST
 
-for i in $(seq 1 {history_entries}); do
+for i in $(seq 1 $HISTORY_ENTRIES); do
   month=$(( (i % 12) + 1 ))
   day=$(( (i % 28) + 1 ))
   echo "| ${i} | 2024-$(printf '%02d' $month)-$(printf '%02d' $day) | feat: change set ${i} | $(( (i % 10) + 1 )) |" >> history.md
 done
 
 echo "" >> history.md
-echo "**Total declared commits**: {history_entries}" >> history.md
-echo "**Estimated clone depth**: {history_entries} commits (synthetic)" >> history.md
+echo "**Total declared commits**: $HISTORY_ENTRIES" >> history.md
+echo "**Estimated clone depth**: $HISTORY_ENTRIES commits (synthetic)" >> history.md
 ```
 
 ### Step 4: Initial base commit
@@ -383,7 +395,7 @@ echo "**Estimated clone depth**: {history_entries} commits (synthetic)" >> histo
 ```bash
 cd "$WORKDIR"
 git add stuff.md history.md
-git commit -q -m "base: simulated repo (size={size_entries} history={history_entries})"
+git commit -q -m "base: simulated repo (size=$SIZE_ENTRIES history=$HISTORY_ENTRIES)"
 ```
 
 ### Step 5: Create probe branch and generate patch files
@@ -392,20 +404,17 @@ git commit -q -m "base: simulated repo (size={size_entries} history={history_ent
 cd "$WORKDIR"
 git checkout -q -b sim-probe
 
-FILE_COUNT={file_count}
-TARGET_KB={patch_target_kb}
 KB_PER_FILE=$(( TARGET_KB / FILE_COUNT + 1 ))
 LINES_PER_FILE=$(( KB_PER_FILE * 10 ))  # ~100 chars per line
 
 for i in $(seq 1 $FILE_COUNT); do
   {
-    echo "# Probe file ${i} — config: {config_id}"
+    echo "# Probe file ${i} — config: ${CONFIG_ID}"
     echo ""
     echo "This is a synthetic probe file for git simulator testing."
     echo ""
     for j in $(seq 1 $LINES_PER_FILE); do
-      # Generate deterministic content line
-      echo "sim-line-${j}: $(printf '%0.s-' $(seq 1 $((j % 60 + 20)))) config={config_id} file=${i}"
+      echo "sim-line-${j}: $(printf '%0.s-' $(seq 1 $(( j % 60 + 20 )))) config=${CONFIG_ID} file=${i}"
     done
   } > "sim/probe_${i}.md"
 done
@@ -417,29 +426,26 @@ For `commit_mode = single`:
 ```bash
 cd "$WORKDIR"
 git add sim/
-git commit -q -m "sim: probe patch [{config_id}] — {file_count} files, {patch_target_kb}KB"
+git commit -q -m "sim: probe patch [${CONFIG_ID}] — ${FILE_COUNT} files, ${TARGET_KB}KB"
 ```
 
 For `commit_mode = multi`:
 ```bash
 cd "$WORKDIR"
-THIRD=$(( {file_count} / 3 + 1 ))
-# Commit in three batches
-git add sim/probe_*.md
-git commit -q -m "sim: probe batch 1/3 [{config_id}]"
-# Add a second empty commit to simulate multi-commit history
-git commit -q --allow-empty -m "sim: probe batch 2/3 [{config_id}]"
-git commit -q --allow-empty -m "sim: probe batch 3/3 [{config_id}]"
+git add sim/
+git commit -q -m "sim: probe batch 1/3 [${CONFIG_ID}]"
+git commit -q --allow-empty -m "sim: probe batch 2/3 [${CONFIG_ID}]"
+git commit -q --allow-empty -m "sim: probe batch 3/3 [${CONFIG_ID}]"
 ```
 
 For `commit_mode = merge_msg`:
 ```bash
 cd "$WORKDIR"
 git add sim/
-git commit -q -m "Merge branch 'feature/sim-probe-{config_id}' into main
+git commit -q -m "Merge branch 'feature/sim-probe-${CONFIG_ID}' into main
 
 Simulated merge commit for git cost estimation.
-Files: {file_count}, Size: {patch_target_kb}KB, Config: {config_id}"
+Files: ${FILE_COUNT}, Size: ${TARGET_KB}KB, Config: ${CONFIG_ID}"
 ```
 
 ### Step 7: Measure actual patch size
@@ -457,9 +463,10 @@ echo "actual_files=$ACTUAL_FILES actual_kb=$ACTUAL_SIZE_KB commits=$COMMIT_COUNT
 
 ```bash
 cd "$WORKDIR"
-git bundle create /tmp/gh-aw/agent/git-sim-${CONFIG_ID}.bundle HEAD sim-probe 2>&1
+# Include both the base commit and the sim-probe branch in the bundle
+git bundle create "/tmp/gh-aw/agent/git-sim-${CONFIG_ID}.bundle" main..sim-probe 2>&1
 echo "bundle_created=$?"
-ls -la /tmp/gh-aw/agent/git-sim-${CONFIG_ID}.bundle
+ls -la "/tmp/gh-aw/agent/git-sim-${CONFIG_ID}.bundle"
 ```
 
 ### Step 9: Attempt safe output
@@ -469,8 +476,8 @@ ls -la /tmp/gh-aw/agent/git-sim-${CONFIG_ID}.bundle
 ```markdown
 ## Simulated Scenario: {config_id}
 
-**Repo size**: {size_entries} declared files in `stuff.md` (simulates a {SIZE} repository)
-**History depth**: {history_entries} entries in `history.md` (simulates {HISTORY} clone depth)
+**Repo size**: {size_entries} declared files in `stuff.md` (simulates a $SIZE_MODE repository)
+**History depth**: {history_entries} entries in `history.md` (simulates $HISTORY_MODE clone depth)
 **Patch files**: {file_count} files in `sim/`
 **Target patch size**: {patch_target_kb} KB
 **Commit structure**: {commit_mode}
@@ -516,7 +523,7 @@ After attempting the safe output(s), return a JSON block with this exact structu
 ```json
 {
   "config_id": "{config_id}",
-  "scenario_description": "Simulated a {SIZE} repository ({size_entries} declared files) with {HISTORY} history depth ({history_entries} commits), {FILES} files ({file_count} files), {PATCH} patch ({patch_target_kb} KB target), {BRANCH} branch state, {COMMIT} commit structure.",
+  "scenario_description": "Simulated a $SIZE_MODE repository ($SIZE_ENTRIES declared files) with $HISTORY_MODE history depth ($HISTORY_ENTRIES commits), $FILES_MODE files ($FILE_COUNT files), $PATCH_MODE patch ($TARGET_KB KB target), $BRANCH_MODE branch state, $COMMIT_MODE commit structure.",
   "outcome": "pass | fail | error | rejected",
   "error_message": null,
   "git_cost_estimate": {
