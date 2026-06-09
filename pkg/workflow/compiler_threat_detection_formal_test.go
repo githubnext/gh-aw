@@ -20,26 +20,36 @@ func TestFormal_CTR016_EmptyManifestRejectsNewSecret(t *testing.T) {
 	assert.Contains(t, err.Error(), "MY_SECRET")
 }
 
-func TestFormal_CTR016_GithubTokenExempt(t *testing.T) {
-	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GITHUB_TOKEN", "secrets.GITHUB_TOKEN"}, nil, "")
+func TestFormal_CTR016_GitHubTokenExempt_BareForm(t *testing.T) {
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GITHUB_TOKEN"}, nil, "")
+	require.NoError(t, err)
+}
+
+func TestFormal_CTR016_GitHubTokenExempt_PrefixedForm(t *testing.T) {
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"secrets.GITHUB_TOKEN"}, nil, "")
+	require.NoError(t, err)
+}
+
+func TestFormal_CTR016_GhAwInternalSecretExempt(t *testing.T) {
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GH_AW_GITHUB_TOKEN"}, nil, "")
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_SecretPrefixNormalization(t *testing.T) {
-	manifest := &GHAWManifest{Version: 1, Secrets: []string{"MY_SECRET"}}
+	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Secrets: []string{"MY_SECRET"}}
 	err := EnforceSafeUpdate(manifest, []string{"secrets.MY_SECRET"}, nil, "")
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_NewActionDriftRejected(t *testing.T) {
-	manifest := &GHAWManifest{Version: 1, Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}}}
+	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}}}
 	err := EnforceSafeUpdate(manifest, nil, []string{"actions/checkout@abc1234 # v4", "evil-org/steal@deadbeef # v1"}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "evil-org/steal")
 }
 
 func TestFormal_CTR016_RemovedActionDriftRejected(t *testing.T) {
-	manifest := &GHAWManifest{Version: 1, Actions: []GHAWManifestAction{{Repo: "my-org/approved-action", SHA: "abc1234", Version: "v1"}}}
+	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Actions: []GHAWManifestAction{{Repo: "my-org/approved-action", SHA: "abc1234", Version: "v1"}}}
 	err := EnforceSafeUpdate(manifest, nil, []string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Previously-approved action")
@@ -47,19 +57,19 @@ func TestFormal_CTR016_RemovedActionDriftRejected(t *testing.T) {
 }
 
 func TestFormal_CTR016_KnownActionPinUpdateAllowed(t *testing.T) {
-	manifest := &GHAWManifest{Version: 1, Actions: []GHAWManifestAction{{Repo: "my-org/action", SHA: "abc1234", Version: "v1"}}}
+	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Actions: []GHAWManifestAction{{Repo: "my-org/action", SHA: "abc1234", Version: "v1"}}}
 	err := EnforceSafeUpdate(manifest, nil, []string{"my-org/action@def5678 # v2"}, "")
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_RedirectWhitespaceNormalization(t *testing.T) {
-	manifest := &GHAWManifest{Version: 1, Redirect: "owner/repo/workflows/new.md@main"}
+	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Redirect: "owner/repo/workflows/new.md@main"}
 	err := EnforceSafeUpdate(manifest, nil, nil, "  owner/repo/workflows/new.md@main  ")
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_RedirectChangeRejected(t *testing.T) {
-	manifest := &GHAWManifest{Version: 1, Redirect: "owner/repo/workflows/old.md@main"}
+	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Redirect: "owner/repo/workflows/old.md@main"}
 	err := EnforceSafeUpdate(manifest, nil, nil, "owner/repo/workflows/new.md@main")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "New redirect configured")
@@ -68,6 +78,8 @@ func TestFormal_CTR016_RedirectChangeRejected(t *testing.T) {
 
 func TestFormal_CTR001_WritePermissionsRejected(t *testing.T) {
 	for _, scope := range GetAllPermissionScopes() {
+		// PermissionIdToken: id-token:write is allowed for OIDC auth and does not grant repo write access.
+		// PermissionMetadata: metadata is always implicitly read-only, so it is excluded from the write-rejection rule.
 		if scope == PermissionIdToken || scope == PermissionMetadata {
 			continue
 		}
@@ -84,6 +96,9 @@ func TestFormal_CTR001_WritePermissionsRejected(t *testing.T) {
 func TestFormal_CTR001_ReadOnlyPermissionsAllowed(t *testing.T) {
 	perms := NewPermissions()
 	for _, scope := range GetAllPermissionScopes() {
+		if scope == PermissionIdToken {
+			continue
+		}
 		perms.Set(scope, PermissionRead)
 	}
 	err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
@@ -106,6 +121,16 @@ func TestFormal_CTR011_AllowURLsRequiresSSLBump(t *testing.T) {
 	assert.Contains(t, err.Error(), "allow-urls requires ssl-bump: true")
 }
 
+func TestFormal_CTR011_AllowURLsWithSSLBumpAllowed(t *testing.T) {
+	err := validateNetworkFirewallConfig(&NetworkPermissions{
+		Firewall: &FirewallConfig{
+			AllowURLs: []string{"https://github.com/githubnext/*"},
+			SSLBump:   true,
+		},
+	})
+	require.NoError(t, err)
+}
+
 func TestFormal_CTR011_WildcardOnlyDomainRejected(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validateStrictNetwork(&NetworkPermissions{Allowed: []string{"*"}})
@@ -117,6 +142,15 @@ func TestFormal_CTR015_WildcardLabelRejected(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validateSafeOutputsAllowedLabelsGlobScope(&SafeOutputsConfig{
 		CreateIssues: &CreateIssuesConfig{AllowedLabels: []string{"*"}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "CTR-015")
+}
+
+func TestFormal_CTR015_WildcardLabelRejected_CreateDiscussion(t *testing.T) {
+	compiler := NewCompiler()
+	err := compiler.validateSafeOutputsAllowedLabelsGlobScope(&SafeOutputsConfig{
+		CreateDiscussions: &CreateDiscussionsConfig{AllowedLabels: []string{"*"}},
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "CTR-015")
@@ -145,12 +179,16 @@ func TestFormal_CTR014_StrictModeEnabledRejected(t *testing.T) {
 }
 
 func TestFormal_CTR014_DisabledAlwaysAllowed(t *testing.T) {
-	compiler := NewCompiler()
-	compiler.SetStrictMode(true)
-	err := compiler.validateRunInstallScripts(&WorkflowData{RunInstallScripts: false})
-	require.NoError(t, err)
+	t.Run("strict mode", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.SetStrictMode(true)
+		err := compiler.validateRunInstallScripts(&WorkflowData{RunInstallScripts: false})
+		require.NoError(t, err)
+	})
 
-	compiler.SetStrictMode(false)
-	err = compiler.validateRunInstallScripts(&WorkflowData{RunInstallScripts: false})
-	require.NoError(t, err)
+	t.Run("non-strict mode", func(t *testing.T) {
+		compiler := NewCompiler()
+		err := compiler.validateRunInstallScripts(&WorkflowData{RunInstallScripts: false})
+		require.NoError(t, err)
+	})
 }
