@@ -39,6 +39,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
+	awfMaxAICreditsVarName      = "GH_AW_MAX_AI_CREDITS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
 	awfModelsJSONPathExpr       = "${RUNNER_TEMP}/gh-aw/actions/models.json"
 	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
@@ -118,15 +119,14 @@ func buildModelsJSONPathExportScript() string {
 // injectMaxAICreditsExpression inserts "maxAiCredits":expr into the apiProxy
 // JSON object of awfConfigJSON directly after the "maxRuns" field value.
 //
-// expr is a GitHub Actions expression such as
-// "${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}". GitHub Actions
-// evaluates all ${{ }} expressions in a run: step before the shell executes,
-// so expr is resolved to a bare integer (e.g. 1000) before printf writes the
-// file, resulting in valid JSON on disk.
+// expr is a shell variable reference such as "${GH_AW_MAX_AI_CREDITS}". The
+// caller emits a local export line before the printf command that assigns the
+// GitHub Actions runtime expression to that variable, so the ${{ }} expression
+// lives on one clean, dedicated line rather than being embedded inside the JSON.
 //
-// This approach requires no post-processing scripts: shellEscapeArg detects
-// the expression in the combined JSON string and uses double-quote wrapping,
-// which preserves the ${{ }} syntax for GitHub Actions evaluation.
+// shellEscapeArgWithVarPreserved is then used to double-quote the JSON arg while
+// preserving the ${varName} reference for bash expansion and escaping bare $ signs
+// (e.g. "$schema" → "\$schema").
 func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {
 	const maxRunsKey = `"maxRuns":`
 	idx := strings.Index(awfConfigJSON, maxRunsKey)
@@ -271,29 +271,42 @@ fi`,
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
-		// When max-ai-credits is not set by frontmatter/imports, inject the GitHub Actions
-		// expression ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }} directly into the
-		// "maxAiCredits" field of the apiProxy JSON object. GitHub Actions evaluates all
-		// ${{ }} expressions in a run: step before the shell executes, so the expression is
-		// resolved to a bare integer (e.g. 1000) before printf writes the file.
-		// shellEscapeArg detects the expression and uses double-quote wrapping, which
-		// preserves the ${{ }} syntax for GitHub Actions while escaping bare $ signs
-		// (e.g. "$schema" → "\$schema") so bash does not expand them.
+		// When max-ai-credits is not set by frontmatter/imports, export a local shell
+		// variable (GH_AW_MAX_AI_CREDITS) holding the GitHub Actions runtime expression
+		// ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}, then inject a reference
+		// to that variable (${GH_AW_MAX_AI_CREDITS}) into the "maxAiCredits" field of
+		// the apiProxy JSON object. GitHub Actions evaluates the ${{ }} expression before
+		// the shell runs, so the variable is set to the resolved integer (e.g. "1000")
+		// by the time printf writes the config file.
+		var maxAICreditsExportLine string
 		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
 			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
-			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, expr)
-			awfHelpersLog.Printf("Injected maxAiCredits runtime expression into AWF config JSON")
+			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
+			maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
+			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
 		}
 		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
-		// When no expression is embedded, shellEscapeArg uses single-quote wrapping (safe
-		// because JSON uses only double quotes). When a GitHub Actions expression is present,
-		// shellEscapeArg uses double-quote wrapping and escapes bare $ signs.
+		// When ${GH_AW_MAX_AI_CREDITS} is injected, use shellEscapeArgWithVarPreserved
+		// which always uses double-quote wrapping: it escapes bare $ signs (e.g.
+		// "$schema" → "\$schema") while preserving both ${{ }} GitHub Actions expressions
+		// (e.g. in AllowedDomains) and the ${GH_AW_MAX_AI_CREDITS} variable reference so
+		// bash expands it to the runtime-resolved value. When no variable is injected,
+		// shellEscapeArg handles escaping normally.
 		// Also copy it to /tmp/gh-aw/awf-config.json for the unified agent artifact upload.
+		var printfArg string
+		if maxAICreditsExportLine != "" {
+			printfArg = shellEscapeArgWithVarPreserved(awfConfigJSON, awfMaxAICreditsVarName)
+		} else {
+			printfArg = shellEscapeArg(awfConfigJSON)
+		}
 		configFileSetup = fmt.Sprintf(
 			"printf '%%s\\n' %s > %q",
-			shellEscapeArg(awfConfigJSON),
+			printfArg,
 			awfConfigRuntimePathExpr,
 		)
+		if maxAICreditsExportLine != "" {
+			configFileSetup = maxAICreditsExportLine + "\n" + configFileSetup
+		}
 		if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
 			updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
 			if updateErr != nil {
