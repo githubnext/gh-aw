@@ -1116,7 +1116,7 @@ function loadMissingToolMessages(items) {
  * @returns {string} Formatted missing tool context
  */
 function buildMissingToolContext(items) {
-  const missingToolMessages = loadMissingToolMessages(items);
+  const missingToolMessages = loadMissingToolMessages(items).filter(message => !(message.tool === "tool/permission" && Array.isArray(message.denied_commands) && message.denied_commands.length > 0));
 
   if (missingToolMessages.length === 0) {
     return "";
