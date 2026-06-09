@@ -1621,7 +1621,7 @@
   },
   {
     "name": "create_check_run",
-    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name.",
+    "description": "Create a GitHub Check Run to report agent analysis results on the triggering commit/pull request. This tool accepts ONLY conclusion, title, summary, and text. It automatically targets the commit/pull request that triggered the workflow \u2014 do NOT pass any targeting or identity field (name, pull_request_number, pr_number, issue_number, sha, commit, or head_sha); the check run name comes from workflow frontmatter, and the target comes from trigger context. Any such field will be rejected. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check.",
     "inputSchema": {
       "type": "object",
       "required": ["conclusion", "title", "summary"],
