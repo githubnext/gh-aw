@@ -209,6 +209,7 @@ let state = { cleaned_files: [], last_run: '', last_file: '', cache_hit_history:
 try {
   state = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
 } catch (error) {
+  // ENOENT is expected on cold start; missing state file is not an error condition.
   if (error.code !== 'ENOENT') {
     console.warn(`Warning: could not load state from ${stateFile}; using default state. ${error.message}`)
   }
@@ -271,7 +272,7 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 ## Important Constraints
 
 - **PRIORITIZE files with `@ts-nocheck`** - These files need type checking enabled. Remove `@ts-nocheck`, add proper type annotations, and fix all type errors.
-- **Do not use destructive cleanup commands** like `rm -rf /tmp/...`; if cleanup is required, only remove known files/directories with narrowly-scoped commands.
+- **Do not use destructive cleanup commands** like `rm -rf /tmp/...`; if cleanup is required, only remove known files/directories with narrowly-scoped commands (for example, `rm -f /tmp/gh-aw/cache-memory/jsweep-state.json`).
 - **DO NOT change logic** - only make the code cleaner and more maintainable
 - **Always add or improve tests** - the file must have comprehensive test coverage with at least 5-10 test cases
 - **Preserve all functionality** - ensure the file works exactly as before

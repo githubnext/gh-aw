@@ -18,13 +18,23 @@ else
 fi
 
 violation_count=0
-pattern='^[[:space:]]*([-*][[:space:]]+)?shell\([[:space:]]*python3?[[:space:]]+-c'
 
 echo "Checking workflow prompts for inline shell(python -c ...) patterns..."
 echo ""
 
 while IFS= read -r file; do
-    matches=$(grep -nEi "$pattern" "$file" 2>/dev/null || true)
+    matches=$(
+        awk '
+            BEGIN { in_code = 0 }
+            /^```/ { in_code = !in_code; next }
+            in_code {
+                line = tolower($0)
+                if (line ~ /shell\([[:space:]]*python3?[[:space:]]+-c/) {
+                    printf "%d:%s\n", NR, $0
+                }
+            }
+        ' "$file" 2>/dev/null || true
+    )
     if [ -n "$matches" ]; then
         echo -e "${RED}VIOLATION${NC}: $file"
         while IFS= read -r match; do
