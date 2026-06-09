@@ -10,7 +10,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 func TestResolveMaxDailyAIC(t *testing.T) {
@@ -31,27 +30,19 @@ func TestResolveMaxDailyAIC(t *testing.T) {
 		}
 	})
 
-	t.Run("uses enterprise default when unset", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+	t.Run("emits runtime expression when no frontmatter", func(t *testing.T) {
+		t.Parallel()
 		got := resolveMaxDailyAIC(map[string]any{}, "")
-		if got == nil || *got != "2222" {
-			t.Fatalf("expected enterprise default, got %v", got)
+		wantExpr := "${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}"
+		if got == nil || *got != wantExpr {
+			t.Fatalf("expected runtime expression %q, got %v", wantExpr, got)
 		}
 	})
 
-	t.Run("frontmatter value takes precedence over enterprise default", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+	t.Run("frontmatter value takes precedence over runtime default expression", func(t *testing.T) {
 		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 1234}, "")
 		if got == nil || *got != "1234" {
-			t.Fatalf("expected frontmatter value to override enterprise default, got %v", got)
-		}
-	})
-
-	t.Run("uses built-in 5k default when no frontmatter and no env vars", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "")
-		got := resolveMaxDailyAIC(map[string]any{}, "")
-		if got == nil || *got != "5000" {
-			t.Fatalf("expected built-in 5k default, got %v", got)
+			t.Fatalf("expected frontmatter value to override runtime default expression, got %v", got)
 		}
 	})
 
@@ -63,8 +54,8 @@ func TestResolveMaxDailyAIC(t *testing.T) {
 		}
 	})
 
-	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
-		t.Setenv(compilerenv.DefaultMaxDailyAICredits, "2222")
+	t.Run("explicit disable skips guardrail", func(t *testing.T) {
+		t.Parallel()
 		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": -1}, "")
 		if got != nil {
 			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
