@@ -779,7 +779,7 @@ describe("safe_output_type_validator", () => {
     it("should reject create_issue body shorter than minLength", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "Too short body text" }, "create_issue", 1);
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body: "Short" }, "create_issue", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("too short");
@@ -790,6 +790,16 @@ describe("safe_output_type_validator", () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const body = "Detailed issue body with clear context.";
+      const result = validateItem({ type: "create_issue", title: "Test Issue", body }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should accept create_issue body at exact minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const body = "Exactly twenty chars";
+      expect(body.length).toBe(20);
       const result = validateItem({ type: "create_issue", title: "Test Issue", body }, "create_issue", 1);
 
       expect(result.isValid).toBe(true);
