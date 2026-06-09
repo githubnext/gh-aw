@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -65,8 +66,8 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if isCaseConvCall(expr.X) || isCaseConvCall(expr.Y) ||
-			(isCaseConvAlias(pass, expr.X, caseConvAliases) && isStringLiteral(expr.Y)) ||
-			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && isStringLiteral(expr.X)) {
+			(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y)) ||
+			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X)) {
 			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
 				return
 			}
@@ -110,7 +111,7 @@ func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, ali
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(ident)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
 
@@ -120,7 +121,7 @@ func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, ali
 				delete(aliases, obj)
 				continue
 			}
-			rhs, ok := rhsExprForIndex(stmt.Rhs, i)
+			rhs, ok := astutil.RhsExprForIndex(stmt.Rhs, i)
 			if !ok {
 				delete(aliases, obj)
 				continue
@@ -142,10 +143,10 @@ func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, alias
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(name)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
-		rhs, ok := rhsExprForIndex(spec.Values, i)
+		rhs, ok := astutil.RhsExprForIndex(spec.Values, i)
 		if !ok {
 			delete(aliases, obj)
 			continue
@@ -155,19 +156,6 @@ func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, alias
 		} else {
 			delete(aliases, obj)
 		}
-	}
-}
-
-func rhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
-	switch {
-	case len(rhs) == 0:
-		return nil, false
-	case len(rhs) == 1 && idx == 0:
-		return rhs[0], true
-	case idx < len(rhs):
-		return rhs[idx], true
-	default:
-		return nil, false
 	}
 }
 
@@ -204,23 +192,6 @@ func caseConvAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Obje
 		return nil, false
 	}
 	return arg, true
-}
-
-func isStringLiteral(expr ast.Expr) bool {
-	lit, ok := expr.(*ast.BasicLit)
-	return ok && lit.Kind == token.STRING
-}
-
-func isLocalObject(obj types.Object) bool {
-	if obj == nil {
-		return false
-	}
-	parent := obj.Parent()
-	if parent == nil {
-		return false
-	}
-	pkg := obj.Pkg()
-	return pkg == nil || parent != pkg.Scope()
 }
 
 // caseConvArg returns the argument when n is strings.ToLower/ToUpper(<arg>).

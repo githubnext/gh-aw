@@ -4,6 +4,7 @@ package fmterrorfnoverbs
 import (
 	"errors"
 	"fmt"
+	fmtalias "fmt"
 )
 
 func bad() error {
@@ -33,4 +34,17 @@ func suppressedPreviousLine() error {
 
 func suppressedSameLine() error {
 	return fmt.Errorf("this is intentionally static") //nolint:fmterrorfnoverbs
+}
+
+func badAliasedImport() error {
+	return fmtalias.Errorf("alias import static message") // want `fmt\.Errorf called with no format verbs; use errors\.New`
+}
+
+type shadowFormatter struct{}
+
+func (shadowFormatter) Errorf(msg string, _ ...any) error { return errors.New(msg) }
+
+func localShadowNotFlagged() error {
+	fmt := shadowFormatter{}
+	return fmt.Errorf("not fmt package")
 }
