@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
@@ -43,7 +43,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if !isFmtErrorf(pass, call) {
+		if !astutil.IsFmtErrorf(pass, call) {
 			return
 		}
 
@@ -72,28 +72,4 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
-}
-
-// isFmtErrorf returns true if the call expression is a call to fmt.Errorf.
-func isFmtErrorf(pass *analysis.Pass, call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	if sel.Sel.Name != "Errorf" {
-		return false
-	}
-	pkgIdent, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	obj := pass.TypesInfo.ObjectOf(pkgIdent)
-	if obj == nil {
-		return false
-	}
-	pkgName, ok := obj.(*types.PkgName)
-	if !ok {
-		return false
-	}
-	return pkgName.Imported().Path() == "fmt"
 }
