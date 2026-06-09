@@ -23,6 +23,7 @@ func IsLocalObject(obj types.Object) bool {
 }
 
 // RhsExprForIndex returns the RHS expression mapped to idx when available.
+// When rhs has a single expression, only idx==0 is considered mapped.
 func RhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
 	switch {
 	case len(rhs) == 0:
