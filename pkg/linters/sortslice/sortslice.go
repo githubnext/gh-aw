@@ -57,6 +57,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		obj := pass.TypesInfo.ObjectOf(pkgIdent)
+		// ObjectOf can be nil when type information is incomplete.
 		if obj == nil {
 			return
 		}
