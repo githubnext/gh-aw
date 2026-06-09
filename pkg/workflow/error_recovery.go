@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -9,6 +11,13 @@ import (
 )
 
 var errorRecoveryLog = logger.New("workflow:error_recovery")
+
+var (
+	duplicateKeyMessagePattern     = regexp.MustCompile(`mapping key "([^"]+)" already defined at \[(\d+):\d+\]`)
+	compilerErrorLinePattern       = regexp.MustCompile(`:(\d+):\d+: error:`)
+	unknownPermissionScopePattern  = regexp.MustCompile(`unknown permission scope "([^"]+)"`)
+	unknownPermissionPropertyRegex = regexp.MustCompile(`unknown property: ([^ \n(]+)`)
+)
 
 // ErrorSeverity classifies how urgently a compilation error should be fixed.
 type ErrorSeverity int
@@ -265,6 +274,13 @@ func classifyErrorMessage(message string) PrioritizedError {
 			Category:   "syntax",
 			Suggestion: "Fix the YAML/frontmatter syntax first, then re-run `gh aw compile`.",
 		}
+	case strings.Contains(lower, "mapping key") && strings.Contains(lower, "already defined"):
+		return PrioritizedError{
+			Message:    message,
+			Severity:   SeverityCritical,
+			Category:   "syntax",
+			Suggestion: buildDuplicateKeySuggestion(message),
+		}
 	case strings.Contains(lower, "invalid engine"),
 		strings.Contains(lower, "invalid engine value"):
 		return PrioritizedError{
@@ -298,6 +314,14 @@ func classifyErrorMessage(message string) PrioritizedError {
 			Category:   "tools",
 			Suggestion: "Check the `tools:` and MCP server configuration for missing required fields or unsupported values.",
 		}
+	case strings.Contains(lower, "permission"),
+		strings.Contains(lower, "valid permission scopes"):
+		return PrioritizedError{
+			Message:    message,
+			Severity:   SeverityMedium,
+			Category:   "permissions",
+			Suggestion: buildPermissionSuggestion(message),
+		}
 	case strings.Contains(lower, "event"),
 		strings.Contains(lower, "workflow_dispatch"),
 		strings.Contains(lower, "pull-request"),
@@ -307,13 +331,6 @@ func classifyErrorMessage(message string) PrioritizedError {
 			Severity:   SeverityMedium,
 			Category:   "events",
 			Suggestion: "Correct the event or filter name, then re-run compilation.",
-		}
-	case strings.Contains(lower, "permission"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityMedium,
-			Category:   "permissions",
-			Suggestion: "Adjust the permissions block to match the workflow's required scopes.",
 		}
 	case strings.Contains(lower, "runtime"),
 		strings.Contains(lower, "node version"),
@@ -342,6 +359,52 @@ func classifyErrorMessage(message string) PrioritizedError {
 			Suggestion: "Fix this configuration issue and re-run `gh aw compile`.",
 		}
 	}
+}
+
+func buildDuplicateKeySuggestion(message string) string {
+	line := extractCompilerErrorLine(message)
+	matches := duplicateKeyMessagePattern.FindStringSubmatch(message)
+	if len(matches) < 3 {
+		return "Remove the duplicate frontmatter key and keep only one definition."
+	}
+
+	key := matches[1]
+	firstDefinitionLine := matches[2]
+	if line == "" {
+		return fmt.Sprintf("Remove the duplicate %s key; the first definition is at line %s.", key, firstDefinitionLine)
+	}
+
+	return fmt.Sprintf("Remove the duplicate %s key at line %s; the first definition is at line %s.", key, line, firstDefinitionLine)
+}
+
+func buildPermissionSuggestion(message string) string {
+	scope := extractUnknownPermissionScope(message)
+	if scope == "" {
+		return "Remove or replace the unknown permission scope in `permissions:` and re-run `gh aw compile`."
+	}
+
+	return fmt.Sprintf("Remove or replace the unknown permission scope `%s` in `permissions:` and re-run `gh aw compile`.", scope)
+}
+
+func extractCompilerErrorLine(message string) string {
+	firstLine, _, _ := strings.Cut(message, "\n")
+	matches := compilerErrorLinePattern.FindStringSubmatch(firstLine)
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
+}
+
+func extractUnknownPermissionScope(message string) string {
+	lower := strings.ToLower(message)
+	if matches := unknownPermissionScopePattern.FindStringSubmatch(lower); len(matches) >= 2 {
+		return matches[1]
+	}
+	if matches := unknownPermissionPropertyRegex.FindStringSubmatch(lower); len(matches) >= 2 &&
+		strings.Contains(lower, "valid permission scopes") {
+		return matches[1]
+	}
+	return ""
 }
 
 func buildRecoveryPlan(prioritized []PrioritizedError, suppressedCount int) *RecoveryPlan {
