@@ -59,6 +59,8 @@ const HELP_MAX_LINES = 20;
 const COMMAND_DESC_MAX_LEN = 68;
 const TOOL_DESC_MAX_LEN = 90;
 const OPTION_DESC_MAX_LEN = 62;
+const TOP_HELP_RESERVED_LINES = 3;
+const TOOL_HELP_RESERVED_LINES = 2;
 
 // ---------------------------------------------------------------------------
 // Audit logging
@@ -776,8 +778,7 @@ function showHelp(serverName, tools) {
     `Commands (${tools.length}):`,
   ];
   if (tools.length > 0) {
-    const reservedLines = 3; // blank + footer + potential overflow marker
-    const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - reservedLines);
+    const maxCommandLines = Math.max(1, HELP_MAX_LINES - lines.length - TOP_HELP_RESERVED_LINES);
     const shownTools = tools.slice(0, maxCommandLines);
     for (const tool of shownTools) {
       lines.push(`  ${tool.name} — ${summarizeHelpText(tool.description || "No description", COMMAND_DESC_MAX_LEN)}`);
@@ -822,8 +823,7 @@ function showToolHelp(serverName, toolName, tools) {
     lines.push("");
     lines.push(`Options (${Object.keys(props).length}):`);
     const optionEntries = Object.entries(props);
-    const reservedLines = 2; // footer + potential overflow marker
-    const maxOptionLines = Math.max(1, HELP_MAX_LINES - lines.length - reservedLines);
+    const maxOptionLines = Math.max(1, HELP_MAX_LINES - lines.length - TOOL_HELP_RESERVED_LINES);
     const shownOptions = optionEntries.slice(0, maxOptionLines);
     for (const [key, val] of shownOptions) {
       const requiredMark = required.has(key) ? "*" : "";
