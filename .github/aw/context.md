@@ -77,65 +77,48 @@ All other expressions are disallowed.
 
 ### Sanitized Context Text (`steps.sanitized.outputs.text`)
 
-**RECOMMENDED**: Use `${{ steps.sanitized.outputs.text }}` instead of individual `github.event` fields for accessing issue/PR content.
+**RECOMMENDED**: Prefer `${{ steps.sanitized.outputs.text }}` over individual `github.event` fields for issue/PR content.
 
-The `steps.sanitized.outputs.text` value provides automatically sanitized content based on the triggering event:
+Auto-populated per triggering event:
 
-- **Issues**: `title + "\n\n" + body`
-- **Pull Requests**: `title + "\n\n" + body`
-- **Issue Comments**: `comment.body`
-- **PR Review Comments**: `comment.body`
+- **Issues / Pull Requests**: `title + "\n\n" + body`
+- **Issue Comments / PR Review Comments**: `comment.body`
 - **PR Reviews**: `review.body`
 - **Other events**: Empty string
 
-**Security Benefits of Sanitized Context:**
+**Security Benefits:**
 
-- **@mention neutralization**: Prevents unintended user notifications (converts `@user` to `` `@user` ``)
-- **Bot trigger protection**: Prevents accidental bot invocations (converts `fixes #123` to `` `fixes #123` ``)
-- **XML tag safety**: Converts XML tags to parentheses format to prevent injection
-- **URI filtering**: Only allows HTTPS URIs from trusted domains; others become "(redacted)"
-- **Content limits**: Automatically truncates excessive content (0.5MB max, 65k lines max)
-- **Control character removal**: Strips ANSI escape sequences and non-printable characters
-
-**Example Usage:**
-
-```markdown
-# RECOMMENDED: Use sanitized context text
-Analyze this content: "${{ steps.sanitized.outputs.text }}"
-
-# Less secure alternative (use only when specific fields are needed)
-Issue number: ${{ github.event.issue.number }}
-Repository: ${{ github.repository }}
-```
+- **@mention neutralization**: converts `@user` to `` `@user` ``
+- **Bot trigger protection**: converts `fixes #123` to `` `fixes #123` ``
+- **XML tag safety**: converts XML tags to parentheses to prevent injection
+- **URI filtering**: only allows HTTPS URIs from trusted domains; others become "(redacted)"
+- **Content limits**: truncates to 0.5MB / 65k lines max
+- **Control character removal**: strips ANSI escape sequences and non-printable characters
 
 ### Security Validation
 
-Expression safety is automatically validated during compilation. If unauthorized expressions are found, compilation will fail with an error listing the prohibited expressions.
+Expression safety is validated at compile time. Unauthorized expressions cause compilation to fail with an error listing them.
 
 ### Example Usage
 
 ```markdown
-# Valid expressions - RECOMMENDED: Use sanitized context text for security
+# Valid — prefer sanitized text
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
-
 The issue content is: "${{ steps.sanitized.outputs.text }}"
 
-# Alternative approach using individual fields (less secure)
-The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
-
-Using output from previous task: "${{ steps.sanitized.outputs.text }}"
-
+# Valid — individual fields (less secure)
+Created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 Deploy to environment: "${{ github.event.inputs.environment }}"
 
-# Invalid expressions (will cause compilation errors)
-# Token: ${{ secrets.GITHUB_TOKEN }}
-# Environment: ${{ env.MY_VAR }}
-# Complex: ${{ toJson(github.workflow) }}
+# Invalid (compile errors)
+# ${{ secrets.GITHUB_TOKEN }}
+# ${{ env.MY_VAR }}
+# ${{ toJson(github.workflow) }}
 ```
 
 ## Prompt Template Conditionals (`{{#if}}`)
 
-The workflow markdown body supports a lightweight template language for conditional blocks. Template tags are resolved **at runtime, before the agent receives the prompt** — the agent always sees the final resolved text.
+Conditional blocks resolved **at runtime, before the agent sees the prompt** — the agent only sees the final resolved text.
 
 ### Syntax
 
@@ -147,12 +130,12 @@ The workflow markdown body supports a lightweight template language for conditio
 {{#endif}}
 ```
 
-- **`{{#if <condition>}}`** — opens a conditional block; the content is included only when `<condition>` is truthy
-- **`{{#else}}`** — optional separator; splits the block into a true branch and a false branch
-- **`{{#endif}}`** — closes the block (**primary closing tag**; preferred)
-- **`{{/if}}`** — alternate closing tag (both forms are permanently supported; `{{#endif}}` is preferred for consistency)
+- **`{{#if <condition>}}`** — content included only when truthy
+- **`{{#else}}`** — optional false-branch separator
+- **`{{#endif}}`** — closes block (**preferred** closing tag)
+- **`{{/if}}`** — alternate closing tag (also supported)
 
-Tags may appear on their own line (block form) or inline. Block form (tag on its own line) is recommended for readability.
+Block form (tag on its own line) is recommended for readability.
 
 ### Supported Conditions
 
@@ -185,11 +168,11 @@ Include a one-paragraph executive summary at the top.
 
 ### Integration with Experiments
 
-When the `experiments:` frontmatter field is set, the selected variant value is substituted into `{{#if experiments.<name> == "..." }}` conditions before template rendering. See [A/B Testing Experiments](../aw/experiments.md) for full experiment design guidance.
+When `experiments:` is set in frontmatter, the selected variant is substituted into `{{#if experiments.<name> == "..." }}` conditions before rendering. See [A/B Testing Experiments](../aw/experiments.md).
 
 ### Notes
 
-- **Fenced code blocks are preserved** — `{{#if}}` tags inside `` ``` `` blocks are never processed; they appear verbatim in the output.
-- **Nested conditionals are not supported** — do not place `{{#if}}` inside another `{{#if}}` block; the inner tags will be treated as literal text and appear verbatim in the agent prompt.
-- **Template tags are not visible to the agent** — all `{{#if}}` / `{{#else}}` / `{{#endif}}` tags are stripped from the prompt before the agent runs.
+- **Fenced code blocks are preserved** — `{{#if}}` tags inside `` ``` `` blocks appear verbatim.
+- **No nested conditionals** — inner tags become literal text.
+- **Tags are stripped before the agent runs** — never visible in the final prompt.
 
