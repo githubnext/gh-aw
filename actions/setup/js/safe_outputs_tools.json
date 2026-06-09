@@ -1621,7 +1621,7 @@
   },
   {
     "name": "create_check_run",
-    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name.",
+    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name. When `safe-outputs.create-check-run.target` is configured, pull request targeting follows standard PR target rules. With `target: \"*\"`, include `pull_request_number` (or `pr_number`/`pr`/`pull_number`) in each call.",
     "inputSchema": {
       "type": "object",
       "required": ["conclusion", "title", "summary"],
@@ -1642,6 +1642,23 @@
         "text": {
           "type": "string",
           "description": "Optional detailed Markdown content shown in the check run details. Use this for longer output such as full analysis reports, line-by-line findings, or remediation steps. Maximum 65535 characters."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to attach the check run to when the workflow uses `create-check-run: target: \"*\"` (or equivalent explicit PR targeting). This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876).",
+          "x-synonyms": ["pullRequestNumber"]
+        },
+        "pr_number": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
+        },
+        "pr": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
+        },
+        "pull_number": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
         }
       },
       "additionalProperties": false

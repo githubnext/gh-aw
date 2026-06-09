@@ -163,6 +163,63 @@ describe("create_check_run", () => {
       process.env.GITHUB_SHA = "sha-abc123";
     });
 
+    describe("target resolution", () => {
+      beforeEach(() => {
+        process.env.GITHUB_SHA = "sha-abc123";
+        mockContext.eventName = "workflow_dispatch";
+        mockContext.payload = {};
+      });
+
+      it("uses pull_request_number when target is '*'", async () => {
+        mockGithub.rest.pulls = {
+          get: async ({ pull_number }) => ({
+            data: { number: pull_number, head: { sha: "target-pr-sha-42" } },
+          }),
+        };
+
+        let capturedParams;
+        mockGithub.rest.checks.create = makeChecksCreate(p => {
+          capturedParams = p;
+        });
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "*" });
+        const result = await handler({ type: "create_check_run", pull_request_number: 42, conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(true);
+        expect(capturedParams.head_sha).toBe("target-pr-sha-42");
+      });
+
+      it("returns error when target is '*' and pull_request_number is missing", async () => {
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "*" });
+        const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "*"');
+      });
+
+      it("uses explicit target PR number from config", async () => {
+        mockGithub.rest.pulls = {
+          get: async ({ pull_number }) => ({
+            data: { number: pull_number, head: { sha: "target-pr-sha-7" } },
+          }),
+        };
+
+        let capturedParams;
+        mockGithub.rest.checks.create = makeChecksCreate(p => {
+          capturedParams = p;
+        });
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "7" });
+        const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(true);
+        expect(capturedParams.head_sha).toBe("target-pr-sha-7");
+      });
+    });
+
     it("returns error when conclusion is missing", async () => {
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ max: 10 });

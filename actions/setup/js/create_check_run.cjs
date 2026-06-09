@@ -7,7 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, resolveTarget } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -33,6 +33,7 @@ async function main(config = {}) {
   // Extract configuration
   const configuredName = config.name || "";
   const maxCount = config.max != null ? Number(config.max) : 1;
+  const checkRunTarget = typeof config.target === "string" && config.target.trim() ? config.target.trim() : null;
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
 
@@ -51,7 +52,7 @@ async function main(config = {}) {
     defaultName = `${defaultName} (Result)`;
   }
 
-  core.info(`Create check run configuration: name="${defaultName}", max=${maxCount}`);
+  core.info(`Create check run configuration: name="${defaultName}", max=${maxCount}${checkRunTarget ? `, target=${checkRunTarget}` : ""}`);
   if (configOutputTitle) core.info(`Config output.title fallback set (${configOutputTitle.length} chars)`);
   if (configOutputSummary) core.info(`Config output.summary fallback set (${configOutputSummary.length} chars)`);
 
@@ -111,21 +112,66 @@ async function main(config = {}) {
 
     const owner = context.repo.owner;
     const repo = context.repo.repo;
+    let headSha = "";
 
-    // For pull_request events, GITHUB_SHA is the ephemeral merge commit SHA which is
-    // not visible in the PR checks UI or the GitHub mobile app. Use the actual PR head
-    // SHA from the event payload instead so the check run appears on the PR.
-    const prHeadSha = context.payload?.pull_request?.head?.sha;
-    const headSha = prHeadSha || process.env.GITHUB_SHA || context.sha;
+    if (checkRunTarget) {
+      const targetResult = resolveTarget({
+        targetConfig: checkRunTarget,
+        item: message,
+        context,
+        itemType: HANDLER_TYPE,
+        supportsPR: false,
+        supportsIssue: false,
+      });
+      if (!targetResult.success) {
+        core.warning(targetResult.error);
+        return {
+          success: false,
+          error: targetResult.error,
+          skipped: targetResult.shouldFail === false,
+        };
+      }
+
+      const pullRequestNumber = targetResult.number;
+      try {
+        const { data: pullRequest } = await withRetry(
+          () =>
+            githubClient.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pullRequestNumber,
+            }),
+          RATE_LIMIT_RETRY_CONFIG
+        );
+        headSha = pullRequest?.head?.sha || "";
+        if (!headSha) {
+          const msg = `create_check_run: pull request #${pullRequestNumber} has no head SHA`;
+          core.error(msg);
+          return { success: false, error: msg };
+        }
+        core.info(`Using PR #${pullRequestNumber} head SHA ${headSha} (target=${checkRunTarget})`);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        return {
+          success: false,
+          error: `Failed to resolve pull request for create_check_run: ${errorMessage}`,
+        };
+      }
+    } else {
+      // For pull_request events, GITHUB_SHA is the ephemeral merge commit SHA which is
+      // not visible in the PR checks UI or the GitHub mobile app. Use the actual PR head
+      // SHA from the event payload instead so the check run appears on the PR.
+      const prHeadSha = context.payload?.pull_request?.head?.sha;
+      headSha = prHeadSha || process.env.GITHUB_SHA || context.sha;
+      if (prHeadSha) {
+        core.info(`Using PR head SHA ${prHeadSha} (pull_request event)`);
+      }
+    }
 
     if (!headSha) {
       const msg = "create_check_run: cannot determine commit SHA for check run";
       core.error(msg);
       return { success: false, error: msg };
-    }
-
-    if (prHeadSha) {
-      core.info(`Using PR head SHA ${prHeadSha} (pull_request event)`);
     }
 
     const checkRunName = defaultName;
