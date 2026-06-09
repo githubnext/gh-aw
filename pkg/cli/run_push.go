@@ -370,7 +370,10 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository
-func pushWorkflowFiles(workflowName string, files []string, refOverride string, verbose bool) error {
+func pushWorkflowFiles(ctx context.Context, workflowName string, files []string, refOverride string, verbose bool) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	runPushLog.Printf("Pushing %d files for workflow: %s", len(files), workflowName)
 	runPushLog.Printf("Files to push: %v", files)
 
@@ -384,7 +387,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 	// Stage all files
 	gitArgs := append([]string{"add"}, files...)
 	runPushLog.Printf("Executing git command: git %v", gitArgs)
-	cmd := exec.Command("git", gitArgs...)
+	cmd := exec.CommandContext(ctx, "git", gitArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		runPushLog.Printf("Failed to stage files: %v, output: %s", err, string(output))
 		return fmt.Errorf("failed to stage files: %w\nOutput: %s", err, string(output))
@@ -397,7 +400,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 
 	// Check if there are any staged files in git (after we've staged our files)
 	runPushLog.Printf("Checking staged files with git diff --cached --name-only")
-	statusCmd := exec.Command("git", "diff", "--cached", "--name-only")
+	statusCmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--name-only")
 	statusOutput, err := statusCmd.CombinedOutput()
 	if err != nil {
 		runPushLog.Printf("Failed to check git status: %v, output: %s", err, string(statusOutput))
@@ -540,7 +543,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 
 	// Commit the changes
 	runPushLog.Printf("Executing git commit with message: %s", commitMessage)
-	cmd = exec.Command("git", "commit", "-m", commitMessage)
+	cmd = exec.CommandContext(ctx, "git", "commit", "-m", commitMessage)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		runPushLog.Printf("Failed to commit: %v, output: %s", err, string(output))
 		return fmt.Errorf("failed to commit changes: %w\nOutput: %s", err, string(output))
@@ -554,7 +557,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 	// Push the changes
 	runPushLog.Print("Pushing changes to remote")
 	runPushLog.Printf("Executing git push")
-	cmd = exec.Command("git", "push")
+	cmd = exec.CommandContext(ctx, "git", "push")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		runPushLog.Printf("Failed to push: %v, output: %s", err, string(output))
 		return fmt.Errorf("failed to push changes: %w\nOutput: %s", err, string(output))
