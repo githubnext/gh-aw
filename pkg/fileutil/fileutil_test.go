@@ -314,7 +314,7 @@ func TestEnsureParentDir(t *testing.T) {
 		require.NoError(t, os.WriteFile(blockingFile, []byte{}, 0o644))
 
 		err := EnsureParentDir(filepath.Join(blockingFile, "child", "file.txt"), 0o755)
-		require.Error(t, err)
+		require.ErrorContains(t, err, "failed to create parent directory")
 	})
 }
 
