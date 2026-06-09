@@ -62,7 +62,7 @@ From your repository root run:
 gh aw add-wizard githubnext/agentics/daily-repo-status
 ```
 
-`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this example, `githubnext/agentics/daily-repo-status` points to the `daily-repo-status.md` workflow in the `githubnext/agentics` repository.
+`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this example, `githubnext/agentics/daily-repo-status` references the `daily-repo-status` workflow hosted in the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository.
 
 This will take you through an interactive process to:
 
@@ -72,7 +72,7 @@ This will take you through an interactive process to:
 4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
-The `.lock.yml` file is the compiled GitHub Actions workflow generated from the `.md` source file. Keep editing the `.md` file; the lock file exists so GitHub Actions has a deterministic, runnable workflow definition. Do not edit `.lock.yml` directly — regenerate it with `gh aw compile` after making workflow changes. See [Lock File Header](/gh-aw/reference/workflow-structure/#lock-file-header).
+The wizard generates a compiled workflow file (`.lock.yml`) automatically — you don't need to edit it. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
 
 > [!NOTE]
 > **Setting up `COPILOT_GITHUB_TOKEN`?**
