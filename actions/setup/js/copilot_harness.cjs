@@ -276,7 +276,7 @@ function hasCompatibleAlternateCopilotAuthToken(currentSource, selection) {
 function computeRetryDelayMs(baseDelayMs, options) {
   const random = options?.random ?? Math.random;
   const jitterRatio = Math.max(0, options?.jitterRatio ?? RETRY_JITTER_RATIO);
-  // Jitter is added to the bounded base delay, then the total is clamped to MAX_DELAY_MS.
+  // First clamp the base delay to MAX_DELAY_MS, then add jitter, then clamp the total again.
   const boundedBaseDelay = Math.max(0, Math.min(baseDelayMs, MAX_DELAY_MS));
   const jitterMs = Math.floor(boundedBaseDelay * jitterRatio * random());
   return Math.min(boundedBaseDelay + jitterMs, MAX_DELAY_MS);
@@ -737,7 +737,7 @@ async function main() {
   const baseChildEnv = Object.keys(sdkEnv).length > 0 ? { ...process.env, ...sdkEnv } : { ...process.env };
   let sdkSidecarEnv = baseChildEnv;
   /** @type {ReturnType<typeof selectCopilotAuthToken>} */
-  let sdkAuthSelection = selectCopilotAuthToken();
+  let sdkAuthSelection = selectCopilotAuthToken(baseChildEnv);
   if (copilotSDKMode) {
     try {
       const authEnv = buildCopilotAuthEnv(baseChildEnv, {
