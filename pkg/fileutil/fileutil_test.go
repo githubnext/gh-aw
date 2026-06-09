@@ -283,6 +283,17 @@ func TestDirExists(t *testing.T) {
 	}
 }
 
+func TestEnsureParentDir(t *testing.T) {
+	baseDir := t.TempDir()
+	targetPath := filepath.Join(baseDir, "nested", "deep", "file.txt")
+
+	require.NoError(t, EnsureParentDir(targetPath, 0o755))
+
+	info, err := os.Stat(filepath.Join(baseDir, "nested", "deep"))
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
 func TestIsDirEmpty(t *testing.T) {
 	t.Run("empty directory returns true", func(t *testing.T) {
 		dir := t.TempDir()

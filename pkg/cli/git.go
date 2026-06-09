@@ -370,6 +370,10 @@ func ensureGitAttributes() (bool, error) {
 
 	// Write back to file with owner-only read/write permissions (0600) for security best practices
 	content := strings.Join(lines, "\n")
+	if err := fileutil.EnsureParentDir(gitAttributesPath, constants.DirPermPublic); err != nil {
+		gitLog.Printf("Failed to ensure .gitattributes directory: %v", err)
+		return false, fmt.Errorf("failed to create .gitattributes directory: %w", err)
+	}
 	if err := os.WriteFile(gitAttributesPath, []byte(content), constants.FilePermSensitive); err != nil {
 		gitLog.Printf("Failed to write .gitattributes: %v", err)
 		return false, fmt.Errorf("failed to write .gitattributes: %w", err)
@@ -408,7 +412,7 @@ func ensureLogsGitignore() error {
 
 	gitLog.Print("Creating .github/aw/logs directory and .gitignore")
 	// Create the logs directory if it doesn't exist
-	if err := os.MkdirAll(logsDir, constants.DirPermPublic); err != nil {
+	if err := fileutil.EnsureParentDir(gitignorePath, constants.DirPermPublic); err != nil {
 		gitLog.Printf("Failed to create logs directory: %v", err)
 		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
 	}

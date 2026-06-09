@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -68,12 +69,11 @@ func ensureVSCodeSettings(verbose bool) error {
 
 	// Create .vscode directory if it doesn't exist
 	vscodeDir := ".vscode"
-	if err := os.MkdirAll(vscodeDir, constants.DirPermPublic); err != nil {
+	settingsPath := filepath.Join(vscodeDir, "settings.json")
+	if err := fileutil.EnsureParentDir(settingsPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .vscode directory: %w", err)
 	}
 	vscodeConfigLog.Printf("Ensured directory exists: %s", vscodeDir)
-
-	settingsPath := filepath.Join(vscodeDir, "settings.json")
 
 	// Check if settings.json already exists
 	if _, err := os.Stat(settingsPath); err == nil {

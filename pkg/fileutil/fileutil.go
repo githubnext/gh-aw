@@ -89,6 +89,17 @@ func ValidatePathWithinBase(base, candidate string) error {
 	return nil
 }
 
+// EnsureParentDir ensures the parent directory for path exists, creating it recursively when needed.
+func EnsureParentDir(path string, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, perm); err != nil {
+		fileutilLog.Printf("EnsureParentDir: failed for %s: %v", dir, err)
+		return fmt.Errorf("failed to create parent directory %s: %w", dir, err)
+	}
+	fileutilLog.Printf("EnsureParentDir: ensured %s", dir)
+	return nil
+}
+
 // FileExists checks if a file exists and is not a directory.
 func FileExists(path string) bool {
 	info, err := os.Stat(path)

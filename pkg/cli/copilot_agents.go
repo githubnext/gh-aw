@@ -15,6 +15,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -56,8 +57,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	targetDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflows")
 	targetPath := filepath.Join(targetDir, "SKILL.md")
 
-	// Ensure the target directory exists
-	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
+	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .github/skills/agentic-workflows directory: %w", err)
 	}
 
@@ -123,7 +123,7 @@ func ensureAgenticWorkflowDesignerSkill(verbose bool, skipInstructions bool) err
 	targetDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflow-designer")
 	targetPath := filepath.Join(targetDir, "SKILL.md")
 
-	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
+	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .github/skills/agentic-workflow-designer directory: %w", err)
 	}
 
@@ -173,7 +173,7 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 	targetDir := filepath.Join(gitRoot, ".github", "agents")
 	targetPath := filepath.Join(targetDir, "agentic-workflows.md")
 
-	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
+	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .github/agents directory: %w", err)
 	}
 
