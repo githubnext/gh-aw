@@ -134,7 +134,7 @@ async function assertTrustedCheckoutRuntime() {
   // Trust them implicitly: the non-fork repository check above already ensures
   // the workflow is running in a controlled context.
   const senderType = context.payload.sender?.type;
-  if (senderType === "Bot" || senderType === "Mannequin") {
+  if (senderType === "Bot") {
     core.info(`Runtime safety check passed for bot/app actor '${actor}' (sender type: ${senderType})`);
     return;
   }
@@ -156,6 +156,7 @@ async function assertTrustedCheckoutRuntime() {
   } catch (err) {
     // A 404 here is ambiguous: it can indicate either a non-user app/bot actor
     // or a real user that is not a collaborator. Disambiguate via users API.
+    // Real users resolve via users.getByUsername; app/bot actors return 404.
     if (err.status === 404) {
       try {
         await github.rest.users.getByUsername({ username: actor });

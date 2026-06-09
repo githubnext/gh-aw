@@ -278,17 +278,6 @@ If the pull request is still open, verify that:
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
       });
 
-      it("should allow checkout for Mannequin actor without calling the collaborator API", async () => {
-        mockContext.actor = "mannequin-user";
-        mockContext.payload.sender = { login: "mannequin-user", type: "Mannequin" };
-
-        await runScript();
-
-        expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
-        expect(mockCore.info).toHaveBeenCalledWith("Runtime safety check passed for bot/app actor 'mannequin-user' (sender type: Mannequin)");
-        expect(mockCore.setFailed).not.toHaveBeenCalled();
-      });
-
       it("should allow checkout when collaborator API returns 404 (app actor without sender type)", async () => {
         mockContext.actor = "Copilot";
         // No sender.type set — simulates an event payload without type info
@@ -332,6 +321,7 @@ If the pull request is still open, verify that:
 
         await runScript();
 
+        expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Internal Server Error"));
       });
     });
