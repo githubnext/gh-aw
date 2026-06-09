@@ -851,9 +851,10 @@ function summarizeHelpText(value, maxLen) {
 
 /**
  * Render names as comma-separated compact lines and keep all names visible.
+ * Width is a soft target; the final line may exceed it to avoid dropping names.
  *
  * @param {string[]} names
- * @param {number} maxLines - Preferred line budget; non-positive/invalid values return one compact line
+ * @param {number} maxLines - Preferred line budget; non-positive/invalid values force one compact line
  * @returns {string[]}
  */
 function formatCompactNameLines(names, maxLines) {
