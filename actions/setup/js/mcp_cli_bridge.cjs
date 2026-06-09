@@ -833,7 +833,9 @@ function showToolHelp(serverName, toolName, tools) {
     if (optionEntries.length > shownOptions.length) {
       lines.push(`  ... +${optionEntries.length - shownOptions.length} more option(s)`);
     }
-    lines.push("Required options are marked with *.");
+    if (required.size > 0) {
+      lines.push("Required options are marked with *.");
+    }
   }
 
   process.stdout.write(lines.join("\n") + "\n");
