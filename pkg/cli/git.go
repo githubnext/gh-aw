@@ -413,8 +413,8 @@ func ensureLogsGitignore() error {
 	gitLog.Print("Creating .github/aw/logs directory and .gitignore")
 	// Create the logs directory if it doesn't exist
 	if err := fileutil.EnsureParentDir(gitignorePath, constants.DirPermPublic); err != nil {
-		gitLog.Printf("Failed to create logs directory: %v", err)
-		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
+		gitLog.Printf("Failed to ensure .github/aw/logs/.gitignore parent directory: %v", err)
+		return fmt.Errorf("failed to create parent directory for .github/aw/logs/.gitignore: %w", err)
 	}
 
 	// Write the .gitignore file with owner-only read/write permissions (0600) for security best practices
