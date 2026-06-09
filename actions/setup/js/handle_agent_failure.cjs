@@ -1253,30 +1253,17 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
 
-  try {
-    const templatePath = getPromptPath("tool_denials_exceeded_context.md");
-    const template = fs.readFileSync(templatePath, "utf8");
-    return (
-      "\n" +
-      renderTemplate(template, {
-        denial_count: denialCount,
-        threshold,
-        reason: normalizedReason,
-        workflow_id: workflowId || "the workflow",
-      })
-    );
-  } catch {
-    return (
-      buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
-      "<details>\n" +
-      "<summary><strong>Last denied request</strong></summary>\n\n" +
-      "```text\n" +
-      `${normalizedReason}\n` +
-      "```\n\n" +
-      "</details>\n\n" +
-      "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
-    );
-  }
+  const templatePath = getPromptPath("tool_denials_exceeded_context.md");
+  const template = fs.readFileSync(templatePath, "utf8");
+  return (
+    "\n" +
+    renderTemplate(template, {
+      denial_count: denialCount,
+      threshold,
+      reason: normalizedReason,
+      workflow_id: workflowId || "the workflow",
+    })
+  );
 }
 
 /**
