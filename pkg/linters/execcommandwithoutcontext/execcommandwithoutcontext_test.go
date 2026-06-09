@@ -12,5 +12,5 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, execcommandwithoutcontext.Analyzer, "execcommandwithoutcontext")
+	analysistest.RunWithSuggestedFixes(t, testdata, execcommandwithoutcontext.Analyzer, "execcommandwithoutcontext")
 }

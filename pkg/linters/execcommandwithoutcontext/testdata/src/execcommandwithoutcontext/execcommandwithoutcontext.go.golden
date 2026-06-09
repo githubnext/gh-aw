@@ -7,13 +7,13 @@ import (
 
 // Bad: exec.Command inside a function that already receives a context.
 func BadRunCommand(ctx context.Context, name string) error {
-	cmd := exec.Command(name) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	cmd := exec.CommandContext(ctx, name) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
 	return cmd.Run()
 }
 
 // Bad: exec.Command with extra args inside a context-receiving function.
 func BadRunCommandArgs(ctx context.Context, name string, args ...string) {
-	cmd := exec.Command(name, args...) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	cmd := exec.CommandContext(ctx, name, args...) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
 	_ = cmd
 }
 
@@ -39,7 +39,7 @@ type Runner struct{}
 
 // Bad: method with context parameter should use CommandContext.
 func (r *Runner) Run(ctx context.Context, name string) error {
-	cmd := exec.Command(name) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	cmd := exec.CommandContext(ctx, name) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
 	return cmd.Run()
 }
 
@@ -50,7 +50,7 @@ func doWork(fn func(context.Context, string)) {
 // Bad: function literal with context parameter should use CommandContext.
 func BadFuncLitCtx() {
 	doWork(func(ctx context.Context, name string) {
-		_ = exec.Command(name) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+		_ = exec.CommandContext(ctx, name) // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
 	})
 }
 
@@ -64,6 +64,6 @@ func GoodFuncLitCtx() {
 // Bad: closure in context-receiving function should use outer ctx.
 func OuterCtxInnerClosure(ctx context.Context) {
 	go func() {
-		_ = exec.Command("ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+		_ = exec.CommandContext(ctx, "ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
 	}()
 }

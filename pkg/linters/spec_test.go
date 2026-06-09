@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
+	"github.com/github/gh-aw/pkg/linters/execcommandwithoutcontext"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
@@ -49,14 +50,14 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 23 analyzer
+// "Public API > Subpackages" table. The README documents 24 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
 // Spec (README "Public API > Subpackages"):
 //
 //	contextcancelnotdeferred, ctxbackground, excessivefuncparams, errormessage,
-//	errstringmatch, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
+//	errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
 //	jsonmarshalignoredeerror, largefunc, lenstringzero, manualmutexunlock,
 //	osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, ssljson,
@@ -68,6 +69,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"excessivefuncparams", excessivefuncparams.Analyzer},
 		{"errormessage", errormessage.Analyzer},
 		{"errstringmatch", errstringmatch.Analyzer},
+		{"execcommandwithoutcontext", execcommandwithoutcontext.Analyzer},
 		{"fileclosenotdeferred", fileclosenotdeferred.Analyzer},
 		{"fmterrorfnoverbs", fmterrorfnoverbs.Analyzer},
 		{"fprintlnsprintf", fprintlnsprintf.Analyzer},

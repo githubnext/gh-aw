@@ -33,7 +33,11 @@ func run(pass *analysis.Pass) (any, error) {
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok || !isExecCommandCall(pass, call) {
+		if !ok {
+			continue
+		}
+		sel, ok := execCommandSelector(pass, call)
+		if !ok {
 			continue
 		}
 
@@ -42,19 +46,36 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
-		for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
-			fn, ok := encl.Node().(*ast.FuncDecl)
-			if !ok {
+		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+			funcType := enclosingFuncType(encl.Node())
+			if funcType == nil {
 				continue
 			}
-			ctxParamName, hasCtx := contextParamName(pass, fn)
+			ctxParamName, hasCtx := contextParamName(pass, funcType)
 			if !hasCtx {
-				break
+				continue
 			}
 			pass.Report(analysis.Diagnostic{
 				Pos:     call.Pos(),
 				End:     call.End(),
 				Message: fmt.Sprintf("use exec.CommandContext(%s, ...) instead of exec.Command to propagate context cancellation", ctxParamName),
+				SuggestedFixes: []analysis.SuggestedFix{
+					{
+						Message: fmt.Sprintf("Replace exec.Command with exec.CommandContext(%s, ...)", ctxParamName),
+						TextEdits: []analysis.TextEdit{
+							{
+								Pos:     sel.Sel.Pos(),
+								End:     sel.Sel.End(),
+								NewText: []byte("CommandContext"),
+							},
+							{
+								Pos:     call.Lparen + 1,
+								End:     call.Lparen + 1,
+								NewText: []byte(ctxParamName + ", "),
+							},
+						},
+					},
+				},
 			})
 			break
 		}
@@ -63,38 +84,42 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// isExecCommandCall reports whether call is a call to exec.Command from os/exec.
-func isExecCommandCall(pass *analysis.Pass, call *ast.CallExpr) bool {
+// execCommandSelector reports the selector expression for calls to
+// exec.Command from os/exec.
+func execCommandSelector(pass *analysis.Pass, call *ast.CallExpr) (*ast.SelectorExpr, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != "Command" {
-		return false
+		return nil, false
 	}
 	ident, ok := sel.X.(*ast.Ident)
 	if !ok {
-		return false
+		return nil, false
 	}
 	obj := pass.TypesInfo.ObjectOf(ident)
 	if obj == nil {
-		return false
+		return nil, false
 	}
 	pkgName, ok := obj.(*types.PkgName)
 	if !ok {
-		return false
+		return nil, false
 	}
-	return pkgName.Imported().Path() == "os/exec"
+	if pkgName.Imported().Path() != "os/exec" {
+		return nil, false
+	}
+	return sel, true
 }
 
 // contextParamName returns the name of the first context.Context parameter
 // in fn, and true, or "", false if none exists.
-func contextParamName(pass *analysis.Pass, fn *ast.FuncDecl) (string, bool) {
-	if fn.Type.Params == nil {
+func contextParamName(pass *analysis.Pass, fn *ast.FuncType) (string, bool) {
+	if fn == nil || fn.Params == nil {
 		return "", false
 	}
 	ctxType := contextContextType(pass)
 	if ctxType == nil {
 		return "", false
 	}
-	for _, field := range fn.Type.Params.List {
+	for _, field := range fn.Params.List {
 		t := pass.TypesInfo.TypeOf(field.Type)
 		if t == nil || !types.Identical(t, ctxType) {
 			continue
@@ -106,6 +131,17 @@ func contextParamName(pass *analysis.Pass, fn *ast.FuncDecl) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func enclosingFuncType(node ast.Node) *ast.FuncType {
+	switch fn := node.(type) {
+	case *ast.FuncDecl:
+		return fn.Type
+	case *ast.FuncLit:
+		return fn.Type
+	default:
+		return nil
+	}
 }
 
 // contextContextType returns the types.Type for context.Context, or nil if
