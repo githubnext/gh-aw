@@ -269,16 +269,16 @@ func getTopLevelEnvSecretsGuidedErrorCodemod() Codemod {
 				}
 			}
 
-			secrets := workflow.ExtractSecretsFromMap(envStrings)
-			if len(secrets) == 0 {
+			secretExpressions := workflow.ExtractSecretsFromMap(envStrings)
+			if len(secretExpressions) == 0 {
 				return content, false, nil
 			}
 
 			var secretRefs []string
-			for _, secretExpr := range secrets {
-				secretRefs = append(secretRefs, secretExpr)
+			for _, expr := range secretExpressions {
+				secretRefs = append(secretRefs, expr)
 			}
-			engineEnvSecretsCodemodLog.Printf("Found %d secret(s) in top-level env section: %v", len(secrets), secretRefs)
+			engineEnvSecretsCodemodLog.Printf("Found %d secret(s) in top-level env section: %v", len(secretRefs), secretRefs)
 
 			return content, false, fmt.Errorf(
 				"top-level env: contains secrets that will be leaked to the agent container. "+
