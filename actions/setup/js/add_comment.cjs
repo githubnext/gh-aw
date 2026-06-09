@@ -167,7 +167,7 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
 }
 
 /**
- * Find comments on an issue/PR with a specific tracker-id
+ * Find comments on an issue/PR with any matching workflow ID marker
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -209,7 +209,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
 }
 
 /**
- * Find comments on a discussion with a specific workflow ID
+ * Find comments on a discussion with any matching workflow ID marker
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
