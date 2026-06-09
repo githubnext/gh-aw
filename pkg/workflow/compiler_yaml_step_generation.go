@@ -135,7 +135,7 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 
 	if app := getOTLPGitHubAppTokenConfig(data.RawFrontmatter); app != nil {
 		compilerYamlStepGenerationLog.Print("Generating OTLP GitHub App token mint step before setup")
-		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "Mint OTLP GitHub App token", "mint-otlp-oidc-token")
+		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "", "Mint OTLP GitHub App token", "mint-otlp-oidc-token")
 	}
 
 	githubApp := getOTLPGitHubApp(data.ParsedFrontmatter, data.RawFrontmatter)

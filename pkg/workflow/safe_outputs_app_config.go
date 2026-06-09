@@ -22,7 +22,7 @@ type GitHubAppConfig struct {
 	AppID           string            `yaml:"client-id,omitempty"`         // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
 	PrivateKey      string            `yaml:"private-key,omitempty"`       // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
 	IgnoreIfMissing bool              `yaml:"ignore-if-missing,omitempty"` // If true, skip token minting when client-id/private-key resolve empty
-	Owner           string            `yaml:"owner,omitempty"`             // Optional: owner of the GitHub App installation (defaults to current repository owner)
+	Owner           string            `yaml:"owner,omitempty"`             // Optional: owner of the GitHub App installation (defaults to checkout.repository owner when derivable, otherwise current repository owner)
 	Repositories    []string          `yaml:"repositories,omitempty"`      // Optional: comma or newline-separated list of repositories to grant access to
 	Permissions     map[string]string `yaml:"permissions,omitempty"`       // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
 }
@@ -210,13 +210,19 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 // workflow_call relay workflows so the token is scoped to the platform repo's NAME, not the full
 // owner/repo slug — actions/create-github-app-token expects repo names only when owner is also set).
 func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string) []string {
-	return c.buildGitHubAppTokenMintStepWithMeta(app, permissions, fallbackRepoExpr, "Generate GitHub App token", "safe-outputs-app-token")
+	return c.buildGitHubAppTokenMintStepWithMeta(app, permissions, fallbackRepoExpr, "", "Generate GitHub App token", "safe-outputs-app-token")
 }
 
-func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, stepName string, stepID string) []string {
+func (c *Compiler) buildGitHubAppTokenMintStepForRepository(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, ownerSourceRepository string) []string {
+	return c.buildGitHubAppTokenMintStepWithMeta(app, permissions, fallbackRepoExpr, ownerSourceRepository, "Generate GitHub App token", "safe-outputs-app-token")
+}
+
+func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, ownerSourceRepository string, stepName string, stepID string) []string {
 	safeOutputsAppLog.Printf("Building GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
 	var steps []string
 
+	owner, ownerSteps := resolveGitHubAppOwner(app, ownerSourceRepository, stepName, stepID)
+	steps = append(steps, ownerSteps...)
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	if app.shouldIgnoreMissingKey() {
@@ -227,11 +233,7 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
-	// Add owner - default to current repository owner if not specified
-	owner := app.Owner
-	if owner == "" {
-		owner = "${{ github.repository_owner }}"
-	}
+	// Add owner - default to the derived checkout owner when available, otherwise current repository owner.
 	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
 
 	// Add repositories - behavior depends on configuration:

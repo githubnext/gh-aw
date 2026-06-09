@@ -436,7 +436,12 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)
+		appTokenSteps := c.buildGitHubAppTokenMintStepForRepository(
+			data.SafeOutputs.GitHubApp,
+			permissions,
+			appTokenFallbackRepo,
+			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+		)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
 		insertIndex := 0
 
