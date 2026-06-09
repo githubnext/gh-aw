@@ -3283,9 +3283,7 @@ describe("add_comment", () => {
           data: { id: 1, html_url: "https://github.com/owner/repo/issues/8535#issuecomment-1" },
         });
 
-        const handler = await eval(
-          `(async () => { ${addCommentScript}; return await main({ hide_older_comments: { match: ["other_workflow"] } }); })()`
-        );
+        const handler = await eval(`(async () => { ${addCommentScript}; return await main({ hide_older_comments: { match: ["other_workflow"] } }); })()`);
 
         const result = await handler({ type: "add_comment", body: "Comment with match list" }, {});
 
@@ -3317,9 +3315,7 @@ describe("add_comment", () => {
           data: { id: 1, html_url: "https://github.com/owner/repo/issues/8535#issuecomment-1" },
         });
 
-        const handler = await eval(
-          `(async () => { ${addCommentScript}; return await main({ hide_older_comments: { enabled: false, match: ["other_workflow"] } }); })()`
-        );
+        const handler = await eval(`(async () => { ${addCommentScript}; return await main({ hide_older_comments: { enabled: false, match: ["other_workflow"] } }); })()`);
 
         const result = await handler({ type: "add_comment", body: "Comment with disabled hide" }, {});
 

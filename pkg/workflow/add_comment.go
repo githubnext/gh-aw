@@ -20,11 +20,11 @@ type AddCommentsConfig struct {
 	AllowedRepos           []string `yaml:"allowed-repos,omitempty"`       // List of additional repositories that comments can be added to (additionally to the target-repo)
 	HideOlderComments      *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 	HideOlderCommentsMatch []string `yaml:"hide-older-comments-match,omitempty"`
-	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
-	Issues                 *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
-	PullRequests           *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
-	Discussions            *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write.
-	Footer                 *string  `yaml:"footer,omitempty"`              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"` // List of allowed reasons for hiding older comments (default: all reasons allowed)
+	Issues                 *bool    `yaml:"issues,omitempty"`          // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
+	PullRequests           *bool    `yaml:"pull-requests,omitempty"`   // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
+	Discussions            *bool    `yaml:"discussions,omitempty"`     // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write.
+	Footer                 *string  `yaml:"footer,omitempty"`          // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseCommentsConfig handles add-comment configuration
@@ -97,15 +97,19 @@ func preprocessHideOlderCommentsConfig(configData map[string]any, debugLog *logg
 	}
 
 	if enabledRaw, hasEnabled := objectConfig["enabled"]; hasEnabled {
-		enabledMap := map[string]any{"enabled": enabledRaw}
-		if err := preprocessBoolFieldAsString(enabledMap, "enabled", debugLog); err != nil {
+		switch enabled := enabledRaw.(type) {
+		case bool:
+			configData["hide-older-comments"] = enabled
+		case string:
+			if !isExpression(enabled) {
+				return fmt.Errorf("field %q must be a boolean or a GitHub Actions expression", "hide-older-comments.enabled")
+			}
+			configData["hide-older-comments"] = enabled
+		default:
 			return fmt.Errorf("field %q must be a boolean or a GitHub Actions expression", "hide-older-comments.enabled")
 		}
-		if enabled, ok := enabledMap["enabled"]; ok {
-			configData["hide-older-comments"] = enabled
-		}
 	} else {
-		configData["hide-older-comments"] = "true"
+		configData["hide-older-comments"] = true
 	}
 
 	if matchRaw, hasMatch := objectConfig["match"]; hasMatch {

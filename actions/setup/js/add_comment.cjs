@@ -171,9 +171,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    const filteredComments = data
-      .filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id)))
-      .map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data.filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id))).map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
 
@@ -226,9 +224,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
       break;
     }
 
-    const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id)))
-      .map(({ id, body }) => ({ id, body }));
+    const filteredComments = result.repository.discussion.comments.nodes.filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id))).map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
 
@@ -379,13 +375,26 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
  */
 async function main(config = {}) {
   // Extract configuration
-  const hideOlderCommentsConfig =
-    config.hide_older_comments && typeof config.hide_older_comments === "object" && !Array.isArray(config.hide_older_comments) ? config.hide_older_comments : null;
+  const hideOlderCommentsConfig = config.hide_older_comments && typeof config.hide_older_comments === "object" && !Array.isArray(config.hide_older_comments) ? config.hide_older_comments : null;
   const hideOlderCommentsEnabled = parseBoolTemplatable(hideOlderCommentsConfig ? (hideOlderCommentsConfig.enabled ?? true) : config.hide_older_comments, false);
   const hideOlderCommentsMatch = Array.isArray(hideOlderCommentsConfig?.match)
-    ? [...new Set(hideOlderCommentsConfig.match.filter(id => typeof id === "string").map(id => id.trim()).filter(Boolean))]
+    ? [
+        ...new Set(
+          hideOlderCommentsConfig.match
+            .filter(id => typeof id === "string")
+            .map(id => id.trim())
+            .filter(Boolean)
+        ),
+      ]
     : Array.isArray(config.hide_older_comments_match)
-      ? [...new Set(config.hide_older_comments_match.filter(id => typeof id === "string").map(id => id.trim()).filter(Boolean))]
+      ? [
+          ...new Set(
+            config.hide_older_comments_match
+              .filter(id => typeof id === "string")
+              .map(id => id.trim())
+              .filter(Boolean)
+          ),
+        ]
       : [];
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
