@@ -2,18 +2,9 @@
 
 "use strict";
 
-const AI_CREDITS_EXCEEDED_PATTERNS = [
-  /\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i,
-  /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i,
-  /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
-];
+const AI_CREDITS_EXCEEDED_PATTERNS = [/\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i, /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i, /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i];
 
-const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [
-  /\bawf\b.*\bapi[\s_-]*proxy\b.*\bblocking requests\b/i,
-  /\bapi[\s_-]*proxy\b.*\bblocking requests\b/i,
-  /\bapi[\s_-]*proxy\b.*\bblocked requests?\b/i,
-  /\bDIFC_FILTERED\b/,
-];
+const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [/\bawf\b.*\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocked requests?\b/i, /\bDIFC_FILTERED\b/];
 
 /**
  * Detect retry guard conditions that should stop harness retries immediately.
