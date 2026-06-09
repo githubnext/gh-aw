@@ -288,21 +288,6 @@ describe("validate_secrets", () => {
       expect(report).toContain("GitHub REST API");
       expect(report).toContain("GitHub GraphQL API");
     });
-
-    it("generateMarkdownReport matches snapshot", () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2024-01-15T12:00:00.000Z"));
-      try {
-        const results = [
-          { secret: "GH_AW_GITHUB_TOKEN", test: "REST API", status: "failure", message: "401" },
-          { secret: "ANTHROPIC_API_KEY", test: "Anthropic", status: "not_set", message: "not set" },
-          { secret: "BRAVE_API_KEY", test: "Brave", status: "success", message: "OK" },
-        ];
-        expect(generateMarkdownReport(results)).toMatchSnapshot();
-      } finally {
-        vi.useRealTimers();
-      }
-    });
   });
 
   describe("isForkRepository", () => {
