@@ -958,7 +958,7 @@ func TestGenerateUsageArtifactPreUpload(t *testing.T) {
 		var yaml strings.Builder
 		generateUsageArtifactPreUpload(&yaml, prefix, func(s string) string { return s })
 		result := yaml.String()
-		assert.Contains(t, result, "name: "+prefix+"usage", "expected prefixed artifact name")
+		assert.Contains(t, result, "name: "+prefix+"agent-usage", "expected prefixed artifact name")
 	})
 
 	t.Run("agent job includes usage pre-upload step when firewall enabled", func(t *testing.T) {

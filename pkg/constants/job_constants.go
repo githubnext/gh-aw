@@ -153,6 +153,11 @@ const ActivationArtifactName = "activation"
 // uploaded by the activation job when experiments are declared in the frontmatter.
 const ExperimentArtifactName = "experiment"
 
+// AgentUsageArtifactName is the compact artifact uploaded by the agent job with
+// aw-info.jsonl and agent_usage.jsonl. The conclusion job downloads this artifact
+// and re-publishes its contents as part of the final UsageArtifactName artifact.
+const AgentUsageArtifactName = "agent-usage"
+
 // UsageArtifactName is the compact artifact produced by the conclusion job with
 // workflow-run metadata and token-usage files used by lightweight reporting paths.
 const UsageArtifactName = "usage"

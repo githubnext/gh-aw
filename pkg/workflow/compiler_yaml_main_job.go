@@ -777,7 +777,7 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
-	// Upload aw-info.jsonl and agent_usage.jsonl to the usage artifact so the conclusion job
+	// Upload aw-info.jsonl and agent_usage.jsonl to the agent-usage artifact so the conclusion job
 	// can download them without fetching the full agent artifact.
 	// Gated on firewall because these files are written by the AWF container (AWF v0.27.0+).
 	if isFirewallEnabled(data) {
@@ -811,14 +811,14 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 }
 
 // generateUsageArtifactPreUpload uploads aw-info.jsonl and agent_usage.jsonl from the agent
-// job to the "usage" artifact so the conclusion job can download just this compact set of
-// usage files without fetching the full agent artifact. The conclusion job later overwrites
-// this artifact with the complete usage data set (adding token-usage JSONL files, etc.).
+// job to the "agent-usage" artifact so the conclusion job can download just this compact set of
+// usage files without fetching the full agent artifact. The conclusion job downloads this artifact
+// and re-publishes its contents as part of the complete "usage" artifact.
 //
 // These files are written by the AWF container (AWF v0.27.0+), so this step is only
 // emitted when the firewall is enabled.
 func generateUsageArtifactPreUpload(yaml *strings.Builder, prefix string, pinAction func(string) string) {
-	usageArtifactName := prefix + constants.UsageArtifactName
+	usageArtifactName := prefix + constants.AgentUsageArtifactName
 	yaml.WriteString("      - name: Upload usage artifact\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")

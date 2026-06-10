@@ -73,7 +73,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
-	// Download the usage artifact uploaded by the agent job (aw-info.jsonl, agent_usage.jsonl)
+	// Download the agent-usage artifact uploaded by the agent job (aw-info.jsonl, agent_usage.jsonl)
 	// so they are available when the usage artifact is assembled below.
 	steps = append(steps, buildUsageArtifactDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
 	// Package a compact usage artifact so forecasting/analytics commands can fetch
