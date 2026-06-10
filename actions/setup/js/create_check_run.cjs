@@ -124,15 +124,40 @@ async function main(config = {}) {
         supportsIssue: false,
       });
       if (!targetResult.success) {
-        core.warning(targetResult.error);
+        if (targetResult.shouldFail) {
+          core.error(targetResult.error);
+        } else {
+          core.info(targetResult.error);
+        }
         return {
           success: false,
           error: targetResult.error,
-          skipped: targetResult.shouldFail === false,
+          skipped: !targetResult.shouldFail,
         };
       }
 
       const pullRequestNumber = targetResult.number;
+
+      // In staged mode we know the PR number but skip the live API call that fetches the
+      // head SHA — there is nothing to attach a real check run to.
+      if (isStaged) {
+        logStagedPreviewInfo(`Would create check run "${defaultName}" targeting PR #${pullRequestNumber} with conclusion=${conclusion}, title="${resolvedTitle}"`);
+        processedCount++;
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            name: defaultName,
+            conclusion,
+            title: resolvedTitle,
+          },
+        };
+      }
+
+      // Fetch the current PR head SHA via the API. We intentionally go through the API
+      // even when the context payload already carries a SHA (e.g. target: "triggering" on
+      // a pull_request event) so that we always use the most recent head in case the PR
+      // was force-pushed between the triggering event and when this handler runs.
       try {
         const { data: pullRequest } = await withRetry(
           () =>
