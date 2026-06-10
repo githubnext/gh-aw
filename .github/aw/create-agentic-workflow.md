@@ -236,6 +236,17 @@ Before finalizing any `pull_request`-triggered reporting workflow, verify:
 - [ ] **Network**: infer ecosystem from repository lock files; never use `defaults` alone when packages are installed
 - [ ] **`noop` required**: prompt instructs the agent to call `noop` with a brief explanation when no issues are found
 
+## Generated Workflow Quality Checklist
+
+Before finalizing any newly generated workflow, verify:
+
+- [ ] **Trigger fit**: trigger matches user intent and event granularity (for example `pull_request`, `workflow_run`, `deployment_status`, `schedule`, `slash_command`)
+- [ ] **Tool fit**: enabled tools are the minimal set needed for reads/analysis (prefer `gh-proxy`; add `playwright`/`cache-memory` only when required)
+- [ ] **Safe outputs**: all visible writes route through `safe-outputs:` and include `noop` for explicit no-op outcomes
+- [ ] **Permissions**: agent job remains read-only; no direct write scopes granted
+- [ ] **Network**: access is inferred from repository ecosystem and avoids `network: defaults` alone for install/build/test workflows
+- [ ] **Prompt clarity**: prompt is concise, context-aware, and clearly states expected outputs and stop/no-op behavior
+
 ## Multi-Repository Requests
 
 For cross-repository workflows:

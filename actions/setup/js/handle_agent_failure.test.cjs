@@ -163,10 +163,7 @@ describe("handle_agent_failure", () => {
       global.github = {
         rest: {
           search: {
-            issuesAndPullRequests: vi.fn(async ({ q }) => {
-              if (q.includes("is:pr")) {
-                return { data: { total_count: 0, items: [] } };
-              }
+            issuesAndPullRequests: vi.fn(async () => {
               return { data: { total_count: 0, items: [] } };
             }),
           },
@@ -232,6 +229,97 @@ describe("handle_agent_failure", () => {
       } finally {
         delete process.env.GH_AW_AIC;
         delete process.env.GH_AW_AMBIENT_CONTEXT;
+      }
+    });
+
+    it("includes AIC in failure issue footer when resolved from audit log and GH_AW_AIC is unset", async () => {
+      const auditPath = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditPath, { recursive: true });
+      fs.writeFileSync(path.join(auditPath, "log.jsonl"), `${JSON.stringify({ ai_credits: "2.5" })}\n`);
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent-output.json");
+      expect(process.env.GH_AW_AIC).toBeUndefined();
+      /** @type {string} */
+      let capturedIssueBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: vi.fn(async ({ body }) => {
+              capturedIssueBody = body;
+              return {
+                data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+              };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      try {
+        await main();
+        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · 2.5 AIC");
+      } finally {
+        delete process.env.GH_AW_AGENT_OUTPUT;
+      }
+    });
+
+    it("includes AIC in failure comment footer when resolved from audit log and GH_AW_AIC is unset", async () => {
+      const auditPath = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditPath, { recursive: true });
+      fs.writeFileSync(path.join(auditPath, "log.jsonl"), `${JSON.stringify({ ai_credits: "2.5" })}\n`);
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent-output.json");
+      expect(process.env.GH_AW_AIC).toBeUndefined();
+      /** @type {string} */
+      let capturedCommentBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body:
+                        "> footer\n> - [x] expires <!-- gh-aw-expires: 2099-01-01T00:00:00.000Z --> on Jan 1, 2099, 12:00 AM UTC\n\n" +
+                        "<!-- gh-aw-agentic-workflow: Test Workflow, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->\n" +
+                        "<!-- gh-aw-failure-issue: true, workflow_id: test-workflow, branch: feature/detection-caution, failure_categories: agent_failure -->",
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            createComment: vi.fn(async ({ body }) => {
+              capturedCommentBody = body;
+              return { data: { id: 1001 } };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      try {
+        await main();
+        expect(capturedCommentBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · 2.5 AIC");
+      } finally {
+        delete process.env.GH_AW_AGENT_OUTPUT;
       }
     });
   });

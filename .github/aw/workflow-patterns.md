@@ -78,6 +78,26 @@ For pull-request UI validation and screenshot diffs:
 - output: `add-comment` with pass/fail summary and links to captured artifacts
 - fallback: use `noop` when no UI-relevant changes are detected
 
+## QA Coverage Report Pattern
+
+For pull-request QA coverage summaries (gaps, risks, and suggested test focus):
+
+- trigger: `pull_request` (optionally scoped with `paths:` for product areas under test)
+- tools: `github` (`gh-proxy`) for changed files, PR metadata, labels, and linked checks
+- permissions: `contents: read`, `pull-requests: read`; keep agent job read-only
+- output: `add-comment` with a concise coverage matrix and explicit untested/high-risk areas
+- fallback: use `noop` when the change is non-testable (for example docs-only PRs)
+
+## PM Stakeholder Digest Pattern
+
+For recurring product/stakeholder digests (status, risks, and notable changes):
+
+- trigger: fuzzy `schedule` (for example `weekly on mondays`)
+- tools: `github` (`gh-proxy`), optional `cache-memory` for period-over-period continuity
+- permissions: read-only in the agent job
+- output: `create-issue` by default; use `create-discussion` only when explicitly requested
+- prompt: require audience-aware language (PM/stakeholder-friendly summary first, details second)
+
 ## Database Migration Safety Pattern
 
 For pull requests that add or modify database migration files:

@@ -43,6 +43,15 @@ function parsePositiveAIC(raw) {
 }
 
 /**
+ * @param {number|string|undefined} raw
+ * @returns {number|undefined}
+ */
+function parseExplicitContextAIC(raw) {
+  const parsed = raw !== undefined && raw !== null && raw !== "" ? Number.parseFloat(String(raw)) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+/**
  * @param {string|undefined} raw
  * @returns {number|undefined}
  */
@@ -129,7 +138,7 @@ function getAICFromEnv() {
  * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
- * @property {number} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
+ * @property {number|string} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
  * @property {string} [slashCommandPlaceholder] - Custom hint text appended after the command name (replaces default "to run again")
@@ -165,10 +174,11 @@ function getFooterMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
   let aiCreditsFormatted = envAICFormatted;
   let aiCreditsSuffix = envAICSuffix;
   if (hasExplicitContextAIC) {
-    aiCreditsFormatted = aiCredits ? formatAIC(aiCredits) : undefined;
+    aiCreditsFormatted = explicitContextAIC ? formatAIC(explicitContextAIC) : undefined;
     aiCreditsSuffix = aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
   }
 
@@ -310,6 +320,7 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
  * @property {string} [workflowSource] - Source of the workflow (owner/repo/path@ref)
  * @property {string} [workflowSourceUrl] - GitHub URL for the workflow source
  * @property {string} [historyUrl] - GitHub search URL for issues created by this workflow (for the history link)
+ * @property {number|string} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
  */
 
 /**
@@ -326,8 +337,23 @@ function getFooterAgentFailureIssueMessage(ctx) {
   // Pre-compute agentic_workflow_url as the direct link to the agentic workflow page
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
-  const { aiCredits, aiCreditsFormatted, aiCreditsSuffix, agentAiCredits, agentAiCreditsFormatted, agentAiCreditsSuffix, threatDetectionAiCredits, threatDetectionAiCreditsFormatted, threatDetectionAiCreditsSuffix } = getAICFromEnv();
+  const {
+    aiCredits: envAIC,
+    aiCreditsFormatted: envAICFormatted,
+    aiCreditsSuffix: envAICSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  } = getAICFromEnv();
   const { ambientContext, ambientContextFormatted, ambientContextSuffix } = getAmbientContextFromEnv();
+  const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
+  const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
+  const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -385,8 +411,38 @@ function getFooterAgentFailureCommentMessage(ctx) {
   // Pre-compute agentic_workflow_url as the direct link to the agentic workflow page
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
+  const {
+    aiCredits: envAIC,
+    aiCreditsFormatted: envAICFormatted,
+    aiCreditsSuffix: envAICSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  } = getAICFromEnv();
+  const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
+  const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
+  const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
+
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
-  const templateContext = toSnakeCase({ ...ctx, historyLink, agenticWorkflowUrl });
+  const templateContext = toSnakeCase({
+    ...ctx,
+    historyLink,
+    agenticWorkflowUrl,
+    aiCredits,
+    aiCreditsFormatted,
+    aiCreditsSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  });
 
   // Use custom agent failure comment footer if configured, otherwise use default footer
   let footer;
@@ -395,6 +451,9 @@ function getFooterAgentFailureCommentMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+    if (aiCredits) {
+      defaultFooter += "{ai_credits_suffix}";
+    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";

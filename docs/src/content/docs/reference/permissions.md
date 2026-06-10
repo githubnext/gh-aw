@@ -69,6 +69,20 @@ permissions:
 
 This permission does not require safe-outputs.
 
+### Special Permission: `copilot-requests: write`
+
+The `copilot-requests: write` permission enables Copilot inference using the built-in GitHub Actions token. This is the recommended way to authenticate Copilot for workflows running in organizations with a Copilot subscription.
+
+```yaml wrap
+permissions:
+  contents: read
+  copilot-requests: write
+```
+
+When `copilot-requests: write` is set, gh-aw uses the GitHub Actions token for all Copilot inference calls. `COPILOT_GITHUB_TOKEN` and `GH_AW_GITHUB_TOKEN` are **ignored** for inference — you do not need to configure either secret. Billing is handled centrally through your organization's Copilot plan.
+
+The only valid value is `write`. See [Authentication → `copilot-requests: write` permission](/gh-aw/reference/auth/#copilot-requests-write-permission) for setup details and prerequisites.
+
 ## Related Documentation
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Secure write operations with content sanitization

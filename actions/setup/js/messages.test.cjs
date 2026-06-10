@@ -1069,6 +1069,20 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⊞ 900");
     });
 
+    it("should suppress env AIC fallback when explicit context AIC is zero", async () => {
+      process.env.GH_AW_AIC = "1.25";
+
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureIssueMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        aiCredits: 0,
+      });
+
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123)");
+    });
+
     it("should not include effective tokens in custom footer unless placeholder is used", async () => {
       process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
@@ -1126,6 +1140,34 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toBe(`> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · [◷](${historyUrl})`);
+    });
+
+    it("should include explicit context AIC in the default footer", async () => {
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        aiCredits: "2.5",
+      });
+
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · 2.5 AIC");
+    });
+
+    it("should expose ai_credits_suffix in custom comment footer templates", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        agentFailureComment: "> Custom: [{workflow_name}]({run_url}){ai_credits_suffix}",
+      });
+
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        aiCredits: "2.5",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 2.5 AIC");
     });
 
     it("should not include effective tokens in custom footer unless placeholder is used", async () => {

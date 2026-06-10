@@ -16,9 +16,9 @@ Configure one GitHub Actions secret per engine before running your first workflo
 
 ### Copilot (default)
 
-- **Required secret:** [`COPILOT_GITHUB_TOKEN`](#copilot_github_token)
-- **Alternative:** None
-- **Notes:** Fine-grained PAT with Copilot Requests permission
+- **Recommended:** [`permissions: copilot-requests: write`](#copilot-requests-write-permission) — uses the GitHub Actions token; no PAT required, billing through your org
+- **Alternative:** [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) — fine-grained PAT with Copilot Requests permission
+- **Notes:** When `copilot-requests: write` is set, `COPILOT_GITHUB_TOKEN` is ignored for inference
 
 ### Claude
 
@@ -90,7 +90,39 @@ If you're working in Codespaces, use the GitHub UI method below to add secrets.
 
 A reference for all GitHub Actions secrets used by GitHub Agentic Workflows for AI engine authentication:
 
+### `copilot-requests: write` permission
+
+The recommended way to authenticate Copilot inference is to grant the `copilot-requests: write` permission in your workflow. This uses the built-in GitHub Actions token — no PAT or repository secret is required. Billing is handled centrally through your organization's Copilot subscription.
+
+**Setup**:
+
+Add `copilot-requests: write` to the `permissions:` block of your workflow frontmatter:
+
+```aw wrap
+permissions:
+  contents: read
+  copilot-requests: write
+```
+
+When this permission is present, gh-aw automatically uses the GitHub Actions token for Copilot inference. Any value set for `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` is **ignored** for inference — those tokens are not passed to the Copilot engine.
+
+> [!NOTE]
+> `copilot-requests: write` requires that your organization has a Copilot subscription and that centralized billing is enabled. If the Actions token does not have Copilot access, the workflow will fail at the inference step — configure `COPILOT_GITHUB_TOKEN` instead.
+
+**Why this is preferred**:
+
+- No PAT lifecycle management — tokens are minted per-run and automatically revoked.
+- Billing flows through the organization's Copilot plan, not an individual user's quota.
+- Works seamlessly in forked repos and organization workflows without sharing a personal token.
+
+---
+
 ### `COPILOT_GITHUB_TOKEN`
+
+> [!TIP]
+> If your organization has a Copilot subscription, use [`copilot-requests: write`](#copilot-requests-write-permission) instead. It requires no PAT, no secret management, and bills centrally through your org.
+
+Use `COPILOT_GITHUB_TOKEN` when you need to authenticate Copilot inference with a specific user's PAT — for example, in personal repositories or when centralized org billing is not available. When `permissions: copilot-requests: write` is set in your workflow, this secret is ignored for inference.
 
 If using Copilot as your AI engine, you need a GitHub Actions Secret set to a GitHub Personal Access Token (PAT) to authenticate Copilot CLI.
 
@@ -236,6 +268,10 @@ See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for add
 ## Troubleshooting auth errors
 
 Common authentication errors and how to resolve them:
+
+**`403 Forbidden` or inference failure with `copilot-requests: write`**
+
+The GitHub Actions token does not have Copilot inference access for this organization. Confirm that your organization has an active Copilot subscription with centralized billing and that the workflow's `permissions:` block includes `copilot-requests: write`. If centralized billing is not available, fall back to [`COPILOT_GITHUB_TOKEN`](#copilot_github_token).
 
 **`403 "Resource not accessible by personal access token"` (Copilot)**
 
