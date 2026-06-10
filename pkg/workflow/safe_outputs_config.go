@@ -541,11 +541,21 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 				case int64:
 					if v >= 1 {
-						config.TimeoutMinutes = int(v)
+						if v > int64(math.MaxInt) {
+							safeOutputsConfigLog.Printf("timeout-minutes: int64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+							config.TimeoutMinutes = math.MaxInt
+						} else {
+							config.TimeoutMinutes = int(v)
+						}
 					}
 				case uint64:
 					if v >= 1 {
-						config.TimeoutMinutes = int(v)
+						if v > uint64(math.MaxInt) {
+							safeOutputsConfigLog.Printf("timeout-minutes: uint64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+							config.TimeoutMinutes = math.MaxInt
+						} else {
+							config.TimeoutMinutes = int(v)
+						}
 					}
 				case float64:
 					// Reject NaN/Inf and out-of-range floats before narrowing — int(NaN)/int(±Inf)
