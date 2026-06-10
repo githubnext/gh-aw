@@ -46,7 +46,9 @@ function getCurrentBranch(customCwd) {
     return ghRefName;
   }
 
-  throw new Error(`${ERR_CONFIG}: Failed to determine current branch: git command returned a detached-HEAD state and no GitHub environment variables (GITHUB_HEAD_REF / GITHUB_REF_NAME) are available. Ensure the workflow checks out the pull request's head ref before calling this step.`);
+  throw new Error(
+    `${ERR_CONFIG}: Failed to determine current branch: git command returned a detached-HEAD state and no GitHub environment variables (GITHUB_HEAD_REF / GITHUB_REF_NAME) are available. Ensure the workflow checks out the pull request's head ref before calling this step.`
+  );
 }
 
 module.exports = {

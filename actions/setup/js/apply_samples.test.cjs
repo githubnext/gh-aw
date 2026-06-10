@@ -185,6 +185,72 @@ describe("apply_samples.cjs sendJsonRpc", () => {
   });
 });
 
+describe("apply_samples.cjs selectTokenForRepo", () => {
+  const { selectTokenForRepo } = require("./apply_samples.cjs");
+
+  function withEnv(vars, fn) {
+    const saved = {};
+    for (const k of Object.keys(vars)) {
+      saved[k] = process.env[k];
+      if (vars[k] === undefined) delete process.env[k];
+      else process.env[k] = vars[k];
+    }
+    try {
+      return fn();
+    } finally {
+      for (const k of Object.keys(saved)) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
+  }
+
+  it("prefers the per-repo token from GH_AW_REPO_TOKENS over GITHUB_TOKEN", () => {
+    withEnv(
+      {
+        GH_AW_REPO_TOKENS: JSON.stringify({ "owner/cross": "cross-token", "owner/auto": "auto-token" }),
+        GITHUB_TOKEN: "default-token",
+        GH_TOKEN: undefined,
+      },
+      () => {
+        expect(selectTokenForRepo("owner", "cross")).toBe("cross-token");
+        expect(selectTokenForRepo("owner", "auto")).toBe("auto-token");
+      }
+    );
+  });
+
+  it("falls back to GITHUB_TOKEN when the slug is not present in GH_AW_REPO_TOKENS", () => {
+    withEnv(
+      {
+        GH_AW_REPO_TOKENS: JSON.stringify({ "owner/cross": "cross-token" }),
+        GITHUB_TOKEN: "default-token",
+        GH_TOKEN: undefined,
+      },
+      () => {
+        expect(selectTokenForRepo("owner", "other")).toBe("default-token");
+      }
+    );
+  });
+
+  it("falls back to GITHUB_TOKEN when GH_AW_REPO_TOKENS is unset", () => {
+    withEnv({ GH_AW_REPO_TOKENS: undefined, GITHUB_TOKEN: "default-token", GH_TOKEN: undefined }, () => {
+      expect(selectTokenForRepo("owner", "auto")).toBe("default-token");
+    });
+  });
+
+  it("falls back to GITHUB_TOKEN when GH_AW_REPO_TOKENS is malformed JSON", () => {
+    withEnv({ GH_AW_REPO_TOKENS: "{not json", GITHUB_TOKEN: "default-token", GH_TOKEN: undefined }, () => {
+      expect(selectTokenForRepo("owner", "auto")).toBe("default-token");
+    });
+  });
+
+  it("returns undefined when no env-var token is available and slug is missing", () => {
+    withEnv({ GH_AW_REPO_TOKENS: undefined, GITHUB_TOKEN: undefined, GH_TOKEN: undefined }, () => {
+      expect(selectTokenForRepo("owner", "auto")).toBeUndefined();
+    });
+  });
+});
+
 describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_request_branch)", () => {
   // Load the module under test directly so we can drive preStagePatch in
   // isolation against a real, throwaway git working tree. This is the

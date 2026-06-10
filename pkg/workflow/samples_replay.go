@@ -66,6 +66,56 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 	return entries
 }
 
+// collectSampleRepoTokens walks the workflow's checkout configs and returns
+// a map of "owner/repo" -> token expression so that apply_samples.cjs can
+// pick the right token when calling the GitHub REST API to resolve a PR head
+// ref for a cross-repo sample.
+//
+// The keys are repository slugs as written in the workflow frontmatter; the
+// value is the GitHub Actions expression that resolves to the token at
+// runtime — for plain `github-token: ${{ secrets.X }}` checkouts this is the
+// expression itself, and for `github-app:` checkouts it is the
+// `${{ steps.checkout-app-token-N.outputs.token }}` reference for the same
+// app-token step that the agent job's checkout uses. Entries whose checkout
+// declares no auth are omitted; the driver falls back to GITHUB_TOKEN for
+// those.
+func collectSampleRepoTokens(configs []*CheckoutConfig) map[string]string {
+	if len(configs) == 0 {
+		return nil
+	}
+	cm := NewCheckoutManager(configs)
+	tokens := make(map[string]string)
+	for i, entry := range cm.ordered {
+		repo := entry.key.repository
+		if repo == "" {
+			// Empty repository targets `github.repository` at runtime. Emit a
+			// substituted key so the runtime JSON has the actual slug.
+			repo = "${{ github.repository }}"
+		}
+		var token string
+		switch {
+		case entry.githubApp != nil:
+			//nolint:gosec // G101: GitHub Actions expression template, not a hardcoded credential
+			token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", i)
+		case entry.token != "":
+			token = entry.token
+		default:
+			continue
+		}
+		// First-seen wins so the per-repo entry from the user's frontmatter
+		// takes precedence over later imported configs (CheckoutManager
+		// already enforces this for merged entries; this guards against
+		// distinct entries that share a repo but differ in path).
+		if _, exists := tokens[repo]; !exists {
+			tokens[repo] = token
+		}
+	}
+	if len(tokens) == 0 {
+		return nil
+	}
+	return tokens
+}
+
 // generateSamplesReplayStep emits the YAML that replaces the agentic
 // `Execute coding agent` step when the hidden `gh aw compile --use-samples`
 // flag is used. It spawns the safe-outputs MCP server over stdio and feeds it
@@ -95,6 +145,34 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 		payload = []byte("[]")
 	}
 
+	// Build the per-repo token map so apply_samples.cjs can reach repos that
+	// require a non-default token (cross-repo `checkout:` entries with their
+	// own `github-token:` or `github-app:`).
+	repoTokens := collectSampleRepoTokens(data.CheckoutConfigs)
+	var repoTokensPayload []byte
+	if len(repoTokens) > 0 {
+		// Sort keys for deterministic output.
+		keys := make([]string, 0, len(repoTokens))
+		for k := range repoTokens {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var buf strings.Builder
+		buf.WriteString("{")
+		for i, k := range keys {
+			if i > 0 {
+				buf.WriteString(",")
+			}
+			kEnc, _ := json.Marshal(k)
+			vEnc, _ := json.Marshal(repoTokens[k])
+			buf.Write(kEnc)
+			buf.WriteString(":")
+			buf.Write(vEnc)
+		}
+		buf.WriteString("}")
+		repoTokensPayload = []byte(buf.String())
+	}
+
 	yaml.WriteString("      - name: Replay safe-outputs samples (deterministic)\n")
 	yaml.WriteString("        id: agentic_execution\n")
 	yaml.WriteString("        env:\n")
@@ -105,10 +183,18 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_STDIO_LOG: %s\n", logFile)
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
-	// GITHUB_TOKEN lets apply_samples.cjs resolve pull-request head refs via
-	// the REST API for issue_comment / slash_command events, where the head
-	// ref is not present in the event payload.
+	// GITHUB_TOKEN is the fallback used by apply_samples.cjs when resolving a
+	// pull-request head ref via the REST API for issue_comment / slash_command
+	// events. For cross-repo samples whose target repository has its own
+	// `checkout:` entry with `github-token:` or `github-app:`, the driver
+	// prefers the matching token from GH_AW_REPO_TOKENS below.
 	yaml.WriteString("          GITHUB_TOKEN: ${{ github.token }}\n")
+	if repoTokensPayload != nil {
+		yaml.WriteString("          GH_AW_REPO_TOKENS: |\n")
+		for line := range strings.SplitSeq(string(repoTokensPayload), "\n") {
+			fmt.Fprintf(yaml, "            %s\n", line)
+		}
+	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -euo pipefail\n")
 	yaml.WriteString("          mkdir -p \"$(dirname \"$GH_AW_AGENT_STDIO_LOG\")\"\n")

@@ -130,9 +130,41 @@ function readEventPayload() {
 }
 
 /**
+ * Resolve the best token for a `owner/repo` API call.
+ *
+ * Multi-checkout workflows often need different tokens for different
+ * repositories (e.g. a workflow runs in `owner/automation` but reaches into
+ * `owner/product` via a separate `checkout:` entry that supplies its own
+ * `github-token:` or `github-app:`). The compiler emits that mapping as
+ * `GH_AW_REPO_TOKENS` (a JSON object keyed by `owner/repo`); this helper
+ * looks the requested slug up there and falls back to GITHUB_TOKEN /
+ * GH_TOKEN.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {string|undefined}
+ */
+function selectTokenForRepo(owner, repo) {
+  const slug = `${owner}/${repo}`;
+  const raw = process.env.GH_AW_REPO_TOKENS;
+  if (raw && raw.trim()) {
+    try {
+      const map = JSON.parse(raw);
+      if (map && typeof map === "object" && typeof map[slug] === "string" && map[slug].trim()) {
+        return map[slug].trim();
+      }
+    } catch (err) {
+      core.warning(`apply_samples: GH_AW_REPO_TOKENS is not valid JSON, ignoring: ${getErrorMessage(err)}`);
+    }
+  }
+  return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+}
+
+/**
  * Fetch a pull request via the REST API and return its head ref. Uses the
- * runner's GITHUB_TOKEN when present; falls back to anonymous (works for
- * public repositories). Returns null on any failure so the caller can decide
+ * per-repo token from GH_AW_REPO_TOKENS when present, falling back to
+ * GITHUB_TOKEN; falls back to anonymous (works for public repositories) when
+ * no token is available. Returns null on any failure so the caller can decide
  * how to recover.
  * @param {{owner: string, repo: string, pullNumber: number}} args
  * @returns {Promise<string|null>}
@@ -146,7 +178,7 @@ async function fetchPullRequestHeadRef({ owner, repo, pullNumber }) {
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "gh-aw-apply-samples",
   };
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  const token = selectTokenForRepo(owner, repo);
   if (token) headers["Authorization"] = `Bearer ${token}`;
   try {
     const resp = await fetch(url, { headers });
@@ -500,4 +532,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, loadSamples, preStagePatch, resolveMcpServerPath, sendJsonRpc };
+module.exports = { main, loadSamples, preStagePatch, resolveMcpServerPath, selectTokenForRepo, sendJsonRpc };
