@@ -65,8 +65,10 @@ Test workflow with blocked domains.
 
 		lockYAML := string(lockContent)
 
-		// Verify blockDomains key is present in the config JSON
-		if !strings.Contains(lockYAML, `"blockDomains"`) {
+		// Verify blockDomains key is present in the config JSON.
+		// The key appears shell-escaped in the lock file (\"blockDomains\" or "blockDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if !strings.Contains(lockYAML, "blockDomains") {
 			t.Error("Compiled workflow should contain 'blockDomains' key in config JSON")
 		}
 
@@ -79,8 +81,10 @@ Test workflow with blocked domains.
 			t.Error("Compiled workflow should contain blocked domain 'tracker.example.com'")
 		}
 
-		// Verify allowDomains key is present in the config JSON
-		if !strings.Contains(lockYAML, `"allowDomains"`) {
+		// Verify allowDomains key is present in the config JSON.
+		// The key appears shell-escaped in the lock file (\"allowDomains\" or "allowDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if !strings.Contains(lockYAML, "allowDomains") {
 			t.Error("Compiled workflow should still contain 'allowDomains' key in config JSON")
 		}
 
@@ -140,8 +144,10 @@ Test workflow with blocked ecosystem.
 
 		lockYAML := string(lockContent)
 
-		// Verify blockDomains key is present in the config JSON
-		if !strings.Contains(lockYAML, `"blockDomains"`) {
+		// Verify blockDomains key is present in the config JSON.
+		// The key appears shell-escaped in the lock file (\"blockDomains\" or "blockDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if !strings.Contains(lockYAML, "blockDomains") {
 			t.Error("Compiled workflow should contain 'blockDomains' key in config JSON")
 		}
 
@@ -208,13 +214,17 @@ Test workflow without blocked domains.
 
 		lockYAML := string(lockContent)
 
-		// Verify blockDomains key is NOT present in the config JSON
-		if strings.Contains(lockYAML, `"blockDomains"`) {
+		// Verify blockDomains key is NOT present in the config JSON.
+		// The key appears shell-escaped in the lock file (\"blockDomains\" or "blockDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if strings.Contains(lockYAML, "blockDomains") {
 			t.Error("Compiled workflow should NOT contain 'blockDomains' key in config JSON when no domains are blocked")
 		}
 
-		// Verify allowDomains key is still present
-		if !strings.Contains(lockYAML, `"allowDomains"`) {
+		// Verify allowDomains key is still present.
+		// The key appears shell-escaped in the lock file (\"allowDomains\" or "allowDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if !strings.Contains(lockYAML, "allowDomains") {
 			t.Error("Compiled workflow should still contain 'allowDomains' key in config JSON")
 		}
 	})
@@ -269,8 +279,10 @@ Test Claude workflow with blocked domains.
 
 		lockYAML := string(lockContent)
 
-		// Verify blockDomains key is present in the config JSON
-		if !strings.Contains(lockYAML, `"blockDomains"`) {
+		// Verify blockDomains key is present in the config JSON.
+		// The key appears shell-escaped in the lock file (\"blockDomains\" or "blockDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if !strings.Contains(lockYAML, "blockDomains") {
 			t.Error("Compiled Claude workflow should contain 'blockDomains' key in config JSON")
 		}
 
@@ -330,8 +342,10 @@ Test Codex workflow with blocked domains.
 
 		lockYAML := string(lockContent)
 
-		// Verify blockDomains key is present in the config JSON
-		if !strings.Contains(lockYAML, `"blockDomains"`) {
+		// Verify blockDomains key is present in the config JSON.
+		// The key appears shell-escaped in the lock file (\"blockDomains\" or "blockDomains"),
+		// so we search for the key name without surrounding quotes to match both forms.
+		if !strings.Contains(lockYAML, "blockDomains") {
 			t.Error("Compiled Codex workflow should contain 'blockDomains' key in config JSON")
 		}
 
