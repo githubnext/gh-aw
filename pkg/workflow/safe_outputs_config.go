@@ -532,6 +532,29 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle timeout-minutes configuration
+			if timeoutMinutes, exists := outputMap["timeout-minutes"]; exists {
+				switch v := timeoutMinutes.(type) {
+				case int:
+					if v >= 1 {
+						config.TimeoutMinutes = v
+					}
+				case int64:
+					if v >= 1 {
+						config.TimeoutMinutes = int(v)
+					}
+				case uint64:
+					if v >= 1 {
+						config.TimeoutMinutes = int(v)
+					}
+				case float64:
+					intVal := int(v)
+					if intVal >= 1 {
+						config.TimeoutMinutes = intVal
+					}
+				}
+			}
+
 			// Handle messages configuration
 			if messages, exists := outputMap["messages"]; exists {
 				if messagesMap, ok := messages.(map[string]any); ok {

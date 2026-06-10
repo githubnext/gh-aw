@@ -10210,6 +10210,12 @@
           "description": "Concurrency group for the safe-outputs job. When set, the safe-outputs job will use this concurrency group with cancel-in-progress: false. Supports GitHub Actions expressions.",
           "examples": ["my-workflow-safe-outputs", "safe-outputs-${{ github.repository }}"]
         },
+        "timeout-minutes": {
+          "type": "integer",
+          "description": "Timeout for the safe_outputs job in minutes. Defaults to 45 minutes. Increase for workflows with many sequential safe output operations (e.g. push_to_pull_request_branch against large repositories).",
+          "minimum": 1,
+          "examples": [30, 60, 120]
+        },
         "needs": {
           "type": "array",
           "description": "Explicit additional custom workflow jobs that the consolidated safe_outputs job should depend on.",
