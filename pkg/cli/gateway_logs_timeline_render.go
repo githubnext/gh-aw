@@ -604,7 +604,7 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 		case TimelineKindSteering:
 			icon := streamColor(styles.Warning, timelineEventIcon(TimelineKindSteering))
 			msg := stringutil.Truncate(evt.Reason, streamMaxAnnotationLen)
-			fmt.Fprintf(&sb, "  %s %s\n", icon, msg)
+			fmt.Fprintf(&sb, "    %s %s\n", icon, msg)
 
 		default:
 			fmt.Fprintf(&sb, "  · [%s] %s  %s\n", ts, string(evt.Kind), timelineSourceLabel(evt.Source))
@@ -636,34 +636,38 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 		switch evt.Source {
 		case TimelineSourceGateway:
 			gwCount++
+			switch evt.Kind {
+			case TimelineKindToolCall:
+				toolCalls++
+			case TimelineKindDIFCFiltered:
+				difcFiltered++
+			case TimelineKindGuardPolicyBlocked:
+				guardBlocked++
+			}
 		case TimelineSourceFirewall:
 			fwCount++
+			switch evt.Kind {
+			case TimelineKindNetworkAllowed:
+				netAllowed++
+			case TimelineKindNetworkBlocked:
+				netBlocked++
+			case TimelineKindSteering:
+				steeringCount++
+			}
 		case TimelineSourceAgent:
 			agCount++
-		}
-		switch evt.Kind {
-		case TimelineKindToolCall:
-			toolCalls++
-		case TimelineKindDIFCFiltered:
-			difcFiltered++
-		case TimelineKindGuardPolicyBlocked:
-			guardBlocked++
-		case TimelineKindNetworkAllowed:
-			netAllowed++
-		case TimelineKindNetworkBlocked:
-			netBlocked++
-		case TimelineKindAgentTurn:
-			agentTurns++
-		case TimelineKindAgentToolStart:
-			agentToolStarts++
-		case TimelineKindAgentToolDone:
-			agentToolDones++
-		case TimelineKindAssistantMessage:
-			assistantMessages++
-		case TimelineKindReasoning:
-			reasoningCount++
-		case TimelineKindSteering:
-			steeringCount++
+			switch evt.Kind {
+			case TimelineKindAgentTurn:
+				agentTurns++
+			case TimelineKindAgentToolStart:
+				agentToolStarts++
+			case TimelineKindAgentToolDone:
+				agentToolDones++
+			case TimelineKindAssistantMessage:
+				assistantMessages++
+			case TimelineKindReasoning:
+				reasoningCount++
+			}
 		}
 	}
 

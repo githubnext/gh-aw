@@ -523,31 +523,6 @@ func collectAgentTimelineEvents(logDir string, verbose bool) ([]UnifiedTimelineE
 	return events, nil
 }
 
-// proxyEventsEntry is a JSONL record from api-proxy-logs/events.jsonl.
-// The event name appears under one of four field names depending on the proxy version;
-// the message field is present on steering events.
-type proxyEventsEntry struct {
-	// Event name appears under one of these four keys; all are checked.
-	Event          string `json:"event"`
-	Type           string `json:"type"`
-	EventNameSnake string `json:"event_name"`
-	EventNameCamel string `json:"eventName"`
-	// Message text (present on steering events).
-	Message string `json:"message"`
-	// Optional RFC3339/RFC3339Nano timestamp (not always present).
-	Timestamp string `json:"timestamp"`
-}
-
-// eventName returns the normalised event name from whichever field is populated.
-func (e proxyEventsEntry) eventName() string {
-	for _, v := range []string{e.Event, e.Type, e.EventNameSnake, e.EventNameCamel} {
-		if v = strings.TrimSpace(v); v != "" {
-			return strings.ToLower(v)
-		}
-	}
-	return ""
-}
-
 // steeringEntryToTimelineEvent converts a proxyEventsEntry into a
 // UnifiedTimelineEvent with Kind == TimelineKindSteering.
 // Returns (zero, false) when the entry is not a recognised steering event.

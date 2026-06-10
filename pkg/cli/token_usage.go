@@ -599,6 +599,31 @@ func findAPIProxyEventsFile(runDir string) string {
 	return ""
 }
 
+// proxyEventsEntry is a JSONL record from api-proxy-logs/events.jsonl.
+// The event name appears under one of four field names depending on the proxy version;
+// the message field is present on steering events.
+type proxyEventsEntry struct {
+	// Event name appears under one of these four keys; all are checked.
+	Event          string `json:"event"`
+	Type           string `json:"type"`
+	EventNameSnake string `json:"event_name"`
+	EventNameCamel string `json:"eventName"`
+	// Message text (present on steering events).
+	Message string `json:"message"`
+	// Optional RFC3339/RFC3339Nano timestamp (not always present).
+	Timestamp string `json:"timestamp"`
+}
+
+// eventName returns the normalised event name from whichever field is populated.
+func (e proxyEventsEntry) eventName() string {
+	for _, v := range []string{e.Event, e.Type, e.EventNameSnake, e.EventNameCamel} {
+		if v = strings.TrimSpace(v); v != "" {
+			return strings.ToLower(v)
+		}
+	}
+	return ""
+}
+
 func parseAPIProxySteeringEvents(filePath string) (int, error) {
 	file, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
@@ -614,18 +639,11 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 		if line == "" || !containsSteeringKeyword(line) {
 			continue
 		}
-		var entry map[string]any
+		var entry proxyEventsEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			continue
 		}
-		eventName := strings.ToLower(strings.TrimSpace(coalesceString(
-			entry["event"],
-			entry["type"],
-			entry["event_name"],
-			entry["eventName"],
-		)))
-		message := strings.TrimSpace(coalesceString(entry["message"]))
-		if isSteeringEvent(eventName, message) {
+		if isSteeringEvent(entry.eventName(), strings.TrimSpace(entry.Message)) {
 			count++
 		}
 	}
@@ -633,15 +651,6 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 		return 0, err
 	}
 	return count, nil
-}
-
-func coalesceString(values ...any) string {
-	for _, value := range values {
-		if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
-			return str
-		}
-	}
-	return ""
 }
 
 func containsSteeringKeyword(line string) bool {
