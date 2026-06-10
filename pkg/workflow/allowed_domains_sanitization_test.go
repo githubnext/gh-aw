@@ -707,8 +707,9 @@ Test workflow with GITHUB_COPILOT_BASE_URL in engine.env.
 	// The copilot API target should be derived from the env var and present in the
 	// AWF JSON config (apiProxy.targets.copilot.host) rather than as a --copilot-api-target
 	// CLI flag, since network/proxy settings are now expressed via --config JSON file.
-	if !strings.Contains(lockStr, `"copilot":{"host":"copilot-proxy.corp.example.com"}`) &&
-		!strings.Contains(lockStr, `\"copilot\":{\"host\":\"copilot-proxy.corp.example.com\"}`) {
+	copilotHostUnescaped := `"copilot":{"host":"copilot-proxy.corp.example.com"}`
+	copilotHostEscaped := `\"copilot\":{\"host\":\"copilot-proxy.corp.example.com\"}`
+	if !strings.Contains(lockStr, copilotHostUnescaped) && !strings.Contains(lockStr, copilotHostEscaped) {
 		t.Error("Expected copilot API target to be derived from GITHUB_COPILOT_BASE_URL in AWF config JSON")
 	}
 
@@ -717,10 +718,11 @@ Test workflow with GITHUB_COPILOT_BASE_URL in engine.env.
 	// We search for the allowDomains key followed by its opening "[" and verify the hostname
 	// appears before the closing "]" of that specific array.
 	allowDomainsPrefix := `"allowDomains":[`
+	allowDomainsPrefixEscaped := `\"allowDomains\":[`
 	allowDomainsIdx := strings.Index(lockStr, allowDomainsPrefix)
 	if allowDomainsIdx < 0 {
-		allowDomainsPrefix = `\"allowDomains\":[`
-		allowDomainsIdx = strings.Index(lockStr, allowDomainsPrefix)
+		allowDomainsPrefix = allowDomainsPrefixEscaped
+		allowDomainsIdx = strings.Index(lockStr, allowDomainsPrefixEscaped)
 	}
 	if allowDomainsIdx < 0 {
 		t.Fatal("allowDomains key not found in compiled lock file")
