@@ -288,6 +288,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_WORKFLOW_ID;
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
       delete process.env.GITHUB_HEAD_REF;
       delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
@@ -943,7 +944,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("writes failure_categories.json with the computed failure categories", async () => {
-      const writeSpy = vi.spyOn(fs, "writeFileSync");
+      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
       global.github = {
         rest: {
@@ -965,9 +966,13 @@ describe("handle_agent_failure", () => {
         graphql: vi.fn(),
       };
 
-      await main();
-      const writeCalls = writeSpy.mock.calls.slice();
-      writeSpy.mockRestore();
+      let writeCalls;
+      try {
+        await main();
+        writeCalls = writeSpy.mock.calls.slice();
+      } finally {
+        writeSpy.mockRestore();
+      }
 
       const categoriesCall = writeCalls.find(([filePath]) => filePath === FAILURE_CATEGORIES_PATH);
       expect(categoriesCall).toBeDefined();
@@ -978,7 +983,7 @@ describe("handle_agent_failure", () => {
 
     it("includes timed_out category when GH_AW_AGENTIC_ENGINE_TIMEOUT is set", async () => {
       process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT = "true";
-      const writeSpy = vi.spyOn(fs, "writeFileSync");
+      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
       global.github = {
         rest: {
@@ -1000,10 +1005,13 @@ describe("handle_agent_failure", () => {
         graphql: vi.fn(),
       };
 
-      await main();
-      delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
-      const writeCalls = writeSpy.mock.calls.slice();
-      writeSpy.mockRestore();
+      let writeCalls;
+      try {
+        await main();
+        writeCalls = writeSpy.mock.calls.slice();
+      } finally {
+        writeSpy.mockRestore();
+      }
 
       const categoriesCall = writeCalls.find(([filePath]) => filePath === FAILURE_CATEGORIES_PATH);
       expect(categoriesCall).toBeDefined();

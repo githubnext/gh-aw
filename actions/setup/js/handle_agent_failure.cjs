@@ -2653,7 +2653,7 @@ async function main() {
     // Persist failure categories so the OTLP conclusion span can record them
     // as gh-aw.failure.categories for metrics and counting in OTLP backends.
     try {
-      fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+      fs.mkdirSync(path.dirname(FAILURE_CATEGORIES_PATH), { recursive: true });
       fs.writeFileSync(FAILURE_CATEGORIES_PATH, JSON.stringify(failureCategories));
     } catch (writeError) {
       core.warning(`Failed to write failure categories: ${getErrorMessage(writeError)}`);

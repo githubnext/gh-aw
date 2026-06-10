@@ -3403,6 +3403,7 @@ describe("sendJobConclusionSpan", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    fs.rmSync(FAILURE_CATEGORIES_PATH, { force: true });
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 

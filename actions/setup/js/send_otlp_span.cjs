@@ -1390,6 +1390,8 @@ const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
 /**
  * Path to the failure categories file written by handle_agent_failure and read
  * by the OTLP conclusion span so it can record them as gh-aw.failure.categories.
+ * Mirrors FAILURE_CATEGORIES_PATH from handle_agent_failure.cjs without
+ * introducing a runtime require() dependency on that module.
  * @type {string}
  */
 const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
