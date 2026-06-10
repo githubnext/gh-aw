@@ -29,7 +29,6 @@ type importQueueItem struct {
 	sectionName  string              // Optional section name (from file.md#Section syntax)
 	baseDir      string              // Base directory for resolving nested imports
 	inputs       map[string]any      // Optional input values from parent import
-	ifCondition  string              // Optional condition expression from import spec 'if:' field (e.g., "experiments.foo == 'bar'")
 	remoteOrigin *remoteImportOrigin // Remote origin context (non-nil when imported from a remote repo)
 }
 

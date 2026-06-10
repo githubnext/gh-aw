@@ -44,6 +44,8 @@ imports:
 
 `uses` is an alias for `path`; `with` is an alias for `inputs`.
 
+Conditional frontmatter imports are not supported. If an experiment should vary shared prompt content, keep imports unconditional and gate `{{#runtime-import ...}}` inside your `{{#if experiments.<name> ...}}` block instead.
+
 ### Single-import constraint
 
 A workflow file can appear at most once in an import graph. If the same file is imported more than once with identical `with` values it is silently deduplicated. Importing the same file with **different** `with` values is a compile-time error:

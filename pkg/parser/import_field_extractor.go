@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/importinpututil"
-	"github.com/goccy/go-yaml"
 )
 
 // importAccumulator centralizes the builder/slice/set variables used during
@@ -127,13 +126,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	acc.extractEngineConfig(fm, item.fullPath)
 
 	// Phase 4: Extract scalar and builder-based configuration fields.
-	acc.extractConfigFields(fm, item.fullPath, item.ifCondition)
+	acc.extractConfigFields(fm, item.fullPath)
 
 	// Phase 5: Extract activation, authentication, and access-control fields.
 	acc.extractActivationFields(fm, item)
 
 	// Phase 6: Extract step, job, and environment fields.
-	if err := acc.extractStepAndJobFields(fm, item.importPath, item.ifCondition); err != nil {
+	if err := acc.extractStepAndJobFields(fm, item.importPath); err != nil {
 		return err
 	}
 
@@ -167,7 +166,7 @@ func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueu
 	}
 	acc.toolsBuilder.WriteString(toolsContent + "\n")
 	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
-	if err := acc.trackRuntimeOrInlineImport(item.fullPath, importRelPath, rawContent, wasSubstituted, item.ifCondition); err != nil {
+	if err := acc.trackRuntimeOrInlineImport(item.fullPath, importRelPath, rawContent, wasSubstituted); err != nil {
 		return nil, nil, err
 	}
 
@@ -234,10 +233,10 @@ func (acc *importAccumulator) extractToolsContent(rawContent string, item import
 	return toolsContent, nil
 }
 
-func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath, rawContent string, wasSubstituted bool, ifCondition string) error {
+func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath, rawContent string, wasSubstituted bool) error {
 	if !wasSubstituted && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
 		acc.importPaths = append(acc.importPaths, importRelPath)
-		acc.promptImports = append(acc.promptImports, PromptImportEntry{ImportPath: importRelPath, If: ifCondition})
+		acc.promptImports = append(acc.promptImports, PromptImportEntry{ImportPath: importRelPath})
 		parserLog.Printf("Added import path for runtime-import: %s", importRelPath)
 		return nil
 	}
@@ -250,7 +249,7 @@ func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath
 		return fmt.Errorf("failed to extract markdown from imported file '%s': %w", fullPath, err)
 	}
 	appendMarkdownWithSeparator(&acc.markdownBuilder, markdownContent)
-	acc.promptImports = append(acc.promptImports, PromptImportEntry{Markdown: markdownContent, If: ifCondition})
+	acc.promptImports = append(acc.promptImports, PromptImportEntry{Markdown: markdownContent})
 	return nil
 }
 
@@ -357,7 +356,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
-func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath string, ifCondition string) {
+func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath string) {
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turns", &acc.mergedMaxTurns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-tool-denials", &acc.mergedMaxToolDenials)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
@@ -367,7 +366,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
-	acc.appendConditionalYAMLStepsField(fm, "steps", &acc.stepsBuilder, ifCondition)
+	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
 	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
 	acc.appendYAMLBuilderField(fm, "services", &acc.servicesBuilder)
 	acc.appendJSONBuilderField(fm, "network", "{}", &acc.networkBuilder)
@@ -409,70 +408,6 @@ func (acc *importAccumulator) appendYAMLBuilderField(fm map[string]any, field st
 		return
 	}
 	builder.WriteString(content + "\n")
-}
-
-// appendConditionalYAMLStepsField extracts a YAML steps field and appends it to the builder.
-// When ifCondition is non-empty, each step that lacks an "if:" guard has one added using
-// the transformed condition (see transformImportConditionForStep).
-func (acc *importAccumulator) appendConditionalYAMLStepsField(fm map[string]any, field string, builder *strings.Builder, ifCondition string) {
-	content, err := extractYAMLFieldFromMap(fm, field)
-	if err != nil || content == "" {
-		return
-	}
-	builder.WriteString(applyIfConditionToStepsYAML(content, ifCondition) + "\n")
-}
-
-// experimentConditionRegex matches "experiments.<name>" sub-expressions in an import
-// if: condition and rewrites them to "needs.activation.outputs.<name>" for use in
-// GitHub Actions step-level "if:" guards.
-var experimentConditionRegex = regexp.MustCompile(`experiments\.(\w+)`)
-
-// transformImportConditionForStep converts an import-spec condition expression into the
-// equivalent expression for a GitHub Actions step "if:" field.
-//
-// Example:
-//
-//	experiments.log_fetch_strategy == 'eager'
-//	→ needs.activation.outputs.log_fetch_strategy == 'eager'
-func transformImportConditionForStep(condition string) string {
-	return experimentConditionRegex.ReplaceAllString(condition, "needs.activation.outputs.$1")
-}
-
-// applyIfConditionToStepsYAML applies an import-level "if:" guard to each step in a YAML
-// steps list. When a step already has an "if:" expression, the import condition is
-// combined with the existing expression using logical AND.
-// When ifCondition is empty the original content is returned
-// unchanged. The YAML is parsed using round-trip semantics: on any parse or marshal error
-// the original content is returned unchanged so that the caller's behaviour degrades
-// gracefully rather than silently discarding steps.
-func applyIfConditionToStepsYAML(stepsYAML string, ifCondition string) string {
-	if ifCondition == "" {
-		return stepsYAML
-	}
-	stepCondition := transformImportConditionForStep(ifCondition)
-	var steps []map[string]any
-	if err := yaml.UnmarshalWithOptions([]byte(stepsYAML), &steps, yaml.UseOrderedMap()); err != nil {
-		parserLog.Printf("Warning: failed to parse steps YAML for if-condition injection (condition=%q), using original: %v", ifCondition, err)
-		return stepsYAML
-	}
-	for i := range steps {
-		if existing, hasIf := steps[i]["if"]; hasIf {
-			existingCondition := strings.TrimSpace(fmt.Sprint(existing))
-			if existingCondition == "" {
-				steps[i]["if"] = stepCondition
-				continue
-			}
-			steps[i]["if"] = fmt.Sprintf("(%s) && (%s)", stepCondition, existingCondition)
-		} else {
-			steps[i]["if"] = stepCondition
-		}
-	}
-	out, err := yaml.Marshal(steps)
-	if err != nil {
-		parserLog.Printf("Warning: failed to marshal steps YAML after if-condition injection (condition=%q), using original: %v", ifCondition, err)
-		return stepsYAML
-	}
-	return strings.TrimSpace(string(out))
 }
 
 // extractActivationFields extracts activation and authentication-related fields from
@@ -591,27 +526,22 @@ func (acc *importAccumulator) extractCheckoutField(fm map[string]any, fullPath s
 // map. Environment variable conflict detection is performed: if the same env var is
 // defined in two different imports, an error is returned.
 //
-// When ifCondition is non-empty, each extracted step receives an "if:" guard that evaluates
-// the condition at runtime. The expression is transformed from the import-spec form
-// (e.g. "experiments.foo == 'bar'") to the GitHub Actions form used in step conditions
-// (e.g. "needs.activation.outputs.foo == 'bar'").
-//
 // Side effects: acc.preStepsBuilder, acc.preAgentStepsBuilder, acc.postStepsBuilder,
 // acc.jobsBuilder, acc.envBuilder, acc.envSources.
-func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importPath string, ifCondition string) error {
+func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importPath string) error {
 	// Extract pre-steps (prepend in order).
 	if preStepsContent, err := extractYAMLFieldFromMap(fm, "pre-steps"); err == nil && preStepsContent != "" {
-		acc.preStepsBuilder.WriteString(applyIfConditionToStepsYAML(preStepsContent, ifCondition) + "\n")
+		acc.preStepsBuilder.WriteString(preStepsContent + "\n")
 	}
 
 	// Extract pre-agent-steps (prepend in order).
 	if preAgentStepsContent, err := extractYAMLFieldFromMap(fm, "pre-agent-steps"); err == nil && preAgentStepsContent != "" {
-		acc.preAgentStepsBuilder.WriteString(applyIfConditionToStepsYAML(preAgentStepsContent, ifCondition) + "\n")
+		acc.preAgentStepsBuilder.WriteString(preAgentStepsContent + "\n")
 	}
 
 	// Extract post-steps (append in order).
 	if postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps"); err == nil && postStepsContent != "" {
-		acc.postStepsBuilder.WriteString(applyIfConditionToStepsYAML(postStepsContent, ifCondition) + "\n")
+		acc.postStepsBuilder.WriteString(postStepsContent + "\n")
 	}
 
 	// Extract jobs (append in order; merged into custom jobs map).

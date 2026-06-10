@@ -97,10 +97,6 @@
                     "type": "string",
                     "description": "Import path. Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports. Markdown files under .github/agents/ are treated as agent configuration files."
                   },
-                  "if": {
-                    "type": "string",
-                    "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant. Steps and prompt content from the import are only active when the condition is true."
-                  },
                   "inputs": {
                     "type": "object",
                     "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
@@ -146,10 +142,6 @@
                   "uses": {
                     "type": "string",
                     "description": "Import path (alias for 'path'). Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports."
-                  },
-                  "if": {
-                    "type": "string",
-                    "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant. Steps and prompt content from the import are only active when the condition is true."
                   },
                   "with": {
                     "type": "object",
@@ -236,10 +228,6 @@
                         "type": "string",
                         "description": "Workflow specification in format owner/repo/path@ref."
                       },
-                      "if": {
-                        "type": "string",
-                        "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant."
-                      },
                       "inputs": {
                         "type": "object",
                         "description": "Input values to pass to the imported workflow.",
@@ -285,10 +273,6 @@
                       "uses": {
                         "type": "string",
                         "description": "Workflow specification in format owner/repo/path@ref."
-                      },
-                      "if": {
-                        "type": "string",
-                        "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant."
                       },
                       "with": {
                         "type": "object",
