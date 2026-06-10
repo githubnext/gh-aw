@@ -2736,62 +2736,80 @@
       ]
     },
     "models": {
-      "description": "Custom model pricing data in the same structure as models.json. Merged with the built-in models.json at runtime; frontmatter entries override matching models and fill gaps for unknown models. Useful for custom or private models, or to adjust pricing for effective-token cost accounting. Use a top-level `providers` key for the models.json structure.",
+      "description": "Custom model pricing data in the same structure as models.json. Merged with the built-in models.json at runtime; frontmatter entries override matching models and fill gaps for unknown models. Useful for custom or private models, or to adjust pricing for effective-token cost accounting. Use a top-level `providers` key to specify the models.json structure. The legacy alias-map format (deprecated) is also accepted for backward compatibility.",
       "type": "object",
-      "properties": {
-        "providers": {
-          "type": "object",
-          "description": "Provider-keyed map of model pricing data.",
-          "additionalProperties": {
-            "type": "object",
-            "description": "Provider configuration containing model pricing entries.",
-            "properties": {
-              "models": {
+      "oneOf": [
+        {
+          "description": "Model pricing overlay using the models.json providers structure.",
+          "required": ["providers"],
+          "properties": {
+            "providers": {
+              "type": "object",
+              "description": "Provider-keyed map of model pricing data.",
+              "additionalProperties": {
                 "type": "object",
-                "description": "Model-keyed pricing entries for this provider.",
-                "additionalProperties": {
-                  "type": "object",
-                  "description": "Pricing data for a single model.",
-                  "properties": {
-                    "cost": {
+                "description": "Provider configuration containing model pricing entries.",
+                "properties": {
+                  "models": {
+                    "type": "object",
+                    "description": "Model-keyed pricing entries for this provider.",
+                    "additionalProperties": {
                       "type": "object",
-                      "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers.",
+                      "description": "Pricing data for a single model.",
                       "properties": {
-                        "input": {
-                          "type": ["number", "string"],
-                          "description": "Cost per input token in USD."
-                        },
-                        "output": {
-                          "type": ["number", "string"],
-                          "description": "Cost per output token in USD."
-                        },
-                        "cache_read": {
-                          "type": ["number", "string"],
-                          "description": "Cost per cached-read token in USD."
-                        },
-                        "cache_write": {
-                          "type": ["number", "string"],
-                          "description": "Cost per cache-write token in USD."
-                        },
-                        "reasoning": {
-                          "type": ["number", "string"],
-                          "description": "Cost per reasoning token in USD."
+                        "cost": {
+                          "type": "object",
+                          "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers.",
+                          "properties": {
+                            "input": {
+                              "type": ["number", "string"],
+                              "description": "Cost per input token in USD."
+                            },
+                            "output": {
+                              "type": ["number", "string"],
+                              "description": "Cost per output token in USD."
+                            },
+                            "cache_read": {
+                              "type": ["number", "string"],
+                              "description": "Cost per cached-read token in USD."
+                            },
+                            "cache_write": {
+                              "type": ["number", "string"],
+                              "description": "Cost per cache-write token in USD."
+                            },
+                            "reasoning": {
+                              "type": ["number", "string"],
+                              "description": "Cost per reasoning token in USD."
+                            }
+                          },
+                          "additionalProperties": {
+                            "type": ["number", "string"]
+                          }
                         }
                       },
-                      "additionalProperties": {
-                        "type": ["number", "string"]
-                      }
+                      "additionalProperties": false
                     }
-                  },
-                  "additionalProperties": false
-                }
+                  }
+                },
+                "additionalProperties": false
               }
-            },
-            "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "DEPRECATED: Named model alias definitions. Use an empty object to migrate away.",
+          "not": {
+            "required": ["providers"]
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
-      },
-      "additionalProperties": true
+      ]
     },
     "experiments": {
       "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples). The reserved 'storage' key controls how experiment state is persisted: 'repo' (default) commits state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed) for durability; 'cache' uses GitHub Actions cache. At runtime the activation job picks a variant and persists the updated counters. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a least-used counter that round-robins across variants (or weighted when 'weight' is provided); ties are broken randomly so no variant is systematically favoured on the first run.",
