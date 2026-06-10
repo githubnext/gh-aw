@@ -25,6 +25,8 @@ timeout-minutes: 30
 imports:
   - shared/mcp/grafana.md
   - uses: shared/daily-audit-base.md
+    # Note: these with-params configure the companion *discussion* output from daily-audit-base.md.
+    # The create-issue output above is separate and configured in the frontmatter safe-outputs block.
     with:
       title-prefix: "[token-consumption] "
       expires: 1d
@@ -86,11 +88,11 @@ Use `tempo_traceql-search` with the Tempo datasource UID.
 
 Use a 24-hour time range window (current time minus 24 hours to now).
 
-If the primary query returns no results, try progressively broader queries:
+If the primary query returns no results, use the attribute names discovered in Step 2 to build progressively broader fallback queries:
 
-1. `{ resource.service.name =~ ".*gh-aw.*" }`
-2. `{ span.gh-aw.aic > 0 }`
-3. `{ }` — unfiltered, filter client-side for spans with recognized AIC or workflow fields
+1. If `resource.service.name` was listed in Step 2: `{ resource.service.name =~ ".*gh-aw.*" }`
+2. If an AIC attribute (e.g. `gh-aw.aic`) was listed in Step 2: `{ span.<aic-attribute-name> > 0 }`
+3. `{ }` — unfiltered, then filter client-side for records with recognized AIC or workflow attributes from Step 2
 
 If `tempo_traceql-search` is unavailable, call `noop` and report that Tempo is not accessible.
 
@@ -100,7 +102,11 @@ If `tempo_traceql-search` is unavailable, call `noop` and report that Tempo is n
 { resource.github.repository = "${{ github.repository }}" && span.gh-aw.aic > 0 }
 ```
 
-Use pagination to retrieve enough results to represent the last 24 hours (at least 200 results or until the query returns no more pages).
+Use pagination to retrieve results covering the full 24-hour window. Paginate until either:
+- The query returns no more pages, or
+- The oldest result in the page falls outside the 24-hour window.
+
+200 results is a soft guideline for sparse environments. In busy repositories, paginate further until the time window is fully covered. If fewer than 200 total results exist for the 24-hour window, that is a valid (potentially sparse) signal — report it in Data Quality and Gaps.
 
 ### Step 4: Verify Representative Traces
 
