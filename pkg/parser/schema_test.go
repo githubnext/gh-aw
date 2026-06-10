@@ -537,10 +537,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ThreatDetectionMaxAICredits(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ThreatDetectionMaxAICreditsExpressionRejected(t *testing.T) {
 	t.Parallel()
 
-	validFrontmatter := map[string]any{
+	// Expressions are not supported for safe-outputs.threat-detection.max-ai-credits
+	// because the field is stored as int64 and expressions would be silently ignored
+	// by the compiler. The schema enforces numeric-only values to prevent confusion.
+	invalidFrontmatter := map[string]any{
 		"on": "push",
 		"safe-outputs": map[string]any{
 			"threat-detection": map[string]any{
@@ -549,9 +552,37 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ThreatDetectionMax
 		},
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/threat-detection-max-ai-credits-expression-test.md")
-	if err != nil {
-		t.Fatalf("expected safe-outputs.threat-detection.max-ai-credits expression to pass schema validation, got: %v", err)
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/threat-detection-max-ai-credits-expression-test.md")
+	if err == nil {
+		t.Fatal("expected safe-outputs.threat-detection.max-ai-credits expression to fail schema validation (expressions not supported)")
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ThreatDetectionMaxAICreditsNumericAccepted(t *testing.T) {
+	t.Parallel()
+
+	for name, raw := range map[string]any{
+		"integer":   750,
+		"km-string": "2k",
+		"m-string":  "1M",
+		"neg-one":   -1,
+		"neg-str":   "-1",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			validFrontmatter := map[string]any{
+				"on": "push",
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"max-ai-credits": raw,
+					},
+				},
+			}
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/threat-detection-max-ai-credits-"+name+"-test.md")
+			if err != nil {
+				t.Fatalf("expected safe-outputs.threat-detection.max-ai-credits=%v (%s) to pass schema validation, got: %v", raw, name, err)
+			}
+		})
 	}
 }
 

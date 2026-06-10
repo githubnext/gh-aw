@@ -628,9 +628,10 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args, APITarget.
-	// MaxTurns, Concurrency, UserAgent, Firewall, and Agent are intentionally omitted —
-	// the detection job is a simple threat-analysis invocation and must never run as a
-	// custom agent (no repo checkout, agent file unavailable).
+	// MaxTurns, Concurrency, UserAgent, Firewall, Agent, and MaxAICredits are intentionally
+	// omitted — MaxAICredits is set independently below from safe-outputs.threat-detection
+	// so the detection budget is always resolved from its own default expression rather than
+	// silently reusing the main agent budget.
 	detectionEngineConfig := engineConfig
 	if detectionEngineConfig == nil {
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
@@ -639,7 +640,6 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			ID:               detectionEngineConfig.ID,
 			Model:            detectionEngineConfig.Model,
 			Version:          detectionEngineConfig.Version,
-			MaxAICredits:     detectionEngineConfig.MaxAICredits,
 			Env:              detectionEngineConfig.Env,
 			Config:           detectionEngineConfig.Config,
 			Args:             detectionEngineConfig.Args,

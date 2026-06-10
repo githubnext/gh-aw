@@ -767,6 +767,37 @@ func TestBuildDetectionEngineExecutionStepMaxAICredits(t *testing.T) {
 	})
 }
 
+func TestBuildDetectionEngineExecutionStepMaxAICreditsNotInheritedFromMainAgent(t *testing.T) {
+	compiler := NewCompiler()
+
+	// When the main agent has an explicit MaxAICredits budget but
+	// safe-outputs.threat-detection.max-ai-credits is not set, the detection run
+	// must use its own runtime default expression rather than silently inheriting
+	// the agent budget.
+	data := &WorkflowData{
+		AI: "claude",
+		EngineConfig: &EngineConfig{
+			MaxAICredits: 500, // explicit agent budget
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				// max-ai-credits intentionally omitted
+			},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "vars."+compilerenv.DefaultDetectionMaxAICredits) {
+		t.Fatalf("expected detection steps to use runtime default expression vars.%s when detection max-ai-credits is unset, got:\n%s",
+			compilerenv.DefaultDetectionMaxAICredits, allSteps)
+	}
+	if strings.Contains(allSteps, `"maxAiCredits":500`) {
+		t.Fatalf("expected detection steps NOT to inherit agent maxAiCredits=500, got:\n%s", allSteps)
+	}
+}
+
 func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
 	compiler := NewCompiler()
 
