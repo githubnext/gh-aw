@@ -221,7 +221,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 				Title("How would you like Copilot workflows to authenticate?").
 				Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN.").
 				Options(
-					huh.NewOption("Use copilot-requests (org Copilot billing, no PAT) [recommended for orgs]", authMethodCopilotRequests),
+					huh.NewOption("Use copilot-requests (org's Copilot billing, no PAT) [recommended for orgs]", authMethodCopilotRequests),
 					huh.NewOption("Use a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN", authMethodPAT),
 				).
 				Value(&authMethod),

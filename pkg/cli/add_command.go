@@ -796,8 +796,11 @@ func printCompilationError(err error, quiet bool) {
 }
 
 // addCopilotRequestsPermissionToContent injects `permissions.copilot-requests: write`
-// into the workflow frontmatter. It is idempotent: if the permission is already present
-// the content is returned unchanged.
+// into the workflow frontmatter, enabling GitHub Actions token auth for Copilot (org billing).
+// It delegates to ensureCopilotRequestsWritePermission, which locates or creates the
+// permissions block and appends the copilot-requests entry if not already present.
+// The function is idempotent: calling it on content that already contains the permission
+// returns the content unchanged.
 func addCopilotRequestsPermissionToContent(content string) (string, error) {
 	newContent, _, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 		updated := ensureCopilotRequestsWritePermission(lines)
