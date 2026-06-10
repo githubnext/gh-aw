@@ -351,7 +351,7 @@ function getFooterAgentFailureIssueMessage(ctx) {
   const { ambientContext, ambientContextFormatted, ambientContextSuffix } = getAmbientContextFromEnv();
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
   const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
-  const aiCredits = hasExplicitContextAIC ? ctx.aiCredits : envAIC;
+  const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
   const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
 
@@ -424,7 +424,7 @@ function getFooterAgentFailureCommentMessage(ctx) {
   } = getAICFromEnv();
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
   const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
-  const aiCredits = hasExplicitContextAIC ? ctx.aiCredits : envAIC;
+  const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
   const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
 
