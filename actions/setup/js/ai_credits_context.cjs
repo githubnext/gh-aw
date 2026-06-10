@@ -284,6 +284,31 @@ function resolveAICreditsFailureState() {
   const { aiCredits: auditAICredits, maxAICredits: auditMaxAICredits, rateLimitError: auditRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded } = parseAuditLogCombined();
   const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
+
+  // Log provenance so failing issues can be diagnosed when credit data is missing.
+  if (auditAICredits) {
+    console.log(`[ai-credits] aiCredits source=audit_log value=${auditAICredits}`);
+  } else if (stdioSignals.aiCredits) {
+    console.log(`[ai-credits] aiCredits source=agent_stdio value=${stdioSignals.aiCredits}`);
+  } else if (envAICredits) {
+    console.log(`[ai-credits] aiCredits source=env(GH_AW_AIC) value=${envAICredits}`);
+  } else {
+    console.log(`[ai-credits] aiCredits source=none GH_AW_AIC=${process.env.GH_AW_AIC || "(unset)"}`);
+  }
+
+  if (auditMaxAICredits) {
+    console.log(`[ai-credits] maxAICredits source=audit_log value=${auditMaxAICredits}`);
+  } else if (stdioSignals.maxAICredits) {
+    console.log(`[ai-credits] maxAICredits source=agent_stdio value=${stdioSignals.maxAICredits}`);
+  } else if (envMaxAICredits) {
+    console.log(`[ai-credits] maxAICredits source=env(GH_AW_MAX_AI_CREDITS) value=${envMaxAICredits}`);
+  } else {
+    console.log(`[ai-credits] maxAICredits source=none GH_AW_MAX_AI_CREDITS=${process.env.GH_AW_MAX_AI_CREDITS || "(unset)"}`);
+  }
+
+  const rawRateLimitSignalSource = auditRateLimitError ? "audit_log" : stdioSignals.rateLimitError ? "agent_stdio" : process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true" ? "env(GH_AW_AI_CREDITS_RATE_LIMIT_ERROR)" : "none";
+  console.log(`[ai-credits] rateLimitSignal source=${rawRateLimitSignalSource}`);
+
   const aiCredits = auditAICredits || stdioSignals.aiCredits || envAICredits || "";
   const maxAICredits = auditMaxAICredits || stdioSignals.maxAICredits || envMaxAICredits || "";
   const rawAICreditsRateLimitError = auditRateLimitError || stdioSignals.rateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
