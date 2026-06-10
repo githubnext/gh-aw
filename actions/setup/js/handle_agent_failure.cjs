@@ -2299,6 +2299,12 @@ async function main() {
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded } = resolveAICreditsFailureState();
+    // Keep footer rendering in sync with resolved AI credits provenance. The footer helper
+    // reads GH_AW_AIC from env, but resolveAICreditsFailureState may source credits from
+    // audit/stdio even when GH_AW_AIC is unset in conclusion.
+    if (aiCredits && !process.env.GH_AW_AIC) {
+      process.env.GH_AW_AIC = aiCredits;
+    }
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";

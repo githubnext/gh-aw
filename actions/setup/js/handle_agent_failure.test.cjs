@@ -234,6 +234,47 @@ describe("handle_agent_failure", () => {
         delete process.env.GH_AW_AMBIENT_CONTEXT;
       }
     });
+
+    it("includes AIC in failure issue footer when resolved from audit log and GH_AW_AIC is unset", async () => {
+      const auditPath = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditPath, { recursive: true });
+      fs.writeFileSync(path.join(auditPath, "log.jsonl"), `${JSON.stringify({ ai_credits: "2.5" })}\n`);
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent-output.json");
+      /** @type {string} */
+      let capturedIssueBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: vi.fn(async ({ body }) => {
+              capturedIssueBody = body;
+              return {
+                data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+              };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      try {
+        await main();
+        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · 2.5 AIC");
+      } finally {
+        delete process.env.GH_AW_AGENT_OUTPUT;
+      }
+    });
   });
 
   describe("main() precise failure issue matching", () => {
