@@ -405,7 +405,7 @@ constants.PriorityJobFields       // []string{"name","runs-on","needs","if","per
 constants.PriorityWorkflowFields  // []string{"on","permissions","if","network","imports",...}
 
 // Fields silently ignored during frontmatter validation
-constants.IgnoredFrontmatterFields // []string{"user-invokable"}
+constants.IgnoredFrontmatterFields // []string{}
 
 // Fields forbidden in shared/imported workflows (only valid in main workflows)
 constants.SharedWorkflowForbiddenFields // []string{"on","concurrency","container",...}
