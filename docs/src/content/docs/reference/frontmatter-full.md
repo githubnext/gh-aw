@@ -7500,7 +7500,7 @@ safe-outputs:
   # for workflows with many sequential safe output operations (e.g.
   # push_to_pull_request_branch against large repositories).
   # (optional)
-  timeout-minutes: 1
+  timeout-minutes: 120
 
   # Explicit additional custom workflow jobs that the consolidated safe_outputs job
   # should depend on.
