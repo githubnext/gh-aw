@@ -23,7 +23,7 @@ Apply these in order — each check can halve costs:
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
 - [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
-- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
+- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "aic"` before promoting
 
 ---
 
@@ -68,13 +68,13 @@ gh aw audit <run-id> --json
 
 Key fields in the output:
 
-- `agent_usage.aic` — AI Credits (AIC), the normalized cost metric (1 AIC = $0.01; accounts for model price differences and cache discounts); `agent_usage.effective_tokens` remains available as the underlying token-normalized value
+- `agent_usage.aic` — AI Credits (AIC), the normalized cost metric (1 AIC = $0.01; accounts for model price differences and cache discounts)
 - `agent_usage.input_tokens` / `agent_usage.output_tokens` — raw token counts
 - `agent_usage.cache_read_tokens` / `agent_usage.cache_write_tokens` — tokens served from the prompt cache
 
 Equivalent via MCP: `audit` tool with `run_id: <run-id>`.
 
-Treat optimization as successful only when quality remains acceptable. A quality regression is a failure even if AI Credits or `effective_tokens` decrease.
+Treat optimization as successful only when quality remains acceptable. A quality regression is a failure even if AI Credits decrease.
 
 ### Comparing two runs (regression detection)
 
@@ -295,7 +295,7 @@ List open issues by priority. Top 5 critical items. Be brief.
 {{/if}}
 ```
 
-Measure `effective_tokens` in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer tokens at acceptable quality, promote it as the baseline.
+Measure AI Credits (AIC) in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer AI Credits at acceptable quality, promote it as the baseline.
 
 ---
 
@@ -308,7 +308,7 @@ experiments:
   optimization_v1:
     variants: [control, optimized]
     description: "DataOps refactor — move issue fetching to steps:"
-    metric: "effective_tokens"
+    metric: "aic"
     issue: "123"
 ```
 
@@ -325,7 +325,7 @@ Fetch open issues from ${{ github.repository }} using the GitHub tools.
 **After enough runs:**
 
 1. Compare variants using `gh aw audit <control-run-id> <optimized-run-id>`
-2. Inspect `effective_tokens`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`
+2. Inspect `aic`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`
 3. Validate output quality and decision accuracy against the control run
 4. If the optimized variant wins on cost **and** quality, rewrite the baseline prompt and remove the `experiments:` field
 

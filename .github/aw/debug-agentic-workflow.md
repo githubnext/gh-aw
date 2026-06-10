@@ -130,7 +130,7 @@ When you suggest a fix:
 3. validate with `gh aw compile <workflow-name>`
 4. suggest another run only after the workflow compiles
 
-When token cost is part of the issue, compare before/after runs with `gh aw audit` and inspect `effective_tokens`, input/output tokens, and cache read/write tokens. Treat quality regressions as failures even when token usage drops.
+When token cost is part of the issue, compare before/after runs with `gh aw audit` and inspect `aic`, input/output tokens, and cache read/write tokens. Treat quality regressions as failures even when token usage drops.
 
 ## Final Response Rules
 

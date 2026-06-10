@@ -64,7 +64,7 @@ When refining existing workflows, preserve minimal edits while verifying:
 - expensive/frontier reasoning is limited to ambiguous or high-value cases and final synthesis
 - large raw logs/payloads are pulled on demand instead of pushed into initial prompts
 - sub-agent fan-out stays bounded and worker returns stay compact
-- changes are measured with `gh aw audit` (`effective_tokens`, input/output/cache token fields) and quality regressions are treated as failures
+- changes are measured with `gh aw audit` (`aic`, input/output/cache token fields) and quality regressions are treated as failures
 
 See also: [token-optimization.md](token-optimization.md), [subagents.md](subagents.md), and [workflow-patterns.md](workflow-patterns.md).
 
