@@ -6624,6 +6624,9 @@ describe("sendJobConclusionSpan does not emit OTLP metrics", () => {
 
     const metricsCalls = mockFetch.mock.calls.filter(([url]) => url.includes("/v1/metrics"));
     expect(metricsCalls.length).toBe(0);
+
+    const traceCalls = mockFetch.mock.calls.filter(([url]) => url.includes("/v1/traces"));
+    expect(traceCalls.length).toBeGreaterThan(0);
   });
 
   it("does not send a /v1/metrics POST for non-agent jobs", async () => {
@@ -6637,5 +6640,8 @@ describe("sendJobConclusionSpan does not emit OTLP metrics", () => {
 
     const metricsCalls = mockFetch.mock.calls.filter(([url]) => url.includes("/v1/metrics"));
     expect(metricsCalls.length).toBe(0);
+
+    const traceCalls = mockFetch.mock.calls.filter(([url]) => url.includes("/v1/traces"));
+    expect(traceCalls.length).toBeGreaterThan(0);
   });
 });
