@@ -808,8 +808,10 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 	newContent, _, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 		updated := ensureCopilotRequestsWritePermission(lines)
 		// Detect whether ensureCopilotRequestsWritePermission actually made a change.
+		// When the lengths differ a line was added; otherwise compare element by element.
 		modified := len(updated) != len(lines)
 		if !modified {
+			// Lengths are equal here, so iterating over lines indices is safe for updated too.
 			for i := range lines {
 				if lines[i] != updated[i] {
 					modified = true
@@ -822,7 +824,9 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 			// it could not be injected (e.g., `permissions:` is a scalar like `read-all`).
 			hasPerm := false
 			for _, line := range updated {
-				if strings.Contains(line, "copilot-requests") {
+				// Match the exact YAML key, ignoring comments and unrelated lines.
+				trimmed := strings.TrimSpace(line)
+				if !strings.HasPrefix(trimmed, "#") && parseYAMLMapKey(trimmed) == "copilot-requests" {
 					hasPerm = true
 					break
 				}
