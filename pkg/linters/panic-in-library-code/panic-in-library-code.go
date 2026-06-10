@@ -178,7 +178,10 @@ func isFmtSprintf(pass *analysis.Pass, call *ast.CallExpr) bool {
 func isInInitFunction(cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
 		decl := encl.Node().(*ast.FuncDecl)
-		return decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init"
+		if decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init" {
+			return true
+		}
+		break // only check the immediate enclosing FuncDecl
 	}
 	return false
 }
@@ -186,14 +189,16 @@ func isInInitFunction(cur inspector.Cursor) bool {
 func hasDocumentedPanicContract(cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
 		decl := encl.Node().(*ast.FuncDecl)
-		if decl.Doc == nil {
-			return false
+		if decl.Doc != nil {
+			doc := strings.ToLower(decl.Doc.Text())
+			if strings.Contains(doc, "panics on") ||
+				strings.Contains(doc, "panics if") ||
+				strings.Contains(doc, "panic on") ||
+				strings.Contains(doc, "panic if") {
+				return true
+			}
 		}
-		doc := strings.ToLower(decl.Doc.Text())
-		return strings.Contains(doc, "panics on") ||
-			strings.Contains(doc, "panics if") ||
-			strings.Contains(doc, "panic on") ||
-			strings.Contains(doc, "panic if")
+		break // only check the immediate enclosing FuncDecl
 	}
 	return false
 }
