@@ -93,10 +93,11 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			return NewValidationError(
 				"sandbox.agent",
 				"false",
-				fmt.Sprintf("disabling the agent sandbox requires '%s' to be a justification string (%d+ chars, expressions not allowed): %v", flag, minSandboxDisableJustificationLength, err),
+				fmt.Sprintf("disabling the agent sandbox removes a trust boundary: '%s' must be a literal justification string (%d+ chars, no expressions): %v", flag, minSandboxDisableJustificationLength, err),
 				fmt.Sprintf("Add the feature value to your workflow frontmatter:\n\nfeatures:\n  %s: \"controlled environment with no internet access\"\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
 			)
 		}
+		sandboxConfig.Agent.DisableReason = justification
 		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s justification: %q", constants.DangerouslyDisableSandboxAgentFeatureFlag, justification)
 	}
 
