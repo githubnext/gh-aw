@@ -102,7 +102,7 @@ Test workflow`
 // TestInferenceAccessErrorNotInEngineWithoutDetectionScript tests that engines
 // without detect-agent-errors support do not include these outputs.
 func TestInferenceAccessErrorNotInEngineWithoutDetectionScript(t *testing.T) {
-	testDir := testutil.TempDir(t, "test-inference-access-error-claude-*")
+	testDir := testutil.TempDir(t, "test-inference-access-error-gemini-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflow := `---

@@ -102,7 +102,7 @@ Test workflow`
 // TestMCPPolicyErrorNotInEngineWithoutDetectionScript tests that engines
 // without detect-agent-errors support do not include these outputs.
 func TestMCPPolicyErrorNotInEngineWithoutDetectionScript(t *testing.T) {
-	testDir := testutil.TempDir(t, "test-mcp-policy-error-claude-*")
+	testDir := testutil.TempDir(t, "test-mcp-policy-error-gemini-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflow := "---\n" +
