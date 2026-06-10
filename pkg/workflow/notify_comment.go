@@ -73,6 +73,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Download any existing compact usage artifact into /tmp/gh-aw so the conclusion job
+	// has direct access to aggregated usage files like agent_usage.jsonl when they were
+	// already produced upstream (for example in workflow_call chains or retried runs).
+	steps = append(steps, buildUsageArtifactDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
 	// Package a compact usage artifact so forecasting/analytics commands can fetch
 	// token usage and aw_info without downloading full agent artifacts.
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
@@ -646,10 +650,21 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	return job, nil
 }
 
+// buildUsageArtifactDownloadSteps creates a best-effort step that downloads the compact
+// usage artifact into /tmp/gh-aw so conclusion handlers can read aggregated usage files.
+func buildUsageArtifactDownloadSteps(prefix string, pinAction func(string) string) []string {
+	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: prefix + constants.UsageArtifactName,
+		DownloadPath: "/tmp/gh-aw/",
+		StepName:     "Download usage artifact",
+		StepID:       "download-usage",
+	}, pinAction)
+}
+
 // buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
 // The artifact includes aw-info.jsonl, agent_usage.jsonl, detection_usage.jsonl, and agent/detection token usage JSONL files (when present).
 func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string) []string {
-	usageArtifactName := prefix + "usage"
+	usageArtifactName := prefix + constants.UsageArtifactName
 	return []string{
 		"      - name: Collect usage artifact files\n",
 		"        if: always()\n",

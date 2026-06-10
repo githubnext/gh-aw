@@ -1119,6 +1119,9 @@ func TestConclusionJobWorkflowCallArtifactPrefix(t *testing.T) {
 	if !strings.Contains(allSteps, prefixedUsageArtifactName) {
 		t.Errorf("Expected conclusion job usage artifact upload to use prefixed artifact name %q in workflow_call context, but it was not found.\nGenerated steps:\n%s", prefixedUsageArtifactName, allSteps)
 	}
+	if !strings.Contains(allSteps, "- name: Download usage artifact") {
+		t.Errorf("Expected conclusion job to download the usage artifact in workflow_call context.\nGenerated steps:\n%s", allSteps)
+	}
 
 	// Ensure the unprefixed artifact name is not used
 	if strings.Contains(allSteps, "name: agent\n") {
@@ -1153,6 +1156,9 @@ func TestConclusionJobNonWorkflowCallNoArtifactPrefix(t *testing.T) {
 	if strings.Contains(allSteps, "needs.activation.outputs.artifact_prefix") {
 		t.Errorf("Expected conclusion job NOT to use artifact_prefix in non-workflow_call context.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "- name: Download usage artifact") {
+		t.Errorf("Expected conclusion job to download the usage artifact in non-workflow_call context.\nGenerated steps:\n%s", allSteps)
+	}
 	if !strings.Contains(allSteps, "name: usage") {
 		t.Errorf("Expected conclusion job to upload unprefixed usage artifact name in non-workflow_call context.\nGenerated steps:\n%s", allSteps)
 	}
@@ -1182,6 +1188,12 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	}
 	if !strings.Contains(allSteps, "Upload usage artifact") {
 		t.Errorf("Expected conclusion job to upload usage artifact.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "Download usage artifact") {
+		t.Errorf("Expected conclusion job to download usage artifact.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "path: /tmp/gh-aw/") {
+		t.Errorf("Expected conclusion job usage artifact download to extract into /tmp/gh-aw/.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/aw-info.jsonl") {
 		t.Errorf("Expected usage artifact to include aw-info.jsonl path.\nGenerated steps:\n%s", allSteps)
