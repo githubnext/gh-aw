@@ -537,6 +537,24 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuff
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ThreatDetectionMaxAICredits(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"safe-outputs": map[string]any{
+			"threat-detection": map[string]any{
+				"max-ai-credits": "${{ inputs.detection-max-ai-credits }}",
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/threat-detection-max-ai-credits-expression-test.md")
+	if err != nil {
+		t.Fatalf("expected safe-outputs.threat-detection.max-ai-credits expression to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsZeroInvalid(t *testing.T) {
 	t.Parallel()
 

@@ -19,6 +19,7 @@ type ThreatDetectionConfig struct {
 	Prompt              string        `yaml:"prompt,omitempty"`            // Additional custom prompt instructions to append
 	Steps               []any         `yaml:"steps,omitempty"`             // Array of extra job steps to run before engine execution
 	PostSteps           []any         `yaml:"post-steps,omitempty"`        // Array of extra job steps to run after engine execution
+	MaxAICredits        int64         `yaml:"max-ai-credits,omitempty"`    // Maximum AI credits budget for threat-detection engine execution
 	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
 	EngineDisabled      bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
 	RunsOn              string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
@@ -188,6 +189,11 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 		if postStepsArray, ok := postSteps.([]any); ok {
 			threatConfig.PostSteps = postStepsArray
 		}
+	}
+
+	// Parse max-ai-credits field
+	if maxAICredits, exists := configMap["max-ai-credits"]; exists {
+		threatConfig.MaxAICredits = parseMaxAICreditsValue(maxAICredits)
 	}
 
 	// Parse runs-on field
@@ -633,6 +639,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			ID:               detectionEngineConfig.ID,
 			Model:            detectionEngineConfig.Model,
 			Version:          detectionEngineConfig.Version,
+			MaxAICredits:     detectionEngineConfig.MaxAICredits,
 			Env:              detectionEngineConfig.Env,
 			Config:           detectionEngineConfig.Config,
 			Args:             detectionEngineConfig.Args,
@@ -643,6 +650,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 	if detectionEngineConfig.ID == "" {
 		detectionEngineConfig.ID = engineSetting
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.MaxAICredits != 0 {
+		detectionEngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
 	}
 
 	// Apply enterprise and engine default detection models when no model was explicitly configured.

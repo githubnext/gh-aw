@@ -178,6 +178,17 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				ContinueOnError: boolPtr(false),
 			},
 		},
+		{
+			name: "object with max-ai-credits override",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"max-ai-credits": 777,
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				MaxAICredits: 777,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -208,6 +219,9 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 
 			if result.RunsOn != tt.expectedConfig.RunsOn {
 				t.Errorf("Expected RunsOn %q, got %q", tt.expectedConfig.RunsOn, result.RunsOn)
+			}
+			if result.MaxAICredits != tt.expectedConfig.MaxAICredits {
+				t.Errorf("Expected MaxAICredits %d, got %d", tt.expectedConfig.MaxAICredits, result.MaxAICredits)
 			}
 
 			if (result.ContinueOnError == nil) != (tt.expectedConfig.ContinueOnError == nil) {
@@ -709,6 +723,48 @@ func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T
 			}
 		})
 	}
+}
+
+func TestBuildDetectionEngineExecutionStepMaxAICredits(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("uses detection runtime default expression when threat-detection max-ai-credits is unset", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "claude",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildDetectionEngineExecutionStep(data)
+		allSteps := strings.Join(steps, "")
+		if !strings.Contains(allSteps, "vars."+compilerenv.DefaultDetectionMaxAICredits) {
+			t.Fatalf("expected detection steps to reference vars.%s, got:\n%s", compilerenv.DefaultDetectionMaxAICredits, allSteps)
+		}
+		if !strings.Contains(allSteps, "'400'") {
+			t.Fatalf("expected detection steps to include default fallback '400', got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("uses explicit threat-detection max-ai-credits when provided", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "claude",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					MaxAICredits: 777,
+				},
+			},
+		}
+
+		steps := compiler.buildDetectionEngineExecutionStep(data)
+		allSteps := strings.Join(steps, "")
+		if strings.Contains(allSteps, "vars."+compilerenv.DefaultDetectionMaxAICredits) {
+			t.Fatalf("expected detection steps not to reference vars.%s when explicit max-ai-credits is set, got:\n%s", compilerenv.DefaultDetectionMaxAICredits, allSteps)
+		}
+		if !strings.Contains(allSteps, `"maxAiCredits":777`) {
+			t.Fatalf("expected detection steps to include maxAiCredits 777, got:\n%s", allSteps)
+		}
+	})
 }
 
 func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
