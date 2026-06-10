@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"strconv"
 )
 
@@ -13,28 +12,6 @@ import (
 func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, error) {
 	frontmatterTypesLog.Printf("Parsing frontmatter config with %d fields", len(frontmatter))
 	var config FrontmatterConfig
-
-	// The `models` frontmatter field is overloaded:
-	//   • New format (models.json overlay): object with a top-level "providers" key.
-	//     This is extracted here and stored in config.ModelCosts; the key is removed
-	//     from the frontmatter copy so json.Unmarshal doesn't see a type mismatch.
-	//   • Legacy format (deprecated model aliases): object with string-array values.
-	//     Left in the frontmatter copy so json.Unmarshal populates config.Models as usual.
-	var modelCostsOverlay map[string]any
-	if modelsVal, ok := frontmatter["models"]; ok {
-		if modelsMap, ok := modelsVal.(map[string]any); ok {
-			if _, hasProviders := modelsMap["providers"]; hasProviders {
-				modelCostsOverlay = modelsMap
-				// Build a shallow copy without the "models" key so the JSON unmarshal
-				// below doesn't encounter a type error when it tries to assign the
-				// providers-keyed object to Models (map[string][]string).
-				fm := make(map[string]any, len(frontmatter))
-				maps.Copy(fm, frontmatter)
-				delete(fm, "models")
-				frontmatter = fm
-			}
-		}
-	}
 
 	// Use JSON marshaling for the entire frontmatter conversion.
 	// TemplatableInt32.UnmarshalJSON transparently handles both integer literals
@@ -49,11 +26,6 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if err := json.Unmarshal(jsonBytes, &config); err != nil {
 		frontmatterTypesLog.Printf("Failed to unmarshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
-	}
-
-	if modelCostsOverlay != nil {
-		config.ModelCosts = modelCostsOverlay
-		frontmatterTypesLog.Printf("Parsed models overlay with providers structure (%d providers)", len(modelCostsOverlay))
 	}
 
 	if err := validateRunsOnValue(config.RunsOn); err != nil {

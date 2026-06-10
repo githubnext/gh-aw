@@ -141,18 +141,20 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
-	// Populate model mappings: merge builtin aliases, any imported-workflow aliases, and
-	// main-workflow frontmatter overrides.  Priority (highest last):
-	//   builtins → imported workflow aliases → main workflow frontmatter (main wins).
-	var frontmatterModels map[string][]string
-	if toolsResult.parsedFrontmatter != nil {
-		frontmatterModels = toolsResult.parsedFrontmatter.Models
-	}
-	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, frontmatterModels)
+	// Populate model mappings: merge builtin aliases with any imported-workflow aliases.
+	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, nil)
 
 	// Propagate models overlay from frontmatter for runtime merging with built-in models.json.
+	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognised
+	// tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
 		workflowData.ModelCosts = toolsResult.parsedFrontmatter.ModelCosts
+	} else if rawModels, ok := result.Frontmatter["models"]; ok {
+		if modelsMap, ok := rawModels.(map[string]any); ok {
+			if _, hasProviders := modelsMap["providers"]; hasProviders {
+				workflowData.ModelCosts = modelsMap
+			}
+		}
 	}
 
 	return workflowData

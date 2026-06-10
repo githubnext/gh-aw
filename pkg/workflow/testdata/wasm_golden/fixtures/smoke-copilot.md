@@ -41,6 +41,16 @@ tools:
 runtimes:
   go:
     version: "1.25"
+models:
+  providers:
+    anthropic:
+      models:
+        my-custom-claude:
+          cost:
+            input: "3e-06"
+            output: "1.5e-05"
+            cache_read: "3e-07"
+            cache_write: "3.75e-06"
 safe-outputs:
     add-comment:
       allowed-repos: ["github/gh-aw"]
