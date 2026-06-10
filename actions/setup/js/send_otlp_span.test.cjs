@@ -5256,7 +5256,7 @@ describe("sendJobConclusionSpan", () => {
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
       // Engine-reported 0.42 must win over the file's 0.
       expect(attrs["gh-aw.aic"]).toBe(0.42);
     });
