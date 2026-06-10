@@ -163,10 +163,7 @@ describe("handle_agent_failure", () => {
       global.github = {
         rest: {
           search: {
-            issuesAndPullRequests: vi.fn(async ({ q }) => {
-              if (q.includes("is:pr")) {
-                return { data: { total_count: 0, items: [] } };
-              }
+            issuesAndPullRequests: vi.fn(async () => {
               return { data: { total_count: 0, items: [] } };
             }),
           },
