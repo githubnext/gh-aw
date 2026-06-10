@@ -176,7 +176,11 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 }
 
 func mergeModelCostOverlays(importedOverlays []map[string]any, mainOverlay map[string]any) map[string]any {
-	overlays := make([]map[string]any, 0, len(importedOverlays)+1)
+	capacity := len(importedOverlays)
+	if len(mainOverlay) > 0 {
+		capacity++
+	}
+	overlays := make([]map[string]any, 0, capacity)
 	overlays = append(overlays, importedOverlays...)
 	if len(mainOverlay) > 0 {
 		overlays = append(overlays, mainOverlay)
@@ -201,9 +205,11 @@ func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
 		return result
 	}
 
-	mergedProviders := maps.Clone(baseProviders)
-	if mergedProviders == nil {
+	var mergedProviders map[string]any
+	if baseProviders == nil {
 		mergedProviders = make(map[string]any)
+	} else {
+		mergedProviders = maps.Clone(baseProviders)
 	}
 	for providerName, overlayProviderAny := range overlayProviders {
 		overlayProvider, ok := overlayProviderAny.(map[string]any)
@@ -216,14 +222,20 @@ func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
 		baseModels, _ := baseProvider["models"].(map[string]any)
 		overlayModels, _ := overlayProvider["models"].(map[string]any)
 
-		mergedProvider := maps.Clone(baseProvider)
-		if mergedProvider == nil {
+		var mergedProvider map[string]any
+		if baseProvider == nil {
 			mergedProvider = make(map[string]any)
+		} else {
+			mergedProvider = maps.Clone(baseProvider)
 		}
-		maps.Copy(mergedProvider, overlayProvider)
-		mergedModels := maps.Clone(baseModels)
-		if mergedModels == nil {
+		overlayProviderNonModels := maps.Clone(overlayProvider)
+		delete(overlayProviderNonModels, "models")
+		maps.Copy(mergedProvider, overlayProviderNonModels)
+		var mergedModels map[string]any
+		if baseModels == nil {
 			mergedModels = make(map[string]any)
+		} else {
+			mergedModels = maps.Clone(baseModels)
 		}
 		maps.Copy(mergedModels, overlayModels)
 		mergedProvider["models"] = mergedModels
