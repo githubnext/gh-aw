@@ -21,6 +21,7 @@ CI_UNIT_WORKFLOW_FILE ?= cgo.yml
 CI_UNIT_TEST_ARTIFACT_PATTERN ?= test-result-cgo-unit
 CI_UNIT_RUN_ID ?=
 GO_IMPACTED_TEST_MAX_SECONDS ?= 60
+GO_IMPACTED_TEST_PATTERN_MAX_CHARS ?= 8000
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -357,18 +358,27 @@ test-impacted-go:
 	fi; \
 	if [ -n "$$SELECTED_GO_TESTS" ]; then \
 		awk -F'\t' ' \
-			BEGIN { current_pkg = ""; pattern = "" } \
+			BEGIN { current_pkg = ""; pattern = ""; max_chars = '$(GO_IMPACTED_TEST_PATTERN_MAX_CHARS)' + 0; if (max_chars <= 0) max_chars = 8000 } \
+			function flush_pattern() { \
+				if (current_pkg != "" && pattern != "") print current_pkg "\t^(" pattern ")$$"; \
+			} \
 			{ \
 				if ($$1 != current_pkg) { \
-					if (current_pkg != "") print current_pkg "\t^(" pattern ")$$"; \
+					flush_pattern(); \
 					current_pkg = $$1; \
 					pattern = $$2; \
 				} else { \
-					pattern = pattern "|" $$2; \
+					next_pattern = pattern "|" $$2; \
+					if (length(next_pattern) > max_chars) { \
+						flush_pattern(); \
+						pattern = $$2; \
+					} else { \
+						pattern = next_pattern; \
+					} \
 				} \
 			} \
 			END { \
-				if (current_pkg != "") print current_pkg "\t^(" pattern ")$$"; \
+				flush_pattern(); \
 			} \
 		' "$$SELECTED_GO_TESTS" | while IFS="	" read -r pkg pattern; do \
 			echo "Running impacted Go unit tests in $$pkg with pattern $$pattern"; \
