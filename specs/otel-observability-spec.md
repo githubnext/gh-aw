@@ -454,7 +454,7 @@ This section defines the attributes each span type MUST or MAY carry.
 | `gh-aw.staged` | boolean | Staging flag |
 | `gh-aw.trigger.*` | string | Trigger context (same fields as setup span) |
 | `gh-aw.frontmatter.*` | string | Frontmatter metadata (same fields as setup span) |
-| `gh-aw.aic` | double | AI credits consumed (AIC); emitted only when known and > 0 |
+| `gh-aw.aic` | double | AI credits consumed (AIC); emitted only when known and > 0. Also emitted as OTLP metric `gh_aw.aic` (see §10.5). |
 | `gh-aw.turns` | int | Number of agent turns |
 | `gh-aw.agent.conclusion` | string | Agent job outcome |
 | `gh-aw.detection.conclusion` | string | Threat detection outcome |
@@ -552,6 +552,32 @@ The fleet summary span (`gh-aw.outcome.summary`) aggregates all evaluated outcom
 | `gh-aw.outcome.events` | string | Comma-separated distinct trigger events |
 | `gh-aw.outcome.workflows` | string | Comma-separated distinct workflow names |
 | `gh-aw.outcome.types` | string | Comma-separated distinct outcome types |
+
+### 10.6 OTLP Metrics Signal
+
+In addition to span attributes, gh-aw emits a native OTLP metric payload to `/v1/metrics` so that AIC is a first-class consumable metric for backends that support dashboarding and alerting on OTel metrics (e.g. Grafana, Datadog, Honeycomb).
+
+#### Metrics emitted
+
+| Metric name | Type | Unit | Description |
+|---|---|---|---|
+| `gh_aw.aic` | Sum (cumulative, monotonic) | AIC | AI Credits consumed by the workflow run. Emitted once from the job that owns token usage (`agent` or `detection`). |
+
+#### Data point attributes
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gh-aw.workflow.name` | string | Workflow name |
+| `gh-aw.run.id` | string | GitHub Actions run ID |
+| `gh-aw.run.status` | string | Final run status (`success`, `failure`, `timeout`, `cancelled`) |
+| `gh-aw.job.name` | string | Job name (`agent` or `detection`) |
+| `gh-aw.engine.id` | string | Engine identifier (when available) |
+
+Resource attributes mirror those on conclusion spans (§10.2).
+
+#### Aggregation temporality
+
+`AGGREGATION_TEMPORALITY_CUMULATIVE` — each data point represents the total AIC for that single workflow run. Backends should **sum** across runs to compute fleet totals, or average to track per-run cost trends.
 
 ### 10.7 MCP Gateway Span Attribute Contract
 

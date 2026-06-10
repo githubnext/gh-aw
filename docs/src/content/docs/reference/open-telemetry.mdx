@@ -87,7 +87,7 @@ These attributes appear on built-in workflow setup, agent, and conclusion spans 
     <tr><td><code>gh-aw.steering_event_count</code></td><td>Count of steering events recorded during the run.</td></tr>
     <tr><td><code>gh-aw.action_minutes</code></td><td>Elapsed runtime converted to minutes.</td></tr>
     <tr><td><code>gh-aw.tracker.id</code></td><td>Tracker identifier when present.</td></tr>
-    <tr><td><code>gh-aw.aic</code></td><td>AI credits consumed for the run when available.</td></tr>
+    <tr><td><code>gh-aw.aic</code></td><td>AI credits consumed for the run when available. Also emitted as a <code>gh_aw.aic</code> OTLP metric (see below).</td></tr>
     <tr><td><code>gh-aw.turns</code></td><td>Total agent turns recorded for the run.</td></tr>
     <tr><td><code>gh-aw.agent.conclusion</code></td><td>Normalized agent conclusion.</td></tr>
     <tr><td><code>gh-aw.detection.conclusion</code></td><td>Detection subsystem conclusion when present.</td></tr>
@@ -248,6 +248,26 @@ These attributes are emitted when experiments are active for a run.
     <tr><td><code>gh-aw.experiments</code></td><td>Serialized map of valid experiment assignments.</td></tr>
   </tbody>
 </table>
+
+## OTLP metrics
+
+In addition to span attributes, gh-aw emits a native OTLP metric to `/v1/metrics` for AIC so backends can aggregate, alert, and dashboard without needing to extract values from span attributes.
+
+<table>
+  <thead>
+    <tr>
+      <th>Metric name</th>
+      <th>Type</th>
+      <th>Unit</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gh_aw.aic</code></td><td>Sum (cumulative, monotonic)</td><td>AIC</td><td>AI Credits consumed by the workflow run. Emitted once per run from the job that owns token usage (<code>agent</code> or <code>detection</code>).</td></tr>
+  </tbody>
+</table>
+
+Data point attributes: `gh-aw.workflow.name`, `gh-aw.run.id`, `gh-aw.run.status`, `gh-aw.job.name`, `gh-aw.engine.id` (when available).
 
 ## Trace files and artifacts
 
