@@ -145,7 +145,7 @@ func (c *Compiler) buildInitialWorkflowData(
 	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, nil)
 
 	// Propagate models overlay from frontmatter for runtime merging with built-in models.json.
-	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognised
+	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognized
 	// tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
 		workflowData.ModelCosts = toolsResult.parsedFrontmatter.ModelCosts

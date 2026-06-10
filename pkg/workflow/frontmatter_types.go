@@ -361,9 +361,9 @@ type FrontmatterConfig struct {
 	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
 
 	// ModelCosts holds model pricing data in the same structure as models.json.
-	// Declared in frontmatter as the `models` field using a top-level `providers` key.
-	// At runtime the activation job merges this with the built-in models.json so that
-	// custom or adjusted cost values are reflected in effective-token accounting.
+	// Declared in frontmatter as the `models` field (json:"models,omitempty") using a top-level
+	// `providers` key. At runtime the activation job merges this with the built-in models.json
+	// so that custom or adjusted cost values are reflected in effective-token accounting.
 	// Structure: {"providers": {"<provider>": {"models": {"<model>": {"cost": {...}}}}}}
 	ModelCosts map[string]any `json:"models,omitempty"`
 
