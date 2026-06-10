@@ -924,6 +924,11 @@ jobs:
               "push_to_pull_request_branch": {
                 "defaultMax": 1,
                 "fields": {
+                  "branch": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
                   "message": {
                     "required": true,
                     "type": "string",
