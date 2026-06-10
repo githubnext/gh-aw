@@ -34,9 +34,9 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Token Consumption Report (Sentry OTel)
+# Daily AIC Consumption Report (Sentry OTel)
 
-You are an observability analyst. Generate a daily token consumption report across all agentic workflows in this repository using OpenTelemetry telemetry in Sentry.
+You are an observability analyst. Generate a daily AI Credits (AIC) consumption report across all agentic workflows in this repository using OpenTelemetry telemetry in Sentry.
 
 ## Context
 
@@ -47,8 +47,8 @@ You are an observability analyst. Generate a daily token consumption report acro
 ## Mission
 
 1. Query Sentry telemetry for the last 24 hours.
-2. Aggregate token usage by workflow.
-3. Identify top token consumers and anomalous usage.
+2. Aggregate AIC usage by workflow.
+3. Identify top AIC consumers and anomalous usage.
 4. Publish a concise daily GitHub issue report.
 
 ## Data Collection
@@ -69,8 +69,8 @@ First, attempt to call `search_events` using:
 If `search_events` is **not available** (the tool is absent from the available tool list because no embedded LLM provider is configured), fall back to `list_events` with direct Sentry query syntax:
 - `organizationSlug`: the org discovered in Step 1
 - `dataset: spans`
-- `query`: a filter for AI/LLM spans with token data; start with `span.op:ai*` and also try `span.op:gen_ai*` if the first returns no results; if neither matches, try an empty query and filter client-side for records with token fields
-- `fields`: include token-related fields such as `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.total_tokens`, `ai.input_tokens`, `ai.output_tokens`, `ai.total_tokens`, `github.workflow`, `github.run_id`, `span.op`, `span.description`, `timestamp`; omit fields that return errors and retry with remaining fields
+- `query`: a filter for AI/LLM spans with AIC/cost data; start with `span.op:ai*` and also try `span.op:gen_ai*` if the first returns no results; if neither matches, try an empty query and filter client-side for records with AIC fields
+- `fields`: include AIC/cost fields such as `gh-aw.aic`, `gh_aw.aic`, `aic`, `agent_usage.aic`, plus workflow metadata (`github.workflow`, `github.run_id`, `span.op`, `span.description`, `timestamp`); omit fields that return errors and retry with remaining fields
 - `sort`: `-timestamp`
 - Use pagination to cover the last 24 hours
 
@@ -78,9 +78,9 @@ If `dataset: spans` returns no usable records with either tool, retry with `data
 
 Treat "no usable records" as either:
 - zero events returned after pagination, or
-- events returned but none contain any recognized token fields.
+- events returned but none contain any recognized AIC fields.
 
-### Step 3: Extract Workflow + Token Fields
+### Step 3: Extract Workflow + AIC Fields
 
 For each event/span, derive:
 
@@ -93,18 +93,14 @@ For each event/span, derive:
 - **Run ID** using:
   - `github.run_id`
   - `gh_aw.run_id`
-- **Token counts** with precedence to avoid double counting:
-  - Prefer explicit totals first: `ai.total_tokens` → `gen_ai.usage.total_tokens` → `usage.total_tokens` → `total_tokens`.
-  - For input tokens: `ai.input_tokens` → `gen_ai.usage.input_tokens` → `usage.input_tokens` → `prompt_tokens`.
-  - For output tokens: `ai.output_tokens` → `gen_ai.usage.output_tokens` → `usage.output_tokens` → `completion_tokens`.
-  - If only total is present and input/output are missing, keep input/output at `0` and use total.
-  - If input and output are present but total is missing, set total = input + output.
-  - Do not sum overlapping aliases for the same token type.
-- Recognized token fields:
-  - `ai.input_tokens`, `ai.output_tokens`, `ai.total_tokens`
-  - `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.total_tokens`
-  - `usage.input_tokens`, `usage.output_tokens`, `usage.total_tokens`
-  - `prompt_tokens`, `completion_tokens`, `total_tokens`
+- **AIC value** with precedence:
+  - Prefer `gh-aw.aic` → `gh_aw.aic` → `agent_usage.aic` → `aic`.
+  - If none are present, use `0`.
+- Recognized AIC fields:
+  - `gh-aw.aic`
+  - `gh_aw.aic`
+  - `agent_usage.aic`
+  - `aic`
 
 Normalize missing values to `0`.
 
@@ -113,66 +109,60 @@ Normalize missing values to `0`.
 Calculate:
 
 - `total_events_analyzed`
-- `events_with_token_data`
+- `events_with_aic_data`
 - `events_missing_workflow`
-- `total_input_tokens`
-- `total_output_tokens`
-- `total_tokens`
+- `total_aic`
 - `workflow_count` (unique workflows)
-- `top_workflows_by_tokens` (top 10)
-- `avg_tokens_per_event`
-- `p95_tokens_per_event`
+- `top_workflows_by_aic` (top 10)
+- `avg_aic_per_event`
+- `p95_aic_per_event`
 
 For each workflow include:
 - workflow name
 - event count
-- input tokens
-- output tokens
-- total tokens
-- average tokens/event
-- highest-token event (with run id if available)
+- total AIC
+- average AIC/event
+- highest-AIC event (with run id if available)
 
 ## Report Output
 
 Create exactly one issue titled:
 
-`[token-consumption] Daily Token Consumption Report - YYYY-MM-DD`
+`[token-consumption] Daily AIC Consumption Report - YYYY-MM-DD`
 
 **Report Formatting**: Use h3 (###) or lower for all headers to maintain proper document hierarchy. Use progressive disclosure — keep Executive Summary, Key Metrics, and Recommendations always visible, and wrap verbose details in `<details><summary>Section Name</summary>` blocks.
 
 Use this body structure:
 
 ### Executive Summary
-- Total tokens, workflow count, and high-level trend notes.
+- Total AIC, workflow count, and high-level trend notes.
 
 ### Key Metrics
 | Metric | Value |
 |---|---|
 | Events analyzed | ... |
-| Events with token data | ... |
-| Total input tokens | ... |
-| Total output tokens | ... |
-| Total tokens | ... |
+| Events with AIC data | ... |
+| Total AIC | ... |
 | Unique workflows | ... |
-| Avg tokens/event | ... |
-| P95 tokens/event | ... |
+| Avg AIC/event | ... |
+| P95 AIC/event | ... |
 
-### Top 10 Workflows by Token Consumption
-| Workflow | Events | Input Tokens | Output Tokens | Total Tokens | Avg/Event |
-|---|---:|---:|---:|---:|---:|
+### Top 10 Workflows by AIC Consumption
+| Workflow | Events | Total AIC | Avg AIC/Event |
+|---|---:|---:|---:|
 | ... |
 
 <details>
 <summary>Data Quality and Gaps</summary>
 
 - Events missing workflow identifiers
-- Events missing token attributes
+- Events missing AIC attributes
 - Any assumptions or fallback fields used
 
 </details>
 
 ### Recommendations
-- 2-4 concrete actions to reduce token usage for the highest consumers.
+- 2-4 concrete actions to reduce AIC usage for the highest consumers.
 
 ### References
 - Include up to three relevant links (Sentry query links and/or run links when available).
@@ -180,7 +170,7 @@ Use this body structure:
 ## Guardrails
 
 - Be explicit when telemetry fields are absent or ambiguous.
-- Never invent token values.
+- Never invent AIC values.
 - Keep the report concise and actionable.
 - Use `###` or lower headers only.
 
