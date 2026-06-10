@@ -2936,6 +2936,11 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      for (const key of Object.keys(process.env)) {
+        if (key.startsWith("GH_AW_")) {
+          delete process.env[key];
+        }
+      }
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-completed-despite-failure-"));
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
@@ -2950,6 +2955,7 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
       process.env.GH_AW_AGENT_CONCLUSION = "failure";
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      process.env.GH_AW_CHECKOUT_PR_SUCCESS = "true";
     });
 
     afterEach(() => {
@@ -2959,6 +2965,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_CHECKOUT_PR_SUCCESS;
       if (fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
