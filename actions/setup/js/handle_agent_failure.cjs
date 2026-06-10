@@ -1365,7 +1365,9 @@ function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded
  * @returns {boolean}
  */
 function isIssueWritePermissionError(error) {
-  const status = error && typeof error === "object" && "status" in error ? Number(/** @type {{status?: unknown}} */ error.status) : NaN;
+  /** @type {{status?: unknown} | null} */
+  const typedError = error && typeof error === "object" ? error : null;
+  const status = Number(typedError?.status);
   const message = getErrorMessage(error).toLowerCase();
   return status === 403 && (message.includes("resource not accessible by integration") || message.includes("resource not accessible by personal access token") || message.includes("insufficient permissions"));
 }
@@ -3101,7 +3103,7 @@ async function main() {
       }
     } catch (error) {
       if (isIssueWritePermissionError(error)) {
-        core.info("Skipping failure tracking issue creation/update: token lacks issues:write permission (Resource not accessible by integration)");
+        core.info(`Skipping failure tracking issue creation/update: token lacks issues:write permission (${getErrorMessage(error)})`);
       } else {
         core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
       }

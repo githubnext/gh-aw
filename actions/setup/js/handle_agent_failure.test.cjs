@@ -1494,6 +1494,10 @@ describe("handle_agent_failure", () => {
       expect(isIssueWritePermissionError({ status: 403, message: "Insufficient permissions to create issue" })).toBe(true);
     });
 
+    it("returns true for 403 resource not accessible by personal access token", () => {
+      expect(isIssueWritePermissionError({ status: 403, message: "Resource not accessible by personal access token" })).toBe(true);
+    });
+
     it("returns false for non-403 errors", () => {
       expect(isIssueWritePermissionError({ status: 500, message: "Internal server error" })).toBe(false);
     });
