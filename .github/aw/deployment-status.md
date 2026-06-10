@@ -65,17 +65,6 @@ When including `${{ github.event.deployment_status.target_url }}` in outputs:
 - include key incident context (environment, ref, SHA, description) in the issue body so triage does not depend on external link availability
 - if `target_url` is empty or malformed, continue triage with in-event fields and call out that no external logs URL was provided
 
-## Provider-Specific Context Boundaries
-
-Use provider context only when present in the event payload/description. Avoid assuming provider-specific fields that are not guaranteed.
-
-| Provider | Safe assumptions | Boundary to enforce |
-|---|---|---|
-| Heroku | status, target URL, environment, ref/SHA from deployment event | Do not infer dyno/process state unless explicitly present in description |
-| Vercel | status, target URL, environment, ref/SHA from deployment event | Do not infer preview/production routing details beyond provided fields |
-| Railway | status, target URL, environment, ref/SHA from deployment event | Do not infer service-level logs or runtime metrics not included in payload |
-| Fly.io | status, target URL, environment, ref/SHA from deployment event | Do not infer region/machine health details unless provided |
-
 ## When to Use `deployment_status` vs `workflow_run`
 
 - **`deployment_status`**: External services (Heroku, Vercel, Railway, Fly.io) that integrate with the GitHub Deployments API — they post a deployment status event back to GitHub when a deploy finishes.
