@@ -94,11 +94,10 @@ func TestApplyContainerPins(t *testing.T) {
 // TestCollectDockerImages_StoresInWorkflowData verifies that collectDockerImages
 // populates workflowData.DockerImages and DockerImagePins with the collected image refs.
 func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
-	const gatewayImage = "ghcr.io/github/gh-aw-mcpg"
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			MCP: &MCPGatewayRuntimeConfig{
-				Container: gatewayImage,
+				Container: constants.DefaultMCPGatewayContainer,
 			},
 		},
 	}
@@ -132,8 +131,8 @@ func TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine(t *testing.T) {
 	images := collectDockerImages(map[string]any{}, workflowData, ActionModeRelease)
 
 	for _, img := range images {
-		assert.NotEqual(t, constants.DefaultNodeAlpineLTSImage, img,
-			"safe-outputs should not add node:lts-alpine to the Docker pull list")
+		assert.NotContains(t, img, constants.DefaultNodeAlpineLTSImage,
+			"safe-outputs should not add node:lts-alpine (or any digest-pinned form) to the Docker pull list")
 	}
 }
 
