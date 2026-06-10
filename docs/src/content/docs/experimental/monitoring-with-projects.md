@@ -28,10 +28,7 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 ```
 
-- Adds issues/PRs to the board and updates custom fields.
-- Can also create views and custom fields when configured.
-
-See the full reference: [/reference/safe-outputs/#project-board-updates-update-project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project)
+Adds issues/PRs to the board and updates custom fields, and can create views and custom fields when configured. See the [`update-project` reference](/gh-aw/reference/safe-outputs/#project-board-updates-update-project).
 
 ### 2) Post run summaries with `create-project-status-update`
 
@@ -45,9 +42,7 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 ```
 
-This is useful for scheduled workflows (daily/weekly) or orchestrator workflows.
-
-See the full reference: [/reference/safe-outputs/#project-status-updates-create-project-status-update](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update)
+This is useful for scheduled (daily/weekly) or orchestrator workflows. See the [`create-project-status-update` reference](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update).
 
 ### 3) Correlate work with a Tracker Id field
 
@@ -78,13 +73,7 @@ safe-outputs:
   group-reports: true   # Group failure reports under a shared parent issue (default: false)
 ```
 
-When `group-reports` is enabled:
-
-- A parent "[aw] Failed runs" issue is automatically created and managed.
-- Each failure run report is linked as a sub-issue under the parent.
-- Up to 64 sub-issues are tracked per parent issue.
-
-See the full reference: [/reference/safe-outputs/#group-reports-group-reports](/gh-aw/reference/safe-outputs/#group-reports-group-reports)
+When enabled, a parent "[aw] Failed runs" issue is automatically created and managed, and each failure report is linked as a sub-issue under it (up to 64 per parent). See the [`group-reports` reference](/gh-aw/reference/safe-outputs/#group-reports-group-reports).
 
 ## No-op run reports
 
@@ -99,9 +88,7 @@ safe-outputs:
     report-as-issue: false  # Disable posting noop messages as issue comments
 ```
 
-No-op messages still appear in the workflow step summary even when `report-as-issue` is `false`.
-
-To disable the no-op output entirely:
+No-op messages still appear in the workflow step summary even when `report-as-issue` is `false`. To disable the no-op output entirely:
 
 ```yaml wrap
 safe-outputs:
@@ -109,7 +96,7 @@ safe-outputs:
   noop: false   # Disable noop output completely
 ```
 
-See the full reference: [/reference/safe-outputs/#no-op-logging-noop](/gh-aw/reference/safe-outputs/#no-op-logging-noop)
+See the [no-op logging reference](/gh-aw/reference/safe-outputs/#no-op-logging-noop).
 
 ## Operational monitoring
 
@@ -119,21 +106,7 @@ For deeper investigation, the audit commands are the primary monitoring tool for
 
 - `gh aw audit <run-id>` — single-run report with tool usage, MCP failures, firewall activity, and cost metrics
 - `gh aw audit <run-id-1> <run-id-2>` — compare two runs to detect behavioral regressions or new network accesses (pass additional IDs to compare base against multiple runs)
-- `gh aw logs --format markdown [workflow]` — cross-run security and performance report for trend monitoring
-
-```bash
-# Audit the most recent run
-gh aw audit 12345678
-
-# Compare two runs for regressions
-gh aw audit 12345678 12345679
-
-# Compare base against multiple runs at once
-gh aw audit 12345678 12345679 12345680
-
-# Trend report across the last 10 runs of a workflow
-gh aw logs my-workflow --format markdown --count 10
-```
+- `gh aw logs my-workflow --format markdown --count 10` — cross-run security and performance report for trend monitoring
 
 > [!TIP]
 > Use `gh aw logs --format markdown` inside a scheduled workflow agent to automate trend monitoring and surface cost or security regressions without manual intervention.

@@ -64,18 +64,10 @@ Your mission is to review the GitHub Agentic Workflows (gh-aw) project documenta
 - Documentation location: `${{ github.workspace }}/docs` and `${{ github.workspace }}/README.md`
 - Your persona: A skilled developer who actively avoids GitHub Copilot products but uses Claude Code
 
-## Phase 1: Read Core Documentation
+## Phase 1: Gather Documentation Facts
 
-Start by reading the essential documentation files to understand what gh-aw is and how it works:
-
-1. **Main README** - Read the entire README.md file
-2. **Quick Start Guide** - Read `docs/src/content/docs/setup/quick-start.md`
-3. **How It Works** - Read `docs/src/content/docs/introduction/how-they-work.mdx`
-4. **Architecture** - Read `docs/src/content/docs/introduction/architecture.mdx`
-5. **Tools Reference** - Read `docs/src/content/docs/reference/tools.md`
-6. **CLI Reference** - Read `docs/src/content/docs/setup/cli.md`
-
-Use the `doc-reader` agent to gather structured facts from the six core documentation files. Use its JSON output as the factual basis for Phases 2, 3, and 7.
+Launch the `doc-reader` agent and wait for its JSON output.
+Use its output as the sole factual basis for Phases 2, 3, and 7 — do not read the documentation files directly.
 
 ## Phase 2: Critical Analysis - Answer Key Questions
 
@@ -117,35 +109,19 @@ Things that would slow down adoption or cause brief confusion:
 
 ## Phase 4: Test Key Workflows
 
-Use the `engine-example-counter` agent to enumerate workflow examples per engine. Use its counts to answer the parity questions below.
-
-**Analyze:**
-- Are there enough Claude engine examples?
-- Do Claude workflows have the same capabilities as Copilot workflows?
-- Are there features that only work with specific engines?
-- Is it clear which tools are engine-agnostic?
+Use the `engine-example-counter` agent. Its `parity_observations` field feeds directly into Phase 7 "Engine & Tool Matrix" section.
 
 ## Phase 5: Check Tool and Feature Availability
 
-Use the `tool-engine-classifier` agent to produce the engine-compatibility table. Use it to answer the questions below.
-
-**Questions to answer:**
-- Which tools require specific engines?
-- Are tools like `agentic-workflows`, `playwright`, `github` engine-agnostic?
-- Is the `copilot` tool only for Copilot engine users?
-- Are there Claude-specific tools or configurations?
+Use the `tool-engine-classifier` agent. Its table and JSON feed directly into Phase 7 "Engine & Tool Matrix" section.
 
 ## Phase 6: Authentication and Setup
 
-Focus on authentication requirements. Use the `auth-doc-extractor` agent to gather per-engine auth/secret facts. Then evaluate the gaps it reports against the criteria below.
-
-**Check for:**
-- Missing Claude authentication documentation
-- Assumption that everyone uses Copilot tokens
-- No alternative secret names documented
-- No guidance on obtaining Claude API keys
+Use the `auth-doc-extractor` agent. Its `auth_gaps_or_missing_instructions` feeds directly into Phase 7 "Auth Gaps" section.
 
 ## Phase 7: Create Detailed Discussion Report
+
+Be concise. Total discussion body: max 1,000 words.
 
 Success criteria: cite file + line references for every finding, use severity categories (Critical/Major/Minor), provide actionable fixes.
 
@@ -153,16 +129,12 @@ Create a GitHub discussion titled "🔍 Claude Code User Documentation Review - 
 
 Structure (all headers h3 or lower; wrap long analyses in `<details>` blocks):
 - **Executive Summary** (2–3 sentences + key finding)
-- **Persona Context** (bullet checklist: GitHub ✅, Claude ✅, Copilot ❌, Copilot CLI ❌)
-- **Severity Findings**: Critical Blockers → Major Obstacles → Minor Confusion (each as collapsible `<details>`)
-- **Engine Comparison** — use sub-agent data for the rating table (Copilot / Claude / Codex / Custom × Setup / Examples / Auth / Score)
-- **Tool Availability** — use `tool-engine-classifier` output
-- **Authentication Gaps** — use `auth-doc-extractor` JSON
-- **Example Parity** — use `engine-example-counter` counts
+- **Severity Findings**: Critical Blockers → Major Obstacles → Minor Confusion (combined in one `<details>` block)
+- **Engine & Tool Matrix** — merge engine comparison and tool-engine-classifier output into one table (Copilot / Claude / Codex / Custom × Setup / Examples / Auth / Score); incorporate `parity_observations` from engine-example-counter
+- **Auth Gaps** — use `auth-doc-extractor` JSON directly
 - **Recommended Actions** (Priority 1 / 2 / 3)
-- **Conclusion** — answer "Can Claude Code users adopt gh-aw?" with overall score /10
 
-Quote specific file + line references for every finding. Be concise — this runs daily.
+Quote specific file + line references for every finding.
 
 ## Important Notes
 
@@ -171,6 +143,7 @@ Quote specific file + line references for every finding. Be concise — this run
 - Focus on the **user experience** of reading and following the docs
 - Think about what would prevent successful adoption, not perfection
 - This is a daily workflow - findings should be stored in cache-memory for tracking trends over time
+- Write findings summary ONLY to `review-history.jsonl` (append one JSON line per run). Do not create new history file names. Ignore legacy files if they exist.
 
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.
 
