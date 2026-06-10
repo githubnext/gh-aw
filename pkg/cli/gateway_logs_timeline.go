@@ -580,26 +580,16 @@ func collectSteeringTimelineEvents(logDir string, verbose bool) ([]UnifiedTimeli
 	}
 	defer f.Close()
 
-	var events []UnifiedTimelineEvent
-	scanner := bufio.NewScanner(f)
-	buf := make([]byte, maxScannerBufferSize)
-	scanner.Buffer(buf, maxScannerBufferSize)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || !containsSteeringKeyword(line) {
-			continue
-		}
-		var entry proxyEventsEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			gatewayLogsLog.Printf("Skipping malformed proxy events line: %v", err)
-			continue
-		}
+	entries, err := scanSteeringEntries(f)
+	if err != nil {
+		return nil, fmt.Errorf("scanner error reading proxy events: %w", err)
+	}
+
+	events := make([]UnifiedTimelineEvent, 0, len(entries))
+	for _, entry := range entries {
 		if evt, ok := steeringEntryToTimelineEvent(entry); ok {
 			events = append(events, evt)
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scanner error reading proxy events: %w", err)
 	}
 
 	gatewayLogsLog.Printf("Collected %d steering timeline events from %s", len(events), filepath.Base(eventsPath))

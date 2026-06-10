@@ -624,16 +624,14 @@ func (e proxyEventsEntry) eventName() string {
 	return ""
 }
 
-func parseAPIProxySteeringEvents(filePath string) (int, error) {
-	file, err := os.Open(filepath.Clean(filePath))
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	count := 0
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+// scanSteeringEntries reads all valid steering proxyEventsEntry records from r.
+// Lines that fail the quick-keyword check or JSON decoding are silently skipped.
+// The caller is responsible for the lifetime of r.
+func scanSteeringEntries(r io.Reader) ([]proxyEventsEntry, error) {
+	var entries []proxyEventsEntry
+	scanner := bufio.NewScanner(r)
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || !containsSteeringKeyword(line) {
@@ -644,13 +642,20 @@ func parseAPIProxySteeringEvents(filePath string) (int, error) {
 			continue
 		}
 		if isSteeringEvent(entry.eventName(), strings.TrimSpace(entry.Message)) {
-			count++
+			entries = append(entries, entry)
 		}
 	}
-	if err := scanner.Err(); err != nil {
+	return entries, scanner.Err()
+}
+
+func parseAPIProxySteeringEvents(filePath string) (int, error) {
+	file, err := os.Open(filepath.Clean(filePath))
+	if err != nil {
 		return 0, err
 	}
-	return count, nil
+	defer file.Close()
+	entries, err := scanSteeringEntries(file)
+	return len(entries), err
 }
 
 func containsSteeringKeyword(line string) bool {
