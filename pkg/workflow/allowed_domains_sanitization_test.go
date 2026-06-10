@@ -605,8 +605,15 @@ Test workflow with non-api prefix api-target.
 			// Check allowDomains in AWF JSON config contains expected domains.
 			// Network settings are now expressed via --config JSON file instead of
 			// --allow-domains CLI flag (see BuildAWFConfigJSON).
+			// The JSON is shell-escaped in the lock file, so try both the unescaped
+			// ("allowDomains":[) and escaped (\"allowDomains\":[) forms.
 			allowDomainsPrefix := `"allowDomains":[`
+			allowDomainsPrefixEscaped := `\"allowDomains\":[`
 			allowDomainsIdx := strings.Index(lockStr, allowDomainsPrefix)
+			if allowDomainsIdx < 0 {
+				allowDomainsPrefix = allowDomainsPrefixEscaped
+				allowDomainsIdx = strings.Index(lockStr, allowDomainsPrefixEscaped)
+			}
 			if allowDomainsIdx < 0 {
 				t.Fatal("allowDomains key not found in compiled lock file")
 			}
@@ -618,15 +625,22 @@ Test workflow with non-api prefix api-target.
 			}
 			allowDomainsSection := lockStr[arrayStart : arrayStart+allowDomainsEnd]
 
+			// containsJSONDomain checks for a domain as a JSON string value, handling both
+			// escaped (\"domain\") and unescaped ("domain") forms in the lock file.
+			containsJSONDomain := func(section, domain string) bool {
+				return strings.Contains(section, `"`+domain+`"`) ||
+					strings.Contains(section, `\"`+domain+`\"`)
+			}
+
 			for _, domain := range tt.expectedDomains {
-				if !strings.Contains(allowDomainsSection, `"`+domain+`"`) {
+				if !containsJSONDomain(allowDomainsSection, domain) {
 					t.Errorf("Expected domain %q not found in allowDomains.\nSection: %s", domain, allowDomainsSection)
 				}
 			}
 			// Use exact JSON string matching for "not present" checks to avoid false positives
 			// (e.g. "corp.example.com" would substring-match "copilot.corp.example.com").
 			for _, domain := range tt.unexpectedDomains {
-				if strings.Contains(allowDomainsSection, `"`+domain+`"`) {
+				if containsJSONDomain(allowDomainsSection, domain) {
 					t.Errorf("Unexpected domain %q found in allowDomains.\nSection: %s", domain, allowDomainsSection)
 				}
 			}
@@ -801,7 +815,13 @@ Test workflow with GHE data residency api-target and threat detection.
 	// once for the main agent AWF run and once for the threat detection AWF run.
 	// API proxy settings are now expressed via --config JSON file instead of
 	// --copilot-api-target CLI flag (see BuildAWFConfigJSON).
-	apiTargetCount := strings.Count(lockStr, `"copilot":{"host":"api.contoso-aw.ghe.com"}`)
+	// The JSON is shell-escaped in the lock file, so try both unescaped and escaped forms.
+	apiTargetUnescaped := `"copilot":{"host":"api.contoso-aw.ghe.com"}`
+	apiTargetEscaped := `\"copilot\":{\"host\":\"api.contoso-aw.ghe.com\"}`
+	apiTargetCount := strings.Count(lockStr, apiTargetUnescaped)
+	if apiTargetCount == 0 {
+		apiTargetCount = strings.Count(lockStr, apiTargetEscaped)
+	}
 	if apiTargetCount < 2 {
 		t.Errorf("Expected copilot api-target to appear in both the main agent and threat detection AWF JSON configs (at least 2 times), but found %d occurrence(s).", apiTargetCount)
 	}
@@ -809,8 +829,14 @@ Test workflow with GHE data residency api-target and threat detection.
 	// Find all allowDomains occurrences in AWF JSON config and verify each contains the GHE domains.
 	// api.contoso-aw.ghe.com triggers base-domain derivation, so both the API domain
 	// and the base domain (contoso-aw.ghe.com) must appear in each AWF invocation.
+	// The JSON is shell-escaped in the lock file, so try both unescaped and escaped key forms.
 	requiredDomains := []string{"api.contoso-aw.ghe.com", "contoso-aw.ghe.com"}
 	allowDomainsPrefix := `"allowDomains":[`
+	allowDomainsPrefixEscaped := `\"allowDomains\":[`
+	// Use whichever prefix form is present in the lock file.
+	if strings.Index(lockStr, allowDomainsPrefix) < 0 {
+		allowDomainsPrefix = allowDomainsPrefixEscaped
+	}
 	remaining := lockStr
 	occurrenceIdx := 0
 	for {
@@ -826,7 +852,8 @@ Test workflow with GHE data residency api-target and threat detection.
 		}
 		section := remaining[arrayStart : arrayStart+arrayEnd]
 		for _, domain := range requiredDomains {
-			if !strings.Contains(section, `"`+domain+`"`) {
+			// Handle both escaped (\"domain\") and unescaped ("domain") forms.
+			if !strings.Contains(section, `"`+domain+`"`) && !strings.Contains(section, `\"`+domain+`\"`) {
 				t.Errorf("allowDomains occurrence #%d is missing GHE domain %q.\nSection: %s", occurrenceIdx, domain, section)
 			}
 		}
