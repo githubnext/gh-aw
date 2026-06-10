@@ -61,6 +61,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | `gh aw deploy` | `NewDeployCommand` | Deploy agentic workflows to a target repository using a pull request |
 | `gh aw outcomes` | `NewOutcomesCommand` | Check what happened to a workflow run's safe outputs |
+| `gh aw outcomes history` | `NewOutcomesHistorySubcommand` | Score recent closed issues and merged PRs against the objective mapping |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |

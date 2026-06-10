@@ -7,11 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var outcomeEvalLog = logger.New("cli:outcome_eval")
+
+var objectiveMappingGHAPIGetArray = ghAPIGetArray
+var objectiveMappingGHAPIGraphQL = ghAPIGraphQL
 
 // OutcomeResult classifies what happened to a safe output after execution.
 type OutcomeResult string
@@ -32,6 +36,7 @@ type OutcomeReport struct {
 	Type               string        `json:"type" console:"header:Type"`
 	ObjectURL          string        `json:"object_url,omitempty" console:"header:URL,omitempty"`
 	ObjectNumber       int           `json:"object_number,omitempty" console:"header:#,omitempty"`
+	TracedRootURL      string        `json:"traced_root_url,omitempty" console:"-"`
 	Repo               string        `json:"repo,omitempty" console:"header:Repo,omitempty"`
 	Result             OutcomeResult `json:"result" console:"header:Outcome"`
 	Detail             string        `json:"detail,omitempty" console:"header:Detail,omitempty"`
@@ -40,6 +45,8 @@ type OutcomeReport struct {
 	HumanEdits         int           `json:"human_edits,omitempty" console:"header:Edits,omitempty"`
 	HumanReviews       int           `json:"human_reviews,omitempty" console:"header:Reviews,omitempty"`
 	ZeroTouch          bool          `json:"zero_touch,omitempty" console:"header:Zero-touch,omitempty"`
+	ObjectiveValue     int           `json:"objective_value,omitempty" console:"header:Obj Value,omitempty"`
+	ObjectiveLabels    []string      `json:"objective_labels,omitempty" console:"-"`
 	CreatedAt          string        `json:"created_at" console:"-"`
 	CheckedAt          string        `json:"checked_at" console:"-"`
 	EvalError          string        `json:"eval_error,omitempty" console:"-"`
@@ -47,23 +54,27 @@ type OutcomeReport struct {
 
 // OutcomeSummary aggregates outcomes across multiple safe output items.
 type OutcomeSummary struct {
-	Total                   int     `json:"total" console:"header:Total"`
-	Accepted                int     `json:"accepted" console:"header:Accepted"`
-	Rejected                int     `json:"rejected" console:"header:Rejected"`
-	Ignored                 int     `json:"ignored" console:"header:Ignored"`
-	Pending                 int     `json:"pending" console:"header:Pending"`
-	AcceptedStrong          int     `json:"accepted_strong,omitempty"`
-	AcceptedMedium          int     `json:"accepted_medium,omitempty"`
-	AcceptedWeak            int     `json:"accepted_weak,omitempty"`
-	FallbackExistsOnlyCount int     `json:"fallback_exists_only_count,omitempty"`
-	Lifecycle               int     `json:"lifecycle" console:"header:Lifecycle"`
-	Errors                  int     `json:"errors" console:"header:Errors"`
-	ZeroTouch               int     `json:"zero_touch" console:"header:Zero-touch"`
-	AcceptanceRate          float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
-	WasteRate               float64 `json:"waste_rate" console:"header:Waste Rate"`
-	ZeroTouchRate           float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
-	MedianTimeToOutcome     float64 `json:"median_time_to_outcome_hours,omitempty"`
-	CostPerAcceptedOutcome  float64 `json:"cost_per_accepted_outcome,omitempty"`
+	Total                   int               `json:"total" console:"header:Total"`
+	Accepted                int               `json:"accepted" console:"header:Accepted"`
+	Rejected                int               `json:"rejected" console:"header:Rejected"`
+	Ignored                 int               `json:"ignored" console:"header:Ignored"`
+	Pending                 int               `json:"pending" console:"header:Pending"`
+	AcceptedStrong          int               `json:"accepted_strong,omitempty"`
+	AcceptedMedium          int               `json:"accepted_medium,omitempty"`
+	AcceptedWeak            int               `json:"accepted_weak,omitempty"`
+	FallbackExistsOnlyCount int               `json:"fallback_exists_only_count,omitempty"`
+	Lifecycle               int               `json:"lifecycle" console:"header:Lifecycle"`
+	Errors                  int               `json:"errors" console:"header:Errors"`
+	ZeroTouch               int               `json:"zero_touch" console:"header:Zero-touch"`
+	AcceptanceRate          float64           `json:"acceptance_rate" console:"header:Acceptance Rate"`
+	WasteRate               float64           `json:"waste_rate" console:"header:Waste Rate"`
+	ZeroTouchRate           float64           `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
+	MedianTimeToOutcome     float64           `json:"median_time_to_outcome_hours,omitempty"`
+	CostPerAcceptedOutcome  float64           `json:"cost_per_accepted_outcome,omitempty"`
+	TotalObjectiveValue     int               `json:"total_objective_value,omitempty" console:"header:Total Obj Value"`
+	AcceptedObjectiveValue  int               `json:"accepted_objective_value,omitempty" console:"header:Accepted Obj Value"`
+	ObjectiveEfficiency     float64           `json:"objective_efficiency,omitempty" console:"header:Obj Efficiency"`
+	DomainBreakdowns        []DomainBreakdown `json:"domain_breakdowns,omitempty" console:"-"`
 }
 
 // outcomeEvaluator is a function that evaluates one safe output item.
@@ -93,7 +104,8 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 }
 
 // EvaluateOutcomes checks the current state of all safe output items from a run.
-func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeReport {
+// The mapping parameter is required and defines how labels map to objective values.
+func EvaluateOutcomes(items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport {
 	outcomeEvalLog.Printf("Evaluating outcomes: items=%d, repo_override=%q", len(items), repoOverride)
 	if repoOverride == "" {
 		slug, err := GetCurrentRepoSlug()
@@ -123,6 +135,10 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 		report.CreatedAt = item.Timestamp
 		report.CheckedAt = time.Now().UTC().Format(time.RFC3339)
 		report.OutcomeEvaluation = normalizeOutcomeEvaluation(report)
+
+		// Compute objective value from issue/PR labels
+		enrichOutcomeWithObjectiveValue(&report, repo, mapping)
+
 		reports = append(reports, report)
 	}
 	outcomeEvalLog.Printf("Outcome evaluation complete: reports=%d, skipped=%d", len(reports), skipped)
@@ -130,7 +146,8 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 }
 
 // ComputeOutcomeSummary aggregates outcome reports into a summary.
-func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
+// The mapping parameter is required and defines how labels map to objective values.
+func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary {
 	s := OutcomeSummary{Total: len(reports)}
 	var times []float64
 	for _, r := range reports {
@@ -168,6 +185,12 @@ func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
 		if r.TimeToOutcomeHours > 0 {
 			times = append(times, r.TimeToOutcomeHours)
 		}
+
+		// Aggregate objective values
+		s.TotalObjectiveValue += r.ObjectiveValue
+		if eval.OutcomeStatus == OutcomeStatusAccepted {
+			s.AcceptedObjectiveValue += r.ObjectiveValue
+		}
 	}
 	resolved := s.Accepted + s.Rejected
 	if resolved > 0 {
@@ -182,6 +205,15 @@ func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
 	if len(times) > 0 {
 		s.MedianTimeToOutcome = medianFloat(times)
 	}
+
+	// Compute objective efficiency
+	if s.TotalObjectiveValue > 0 {
+		s.ObjectiveEfficiency = float64(s.AcceptedObjectiveValue) / float64(s.TotalObjectiveValue)
+	}
+
+	// Compute domain breakdowns
+	s.DomainBreakdowns = ComputeDomainBreakdowns(reports)
+
 	return s
 }
 
@@ -237,6 +269,27 @@ func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
 	var result []map[string]any
 	if err := json.Unmarshal(output, &result); err != nil {
 		return nil, fmt.Errorf("parsing response for %s: %w", endpoint, err)
+	}
+	return result, nil
+}
+
+// ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
+func ghAPIGraphQL(query string, repo string) (map[string]any, error) {
+	ownerRepo, host := normalizeRepoForAPI(repo)
+	args := []string{"api", "graphql", "-f", "query=" + query}
+	var output []byte
+	var err error
+	if host != "" {
+		output, err = workflow.RunGHWithHost("Checking outcome...", host, args...)
+	} else {
+		output, err = workflow.RunGH("Checking outcome...", args...)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("gh api graphql: %w", err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("parsing graphql response for %s: %w", ownerRepo, err)
 	}
 	return result, nil
 }
@@ -327,4 +380,168 @@ func resolveItemNumber(item CreatedItemReport) int {
 		return parseNumberFromURL(item.URL)
 	}
 	return 0
+}
+
+// enrichOutcomeWithObjectiveValue computes the objective value for an outcome by fetching
+// its associated issue/PR labels and applying the label-to-value mapping.
+func enrichOutcomeWithObjectiveValue(report *OutcomeReport, repo string, mapping *github.ObjectiveMapping) {
+	if report == nil || mapping == nil {
+		return
+	}
+
+	// Only compute objective values for items that have a GitHub object number
+	num := report.ObjectNumber
+	if num == 0 || repo == "" {
+		return
+	}
+
+	// Skip types that don't have associated labels on issues/PRs
+	if report.Type == "noop" || report.Type == "missing_tool" || report.Type == "missing_data" || report.Type == "report_incomplete" {
+		return
+	}
+
+	outcomeEvalLog.Printf("Computing objective value: type=%s, repo=%s, number=%d", report.Type, repo, num)
+
+	root, err := traceOutcomeRoot(*report, repo)
+	if err != nil {
+		outcomeEvalLog.Printf("Could not trace root for objective value computation: %v", err)
+		return
+	}
+	report.TracedRootURL = root.URL
+
+	labelNames := root.Labels
+	if len(labelNames) > 0 {
+		outcomeEvalLog.Printf("Fetched root labels for %s#%d: root=%s labels=%v", repo, num, root.URL, labelNames)
+	}
+
+	// Compute objective value
+	objectiveValue := mapping.ComputeObjectiveValue(labelNames)
+	objectiveLabels := mapping.GetObjectiveLabels(labelNames)
+
+	report.ObjectiveValue = objectiveValue
+	report.ObjectiveLabels = objectiveLabels
+	outcomeEvalLog.Printf("Computed objective value for %s#%d: value=%d, labels=%v", repo, num, objectiveValue, objectiveLabels)
+}
+
+type tracedOutcomeRoot struct {
+	URL    string
+	Number int
+	Labels []string
+}
+
+func traceOutcomeRoot(report OutcomeReport, repo string) (tracedOutcomeRoot, error) {
+	if isPullRequestOutcomeType(report.Type) {
+		root, err := tracePullRequestRoot(report.ObjectNumber, repo)
+		if err == nil && root.Number > 0 {
+			return root, nil
+		}
+		if err != nil {
+			outcomeEvalLog.Printf("Falling back to direct labels after PR root trace failure: %v", err)
+		}
+	}
+
+	labels, err := objectiveMappingGHAPIGetArray(fmt.Sprintf("issues/%d/labels", report.ObjectNumber), repo)
+	if err != nil {
+		return tracedOutcomeRoot{}, err
+	}
+	return tracedOutcomeRoot{
+		URL:    report.ObjectURL,
+		Number: report.ObjectNumber,
+		Labels: labelsToStringsFromMaps(labels),
+	}, nil
+}
+
+func isPullRequestOutcomeType(outcomeType string) bool {
+	switch outcomeType {
+	case "create_pull_request", "update_pull_request", "create_pull_request_review_comment",
+		"resolve_pull_request_review_thread", "mark_pull_request_as_ready_for_review",
+		"push_to_pull_request_branch", "add_reviewer", "submit_pull_request_review":
+		return true
+	default:
+		return false
+	}
+}
+
+func tracePullRequestRoot(prNumber int, repo string) (tracedOutcomeRoot, error) {
+	ownerRepo, _ := normalizeRepoForAPI(repo)
+	owner, name, found := strings.Cut(ownerRepo, "/")
+	if !found || owner == "" || name == "" {
+		return tracedOutcomeRoot{}, fmt.Errorf("invalid repo for root tracing: %s", repo)
+	}
+
+	query := fmt.Sprintf(`query {
+		repository(owner: "%s", name: "%s") {
+			pullRequest(number: %d) {
+				closingIssuesReferences(first: 10) {
+					nodes {
+						number
+						url
+						labels(first: 20) {
+							nodes { name }
+						}
+					}
+				}
+			}
+		}
+	}`,
+		escapeGraphQLString(owner),
+		escapeGraphQLString(name),
+		prNumber,
+	)
+
+	result, err := objectiveMappingGHAPIGraphQL(query, repo)
+	if err != nil {
+		return tracedOutcomeRoot{}, err
+	}
+	data, _ := result["data"].(map[string]any)
+	repository, _ := data["repository"].(map[string]any)
+	pullRequest, _ := repository["pullRequest"].(map[string]any)
+	closingRefs, _ := pullRequest["closingIssuesReferences"].(map[string]any)
+	nodes, _ := closingRefs["nodes"].([]any)
+	if len(nodes) == 0 {
+		return tracedOutcomeRoot{}, fmt.Errorf("no closing issues found for PR #%d", prNumber)
+	}
+	firstNode, _ := nodes[0].(map[string]any)
+	root := tracedOutcomeRoot{}
+	if url, ok := firstNode["url"].(string); ok {
+		root.URL = url
+	}
+	if number, ok := firstNode["number"].(float64); ok {
+		root.Number = int(number)
+	}
+	if labels, ok := firstNode["labels"].(map[string]any); ok {
+		if labelNodes, ok := labels["nodes"].([]any); ok {
+			root.Labels = labelsToStringsFromNodes(labelNodes)
+		}
+	}
+	return root, nil
+}
+
+func labelsToStringsFromNodes(nodes []any) []string {
+	if len(nodes) == 0 {
+		return []string{}
+	}
+	result := make([]string, 0, len(nodes))
+	for _, node := range nodes {
+		labelMap, _ := node.(map[string]any)
+		if name, ok := labelMap["name"].(string); ok {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
+// labelsToStringsFromMaps converts GitHub API label map objects to string slice.
+func labelsToStringsFromMaps(labels []map[string]any) []string {
+	if len(labels) == 0 {
+		return []string{}
+	}
+
+	result := make([]string, 0, len(labels))
+	for _, labelMap := range labels {
+		if name, ok := labelMap["name"].(string); ok {
+			result = append(result, name)
+		}
+	}
+	return result
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
@@ -63,6 +64,7 @@ Examples:
 	addRepoFlag(cmd)
 	addOutputFlag(cmd, "")
 	cmd.Flags().String("outcomes-dir", "", "Write outcome JSONL to this directory for OTLP export")
+	cmd.AddCommand(NewOutcomesHistorySubcommand())
 
 	return cmd
 }
@@ -165,8 +167,9 @@ func RunOutcomes(config OutcomesConfig) error {
 	}
 
 	// Run the evaluations
-	reports := EvaluateOutcomes(items, repo)
-	outcomeSummary := ComputeOutcomeSummary(reports)
+	mapping := github.LoadObjectiveMappingFromConfig()
+	reports := EvaluateOutcomes(items, repo, mapping)
+	outcomeSummary := ComputeOutcomeSummary(reports, mapping)
 
 	// Write outcome JSONL if requested (for OTLP export or downstream processing).
 	// The --outcomes-dir flag takes precedence over the GH_AW_OUTCOMES_DIR env var.
