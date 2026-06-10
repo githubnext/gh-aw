@@ -444,12 +444,14 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	}
 
 	// Inject permissions.copilot-requests: write when the user chose org-billing auth.
-	if opts.AddCopilotRequestsPermission {
+	// Only inject for Copilot workflows — guard against the flag being inadvertently set
+	// when multiple workflows with different engines are processed in the same batch.
+	if opts.AddCopilotRequestsPermission && isCopilotWorkflowContent(content) {
 		updatedContent, err := addCopilotRequestsPermissionToContent(content)
 		if err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add copilot-requests permission: %v", err)))
-			}
+			// Always warn: user explicitly chose copilot-requests auth; a silent failure
+			// means the deployed workflow will lack the required permission.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add copilot-requests permission: %v", err)))
 		} else {
 			content = updatedContent
 			if opts.Verbose {
@@ -793,6 +795,27 @@ func printCompilationError(err error, quiet bool) {
 		return
 	}
 	fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
+}
+
+// isCopilotWorkflowContent returns true when the workflow frontmatter declares engine: copilot.
+// It is used to guard AddCopilotRequestsPermission injection so that the flag is only applied
+// to Copilot workflows even when multiple workflows of different engines are processed together.
+func isCopilotWorkflowContent(content string) bool {
+	lines, _, err := parseFrontmatterLines(content)
+	if err != nil {
+		return false
+	}
+	for _, line := range lines {
+		if !isTopLevelKey(line) {
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
+		if parseYAMLMapKey(trimmed) == "engine" {
+			val := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
+			return val == string(constants.CopilotEngine)
+		}
+	}
+	return false
 }
 
 // addCopilotRequestsPermissionToContent injects `permissions.copilot-requests: write`

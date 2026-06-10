@@ -141,6 +141,8 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
 	// If --skip-secret flag is set, skip secrets configuration entirely.
+	// Note: for Copilot workflows, --skip-secret implies the PAT path; users who want
+	// copilot-requests (org billing) should not pass --skip-secret.
 	if c.SkipSecret {
 		opt := constants.GetEngineOption(engine)
 		if opt != nil {
@@ -220,7 +222,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("How would you like Copilot workflows to authenticate?").
-				Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN.").
+				Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN (requires repo write access to configure).").
 				Options(
 					huh.NewOption("Use copilot-requests (org's Copilot billing, no PAT) [recommended for orgs]", authMethodCopilotRequests),
 					huh.NewOption("Use a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN", authMethodPAT),
@@ -233,6 +235,15 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		return fmt.Errorf("failed to select Copilot authentication method: %w", err)
 	}
 
+	c.applyCopilotAuthMethodChoice(authMethod)
+	return nil
+}
+
+// applyCopilotAuthMethodChoice records the user's Copilot auth method selection and prints
+// the corresponding status message. It is pure (no I/O beyond stderr) and intentionally
+// separated from the huh form so the assignment logic is unit-testable without mocking the TUI.
+func (c *AddInteractiveConfig) applyCopilotAuthMethodChoice(authMethod string) {
+	const authMethodCopilotRequests = "copilot-requests"
 	if authMethod == authMethodCopilotRequests {
 		c.UseCopilotRequests = true
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected copilot-requests: permissions.copilot-requests: write will be added to your workflow"))
@@ -241,6 +252,4 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		c.UseCopilotRequests = false
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
 	}
-
-	return nil
 }
