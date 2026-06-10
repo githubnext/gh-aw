@@ -57,9 +57,8 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 			URL:      "https://example.com/3",
 			ClosedAt: "2026-06-03T00:00:00Z",
 			Labels: []struct {
-				Name string "json:\"name\""
+				Name string `json:"name"`
 			}{{Name: "docs"}},
-		},
 	}
 
 	report := buildHistoricalObjectiveReport(historySourceIssues, items, mapping)
