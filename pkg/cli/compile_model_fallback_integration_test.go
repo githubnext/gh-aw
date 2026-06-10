@@ -32,6 +32,6 @@ func TestCompileSandboxModelFallbackWorkflow(t *testing.T) {
 	require.NoError(t, err, "should read lock file")
 	lockStr := string(lockContent)
 
-	assert.Contains(t, lockStr, `"modelFallback":{"enabled":false}`,
+	assert.Contains(t, lockStr, `\"modelFallback\":{\"enabled\":false}`,
 		"compiled lock file should embed sandbox.agent.model-fallback in the AWF config JSON")
 }
