@@ -174,6 +174,58 @@ This is a test workflow with multiple imports.
 	}
 }
 
+func TestCompileWorkflowWithConditionalImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	sharedPath := filepath.Join(tempDir, "shared-conditional.md")
+	sharedContent := `---
+steps:
+  - name: Conditional Imported Step
+    run: echo "from import"
+---
+
+Imported conditional instructions.
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared conditional file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+experiments:
+  strategy: [eager, lazy]
+imports:
+  - path: shared-conditional.md
+    if: "experiments.strategy == 'eager'"
+---
+
+# Test Workflow
+
+Main workflow body.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	err := compiler.CompileWorkflow(workflowPath)
+	if err == nil {
+		t.Fatal("Expected CompileWorkflow to fail for imports.if, but it succeeded")
+	}
+	// imports.if is rejected — either by schema validation ("Unknown property: if")
+	// or by the migration guard ("import 'if' is no longer supported").
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "Unknown property: if") && !strings.Contains(errMsg, "import 'if' is no longer supported") {
+		t.Errorf("Expected rejection of imports.if, got unrelated error: %v", err)
+	}
+}
+
 func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")

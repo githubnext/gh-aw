@@ -311,7 +311,7 @@ func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider(t *testing.T) {
 	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
 	assert.Contains(t, stepText, "claude-sonnet-4-20250514", "Step should include the model ID in models.json")
 	// AWF config JSON embedded in step must enable the api-proxy sidecar.
-	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
+	assert.Contains(t, stepText, `\"enabled\":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// The models.json is embedded in the step as a printf argument. Verify the correct
 	// Copilot gateway port is present by re-building the expected JSON.
 	// models.json must use the "api-proxy" Docker service hostname, not host.docker.internal.
@@ -344,7 +344,7 @@ func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
 	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
 	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
 	assert.Contains(t, stepText, "claude-opus-4-20251101", "Step should include the model ID in models.json")
-	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
+	assert.Contains(t, stepText, `\"enabled\":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// Anthropic provider routes through the Claude LLM gateway port.
 	// models.json must use the "api-proxy" Docker service hostname, not host.docker.internal.
 	expectedModelsJSON := buildPiModelsJSON(constants.ClaudeLLMGatewayPort, "ANTHROPIC_API_KEY", "claude-opus-4-20251101")
@@ -375,7 +375,7 @@ func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
 	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
 	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
 	assert.Contains(t, stepText, "gpt-4.1", "Step should include the model ID in models.json")
-	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
+	assert.Contains(t, stepText, `\"enabled\":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// Codex/OpenAI provider routes through the Codex LLM gateway port.
 	// models.json must use the "api-proxy" Docker service hostname, not host.docker.internal.
 	expectedModelsJSON := buildPiModelsJSON(constants.CodexLLMGatewayPort, "CODEX_API_KEY", "gpt-4.1")

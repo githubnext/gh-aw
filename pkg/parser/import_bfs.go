@@ -49,26 +49,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 }
 
 type nestedImportEntry struct {
-	path        string
-	inputs      map[string]any
-	ifCondition string
+	path   string
+	inputs map[string]any
 }
 
 type importBFSState struct {
 	queue          []importQueueItem
 	visited        map[string]bool
 	visitedInputs  map[string]map[string]any
-	visitedIfConds map[string]string
 	processedOrder []string
 	acc            *importAccumulator
 }
 
 func newImportBFSState() *importBFSState {
 	return &importBFSState{
-		visited:        make(map[string]bool),
-		visitedInputs:  make(map[string]map[string]any),
-		visitedIfConds: make(map[string]string),
-		acc:            newImportAccumulator(),
+		visited:       make(map[string]bool),
+		visitedInputs: make(map[string]map[string]any),
+		acc:           newImportAccumulator(),
 	}
 }
 
@@ -134,7 +131,7 @@ func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCa
 		return err
 	}
 	origin := detectRemoteImportOrigin(filePath)
-	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, importSpec.If, origin)
+	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, origin)
 }
 
 func splitImportPathAndSection(importPath string) (string, string) {
@@ -195,21 +192,17 @@ func detectRemoteImportOrigin(filePath string) *remoteImportOrigin {
 	return origin
 }
 
-func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, ifCondition string, origin *remoteImportOrigin) error {
+func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin) error {
 	if !state.visited[fullPath] {
 		state.visited[fullPath] = true
 		state.visitedInputs[fullPath] = inputs
-		state.visitedIfConds[fullPath] = ifCondition
 		state.queue = append(state.queue, importQueueItem{
-			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, ifCondition: ifCondition, remoteOrigin: origin,
+			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: origin,
 		})
 		parserLog.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		return nil
 	}
 	if err := checkImportInputsConsistency(importPath, state.visitedInputs[fullPath], inputs); err != nil {
-		return err
-	}
-	if err := checkImportIfConditionConsistency(importPath, state.visitedIfConds[fullPath], ifCondition); err != nil {
 		return err
 	}
 	parserLog.Printf("Skipping duplicate import: %s (already visited)", importPath)
@@ -370,7 +363,15 @@ func extractFrontmatterForImport(fullPath string, content []byte) (*FrontmatterR
 }
 
 func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
-	nestedImports := parseNestedImportEntries(frontmatter)
+	importsField, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return nil
+	}
+	importSpecs, err := parseImportSpecsFromField(importsField)
+	if err != nil {
+		return err
+	}
+	nestedImports := nestedEntriesFromSpecs(importSpecs)
 	for _, nestedEntry := range nestedImports {
 		if err := enqueueNestedImportEntry(nestedEntry, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
@@ -422,11 +423,7 @@ func parseNestedImportEntry(item any) (nestedImportEntry, bool) {
 		} else if inputsVal, ok := nestedItem["inputs"].(map[string]any); ok {
 			nestedInputs = inputsVal
 		}
-		var nestedIfCond string
-		if ifVal, ok := nestedItem["if"].(string); ok {
-			nestedIfCond = ifVal
-		}
-		return nestedImportEntry{path: nestedPath, inputs: nestedInputs, ifCondition: nestedIfCond}, true
+		return nestedImportEntry{path: nestedPath, inputs: nestedInputs}, true
 	default:
 		return nestedImportEntry{}, false
 	}
@@ -435,7 +432,7 @@ func parseNestedImportEntry(item any) (nestedImportEntry, bool) {
 func nestedEntriesFromSpecs(specs []ImportSpec) []nestedImportEntry {
 	nestedImports := make([]nestedImportEntry, 0, len(specs))
 	for _, spec := range specs {
-		nestedImports = append(nestedImports, nestedImportEntry{path: spec.Path, inputs: spec.Inputs, ifCondition: spec.If})
+		nestedImports = append(nestedImports, nestedImportEntry{path: spec.Path, inputs: spec.Inputs})
 	}
 	return nestedImports
 }
@@ -453,8 +450,7 @@ func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, bas
 		return formatNestedResolveError(nestedImportPath, nestedFilePath, item, workflowFilePath, yamlContent, err)
 	}
 	canonicalImportPath := canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir, nestedRemoteOrigin, nestedFullPath)
-	effectiveIfCondition := combineImportIfConditions(item.ifCondition, entry.ifCondition)
-	return enqueueNestedVisitedPath(state, canonicalImportPath, nestedFullPath, nestedSectionName, baseDir, entry.inputs, effectiveIfCondition, nestedRemoteOrigin)
+	return enqueueNestedVisitedPath(state, canonicalImportPath, nestedFullPath, nestedSectionName, baseDir, entry.inputs, nestedRemoteOrigin)
 }
 
 func resolveNestedImportPathAndOrigin(item importQueueItem, nestedFilePath string) (string, *remoteImportOrigin, error) {
@@ -516,21 +512,17 @@ func canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir strin
 	return filepath.ToSlash(rel)
 }
 
-func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, ifCondition string, nestedRemoteOrigin *remoteImportOrigin) error {
+func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, nestedRemoteOrigin *remoteImportOrigin) error {
 	if !state.visited[nestedFullPath] {
 		state.visited[nestedFullPath] = true
 		state.visitedInputs[nestedFullPath] = inputs
-		state.visitedIfConds[nestedFullPath] = ifCondition
 		state.queue = append(state.queue, importQueueItem{
-			importPath: nestedImportPath, fullPath: nestedFullPath, sectionName: nestedSectionName, baseDir: baseDir, inputs: inputs, ifCondition: ifCondition, remoteOrigin: nestedRemoteOrigin,
+			importPath: nestedImportPath, fullPath: nestedFullPath, sectionName: nestedSectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: nestedRemoteOrigin,
 		})
 		parserLog.Printf("Discovered nested import: %s (queued)", nestedFullPath)
 		return nil
 	}
 	if err := checkImportInputsConsistency(nestedImportPath, state.visitedInputs[nestedFullPath], inputs); err != nil {
-		return err
-	}
-	if err := checkImportIfConditionConsistency(nestedImportPath, state.visitedIfConds[nestedFullPath], ifCondition); err != nil {
 		return err
 	}
 	parserLog.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
@@ -573,16 +565,10 @@ func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 					return nil, errors.New("import 'inputs'/'with' must be an object")
 				}
 			}
-			// Extract optional "if" condition
-			var ifCond string
-			if ifVal, hasIf := importItem["if"]; hasIf {
-				if ifStr, ok := ifVal.(string); ok {
-					ifCond = ifStr
-				} else {
-					return nil, errors.New("import 'if' must be a string")
-				}
+			if _, hasIf := importItem["if"]; hasIf {
+				return nil, errors.New("import 'if' is no longer supported; use {{#if ...}}{{#runtime-import? ...}}{{/if}} for experiment-specific prompt imports")
 			}
-			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs, If: ifCond})
+			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs})
 		default:
 			return nil, errors.New("import item must be a string or an object with 'path'/'uses' field")
 		}
@@ -606,36 +592,6 @@ func checkImportInputsConsistency(importPath string, existingInputs, newInputs m
 		formatImportInputs(existingInputs),
 		formatImportInputs(newInputs),
 	)
-}
-
-func checkImportIfConditionConsistency(importPath, existingCondition, newCondition string) error {
-	if strings.TrimSpace(existingCondition) == strings.TrimSpace(newCondition) {
-		return nil
-	}
-	return fmt.Errorf(
-		"import conflict: '%s' is imported more than once with different 'if' conditions.\n"+
-			"An imported workflow can only be imported once per workflow with one consistent condition.\n"+
-			"  Previous 'if': %q\n"+
-			"  New 'if':      %q",
-		importPath,
-		existingCondition,
-		newCondition,
-	)
-}
-
-// combineImportIfConditions merges a parent import condition with a nested import
-// condition. Empty conditions are ignored; when both are non-empty, both must hold.
-func combineImportIfConditions(parentCondition, childCondition string) string {
-	parent := strings.TrimSpace(parentCondition)
-	child := strings.TrimSpace(childCondition)
-	switch {
-	case parent == "":
-		return child
-	case child == "":
-		return parent
-	default:
-		return fmt.Sprintf("(%s) && (%s)", parent, child)
-	}
 }
 
 // importInputsEqual reports whether two import input maps are deeply equal.

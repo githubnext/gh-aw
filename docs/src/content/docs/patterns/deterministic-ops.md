@@ -55,21 +55,27 @@ For workflows that run frequently or process large datasets, use GitHub Actions 
 ```aw wrap
 ---
 cache:
-  - key: pr-data-${{ github.run_id }}
-    path: /tmp/gh-aw/pr-data
-    restore-keys: |
-      pr-data-
+  key: pr-data-${{ github.run_id }}
+  path: /tmp/gh-aw/agent/pr-data
+  restore-keys: |
+    pr-data-
 
 steps:
   - name: Check cache and fetch only new data
     run: |
-      if [ -f /tmp/gh-aw/pr-data/recent-prs.json ]; then
+      mkdir -p /tmp/gh-aw/agent/pr-data
+      if [ -f /tmp/gh-aw/agent/pr-data/recent-prs.json ]; then
         echo "Using cached data"
       else
-        gh pr list --limit 100 --json ... > /tmp/gh-aw/pr-data/recent-prs.json
+        gh pr list --limit 100 --json number,title,labels,state \
+          > /tmp/gh-aw/agent/pr-data/recent-prs.json
       fi
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 ```
+
+Setting `path: /tmp/gh-aw/agent` means the cache is restored directly into the directory that gh-aw uploads as artifacts for the agent — no extra copy step needed. The `mkdir -p` guard ensures the directory exists on the first run before any cache is available.
 
 ## Deterministic Trigger Filtering
 

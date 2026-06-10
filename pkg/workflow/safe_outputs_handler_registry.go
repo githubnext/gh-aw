@@ -237,6 +237,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.CreateCheckRun
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("name", c.Name).
 			AddIfTrue("staged", c.Staged)
 		if c.Output != nil {

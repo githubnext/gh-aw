@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
@@ -24,9 +24,9 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 	lenStringAliases := collectLenStringAliases(pass)
 
@@ -47,10 +47,13 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		var lenArg ast.Expr
+		isDirect := false
 		if isLenCall(expr.X) && isIntZero(expr.Y) {
 			lenArg = lenCallArg(expr.X)
+			isDirect = true
 		} else if isIntZero(expr.X) && isLenCall(expr.Y) {
 			lenArg = lenCallArg(expr.Y)
+			isDirect = true
 		} else if isIntZero(expr.Y) {
 			if arg, ok := lenAliasArg(pass, expr.X, lenStringAliases); ok {
 				lenArg = arg
@@ -80,12 +83,37 @@ func run(pass *analysis.Pass) (any, error) {
 		} else {
 			cmpVerb = "non-empty"
 		}
-		pass.ReportRangef(expr,
-			`use s %s "" to check for %s string instead of len(s) %s 0`,
-			op, cmpVerb, op)
+		var fixes []analysis.SuggestedFix
+		if isDirect {
+			fixes = buildLenStringFix(pass, expr, lenArg)
+		}
+		pass.Report(analysis.Diagnostic{
+			Pos:            expr.Pos(),
+			End:            expr.End(),
+			Message:        fmt.Sprintf(`use s %s "" to check for %s string instead of len(s) %s 0`, op, cmpVerb, op),
+			SuggestedFixes: fixes,
+		})
 	})
 
 	return nil, nil
+}
+
+// buildLenStringFix returns a SuggestedFix that rewrites a direct len(s) == 0
+// or len(s) != 0 comparison to s == "" or s != "".
+func buildLenStringFix(pass *analysis.Pass, expr *ast.BinaryExpr, lenArg ast.Expr) []analysis.SuggestedFix {
+	text := astutil.NodeText(pass.Fset, lenArg)
+	if text == "" {
+		return nil
+	}
+	replacement := fmt.Sprintf(`%s %s ""`, text, expr.Op.String())
+	return []analysis.SuggestedFix{{
+		Message: "Replace with direct string comparison",
+		TextEdits: []analysis.TextEdit{{
+			Pos:     expr.Pos(),
+			End:     expr.End(),
+			NewText: []byte(replacement),
+		}},
+	}}
 }
 
 func isLenCall(expr ast.Expr) bool {
@@ -142,7 +170,7 @@ func collectLenStringAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.Assign
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(ident)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
 
@@ -152,7 +180,7 @@ func collectLenStringAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.Assign
 				delete(aliases, obj)
 				continue
 			}
-			rhs, ok := rhsExprForIndex(stmt.Rhs, i)
+			rhs, ok := astutil.RhsExprForIndex(stmt.Rhs, i)
 			if !ok {
 				delete(aliases, obj)
 				continue
@@ -174,10 +202,10 @@ func collectLenStringAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSp
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(name)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
-		rhs, ok := rhsExprForIndex(spec.Values, i)
+		rhs, ok := astutil.RhsExprForIndex(spec.Values, i)
 		if !ok {
 			delete(aliases, obj)
 			continue
@@ -222,33 +250,10 @@ func lenStringArg(pass *analysis.Pass, expr ast.Expr) (ast.Expr, bool) {
 	return arg, true
 }
 
-func rhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
-	switch {
-	case len(rhs) == 0:
-		return nil, false
-	case idx < len(rhs):
-		return rhs[idx], true
-	default:
-		return nil, false
-	}
-}
-
 func deleteLenStringAliasForExpr(pass *analysis.Pass, aliases map[types.Object]ast.Expr, expr ast.Expr) {
 	ident, ok := expr.(*ast.Ident)
 	if !ok {
 		return
 	}
 	delete(aliases, pass.TypesInfo.ObjectOf(ident))
-}
-
-func isLocalObject(obj types.Object) bool {
-	if obj == nil {
-		return false
-	}
-	parent := obj.Parent()
-	if parent == nil {
-		return false
-	}
-	pkg := obj.Pkg()
-	return pkg == nil || parent != pkg.Scope()
 }

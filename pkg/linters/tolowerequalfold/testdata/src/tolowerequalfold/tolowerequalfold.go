@@ -7,10 +7,10 @@ func flaggedExamples() {
 	name := "Alice"
 
 	// should use strings.EqualFold(name, "alice")
-	_ = strings.ToLower(name) == "alice"                  // want `use strings\.EqualFold`
-	_ = strings.ToUpper(name) == "ALICE"                  // want `use strings\.EqualFold`
-	_ = "alice" == strings.ToLower(name)                  // want `use strings\.EqualFold`
-	_ = strings.ToLower(name) != "alice"                  // want `use strings\.EqualFold`
+	_ = strings.ToLower(name) == "alice" // want `use strings\.EqualFold`
+	_ = strings.ToUpper(name) == "ALICE" // want `use strings\.EqualFold`
+	_ = "alice" == strings.ToLower(name) // want `use strings\.EqualFold`
+	_ = strings.ToLower(name) != "alice" // want `use strings\.EqualFold`
 	_ = strings.ToLower(name) == strings.ToLower("alice") // want `use strings\.EqualFold`
 
 	lower := strings.ToLower(name)
@@ -37,3 +37,4 @@ func suppressedExamples() {
 	name := "Alice"
 	_ = strings.ToLower(name) == "alice" //nolint:tolowerequalfold
 }
+

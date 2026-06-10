@@ -97,10 +97,6 @@
                     "type": "string",
                     "description": "Import path. Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports. Markdown files under .github/agents/ are treated as agent configuration files."
                   },
-                  "if": {
-                    "type": "string",
-                    "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant. Steps and prompt content from the import are only active when the condition is true."
-                  },
                   "inputs": {
                     "type": "object",
                     "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
@@ -146,10 +142,6 @@
                   "uses": {
                     "type": "string",
                     "description": "Import path (alias for 'path'). Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports."
-                  },
-                  "if": {
-                    "type": "string",
-                    "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant. Steps and prompt content from the import are only active when the condition is true."
                   },
                   "with": {
                     "type": "object",
@@ -236,10 +228,6 @@
                         "type": "string",
                         "description": "Workflow specification in format owner/repo/path@ref."
                       },
-                      "if": {
-                        "type": "string",
-                        "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant."
-                      },
                       "inputs": {
                         "type": "object",
                         "description": "Input values to pass to the imported workflow.",
@@ -285,10 +273,6 @@
                       "uses": {
                         "type": "string",
                         "description": "Workflow specification in format owner/repo/path@ref."
-                      },
-                      "if": {
-                        "type": "string",
-                        "description": "Condition expression that guards this import at runtime. Use 'experiments.<name>' form (e.g. \"experiments.strategy == 'eager'\") to make the import conditional on an experiment variant."
                       },
                       "with": {
                         "type": "object",
@@ -2752,24 +2736,63 @@
       ]
     },
     "models": {
-      "description": "DEPRECATED: Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
-      "deprecated": true,
-      "x-deprecation-message": "Frontmatter 'models' is deprecated and no longer needed. Remove this field from workflow frontmatter.",
+      "description": "Custom model pricing data in the same structure as models.json. Merged with the built-in models.json at runtime; frontmatter entries override matching models and fill gaps for unknown models. Useful for custom or private models, or to adjust pricing for effective-token cost accounting.",
       "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "description": "A vendor/modelid glob pattern (e.g. 'copilot/*sonnet*') or an alias name (e.g. 'sonnet') to resolve recursively."
-        },
-        "description": "Ordered list of model patterns or alias names to try in sequence."
-      },
-      "examples": [
-        {
-          "sonnet": ["mygateway/*sonnet-v3*"],
-          "": ["sonnet", "gpt-5-codex"]
+      "required": ["providers"],
+      "properties": {
+        "providers": {
+          "type": "object",
+          "description": "Provider-keyed map of model pricing data.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Provider configuration containing model pricing entries.",
+            "properties": {
+              "models": {
+                "type": "object",
+                "description": "Model-keyed pricing entries for this provider.",
+                "additionalProperties": {
+                  "type": "object",
+                  "description": "Pricing data for a single model.",
+                  "properties": {
+                    "cost": {
+                      "type": "object",
+                      "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers.",
+                      "properties": {
+                        "input": {
+                          "type": ["number", "string"],
+                          "description": "Cost per input token in USD."
+                        },
+                        "output": {
+                          "type": ["number", "string"],
+                          "description": "Cost per output token in USD."
+                        },
+                        "cache_read": {
+                          "type": ["number", "string"],
+                          "description": "Cost per cached-read token in USD."
+                        },
+                        "cache_write": {
+                          "type": ["number", "string"],
+                          "description": "Cost per cache-write token in USD."
+                        },
+                        "reasoning": {
+                          "type": ["number", "string"],
+                          "description": "Cost per reasoning token in USD."
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": ["number", "string"]
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
         }
-      ]
+      },
+      "additionalProperties": false
     },
     "experiments": {
       "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples). The reserved 'storage' key controls how experiment state is persisted: 'repo' (default) commits state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed) for durability; 'cache' uses GitHub Actions cache. At runtime the activation job picks a variant and persists the updated counters. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a least-used counter that round-robins across variants (or weighted when 'weight' is provided); ties are broken randomly so no variant is systematically favoured on the first run.",
@@ -10225,6 +10248,12 @@
           "type": "string",
           "description": "Concurrency group for the safe-outputs job. When set, the safe-outputs job will use this concurrency group with cancel-in-progress: false. Supports GitHub Actions expressions.",
           "examples": ["my-workflow-safe-outputs", "safe-outputs-${{ github.repository }}"]
+        },
+        "timeout-minutes": {
+          "type": "integer",
+          "description": "Timeout for the safe_outputs job in minutes. Defaults to 45 minutes. Increase for workflows with many sequential safe output operations (e.g. push_to_pull_request_branch against large repositories).",
+          "minimum": 1,
+          "examples": [30, 60, 120]
         },
         "needs": {
           "type": "array",

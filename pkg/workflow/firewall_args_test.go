@@ -213,7 +213,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Image tag is now always written to the JSON config file, never as a CLI flag.
-		expectedImageTag := `"imageTag":"` + strings.TrimPrefix(customVersion, "v")
+		expectedImageTag := `\"imageTag\":\"` + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF config JSON to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}

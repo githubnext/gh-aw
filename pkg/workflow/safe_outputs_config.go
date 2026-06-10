@@ -532,6 +532,48 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle timeout-minutes configuration
+			if timeoutMinutes, exists := outputMap["timeout-minutes"]; exists {
+				switch v := timeoutMinutes.(type) {
+				case int:
+					if v >= 1 {
+						config.TimeoutMinutes = v
+					}
+				case int64:
+					if v >= 1 {
+						if v > int64(math.MaxInt) {
+							safeOutputsConfigLog.Printf("timeout-minutes: int64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+							config.TimeoutMinutes = math.MaxInt
+						} else {
+							config.TimeoutMinutes = int(v)
+						}
+					}
+				case uint64:
+					if v >= 1 {
+						if v > uint64(math.MaxInt) {
+							safeOutputsConfigLog.Printf("timeout-minutes: uint64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+							config.TimeoutMinutes = math.MaxInt
+						} else {
+							config.TimeoutMinutes = int(v)
+						}
+					}
+				case float64:
+					// Reject NaN/Inf and out-of-range floats before narrowing — int(NaN)/int(±Inf)
+					// are implementation-defined and can produce surprising values.
+					if v != v || v > float64(math.MaxInt) || v < float64(math.MinInt) {
+						safeOutputsConfigLog.Printf("timeout-minutes: float value %.2f is out of range, ignoring", v)
+						break
+					}
+					intVal := int(v)
+					if v != float64(intVal) {
+						safeOutputsConfigLog.Printf("timeout-minutes: float value %.2f truncated to integer %d", v, intVal)
+					}
+					if intVal >= 1 {
+						config.TimeoutMinutes = intVal
+					}
+				}
+			}
+
 			// Handle messages configuration
 			if messages, exists := outputMap["messages"]; exists {
 				if messagesMap, ok := messages.(map[string]any); ok {

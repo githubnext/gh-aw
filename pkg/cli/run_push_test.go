@@ -406,6 +406,46 @@ jobs:
 	assert.True(t, mismatch, "Should detect mismatch when JSON metadata hash differs")
 }
 
+func TestPushWorkflowFiles_CancelledContext(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir := t.TempDir()
+
+	// Initialize a git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	err := cmd.Run()
+	require.NoError(t, err)
+
+	// Configure git
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = tmpDir
+	err = cmd.Run()
+	require.NoError(t, err)
+
+	cmd = exec.Command("git", "config", "user.name", "Test User")
+	cmd.Dir = tmpDir
+	err = cmd.Run()
+	require.NoError(t, err)
+
+	// Save current directory and change to tmpDir
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err)
+	defer os.Chdir(originalDir)
+
+	workflowFile := filepath.Join(tmpDir, "workflow.md")
+	err = os.WriteFile(workflowFile, []byte("# Test"), 0644)
+	require.NoError(t, err)
+
+	// Pass an already-cancelled context — the first git subprocess should fail with context.Canceled.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = pushWorkflowFiles(ctx, "test-workflow", []string{workflowFile}, "", false)
+	require.Error(t, err)
+}
+
 func TestPushWorkflowFiles_WithStagedFiles(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
@@ -449,7 +489,7 @@ func TestPushWorkflowFiles_WithStagedFiles(t *testing.T) {
 	err = os.WriteFile(workflowFile, []byte("# Test"), 0644)
 	require.NoError(t, err)
 
-	err = pushWorkflowFiles("test-workflow", []string{workflowFile}, "", false)
+	err = pushWorkflowFiles(context.Background(), "test-workflow", []string{workflowFile}, "", false)
 
 	// Should return an error about staged files
 	require.Error(t, err)

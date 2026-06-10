@@ -182,4 +182,4 @@ tools:
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations
-- [OpenTelemetry](/gh-aw/reference/open-telemetry/#custom-spans-from-shared-imports) - Emit telemetry from shared imports
+- [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-spans-from-shared-imports) - Emit telemetry from shared imports

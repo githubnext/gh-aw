@@ -9,6 +9,10 @@ func flagged(name string) {
 	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name)) // want "use fmt.Fprintf"
 }
 
+func flaggedAlreadyNewline(name string) {
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s\n", name)) // want "use fmt.Fprintf"
+}
+
 func notFlagged(name string) {
 	fmt.Fprintln(os.Stderr, "plain string")
 	fmt.Fprintln(os.Stderr, "prefix", fmt.Sprintf("hello %s", name))

@@ -530,3 +530,27 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsTopLevelCom
 		t.Fatalf("expected unknown property error for command, got: %v", err)
 	}
 }
+
+func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_SkipsCustomAgentFiles(t *testing.T) {
+	// Custom agent files may contain Copilot-specific fields that are not in the
+	// gh-aw main workflow schema (e.g. user-invokable, disable-model-invocation,
+	// tools as an array).  Schema validation must be skipped for these files.
+	agentFrontmatter := map[string]any{
+		"description":              "My custom agent",
+		"user-invokable":           true,
+		"disable-model-invocation": false,
+	}
+
+	agentPaths := []string{
+		"/repo/.github/agents/my-agent.md",
+		".github/agents/my-agent.md",
+		"/some/path/.github/agents/sub/helper.md",
+	}
+
+	for _, path := range agentPaths {
+		err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(agentFrontmatter, path)
+		if err != nil {
+			t.Errorf("expected custom agent file %q to pass validation without errors, got: %v", path, err)
+		}
+	}
+}

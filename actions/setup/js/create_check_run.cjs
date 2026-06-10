@@ -7,7 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, resolveTarget } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -33,6 +33,7 @@ async function main(config = {}) {
   // Extract configuration
   const configuredName = config.name || "";
   const maxCount = config.max != null ? Number(config.max) : 1;
+  const checkRunTarget = typeof config.target === "string" && config.target.trim() ? config.target.trim() : null;
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
 
@@ -51,7 +52,7 @@ async function main(config = {}) {
     defaultName = `${defaultName} (Result)`;
   }
 
-  core.info(`Create check run configuration: name="${defaultName}", max=${maxCount}`);
+  core.info(`Create check run configuration: name="${defaultName}", max=${maxCount}${checkRunTarget ? `, target=${checkRunTarget}` : ""}`);
   if (configOutputTitle) core.info(`Config output.title fallback set (${configOutputTitle.length} chars)`);
   if (configOutputSummary) core.info(`Config output.summary fallback set (${configOutputSummary.length} chars)`);
 
@@ -111,12 +112,90 @@ async function main(config = {}) {
 
     const owner = context.repo.owner;
     const repo = context.repo.repo;
+    let headSha = "";
+    let resolvedPrNumber = null;
 
-    // For pull_request events, GITHUB_SHA is the ephemeral merge commit SHA which is
-    // not visible in the PR checks UI or the GitHub mobile app. Use the actual PR head
-    // SHA from the event payload instead so the check run appears on the PR.
-    const prHeadSha = context.payload?.pull_request?.head?.sha;
-    const headSha = prHeadSha || process.env.GITHUB_SHA || context.sha;
+    if (checkRunTarget) {
+      const targetResult = resolveTarget({
+        targetConfig: checkRunTarget,
+        item: message,
+        context,
+        itemType: HANDLER_TYPE,
+        supportsPR: false,
+        supportsIssue: false,
+      });
+      if (!targetResult.success) {
+        if (targetResult.shouldFail) {
+          core.error(targetResult.error);
+        } else {
+          core.info(targetResult.error);
+        }
+        return {
+          success: false,
+          error: targetResult.error,
+          skipped: !targetResult.shouldFail,
+        };
+      }
+
+      resolvedPrNumber = targetResult.number;
+
+      // Fetch the current PR head SHA via the API. We intentionally go through the API
+      // even when the context payload already carries a SHA (e.g. target: "triggering" on
+      // a pull_request event) so that we always use the most recent head in case the PR
+      // was force-pushed between the triggering event and when this handler runs.
+      // Skipped in staged mode — there is nothing to attach a real check run to.
+      if (!isStaged) {
+        try {
+          const { data: pullRequest } = await withRetry(
+            () =>
+              githubClient.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: resolvedPrNumber,
+              }),
+            RATE_LIMIT_RETRY_CONFIG
+          );
+          headSha = pullRequest?.head?.sha || "";
+          if (!headSha) {
+            const msg = `create_check_run: pull request #${resolvedPrNumber} has no head SHA`;
+            core.error(msg);
+            return { success: false, error: msg };
+          }
+          core.info(`Using PR #${resolvedPrNumber} head SHA ${headSha} (target=${checkRunTarget})`);
+        } catch (error) {
+          const errorMessage = getErrorMessage(error);
+          const msg = `Failed to resolve pull request for create_check_run: ${errorMessage}`;
+          core.error(msg);
+          return { success: false, error: msg };
+        }
+      }
+    } else {
+      // For pull_request events, GITHUB_SHA is the ephemeral merge commit SHA which is
+      // not visible in the PR checks UI or the GitHub mobile app. Use the actual PR head
+      // SHA from the event payload instead so the check run appears on the PR.
+      const prHeadSha = context.payload?.pull_request?.head?.sha;
+      headSha = prHeadSha || process.env.GITHUB_SHA || context.sha;
+      if (prHeadSha) {
+        core.info(`Using PR head SHA ${prHeadSha} (pull_request event)`);
+      }
+    }
+
+    // In staged mode, preview without making live API calls to create the actual check run.
+    // Include the resolved PR number in the preview when targeting a specific PR.
+    if (isStaged) {
+      const prSuffix = resolvedPrNumber != null ? ` targeting PR #${resolvedPrNumber}` : "";
+      logStagedPreviewInfo(`Would create check run "${defaultName}"${prSuffix} with conclusion=${conclusion}, title="${resolvedTitle}"`);
+      processedCount++;
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          name: defaultName,
+          conclusion,
+          title: resolvedTitle,
+        },
+      };
+    }
 
     if (!headSha) {
       const msg = "create_check_run: cannot determine commit SHA for check run";
@@ -124,28 +203,9 @@ async function main(config = {}) {
       return { success: false, error: msg };
     }
 
-    if (prHeadSha) {
-      core.info(`Using PR head SHA ${prHeadSha} (pull_request event)`);
-    }
-
     const checkRunName = defaultName;
 
     core.info(`Creating check run "${checkRunName}" on ${owner}/${repo}@${headSha} with conclusion=${conclusion}`);
-
-    // If in staged mode, preview without executing
-    if (isStaged) {
-      logStagedPreviewInfo(`Would create check run "${checkRunName}" with conclusion=${conclusion}, title="${resolvedTitle}"`);
-      processedCount++;
-      return {
-        success: true,
-        staged: true,
-        previewInfo: {
-          name: checkRunName,
-          conclusion,
-          title: resolvedTitle,
-        },
-      };
-    }
 
     try {
       const output = {

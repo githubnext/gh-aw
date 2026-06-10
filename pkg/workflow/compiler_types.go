@@ -596,6 +596,7 @@ type WorkflowData struct {
 	CachedAllowedDomainsComputed   bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
 	KnownActionCredentialEnvVars   map[string]bool                 // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
 	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
+	ModelCosts                     map[string]any                  // model pricing data from frontmatter `models` field (providers structure); merged with built-in models.json at runtime by generate_aw_info.cjs
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
@@ -714,6 +715,7 @@ type SafeOutputsConfig struct {
 	Needs                           []string                               `yaml:"needs,omitempty"`                        // Additional custom workflow jobs that safe_outputs should depend on
 	Environment                     string                                 `yaml:"environment,omitempty"`                  // Override the GitHub deployment environment for the safe-outputs job (defaults to the top-level environment: field)
 	Actions                         map[string]*SafeOutputActionConfig     `yaml:"actions,omitempty"`                      // Custom GitHub Actions mounted as safe output tools (resolved at compile time)
+	TimeoutMinutes                  int                                    `yaml:"timeout-minutes,omitempty"`              // Timeout for the safe_outputs job in minutes. Defaults to 45.
 	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                      // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
 }
 

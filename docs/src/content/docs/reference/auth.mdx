@@ -14,12 +14,29 @@ This page describes authentication settings for GitHub Agentic Workflows.
 
 Configure one GitHub Actions secret per engine before running your first workflow:
 
-| Engine | Required secret | Alternative | Notes |
-|--------|----------------|-------------|-------|
-| **Copilot** (default) | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | — | Fine-grained PAT with Copilot Requests permission |
-| **Claude** | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | — | API key from Anthropic Console |
-| **Codex** | [`OPENAI_API_KEY`](#openai_api_key) | `CODEX_API_KEY` | Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY` |
-| **Gemini** | [`GEMINI_API_KEY`](#gemini_api_key) | — | API key from Google AI Studio |
+### Copilot (default)
+
+- **Required secret:** [`COPILOT_GITHUB_TOKEN`](#copilot_github_token)
+- **Alternative:** None
+- **Notes:** Fine-grained PAT with Copilot Requests permission
+
+### Claude
+
+- **Required secret:** [`ANTHROPIC_API_KEY`](#anthropic_api_key)
+- **Alternative:** None
+- **Notes:** API key from Anthropic Console
+
+### Codex
+
+- **Required secret:** [`OPENAI_API_KEY`](#openai_api_key)
+- **Alternative:** `CODEX_API_KEY`
+- **Notes:** Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY`
+
+### Gemini
+
+- **Required secret:** [`GEMINI_API_KEY`](#gemini_api_key)
+- **Alternative:** None
+- **Notes:** API key from Google AI Studio
 
 Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
 

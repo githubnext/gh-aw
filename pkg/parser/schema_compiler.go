@@ -157,6 +157,7 @@ var safeOutputMetaFields = map[string]bool{
 	"runs-on":         true,
 	"messages":        true,
 	"needs":           true,
+	"timeout-minutes": true,
 }
 
 // GetSafeOutputTypeKeys returns the list of safe output type keys from the embedded main workflow schema.

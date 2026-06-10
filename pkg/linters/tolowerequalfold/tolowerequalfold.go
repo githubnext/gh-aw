@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -27,9 +27,9 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "tolowerequalfold")
 	caseConvAliases := collectCaseConvAliases(pass)
@@ -65,17 +65,59 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if isCaseConvCall(expr.X) || isCaseConvCall(expr.Y) ||
-			(isCaseConvAlias(pass, expr.X, caseConvAliases) && isStringLiteral(expr.Y)) ||
-			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && isStringLiteral(expr.X)) {
+			(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y)) ||
+			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X)) {
 			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
 				return
 			}
-			pass.ReportRangef(expr,
-				"use strings.EqualFold for case-insensitive comparison instead of strings.ToLower/ToUpper with ==")
+			pass.Report(analysis.Diagnostic{
+				Pos:            expr.Pos(),
+				End:            expr.End(),
+				Message:        "use strings.EqualFold for case-insensitive comparison instead of strings.ToLower/ToUpper with ==",
+				SuggestedFixes: buildEqualFoldFix(pass, expr),
+			})
 		}
 	})
 
 	return nil, nil
+}
+
+// buildEqualFoldFix returns a SuggestedFix that rewrites a direct
+// strings.ToLower/ToUpper comparison to strings.EqualFold.
+// A fix is only emitted when at least one side is a direct caseConvCall (not
+// an alias variable), since alias variables may be defined at a different
+// source location.
+func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.SuggestedFix {
+	leftArg, leftOK := caseConvArg(expr.X)
+	rightArg, rightOK := caseConvArg(expr.Y)
+	if !leftOK && !rightOK {
+		return nil
+	}
+	arg1 := expr.X
+	if leftOK {
+		arg1 = leftArg
+	}
+	arg2 := expr.Y
+	if rightOK {
+		arg2 = rightArg
+	}
+	text1 := astutil.NodeText(pass.Fset, arg1)
+	text2 := astutil.NodeText(pass.Fset, arg2)
+	if text1 == "" || text2 == "" {
+		return nil
+	}
+	call := fmt.Sprintf("strings.EqualFold(%s, %s)", text1, text2)
+	if expr.Op == token.NEQ {
+		call = "!" + call
+	}
+	return []analysis.SuggestedFix{{
+		Message: "Replace with strings.EqualFold",
+		TextEdits: []analysis.TextEdit{{
+			Pos:     expr.Pos(),
+			End:     expr.End(),
+			NewText: []byte(call),
+		}},
+	}}
 }
 
 func collectCaseConvAliases(pass *analysis.Pass) map[types.Object]ast.Expr {
@@ -110,7 +152,7 @@ func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, ali
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(ident)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
 
@@ -120,7 +162,7 @@ func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, ali
 				delete(aliases, obj)
 				continue
 			}
-			rhs, ok := rhsExprForIndex(stmt.Rhs, i)
+			rhs, ok := astutil.RhsExprForIndex(stmt.Rhs, i)
 			if !ok {
 				delete(aliases, obj)
 				continue
@@ -142,10 +184,10 @@ func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, alias
 			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(name)
-		if obj == nil || !isLocalObject(obj) {
+		if obj == nil || !astutil.IsLocalObject(obj) {
 			continue
 		}
-		rhs, ok := rhsExprForIndex(spec.Values, i)
+		rhs, ok := astutil.RhsExprForIndex(spec.Values, i)
 		if !ok {
 			delete(aliases, obj)
 			continue
@@ -155,19 +197,6 @@ func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, alias
 		} else {
 			delete(aliases, obj)
 		}
-	}
-}
-
-func rhsExprForIndex(rhs []ast.Expr, idx int) (ast.Expr, bool) {
-	switch {
-	case len(rhs) == 0:
-		return nil, false
-	case len(rhs) == 1 && idx == 0:
-		return rhs[0], true
-	case idx < len(rhs):
-		return rhs[idx], true
-	default:
-		return nil, false
 	}
 }
 
@@ -204,23 +233,6 @@ func caseConvAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Obje
 		return nil, false
 	}
 	return arg, true
-}
-
-func isStringLiteral(expr ast.Expr) bool {
-	lit, ok := expr.(*ast.BasicLit)
-	return ok && lit.Kind == token.STRING
-}
-
-func isLocalObject(obj types.Object) bool {
-	if obj == nil {
-		return false
-	}
-	parent := obj.Parent()
-	if parent == nil {
-		return false
-	}
-	pkg := obj.Pkg()
-	return pkg == nil || parent != pkg.Scope()
 }
 
 // caseConvArg returns the argument when n is strings.ToLower/ToUpper(<arg>).

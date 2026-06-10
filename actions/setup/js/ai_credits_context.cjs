@@ -12,6 +12,9 @@ const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason",
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
 const MAX_AI_CREDITS_EXCEEDED_FIELDS = new Set(["max_ai_credits_exceeded", "maxAiCreditsExceeded"]);
 const BUDGET_EXCEEDED_EVENT = "budget_exceeded";
+const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?/i;
+const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
+const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
 
 /**
  * @param {unknown} value
@@ -277,14 +280,85 @@ function parseAuditLogCombined(auditJsonlPathOverride) {
  * @returns {{ aiCredits: string, maxAICredits: string, aiCreditsRateLimitError: boolean, maxAICreditsExceeded: boolean }}
  */
 function resolveAICreditsFailureState() {
+  const stdioSignals = parseAICreditsExceededFromAgentStdio();
   const { aiCredits: auditAICredits, maxAICredits: auditMaxAICredits, rateLimitError: auditRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded } = parseAuditLogCombined();
   const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
-  const aiCredits = auditAICredits || envAICredits || "";
-  const maxAICredits = auditMaxAICredits || envMaxAICredits || "";
-  const rawAICreditsRateLimitError = auditRateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
+
+  // Log provenance so failing issues can be diagnosed when credit data is missing.
+  if (auditAICredits) {
+    console.log(`[ai-credits] aiCredits source=audit_log value=${auditAICredits}`);
+  } else if (stdioSignals.aiCredits) {
+    console.log(`[ai-credits] aiCredits source=agent_stdio value=${stdioSignals.aiCredits}`);
+  } else if (envAICredits) {
+    console.log(`[ai-credits] aiCredits source=env(GH_AW_AIC) value=${envAICredits}`);
+  } else {
+    console.log(`[ai-credits] aiCredits source=none GH_AW_AIC=${process.env.GH_AW_AIC || "(unset)"}`);
+  }
+
+  if (auditMaxAICredits) {
+    console.log(`[ai-credits] maxAICredits source=audit_log value=${auditMaxAICredits}`);
+  } else if (stdioSignals.maxAICredits) {
+    console.log(`[ai-credits] maxAICredits source=agent_stdio value=${stdioSignals.maxAICredits}`);
+  } else if (envMaxAICredits) {
+    console.log(`[ai-credits] maxAICredits source=env(GH_AW_MAX_AI_CREDITS) value=${envMaxAICredits}`);
+  } else {
+    console.log(`[ai-credits] maxAICredits source=none GH_AW_MAX_AI_CREDITS=${process.env.GH_AW_MAX_AI_CREDITS || "(unset)"}`);
+  }
+
+  const rawRateLimitSignalSource = auditRateLimitError ? "audit_log" : stdioSignals.rateLimitError ? "agent_stdio" : process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true" ? "env(GH_AW_AI_CREDITS_RATE_LIMIT_ERROR)" : "none";
+  console.log(`[ai-credits] rateLimitSignal source=${rawRateLimitSignalSource}`);
+
+  const aiCredits = auditAICredits || stdioSignals.aiCredits || envAICredits || "";
+  const maxAICredits = auditMaxAICredits || stdioSignals.maxAICredits || envMaxAICredits || "";
+  const rawAICreditsRateLimitError = auditRateLimitError || stdioSignals.rateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
   const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError, aiCredits, maxAICredits);
-  return { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded };
+  return { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded || stdioSignals.maxAICreditsExceeded };
+}
+
+/**
+ * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }}
+ */
+function parseAICreditsExceededFromAgentStdio() {
+  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false, maxAICreditsExceeded: false };
+  try {
+    const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+    // Derive the stdio log path from GH_AW_AGENT_OUTPUT when set, but always
+    // fall back to the well-known default so directory-valued env vars don't
+    // silently break detection.
+    const derivedPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : null;
+    const stdioLogPath = derivedPath && fs.existsSync(derivedPath) ? derivedPath : DEFAULT_AGENT_STDIO_LOG;
+    if (!fs.existsSync(stdioLogPath)) return initial;
+    // Read only the tail to avoid OOM on large logs; the error token always
+    // appears near the end of the file.
+    const stat = fs.statSync(stdioLogPath);
+    if (stat.size === 0) return initial;
+    const readSize = Math.min(stat.size, AGENT_STDIO_LOG_MAX_TAIL);
+    const buf = Buffer.alloc(readSize);
+    const fd = fs.openSync(stdioLogPath, "r");
+    try {
+      fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
+    } finally {
+      fs.closeSync(fd);
+    }
+    const content = buf.toString("utf8");
+    // Use matchAll and take the last occurrence — in retried runs the final
+    // entry carries the authoritative (highest) credit values.
+    const RE_G = new RegExp(MAX_AI_CREDITS_EXCEEDED_STDIO_RE.source, "gi");
+    const allMatches = [...content.matchAll(RE_G)];
+    const match = allMatches.at(-1);
+    if (!match) return initial;
+    const aiCredits = parsePositiveNumberString(match[1] || "");
+    const maxAICredits = parsePositiveNumberString(match[2] || "");
+    return {
+      aiCredits,
+      maxAICredits,
+      rateLimitError: true,
+      maxAICreditsExceeded: true,
+    };
+  } catch {
+    return initial;
+  }
 }
 
 module.exports = {

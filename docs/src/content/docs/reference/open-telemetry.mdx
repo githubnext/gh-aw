@@ -1,0 +1,266 @@
+---
+title: OpenTelemetry Attribute Reference
+description: Exhaustive reference for built-in OpenTelemetry resource attributes, span attributes, outcome attributes, and trace artifacts emitted by GitHub Agentic Workflows.
+sidebar:
+  order: 205
+---
+
+This page is the low-level attribute inventory for built-in OpenTelemetry emitted by GitHub Agentic Workflows.
+
+For setup and usage, see the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/).
+
+Unless stated otherwise, attributes are emitted only when the underlying value is available. Different spans carry different subsets of these fields.
+
+## Resource attributes
+
+Resource attributes identify the workflow run, repository, runner, and gh-aw environment attached to emitted spans.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>service.name</code></td><td>OTel service name for the emitting component or workflow.</td></tr>
+    <tr><td><code>service.version</code></td><td>Version of the emitting gh-aw helper when available.</td></tr>
+    <tr><td><code>gh-aw.workflow.name</code></td><td>Workflow name.</td></tr>
+    <tr><td><code>gh-aw.repository</code></td><td>GitHub repository in <code>owner/repo</code> form.</td></tr>
+    <tr><td><code>gh-aw.run.id</code></td><td>GitHub Actions run ID.</td></tr>
+    <tr><td><code>gh-aw.engine.id</code></td><td>Raw gh-aw engine identifier when available.</td></tr>
+    <tr><td><code>github.run_id</code></td><td>Standardized GitHub run ID resource attribute.</td></tr>
+    <tr><td><code>github.repository</code></td><td>Standardized GitHub repository resource attribute.</td></tr>
+    <tr><td><code>github.run_attempt</code></td><td>GitHub Actions run attempt.</td></tr>
+    <tr><td><code>github.event_name</code></td><td>Triggering GitHub event name.</td></tr>
+    <tr><td><code>github.ref</code></td><td>Git ref for the run.</td></tr>
+    <tr><td><code>github.ref_name</code></td><td>Short Git ref name.</td></tr>
+    <tr><td><code>github.head_ref</code></td><td>Head ref for pull request-style events.</td></tr>
+    <tr><td><code>github.sha</code></td><td>Commit SHA.</td></tr>
+    <tr><td><code>github.job</code></td><td>GitHub Actions job ID.</td></tr>
+    <tr><td><code>github.workflow_ref</code></td><td>Workflow reference including path and ref.</td></tr>
+    <tr><td><code>github.actor_id</code></td><td>Numeric GitHub actor ID when available.</td></tr>
+    <tr><td><code>runner.os</code></td><td>Runner operating system.</td></tr>
+    <tr><td><code>runner.arch</code></td><td>Runner architecture.</td></tr>
+    <tr><td><code>runner.name</code></td><td>Runner name.</td></tr>
+    <tr><td><code>runner.environment</code></td><td>Runner environment classification.</td></tr>
+    <tr><td><code>gh-aw.awf.version</code></td><td>Workflow compiler version when available.</td></tr>
+    <tr><td><code>gh-aw.awmg.version</code></td><td>MCP gateway version when available.</td></tr>
+    <tr><td><code>deployment.environment</code></td><td><code>staging</code> or <code>production</code> depending on staged mode.</td></tr>
+  </tbody>
+</table>
+
+## Workflow and job span attributes
+
+These attributes appear on built-in workflow setup, agent, and conclusion spans as applicable.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gh-aw.job.name</code></td><td>Job name when available.</td></tr>
+    <tr><td><code>gh-aw.workflow.name</code></td><td>Workflow name.</td></tr>
+    <tr><td><code>gh-aw.run.id</code></td><td>Run ID.</td></tr>
+    <tr><td><code>gh-aw.run.attempt</code></td><td>Run attempt number.</td></tr>
+    <tr><td><code>gh-aw.run.actor</code></td><td>GitHub actor login.</td></tr>
+    <tr><td><code>gh-aw.repository</code></td><td>Repository in <code>owner/repo</code> form.</td></tr>
+    <tr><td><code>gh-aw.cli.version</code></td><td>CLI/helper version when available.</td></tr>
+    <tr><td><code>gh-aw.event_name</code></td><td>Triggering event name.</td></tr>
+    <tr><td><code>gh-aw.deployment.state</code></td><td>Deployment mode/state for setup or conclusion spans.</td></tr>
+    <tr><td><code>gh-aw.workflow_run.conclusion</code></td><td>Workflow run conclusion when available.</td></tr>
+    <tr><td><code>gh-aw.staged</code></td><td>Boolean staged-mode flag.</td></tr>
+    <tr><td><code>gh-aw.trigger.item_type</code></td><td>Trigger target type, for example issue or pull request.</td></tr>
+    <tr><td><code>gh-aw.trigger.item_number</code></td><td>Trigger target number.</td></tr>
+    <tr><td><code>gh-aw.trigger.label</code></td><td>Matched trigger label when label-based triggering is used.</td></tr>
+    <tr><td><code>gh-aw.trigger.comment_id</code></td><td>Comment ID for comment-driven triggers.</td></tr>
+    <tr><td><code>gh-aw.frontmatter.source</code></td><td>Frontmatter source classification.</td></tr>
+    <tr><td><code>gh-aw.frontmatter.emoji</code></td><td>Configured frontmatter emoji when present.</td></tr>
+    <tr><td><code>gh-aw.frontmatter.body_modified</code></td><td>Whether frontmatter processing modified the body.</td></tr>
+    <tr><td><code>gh-aw.run.status</code></td><td>Final workflow run status.</td></tr>
+    <tr><td><code>gh-aw.error_count</code></td><td>Count of output errors captured by the helper.</td></tr>
+    <tr><td><code>gh-aw.warning_count</code></td><td>Count of warnings observed during the run.</td></tr>
+    <tr><td><code>gh-aw.permission_denied_count</code></td><td>Permission denials observed during execution.</td></tr>
+    <tr><td><code>gh-aw.steering_event_count</code></td><td>Count of steering events recorded during the run.</td></tr>
+    <tr><td><code>gh-aw.action_minutes</code></td><td>Elapsed runtime converted to minutes.</td></tr>
+    <tr><td><code>gh-aw.tracker.id</code></td><td>Tracker identifier when present.</td></tr>
+    <tr><td><code>gh-aw.aic</code></td><td>AI credits consumed for the run when available.</td></tr>
+    <tr><td><code>gh-aw.turns</code></td><td>Total agent turns recorded for the run.</td></tr>
+    <tr><td><code>gh-aw.agent.conclusion</code></td><td>Normalized agent conclusion.</td></tr>
+    <tr><td><code>gh-aw.detection.conclusion</code></td><td>Detection subsystem conclusion when present.</td></tr>
+    <tr><td><code>gh-aw.detection.reason</code></td><td>Detection subsystem reason when present.</td></tr>
+    <tr><td><code>gh-aw.otlp.export_errors</code></td><td>Count of OTLP export errors seen during the run.</td></tr>
+    <tr><td><code>gh-aw.otlp.export_error_details</code></td><td>Serialized OTLP export error details when present.</td></tr>
+    <tr><td><code>gh-aw.error.count</code></td><td>Count of output errors on the conclusion span.</td></tr>
+    <tr><td><code>gh-aw.error.messages</code></td><td>Joined error messages when present.</td></tr>
+    <tr><td><code>gh-aw.output.item_count</code></td><td>Count of output items produced by the run.</td></tr>
+    <tr><td><code>gh-aw.output.item_types</code></td><td>Comma-separated output item types.</td></tr>
+    <tr><td><code>gh-aw.github.rate_limit.remaining</code></td><td>Last observed GitHub API rate limit remaining value.</td></tr>
+    <tr><td><code>gh-aw.github.rate_limit.limit</code></td><td>Last observed GitHub API rate limit ceiling.</td></tr>
+    <tr><td><code>gh-aw.github.rate_limit.used</code></td><td>Last observed GitHub API rate limit usage.</td></tr>
+    <tr><td><code>gh-aw.github.rate_limit.resource</code></td><td>GitHub rate limit resource bucket.</td></tr>
+    <tr><td><code>gh-aw.github.rate_limit.reset</code></td><td>GitHub rate limit reset timestamp.</td></tr>
+  </tbody>
+</table>
+
+## Agent and GenAI attributes
+
+These attributes carry model, token, and stop-reason data on built-in agent spans.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gen_ai.system</code></td><td>Standardized OpenTelemetry GenAI system name.</td></tr>
+    <tr><td><code>gh-aw.engine.id</code></td><td>Raw gh-aw engine identifier.</td></tr>
+    <tr><td><code>gen_ai.request.model</code></td><td>Requested model name.</td></tr>
+    <tr><td><code>gen_ai.operation.name</code></td><td>Always <code>chat</code> for built-in agent spans.</td></tr>
+    <tr><td><code>gen_ai.workflow.name</code></td><td>Workflow name repeated in GenAI namespace.</td></tr>
+    <tr><td><code>gen_ai.response.model</code></td><td>Resolved runtime model when available.</td></tr>
+    <tr><td><code>gen_ai.response.finish_reasons</code></td><td>Array of stop reasons, defaulting to <code>unknown</code> when needed.</td></tr>
+    <tr><td><code>gen_ai.usage.input_tokens</code></td><td>Input token count.</td></tr>
+    <tr><td><code>gen_ai.usage.output_tokens</code></td><td>Output token count.</td></tr>
+    <tr><td><code>gen_ai.usage.cache_read.input_tokens</code></td><td>Cache-read token count.</td></tr>
+    <tr><td><code>gen_ai.usage.cache_creation.input_tokens</code></td><td>Cache-write token count.</td></tr>
+    <tr><td><code>gen_ai.usage.total_tokens</code></td><td>Total input plus output tokens.</td></tr>
+  </tbody>
+</table>
+
+## Workflow-call and episode attributes
+
+These attributes are emitted when a run participates in an episode or nested workflow-call structure.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gh-aw.episode.id</code></td><td>Episode identifier used to roll up related runs.</td></tr>
+    <tr><td><code>gh-aw.episode.kind</code></td><td>Episode kind such as <code>run</code> or <code>workflow_call</code>.</td></tr>
+    <tr><td><code>gh-aw.hop.id</code></td><td>Current hop identifier within an episode.</td></tr>
+    <tr><td><code>gh-aw.hop.parent_id</code></td><td>Parent hop identifier when nested.</td></tr>
+    <tr><td><code>gh-aw.workflow_call.id</code></td><td>Current workflow-call hop identifier.</td></tr>
+    <tr><td><code>gh-aw.workflow_call.parent_id</code></td><td>Parent workflow-call hop identifier.</td></tr>
+    <tr><td><code>gh-aw.origin.event</code></td><td>Original triggering event for the root execution.</td></tr>
+    <tr><td><code>gh-aw.root.repo</code></td><td>Root repository for the episode.</td></tr>
+    <tr><td><code>gh-aw.root.workflow_id</code></td><td>Root workflow identifier.</td></tr>
+  </tbody>
+</table>
+
+## Outcome summary attributes
+
+These attributes appear on workflow-level outcome summary or conclusion spans.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gh-aw.outcome.runs_checked</code></td><td>Number of runs checked while computing the summary.</td></tr>
+    <tr><td><code>gh-aw.outcome.total</code></td><td>Total evaluated outcomes.</td></tr>
+    <tr><td><code>gh-aw.outcome.accepted</code></td><td>Accepted outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.rejected</code></td><td>Rejected outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.ignored</code></td><td>Ignored outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.pending</code></td><td>Pending outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.noop</code></td><td>No-op outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.accepted_strong</code></td><td>Strongly accepted outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.accepted_medium</code></td><td>Medium-strength accepted outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.accepted_weak</code></td><td>Weakly accepted outcome count.</td></tr>
+    <tr><td><code>gh-aw.outcome.fallback_exists_only_count</code></td><td>Fallback exists-only acceptance count.</td></tr>
+    <tr><td><code>gh-aw.outcome.acceptance_rate</code></td><td>Accepted fraction.</td></tr>
+    <tr><td><code>gh-aw.outcome.waste_rate</code></td><td>Rejected fraction.</td></tr>
+    <tr><td><code>gh-aw.outcome.noop_rate</code></td><td>No-op fraction.</td></tr>
+    <tr><td><code>gh-aw.outcome.zero_touch_count</code></td><td>Zero-touch accepted count.</td></tr>
+    <tr><td><code>gh-aw.outcome.zero_touch_rate</code></td><td>Zero-touch acceptance fraction.</td></tr>
+    <tr><td><code>gh-aw.outcome.item_count</code></td><td>Number of evaluated items in the summary payload.</td></tr>
+    <tr><td><code>gh-aw.outcome.date</code></td><td>Summary date when present.</td></tr>
+    <tr><td><code>gh-aw.outcome.median_resolution_sec</code></td><td>Median resolution time in seconds.</td></tr>
+    <tr><td><code>gh-aw.outcome.events</code></td><td>Comma-separated event names represented in the summary.</td></tr>
+    <tr><td><code>gh-aw.outcome.workflows</code></td><td>Comma-separated workflow names represented in the summary.</td></tr>
+    <tr><td><code>gh-aw.outcome.types</code></td><td>Comma-separated outcome object types represented in the summary.</td></tr>
+  </tbody>
+</table>
+
+## Outcome per-item attributes
+
+These attributes appear on <code>gh-aw.outcome.evaluation</code> spans for individual evaluated items.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gh-aw.outcome.type</code></td><td>Object type being evaluated.</td></tr>
+    <tr><td><code>gh-aw.outcome.result</code></td><td>Observed result classification.</td></tr>
+    <tr><td><code>gh-aw.outcome.outcome_status</code></td><td>Normalized outcome status.</td></tr>
+    <tr><td><code>gh-aw.outcome.evidence_strength</code></td><td>Evidence strength classification.</td></tr>
+    <tr><td><code>gh-aw.outcome.workflow</code></td><td>Source workflow name.</td></tr>
+    <tr><td><code>gh-aw.outcome.run_id</code></td><td>Source run ID.</td></tr>
+    <tr><td><code>gh-aw.outcome.repo</code></td><td>Repository associated with the item.</td></tr>
+    <tr><td><code>gh-aw.outcome.url</code></td><td>Primary URL for the evaluated object.</td></tr>
+    <tr><td><code>gh-aw.outcome.detail</code></td><td>Additional detail string.</td></tr>
+    <tr><td><code>gh-aw.outcome.signal</code></td><td>Signal that triggered evaluation.</td></tr>
+    <tr><td><code>gh-aw.outcome.created_at</code></td><td>Creation timestamp.</td></tr>
+    <tr><td><code>gh-aw.outcome.event</code></td><td>Outcome event label.</td></tr>
+    <tr><td><code>gh-aw.outcome.resolution_sec</code></td><td>Resolution time in seconds.</td></tr>
+    <tr><td><code>gh-aw.outcome.pending_age_sec</code></td><td>Age of a pending item in seconds.</td></tr>
+    <tr><td><code>gh-aw.outcome.review_comments</code></td><td>Review comment count.</td></tr>
+    <tr><td><code>gh-aw.outcome.changed_files</code></td><td>Changed file count.</td></tr>
+    <tr><td><code>gh-aw.outcome.additions</code></td><td>Added line count.</td></tr>
+    <tr><td><code>gh-aw.outcome.deletions</code></td><td>Deleted line count.</td></tr>
+    <tr><td><code>gh-aw.outcome.reactions_total</code></td><td>Total reaction count.</td></tr>
+    <tr><td><code>gh-aw.outcome.reactions_positive</code></td><td>Positive reaction count.</td></tr>
+    <tr><td><code>gh-aw.outcome.reactions_negative</code></td><td>Negative reaction count.</td></tr>
+    <tr><td><code>gh-aw.outcome.comments</code></td><td>Comment count.</td></tr>
+    <tr><td><code>gh-aw.outcome.zero_touch</code></td><td>Boolean zero-touch flag.</td></tr>
+  </tbody>
+</table>
+
+## Experiment attributes
+
+These attributes are emitted when experiments are active for a run.
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gh-aw.experiment.&lt;name&gt;</code></td><td>Variant assigned for a named experiment.</td></tr>
+    <tr><td><code>gh-aw.experiments</code></td><td>Serialized map of valid experiment assignments.</td></tr>
+  </tbody>
+</table>
+
+## Trace files and artifacts
+
+When observability is enabled, trace data is also mirrored to local JSONL files and uploaded in the <code>agent</code> artifact:
+
+- <code>otel.jsonl</code> for spans emitted by gh-aw JavaScript helpers
+- <code>copilot-otel.jsonl</code> for spans emitted by Copilot CLI
+
+See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/) for setup and [Artifacts](/gh-aw/reference/artifacts/) for artifact download details.
+
+## Related documentation
+
+- [OpenTelemetry guide](/gh-aw/guides/open-telemetry/)
+- [Outcomes](/gh-aw/reference/outcomes/)
+- [Cost Management](/gh-aw/reference/cost-management/)
+- [Artifacts](/gh-aw/reference/artifacts/)

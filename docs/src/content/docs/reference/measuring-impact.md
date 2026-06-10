@@ -66,7 +66,7 @@ Use the built-in telemetry before designing anything more complex.
 [Outcomes](/gh-aw/reference/outcomes/) model gives you the
 downstream acceptance side. If you need repository-wide or
 organization-wide trends, send the same data to
-[OpenTelemetry](/gh-aw/reference/open-telemetry/).
+[OpenTelemetry](/gh-aw/guides/open-telemetry/).
 
 This is enough to show where impact is breaking down: a workflow
 that runs reliably but produces little of value, one that creates

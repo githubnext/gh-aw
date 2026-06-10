@@ -674,8 +674,8 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 		"secret-masking":       map[string]any{"log-mask": true},
 	}
 
-	acc.extractConfigFields(first, "first.md", "")
-	acc.extractConfigFields(second, "second.md", "")
+	acc.extractConfigFields(first, "first.md")
+	acc.extractConfigFields(second, "second.md")
 
 	assert.Equal(t, "10", acc.mergedMaxTurns, "max-turns should be first-wins")
 	assert.Equal(t, "5", acc.mergedMaxToolDenials, "max-tool-denials should be first-wins")
@@ -695,25 +695,4 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Contains(t, acc.permissionsBuilder.String(), "issues")
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "enabled")
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "log-mask")
-}
-
-func TestApplyIfConditionToStepsYAML_InsertsAndRewritesImportCondition(t *testing.T) {
-	stepsYAML := `- name: No guard
-  run: echo hello`
-
-	got := applyIfConditionToStepsYAML(stepsYAML, "experiments.log_fetch_strategy == 'eager'")
-
-	assert.Contains(t, got, "needs.activation.outputs.log_fetch_strategy == 'eager'")
-	assert.Contains(t, got, "name: No guard")
-}
-
-func TestApplyIfConditionToStepsYAML_CombinesExistingCondition(t *testing.T) {
-	stepsYAML := `- name: Guarded
-  if: success()
-  run: echo hello`
-
-	got := applyIfConditionToStepsYAML(stepsYAML, "experiments.log_fetch_strategy == 'eager'")
-
-	assert.Contains(t, got, "(needs.activation.outputs.log_fetch_strategy == 'eager') && (success())")
-	assert.Contains(t, got, "name: Guarded")
 }

@@ -10,14 +10,19 @@ import (
 
 var runtimeStepGeneratorLog = logger.New("workflow:runtime_step_generator")
 
-// GenerateRuntimeSetupSteps creates GitHub Actions steps for runtime setup
-func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubActionStep {
+// GenerateRuntimeSetupSteps creates GitHub Actions steps for runtime setup.
+// data is the WorkflowData for the workflow being compiled; it is forwarded to
+// generateSetupStep so that the gh-aw setup-cli step can use the lock-file-aware
+// pin resolver (getActionPinWithData) rather than the static embedded-pins fallback.
+// Pass nil only when WorkflowData is unavailable or when tests specifically
+// target non-gh-aw runtime behavior.
+func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement, data *WorkflowData) []GitHubActionStep {
 	runtimeStepGeneratorLog.Printf("Generating runtime setup steps: requirement_count=%d", len(requirements))
 	runtimeSetupLog.Printf("Generating runtime setup steps for %d requirements", len(requirements))
 	var steps []GitHubActionStep
 
 	for _, req := range requirements {
-		steps = append(steps, generateSetupStep(&req))
+		steps = append(steps, generateSetupStep(&req, data))
 
 		// Add environment variable capture steps after setup actions for AWF chroot mode.
 		// Most env vars are inherited via AWF_HOST_PATH, but Go is special.
@@ -50,7 +55,7 @@ func generateEnvCaptureStep(envVar string, captureCmd string) GitHubActionStep {
 }
 
 // generateSetupStep creates a setup step for a given runtime requirement
-func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
+func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubActionStep {
 	runtime := req.Runtime
 	version := req.Version
 	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
@@ -74,7 +79,8 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 			ifCondition:          req.IfCondition,
 			cliVersion:           version,
 			actionRepo:           runtime.ActionRepo,
-			fallbackActionRefTag: runtime.ActionVersion,
+			fallbackActionRefTag: version,
+			workflowData:         data,
 			withFields:           allExtraFields,
 		})
 		if err != nil {

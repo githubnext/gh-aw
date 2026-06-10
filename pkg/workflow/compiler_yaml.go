@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -17,12 +16,6 @@ import (
 )
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
-
-var singleQuotedEqualityConditionRegex = regexp.MustCompile(`==\s*'([^']*)'`)
-
-func normalizeConditionForPromptIf(condition string) string {
-	return singleQuotedEqualityConditionRegex.ReplaceAllString(condition, `== "$1"`)
-}
 
 // effectiveStrictMode computes the effective strict mode for a workflow.
 // Priority: CLI flag (c.strictMode) > frontmatter strict field > default (true).
@@ -509,15 +502,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				if hasImportInputs {
 					cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 				}
-				if entry.If != "" {
-					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
-				}
 				chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
 				userPromptChunks = append(userPromptChunks, chunks...)
 				expressionMappings = append(expressionMappings, exprMaps...)
-				if entry.If != "" {
-					userPromptChunks = append(userPromptChunks, "{{/if}}")
-				}
 				continue
 			}
 			if entry.ImportPath == "" {
@@ -528,37 +515,19 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				rawContent, err := os.ReadFile(filepath.Join(workspaceRoot, importPath))
 				if err != nil {
 					compilerYamlLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
-					if entry.If != "" {
-						userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
-					}
 					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
-					if entry.If != "" {
-						userPromptChunks = append(userPromptChunks, "{{/if}}")
-					}
 					continue
 				}
 				importedBody, extractErr := parser.ExtractMarkdownContent(string(rawContent))
 				if extractErr != nil {
 					importedBody = string(rawContent)
 				}
-				if entry.If != "" {
-					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
-				}
 				chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
 				userPromptChunks = append(userPromptChunks, chunks...)
 				expressionMappings = append(expressionMappings, exprMaps...)
-				if entry.If != "" {
-					userPromptChunks = append(userPromptChunks, "{{/if}}")
-				}
 				continue
 			}
-			if entry.If != "" {
-				userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#if %s}}", normalizeConditionForPromptIf(entry.If)))
-			}
 			userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
-			if entry.If != "" {
-				userPromptChunks = append(userPromptChunks, "{{/if}}")
-			}
 		}
 	} else {
 		// Step 1a: Process and inline imported markdown with inputs (if any)
@@ -980,6 +949,15 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			// Escape single quotes for YAML single-quoted scalar safety
 			escapedTokenWeightsJSON := strings.ReplaceAll(string(tokenWeightsJSON), "'", "''")
 			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", escapedTokenWeightsJSON)
+		}
+	}
+	// Embed the `models` overlay from frontmatter so the activation job can merge it with
+	// the built-in models.json and write the combined catalog to /tmp/gh-aw/models.json.
+	if len(data.ModelCosts) > 0 {
+		if modelCostsJSON, err := json.Marshal(data.ModelCosts); err == nil {
+			// Escape single quotes for YAML single-quoted scalar safety
+			escapedModelCostsJSON := strings.ReplaceAll(string(modelCostsJSON), "'", "''")
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_COSTS: '%s'\n", escapedModelCostsJSON)
 		}
 	}
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))

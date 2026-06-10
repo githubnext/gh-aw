@@ -58,7 +58,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 
 		// New behavior: apiProxy.enabled is expressed in the JSON config file.
 		// The step content contains the printf command that writes the config JSON.
-		if !strings.Contains(stepContent, `"enabled":true`) {
+		if !strings.Contains(stepContent, `\"enabled\":true`) {
 			t.Error("Expected Claude AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
@@ -81,7 +81,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 
 		stepContent := requireCopilotExecutionStep(t, steps)
 
-		if !strings.Contains(stepContent, `"enabled":true`) {
+		if !strings.Contains(stepContent, `\"enabled\":true`) {
 			t.Error("Expected Copilot AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
@@ -108,7 +108,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		if !strings.Contains(stepContent, `"enabled":true`) {
+		if !strings.Contains(stepContent, `\"enabled\":true`) {
 			t.Error("Expected Codex AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
@@ -136,7 +136,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 		// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
 		stepContent := strings.Join(steps[1], "\n")
 
-		if !strings.Contains(stepContent, `"enabled":true`) {
+		if !strings.Contains(stepContent, `\"enabled\":true`) {
 			t.Error("Expected Gemini AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
@@ -171,7 +171,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 		stepContent := strings.Join(steps[0], "\n")
 
 		// AWF config JSON embedded in the step must have apiProxy.enabled = true.
-		if !strings.Contains(stepContent, `"enabled":true`) {
+		if !strings.Contains(stepContent, `\"enabled\":true`) {
 			t.Error("Expected Pi AWF command to contain apiProxy enabled in config JSON")
 		}
 	})

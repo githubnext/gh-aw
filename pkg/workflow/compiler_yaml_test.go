@@ -1383,15 +1383,6 @@ func extractRuntimeImportLines(content string) string {
 	return strings.Join(lines, "\n")
 }
 
-func TestNormalizeConditionForPromptIf_SingleQuotedEquality(t *testing.T) {
-	input := "experiments.log_fetch_strategy == 'eager'"
-	got := normalizeConditionForPromptIf(input)
-	expected := `experiments.log_fetch_strategy == "eager"`
-	if got != expected {
-		t.Fatalf("normalizeConditionForPromptIf() = %q, want %q", got, expected)
-	}
-}
-
 func TestLockMetadataVersionInReleaseBuilds(t *testing.T) {
 	// Save and restore original values
 	originalIsRelease := isReleaseBuild

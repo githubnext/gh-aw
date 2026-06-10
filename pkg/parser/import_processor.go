@@ -20,7 +20,6 @@ var importLog = logger.New("parser:import_processor")
 type PromptImportEntry struct {
 	ImportPath string // Non-empty when this import should be emitted as {{#runtime-import ...}}
 	Markdown   string // Non-empty when this import should be inlined into the prompt at compile time
-	If         string // Optional condition expression that guards this import (e.g., "experiments.foo == 'bar'")
 }
 
 // ImportsResult holds the result of processing imports from frontmatter
@@ -60,6 +59,7 @@ type ImportsResult struct {
 	MergedEnvSources              map[string]string     // env var name → source import path (for conflict detection and lock file header listing)
 	MergedFeatures                []map[string]any      // Merged features configuration from all imports (parsed YAML structures)
 	MergedModels                  []map[string][]string // Merged model alias definitions from all imports (first import to define a key wins among imports)
+	MergedModelCosts              []map[string]any      // Merged model pricing overlays (models.json provider structure) from all imports
 	MergedObservability           string                // Merged observability config (JSON) from all imports as an endpoint array (deduped by URL)
 	MergedEngineMCPToolTimeout    string                // First engine.mcp.tool-timeout found across all imports (Go duration string, e.g. "10m")
 	MergedEngineMCPSessionTimeout string                // First engine.mcp.session-timeout found across all imports (Go duration string, e.g. "4h")
@@ -97,7 +97,6 @@ type ImportSpec struct {
 	// This is parsed from YAML frontmatter and validated against the imported workflow's input definitions.
 	// This is an appropriate use of 'any' for dynamic YAML data. See scratchpad/go-type-patterns.md.
 	Inputs map[string]any // Optional input values to pass to the imported workflow (values are string, number, or boolean)
-	If     string         // Optional condition expression (e.g., "experiments.foo == 'bar'"); conditional imports generate conditional steps and prompt blocks
 }
 
 // ProcessImportsFromFrontmatterWithSource processes imports field from frontmatter with source tracking

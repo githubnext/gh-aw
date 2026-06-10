@@ -11,5 +11,5 @@ import (
 )
 
 func TestAnalyzer(t *testing.T) {
-	analysistest.Run(t, analysistest.TestData(), fprintlnsprintf.Analyzer, "fprintlnsprintf")
+	analysistest.RunWithSuggestedFixes(t, analysistest.TestData(), fprintlnsprintf.Analyzer, "fprintlnsprintf")
 }

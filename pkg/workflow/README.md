@@ -61,6 +61,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `AgentFileProvider` | interface | Custom agent file support |
 | `ConfigRenderer` | interface | Configuration file rendering |
 | `DriverProvider` | interface | Driver-level execution configuration |
+| `HarnessProvider` | interface | Harness script configuration — returns the Node.js harness filename or empty string |
 | `CodingAgentEngine` | interface | Composite interface combining all engine capabilities |
 | `BaseEngine` | struct | Base implementation shared by all engines |
 | `EngineRegistry` | struct | Global registry mapping engine names to implementations |
@@ -105,6 +106,44 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `ObservabilityConfig` | struct | OTLP/observability configuration |
 | `RateLimitConfig` | struct | Rate limit settings |
 | `OTLPConfig` | struct | OpenTelemetry protocol configuration |
+| `EngineConfig` | struct | Parsed `engine:` frontmatter block — see [Engine Configuration Fields](#engine-configuration-fields) |
+| `EngineAuthConfig` | struct | Engine-level auth config (`engine.auth.*` → `AWF_AUTH_*` env vars for API proxy) |
+| `NetworkPermissions` | struct | Parsed `network:` frontmatter block; controls allowed/blocked domain lists |
+| `EngineNetworkConfig` | struct | Combines `*EngineConfig` and `*NetworkPermissions` for engine helpers that need both |
+
+#### Engine Configuration Fields
+
+`EngineConfig` is populated by `ExtractEngineConfig` from the `engine:` frontmatter key. It is stored on `EngineNetworkConfig.Engine` and forwarded to each engine's `GetExecutionSteps` / `GetInstallationSteps` implementations.
+
+| Field | Type | YAML key | Description |
+|-------|------|----------|-------------|
+| `ID` | `string` | `engine` | Engine identifier (e.g. `"copilot"`, `"claude"`, `"codex"`) |
+| `Version` | `string` | `engine.version` | Pinned engine/CLI version |
+| `Model` | `string` | `engine.model` | LLM model name |
+| `PermissionMode` | `string` | `engine.permission-mode` | Agent permission mode |
+| `MaxTurns` | `string` | `engine.max-turns` | Maximum agent turns |
+| `MaxToolDenials` | `string` | `engine.max-tool-denials` | Max repeated tool denials before stopping (Copilot SDK mode only) |
+| `MaxRuns` | `int` | `engine.max-runs` | Maximum LLM invocations per run (AWF `apiProxy.maxRuns`) |
+| `MaxContinuations` | `int` | `engine.max-continuations` | Maximum autopilot continuations (copilot engine; `> 1` enables `--autopilot`) |
+| `MaxAICredits` | `int64` | `engine.max-ai-credits` | Maximum AI credits per run for AWF API-proxy firewall enforcement |
+| `Concurrency` | `string` | `engine.concurrency` | Agent job-level concurrency YAML |
+| `UserAgent` | `string` | `engine.user-agent` | Custom user-agent string |
+| `Command` | `string` | `engine.command` | Custom executable path; skips installation steps when set |
+| `HarnessScript` | `string` | `engine.harness-script` | Custom Node.js harness script filename (replaces engine default) |
+| `CopilotSDK` | `bool` | `engine.copilot-sdk` | **(Experimental)** Enables GitHub Copilot SDK integration. When `true`, the compiler starts a headless Copilot CLI sidecar and sets `COPILOT_SDK_URI` on child processes so the SDK can connect to it. Implied when `CopilotSDKDriver` is non-empty. |
+| `CopilotSDKDriver` | `string` | `engine.copilot-sdk-driver` | **(Experimental)** Custom Copilot SDK driver script filename or command. Supports `.js`/`.cjs`/`.mjs` (Node.js), `.py` (Python), `.ts`/`.mts` (TypeScript), `.rb` (Ruby), or a bare command name for an arbitrary executable on `PATH`. Setting this field implies `copilot-sdk: true`. |
+| `Env` | `map[string]string` | `engine.env` | Extra environment variables injected into the agent job |
+| `Auth` | `*EngineAuthConfig` | `engine.auth` | Engine-level auth config for the API proxy sidecar |
+| `Config` | `string` | `engine.config` | Inline engine configuration JSON/YAML string |
+| `Args` | `[]string` | `engine.args` | Extra CLI arguments passed to the engine |
+| `Agent` | `string` | `engine.agent` | Agent identifier for `copilot --agent` flag (copilot engine only) |
+| `APITarget` | `string` | `engine.api-target` | Custom API endpoint hostname |
+| `Bare` | `bool` | `engine.bare` | Disables automatic loading of context/instructions |
+| `TokenWeights` | `*types.TokenWeights` | `engine.token-weights` | Custom model cost data for effective token computation |
+| `IsInlineDefinition` | `bool` | _(internal)_ | `true` when engine is defined inline via `engine.runtime` |
+| `MCPSessionTimeout` | `string` | `engine.mcp.session-timeout` | Go duration for MCP gateway sessions (e.g. `"4h"`) |
+| `MCPToolTimeout` | `string` | `engine.mcp.tool-timeout` | Go duration for individual MCP tool calls (e.g. `"2m"`) |
+| `Extensions` | `[]string` | `engine.extensions` | Engine-specific plugin names to install before launching (Pi engine) |
 
 ### Permissions System
 

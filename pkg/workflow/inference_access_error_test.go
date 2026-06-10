@@ -99,15 +99,15 @@ Test workflow`
 	}
 }
 
-// TestInferenceAccessErrorNotInNonCopilotEngine tests that non-Copilot engines
-// do NOT include Copilot-specific error outputs.
-func TestInferenceAccessErrorNotInNonCopilotEngine(t *testing.T) {
-	testDir := testutil.TempDir(t, "test-inference-access-error-claude-*")
+// TestInferenceAccessErrorNotInEngineWithoutDetectionScript tests that engines
+// without detect-agent-errors support do not include these outputs.
+func TestInferenceAccessErrorNotInEngineWithoutDetectionScript(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-inference-access-error-gemini-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflow := `---
 on: workflow_dispatch
-engine: claude
+engine: gemini
 ---
 
 Test workflow`
@@ -130,13 +130,13 @@ Test workflow`
 
 	lockStr := string(lockContent)
 
-	// Check that non-Copilot engines do NOT have the detect-agent-errors step
+	// Check that engines without detection script do NOT have the detect-agent-errors step
 	if strings.Contains(lockStr, "id: detect-agent-errors") {
-		t.Error("Expected non-Copilot engine to NOT have detect-agent-errors step")
+		t.Error("Expected engine without detection script to NOT have detect-agent-errors step")
 	}
 
-	// Check that non-Copilot engines do NOT have the inference_access_error output
+	// Check that engines without detection script do NOT have the inference_access_error output
 	if strings.Contains(lockStr, "inference_access_error:") {
-		t.Error("Expected non-Copilot engine to NOT have inference_access_error output")
+		t.Error("Expected engine without detection script to NOT have inference_access_error output")
 	}
 }

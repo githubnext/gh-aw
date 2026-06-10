@@ -1,0 +1,266 @@
+---
+title: OpenTelemetry
+description: How to configure OpenTelemetry in GitHub Agentic Workflows for OTLP export, MCP-based trace reading, and custom spans.
+sidebar:
+  order: 340
+---
+
+OpenTelemetry is the observability layer for GitHub Agentic Workflows. It lets workflows export traces and spans to an external backend, and it gives workflows a way to read that telemetry back when they need to inspect behavior across runs.
+
+This guide covers the two ways gh-aw uses OpenTelemetry:
+
+- [Write-side OTLP](#write-telemetry-through-otlp) sends new workflow spans to a backend such as Sentry.
+- [Read-side MCP](#read-telemetry-through-mcp) lets a workflow query traces and spans that already exist in that backend.
+
+Keep reusable telemetry setup in [shared workflow files](/gh-aw/reference/imports/) when multiple workflows use the same configuration.
+
+## Write telemetry through OTLP
+
+Configure [`observability.otlp`](/gh-aw/reference/frontmatter/#observability-observability) in workflow frontmatter when the workflow should emit new spans. A typical Sentry setup looks like this:
+
+```aw wrap title=".github/workflows/daily-report.md"
+---
+network:
+  allowed:
+    - "*.sentry.io"
+observability:
+  otlp:
+    endpoint:
+      - url: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
+        headers:
+          Authorization: ${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+---
+```
+
+Once configured, gh-aw exports built-in workflow spans such as setup and conclusion events to the configured OTLP backend.
+
+## Read telemetry through MCP
+
+Configure [`mcp-servers`](/gh-aw/reference/frontmatter-full/) when the agent needs to inspect telemetry that already exists in the backend. A typical Sentry read setup looks like this:
+
+```aw wrap title=".github/workflows/telemetry-investigation.md"
+---
+mcp-servers:
+  sentry:
+    command: "npx"
+    args: ["@sentry/mcp-server@0.33.0"]
+    allowed:
+      - whoami
+      - find_organizations
+      - find_projects
+      - get_trace_details
+      - search_events
+      - search_issues
+    env:
+      SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
+      SENTRY_HOST: ${{ env.SENTRY_HOST || 'sentry.io' }}
+---
+```
+
+## Custom span attributes
+
+`observability.otlp.attributes` attaches arbitrary key/value attributes to the job setup, job conclusion, and outcome summary spans:
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+    attributes:
+      deployment.environment: production
+      langfuse.session.id: ${{ github.run_id }}
+      langfuse.user.id: ${{ github.actor }}
+```
+
+Values are plain strings. GitHub Actions expressions also work here, so you can populate attributes from run metadata, variables, or secrets. Empty values are omitted, and non-empty values are masked in runner logs.
+
+## Built-in telemetry emitted by gh-aw
+
+gh-aw emits a small set of built-in spans and trace artifacts once OTLP is configured.
+
+The built-in agent span uses OpenTelemetry [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) for standard model, token, and finish-reason fields. gh-aw also adds a small number of gh-aw-specific fields.
+
+You usually do not need to configure or memorize these built-in attributes. They are mainly useful when building backend queries, dashboards, or deeper debugging workflows. For the exhaustive built-in inventory, see the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/).
+
+**Trace files and artifacts**
+
+When observability is enabled, trace data is also mirrored to local JSONL files and uploaded in the `agent` artifact:
+
+- `otel.jsonl` for spans emitted by gh-aw JavaScript helpers
+- `copilot-otel.jsonl` for spans emitted by Copilot CLI
+
+See [Artifacts](/gh-aw/reference/artifacts/) for artifact download details.
+
+## Custom spans from shared imports
+
+Shared agentic workflow imports can emit their own OTLP spans alongside the built-in gh-aw telemetry. This lets third-party tools such as APM agents, data pipeline steps, and custom scanners attach their own measurements to the same distributed trace that gh-aw creates for each workflow run.
+
+**Quick start**
+
+The `otlp.cjs` helper provides a minimal, stable API. Use it in any `steps:` entry of a shared import:
+
+```yaml wrap title=".github/workflows/shared/my-tool.md"
+---
+# My Tool — shared import that instruments its own telemetry
+
+steps:
+  - name: My Tool — do work and record telemetry
+    id: my-tool-run
+    uses: actions/github-script@v8
+    with:
+      script: |
+        const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
+
+        const startMs = Date.now();
+        // ... do your tool's work here (e.g. const result = await myTool.run()) ...
+        const endMs = Date.now();
+
+        await otlp.logSpan('my-tool', {
+          'my-tool.version':         '1.2.3',
+          'my-tool.items_processed': 42,
+          'my-tool.result':          'success',
+        }, { startMs, endMs });
+---
+
+My tool has run and its telemetry span will appear in the same distributed trace as the workflow run.
+```
+
+Import the shared file in any workflow alongside the OTLP configuration:
+
+```yaml wrap title=".github/workflows/my-workflow.md"
+---
+on:
+  schedule: daily
+engine: copilot
+imports:
+  - shared/otlp.md
+  - shared/my-tool.md
+---
+
+# Daily Report
+
+Run the daily report using my-tool results.
+```
+
+**`logSpan` API**
+
+```javascript
+const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
+
+await otlp.logSpan(toolName, attributes, options);
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>toolName</code></td><td><code>string</code></td><td>Logical name for the tool, for example <code>"my-scanner"</code>. Used as <code>service.name</code> and as the span name prefix <code>&lt;toolName&gt;.run</code>.</td></tr>
+    <tr><td><code>attributes</code></td><td><code>Record&lt;string, scalar&gt;</code></td><td>Domain-specific attributes emitted on the span. All env plumbing is handled automatically.</td></tr>
+    <tr><td><code>options.startMs</code></td><td><code>number</code></td><td>Span start time in milliseconds since epoch. Defaults to <code>Date.now()</code>.</td></tr>
+    <tr><td><code>options.endMs</code></td><td><code>number</code></td><td>Span end time in milliseconds since epoch. Defaults to <code>Date.now()</code>.</td></tr>
+    <tr><td><code>options.isError</code></td><td><code>boolean</code></td><td>When <code>true</code>, sets the span status to <code>ERROR</code>.</td></tr>
+    <tr><td><code>options.errorMessage</code></td><td><code>string</code></td><td>Human-readable status message included when <code>isError</code> is <code>true</code>.</td></tr>
+    <tr><td><code>options.traceId</code></td><td><code>string</code></td><td>Override trace ID. Defaults to <code>GITHUB_AW_OTEL_TRACE_ID</code>.</td></tr>
+    <tr><td><code>options.parentSpanId</code></td><td><code>string</code></td><td>Override parent span ID. Defaults to <code>GITHUB_AW_OTEL_PARENT_SPAN_ID</code>.</td></tr>
+    <tr><td><code>options.endpoint</code></td><td><code>string</code></td><td>Override OTLP endpoint. Defaults to <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>.</td></tr>
+  </tbody>
+</table>
+
+Here, `scalar` means `string`, `number`, or `boolean`.
+
+`logSpan` is non-fatal and never throws. Export failures are surfaced as `console.warn`. When `GITHUB_AW_OTEL_TRACE_ID` is missing or invalid, the call returns silently.
+
+**Recording an error span**
+
+```javascript
+await otlp.logSpan('my-scanner', {
+  'my-scanner.items_scanned': 100,
+}, { isError: true, errorMessage: 'database connection timed out' });
+```
+
+**Practical notes**
+
+- Use `your-tool.` as a prefix for tool-specific attributes, for example `my-tool.items_processed`.
+- Use [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/) for cross-cutting concerns, for example `db.system` and `http.response.status_code`.
+- Avoid attribute names containing `token`, `secret`, `password`, `key`, or `auth`.
+
+Attribute values are sanitized automatically before the payload is exported or mirrored. Matching secret-like keys are redacted, and very long string values are truncated. The same sanitization is applied to both OTLP export and the local JSONL mirror.
+
+For debugging, every span emitted by `logSpan` is appended as a sanitized JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. When OTLP is configured, Copilot CLI spans are written to `/tmp/gh-aw/copilot-otel.jsonl` and forwarded to configured endpoints at the end of the run. Both files are included in the `agent` artifact when OTLP is enabled.
+
+```bash
+# Download agent artifacts for a run
+gh aw logs <run-id> --artifacts agent
+
+# Inspect spans emitted by your tool
+cat otel.jsonl | jq 'select(.resourceSpans[].scopeSpans[].spans[].name | startswith("my-tool"))'
+
+# Inspect Copilot CLI spans
+cat copilot-otel.jsonl | jq '.resourceSpans'
+```
+
+<details>
+  <summary>Advanced: low-level API</summary>
+
+For full control, use the lower-level helpers from `send_otlp_span.cjs` directly. The key environment variables set by the `actions/setup` step are:
+
+<table>
+  <thead>
+    <tr>
+      <th>Variable</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GITHUB_AW_OTEL_TRACE_ID</code></td><td>32-character hex trace ID shared by all spans in this run.</td></tr>
+    <tr><td><code>GITHUB_AW_OTEL_PARENT_SPAN_ID</code></td><td>16-character hex span ID of the job setup span. Use it as <code>parentSpanId</code> to nest spans under it.</td></tr>
+    <tr><td><code>OTEL_EXPORTER_OTLP_ENDPOINT</code></td><td>OTLP collector base URL.</td></tr>
+    <tr><td><code>OTEL_EXPORTER_OTLP_HEADERS</code></td><td>Comma-separated <code>key=value</code> authentication headers.</td></tr>
+  </tbody>
+</table>
+
+```javascript
+const {
+  buildAttr, buildOTLPPayload, sendOTLPSpan,
+  generateSpanId, SPAN_KIND_CLIENT,
+} = require('/tmp/gh-aw/actions/send_otlp_span.cjs');
+
+const traceId      = process.env.GITHUB_AW_OTEL_TRACE_ID;
+const parentSpanId = process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID;
+const endpoint     = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+const setupSpanId = generateSpanId();
+const querySpanId = generateSpanId();
+
+await sendOTLPSpan(endpoint, buildOTLPPayload({
+  traceId, spanId: setupSpanId, parentSpanId,
+  spanName: 'my-tool.setup', startMs: t0, endMs: t1,
+  serviceName: 'my-tool', kind: SPAN_KIND_CLIENT,
+  attributes: [buildAttr('my-tool.phase', 'setup')],
+  resourceAttributes: [buildAttr('my-tool.version', '1.2.3')],
+}));
+
+await sendOTLPSpan(endpoint, buildOTLPPayload({
+  traceId, spanId: querySpanId, parentSpanId: setupSpanId,
+  spanName: 'my-tool.query', startMs: t1, endMs: t2,
+  serviceName: 'my-tool', kind: SPAN_KIND_CLIENT,
+  attributes: [buildAttr('my-tool.query.rows', 1234)],
+}));
+```
+
+</details>
+
+## Related documentation
+
+- [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/)
+- [Frontmatter](/gh-aw/reference/frontmatter/)
+- [Network](/gh-aw/reference/network/)
+- [Artifacts](/gh-aw/reference/artifacts/)
+- [Audit](/gh-aw/reference/audit/)
+- [Imports](/gh-aw/reference/imports/)

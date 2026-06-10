@@ -143,7 +143,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	// Emit a manifest step that records the path and resolved default branch for each
 	// non-default cross-repo checkout. The safe-outputs MCP server reads this file to
 	// resolve base branches without making any credentialed network calls.
-	for _, line := range checkoutMgr.GenerateCheckoutManifestStep() {
+	for _, line := range checkoutMgr.GenerateCheckoutManifestStep(c.getActionPin) {
 		yaml.WriteString(line)
 	}
 
@@ -222,7 +222,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	}
 
 	// Generate runtime setup steps (after filtering out user-customized ones)
-	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
+	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements, data)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
 
 	// Decision logic for where to place runtime steps:

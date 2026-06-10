@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var notifyCommentLog = logger.New("workflow:notify_comment")
@@ -270,17 +271,31 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
 	}
 
-	// Pass ET usage and AI credits rate-limit detection outputs from the agent job.
+	// Pass ET usage and AI credits outputs from the agent job so the failure handler
+	// can report the number of credits used and the configured limit.
+	// GH_AW_AIC carries the actual credits consumed; GH_AW_MAX_AI_CREDITS carries the
+	// configured per-run budget (either the literal compile-time value when set via
+	// max-ai-credits frontmatter, or the runtime vars expression used by the firewall).
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.effective_tokens || '' }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.ai_credits_rate_limit_error || 'false' }}\n", mainJobName))
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AIC: ${{ needs.%s.outputs.aic }}\n", mainJobName))
+	if data != nil && data.EngineConfig != nil && data.EngineConfig.MaxAICredits != 0 {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MAX_AI_CREDITS: %q\n", strconv.FormatInt(data.EngineConfig.MaxAICredits, 10)))
+	} else {
+		expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MAX_AI_CREDITS: %s\n", expr))
+	}
 
-	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
-	// These are set by the copilot_harness.cjs logic in the agentic_execution step and cover:
+	// Pass engine error-detection outputs to the conclusion job when the selected engine
+	// provides a host-runner detect-agent-errors step.
+	// Contract: engines returning a non-empty GetErrorDetectionScriptId() must run
+	// actions/setup/js/detect_agent_errors.cjs, which emits all four outputs below.
+	// These outputs cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
 	//   - agentic_engine_timeout: engine process killed by signal (step timeout)
-	//   - model_not_supported_error: requested model unavailable for the subscription tier
-	if _, ok := engine.(*CopilotEngine); ok {
+	//   - model_not_supported_error: configured model name is invalid or unavailable
+	if engine.GetErrorDetectionScriptId() != "" {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MCP_POLICY_ERROR: ${{ needs.%s.outputs.mcp_policy_error }}\n", mainJobName))
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))

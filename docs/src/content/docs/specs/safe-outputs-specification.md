@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.22.0  
+**Version**: 1.23.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-06-06  
+**Publication Date**: 2026-06-10  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -3676,6 +3676,122 @@ safe-outputs:
 
 ---
 
+#### Type: create_check_run
+
+**Purpose**: Create a GitHub Check Run to report agent analysis results as a first-class status check on a commit or pull request.
+
+**Default Max**: 1  
+**Cross-Repository Support**: No (same repository only)  
+**Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "create_check_run",
+  "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter. When `safe-outputs.create-check-run.target` is configured, pull request targeting follows standard PR target rules. With `target: \"*\"`, include `pull_request_number` (or `pr_number`/`pr`/`pull_number`) in each call.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["conclusion", "title", "summary"],
+    "properties": {
+      "conclusion": {
+        "type": "string",
+        "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"],
+        "description": "The final conclusion of the check run."
+      },
+      "title": {
+        "type": "string",
+        "description": "Short title summarizing the check result. Shown in the checks UI next to the check run name. Maximum 256 characters."
+      },
+      "summary": {
+        "type": "string",
+        "description": "Markdown-formatted summary of the check result. Shown in the checks detail view. Maximum 65535 characters."
+      },
+      "text": {
+        "type": "string",
+        "description": "Optional detailed Markdown content shown in the check run details. Maximum 65535 characters."
+      },
+      "pull_request_number": {
+        "type": ["number", "string"],
+        "description": "Pull request number to attach the check run to when `target: \"*\"` is configured. Aliases: pr_number, pr, pull_number.",
+        "x-synonyms": ["pr_number", "pr", "pull_number"]
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **SHA Resolution**: When `target` is configured, the handler resolves the target pull request number via the shared target resolution logic, then fetches the current PR head SHA via `GET /repos/{owner}/{repo}/pulls/{pull_number}`. The API fetch is intentional even when the event payload carries a SHA (e.g. `target: "triggering"` on a `pull_request` event) so that the check run always references the most recent head in the event of a force push between the triggering event and handler execution.
+2. **Fallback SHA** (no `target`): The handler uses `pull_request.head.sha` from the event payload when present (avoids the ephemeral merge commit SHA produced by `pull_request` events), falling back to `GITHUB_SHA`, then `context.sha`.
+3. **Check Run Creation**: Issues `POST /repos/{owner}/{repo}/check-runs` with status `completed` and the resolved `head_sha`. The check run name is taken from frontmatter configuration, defaulting to the workflow name (with `(Result)` suffix to avoid collapsing into the workflow's own check suite entry in compact UI views).
+4. **Staged Mode**: In staged mode the handler logs a preview message with the resolved PR number (when `target` is set) and returns without calling the Checks API or the Pulls API.
+5. **Error Handling**: Hard failures (target resolution failure, missing PR head SHA, Pulls API error) emit `core.error` for a red workflow annotation and return `{ success: false }`. Soft skips (e.g. `target: "triggering"` in a non-PR context) emit `core.info` and return `{ success: false, skipped: true }`.
+
+**Configuration Parameters**:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `string` | Workflow name | Check run name shown in the GitHub Checks UI. Auto-suffixed with `(Result)` when equal to the workflow name to avoid UI collapsing. |
+| `target` | `string` | — | PR targeting mode: `"triggering"` (use PR from event context), `"*"` (use `pull_request_number` from each call), or an explicit PR number expression (e.g. `"${{ github.event.inputs.pr }}"` ). When omitted the handler falls back to the event-payload SHA heuristic. |
+| `max` | `number` | `1` | Maximum number of check runs per workflow run. |
+| `staged` | `boolean` | `false` | Enable staged mode for this handler. |
+| `output.title` | `string` | — | Static fallback title when the agent does not provide one. |
+| `output.summary` | `string` | — | Static fallback summary when the agent does not provide one. |
+
+**Required Permissions**:
+
+*GitHub Actions Token* (when `target` is NOT configured):
+
+- `contents: read` - Repository metadata and context
+- `checks: write` - Check run creation
+
+*GitHub Actions Token* (when `target` IS configured):
+
+- `contents: read` - Repository metadata and context
+- `checks: write` - Check run creation
+- `pull-requests: read` - PR head SHA resolution via `GET /repos/{owner}/{repo}/pulls/{pull_number}`
+
+*GitHub App*:
+
+- `checks: write` - Check run creation
+- `pull-requests: read` - PR head SHA resolution (when `target` is configured)
+- `metadata: read` - Repository metadata (automatically granted)
+
+**Notes**:
+
+- The check run `name` is configured in workflow frontmatter, NOT accepted as an agent-provided parameter. Agents MUST NOT pass `name` in the tool call.
+- `conclusion` is required and MUST be one of: `success`, `failure`, `neutral`, `cancelled`, `skipped`, `timed_out`, `action_required`.
+- `title` and `summary` are required. Both may be supplied as static fallbacks in frontmatter (`output.title`, `output.summary`) when the agent does not produce them.
+- `pull_request_number` (aliases: `pr_number`, `pr`, `pull_number`) is only meaningful when `target: "*"` is configured.
+- The `pull-requests: read` permission is automatically added to the compiled workflow only when `target` is configured; workflows without a `target` are not affected.
+
+**Example Frontmatter**:
+
+```yaml
+safe-outputs:
+  create-check-run:
+    name: "Security Scan"
+    target: "*"
+    max: 1
+```
+
+**Example Agent Message**:
+
+```json
+{
+  "type": "create_check_run",
+  "pull_request_number": 876,
+  "conclusion": "failure",
+  "title": "3 issues found",
+  "summary": "### Findings\n- Issue A\n- Issue B\n- Issue C"
+}
+```
+
+---
+
 #### Type: create_agent_session
 
 **Purpose**: Create GitHub Copilot coding agent sessions for code change delegation.
@@ -5034,6 +5150,14 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.23.0** (2026-06-10):
+
+- **Added**: `create_check_run` safe output type definition in Section 7.3, including full MCP tool schema, operational semantics, configuration parameters, and permission requirements.
+- **Specified**: Dual-permission profile for `create_check_run`: `contents: read` + `checks: write` when no `target` is configured; adds `pull-requests: read` when `target` is set (required for PR head SHA resolution via `GET /repos/{owner}/{repo}/pulls/{pull_number}`).
+- **Specified**: SHA resolution order: API-fetched PR head SHA (when `target` configured) → event-payload `pull_request.head.sha` → `GITHUB_SHA` → `context.sha`.
+- **Specified**: Staged-mode behavior: Pulls API call is skipped; preview message includes the resolved PR number when `target` is set.
+- **Updated**: Publication metadata to 1.23.0.
 
 **Version 1.22.0** (2026-06-06):
 

@@ -247,6 +247,9 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateCheckRun") {
 				return nil
 			}
+			if safeOutputs.CreateCheckRun != nil && safeOutputs.CreateCheckRun.Target != "" {
+				return NewPermissionsContentsReadChecksWritePRRead()
+			}
 			return NewPermissionsContentsReadChecksWrite()
 		},
 	},

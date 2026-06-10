@@ -129,15 +129,11 @@ func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error
 }
 
 func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) error {
-	var frontmatterModels map[string][]string
-	if ctx.toolsResult.parsedFrontmatter != nil {
-		frontmatterModels = ctx.toolsResult.parsedFrontmatter.Models
-	}
 	var engineModel string
 	if ctx.workflowData.EngineConfig != nil {
 		engineModel = ctx.workflowData.EngineConfig.Model
 	}
-	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, frontmatterModels, engineModel, ctx.cleanPath)
+	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, nil, engineModel, ctx.cleanPath)
 }
 
 func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData *WorkflowData) error {

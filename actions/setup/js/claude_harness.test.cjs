@@ -13,6 +13,7 @@ const {
   isAuthenticationFailedError,
   isMaxTurnsExit,
   isNoDeferredMarkerError,
+  isInvalidModelError,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
@@ -185,6 +186,27 @@ describe("claude_harness.cjs", () => {
   describe("isAuthenticationFailedError", () => {
     it("returns true for authentication failed with request id", () => {
       expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
+    });
+
+    describe("isInvalidModelError", () => {
+      it("returns true for model-not-supported errors", () => {
+        expect(isInvalidModelError("Execution failed: CAPIError: 400 The requested model is not supported.")).toBe(true);
+      });
+
+      it("returns true for invalid model name errors", () => {
+        expect(isInvalidModelError("invalid model name 'claude-sonnet-999'")).toBe(true);
+        expect(isInvalidModelError("model 'claude-ultra' does not exist")).toBe(true);
+        expect(isInvalidModelError("model claude-fake is not supported")).toBe(true);
+        expect(isInvalidModelError("model gemini-v99 is unavailable")).toBe(true);
+        expect(isInvalidModelError("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
+      });
+
+      it("returns false for unrelated errors", () => {
+        expect(isInvalidModelError("rate_limit_error")).toBe(false);
+        expect(isInvalidModelError("Error: invalid model response format")).toBe(false);
+        expect(isInvalidModelError('{"type":"result","subtype":"error_max_turns","is_error":true}')).toBe(false);
+        expect(isInvalidModelError("")).toBe(false);
+      });
     });
 
     it("returns false for unrelated output", () => {
