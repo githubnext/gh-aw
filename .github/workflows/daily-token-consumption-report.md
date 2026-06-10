@@ -107,6 +107,7 @@ For each Sentry event/span and Grafana span, derive:
 - **Run ID** using:
   - `github.run_id`
   - `gh-aw.run.id`
+  - `gh_aw.run.id`
   - `gh_aw.run_id`
 - **AIC value** with precedence:
   - Prefer `gh-aw.aic` → `gh_aw.aic` → `agent_usage.aic` → `aic`.
