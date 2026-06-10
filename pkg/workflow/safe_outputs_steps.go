@@ -272,3 +272,17 @@ func buildAgentOutputDownloadSteps(prefix string, pinAction func(string) string)
 		StepID:           "download-agent-output",
 	}, pinAction)
 }
+
+// buildUsageArtifactDownloadSteps creates a step to download the usage artifact uploaded by
+// the agent job (aw-info.jsonl, agent_usage.jsonl) into /tmp/gh-aw/ so the conclusion job can
+// collect and re-publish them as part of the complete usage artifact.
+// prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
+// pinAction resolves the download-artifact action reference; pass c.getActionPin from Compiler methods.
+func buildUsageArtifactDownloadSteps(prefix string, pinAction func(string) string) []string {
+	safeOutputsStepsLog.Printf("Building usage artifact download steps with prefix: %q", prefix)
+	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: prefix + constants.UsageArtifactName, // Compact usage artifact uploaded by the agent job
+		DownloadPath: "/tmp/gh-aw/",
+		StepName:     "Download usage artifact",
+	}, pinAction)
+}

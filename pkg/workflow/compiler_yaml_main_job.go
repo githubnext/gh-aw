@@ -777,6 +777,13 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
+	// Upload aw-info.jsonl and agent_usage.jsonl to the usage artifact so the conclusion job
+	// can download them without fetching the full agent artifact.
+	// Gated on firewall because these files are written by the AWF container (AWF v0.27.0+).
+	if isFirewallEnabled(data) {
+		generateUsageArtifactPreUpload(yaml, artifactPrefixExprForDownstreamJob(data), c.getActionPin)
+	}
+
 	// Generate single unified artifact upload with all collected paths.
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
@@ -801,6 +808,27 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 		return fmt.Errorf("step ordering validation failed: %w", err)
 	}
 	return nil
+}
+
+// generateUsageArtifactPreUpload uploads aw-info.jsonl and agent_usage.jsonl from the agent
+// job to the "usage" artifact so the conclusion job can download just this compact set of
+// usage files without fetching the full agent artifact. The conclusion job later overwrites
+// this artifact with the complete usage data set (adding token-usage JSONL files, etc.).
+//
+// These files are written by the AWF container (AWF v0.27.0+), so this step is only
+// emitted when the firewall is enabled.
+func generateUsageArtifactPreUpload(yaml *strings.Builder, prefix string, pinAction func(string) string) {
+	usageArtifactName := prefix + constants.UsageArtifactName
+	yaml.WriteString("      - name: Upload usage artifact\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", pinAction("actions/upload-artifact"))
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          name: %s\n", usageArtifactName)
+	yaml.WriteString("          path: |\n")
+	fmt.Fprintf(yaml, "            /tmp/gh-aw/%s\n", constants.AWInfoFilename)
+	fmt.Fprintf(yaml, "            /tmp/gh-aw/%s\n", constants.AgentUsageStreamFilename)
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 // addCustomStepsAsIs adds custom steps after sanitizing any GitHub Actions expressions

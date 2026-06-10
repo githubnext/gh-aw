@@ -112,6 +112,17 @@ const SafeOutputsFilename = "safeoutputs.jsonl"
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename = "agent_usage.json"
 
+// AgentUsageStreamFilename is the filename of the streaming token usage JSONL file written to
+// /tmp/gh-aw/ by the AWF container during agent execution. Each line is a JSON object recording
+// per-call token usage. Unlike TokenUsageFilename (aggregated JSON), this file preserves the
+// individual call-level records. Requires AWF v0.27.0+.
+const AgentUsageStreamFilename = "agent_usage.jsonl"
+
+// AWInfoFilename is the filename of the AWF event log written to /tmp/gh-aw/ by the AWF
+// container during agent execution. Each line is a JSON object describing a workflow event
+// (e.g. agent start, tool call, finish). Requires AWF v0.27.0+.
+const AWInfoFilename = "aw-info.jsonl"
+
 // GithubRateLimitsFilename is the filename of the GitHub API rate-limit log written to /tmp/gh-aw/.
 // Each line is a JSON object recording the x-ratelimit-* headers (or rate-limit API snapshot)
 // captured during github.rest API calls, enabling post-run analysis of rate-limit consumption.

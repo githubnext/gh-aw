@@ -937,3 +937,62 @@ func TestGenerateMainJobStepsRestoreActionsFolder(t *testing.T) {
 		assert.NotContains(t, result, "Restore actions folder", "agent job should NOT have restore step in action mode")
 	})
 }
+
+// TestGenerateUsageArtifactPreUpload verifies that the agent job emits a step to upload
+// aw-info.jsonl and agent_usage.jsonl to the usage artifact when the firewall is enabled,
+// and that the step is omitted when the firewall is disabled.
+func TestGenerateUsageArtifactPreUpload(t *testing.T) {
+	t.Run("emits upload step when firewall is enabled", func(t *testing.T) {
+		var yaml strings.Builder
+		generateUsageArtifactPreUpload(&yaml, "", func(s string) string { return s })
+		result := yaml.String()
+		assert.Contains(t, result, "Upload usage artifact", "expected upload step name")
+		assert.Contains(t, result, "aw-info.jsonl", "expected AWInfoFilename in upload paths")
+		assert.Contains(t, result, "agent_usage.jsonl", "expected AgentUsageStreamFilename in upload paths")
+		assert.Contains(t, result, "if-no-files-found: ignore", "expected if-no-files-found: ignore")
+		assert.Contains(t, result, "continue-on-error: true", "expected continue-on-error: true")
+	})
+
+	t.Run("uses artifact prefix in workflow_call context", func(t *testing.T) {
+		const prefix = "${{ inputs.run-id }}-"
+		var yaml strings.Builder
+		generateUsageArtifactPreUpload(&yaml, prefix, func(s string) string { return s })
+		result := yaml.String()
+		assert.Contains(t, result, "name: "+prefix+"usage", "expected prefixed artifact name")
+	})
+
+	t.Run("agent job includes usage pre-upload step when firewall enabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.stepOrderTracker = NewStepOrderTracker()
+		data := &WorkflowData{
+			Name: "Test Workflow",
+			On:   "issues",
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+		var b strings.Builder
+		err := compiler.generateMainJobSteps(&b, data)
+		require.NoError(t, err)
+		assert.Contains(t, b.String(), "Upload usage artifact", "agent job should upload compact usage artifact when firewall is enabled")
+	})
+
+	t.Run("agent job omits usage pre-upload step when firewall disabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.stepOrderTracker = NewStepOrderTracker()
+		data := &WorkflowData{
+			Name: "Test Workflow",
+			On:   "issues",
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+		}
+		var b strings.Builder
+		err := compiler.generateMainJobSteps(&b, data)
+		require.NoError(t, err)
+		assert.NotContains(t, b.String(), "Upload usage artifact", "agent job should NOT upload usage artifact when firewall is disabled")
+	})
+}

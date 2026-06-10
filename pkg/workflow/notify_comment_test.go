@@ -1213,4 +1213,10 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/detection/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to ensure detection token usage file exists.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "Download usage artifact") {
+		t.Errorf("Expected conclusion job to download usage artifact (uploaded by agent job) before collecting usage files.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "overwrite: true") {
+		t.Errorf("Expected usage artifact upload to use overwrite: true so the conclusion job's complete set replaces the agent job's initial upload.\nGenerated steps:\n%s", allSteps)
+	}
 }
