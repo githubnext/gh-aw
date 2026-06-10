@@ -104,7 +104,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_DevBuildsFromSource(t *testing.T) {
 	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
 		Runtime: ghAwRuntime,
 		Version: "",
-	}})
+	}}, nil)
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
@@ -134,7 +134,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesSetupCLI(t *testing.T) {
 	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
 		Runtime: ghAwRuntime,
 		Version: "",
-	}})
+	}}, nil)
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
