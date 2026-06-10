@@ -116,10 +116,10 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxAiCredits":1000`, "apiProxy should emit default maxAiCredits=1000 when unset")
+		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "apiProxy should omit maxAiCredits when unset (resolved at runtime via vars expression)")
 	})
 
-	t.Run("enterprise default max-ai-credits env var is used when frontmatter is unset", func(t *testing.T) {
+	t.Run("enterprise default max-ai-credits env var is NOT used at compile time (resolved at action runtime)", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -136,7 +136,79 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"maxAiCredits":2000`, "apiProxy should emit env var default maxAiCredits when unset")
+		// env var is no longer read at compile time; maxAiCredits is deferred to runtime
+		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "apiProxy should omit maxAiCredits when unset (env var ignored at compile time)")
+	})
+
+	t.Run("frontmatter max-ai-credits takes precedence over runtime default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					MaxAICredits: 333,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should bake in frontmatter maxAiCredits (skipping runtime expression)")
+	})
+
+	// T-AIC-PR-007: Imported workflow max-ai-credits baked into AWF config JSON when no main
+	// frontmatter value is present; imported value takes precedence over the runtime default.
+	// The compiler_orchestrator_engine.go applies MergedMaxAICredits to EngineConfig when
+	// the main workflow has no max-ai-credits frontmatter — the resulting non-zero MaxAICredits
+	// on EngineConfig is treated identically to a direct frontmatter value in BuildAWFConfigJSON.
+	t.Run("spec §10.3(2) / T-AIC-PR-007: imported config max-ai-credits baked into AWF config JSON", func(t *testing.T) {
+		// Simulate what compiler_orchestrator_engine.go does: set MaxAICredits from imports
+		// when the main workflow frontmatter has no max-ai-credits.
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					MaxAICredits: 750, // from imported workflow config (first-wins)
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxAiCredits":750`, "apiProxy should bake in imported config maxAiCredits value")
+		assert.NotContains(t, jsonStr, `"maxAiCredits":1000`, "should use imported value, not the built-in default")
+	})
+
+	t.Run("spec §10.3(2) / T-AIC-PR-007: frontmatter max-ai-credits overrides imported config value", func(t *testing.T) {
+		// Both main-workflow frontmatter and imports set max-ai-credits; frontmatter wins.
+		// In practice compiler_orchestrator_engine.go skips the import if MaxAICredits != 0.
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					MaxAICredits: 500, // frontmatter wins; imports would have set a different value
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxAiCredits":500`, "frontmatter max-ai-credits MUST override any imported config value")
 	})
 
 	t.Run("token steering is enabled by default in apiProxy config", func(t *testing.T) {
@@ -1042,9 +1114,11 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// Should NOT have --image-tag as a CLI flag (moved to config file)
 	assert.NotContains(t, command, "--image-tag", "expected --image-tag to be absent from CLI args")
 
-	// The JSON content in the printf command should have the expected structure
-	assert.Contains(t, command, `"allowDomains"`, "config JSON should include allowDomains")
-	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
+	// The JSON content in the printf command should have the expected structure.
+	// With ${GH_AW_MAX_AI_CREDITS} injected, shellEscapeArgWithVarPreserved uses
+	// double-quote wrapping, so JSON double-quotes appear as \" in the shell command.
+	assert.Contains(t, command, `\"allowDomains\"`, "config JSON should include allowDomains")
+	assert.Contains(t, command, `\"enabled\":true`, "config JSON should have apiProxy enabled")
 }
 
 func TestBuildAWFCommand_ModelMultipliersLoadedFromFile(t *testing.T) {

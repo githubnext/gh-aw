@@ -26,6 +26,10 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
   ```
 
+  `create_issue` output validation requires:
+  - `body` minimum length: **20** characters
+  - `body` maximum length: **65000** characters
+
   **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
   **Deduplication for Scheduled Workflows**: When a `schedule:` trigger is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue on every run. Pair with `expires:` so stale issues are cleaned up automatically:
 

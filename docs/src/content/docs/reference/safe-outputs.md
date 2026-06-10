@@ -129,6 +129,8 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for compre
 
 #### `create_issue` tool field schema (`fields`)
 
+`create_issue.body` must be between **20** and **65000** characters.
+
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `fields` | `array<object>` | No | Optional issue field updates to apply immediately after issue creation. | `[{"name":"Priority","value":"P1"}]` |

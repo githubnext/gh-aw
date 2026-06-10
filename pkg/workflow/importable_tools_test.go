@@ -802,7 +802,7 @@ permissions:
 tools:
   bash: true
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 imports:
@@ -893,7 +893,7 @@ permissions:
   contents: read
   issues: read
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 imports:
@@ -967,7 +967,7 @@ permissions:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 imports:
@@ -1183,7 +1183,7 @@ permissions:
 	}
 
 	lockContent := string(lockFileContent)
-	if !strings.Contains(lockContent, `"maxRuns":37`) {
+	if !strings.Contains(lockContent, `\"maxRuns\":37`) {
 		t.Errorf("Expected lock file to contain apiProxy.maxRuns from imported workflow, got:\n%s", lockContent)
 	}
 }

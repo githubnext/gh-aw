@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
@@ -76,22 +77,22 @@ func resolveMaxDailyAIC(frontmatter map[string]any, importedJSON string) *string
 	}
 	if importedJSON == "" {
 		dailyAICWorkflowLog.Print("No frontmatter value and no imported config; falling back to default max-daily-ai-credits")
-		defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
-		return parseMaxDailyAICValue(defaultValue)
+		expr := compilerenv.BuildDefaultMaxDailyAICreditsExpression(constants.DefaultMaxDailyAICredits)
+		return parseMaxDailyAICValue(expr)
 	}
 	var imported any
 	if err := json.Unmarshal([]byte(importedJSON), &imported); err != nil {
 		dailyAICWorkflowLog.Printf("Failed to unmarshal imported max-daily-ai-credits JSON, using default: %v", err)
-		defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
-		return parseMaxDailyAICValue(defaultValue)
+		expr := compilerenv.BuildDefaultMaxDailyAICreditsExpression(constants.DefaultMaxDailyAICredits)
+		return parseMaxDailyAICValue(expr)
 	}
 	if value, found := resolveMaxDailyAICFromRaw(imported); found {
 		dailyAICWorkflowLog.Print("Resolved max-daily-ai-credits from imported config")
 		return value
 	}
 	dailyAICWorkflowLog.Print("Imported config did not provide a usable value; falling back to default max-daily-ai-credits")
-	defaultValue := compilerenv.ResolveDefaultMaxDailyAICredits("500000")
-	return parseMaxDailyAICValue(defaultValue)
+	expr := compilerenv.BuildDefaultMaxDailyAICreditsExpression(constants.DefaultMaxDailyAICredits)
+	return parseMaxDailyAICValue(expr)
 }
 
 // hasMaxDailyAICGuardrail reports whether compiler should emit the
