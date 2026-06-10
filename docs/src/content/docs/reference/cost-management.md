@@ -9,16 +9,16 @@ The cost of running an agentic workflow is the sum of two components: **GitHub A
 
 ## AI Credits (AIC)
 
-**AI Credits (AIC)** are the primary metric for monitoring and budgeting inference costs in gh-aw. One AIC equals $0.01 USD. AIC values are computed from actual provider pricing data and appear in `gh aw logs`, `gh aw audit`, and run footer messages.
+**AI Credits (AIC)** are the primary metric for monitoring and budgeting inference costs in gh-aw. One AIC equals $0.01 USD. AIC values are computed from pricing data sourced from the [models.dev](https://models.dev/) catalog and appear in `gh aw logs`, `gh aw audit`, and run footer messages.
 
-- **`claude`** — Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens)
-- **`codex`** — Based on OpenAI token pricing
-- **`copilot`** — Based on GitHub Copilot usage and billing data surfaced by GitHub documentation; cross-reference [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs
+- **`claude`** — Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens) from the [models.dev](https://models.dev/) catalog
+- **`codex`** — Based on OpenAI token pricing from the [models.dev](https://models.dev/) catalog
+- **`copilot`** — Based on GitHub Copilot pricing from the [models.dev](https://models.dev/) catalog; cross-reference [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models) and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs
 
 AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit reports alongside raw token counts, and as `{ai_credits_suffix}` in workflow footer templates. For structured output, each run under `.runs[]` includes an `aic` field and each episode under `.episodes[]` includes `total_aic`.
 
 > [!NOTE]
-> AIC values are computed on a best-effort basis using provider pricing data embedded in gh-aw and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
+> AIC values are computed on a best-effort basis using pricing data sourced from the [models.dev](https://models.dev/) catalog and may not exactly match your provider's actual billing. Always verify charges in your provider's billing dashboard.
 
 ## Cost Components
 
@@ -35,7 +35,7 @@ Each job also incurs approximately 1.5 minutes of runner setup overhead on top o
 
 The agent job invokes an AI engine to process the prompt and call tools. Inference is billed by the provider:
 
-- **`copilot`** — Billed to account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token); cost metric: AIC (based on GitHub Copilot model and billing documentation — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot))
+- **`copilot`** — Billed to account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token); cost metric: AIC (based on pricing from the [models.dev](https://models.dev/) catalog — see [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models) and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot))
 - **`claude`** — Billed to Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key); cost metric: AIC (AI Credits)
 - **`codex`** — Billed to OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key); cost metric: AIC (AI Credits)
 
