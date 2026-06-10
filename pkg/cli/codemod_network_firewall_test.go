@@ -82,7 +82,7 @@ permissions:
 	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
 	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
 	assert.Contains(t, result, "agent: false", "Should convert firewall false to sandbox.agent: false")
-	assert.Contains(t, result, `dangerously-disable-sandbox-agent: "migrated from deprecated network.firewall disable setting"`, "Should add required sandbox-disable justification feature")
+	assert.NotContains(t, result, "dangerously-disable-sandbox-agent", "Codemod must not silently invent a justification; operator must provide one")
 }
 
 func TestNetworkFirewallCodemod_NoNetworkField(t *testing.T) {
@@ -209,7 +209,7 @@ sandbox:
 	assert.Contains(t, result, "sandbox:", "Should preserve existing sandbox block")
 	assert.Contains(t, result, "mcp: true", "Should preserve existing sandbox settings")
 	assert.Contains(t, result, "agent: false", "Should migrate firewall false to sandbox.agent: false")
-	assert.Contains(t, result, `dangerously-disable-sandbox-agent: "migrated from deprecated network.firewall disable setting"`, "Should add required sandbox-disable justification feature")
+	assert.NotContains(t, result, "dangerously-disable-sandbox-agent", "Codemod must not silently invent a justification; operator must provide one")
 }
 
 func TestNetworkFirewallCodemod_PreservesExistingSandboxDisableJustification(t *testing.T) {
@@ -245,7 +245,7 @@ sandbox:
 	require.NoError(t, err)
 	assert.True(t, applied)
 	assert.Contains(t, result, `dangerously-disable-sandbox-agent: "already documented justification string with enough detail"`)
-	assert.NotContains(t, result, migratedSandboxDisableJustification, "Should not overwrite existing justification")
+	assert.NotContains(t, result, "migrated from deprecated", "Should not overwrite existing justification with a generic one")
 }
 
 func TestNetworkFirewallCodemod_MigratesFirewallVersionIntoExistingSandbox(t *testing.T) {
