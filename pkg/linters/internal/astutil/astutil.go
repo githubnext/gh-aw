@@ -2,11 +2,16 @@
 package astutil
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // IsLocalObject reports whether obj is a local (non-package-scope) object.
@@ -65,4 +70,23 @@ func IsFmtErrorf(pass *analysis.Pass, call *ast.CallExpr) bool {
 		return false
 	}
 	return pkgName.Imported().Path() == "fmt"
+}
+
+// Inspector extracts the *inspector.Inspector from pass.ResultOf.
+// It returns an error if the result has an unexpected type.
+func Inspector(pass *analysis.Pass) (*inspector.Inspector, error) {
+	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	if !ok {
+		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	}
+	return insp, nil
+}
+
+// NodeText formats node as Go source text using go/printer.
+func NodeText(fset *token.FileSet, node ast.Node) string {
+	var buf bytes.Buffer
+	if err := printer.Fprint(&buf, fset, node); err != nil {
+		return ""
+	}
+	return buf.String()
 }

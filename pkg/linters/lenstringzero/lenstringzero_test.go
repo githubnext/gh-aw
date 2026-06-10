@@ -12,5 +12,5 @@ import (
 
 func TestLenStringZero(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, lenstringzero.Analyzer, "lenstringzero")
+	analysistest.RunWithSuggestedFixes(t, testdata, lenstringzero.Analyzer, "lenstringzero")
 }

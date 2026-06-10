@@ -13,6 +13,7 @@ type CreateCheckRunOutputConfig struct {
 // CreateCheckRunConfig holds configuration for creating GitHub Check Runs from agent output
 type CreateCheckRunConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
+	Target               string                      `yaml:"target,omitempty"` // Target pull request for check run attachment: "triggering", "*", or explicit PR number
 	Name                 string                      `yaml:"name,omitempty"`   // Check run name shown in the GitHub Checks UI
 	Output               *CreateCheckRunOutputConfig `yaml:"output,omitempty"` // Optional static output defaults
 }
@@ -33,6 +34,16 @@ func (c *Compiler) parseCreateCheckRunConfig(outputMap map[string]any) *CreateCh
 			if nameStr, ok := name.(string); ok {
 				checkRunConfig.Name = nameStr
 				createCheckRunLog.Printf("Using custom check run name: %s", nameStr)
+			}
+		}
+
+		// Parse target (optional PR targeting mode)
+		if target, exists := configMap["target"]; exists {
+			if targetStr, ok := target.(string); ok {
+				checkRunConfig.Target = targetStr
+				createCheckRunLog.Printf("Using check run target: %s", targetStr)
+			} else {
+				createCheckRunLog.Printf("Warning: create-check-run target value %v is not a string and will be ignored", target)
 			}
 		}
 

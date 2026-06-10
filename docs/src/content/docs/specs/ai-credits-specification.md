@@ -199,6 +199,16 @@ Provider keys MUST be lowercase identifiers. For Copilot-backed pricing, the can
 
 A conforming implementation MUST normalize provider and model identifiers for lookup by trimming whitespace and applying case-insensitive comparison. An implementation SHOULD support compatibility matching between punctuation variants (for example, `.` and `_` compared to `-`) and provider-scoped prefix fallback.
 
+A conforming implementation MUST recognize the following provider name aliases and normalize them to `github-copilot` before catalog lookup:
+
+| Input value | Normalized to |
+|-------------|---------------|
+| `github` | `github-copilot` |
+| `copilot` | `github-copilot` |
+| `github_models` | `github-copilot` |
+
+The `github_models` alias is written by the AWF proxy for Copilot engine runs and MUST be recognized so that AIC is computed and emitted for all Copilot-backed engines.
+
 ---
 
 ## 5. Catalog Provisioning and Synchronization
@@ -257,7 +267,7 @@ A conformance test suite MUST include at least the following test cases:
 - **T-AIC-003**: Verify cache-read subtraction behavior for providers that include cache-read tokens in input totals.
 - **T-AIC-004**: Verify fallback pricing when optional cost fields are omitted.
 - **T-AIC-005**: Verify `models.json` rejects missing required fields (`input`, `output`).
-- **T-AIC-006**: Verify provider key normalization and `github` to `github-copilot` mapping behavior.
+- **T-AIC-006**: Verify provider key normalization and `github`, `copilot`, and `github_models` to `github-copilot` mapping behavior.
 - **T-AIC-007**: Verify catalog mirror consistency between CLI and setup runtime paths.
 - **T-AIC-008**: Verify reporting outputs include per-run AIC values.
 

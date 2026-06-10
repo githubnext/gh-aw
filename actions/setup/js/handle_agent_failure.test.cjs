@@ -1462,6 +1462,47 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("shouldBuildEngineFailureContext", () => {
+    const { shouldBuildEngineFailureContext } = require("./handle_agent_failure.cjs");
+
+    it("returns true for plain failure without timeout or tool-denials-exceeded", () => {
+      expect(shouldBuildEngineFailureContext("failure", false, false)).toBe(true);
+    });
+
+    it("returns false when timeout is detected", () => {
+      expect(shouldBuildEngineFailureContext("failure", false, true)).toBe(false);
+    });
+
+    it("returns false when tool-denials-exceeded is present", () => {
+      expect(shouldBuildEngineFailureContext("failure", true, false)).toBe(false);
+    });
+
+    it("returns false for non-failure conclusions", () => {
+      expect(shouldBuildEngineFailureContext("timed_out", false, true)).toBe(false);
+      expect(shouldBuildEngineFailureContext("success", false, false)).toBe(false);
+    });
+  });
+
+  describe("isIssueWritePermissionError", () => {
+    const { isIssueWritePermissionError } = require("./handle_agent_failure.cjs");
+
+    it("returns true for 403 Resource not accessible by integration", () => {
+      expect(isIssueWritePermissionError({ status: 403, message: "Resource not accessible by integration" })).toBe(true);
+    });
+
+    it("returns true for 403 insufficient permissions", () => {
+      expect(isIssueWritePermissionError({ status: 403, message: "Insufficient permissions to create issue" })).toBe(true);
+    });
+
+    it("returns true for 403 resource not accessible by personal access token", () => {
+      expect(isIssueWritePermissionError({ status: 403, message: "Resource not accessible by personal access token" })).toBe(true);
+    });
+
+    it("returns false for non-403 errors", () => {
+      expect(isIssueWritePermissionError({ status: 500, message: "Internal server error" })).toBe(false);
+    });
+  });
+
   // ──────────────────────────────────────────────────────
   // buildEngineFailureContext
   // ──────────────────────────────────────────────────────

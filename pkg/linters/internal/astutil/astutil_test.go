@@ -51,3 +51,14 @@ func TestIsStringLiteral(t *testing.T) {
 		t.Fatal("did not expect int literal to be detected as string")
 	}
 }
+
+func TestNodeText(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	node := &ast.Ident{Name: "myVar"}
+	got := NodeText(fset, node)
+	if got != "myVar" {
+		t.Fatalf("NodeText = %q, want %q", got, "myVar")
+	}
+}

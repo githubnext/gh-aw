@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
@@ -431,9 +432,10 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	// Evaluate outcomes for created items if any exist
 	if len(createdItems) > 0 {
-		outcomeReports := EvaluateOutcomes(createdItems, "")
+		mapping := github.LoadObjectiveMappingFromConfig()
+		outcomeReports := EvaluateOutcomes(createdItems, "", mapping)
 		auditData.Outcomes = outcomeReports
-		outcomeSummary := ComputeOutcomeSummary(outcomeReports)
+		outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
 		auditData.OutcomeSummary = &outcomeSummary
 	}
 

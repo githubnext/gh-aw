@@ -36,7 +36,7 @@ const ROOT_SORT_ORDER = [
   'labels', 'metadata', 'tracker-id', 'source', 'run-name', 'runs-on',
   'timeout-minutes', 'concurrency', 'environment', 'container', 'services',
   'network', 'sandbox', 'plugins', 'if', 'steps', 'post-steps',
-  'features', 'disable-model-invocation', 'secrets',
+  'features', 'secrets',
   'secret-masking', 'bots', 'user-rate-limit', 'strict', 'safe-inputs',
   'runtimes', 'jobs',
 ];

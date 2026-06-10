@@ -136,9 +136,11 @@ Test protocol-specific domains in safe-outputs.
 				}
 			}
 
-			// If checking AWF args, verify allowDomains key is present in the config JSON
+			// If checking AWF args, verify allowDomains key is present in the config JSON.
+			// The key appears shell-escaped in the lock file (\"allowDomains\" or "allowDomains"),
+			// so we search for the key name without surrounding quotes to match both forms.
 			if tt.checkAWFArgs {
-				if !strings.Contains(lockYAML, `"allowDomains"`) {
+				if !strings.Contains(lockYAML, "allowDomains") {
 					t.Error("Expected 'allowDomains' key in config JSON of compiled workflow")
 				}
 			}
@@ -301,8 +303,10 @@ Test backward compatibility with domains without protocols.
 		}
 	}
 
-	// Verify allowDomains key is present in the config JSON
-	if !strings.Contains(lockYAML, `"allowDomains"`) {
+	// Verify allowDomains key is present in the config JSON.
+	// The key appears shell-escaped in the lock file (\"allowDomains\" or "allowDomains"),
+	// so we search for the key name without surrounding quotes to match both forms.
+	if !strings.Contains(lockYAML, "allowDomains") {
 		t.Error("Expected 'allowDomains' key in config JSON of compiled workflow")
 	}
 }

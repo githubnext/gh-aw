@@ -1348,6 +1348,31 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
 }
 
 /**
+ * Determine whether engine-failure context should be included.
+ * Timeout outcomes should rely on dedicated timeout messaging instead.
+ * @param {string} agentConclusion
+ * @param {boolean} hasToolDenialsExceeded
+ * @param {boolean} isTimedOut
+ * @returns {boolean}
+ */
+function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) {
+  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut;
+}
+
+/**
+ * Determine whether issue create/update failed due to token permission limits.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isIssueWritePermissionError(error) {
+  /** @type {{status?: unknown} | null} */
+  const typedError = error && typeof error === "object" ? error : null;
+  const status = Number(typedError?.status);
+  const message = getErrorMessage(error).toLowerCase();
+  return status === 403 && (message.includes("resource not accessible by integration") || message.includes("resource not accessible by personal access token") || message.includes("insufficient permissions"));
+}
+
+/**
  * Build a context string when the Copilot CLI failed due to the token lacking inference access.
  * @param {boolean} hasInferenceAccessError - Whether an inference access error was detected
  * @returns {string} Formatted context string, or empty string if no error
@@ -2724,7 +2749,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2948,7 +2973,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -3077,7 +3102,11 @@ async function main() {
         await detectAndHandleFailureCascade(owner, repo, newIssue.data.number);
       }
     } catch (error) {
-      core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
+      if (isIssueWritePermissionError(error)) {
+        core.info(`Skipping failure tracking issue creation/update: token lacks issues:write permission (${getErrorMessage(error)})`);
+      } else {
+        core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
+      }
       // Don't fail the workflow if we can't create the issue
     }
   } catch (error) {
@@ -3095,6 +3124,8 @@ module.exports = {
   buildStaleLockFileFailedContext,
   buildDailyAICExceededContext,
   buildTimeoutContext,
+  shouldBuildEngineFailureContext,
+  isIssueWritePermissionError,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   buildReportIncompleteContext,

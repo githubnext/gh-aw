@@ -300,9 +300,9 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
           cached-input: 0.05            # Override cached input weight (default: 0.1)
     ```
 
-  - **Note**: The `version` and `model` fields have sensible defaults and can typically be omitted unless you need specific customization. For turn caps, prefer the top-level `max-turns` field over the deprecated engine-level alias shown above.
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
   - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
+  - **`copilot-sdk` / `copilot-sdk-driver`** (experimental, copilot only): set `copilot-sdk: true` to start a headless Copilot CLI SDK sidecar; `copilot-sdk-driver: <path-or-command>` supplies a custom driver (`.js`/`.cjs`/`.mjs`/`.py`/`.ts`/`.mts`/`.rb`, or a bare PATH command) and implies `copilot-sdk: true`. Tune the repeated-tool-denial safeguard with the top-level `max-tool-denials:` field (default `5`).
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)

@@ -98,6 +98,36 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(exports.formatDailyGuardrailLogMessage("Completed AI Credits inspection window")).toBe("[daily-workflow-aic] Completed AI Credits inspection window");
   });
 
+  it("renders a daily AI Credits summary with zero counts when no prior runs are in the 24h window", () => {
+    const markdown = exports.renderDailyAICSummary(
+      "Impact Efficiency Report",
+      "mnkiefer",
+      5000,
+      [],
+      {
+        remaining: 13194,
+        limit: 15000,
+        used: 1806,
+        reset: "2026-06-10T07:07:04.000Z",
+      },
+      {
+        candidateRunsCount: 0,
+        inspectedRunsCount: 0,
+        truncatedByRateLimit: false,
+      }
+    );
+
+    expect(markdown).toContain("| 24h total AIC | 0 |");
+    expect(markdown).toContain("| Runs counted | 0 |");
+    expect(markdown).toContain("| Avg AIC / run | — |");
+    expect(markdown).toContain("| Std dev AIC | — |");
+    expect(markdown).toContain("| Min / Max AIC | — / — |");
+    expect(markdown).toContain("| _none_ | — | — | 0 |");
+    expect(markdown).not.toContain("| 24h total AIC |  |");
+    expect(markdown).not.toContain("| Avg AIC / run |  |");
+    expect(markdown).not.toContain("| Min / Max AIC |  /  |");
+  });
+
   it("renders a daily AI Credits details summary with stats and prior runs", () => {
     const markdown = exports.renderDailyAICSummary(
       "Nightly triage",

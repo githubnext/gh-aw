@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -9,8 +8,6 @@ import (
 )
 
 var networkFirewallCodemodLog = logger.New("cli:codemod_network_firewall")
-
-const migratedSandboxDisableJustification = "migrated from deprecated network.firewall disable setting"
 
 // getNetworkFirewallCodemod creates a codemod for migrating network.firewall to sandbox.agent
 func getNetworkFirewallCodemod() Codemod {
@@ -24,16 +21,12 @@ func getNetworkFirewallCodemod() Codemod {
 		LogMsg:       "Applied network.firewall migration (firewall now always enabled via sandbox.agent: awf default)",
 		Log:          networkFirewallCodemodLog,
 		PostTransform: func(lines []string, frontmatter map[string]any, fieldValue any) []string {
-			requiresDisableFlag := requiresSandboxDisableFeatureFlag(fieldValue)
 			_, hasSandbox := frontmatter["sandbox"]
 
 			if !hasSandbox {
 				sandboxLines := sandboxAgentLinesFromFirewall(fieldValue)
 				if len(sandboxLines) > 0 {
 					lines = insertSandboxAfterNetworkBlock(lines, sandboxLines)
-					if requiresDisableFlag {
-						lines = ensureSandboxDisableFeatureFlag(lines)
-					}
 					networkFirewallCodemodLog.Print("Converted deprecated network.firewall to sandbox.agent")
 				}
 				return lines
@@ -41,25 +34,11 @@ func getNetworkFirewallCodemod() Codemod {
 
 			lines, merged := mergeFirewallIntoExistingSandbox(lines, fieldValue)
 			if merged {
-				if requiresDisableFlag {
-					lines = ensureSandboxDisableFeatureFlag(lines)
-				}
 				networkFirewallCodemodLog.Print("Merged deprecated network.firewall into existing sandbox.agent")
 			}
 			return lines
 		},
 	})
-}
-
-func requiresSandboxDisableFeatureFlag(fieldValue any) bool {
-	switch value := fieldValue.(type) {
-	case bool:
-		return !value
-	case string:
-		return strings.EqualFold(strings.TrimSpace(value), "disable")
-	default:
-		return false
-	}
 }
 
 func sandboxAgentLinesFromFirewall(fieldValue any) []string {
@@ -280,60 +259,4 @@ func indentLines(lines []string, indent string) []string {
 		indented = append(indented, indent+line)
 	}
 	return indented
-}
-
-func ensureSandboxDisableFeatureFlag(lines []string) []string {
-	featureKey := "dangerously-disable-sandbox-agent:"
-
-	featuresIdx := -1
-	featuresIndent := ""
-	featuresEnd := len(lines)
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "features:") {
-			featuresIdx = i
-			featuresIndent = getIndentation(line)
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					featuresEnd = j
-					break
-				}
-			}
-			break
-		}
-	}
-
-	if featuresIdx >= 0 {
-		featureIndent := featuresIndent + "  "
-		for i := featuresIdx + 1; i < featuresEnd; i++ {
-			if strings.HasPrefix(strings.TrimSpace(lines[i]), featureKey) {
-				return lines
-			}
-		}
-		featureLine := fmt.Sprintf("%s%s %s", featureIndent, featureKey, strconv.Quote(migratedSandboxDisableJustification))
-		newLines := make([]string, 0, len(lines)+1)
-		newLines = append(newLines, lines[:featuresEnd]...)
-		newLines = append(newLines, featureLine)
-		newLines = append(newLines, lines[featuresEnd:]...)
-		return newLines
-	}
-
-	insertIndex := len(lines)
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "sandbox:") {
-			insertIndex = i
-			break
-		}
-	}
-
-	featureLines := []string{
-		"features:",
-		"  " + featureKey + " " + strconv.Quote(migratedSandboxDisableJustification),
-	}
-
-	newLines := make([]string, 0, len(lines)+len(featureLines))
-	newLines = append(newLines, lines[:insertIndex]...)
-	newLines = append(newLines, featureLines...)
-	newLines = append(newLines, lines[insertIndex:]...)
-	return newLines
 }

@@ -223,6 +223,12 @@ function renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns,
           .join("\n")
       : "| _none_ | — | — | 0 |";
 
+  const noRunData = stats.count === 0;
+  const totalAICFormatted = formatAICCredits(stats.total) || "0";
+  const avgAICFormatted = noRunData ? "—" : formatAICCredits(stats.average) || "0";
+  const stddevAICFormatted = noRunData ? "—" : formatAICCredits(stats.stddev) || "0";
+  const minMaxAICFormatted = noRunData ? "— / —" : `${formatAICCredits(stats.min)} / ${formatAICCredits(stats.max)}`;
+
   const noteLines = [];
   if (meta.truncatedByRateLimit) {
     noteLines.push(`- Stopped early to preserve GitHub API rate limit headroom (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
@@ -236,14 +242,14 @@ function renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns,
     "",
     "| Statistic | Value |",
     "| --- | ---: |",
-    `| 24h total AIC | ${formatAICCredits(stats.total)} |`,
+    `| 24h total AIC | ${totalAICFormatted} |`,
     `| Threshold | ${formatAICCredits(threshold)} |`,
     `| Threshold used | ${usagePercent}% |`,
-    `| Remaining headroom | ${formatAICCredits(remainingBudget)} |`,
+    `| Remaining headroom | ${formatAICCredits(remainingBudget) || "0"} |`,
     `| Runs counted | ${formatInteger(stats.count)} |`,
-    `| Avg AIC / run | ${formatAICCredits(stats.average)} |`,
-    `| Std dev AIC | ${formatAICCredits(stats.stddev)} |`,
-    `| Min / Max AIC | ${formatAICCredits(stats.min)} / ${formatAICCredits(stats.max)} |`,
+    `| Avg AIC / run | ${avgAICFormatted} |`,
+    `| Std dev AIC | ${stddevAICFormatted} |`,
+    `| Min / Max AIC | ${minMaxAICFormatted} |`,
     `| API remaining | ${formatInteger(rateLimit.remaining)} / ${formatInteger(rateLimit.limit)} |`,
     `| API used | ${formatInteger(rateLimit.used)} |`,
     `| API reset | ${rateLimit.reset || "unknown"} |`,

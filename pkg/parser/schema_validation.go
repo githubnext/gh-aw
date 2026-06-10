@@ -130,6 +130,14 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 // ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
 func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
 	schemaValidationLog.Printf("Validating included file frontmatter: file=%s, fields=%d", filePath, len(frontmatter))
+
+	// Custom agent files (.github/agents/*.md) follow the Copilot agent format,
+	// which differs from the gh-aw workflow schema. Skip schema validation for them.
+	if isCustomAgentFile(filePath) {
+		schemaValidationLog.Printf("Skipping schema validation for custom agent file: %s", filePath)
+		return nil
+	}
+
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 

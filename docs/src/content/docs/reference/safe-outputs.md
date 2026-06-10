@@ -82,6 +82,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 | [Dispatch Repository Event](#repository-dispatch-dispatch_repository) | `dispatch_repository` | Trigger `repository_dispatch` events in external repositories, experimental (cross-repo) |
 | [Code Scanning Alerts](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert` | Generate SARIF security advisories (max: unlimited, same-repo only) |
 | [Autofix Code Scanning Alerts](#autofix-code-scanning-alerts-autofix-code-scanning-alert) | `autofix-code-scanning-alert` | Create automated fixes for code scanning alerts (max: 10, same-repo only) |
+| [Create Check Run](#check-run-creation-create-check-run) | `create-check-run` | Create GitHub Check Runs to surface analysis results in the PR checks UI (default max: 1, same-repo only) |
 | [Create Agent Session](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) | `create-agent-session` | Create Copilot coding agent sessions (max: 1) |
 
 ### System Types (Auto-Enabled)
@@ -944,6 +945,57 @@ safe-outputs:
     max: 10  # max autofixes (default: 10)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+### Check Run Creation (`create-check-run:`)
+
+Creates a GitHub Check Run that surfaces agent analysis results as a first-class status check on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status.
+
+```yaml wrap
+safe-outputs:
+  create-check-run:
+    name: "Security Analysis"     # check run name in the Checks UI (default: workflow name)
+    target: "*"                   # "triggering" (default), "*", or explicit PR number expression
+    max: 1                        # max check runs per workflow run (default: 1)
+    output:                       # optional static fallbacks used when the agent omits them
+      title: "Analysis complete"
+      summary: "No findings to report."
+    staged: true                  # optional preview mode — emits step summary instead of calling the API
+```
+
+The check run `name` is configured in frontmatter, **not** accepted as an agent parameter. When `name` equals the workflow name it is auto-suffixed with `(Result)` to avoid being collapsed into the workflow's own check suite entry in compact UI views.
+
+The agent calls `create_check_run` with the required fields:
+
+```json
+{
+  "type": "create_check_run",
+  "conclusion": "failure",
+  "title": "3 issues found",
+  "summary": "### Findings\n- Issue A\n- Issue B\n- Issue C"
+}
+```
+
+`conclusion` must be one of: `success`, `failure`, `neutral`, `cancelled`, `skipped`, `timed_out`, `action_required`. `title` (max 256 characters) and `summary` (max 65535 characters) are required; an optional `text` field provides additional detail content.
+
+#### Pull Request Targeting
+
+The `target` field controls which pull request the check run is attached to:
+
+- **omitted** — the handler resolves the head SHA from the triggering event payload (`pull_request.head.sha`, falling back to `GITHUB_SHA` / `context.sha`). No Pulls API call is made.
+- **`triggering`** — resolves the PR number from the event context, then fetches the current PR head SHA via `GET /repos/{owner}/{repo}/pulls/{pull_number}`. The API call is intentional so the check run always references the most recent head even if the PR was force-pushed between the triggering event and handler execution.
+- **`"*"`** — the agent must include `pull_request_number` (or any of the aliases `pr_number`, `pr`, `pull_number`) in each `create_check_run` call. The handler resolves the head SHA via the Pulls API.
+- **explicit PR number expression** (e.g. `"${{ github.event.inputs.pr }}"`) — resolves to the specified PR and fetches the head SHA via the Pulls API.
+
+When `target` is configured, the compiled workflow automatically adds the `pull-requests: read` permission required for PR head SHA resolution.
+
+#### Required Permissions
+
+| Configuration | Permissions |
+|---------------|-------------|
+| `target` omitted | `contents: read`, `checks: write` |
+| `target` configured | `contents: read`, `checks: write`, `pull-requests: read` |
+
+A GitHub App credential block (`github-app:`) can be supplied to mint a short-lived installation token scoped to `checks:write` for this handler only.
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 

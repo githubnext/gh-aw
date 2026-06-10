@@ -17,6 +17,10 @@ CI_COVERAGE_DIR ?= /tmp/gh-aw-ci-coverage
 CI_COVERAGE_ENABLED ?= 1
 CI_COVERAGE_SOURCE_BRANCH ?= main
 CI_RUN_ID ?=
+CI_UNIT_WORKFLOW_FILE ?= cgo.yml
+CI_UNIT_TEST_ARTIFACT_PATTERN ?= test-result-cgo-unit
+CI_UNIT_RUN_ID ?=
+GO_IMPACTED_TEST_MAX_SECONDS ?= 60
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -240,7 +244,7 @@ test-impacted-js: build-js
 		exit 0; \
 	fi; \
 	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
-	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism $(JS_IMPACTED_TEST_EXCLUDES)
+	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --passWithNoTests $(JS_IMPACTED_TEST_EXCLUDES)
 
 # Test impacted Go unit tests only (excluding integration tests)
 .PHONY: test-impacted-go
@@ -256,13 +260,13 @@ test-impacted-go:
 		echo "No changed Go files; skipping impacted Go tests."; \
 		exit 0; \
 	fi; \
+	COVERAGE_SOURCE_BRANCH="$(CI_COVERAGE_SOURCE_BRANCH)"; \
 	COVERAGE_GO_PACKAGES=""; \
 	if [ "$(CI_COVERAGE_ENABLED)" != "1" ]; then \
 		echo "CI coverage correlation disabled (CI_COVERAGE_ENABLED=$(CI_COVERAGE_ENABLED)); using changed-file package selection."; \
 	elif ! command -v gh >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then \
 		echo "CI coverage correlation requires gh and jq; using changed-file package selection."; \
 	else \
-		COVERAGE_SOURCE_BRANCH="$(CI_COVERAGE_SOURCE_BRANCH)"; \
 		RUN_ID="$(CI_RUN_ID)"; \
 		if [ -z "$$RUN_ID" ]; then \
 			RUN_ID=$$(gh run list --workflow "$(CI_WORKFLOW_FILE)" --branch "$$COVERAGE_SOURCE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
@@ -304,6 +308,73 @@ test-impacted-go:
 	else \
 		CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
 		echo "Running impacted Go unit tests in changed-file packages: $$CHANGED_GO_PACKAGES"; \
+	fi; \
+	SELECTED_GO_TESTS=""; \
+	if command -v gh >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then \
+		UNIT_RUN_ID="$(CI_UNIT_RUN_ID)"; \
+		if [ -z "$$UNIT_RUN_ID" ]; then \
+			UNIT_RUN_ID=$$(gh run list --workflow "$(CI_UNIT_WORKFLOW_FILE)" --branch "$$COVERAGE_SOURCE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
+		fi; \
+		if [ -n "$$UNIT_RUN_ID" ]; then \
+			UNIT_RESULT_DIR="$(CI_COVERAGE_DIR)/unit-results"; \
+			rm -rf "$$UNIT_RESULT_DIR"; \
+			mkdir -p "$$UNIT_RESULT_DIR"; \
+			if gh run download "$$UNIT_RUN_ID" --pattern "$(CI_UNIT_TEST_ARTIFACT_PATTERN)" --dir "$$UNIT_RESULT_DIR" >/dev/null 2>&1; then \
+				UNIT_RESULT_FILE=$$(find "$$UNIT_RESULT_DIR" -type f -name '*.json' | head -n 1); \
+				if [ -n "$$UNIT_RESULT_FILE" ]; then \
+					IMPACTED_PACKAGE_FILE="$(CI_COVERAGE_DIR)/impacted-go-packages.txt"; \
+					printf '%s\n' "$$CHANGED_GO_PACKAGES" | sed 's|^\./|github.com/github/gh-aw/|' > "$$IMPACTED_PACKAGE_FILE"; \
+					IMPACTED_TEST_CANDIDATES="$(CI_COVERAGE_DIR)/impacted-go-test-candidates.tsv"; \
+					jq -r 'select(.Action == "pass" and .Package != null and .Test != null and (.Test | contains("/") | not) and .Elapsed != null) | [.Package, .Test, (.Elapsed | tostring)] | @tsv' "$$UNIT_RESULT_FILE" \
+						| awk 'NR==FNR { pkgs[$$1] = 1; next } $$1 in pkgs { print }' "$$IMPACTED_PACKAGE_FILE" - \
+						| sort -u > "$$IMPACTED_TEST_CANDIDATES"; \
+					if [ -s "$$IMPACTED_TEST_CANDIDATES" ]; then \
+						SELECTED_GO_TESTS="$(CI_COVERAGE_DIR)/selected-impacted-go-tests.tsv"; \
+						awk 'BEGIN { srand() } { print rand() "\t" $$0 }' "$$IMPACTED_TEST_CANDIDATES" \
+							| sort -k1,1n \
+							| cut -f2- \
+							| awk -F'\t' -v max="$(GO_IMPACTED_TEST_MAX_SECONDS)" 'BEGIN { total = 0; selected = 0 } { elapsed = $$3 + 0; if (selected == 0 || total + elapsed <= max) { print; total += elapsed; selected++ } }' \
+							| sort -t"	" -k1,1 -k2,2 > "$$SELECTED_GO_TESTS"; \
+						if [ -s "$$SELECTED_GO_TESTS" ]; then \
+							ESTIMATED_DURATION=$$(awk -F'\t' '{ total += $$3 } END { printf "%.3f", total }' "$$SELECTED_GO_TESTS"); \
+							echo "Running sampled impacted Go unit tests (estimated $$ESTIMATED_DURATION seconds, max $(GO_IMPACTED_TEST_MAX_SECONDS)s):"; \
+							awk -F'\t' '{ print "  " $$1 " " $$2 " (" $$3 "s)" }' "$$SELECTED_GO_TESTS"; \
+						else \
+							SELECTED_GO_TESTS=""; \
+						fi; \
+					fi; \
+				else \
+					echo "No unit test result artifact JSON found in run $$UNIT_RUN_ID; running impacted packages instead."; \
+				fi; \
+			else \
+				echo "Unable to download unit test results for run $$UNIT_RUN_ID; running impacted packages instead."; \
+			fi; \
+		else \
+			echo "No successful $(CI_UNIT_WORKFLOW_FILE) run found for branch $$COVERAGE_SOURCE_BRANCH; running impacted packages instead."; \
+		fi; \
+	else \
+		echo "Random impacted test sampling requires gh and jq; running impacted packages instead."; \
+	fi; \
+	if [ -n "$$SELECTED_GO_TESTS" ]; then \
+		awk -F'\t' ' \
+			BEGIN { current_pkg = ""; pattern = "" } \
+			{ \
+				if ($$1 != current_pkg) { \
+					if (current_pkg != "") print current_pkg "\t^(" pattern ")$$"; \
+					current_pkg = $$1; \
+					pattern = $$2; \
+				} else { \
+					pattern = pattern "|" $$2; \
+				} \
+			} \
+			END { \
+				if (current_pkg != "") print current_pkg "\t^(" pattern ")$$"; \
+			} \
+		' "$$SELECTED_GO_TESTS" | while IFS="	" read -r pkg pattern; do \
+			echo "Running impacted Go unit tests in $$pkg with pattern $$pattern"; \
+			go test -v -parallel=4 -timeout=10m -short -run "$$pattern" "$$pkg" || exit 1; \
+		done || exit 1; \
+		exit 0; \
 	fi; \
 	# Use -short to exclude integration tests and keep execution to unit-test scope. \
 	printf '%s\n' "$$CHANGED_GO_PACKAGES" | tr '\n' '\0' | xargs -0 -r go test -v -parallel=4 -timeout=10m -short

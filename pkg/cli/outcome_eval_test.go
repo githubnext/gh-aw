@@ -5,10 +5,13 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +26,7 @@ func TestComputeOutcomeSummary(t *testing.T) {
 		{Type: "close_issue", Result: OutcomeLifecycle},
 	}
 
-	s := ComputeOutcomeSummary(reports)
+	s := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
 
 	assert.Equal(t, 6, s.Total, "total should count all reports")
 	assert.Equal(t, 2, s.Accepted, "accepted count")
@@ -50,7 +53,7 @@ func TestComputeOutcomeSummary(t *testing.T) {
 }
 
 func TestComputeOutcomeSummaryEmpty(t *testing.T) {
-	s := ComputeOutcomeSummary(nil)
+	s := ComputeOutcomeSummary(nil, github.DefaultObjectiveMapping())
 
 	assert.Equal(t, 0, s.Total, "empty total")
 	assert.InDelta(t, 0.0, s.AcceptanceRate, 1e-12, "empty acceptance rate")
@@ -190,7 +193,7 @@ func TestEvaluateOutcomesSkipsNoopAndMetadata(t *testing.T) {
 		{Type: "report_incomplete", Timestamp: "2026-05-12T00:00:00Z"},
 	}
 
-	reports := EvaluateOutcomes(items, "owner/repo")
+	reports := EvaluateOutcomes(items, "owner/repo", github.DefaultObjectiveMapping())
 	assert.Empty(t, reports, "noop and metadata types should be skipped")
 }
 
@@ -199,9 +202,82 @@ func TestEvaluateOutcomesErrorOnMissingData(t *testing.T) {
 		{Type: "create_pull_request", Timestamp: "2026-05-12T00:00:00Z"},
 	}
 
-	reports := EvaluateOutcomes(items, "")
+	reports := EvaluateOutcomes(items, "", github.DefaultObjectiveMapping())
 	assert.Len(t, reports, 1, "should produce one report")
 	assert.Equal(t, OutcomeError, reports[0].Result, "should error on missing repo and number")
+}
+
+func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing.T) {
+	oldGraphQL := objectiveMappingGHAPIGraphQL
+	oldGetArray := objectiveMappingGHAPIGetArray
+	t.Cleanup(func() {
+		objectiveMappingGHAPIGraphQL = oldGraphQL
+		objectiveMappingGHAPIGetArray = oldGetArray
+	})
+
+	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"pullRequest": map[string]any{
+						"closingIssuesReferences": map[string]any{
+							"nodes": []any{
+								map[string]any{
+									"number": float64(1234),
+									"url":    "https://github.com/owner/repo/issues/1234",
+									"labels": map[string]any{"nodes": []any{
+										map[string]any{"name": "agentic-campaign"},
+										map[string]any{"name": "security"},
+									}},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return nil, fmt.Errorf("unexpected fallback label fetch: %s", endpoint)
+	}
+
+	report := OutcomeReport{Type: "create_pull_request", ObjectURL: "https://github.com/owner/repo/pull/77", ObjectNumber: 77}
+	mapping := &github.ObjectiveMapping{
+		LabelToValue:    map[string]int{"agentic-campaign": 90, "security": 85},
+		MultiLabelLogic: "max",
+		PriorityLabels:  []string{"agentic-campaign", "security"},
+	}
+
+	enrichOutcomeWithObjectiveValue(&report, "owner/repo", mapping)
+
+	assert.Equal(t, 90, report.ObjectiveValue)
+	assert.Equal(t, []string{"agentic-campaign", "security"}, report.ObjectiveLabels)
+	assert.Equal(t, "https://github.com/owner/repo/issues/1234", report.TracedRootURL)
+}
+
+func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
+	oldGraphQL := objectiveMappingGHAPIGraphQL
+	oldGetArray := objectiveMappingGHAPIGetArray
+	t.Cleanup(func() {
+		objectiveMappingGHAPIGraphQL = oldGraphQL
+		objectiveMappingGHAPIGetArray = oldGetArray
+	})
+
+	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
+		return nil, errors.New("no linked issues")
+	}
+	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return []map[string]any{{"name": "automation"}, {"name": "testing"}}, nil
+	}
+
+	report := OutcomeReport{Type: "create_issue", ObjectURL: "https://github.com/owner/repo/issues/42", ObjectNumber: 42}
+	mapping := &github.ObjectiveMapping{LabelToValue: map[string]int{"automation": 70, "testing": 65}, MultiLabelLogic: "max"}
+
+	enrichOutcomeWithObjectiveValue(&report, "owner/repo", mapping)
+
+	assert.Equal(t, 70, report.ObjectiveValue)
+	assert.Equal(t, []string{"automation", "testing"}, report.ObjectiveLabels)
+	assert.Equal(t, "https://github.com/owner/repo/issues/42", report.TracedRootURL)
 }
 
 func TestNormalizeOutcomeEvaluationTargetExistsOnly(t *testing.T) {
@@ -259,7 +335,7 @@ func TestOutcomeSummaryExcludesExistsOnlyFromAccepted(t *testing.T) {
 		},
 	}
 
-	s := ComputeOutcomeSummary(reports)
+	s := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
 	assert.Equal(t, 1, s.Accepted)
 	assert.Equal(t, 1, s.AcceptedStrong)
 	assert.Equal(t, 0, s.AcceptedWeak)
