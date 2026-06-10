@@ -1388,6 +1388,13 @@ const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
 const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
 
 /**
+ * Path to the failure categories file written by handle_agent_failure and read
+ * by the OTLP conclusion span so it can record them as gh-aw.failure.categories.
+ * @type {string}
+ */
+const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
+
+/**
  * Path to the agent stdio log file.
  * @type {string}
  */
@@ -2085,6 +2092,13 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (detectionReason) {
     attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
   }
+  // Read failure categories written by handle_agent_failure so the reason/type
+  // of each failure issue is captured as a queryable OTLP attribute.
+  const rawFailureCategories = readJSONIfExists(FAILURE_CATEGORIES_PATH);
+  const failureCategories = Array.isArray(rawFailureCategories) ? rawFailureCategories.filter(c => typeof c === "string" && c) : [];
+  if (failureCategories.length > 0) {
+    attributes.push(buildArrayAttr("gh-aw.failure.categories", failureCategories));
+  }
   attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
   const otlpExportErrorDetails = formatOTLPExportErrorDetails();
   if (otlpExportErrorDetails) {
@@ -2367,6 +2381,7 @@ module.exports = {
   buildEpisodeAttributesFromContext,
   resolveEngineId,
   GITHUB_RATE_LIMITS_JSONL_PATH,
+  FAILURE_CATEGORIES_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,
   OTEL_JSONL_PATH,
