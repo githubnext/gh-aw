@@ -41,9 +41,8 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 			URL:      "https://example.com/1",
 			ClosedAt: "2026-06-01T00:00:00Z",
 			Labels: []struct {
-				Name string "json:\"name\""
+				Name string `json:"name"`
 			}{{Name: "automation"}},
-		},
 		{
 			Number:   2,
 			Title:    "Observability with testing",
