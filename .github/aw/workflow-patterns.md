@@ -45,6 +45,27 @@ Reusable incident-triage pattern:
 
 See also: [deployment-status.md](deployment-status.md)
 
+## High-Volume Triage and Escalation Pattern
+
+For workflows that receive many similar events (issues, PR comments, CI failures, security alerts, dependency events):
+
+- start with a narrow, cheap triage/classification pass
+- detect known, duplicate, stale, or low-value cases first
+- emit explicit `noop` or a safe output when triage is confident
+- escalate to the main/frontier agent only when triage is uncertain or the case is genuinely new/high-value
+
+Decision flow:
+
+```text
+IF cheap triage is confident that the event is known, duplicate, stale, or low-value THEN
+  stop and emit the configured safe output or noop
+ELSE
+  escalate to the main agent
+END IF
+```
+
+Use this with pull-context workflows: fetch targeted evidence on demand instead of pushing large raw logs or payloads into the initial prompt.
+
 ## Large-Repository Improvement Pattern
 
 For recurring maintenance in large repositories:

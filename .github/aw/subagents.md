@@ -145,6 +145,28 @@ Extract a repetitive sub-task (file summarisation, commit-message generation, co
 
 ---
 
+## Planner-Worker Pattern
+
+Use a planner-worker split to control cost and keep context quality high:
+
+- **Main/frontier agent (planner-orchestrator):** forms hypotheses, decides what evidence is needed, chooses which workers to invoke, and synthesizes final conclusions
+- **Worker sub-agents (usually `model: small`):** execute bounded retrieval, extraction, classification, verification, and one-shot summarization tasks
+
+Prompt workers with narrow, evidence-oriented instructions (for example: “return exact error messages from failing step and line references”), not broad analysis requests.
+
+Worker outputs should be compact and structured (focused excerpts, short JSON, concise findings). Do not return raw logs, full API payloads, or large file dumps to the orchestrator unless explicitly required.
+
+### Bounded delegation rules
+
+- keep delegation one level deep unless gh-aw explicitly supports and validates deeper topology
+- avoid recursive or open-ended sub-agent fan-out
+- cap per-run worker fan-out so high-volume events cannot trigger runaway cost
+- stop early with `noop` or safe output when a cheap worker can confidently classify a known/duplicate/stale/low-value case
+
+See also: [token-optimization.md](token-optimization.md) and [workflow-patterns.md](workflow-patterns.md).
+
+---
+
 ## Full Example
 
 ```markdown
