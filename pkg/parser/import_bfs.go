@@ -566,7 +566,7 @@ func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 				}
 			}
 			if _, hasIf := importItem["if"]; hasIf {
-				return nil, errors.New("import 'if' is no longer supported; use {{#if ...}}{{#runtime-import ...}}{{/if}} for experiment-specific prompt imports")
+				return nil, errors.New("import 'if' is no longer supported; use {{#if ...}}{{#runtime-import? ...}}{{/if}} for experiment-specific prompt imports")
 			}
 			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs})
 		default:

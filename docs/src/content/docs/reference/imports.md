@@ -44,7 +44,7 @@ imports:
 
 `uses` is an alias for `path`; `with` is an alias for `inputs`.
 
-Conditional frontmatter imports are not supported. If an experiment should vary shared prompt content, keep imports unconditional and gate `{{#runtime-import ...}}` inside your `{{#if experiments.<name> ...}}` block instead.
+Conditional frontmatter imports are not supported. If an experiment should vary shared prompt content, keep imports unconditional and gate `{{#runtime-import? ...}}` (optional form) inside your `{{#if experiments.<name> ...}}` block instead. The optional form is not promoted to unconditional lock-file macros, so the content is only injected when the condition is true at runtime.
 
 ### Single-import constraint
 

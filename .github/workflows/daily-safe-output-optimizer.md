@@ -90,7 +90,7 @@ Create issues to improve tool descriptions when the workflow prompt is correct b
 ### Phase 1: Collect Workflow Logs with Safe Output Errors
 
 {{#if experiments.log_fetch_strategy == "eager"}}
-{{#runtime-import shared/aw-logs-24h-fetch-prompt.md}}
+{{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
 {{else}}
 The gh-aw binary has been built and configured as an MCP server. Ignore any pre-downloaded log bundle and use the MCP tools directly.
 
