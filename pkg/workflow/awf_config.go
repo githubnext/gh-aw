@@ -111,10 +111,35 @@ func validateAWFConfigJSON(configJSON string) error {
 	if err := json.Unmarshal([]byte(configJSON), &doc); err != nil {
 		return fmt.Errorf("failed to parse AWF config JSON: %w", err)
 	}
+	normalizeTemplatableModelFallbackEnabled(doc)
 	if err := schema.Validate(doc); err != nil {
 		return fmt.Errorf("AWF config schema validation failed: %w", err)
 	}
 	return nil
+}
+
+// normalizeTemplatableModelFallbackEnabled adjusts a generated AWF config document
+// for compile-time schema validation by coercing modelFallback.enabled GitHub Actions
+// expressions to a boolean placeholder. GitHub Actions resolves these expressions at
+// runtime before AWF consumes the config.
+func normalizeTemplatableModelFallbackEnabled(doc any) {
+	root, ok := doc.(map[string]any)
+	if !ok {
+		return
+	}
+	apiProxy, ok := root["apiProxy"].(map[string]any)
+	if !ok {
+		return
+	}
+	modelFallback, ok := apiProxy["modelFallback"].(map[string]any)
+	if !ok {
+		return
+	}
+	enabled, ok := modelFallback["enabled"].(string)
+	if !ok || !isExpression(enabled) {
+		return
+	}
+	modelFallback["enabled"] = true
 }
 
 // AWFConfigFile represents the AWF configuration file schema.
