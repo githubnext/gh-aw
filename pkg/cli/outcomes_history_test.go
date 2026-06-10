@@ -49,9 +49,8 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 			URL:      "https://example.com/2",
 			ClosedAt: "2026-06-02T00:00:00Z",
 			Labels: []struct {
-				Name string "json:\"name\""
+				Name string `json:"name"`
 			}{{Name: "observability"}, {Name: "testing"}},
-		},
 		{
 			Number:   3,
 			Title:    "No mapped labels",
