@@ -1,6 +1,6 @@
 ---
 emoji: "📊"
-description: Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry stored in Sentry
+description: Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry from Sentry and Grafana
 on:
   schedule: daily on weekdays
 permissions:
@@ -24,6 +24,7 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/mcp/sentry.md
+  - shared/mcp/grafana.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[token-consumption] "
@@ -34,9 +35,9 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily AIC Consumption Report (Sentry OTel)
+# Daily AIC Consumption Report (Sentry + Grafana OTel)
 
-You are an observability analyst. Generate a daily AI Credits (AIC) consumption report across all agentic workflows in this repository using OpenTelemetry telemetry in Sentry.
+You are an observability analyst. Generate a daily AI Credits (AIC) consumption report across all agentic workflows in this repository using OpenTelemetry telemetry in both Sentry and Grafana.
 
 ## Context
 
@@ -46,10 +47,11 @@ You are an observability analyst. Generate a daily AI Credits (AIC) consumption 
 
 ## Mission
 
-1. Query Sentry telemetry for the last 24 hours.
-2. Aggregate AIC usage by workflow.
+1. Query Sentry and Grafana telemetry for the last 24 hours.
+2. Aggregate AIC usage by workflow when available.
 3. Identify top AIC consumers and anomalous usage.
-4. Publish a concise daily GitHub issue report.
+4. Call out backend-specific AIC reporting gaps and likely causes.
+5. Publish a concise daily GitHub issue report.
 
 ## Data Collection
 
@@ -80,9 +82,21 @@ Treat "no usable records" as either:
 - zero events returned after pagination, or
 - events returned but none contain any recognized AIC fields.
 
-### Step 3: Extract Workflow + AIC Fields
+### Step 3: Fetch Grafana/Tempo Telemetry
 
-For each event/span, derive:
+Use the Grafana MCP server in this workflow.
+
+1. Call `list_datasources` and identify the tracing datasource used for Tempo.
+2. Call `tempo_get-attribute-names` to confirm available attribute keys.
+3. Query recent traces in the last 24 hours with `tempo_traceql-search`, scoped to gh-aw telemetry (for example, `service.name="gh-aw"` and/or repository/run attributes when present).
+4. If needed, call `tempo_get-trace` on representative traces to verify whether AIC fields are present and numeric on spans.
+5. Record any query constraints or backend limitations (missing attributes, string-only values, fields not indexed, or inability to aggregate numerically).
+
+Treat Grafana data as "no usable AIC records" when traces exist but none expose recognized AIC fields in queryable numeric form.
+
+### Step 4: Extract Workflow + AIC Fields
+
+For each Sentry event/span and Grafana span, derive:
 
 - **Workflow name** using first non-empty of likely fields:
   - `github.workflow`
@@ -92,6 +106,7 @@ For each event/span, derive:
   - fallback: `"unknown-workflow"`
 - **Run ID** using:
   - `github.run_id`
+  - `gh-aw.run.id`
   - `gh_aw.run_id`
 - **AIC value** with precedence:
   - Prefer `gh-aw.aic` → `gh_aw.aic` → `agent_usage.aic` → `aic`.
@@ -110,6 +125,8 @@ Calculate:
 
 - `total_events_analyzed`
 - `events_with_aic_data`
+- `events_with_aic_data_sentry`
+- `events_with_aic_data_grafana`
 - `events_missing_workflow`
 - `total_aic`
 - `workflow_count` (unique workflows)
@@ -135,13 +152,15 @@ Create exactly one issue titled:
 Use this body structure:
 
 ### Executive Summary
-- Total AIC, workflow count, and high-level trend notes.
+- Total AIC (when available), workflow count, high-level trend notes, and whether Sentry/Grafana AIC is queryable.
 
 ### Key Metrics
 | Metric | Value |
 |---|---|
 | Events analyzed | ... |
 | Events with AIC data | ... |
+| Events with AIC data (Sentry) | ... |
+| Events with AIC data (Grafana) | ... |
 | Total AIC | ... |
 | Unique workflows | ... |
 | Avg AIC/event | ... |
@@ -152,12 +171,19 @@ Use this body structure:
 |---|---:|---:|---:|
 | ... |
 
+### Grafana AIC Findings
+- State whether AIC was queryable in Grafana.
+- If not queryable, list the exact issue (for example: attributes missing on spans, attribute present but typed as string, no numeric aggregation support in queried datasource, or insufficient workflow attribution fields).
+- Include one concrete query or trace evidence line.
+
 <details>
 <summary>Data Quality and Gaps</summary>
 
 - Events missing workflow identifiers
 - Events missing AIC attributes
 - Any assumptions or fallback fields used
+- Sentry-specific AIC caveats
+- Grafana-specific AIC caveats
 
 </details>
 
@@ -165,12 +191,13 @@ Use this body structure:
 - 2-4 concrete actions to reduce AIC usage for the highest consumers.
 
 ### References
-- Include up to three relevant links (Sentry query links and/or run links when available).
+- Include up to four relevant links (Sentry query links, Grafana traces/query references, and/or run links when available).
 
 ## Guardrails
 
 - Be explicit when telemetry fields are absent or ambiguous.
 - Never invent AIC values.
+- If Grafana lacks queryable numeric AIC, report that as an observability gap (unknown AIC), not as zero usage.
 - Keep the report concise and actionable.
 - Use `###` or lower headers only.
 
