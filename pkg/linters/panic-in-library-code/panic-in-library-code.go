@@ -87,7 +87,10 @@ func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, cur inspector.Curs
 
 func isInSyncOnceDoFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncLit)(nil)) {
-		funcLit := encl.Node().(*ast.FuncLit)
+		funcLit, ok := encl.Node().(*ast.FuncLit)
+		if !ok {
+			continue
+		}
 		parent := encl.Parent()
 		call, ok := parent.Node().(*ast.CallExpr)
 		if !ok || !containsExpr(call.Args, funcLit) {
@@ -177,7 +180,10 @@ func isFmtSprintf(pass *analysis.Pass, call *ast.CallExpr) bool {
 // methods named init are ordinary methods and are not exempt.
 func isInInitFunction(cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
-		decl := encl.Node().(*ast.FuncDecl)
+		decl, ok := encl.Node().(*ast.FuncDecl)
+		if !ok {
+			break
+		}
 		if decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init" {
 			return true
 		}
@@ -188,7 +194,10 @@ func isInInitFunction(cur inspector.Cursor) bool {
 
 func hasDocumentedPanicContract(cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
-		decl := encl.Node().(*ast.FuncDecl)
+		decl, ok := encl.Node().(*ast.FuncDecl)
+		if !ok {
+			break
+		}
 		if decl.Doc != nil {
 			doc := strings.ToLower(decl.Doc.Text())
 			if strings.Contains(doc, "panics on") ||

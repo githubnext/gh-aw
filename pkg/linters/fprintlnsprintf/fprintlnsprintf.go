@@ -112,7 +112,10 @@ func buildFprintfFix(call *ast.CallExpr, sprintfCall *ast.CallExpr) []analysis.S
 		newFormatLit = []byte(raw[:len(raw)-1] + `\n"`)
 	}
 
-	outerSel := call.Fun.(*ast.SelectorExpr)
+	outerSel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil
+	}
 	return []analysis.SuggestedFix{{
 		Message: `Replace fmt.Fprintln with fmt.Fprintf`,
 		TextEdits: []analysis.TextEdit{
