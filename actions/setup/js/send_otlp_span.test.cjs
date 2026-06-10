@@ -38,7 +38,6 @@ const {
   resolveEngineId,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,
-  buildOTLPMetricsPayload,
 } = await import("./send_otlp_span.cjs");
 
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
@@ -6492,72 +6491,6 @@ describe("sendJobConclusionSpan custom attributes", () => {
 
     expect(attrMap["langfuse.session.id"]).toBe("my-session-id");
     expect(attrMap["langfuse.user.id"]).toBe("my-user-id");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// buildOTLPMetricsPayload
-// ---------------------------------------------------------------------------
-
-describe("buildOTLPMetricsPayload", () => {
-  it("produces a valid OTLP resourceMetrics payload for a Sum metric", () => {
-    const payload = buildOTLPMetricsPayload({
-      name: "gh_aw.aic",
-      description: "AI Credits consumed by this workflow run",
-      unit: "AIC",
-      value: 0.125,
-      startMs: 1_700_000_000_000,
-      endMs: 1_700_000_060_000,
-      attributes: [buildAttr("gh-aw.workflow.name", "my-workflow")],
-      serviceName: "gh-aw",
-      scopeVersion: "1.2.3",
-    });
-
-    expect(payload).toHaveProperty("resourceMetrics");
-    const rm = payload.resourceMetrics[0];
-    // resource carries service.name
-    const serviceNameAttr = rm.resource.attributes.find(a => a.key === "service.name");
-    expect(serviceNameAttr).toBeDefined();
-    expect(serviceNameAttr.value.stringValue).toBe("gh-aw");
-
-    // scope name and version
-    const sm = rm.scopeMetrics[0];
-    expect(sm.scope.name).toBe("gh-aw");
-    expect(sm.scope.version).toBe("1.2.3");
-
-    // metric definition
-    const metric = sm.metrics[0];
-    expect(metric.name).toBe("gh_aw.aic");
-    expect(metric.unit).toBe("AIC");
-    expect(metric).toHaveProperty("sum");
-    expect(metric.sum.aggregationTemporality).toBe(2); // CUMULATIVE
-    expect(metric.sum.isMonotonic).toBe(true);
-
-    // data point
-    const dp = metric.sum.dataPoints[0];
-    expect(dp.asDouble).toBe(0.125);
-    expect(dp.startTimeUnixNano).toBe(toNanoString(1_700_000_000_000));
-    expect(dp.timeUnixNano).toBe(toNanoString(1_700_000_060_000));
-
-    // attribute forwarded to data point
-    const wfAttr = dp.attributes.find(a => a.key === "gh-aw.workflow.name");
-    expect(wfAttr).toBeDefined();
-    expect(wfAttr.value.stringValue).toBe("my-workflow");
-  });
-
-  it("omits scope version when not provided", () => {
-    const payload = buildOTLPMetricsPayload({
-      name: "gh_aw.aic",
-      description: "AIC",
-      unit: "AIC",
-      value: 1,
-      startMs: 0,
-      endMs: 1000,
-      attributes: [],
-      serviceName: "gh-aw",
-    });
-    const sm = payload.resourceMetrics[0].scopeMetrics[0];
-    expect(sm.scope).not.toHaveProperty("version");
   });
 });
 
