@@ -598,7 +598,7 @@ function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, en
 // ---------------------------------------------------------------------------
 
 /**
- * Build an OTLP/HTTP JSON metrics payload for a single gauge data point.
+ * Build an OTLP/HTTP JSON metrics payload for a single Sum data point.
  *
  * Produces a `resourceMetrics` payload ready to POST to `/v1/metrics`.
  * Uses a Sum with `isMonotonic: true` so backends treat each emitted value as
