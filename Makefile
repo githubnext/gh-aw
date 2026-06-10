@@ -371,8 +371,13 @@ test-impacted-go:
 				if (current_pkg != "") print current_pkg "\t^(" pattern ")$$"; \
 			} \
 		' "$$SELECTED_GO_TESTS" | while IFS="	" read -r pkg pattern; do \
-			echo "Running impacted Go unit tests in $$pkg with pattern $$pattern"; \
-			go test -v -parallel=4 -timeout=10m -short -run "$$pattern" "$$pkg" || exit 1; \
+			if [ "$${#pattern}" -gt 30000 ]; then \
+				echo "Running impacted Go unit tests in $$pkg (pattern too long, running full package)"; \
+				go test -v -parallel=4 -timeout=10m -short "$$pkg" || exit 1; \
+			else \
+				echo "Running impacted Go unit tests in $$pkg with pattern $$pattern"; \
+				go test -v -parallel=4 -timeout=10m -short -run "$$pattern" "$$pkg" || exit 1; \
+			fi; \
 		done || exit 1; \
 		exit 0; \
 	fi; \
