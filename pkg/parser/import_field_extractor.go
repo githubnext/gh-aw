@@ -54,6 +54,7 @@ type importAccumulator struct {
 	caches                   []string
 	features                 []map[string]any
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
+	modelCosts               []map[string]any      // model pricing overlays from each imported file (appended in import order)
 	runInstallScripts        bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	agentFile                string
 	agentImportSpec          string
@@ -616,6 +617,16 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 	if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr != nil {
 		return
 	}
+	if _, hasProviders := rawModels["providers"]; hasProviders {
+		acc.modelCosts = append(acc.modelCosts, rawModels)
+		if providers, ok := rawModels["providers"].(map[string]any); ok {
+			parserLog.Printf("Extracted model costs from import: providers=%d", len(providers))
+		} else {
+			parserLog.Printf("Extracted model costs from import")
+		}
+		return
+	}
+
 	modelsMap := normalizeModelAliases(rawModels)
 	if len(modelsMap) > 0 {
 		acc.models = append(acc.models, modelsMap)
@@ -722,6 +733,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEnvSources:              acc.envSources,
 		MergedFeatures:                acc.features,
 		MergedModels:                  acc.models,
+		MergedModelCosts:              acc.modelCosts,
 		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
 		ImportedFiles:                 topologicalOrder,
 		AgentFile:                     acc.agentFile,

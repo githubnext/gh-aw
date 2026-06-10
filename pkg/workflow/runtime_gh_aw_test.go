@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -104,7 +105,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_DevBuildsFromSource(t *testing.T) {
 	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
 		Runtime: ghAwRuntime,
 		Version: "",
-	}})
+	}}, nil)
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
@@ -134,10 +135,44 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesSetupCLI(t *testing.T) {
 	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
 		Runtime: ghAwRuntime,
 		Version: "",
-	}})
+	}}, nil)
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "uses: github/gh-aw/actions/setup-cli@")
+	assert.Contains(t, content, "version: 'v0.72.1'")
+}
+
+func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesWorkflowDataPin(t *testing.T) {
+	originalVersion := GetVersion()
+	originalRelease := IsRelease()
+	t.Cleanup(func() {
+		SetVersion(originalVersion)
+		SetIsRelease(originalRelease)
+	})
+
+	SetVersion("v0.72.1")
+	SetIsRelease(true)
+
+	ghAwRuntime := findRuntimeByID("gh-aw")
+	require.NotNil(t, ghAwRuntime)
+
+	cache := NewActionCache(t.TempDir())
+	sha := "0123456789abcdef0123456789abcdef01234567"
+	cache.Set("github/gh-aw/actions/setup-cli", "v0.72.1", sha)
+
+	data := &WorkflowData{
+		Ctx:            context.Background(),
+		ActionResolver: NewActionResolver(cache),
+	}
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: ghAwRuntime,
+		Version: "",
+	}}, data)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "uses: github/gh-aw/actions/setup-cli@"+sha)
 	assert.Contains(t, content, "version: 'v0.72.1'")
 }

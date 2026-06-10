@@ -1107,8 +1107,8 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// Should reference the config file via --config
 	assert.Contains(t, command, "--config", "expected --config flag in AWF invocation")
 
-	// Should pass the setup-copied pricing catalog by file path rather than embedding it inline.
-	assert.Contains(t, command, `export GH_AW_MODELS_JSON_PATH="${RUNNER_TEMP}/gh-aw/actions/models.json"`, "expected AWF command to export the setup-copied models.json path")
+	// Should pass the merged models.json path (written by generate_aw_info.cjs in the activation job).
+	assert.Contains(t, command, `export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"`, "expected AWF command to export the merged models.json path from /tmp/gh-aw")
 
 	// Should NOT have --allow-domains as a CLI flag (moved to config file)
 	assert.NotContains(t, command, "--allow-domains", "expected --allow-domains to be absent from CLI args")

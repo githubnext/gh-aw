@@ -38,6 +38,7 @@ const {
   resolveEngineId,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,
+  FAILURE_CATEGORIES_PATH,
 } = await import("./send_otlp_span.cjs");
 
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
@@ -3369,6 +3370,72 @@ describe("sendJobConclusionSpan", () => {
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gh-aw.detection.conclusion");
     expect(keys).not.toContain("gh-aw.detection.reason");
+  });
+
+  it("emits gh-aw.failure.categories as an array attribute when failure_categories.json exists", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === FAILURE_CATEGORIES_PATH) {
+        return JSON.stringify(["agent_failure", "inference_access_error"]);
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    try {
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+    } finally {
+      readFileSpy.mockRestore();
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attr = span.attributes.find(a => a.key === "gh-aw.failure.categories");
+    expect(attr).toBeDefined();
+    expect(attr.value.arrayValue.values.map(v => v.stringValue)).toEqual(["agent_failure", "inference_access_error"]);
+  });
+
+  it("omits gh-aw.failure.categories when failure_categories.json does not exist", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    fs.rmSync(FAILURE_CATEGORIES_PATH, { force: true });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.failure.categories");
+  });
+
+  it("omits gh-aw.failure.categories when failure_categories.json is an empty array", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === FAILURE_CATEGORIES_PATH) {
+        return JSON.stringify([]);
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    try {
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+    } finally {
+      readFileSpy.mockRestore();
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.failure.categories");
   });
 
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {

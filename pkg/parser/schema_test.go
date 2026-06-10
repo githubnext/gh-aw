@@ -959,6 +959,7 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 		"runs-on",
 		"messages",
 		"needs",
+		"timeout-minutes",
 	}
 
 	for _, meta := range metaFields {

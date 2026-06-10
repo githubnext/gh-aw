@@ -41,7 +41,7 @@ const (
 	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
 	awfMaxAICreditsVarName      = "GH_AW_MAX_AI_CREDITS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
-	awfModelsJSONPathExpr       = "${RUNNER_TEMP}/gh-aw/actions/models.json"
+	awfModelsJSONPathExpr       = "/tmp/gh-aw/models.json"
 	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
 	awfMergeModelMultipliersJS  = "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).

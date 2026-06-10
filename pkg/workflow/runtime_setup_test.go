@@ -456,7 +456,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := GenerateRuntimeSetupSteps(tt.requirements)
+			steps := GenerateRuntimeSetupSteps(tt.requirements, nil)
 
 			if len(steps) != tt.expectSteps {
 				t.Errorf("Expected %d steps, got %d", tt.expectSteps, len(steps))
@@ -917,7 +917,7 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := GenerateRuntimeSetupSteps(tt.requirements)
+			steps := GenerateRuntimeSetupSteps(tt.requirements, nil)
 
 			if len(steps) != tt.expectSteps {
 				t.Errorf("Expected %d steps, got %d", tt.expectSteps, len(steps))

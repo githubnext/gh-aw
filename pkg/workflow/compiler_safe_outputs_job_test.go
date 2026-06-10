@@ -167,7 +167,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			}
 
 			// Verify timeout is set
-			assert.Equal(t, 15, job.TimeoutMinutes)
+			assert.Equal(t, 45, job.TimeoutMinutes)
 
 			// Verify job condition is set
 			assert.NotEmpty(t, job.If)
@@ -264,6 +264,53 @@ func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *t
 	assert.Equal(t, 1, secretsFetcherCount, "duplicate configured dependencies should be deduplicated")
 }
 
+// TestBuildConsolidatedSafeOutputsJobTimeoutMinutes tests that the timeout-minutes field
+// is correctly applied to the safe_outputs job, with 45 minutes as the default.
+func TestBuildConsolidatedSafeOutputsJobTimeoutMinutes(t *testing.T) {
+	tests := []struct {
+		name            string
+		timeoutMinutes  int
+		expectedTimeout int
+	}{
+		{
+			name:            "default timeout (0 = unset) falls back to 45 minutes",
+			timeoutMinutes:  0,
+			expectedTimeout: 45,
+		},
+		{
+			name:            "custom timeout of 30 minutes",
+			timeoutMinutes:  30,
+			expectedTimeout: 30,
+		},
+		{
+			name:            "custom timeout of 120 minutes",
+			timeoutMinutes:  120,
+			expectedTimeout: 120,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.jobManager = NewJobManager()
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues:   &CreateIssuesConfig{TitlePrefix: "[Test] "},
+					TimeoutMinutes: tt.timeoutMinutes,
+				},
+			}
+
+			job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
+			require.NoError(t, err, "Should build job without error")
+			require.NotNil(t, job, "Job should not be nil")
+
+			assert.Equal(t, tt.expectedTimeout, job.TimeoutMinutes, "Job timeout should match expected value")
+		})
+	}
+}
+
 func TestCompileSafeOutputsNeedsForCustomCredentialJob(t *testing.T) {
 	tempDir := t.TempDir()
 	workflowPath := filepath.Join(tempDir, "safe-needs.md")
@@ -325,6 +372,80 @@ jobs:
 	assert.Contains(t, needsValues, string(constants.ActivationJobName), "safe_outputs should keep built-in dependency on activation")
 	assert.Contains(t, needsValues, "secrets_fetcher", "safe_outputs should include custom credential supplier job")
 	assert.Contains(t, string(lockContent), "needs.secrets_fetcher.outputs.app_id", "compiled workflow should retain custom needs output references")
+}
+
+func TestCompileSafeOutputsTimeoutMinutesFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name            string
+		frontmatter     string
+		expectedTimeout string
+	}{
+		{
+			name: "default timeout is 45 minutes",
+			frontmatter: `---
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+safe-outputs:
+  noop:
+    report-as-issue: false
+---
+# Test
+`,
+			expectedTimeout: "timeout-minutes: 45",
+		},
+		{
+			name: "custom timeout of 30 minutes from frontmatter",
+			frontmatter: `---
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+safe-outputs:
+  timeout-minutes: 30
+  noop:
+    report-as-issue: false
+---
+# Test
+`,
+			expectedTimeout: "timeout-minutes: 30",
+		},
+		{
+			name: "custom timeout of 120 minutes from frontmatter",
+			frontmatter: `---
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+safe-outputs:
+  timeout-minutes: 120
+  noop:
+    report-as-issue: false
+---
+# Test
+`,
+			expectedTimeout: "timeout-minutes: 120",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			workflowPath := filepath.Join(tempDir, "safe-timeout.md")
+			require.NoError(t, os.WriteFile(workflowPath, []byte(tt.frontmatter), 0644))
+
+			compiler := NewCompiler()
+			require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
+			lockContent, err := os.ReadFile(lockPath)
+			require.NoError(t, err)
+
+			assert.Contains(t, string(lockContent), tt.expectedTimeout,
+				"safe_outputs job should have the expected timeout-minutes value")
+		})
+	}
 }
 
 func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {

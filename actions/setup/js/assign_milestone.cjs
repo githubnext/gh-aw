@@ -67,34 +67,41 @@ async function main(config = {}) {
   // Track how many items we've processed for max limit
   let processedCount = 0;
 
-  // Cached results from paginated title searches
-  /** @type {Map<string, Object>} */
+  // Cached results from paginated title searches, scoped by "owner/repo" to prevent
+  // cross-repo cache pollution in multi-repo configurations.
+  /** @type {Map<string, Object>} key: "owner/repo::title" */
   const milestoneByTitle = new Map();
-  /** @type {Array<Object>} All milestones fetched so far (for error messages) */
-  let allFetchedMilestones = [];
-  let milestonesExhausted = false;
+  /** @type {Set<string>} entries: "owner/repo" — repos whose milestones have been fully fetched */
+  const exhaustedRepos = new Set();
+  /** @type {Map<string, Array<Object>>} key: "owner/repo" → milestones fetched for that repo */
+  const fetchedMilestonesByRepo = new Map();
 
   /**
    * Find a milestone by title using lazy paginated search with early exit.
-   * Results are cached so repeated lookups don't re-paginate.
+   * Results are cached per-repo so repeated lookups don't re-paginate, and
+   * cache entries from one repo never affect lookups for another repo.
    * @param {string} title
    * @param {string} owner
    * @param {string} repo
    * @returns {Promise<Object|null>}
    */
   async function findMilestoneByTitle(title, owner, repo) {
-    if (milestoneByTitle.has(title)) {
-      return milestoneByTitle.get(title);
+    const repoKey = `${owner}/${repo}`;
+    const cacheKey = `${repoKey}::${title}`;
+    if (milestoneByTitle.has(cacheKey)) {
+      return milestoneByTitle.get(cacheKey);
     }
-    if (milestonesExhausted) {
+    if (exhaustedRepos.has(repoKey)) {
       return null;
     }
+    const repoMilestones = fetchedMilestonesByRepo.get(repoKey) || [];
     let found = false;
     await githubClient.paginate(githubClient.rest.issues.listMilestones, { owner, repo, state: "all", per_page: 100 }, (response, done) => {
       for (const m of response.data) {
-        if (!milestoneByTitle.has(m.title)) {
-          milestoneByTitle.set(m.title, m);
-          allFetchedMilestones.push(m);
+        const key = `${repoKey}::${m.title}`;
+        if (!milestoneByTitle.has(key)) {
+          milestoneByTitle.set(key, m);
+          repoMilestones.push(m);
         }
         if (m.title === title) {
           found = true;
@@ -103,11 +110,12 @@ async function main(config = {}) {
         }
       }
     });
+    fetchedMilestonesByRepo.set(repoKey, repoMilestones);
     if (!found) {
-      milestonesExhausted = true;
+      exhaustedRepos.add(repoKey);
     }
-    core.info(`Searched ${allFetchedMilestones.length} milestones (exhausted=${milestonesExhausted})`);
-    return milestoneByTitle.get(title) || null;
+    core.info(`Searched ${repoMilestones.length} milestones for ${repoKey} (exhausted=${exhaustedRepos.has(repoKey)})`);
+    return milestoneByTitle.get(cacheKey) || null;
   }
 
   /**
@@ -202,11 +210,14 @@ async function main(config = {}) {
             title: milestoneTitle,
           });
           milestoneNumber = created.data.number;
-          milestoneByTitle.set(created.data.title, created.data);
-          allFetchedMilestones.push(created.data);
+          const repoKey = `${milestoneOwner}/${milestoneRepo}`;
+          milestoneByTitle.set(`${repoKey}::${created.data.title}`, created.data);
+          const repoMilestones = fetchedMilestonesByRepo.get(repoKey) || [];
+          repoMilestones.push(created.data);
+          fetchedMilestonesByRepo.set(repoKey, repoMilestones);
           core.info(`Auto-created milestone "${milestoneTitle}" as #${milestoneNumber}`);
         } else {
-          const available = formatAvailableMilestones(allFetchedMilestones);
+          const available = formatAvailableMilestones(fetchedMilestonesByRepo.get(`${milestoneOwner}/${milestoneRepo}`) || []);
           core.warning(`Milestone "${milestoneTitle}" not found in repository. Available: ${available}. Set auto_create: true to create it automatically.`);
           return {
             success: false,

@@ -25,6 +25,8 @@ const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+/** Path to the failure categories file written by handle_agent_failure and read by the OTLP conclusion span. */
+const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
 const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 // Engine-side 429/rate-limit signatures:
@@ -2648,6 +2650,15 @@ async function main() {
       hasDailyAICExceeded,
     });
 
+    // Persist failure categories so the OTLP conclusion span can record them
+    // as gh-aw.failure.categories for metrics and counting in OTLP backends.
+    try {
+      fs.mkdirSync(path.dirname(FAILURE_CATEGORIES_PATH), { recursive: true });
+      fs.writeFileSync(FAILURE_CATEGORIES_PATH, JSON.stringify(failureCategories));
+    } catch (writeError) {
+      core.warning(`Failed to write failure categories: ${getErrorMessage(writeError)}`);
+    }
+
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);
 
     try {
@@ -3157,4 +3168,6 @@ module.exports = {
   CASCADE_ROLLUP_LABEL,
   CASCADE_ROLLUP_TITLE,
   FAILURE_TITLE_PATTERN,
+  buildFailureMatchCategories,
+  FAILURE_CATEGORIES_PATH,
 };

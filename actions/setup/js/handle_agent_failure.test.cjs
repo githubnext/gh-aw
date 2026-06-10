@@ -288,6 +288,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_WORKFLOW_ID;
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
       delete process.env.GITHUB_HEAD_REF;
       delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
@@ -897,6 +898,125 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
       expect(createCommentMock).toHaveBeenCalledOnce();
       expect(createCommentMock).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 888 }));
+    });
+  });
+
+  describe("main() writes failure_categories.json", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+    let { FAILURE_CATEGORIES_PATH } = require("./handle_agent_failure.cjs");
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-failure-categories-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GITHUB_HEAD_REF = "feature/test";
+      process.env.GITHUB_WORKSPACE = tmpDir;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GITHUB_HEAD_REF;
+      delete process.env.GITHUB_WORKSPACE;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("writes failure_categories.json with the computed failure categories", async () => {
+      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: vi.fn(async () => ({
+              data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+            })),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      let writeCalls;
+      try {
+        await main();
+        writeCalls = writeSpy.mock.calls.slice();
+      } finally {
+        writeSpy.mockRestore();
+      }
+
+      const categoriesCall = writeCalls.find(([filePath]) => filePath === FAILURE_CATEGORIES_PATH);
+      expect(categoriesCall).toBeDefined();
+      const written = JSON.parse(categoriesCall[1]);
+      expect(Array.isArray(written)).toBe(true);
+      expect(written).toContain("agent_failure");
+    });
+
+    it("includes timed_out category when GH_AW_AGENTIC_ENGINE_TIMEOUT is set", async () => {
+      process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT = "true";
+      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: vi.fn(async () => ({
+              data: { number: 102, html_url: "https://github.com/owner/repo/issues/102", node_id: "I_456" },
+            })),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      let writeCalls;
+      try {
+        await main();
+        writeCalls = writeSpy.mock.calls.slice();
+      } finally {
+        writeSpy.mockRestore();
+      }
+
+      const categoriesCall = writeCalls.find(([filePath]) => filePath === FAILURE_CATEGORIES_PATH);
+      expect(categoriesCall).toBeDefined();
+      const written = JSON.parse(categoriesCall[1]);
+      expect(written).toContain("timed_out");
     });
   });
 
@@ -2816,6 +2936,11 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      for (const key of Object.keys(process.env)) {
+        if (key.startsWith("GH_AW_")) {
+          delete process.env[key];
+        }
+      }
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-completed-despite-failure-"));
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
@@ -2830,6 +2955,7 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
       process.env.GH_AW_AGENT_CONCLUSION = "failure";
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      process.env.GH_AW_CHECKOUT_PR_SUCCESS = "true";
     });
 
     afterEach(() => {
@@ -2839,6 +2965,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_CHECKOUT_PR_SUCCESS;
       if (fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }

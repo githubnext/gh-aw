@@ -57,6 +57,16 @@ tools:
 runtimes:
   go:
     version: "1.26"
+models:
+  providers:
+    anthropic:
+      models:
+        my-custom-claude:
+          cost:
+            input: "3e-06"
+            output: "1.5e-05"
+            cache_read: "3e-07"
+            cache_write: "3.75e-06"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     upload-artifact:
