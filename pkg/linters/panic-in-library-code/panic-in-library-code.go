@@ -89,7 +89,7 @@ func isInSyncOnceDoFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncLit)(nil)) {
 		funcLit, ok := encl.Node().(*ast.FuncLit)
 		if !ok {
-			continue
+			break
 		}
 		parent := encl.Parent()
 		call, ok := parent.Node().(*ast.CallExpr)
