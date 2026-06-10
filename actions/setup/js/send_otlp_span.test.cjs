@@ -6586,6 +6586,7 @@ describe("sendJobConclusionSpan gh-aw.aic metric", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     readFileSpy.mockRestore();
     statSpy.mockRestore();
     delete process.env.INPUT_JOB_NAME;
