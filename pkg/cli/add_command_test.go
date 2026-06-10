@@ -702,6 +702,13 @@ func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
 		count := strings.Count(result, "copilot-requests: write")
 		assert.Equal(t, 1, count, "copilot-requests: write should appear exactly once")
 	})
+
+	t.Run("returns error when permissions is a non-mapping scalar", func(t *testing.T) {
+		content := "---\nengine: copilot\npermissions: read-all\n---\nDo the thing.\n"
+		_, err := addCopilotRequestsPermissionToContent(content)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "non-mapping scalar")
+	})
 }
 
 func TestAddWorkflowWithTracking_CopilotRequestsPermission(t *testing.T) {

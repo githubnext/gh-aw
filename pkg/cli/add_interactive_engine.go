@@ -152,7 +152,8 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	}
 
 	// For Copilot, ask the user whether to use copilot-requests (org billing) or a PAT.
-	if engine == string(constants.CopilotEngine) {
+	// Only prompt when an interactive context is available (wizard path); default to PAT otherwise.
+	if engine == string(constants.CopilotEngine) && c.Ctx != nil {
 		if err := c.selectCopilotAuthMethod(); err != nil {
 			return err
 		}
@@ -237,6 +238,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected copilot-requests: permissions.copilot-requests: write will be added to your workflow"))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No COPILOT_GITHUB_TOKEN secret is required — Copilot usage is billed to your org's Copilot seat."))
 	} else {
+		c.UseCopilotRequests = false
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
 	}
 

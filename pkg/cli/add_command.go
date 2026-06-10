@@ -801,11 +801,41 @@ func printCompilationError(err error, quiet bool) {
 // permissions block and appends the copilot-requests entry if not already present.
 // The function is idempotent: calling it on content that already contains the permission
 // returns the content unchanged.
+// Returns an error if the permission could not be injected and is not already present
+// (e.g., when `permissions:` is a non-mapping scalar like `read-all`).
 func addCopilotRequestsPermissionToContent(content string) (string, error) {
+	var injectionFailed bool
 	newContent, _, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 		updated := ensureCopilotRequestsWritePermission(lines)
-		return updated, true // always reconstruct; ensureCopilotRequestsWritePermission is idempotent
+		// Detect whether ensureCopilotRequestsWritePermission actually made a change.
+		modified := len(updated) != len(lines)
+		if !modified {
+			for i := range lines {
+				if lines[i] != updated[i] {
+					modified = true
+					break
+				}
+			}
+		}
+		if !modified {
+			// Lines unchanged — either the permission is already present (idempotent) or
+			// it could not be injected (e.g., `permissions:` is a scalar like `read-all`).
+			hasPerm := false
+			for _, line := range updated {
+				if strings.Contains(line, "copilot-requests") {
+					hasPerm = true
+					break
+				}
+			}
+			if !hasPerm {
+				injectionFailed = true
+			}
+		}
+		return updated, modified
 	})
+	if injectionFailed {
+		return content, errors.New("cannot inject permissions.copilot-requests: write: 'permissions' is a non-mapping scalar value; update it manually")
+	}
 	if err != nil {
 		return content, err
 	}
