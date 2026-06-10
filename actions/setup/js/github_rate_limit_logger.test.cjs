@@ -299,7 +299,7 @@ describe("fetchAndLogRateLimit", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when core resource payload is partial", async () => {
+  it("returns null when core used field is missing", async () => {
     const mockGithub = {
       rest: {
         rateLimit: {
