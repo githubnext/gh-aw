@@ -50,14 +50,6 @@ imports:
 
 `with:` values are accessed inside the shared file as `${{ github.aw.import-inputs.<name> }}`.
 
-Use `if:` on an import entry to gate the entire import by experiment variant:
-
-```yaml
-imports:
-  - path: shared/prompt-style.md
-    if: "experiments.prompt_style == 'concise'"
-```
-
 ---
 
 ## `import-schema:` Field

@@ -241,7 +241,6 @@ imports:
     with:
       environment: staging
       max-issues: 3
-    if: "experiments.strategy == 'eager'"   # Optional: gate this import by experiment variant
     env:
       MY_VAR: "value"         # Optional: pass env vars into the imported workflow
     checkout: main            # Optional: ref to check out when this import is processed
@@ -250,7 +249,6 @@ imports:
 
 - `env:` - Environment variables passed into the imported workflow context (object). Use when a shared workflow relies on environment variables that must be supplied by the importing workflow.
 - `checkout:` - Ref (branch, tag, or SHA) to check out when processing this import (string). Overrides the default checkout for this specific import entry.
-- `if:` - Optional import-level condition string. Use `experiments.<name>` expressions (for example `if: "experiments.strategy == 'eager'"`) to runtime-gate the imported steps and prompt content. When false, the import is skipped.
 
 Inside the imported workflow, access values via `${{ github.aw.import-inputs.<name> }}`.
 
