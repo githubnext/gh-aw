@@ -454,7 +454,7 @@ This section defines the attributes each span type MUST or MAY carry.
 | `gh-aw.staged` | boolean | Staging flag |
 | `gh-aw.trigger.*` | string | Trigger context (same fields as setup span) |
 | `gh-aw.frontmatter.*` | string | Frontmatter metadata (same fields as setup span) |
-| `gh-aw.aic` | double | AI credits consumed (AIC); emitted only when known and > 0. |
+| `gh-aw.aic` | double | AI credits consumed (AIC); always emitted as a numeric attribute on agent and detection conclusion spans (0 when no usage data is available, so Sentry EAP and Tempo index the field as numeric from first emission). |
 | `gh-aw.turns` | int | Number of agent turns |
 | `gh-aw.agent.conclusion` | string | Agent job outcome |
 | `gh-aw.detection.conclusion` | string | Threat detection outcome |
