@@ -1528,6 +1528,23 @@ describe("safe_outputs_handlers", () => {
         delete process.env.GITHUB_BASE_REF;
       }
     });
+
+    it("returns error when getCurrentBranch cannot resolve a branch", async () => {
+      // Override the beforeEach seed so every getCurrentBranch resolution path
+      // fails (no GITHUB_REF_NAME, no GITHUB_HEAD_REF, no git repo in the empty
+      // test workspace) and the handler hits its try/catch.
+      delete process.env.GITHUB_REF_NAME;
+      delete process.env.GITHUB_HEAD_REF;
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({ message: "test" });
+        expect(result.isError).toBe(true);
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("error");
+        expect(data.error).toContain("Failed to determine source branch");
+      } finally {
+        process.env.GITHUB_REF_NAME = "feature-branch"; // restore for sibling tests
+      }
+    });
   });
 
   describe("handler structure", () => {

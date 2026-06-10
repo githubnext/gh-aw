@@ -88,8 +88,10 @@ func collectSampleRepoTokens(configs []*CheckoutConfig) map[string]string {
 	for i, entry := range cm.ordered {
 		repo := entry.key.repository
 		if repo == "" {
-			// Empty repository targets `github.repository` at runtime. Emit a
-			// substituted key so the runtime JSON has the actual slug.
+			// The repo slug is unknown at compile time; emit a GitHub Actions
+			// expression. The Actions runner expands ${{ github.repository }} to
+			// "owner/repo" before apply_samples.cjs reads GH_AW_REPO_TOKENS, so
+			// the runtime key matches the slug the driver looks up.
 			repo = "${{ github.repository }}"
 		}
 		var token string
@@ -116,32 +118,16 @@ func collectSampleRepoTokens(configs []*CheckoutConfig) map[string]string {
 	return tokens
 }
 
-// marshalStringMapDeterministic returns a compact JSON object encoding of m
-// with keys sorted lexicographically so the emitted YAML is byte-stable
-// across runs. Returns nil for empty/nil maps so callers can skip emission.
-func marshalStringMapDeterministic(m map[string]string) []byte {
+// marshalRepoTokens returns a compact JSON object encoding of m, or nil for
+// empty/nil maps so callers can skip emission. encoding/json sorts string-
+// keyed map entries lexicographically, so the output is byte-stable across
+// runs without an explicit sort step.
+func marshalRepoTokens(m map[string]string) []byte {
 	if len(m) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var buf strings.Builder
-	buf.WriteString("{")
-	for i, k := range keys {
-		if i > 0 {
-			buf.WriteString(",")
-		}
-		kEnc, _ := json.Marshal(k)    //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
-		vEnc, _ := json.Marshal(m[k]) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
-		buf.Write(kEnc)
-		buf.WriteString(":")
-		buf.Write(vEnc)
-	}
-	buf.WriteString("}")
-	return []byte(buf.String())
+	out, _ := json.Marshal(m) //nolint:jsonmarshalignoredeerror // marshaling a string map cannot fail
+	return out
 }
 
 // generateSamplesReplayStep emits the YAML that replaces the agentic
@@ -177,7 +163,7 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	// require a non-default token (cross-repo `checkout:` entries with their
 	// own `github-token:` or `github-app:`).
 	repoTokens := collectSampleRepoTokens(data.CheckoutConfigs)
-	repoTokensPayload := marshalStringMapDeterministic(repoTokens)
+	repoTokensPayload := marshalRepoTokens(repoTokens)
 
 	yaml.WriteString("      - name: Replay safe-outputs samples (deterministic)\n")
 	yaml.WriteString("        id: agentic_execution\n")

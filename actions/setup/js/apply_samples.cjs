@@ -273,7 +273,7 @@ async function preStagePatch(entry, index, workspace) {
     if (!branch) {
       throw new Error(
         `apply_samples: cannot derive pull-request head branch for sample[${index}] (tool=${entry.tool}). ` +
-          `Trigger the workflow from a pull_request event, or set arguments.pull_request_number on the sample, ` +
+          `Trigger the workflow from a pull_request event, or set arguments.pull_request_number on the sample entry, ` +
           `or provide GITHUB_TOKEN so the PR can be fetched.`
       );
     }
@@ -532,4 +532,14 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, loadSamples, preStagePatch, resolveMcpServerPath, selectTokenForRepo, sendJsonRpc };
+module.exports = {
+  main,
+  loadSamples,
+  preStagePatch,
+  resolveMcpServerPath,
+  selectTokenForRepo,
+  sendJsonRpc,
+  // Exported for unit testing of the 3-tier PR head ref resolution logic.
+  derivePrHeadRef,
+  fetchPullRequestHeadRef,
+};

@@ -919,13 +919,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // like issue_comment on PRs targeting non-default branches.
     entry.base_branch = baseBranch;
 
-    // Always derive the source branch from the current checkout (the agent does not supply one).
-    // The agent never supplies a branch. Always derive it from the current
-    // checkout: the working tree must already be on the PR head ref because
-    // that's what the agent committed onto. The apply-time push job
-    // independently re-derives the destination from pulls.get(pull_number),
-    // so this branch name is used only as the source ref for the incremental
-    // diff against origin/<branch>.
+    // The agent never supplies a branch; the validator already strips it from
+    // args. Derive it from the current checkout: the working tree must be on
+    // the PR head ref because that's what the agent committed onto. The
+    // apply-time push job independently re-derives the destination from
+    // pulls.get(pull_number), so this branch name is used only as the source
+    // ref for the incremental diff against origin/<branch>.
     try {
       const detectedBranch = getCurrentBranch(repoCwd);
       server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);

@@ -2075,7 +2075,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // sum()/avg()/percentile() aggregations work without manual schema configuration,
   // and Tempo indexes it so { span."gh-aw.aic" > 0 } is queryable immediately.
   const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
-  const aiCreditsFromFile = agentUsage.ai_credits ?? 0;
+  const aiCreditsFromFile = agentUsage.ai_credits;
   const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
   const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile ?? 0))) : undefined;
   if (typeof aiCredits === "number") {
