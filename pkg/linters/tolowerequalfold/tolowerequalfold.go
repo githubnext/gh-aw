@@ -103,6 +103,9 @@ func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.Sug
 	}
 	text1 := astutil.NodeText(pass.Fset, arg1)
 	text2 := astutil.NodeText(pass.Fset, arg2)
+	if text1 == "" || text2 == "" {
+		return nil
+	}
 	call := fmt.Sprintf("strings.EqualFold(%s, %s)", text1, text2)
 	if expr.Op == token.NEQ {
 		call = "!" + call

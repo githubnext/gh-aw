@@ -102,6 +102,9 @@ func run(pass *analysis.Pass) (any, error) {
 // or len(s) != 0 comparison to s == "" or s != "".
 func buildLenStringFix(pass *analysis.Pass, expr *ast.BinaryExpr, lenArg ast.Expr) []analysis.SuggestedFix {
 	text := astutil.NodeText(pass.Fset, lenArg)
+	if text == "" {
+		return nil
+	}
 	replacement := fmt.Sprintf(`%s %s ""`, text, expr.Op.String())
 	return []analysis.SuggestedFix{{
 		Message: "Replace with direct string comparison",
