@@ -34,7 +34,11 @@ func TestNormalizeCatalogProvider(t *testing.T) {
 		{"", ""},
 	}
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
+		name := tt.input
+		if name == "" {
+			name = "<empty>"
+		}
+		t.Run(name, func(t *testing.T) {
 			got := normalizeCatalogProvider(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
