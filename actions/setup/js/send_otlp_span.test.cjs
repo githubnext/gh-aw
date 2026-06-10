@@ -5101,6 +5101,8 @@ describe("sendJobConclusionSpan", () => {
       // total_tokens = input + output (cache tokens excluded per OTel GenAI spec)
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(48200 + 1350);
       expect(attrs["gh-aw.aic"]).toBe(0.125);
+      // gen_ai.usage.cost is the USD alias for gh-aw.aic (1 AIC = 0.01 USD)
+      expect(attrs["gen_ai.usage.cost"]).toBeCloseTo(0.00125, 10);
     });
 
     it("normalizes string token counters from agent_usage.json on the agent span", async () => {
@@ -5273,13 +5275,15 @@ describe("sendJobConclusionSpan", () => {
       // Only one fetch call: the conclusion span (no agent sub-span)
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
       expect(attrs["gen_ai.usage.input_tokens"]).toBe(5000);
       expect(attrs["gen_ai.usage.output_tokens"]).toBe(200);
       expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
       expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(50);
       // total_tokens also falls through to the conclusion span
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(5000 + 200);
+      // gen_ai.usage.cost is the USD alias for gh-aw.aic (1 AIC = 0.01 USD)
+      expect(attrs["gen_ai.usage.cost"]).toBeCloseTo(0.00125, 10);
     });
 
     it("omits gen_ai token breakdown from non-agent job conclusion span even when agent_usage.json is present", async () => {
@@ -5318,6 +5322,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.total_tokens");
       expect(keys).not.toContain("gh-aw.effective_tokens");
       expect(keys).not.toContain("gh-aw.aic");
+      expect(keys).not.toContain("gen_ai.usage.cost");
     });
 
     it("includes detection-job token breakdown and cost attributes when detection writes agent_usage.json", async () => {
@@ -5348,6 +5353,8 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(5200);
       expect(attrs["gh-aw.aic"]).toBe(0.125);
+      // gen_ai.usage.cost is the USD alias for gh-aw.aic (1 AIC = 0.01 USD)
+      expect(attrs["gen_ai.usage.cost"]).toBeCloseTo(0.00125, 10);
       expect(attrs["gh-aw.detection.conclusion"]).toBe("success");
     });
 
@@ -5424,6 +5431,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
       expect(keys).not.toContain("gen_ai.usage.total_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cost");
     });
 
     it("attaches tokens to dedicated agent span on failure when agent_cli_start_ms.txt exists", async () => {
@@ -5467,6 +5475,7 @@ describe("sendJobConclusionSpan", () => {
       const conclusionKeys = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
       expect(conclusionKeys).not.toContain("gen_ai.usage.input_tokens");
       expect(conclusionKeys).not.toContain("gen_ai.usage.total_tokens");
+      expect(conclusionKeys).not.toContain("gen_ai.usage.cost");
     });
 
     it("falls back tokens to agent conclusion span on failure when agent_cli_start_ms.txt is absent", async () => {
@@ -5632,6 +5641,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.total_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cost");
     });
 
     it("omits all gen_ai token breakdown attributes from conclusion span when agent_usage.json is absent", async () => {
@@ -5653,6 +5663,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.total_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cost");
     });
 
     it("omits non-zero gen_ai token breakdown attributes from conclusion span when agent sub-span is emitted", async () => {
@@ -5680,6 +5691,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.total_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cost");
     });
   });
 

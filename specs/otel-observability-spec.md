@@ -500,6 +500,7 @@ The dedicated agent span (`gh-aw.*.agent`) follows OpenTelemetry [GenAI semantic
 |---|---|---|
 | `gen_ai.usage.cache_read.input_tokens` | int | Cache read tokens |
 | `gen_ai.usage.cache_creation.input_tokens` | int | Cache write tokens |
+| `gen_ai.usage.cost` | double | Inference cost in USD (alias for `gh-aw.aic`; 1 AIC = 0.01 USD) |
 
 ### 10.4 Outcome Evaluation Span Attributes
 
