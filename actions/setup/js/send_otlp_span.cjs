@@ -2440,27 +2440,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
   await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
-
-  // Emit gh-aw.aic as a proper OTLP metric (Sum, cumulative) so backends can
-  // aggregate, alert on, and dashboard AIC without custom field mappings.
-  // Only emitted from the job that owns token usage to avoid double-counting.
-  if (typeof aiCredits === "number" && aiCredits > 0 && jobEmitsOwnTokenUsage) {
-    const metricAttributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.status", runStatus), buildAttr("gh-aw.job.name", jobName)];
-    if (engineId) metricAttributes.push(buildAttr("gh-aw.engine.id", engineId));
-    const aicMetricsPayload = buildOTLPMetricsPayload({
-      name: "gh_aw.aic",
-      description: "AI Credits consumed by this workflow run",
-      unit: "AIC",
-      value: aiCredits,
-      startMs,
-      endMs,
-      attributes: metricAttributes,
-      serviceName,
-      scopeVersion: version,
-      resourceAttributes,
-    });
-    await sendOTLPMetricToAllEndpoints(endpoints, aicMetricsPayload);
-  }
 }
 
 module.exports = {

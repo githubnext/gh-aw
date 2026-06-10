@@ -6562,10 +6562,10 @@ describe("buildOTLPMetricsPayload", () => {
 });
 
 // ---------------------------------------------------------------------------
-// sendJobConclusionSpan — gh-aw.aic metric emission
+// sendJobConclusionSpan — no OTLP metric emission
 // ---------------------------------------------------------------------------
 
-describe("sendJobConclusionSpan gh-aw.aic metric", () => {
+describe("sendJobConclusionSpan does not emit OTLP metrics", () => {
   let readFileSpy;
   let statSpy;
 
@@ -6595,28 +6595,18 @@ describe("sendJobConclusionSpan gh-aw.aic metric", () => {
     delete process.env.GH_AW_OTLP_ENDPOINTS;
   });
 
-  it("sends a /v1/metrics POST with gh_aw.aic when aiCredits > 0", async () => {
+  it("does not send a /v1/metrics POST when aiCredits > 0", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
     await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
-    // Identify the /v1/metrics call (separate from /v1/traces calls)
     const metricsCalls = mockFetch.mock.calls.filter(([url]) => url.includes("/v1/metrics"));
-    expect(metricsCalls.length).toBe(1);
+    expect(metricsCalls.length).toBe(0);
 
-    const metricsBody = JSON.parse(metricsCalls[0][1].body);
-    expect(metricsBody).toHaveProperty("resourceMetrics");
-    const metric = metricsBody.resourceMetrics[0].scopeMetrics[0].metrics[0];
-    expect(metric.name).toBe("gh_aw.aic");
-    expect(metric.unit).toBe("AIC");
-    expect(metric.sum.isMonotonic).toBe(true);
-    expect(metric.sum.dataPoints[0].asDouble).toBe(0.5);
-
-    // Dimension attributes on the data point
-    const dpAttrMap = Object.fromEntries(metric.sum.dataPoints[0].attributes.map(a => [a.key, a.value.stringValue ?? a.value.doubleValue]));
-    expect(dpAttrMap["gh-aw.job.name"]).toBe("agent");
+    const traceCalls = mockFetch.mock.calls.filter(([url]) => url.includes("/v1/traces"));
+    expect(traceCalls.length).toBeGreaterThan(0);
   });
 
   it("does not send a /v1/metrics POST when aiCredits is 0", async () => {
