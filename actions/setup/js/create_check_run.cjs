@@ -113,6 +113,7 @@ async function main(config = {}) {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
     let headSha = "";
+    let resolvedPrNumber = null;
 
     if (checkRunTarget) {
       const targetResult = resolveTarget({
@@ -136,51 +137,37 @@ async function main(config = {}) {
         };
       }
 
-      const pullRequestNumber = targetResult.number;
-
-      // In staged mode we know the PR number but skip the live API call that fetches the
-      // head SHA — there is nothing to attach a real check run to.
-      if (isStaged) {
-        logStagedPreviewInfo(`Would create check run "${defaultName}" targeting PR #${pullRequestNumber} with conclusion=${conclusion}, title="${resolvedTitle}"`);
-        processedCount++;
-        return {
-          success: true,
-          staged: true,
-          previewInfo: {
-            name: defaultName,
-            conclusion,
-            title: resolvedTitle,
-          },
-        };
-      }
+      resolvedPrNumber = targetResult.number;
 
       // Fetch the current PR head SHA via the API. We intentionally go through the API
       // even when the context payload already carries a SHA (e.g. target: "triggering" on
       // a pull_request event) so that we always use the most recent head in case the PR
       // was force-pushed between the triggering event and when this handler runs.
-      try {
-        const { data: pullRequest } = await withRetry(
-          () =>
-            githubClient.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: pullRequestNumber,
-            }),
-          RATE_LIMIT_RETRY_CONFIG
-        );
-        headSha = pullRequest?.head?.sha || "";
-        if (!headSha) {
-          const msg = `create_check_run: pull request #${pullRequestNumber} has no head SHA`;
+      // Skipped in staged mode — there is nothing to attach a real check run to.
+      if (!isStaged) {
+        try {
+          const { data: pullRequest } = await withRetry(
+            () =>
+              githubClient.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: resolvedPrNumber,
+              }),
+            RATE_LIMIT_RETRY_CONFIG
+          );
+          headSha = pullRequest?.head?.sha || "";
+          if (!headSha) {
+            const msg = `create_check_run: pull request #${resolvedPrNumber} has no head SHA`;
+            core.error(msg);
+            return { success: false, error: msg };
+          }
+          core.info(`Using PR #${resolvedPrNumber} head SHA ${headSha} (target=${checkRunTarget})`);
+        } catch (error) {
+          const errorMessage = getErrorMessage(error);
+          const msg = `Failed to resolve pull request for create_check_run: ${errorMessage}`;
           core.error(msg);
           return { success: false, error: msg };
         }
-        core.info(`Using PR #${pullRequestNumber} head SHA ${headSha} (target=${checkRunTarget})`);
-      } catch (error) {
-        const errorMessage = getErrorMessage(error);
-        return {
-          success: false,
-          error: `Failed to resolve pull request for create_check_run: ${errorMessage}`,
-        };
       }
     } else {
       // For pull_request events, GITHUB_SHA is the ephemeral merge commit SHA which is
@@ -193,6 +180,23 @@ async function main(config = {}) {
       }
     }
 
+    // In staged mode, preview without making live API calls to create the actual check run.
+    // Include the resolved PR number in the preview when targeting a specific PR.
+    if (isStaged) {
+      const prSuffix = resolvedPrNumber != null ? ` targeting PR #${resolvedPrNumber}` : "";
+      logStagedPreviewInfo(`Would create check run "${defaultName}"${prSuffix} with conclusion=${conclusion}, title="${resolvedTitle}"`);
+      processedCount++;
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          name: defaultName,
+          conclusion,
+          title: resolvedTitle,
+        },
+      };
+    }
+
     if (!headSha) {
       const msg = "create_check_run: cannot determine commit SHA for check run";
       core.error(msg);
@@ -202,21 +206,6 @@ async function main(config = {}) {
     const checkRunName = defaultName;
 
     core.info(`Creating check run "${checkRunName}" on ${owner}/${repo}@${headSha} with conclusion=${conclusion}`);
-
-    // If in staged mode, preview without executing
-    if (isStaged) {
-      logStagedPreviewInfo(`Would create check run "${checkRunName}" with conclusion=${conclusion}, title="${resolvedTitle}"`);
-      processedCount++;
-      return {
-        success: true,
-        staged: true,
-        previewInfo: {
-          name: checkRunName,
-          conclusion,
-          title: resolvedTitle,
-        },
-      };
-    }
 
     try {
       const output = {

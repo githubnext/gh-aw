@@ -219,11 +219,16 @@ describe("create_check_run", () => {
         expect(capturedParams.head_sha).toBe("target-pr-sha-7");
       });
 
-      it("returns error when pulls.get throws (e.g. 404 or 403)", async () => {
+      it("returns error and emits core.error when pulls.get throws (e.g. 404 or 403)", async () => {
         mockGithub.rest.pulls = {
           get: async () => {
             throw new Error("Not Found");
           },
+        };
+
+        let coreErrorMessage = null;
+        mockCore.error = msg => {
+          coreErrorMessage = msg;
         };
 
         const { main } = require("./create_check_run.cjs");
@@ -232,6 +237,7 @@ describe("create_check_run", () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain("Failed to resolve pull request");
+        expect(coreErrorMessage).toContain("Failed to resolve pull request");
       });
 
       it("resolves triggering PR context when target is 'triggering'", async () => {
