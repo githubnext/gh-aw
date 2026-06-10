@@ -29,8 +29,7 @@ imports:
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[safeoutputs]"
-  - if: experiments.log_fetch_strategy == 'eager'
-    uses: shared/aw-logs-24h-fetch.md
+  - uses: shared/aw-logs-24h-fetch-setup.md
   - shared/activation-app.md
   - ../skills/jqschema/SKILL.md
   - uses: shared/daily-audit-base.md
@@ -46,8 +45,8 @@ tools:
 experiments:
   log_fetch_strategy:
     variants: [eager, lazy]
-    description: "Tests whether pre-fetching 24h logs in a setup step (eager) vs. letting the agent download them on demand via the gh-aw MCP logs tool (lazy) affects run duration and AI credit consumption"
-    hypothesis: "H0: no change in run_duration_ms. H1: eager reduces run duration by >=15% by eliminating agent log-discovery turns"
+    description: "Tests whether using a pre-fetched 24h log bundle (eager) vs. forcing on-demand gh-aw MCP log downloads (lazy) affects run duration and AI credit consumption"
+    hypothesis: "H0: no change in run_duration_ms. H1: eager reduces run duration by >=15% by avoiding MCP log-fetch turns"
     metric: run_duration_ms
     secondary_metrics: [ai_credits_consumed, mcp_tool_call_count]
     guardrail_metrics:
@@ -91,17 +90,9 @@ Create issues to improve tool descriptions when the workflow prompt is correct b
 ### Phase 1: Collect Workflow Logs with Safe Output Errors
 
 {{#if experiments.log_fetch_strategy == "eager"}}
-Logs have been pre-downloaded to `/tmp/gh-aw/aw-mcp/logs/` by the setup step. Use this pre-fetched data directly — do **not** call the `logs` MCP tool.
-
-1. **Use Pre-Fetched Logs**:
-   Read the log data from `/tmp/gh-aw/aw-mcp/logs/` directly.
-
-2. **Verify Log Collection**:
-   - Check that logs were downloaded successfully in `/tmp/gh-aw/aw-mcp/logs`
-   - Note how many workflow runs were found
-   - Look for `summary.json` with aggregated data
+{{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
 {{else}}
-The gh-aw binary has been built and configured as an MCP server. Use the MCP tools directly.
+The gh-aw binary has been built and configured as an MCP server. Ignore any pre-downloaded log bundle and use the MCP tools directly.
 
 1. **Download Logs with Safe Output Filter**:
    Use the `logs` tool from the gh-aw MCP server:

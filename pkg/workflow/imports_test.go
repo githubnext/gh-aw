@@ -214,26 +214,15 @@ Main workflow body.
 	}
 
 	compiler := workflow.NewCompiler()
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("CompileWorkflow failed: %v", err)
+	err := compiler.CompileWorkflow(workflowPath)
+	if err == nil {
+		t.Fatal("Expected CompileWorkflow to fail for imports.if, but it succeeded")
 	}
-
-	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
-	lockFileContent, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	compiled := string(lockFileContent)
-	assertions := []string{
-		`{{#if experiments.strategy == "eager"}}`,
-		"{{/if}}",
-		"needs.activation.outputs.strategy == 'eager'",
-	}
-	for _, expected := range assertions {
-		if !strings.Contains(compiled, expected) {
-			t.Errorf("Expected compiled workflow to contain %q", expected)
-		}
+	// imports.if is rejected — either by schema validation ("Unknown property: if")
+	// or by the migration guard ("import 'if' is no longer supported").
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "Unknown property: if") && !strings.Contains(errMsg, "import 'if' is no longer supported") {
+		t.Errorf("Expected rejection of imports.if, got unrelated error: %v", err)
 	}
 }
 

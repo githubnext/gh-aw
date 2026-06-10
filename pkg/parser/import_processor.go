@@ -20,7 +20,6 @@ var importLog = logger.New("parser:import_processor")
 type PromptImportEntry struct {
 	ImportPath string // Non-empty when this import should be emitted as {{#runtime-import ...}}
 	Markdown   string // Non-empty when this import should be inlined into the prompt at compile time
-	If         string // Optional condition expression that guards this import (e.g., "experiments.foo == 'bar'")
 }
 
 // ImportsResult holds the result of processing imports from frontmatter
@@ -97,7 +96,6 @@ type ImportSpec struct {
 	// This is parsed from YAML frontmatter and validated against the imported workflow's input definitions.
 	// This is an appropriate use of 'any' for dynamic YAML data. See scratchpad/go-type-patterns.md.
 	Inputs map[string]any // Optional input values to pass to the imported workflow (values are string, number, or boolean)
-	If     string         // Optional condition expression (e.g., "experiments.foo == 'bar'"); conditional imports generate conditional steps and prompt blocks
 }
 
 // ProcessImportsFromFrontmatterWithSource processes imports field from frontmatter with source tracking
