@@ -130,13 +130,7 @@ func TestSpec_MaxAICreditsGuardrail_RuntimeNotCompileTime(t *testing.T) {
 }
 
 func TestSpec_DetectionMaxAICreditsGuardrail_ExpressionForm(t *testing.T) {
-	t.Run("runtime variable embedded as GitHub Actions expression", func(t *testing.T) {
-		expr := compilerenv.BuildDefaultDetectionMaxAICreditsExpression("400")
-		assert.Contains(t, expr, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS")
-		assert.Contains(t, expr, "${{")
-	})
-
-	t.Run("emits verbatim expression with org var and built-in fallback", func(t *testing.T) {
+	t.Run("spec §D-AIC-001: emits GitHub Actions expression with org var and built-in fallback", func(t *testing.T) {
 		got := compilerenv.BuildDefaultDetectionMaxAICreditsExpression("400")
 		assert.Equal(t,
 			"${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}",

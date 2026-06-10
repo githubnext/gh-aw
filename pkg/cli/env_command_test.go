@@ -148,6 +148,13 @@ func TestDefaultsValidateFile(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("accepts -1 to disable detection budget steering", func(t *testing.T) {
+		err := defaultsValidateFile(&defaultsFile{
+			DefaultDetectionMaxAICredits: new("-1"),
+		})
+		require.NoError(t, err)
+	})
+
 	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
 			DefaultMaxAICredits:          new("0"),

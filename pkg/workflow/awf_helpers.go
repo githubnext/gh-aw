@@ -281,6 +281,12 @@ fi`,
 		// Standard agent runs use vars.GH_AW_DEFAULT_MAX_AI_CREDITS with built-in
 		// fallback 1000. Threat-detection runs use
 		// vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS with built-in fallback 400.
+		// EngineConfig.MaxAICredits is 0 when no compile-time value was set
+		// (neither frontmatter nor detection-engine config provided one).
+		// In that case, emit a runtime expression that lets the org variable
+		// or the built-in default resolve the budget at action run time.
+		// For detection runs, use the detection-specific variable/fallback;
+		// for standard agent runs, use the main-agent variable/fallback.
 		var maxAICreditsExportLine string
 		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
 			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))

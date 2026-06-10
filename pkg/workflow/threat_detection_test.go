@@ -189,6 +189,17 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				MaxAICredits: 777,
 			},
 		},
+		{
+			name: "expression string for max-ai-credits is treated as unset (schema disallows expressions; parser returns 0)",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"max-ai-credits": "${{ inputs.detection-max-ai-credits }}",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				MaxAICredits: 0, // parseMaxAICreditsValue returns 0 for non-numeric strings
+			},
+		},
 	}
 
 	for _, tt := range tests {
