@@ -245,7 +245,7 @@ function renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns,
     `| 24h total AIC | ${totalAICFormatted} |`,
     `| Threshold | ${formatAICCredits(threshold)} |`,
     `| Threshold used | ${usagePercent}% |`,
-    `| Remaining headroom | ${formatAICCredits(remainingBudget)} |`,
+    `| Remaining headroom | ${formatAICCredits(remainingBudget) || "0"} |`
     `| Runs counted | ${formatInteger(stats.count)} |`,
     `| Avg AIC / run | ${avgAICFormatted} |`,
     `| Std dev AIC | ${stddevAICFormatted} |`,
