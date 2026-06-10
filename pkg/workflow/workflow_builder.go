@@ -150,7 +150,7 @@ func (c *Compiler) buildInitialWorkflowData(
 	}
 	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, frontmatterModels)
 
-	// Propagate model-costs from frontmatter for runtime merging with built-in models.json.
+	// Propagate models overlay from frontmatter for runtime merging with built-in models.json.
 	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
 		workflowData.ModelCosts = toolsResult.parsedFrontmatter.ModelCosts
 	}

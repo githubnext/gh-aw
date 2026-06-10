@@ -367,10 +367,12 @@ type FrontmatterConfig struct {
 	Models map[string][]string `json:"models,omitempty"`
 
 	// ModelCosts holds model pricing data in the same structure as models.json.
+	// Declared in frontmatter as the `models` field (when the value has a `providers` key).
 	// At runtime the activation job merges this with the built-in models.json so that
 	// custom or adjusted cost values are reflected in effective-token accounting.
 	// Structure: {"providers": {"<provider>": {"models": {"<model>": {"cost": {...}}}}}}
-	ModelCosts map[string]any `json:"model-costs,omitempty"`
+	// Populated by ParseFrontmatterConfig; not decoded from JSON directly.
+	ModelCosts map[string]any `json:"-"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"user-rate-limit,omitempty"`

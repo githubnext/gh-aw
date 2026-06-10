@@ -17,7 +17,7 @@ function isPlainObject(value) {
 }
 
 /**
- * Deep-merge a model-costs overlay on top of a base models.json document.
+ * Deep-merge a models overlay on top of a base models.json document.
  *
  * Both documents share the structure:
  *   { "providers": { "<provider>": { "models": { "<model>": { "cost": { ... } } } } } }
@@ -31,7 +31,7 @@ function isPlainObject(value) {
  *     take precedence.
  *
  * @param {Record<string, unknown>} base  - parsed models.json content
- * @param {Record<string, unknown>} overlay - parsed frontmatter model-costs content
+ * @param {Record<string, unknown>} overlay - parsed frontmatter `models` content
  * @returns {Record<string, unknown>} merged document
  */
 function mergeModelCosts(base, overlay) {
@@ -71,7 +71,7 @@ function mergeModelCosts(base, overlay) {
 }
 
 /**
- * Read the base models.json and merge any frontmatter model-costs on top, then
+ * Read the base models.json and merge any frontmatter `models` overlay on top, then
  * write the combined catalog to /tmp/gh-aw/models.json so the agent job can
  * use it via GH_AW_MODELS_JSON_PATH.
  *
@@ -97,7 +97,7 @@ function writeMergedModelsJSON(core) {
     core.warning(`models.json not found at ${baseModelsPath}`);
   }
 
-  // Parse optional frontmatter model-costs overlay from env var.
+  // Parse optional frontmatter `models` overlay from env var (serialized by the compiler).
   const modelCostsEnv = process.env.GH_AW_INFO_MODEL_COSTS;
   /** @type {Record<string, unknown>} */
   let overlay = {};
