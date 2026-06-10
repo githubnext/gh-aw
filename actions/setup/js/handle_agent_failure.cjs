@@ -2840,7 +2840,9 @@ async function main() {
           workflowSource,
           workflowSourceUrl: workflowSourceURL,
           historyUrl: historyUrl || undefined,
+          aiCredits,
         };
+        core.info(`Generating failure comment footer with aiCredits context: ${aiCredits || "(none)"}`);
         const footer = getFooterAgentFailureCommentMessage(ctx);
 
         // Prepend detection caution alert (when present) so it appears first in the comment body
@@ -3065,7 +3067,9 @@ async function main() {
           workflowSource,
           workflowSourceUrl: workflowSourceURL,
           historyUrl: historyUrl || undefined,
+          aiCredits,
         };
+        core.info(`Generating failure issue footer with aiCredits context: ${aiCredits || "(none)"}`);
         const footer = getFooterAgentFailureIssueMessage(ctx);
         const failureMatchMarker = generateFailureMatchMarker({
           workflowId: workflowID,

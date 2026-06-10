@@ -8,18 +8,53 @@ description: Guide for reducing token consumption in agentic workflows — DataO
 
 Apply these in order — each check can halve costs:
 
+- [ ] **Cheap triage first**: classify duplicates, stale items, low-value events, and known cases before escalating
+- [ ] **Frontier model as planner**: use frontier models for planning, synthesis, ambiguous decisions, and final judgment — not bulk extraction
 - [ ] **DataOps**: Move data fetching into `steps:` — agent reads compact JSON, not raw API responses
 - [ ] **gh-proxy**: Set `tools.github.mode: gh-proxy` — skips Docker MCP server startup and extra tool definitions
 - [ ] **cli-proxy**: Mount additional MCP servers as CLIs via `cli-proxy: true` — agent pipes output through `jq` before it enters context
 - [ ] **Sub-agents**: Delegate repetitive per-item tasks to `model: small` sub-agents (~10–20× cheaper)
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
+- [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt
 - [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
+- [ ] **Context hygiene**: keep the orchestrator context compact; prefer short worker summaries over raw output
 - [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
 - [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
-- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
+- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "aic"` before promoting
+
+---
+
+## Frontier-Model Cost Pattern
+
+Using a more capable frontier model can reduce **total** cost when the workflow architecture prevents unnecessary invocations and keeps expensive context narrow.
+
+Guidance:
+
+- use the frontier model for planning, hypothesis selection, synthesis, ambiguous decisions, and final judgment
+- do not spend frontier-model turns on repetitive extraction, duplicate detection, or broad first-pass scanning
+- add a cheap triage stage for known/duplicate/stale/low-value events and stop with `noop` or another safe output when escalation is unnecessary
+- escalate to the frontier model only when triage is uncertain or the case is genuinely new/high-value
+- cap sub-agent fan-out so escalations cannot recurse or expand without bound
+
+Do **not** claim that frontier models are always cheaper. Cost wins come from architecture and selective execution, not model tier alone.
+
+---
+
+## Pull Context, Do Not Push Context
+
+Avoid front-loading large raw context into the initial prompt when data can be fetched on demand.
+
+Prefer:
+
+- deterministic pre-steps that materialize compact files under `/tmp/gh-aw/`
+- `gh` + filtering commands (`jq`, `grep`, focused selectors) before context is exposed to the model
+- query interfaces and pre-aggregated summaries instead of full API payloads
+- directed tool calls issued after the agent forms a hypothesis
+
+Warning on anchoring: if authors preselect raw logs or large payloads too early, the model may over-focus on that material and miss the actual cause elsewhere.
 
 ---
 
@@ -33,11 +68,13 @@ gh aw audit <run-id> --json
 
 Key fields in the output:
 
-- `agent_usage.aic` — AI Credits (AIC), the normalized cost metric (1 AIC = $0.01; accounts for model price differences and cache discounts); `agent_usage.effective_tokens` remains available as the underlying token-normalized value
+- `agent_usage.aic` — AI Credits (AIC), the normalized cost metric (1 AIC = $0.01; accounts for model price differences and cache discounts)
 - `agent_usage.input_tokens` / `agent_usage.output_tokens` — raw token counts
 - `agent_usage.cache_read_tokens` / `agent_usage.cache_write_tokens` — tokens served from the prompt cache
 
 Equivalent via MCP: `audit` tool with `run_id: <run-id>`.
+
+Treat optimization as successful only when quality remains acceptable. A quality regression is a failure even if AI Credits decrease.
 
 ### Comparing two runs (regression detection)
 
@@ -258,20 +295,20 @@ List open issues by priority. Top 5 critical items. Be brief.
 {{/if}}
 ```
 
-Measure `effective_tokens` in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer tokens at acceptable quality, promote it as the baseline.
+Measure AI Credits (AIC) in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer AI Credits at acceptable quality, promote it as the baseline.
 
 ---
 
 ## Technique 5 — Use Experiments to Measure Impact
 
-Declare an experiment before making any prompt or configuration change. Run ≥ 20 cycles per variant for statistical significance on high-frequency workflows.
+Declare an experiment before making any prompt or configuration change, and compare before/after cost and quality. Run ≥ 20 cycles per variant for statistical significance on high-frequency workflows.
 
 ```yaml
 experiments:
   optimization_v1:
     variants: [control, optimized]
     description: "DataOps refactor — move issue fetching to steps:"
-    metric: "effective_tokens"
+    metric: "aic"
     issue: "123"
 ```
 
@@ -288,8 +325,9 @@ Fetch open issues from ${{ github.repository }} using the GitHub tools.
 **After enough runs:**
 
 1. Compare variants using `gh aw audit <control-run-id> <optimized-run-id>`
-2. Check AI credit deltas in the diff output
-3. If the optimized variant wins, rewrite the baseline prompt and remove the `experiments:` field
+2. Inspect `aic`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`
+3. Validate output quality and decision accuracy against the control run
+4. If the optimized variant wins on cost **and** quality, rewrite the baseline prompt and remove the `experiments:` field
 
 **Key experiment dimensions for token optimization:**
 

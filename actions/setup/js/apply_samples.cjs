@@ -115,19 +115,175 @@ function ensureGitIdentity(cwd) {
 }
 
 /**
+ * Read and parse the GitHub Actions event payload from GITHUB_EVENT_PATH.
+ * Returns null when the file is unset, missing, or not parseable.
+ * @returns {Record<string, any>|null}
+ */
+function readEventPayload() {
+  const p = process.env.GITHUB_EVENT_PATH;
+  if (!p) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the best token for a `owner/repo` API call.
+ *
+ * Multi-checkout workflows often need different tokens for different
+ * repositories (e.g. a workflow runs in `owner/automation` but reaches into
+ * `owner/product` via a separate `checkout:` entry that supplies its own
+ * `github-token:` or `github-app:`). The compiler emits that mapping as
+ * `GH_AW_REPO_TOKENS` (a JSON object keyed by `owner/repo`); this helper
+ * looks the requested slug up there and falls back to GITHUB_TOKEN /
+ * GH_TOKEN.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {string|undefined}
+ */
+function selectTokenForRepo(owner, repo) {
+  const slug = `${owner}/${repo}`;
+  const raw = process.env.GH_AW_REPO_TOKENS;
+  if (raw && raw.trim()) {
+    try {
+      const map = JSON.parse(raw);
+      if (map && typeof map === "object" && typeof map[slug] === "string" && map[slug].trim()) {
+        return map[slug].trim();
+      }
+    } catch (err) {
+      core.warning(`apply_samples: GH_AW_REPO_TOKENS is not valid JSON, ignoring: ${getErrorMessage(err)}`);
+    }
+  }
+  return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+}
+
+/**
+ * Fetch a pull request via the REST API and return its head ref. Uses the
+ * per-repo token from GH_AW_REPO_TOKENS when present, falling back to
+ * GITHUB_TOKEN; falls back to anonymous (works for public repositories) when
+ * no token is available. Returns null on any failure so the caller can decide
+ * how to recover.
+ * @param {{owner: string, repo: string, pullNumber: number}} args
+ * @returns {Promise<string|null>}
+ */
+async function fetchPullRequestHeadRef({ owner, repo, pullNumber }) {
+  const apiUrl = process.env.GITHUB_API_URL || "https://api.github.com";
+  const url = `${apiUrl}/repos/${owner}/${repo}/pulls/${pullNumber}`;
+  /** @type {Record<string, string>} */
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "gh-aw-apply-samples",
+  };
+  const token = selectTokenForRepo(owner, repo);
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  try {
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      core.warning(`apply_samples: GET ${url} returned HTTP ${resp.status}`);
+      return null;
+    }
+    const body = await resp.json();
+    // @ts-ignore - REST API response shape is well-defined; trust GitHub PR endpoint contract
+    const ref = body && body.head && typeof body.head.ref === "string" ? body.head.ref : null;
+    return ref || null;
+  } catch (err) {
+    core.warning(`apply_samples: failed to fetch PR ${owner}/${repo}#${pullNumber}: ${getErrorMessage(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Derive the pull request head ref for the triggering event.
+ *
+ * Resolution order:
+ *   1. `pull_request.head.ref` from the event payload (pull_request and
+ *      pull_request_target events).
+ *   2. PR API lookup using `issue.number` when the payload describes an
+ *      issue_comment on a pull request.
+ *   3. PR API lookup using an explicit `pull_request_number` argument on the
+ *      sample (covers workflow_dispatch driven by the agent).
+ *
+ * @param {SampleEntry} entry
+ * @returns {Promise<string|null>}
+ */
+async function derivePrHeadRef(entry) {
+  const payload = readEventPayload();
+
+  // 1. pull_request* events expose the head ref directly.
+  const directRef = payload?.pull_request?.head?.ref;
+  if (typeof directRef === "string" && directRef.trim()) {
+    return directRef.trim();
+  }
+
+  // Determine the target repo for any API lookups. Prefer the entry's repo if
+  // the sample sets one (cross-repo workflows), otherwise fall back to
+  // GITHUB_REPOSITORY.
+  const repoSlug = (typeof entry.arguments.repo === "string" && entry.arguments.repo.trim()) || process.env.GITHUB_REPOSITORY || "";
+  const [owner, repo] = repoSlug.split("/");
+  if (!owner || !repo) return null;
+
+  // 2. issue_comment / pull_request_review_comment with a PR-linked issue.
+  if (payload?.issue?.pull_request && typeof payload.issue.number === "number") {
+    const ref = await fetchPullRequestHeadRef({ owner, repo, pullNumber: payload.issue.number });
+    if (ref) return ref;
+  }
+
+  // 3. Explicit pull_request_number on the sample arguments.
+  const argNumber = Number(entry.arguments.pull_request_number);
+  if (Number.isFinite(argNumber) && argNumber > 0) {
+    const ref = await fetchPullRequestHeadRef({ owner, repo, pullNumber: argNumber });
+    if (ref) return ref;
+  }
+
+  return null;
+}
+
+/**
  * Pre-stage a branch + patch for samples whose tool reads the workspace diff.
- * Mutates `entry.arguments.branch` to the actual checked-out branch.
+ *
+ * - For `create_pull_request`, the sample creates a brand-new branch, so we
+ *   accept the sample's declared `branch` or synthesize `gh-aw-sample-<i+1>`.
+ * - For `push_to_pull_request_branch`, the destination is the triggering PR's
+ *   head branch — we derive it from event/PR context and refuse to invent a
+ *   synthetic branch (which would never exist on origin and would break the
+ *   MCP server's incremental-patch generation, per issue #37835).
+ *
  * @param {SampleEntry} entry
  * @param {number} index
  * @param {string} workspace
+ * @returns {Promise<void>}
  */
-function preStagePatch(entry, index, workspace) {
+async function preStagePatch(entry, index, workspace) {
   const patch = entry.sidecars && entry.sidecars.patch;
   if (typeof patch !== "string" || !patch.trim()) {
     return;
   }
-  const branch = typeof entry.arguments.branch === "string" && entry.arguments.branch.trim() ? entry.arguments.branch.trim() : `gh-aw-sample-${index + 1}`;
-  entry.arguments.branch = branch;
+
+  let branch;
+  if (entry.tool === "push_to_pull_request_branch") {
+    // Source ref MUST match the PR's head ref so that
+    // `git diff origin/<branch>..<branch>` in the MCP server resolves the
+    // correct baseline. Synthetic `gh-aw-sample-N` names produce
+    // `fatal: couldn't find remote ref` failures (issue #37835).
+    branch = await derivePrHeadRef(entry);
+    if (!branch) {
+      throw new Error(
+        `apply_samples: cannot derive pull-request head branch for sample[${index}] (tool=${entry.tool}). ` +
+          `Trigger the workflow from a pull_request event, or set arguments.pull_request_number on the sample entry, ` +
+          `or provide GITHUB_TOKEN so the PR can be fetched.`
+      );
+    }
+    // The agent input no longer carries `branch`; ensure stray sample-supplied
+    // values do not leak through to the MCP tools/call payload.
+    delete entry.arguments.branch;
+  } else {
+    branch = typeof entry.arguments.branch === "string" && entry.arguments.branch.trim() ? entry.arguments.branch.trim() : `gh-aw-sample-${index + 1}`;
+    entry.arguments.branch = branch;
+  }
 
   ensureGitIdentity(workspace);
 
@@ -269,11 +425,12 @@ async function main() {
   const logPath = process.env.GH_AW_AGENT_STDIO_LOG || "";
 
   // Pre-stage branches/patches.
-  samples.forEach((sample, i) => {
+  for (let i = 0; i < samples.length; i++) {
+    const sample = samples[i];
     if (PATCH_SIDECAR_TOOLS.has(sample.tool)) {
-      preStagePatch(sample, i, workspace);
+      await preStagePatch(sample, i, workspace);
     }
-  });
+  }
 
   if (samples.length === 0) {
     core.info("apply_samples: nothing to replay; exiting cleanly.");
@@ -375,4 +532,14 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, loadSamples, preStagePatch, resolveMcpServerPath, sendJsonRpc };
+module.exports = {
+  main,
+  loadSamples,
+  preStagePatch,
+  resolveMcpServerPath,
+  selectTokenForRepo,
+  sendJsonRpc,
+  // Exported for unit testing of the 3-tier PR head ref resolution logic.
+  derivePrHeadRef,
+  fetchPullRequestHeadRef,
+};

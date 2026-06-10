@@ -92,6 +92,11 @@ Trivial workflow whose only job is to be compiled with --use-samples.
 		if !strings.Contains(lockContent, "GH_AW_SAMPLES:") {
 			t.Error("Expected GH_AW_SAMPLES env var in lock file")
 		}
+		// GITHUB_TOKEN is required so apply_samples.cjs can resolve the PR head
+		// ref via the REST API for issue_comment / slash-command triggers.
+		if !strings.Contains(lockContent, "GITHUB_TOKEN: ${{ github.token }}") {
+			t.Error("Expected GITHUB_TOKEN env var in samples replay step")
+		}
 		if !strings.Contains(lockContent, `"tool":"create_issue"`) {
 			t.Error("Expected JSON-encoded create_issue tool entry in lock file")
 		}
@@ -403,4 +408,146 @@ Runtime-templated sample for workflow_dispatch-driven testing.
 	err = json.Unmarshal([]byte(samplesJSON), &parsed)
 	require.NoError(t, err, "GH_AW_SAMPLES should remain valid JSON at compile time")
 	require.NotEmpty(t, parsed, "GH_AW_SAMPLES should include at least one sample entry")
+}
+
+// TestUseSamplesEmitsPerRepoTokenMap verifies that a workflow with multiple
+// `checkout:` entries — each carrying its own `github-token:` — produces a
+// `GH_AW_REPO_TOKENS` env var whose JSON map binds every repo slug to the
+// matching token expression. apply_samples.cjs uses that map to pick the
+// right token when it calls the GitHub REST API to resolve a PR head ref
+// for a cross-repo sample (issue: a single hard-coded `github.token`
+// would fail for repos that require a PAT or App-token).
+func TestUseSamplesEmitsPerRepoTokenMap(t *testing.T) {
+	const md = `---
+on:
+  workflow_dispatch:
+permissions: read-all
+engine:
+  id: claude
+checkout:
+  - fetch-depth: 0
+    path: ./automation
+  - repository: github/github
+    token: ${{ secrets.CRITICAL_PATH_GITHUB_GITHUB_PAT }}
+    path: ./github
+safe-outputs:
+  create-issue:
+    samples:
+      - title: "Cross-repo sample"
+        body: "Body for cross-repo issue."
+---
+
+Multi-checkout workflow exercising the per-repo token map.
+`
+	tmpFile, err := os.CreateTemp("", "use-samples-tokens-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(md); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetUseSamples(true)
+	if err := compiler.CompileWorkflow(tmpFile.Name()); err != nil {
+		t.Fatalf("compile failed: %v", err)
+	}
+	lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	defer os.Remove(lockPath)
+	b, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("read lock: %v", err)
+	}
+	lock := string(b)
+
+	require.Contains(t, lock, "Replay safe-outputs samples (deterministic)")
+	require.Contains(t, lock, "GH_AW_REPO_TOKENS: |", "expected GH_AW_REPO_TOKENS env var in lock file")
+
+	tokensJSON := extractGHAWRepoTokensJSON(t, lock)
+	var tokens map[string]string
+	require.NoError(t, json.Unmarshal([]byte(tokensJSON), &tokens), "GH_AW_REPO_TOKENS must be valid JSON")
+	assert.Equal(t, "${{ secrets.CRITICAL_PATH_GITHUB_GITHUB_PAT }}", tokens["github/github"], "cross-repo entry must map to its declared token")
+	// The default-checkout entry has no explicit token and must NOT appear in
+	// the map (GITHUB_TOKEN handles that case in apply_samples.cjs).
+	_, hasDefaultRepo := tokens["${{ github.repository }}"]
+	assert.False(t, hasDefaultRepo, "default checkout without a github-token must not appear in the map; got: %v", tokens)
+	// GITHUB_TOKEN fallback must still be emitted alongside the map.
+	assert.Contains(t, lock, "GITHUB_TOKEN: ${{ github.token }}")
+}
+
+// TestUseSamplesOmitsRepoTokenMapWhenNoCustomAuth verifies that workflows
+// whose `checkout:` entries declare no explicit token (i.e. rely on the
+// runner's default GITHUB_TOKEN) do NOT emit a GH_AW_REPO_TOKENS env var.
+// This keeps the generated YAML noise-free for the common case.
+func TestUseSamplesOmitsRepoTokenMapWhenNoCustomAuth(t *testing.T) {
+	const md = `---
+on:
+  workflow_dispatch:
+permissions: read-all
+engine:
+  id: claude
+safe-outputs:
+  create-issue:
+    samples:
+      - title: "No custom auth"
+        body: "Body for the default-auth sample issue, long enough to satisfy schema."
+---
+
+Default-auth workflow — should not need the per-repo token map.
+`
+	tmpFile, err := os.CreateTemp("", "use-samples-no-tokens-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(md); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetUseSamples(true)
+	require.NoError(t, compiler.CompileWorkflow(tmpFile.Name()))
+	lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	defer os.Remove(lockPath)
+	b, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	lock := string(b)
+
+	assert.Contains(t, lock, "Replay safe-outputs samples (deterministic)")
+	assert.NotContains(t, lock, "GH_AW_REPO_TOKENS", "GH_AW_REPO_TOKENS must be omitted when no checkout supplies a custom token")
+}
+
+// extractGHAWRepoTokensJSON pulls the literal block scalar value of
+// GH_AW_REPO_TOKENS out of the compiled YAML and returns the unindented JSON
+// text. Mirrors extractGHAWSamplesJSON.
+func extractGHAWRepoTokensJSON(t *testing.T, lock string) string {
+	t.Helper()
+	const marker = "GH_AW_REPO_TOKENS: |\n"
+	start := strings.Index(lock, marker)
+	if start < 0 {
+		t.Fatalf("could not find %q in lock file", marker)
+	}
+	start += len(marker)
+	rest := lock[start:]
+	firstNL := strings.Index(rest, "\n")
+	if firstNL < 0 {
+		t.Fatal("malformed GH_AW_REPO_TOKENS block: no newline after first line")
+	}
+	firstLine := rest[:firstNL]
+	indent := firstLine[:len(firstLine)-len(strings.TrimLeft(firstLine, " "))]
+	if indent == "" {
+		t.Fatal("malformed GH_AW_REPO_TOKENS block: expected indented content")
+	}
+	var out strings.Builder
+	for _, line := range strings.Split(rest, "\n") {
+		if !strings.HasPrefix(line, indent) {
+			break
+		}
+		out.WriteString(strings.TrimPrefix(line, indent))
+		out.WriteString("\n")
+	}
+	return strings.TrimSpace(out.String())
 }

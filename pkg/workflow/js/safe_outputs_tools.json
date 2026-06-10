@@ -1210,17 +1210,13 @@
   },
   {
     "name": "push_to_pull_request_branch",
-    "description": "Push committed changes to a pull request's branch. APPEND-ONLY: this tool adds new commits on top of the existing PR branch \u2014 force-push is NOT supported and will be rejected. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool. IMPORTANT: do NOT use 'git merge' to update the branch against another branch \u2014 merge commits cannot be signed; the action will attempt to squash them into a single linear commit before pushing, but this rewrites history. Use 'git rebase' instead to avoid the rewrite.",
+    "description": "Push committed changes to a pull request's branch. APPEND-ONLY: this tool adds new commits on top of the existing PR branch \u2014 force-push is NOT supported and will be rejected. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool. The destination branch is always derived from the pull request's head ref \u2014 you do not specify it. IMPORTANT: do NOT use 'git merge' to update the branch against another branch \u2014 merge commits cannot be signed; the action will attempt to squash them into a single linear commit before pushing, but this rewrites history. Use 'git rebase' instead to avoid the rewrite.",
     "inputSchema": {
       "type": "object",
       "required": [
         "message"
       ],
       "properties": {
-        "branch": {
-          "type": "string",
-          "description": "Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch."
-        },
         "message": {
           "type": "string",
           "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits). This field is named message, NOT commit_message.",

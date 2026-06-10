@@ -797,14 +797,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   /**
    * Handler for push_to_pull_request_branch tool
    * Spec cross-reference: Safe Output Outcome Evaluation §17 (`push_to_pull_request_branch`).
-   * Resolves the current branch if branch is not provided or is the base branch
-   * Generates git patch for the changes
+   * The agent does NOT supply a branch. The source branch is derived from the
+   * current working checkout (the agent must already be on the PR head ref to
+   * have committed onto it). The destination branch is independently derived
+   * by the apply-time push handler from pulls.get(pull_number).head.ref.
    *
    * Note: Fork PR detection is handled by push_to_pull_request_branch.cjs handler
    * which fetches the PR and calls detectForkPR() with full PR data.
    */
   const pushToPullRequestBranchHandler = async args => {
-    const entry = { ...args, type: "push_to_pull_request_branch" };
+    // Defensive strip: the input schema no longer declares a `branch` property,
+    // but an older or non-conforming client could still attempt to pass one.
+    // Drop it so the agent cannot override the derived source branch.
+    const { branch: _agentBranch, ...sanitizedArgs } = args || {};
+    const entry = { ...sanitizedArgs, type: "push_to_pull_request_branch" };
 
     // Resolve target repo configuration and validate the target repo early
     // This is needed before getBaseBranch to ensure we resolve the base branch
@@ -913,25 +919,36 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // like issue_comment on PRs targeting non-default branches.
     entry.base_branch = baseBranch;
 
-    // If branch is not provided, is empty, or equals the base branch, use the current branch from git
-    // This handles cases where the agent incorrectly passes the base branch instead of the working branch
-    if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+    // The agent never supplies a branch; the validator already strips it from
+    // args. Derive it from the current checkout: the working tree must be on
+    // the PR head ref because that's what the agent committed onto. The
+    // apply-time push job independently re-derives the destination from
+    // pulls.get(pull_number), so this branch name is used only as the source
+    // ref for the incremental diff against origin/<branch>.
+    try {
       const detectedBranch = getCurrentBranch(repoCwd);
-
-      if (entry.branch === baseBranch) {
-        server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
-      } else {
-        server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
-      }
-
+      server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
       entry.branch = detectedBranch;
+    } catch (branchErr) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Failed to determine source branch for push_to_pull_request_branch: ${getErrorMessage(branchErr)}. The working tree must be on the pull request's head ref before this tool is called.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
-    // Reject if branch still equals base_branch after detection.
-    // This means the base branch was incorrectly resolved (e.g., resolved to the
-    // feature branch itself due to a confused event context). Writing a safe output
-    // in this state would cause a cryptic git exit-1 in the safe_outputs job when
-    // it tries to fetch a non-existent remote ref.
+    // Reject if the detected branch equals base_branch. This means the workspace
+    // is checked out on the PR's base (e.g. main) rather than the PR's head ref,
+    // so there is nothing to push. Writing a safe output in this state would
+    // cause a cryptic git exit-1 in the safe_outputs job when it tries to fetch
+    // a non-existent remote ref.
     if (entry.branch === entry.base_branch) {
       return {
         content: [
@@ -939,7 +956,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             type: "text",
             text: JSON.stringify({
               result: "error",
-              error: `Branch '${entry.branch}' equals base_branch '${entry.base_branch}'. Cannot push to a pull request branch that targets itself. Ensure 'branch' is your feature branch and that the base branch resolves to the target (e.g., 'main' or 'master').`,
+              error: `Detected branch '${entry.branch}' equals base_branch '${entry.base_branch}'. The workspace is checked out on the base branch, not the pull request's head branch — there is nothing to push. Check out the PR's head ref and commit your changes there before calling push_to_pull_request_branch.`,
             }),
           },
         ],

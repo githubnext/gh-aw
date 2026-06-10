@@ -1053,6 +1053,19 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("pushToPullRequestBranchHandler", () => {
+    // The agent never supplies a branch — the handler always derives the source
+    // branch from getCurrentBranch(). In production this resolves the working
+    // tree's HEAD; in unit tests the workspace is an empty temp dir with no git
+    // repo, so seed the env-var fallback path so tests can focus on the
+    // downstream patch-generation behavior they actually want to exercise.
+    beforeEach(() => {
+      process.env.GITHUB_REF_NAME = "feature-branch";
+    });
+
+    afterEach(() => {
+      delete process.env.GITHUB_REF_NAME;
+    });
+
     function createSideRepoWithTrackedAndLocalCommits() {
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
       fs.mkdirSync(targetRepoDir, { recursive: true });
@@ -1114,17 +1127,26 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should reject obvious exploratory test payloads before recording a PR branch update intent", async () => {
-      const result = await handlers.pushToPullRequestBranchHandler({
-        branch: "docs/pr-17198-test-from-main-1853f10f924372d4",
-        message: "test",
-      });
+      // The agent can no longer supply `branch`; the handler derives it from
+      // the current working checkout. Model the failure mode where the
+      // working tree itself is sitting on an obviously exploratory branch.
+      const prevRefName = process.env.GITHUB_REF_NAME;
+      process.env.GITHUB_REF_NAME = "docs/pr-17198-test-from-main-1853f10f924372d4";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          message: "test",
+        });
 
-      expect(result.isError).toBe(true);
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("Refusing to record an exploratory pull request branch update");
-      expect(responseData.error).toContain("noop or report_incomplete");
-      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("Refusing to record an exploratory pull request branch update");
+        expect(responseData.error).toContain("noop or report_incomplete");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        if (prevRefName === undefined) delete process.env.GITHUB_REF_NAME;
+        else process.env.GITHUB_REF_NAME = prevRefName;
+      }
     });
 
     it("should include helpful details in error response", async () => {
@@ -1215,7 +1237,7 @@ describe("safe_outputs_handlers", () => {
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("error");
         expect(responseData.error).toContain("equals base_branch");
-        expect(responseData.error).toContain("Cannot push to a pull request branch that targets itself");
+        expect(responseData.error).toContain("checked out on the base branch");
         expect(mockAppendSafeOutput).not.toHaveBeenCalled();
       } finally {
         delete process.env.GITHUB_BASE_REF;
@@ -1234,14 +1256,12 @@ describe("safe_outputs_handlers", () => {
 
       process.env.GITHUB_BASE_REF = "main";
       try {
-        const result = await handlersWithTarget.pushToPullRequestBranchHandler({
-          branch: "main",
-        });
+        const result = await handlersWithTarget.pushToPullRequestBranchHandler({});
 
         expect(result.isError).toBeFalsy();
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Looking for checkout of target repo: test-owner/test-repo"));
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Selected checkout folder for test-owner/test-repo: ${targetRepoDir}`));
-        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("detecting actual working branch: feature/test-change"));
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Using current branch for push_to_pull_request_branch: feature/test-change"));
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "push_to_pull_request_branch",
@@ -1260,13 +1280,12 @@ describe("safe_outputs_handlers", () => {
       process.env.GITHUB_BASE_REF = "main";
       try {
         const result = await handlers.pushToPullRequestBranchHandler({
-          branch: "main",
           repo: "test-owner/test-repo",
         });
 
         expect(result.isError).toBeFalsy();
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Selected checkout folder for test-owner/test-repo: ${targetRepoDir}`));
-        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("detecting actual working branch: feature/test-change"));
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Using current branch for push_to_pull_request_branch: feature/test-change"));
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "push_to_pull_request_branch",
@@ -1507,6 +1526,23 @@ describe("safe_outputs_handlers", () => {
         expect(autoSwitchCalls).toHaveLength(0);
       } finally {
         delete process.env.GITHUB_BASE_REF;
+      }
+    });
+
+    it("returns error when getCurrentBranch cannot resolve a branch", async () => {
+      // Override the beforeEach seed so every getCurrentBranch resolution path
+      // fails (no GITHUB_REF_NAME, no GITHUB_HEAD_REF, no git repo in the empty
+      // test workspace) and the handler hits its try/catch.
+      delete process.env.GITHUB_REF_NAME;
+      delete process.env.GITHUB_HEAD_REF;
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({ message: "test" });
+        expect(result.isError).toBe(true);
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("error");
+        expect(data.error).toContain("Failed to determine source branch");
+      } finally {
+        process.env.GITHUB_REF_NAME = "feature-branch"; // restore for sibling tests
       }
     });
   });

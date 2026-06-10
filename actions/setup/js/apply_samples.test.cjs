@@ -12,7 +12,7 @@
 // Tests intentionally use the simplest safe-output tool (`create_issue`) so we
 // do not need to set up a git working tree for patch sidecars.
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { spawnSync } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
@@ -185,6 +185,72 @@ describe("apply_samples.cjs sendJsonRpc", () => {
   });
 });
 
+describe("apply_samples.cjs selectTokenForRepo", () => {
+  const { selectTokenForRepo } = require("./apply_samples.cjs");
+
+  function withEnv(vars, fn) {
+    const saved = {};
+    for (const k of Object.keys(vars)) {
+      saved[k] = process.env[k];
+      if (vars[k] === undefined) delete process.env[k];
+      else process.env[k] = vars[k];
+    }
+    try {
+      return fn();
+    } finally {
+      for (const k of Object.keys(saved)) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
+  }
+
+  it("prefers the per-repo token from GH_AW_REPO_TOKENS over GITHUB_TOKEN", () => {
+    withEnv(
+      {
+        GH_AW_REPO_TOKENS: JSON.stringify({ "owner/cross": "cross-token", "owner/auto": "auto-token" }),
+        GITHUB_TOKEN: "default-token",
+        GH_TOKEN: undefined,
+      },
+      () => {
+        expect(selectTokenForRepo("owner", "cross")).toBe("cross-token");
+        expect(selectTokenForRepo("owner", "auto")).toBe("auto-token");
+      }
+    );
+  });
+
+  it("falls back to GITHUB_TOKEN when the slug is not present in GH_AW_REPO_TOKENS", () => {
+    withEnv(
+      {
+        GH_AW_REPO_TOKENS: JSON.stringify({ "owner/cross": "cross-token" }),
+        GITHUB_TOKEN: "default-token",
+        GH_TOKEN: undefined,
+      },
+      () => {
+        expect(selectTokenForRepo("owner", "other")).toBe("default-token");
+      }
+    );
+  });
+
+  it("falls back to GITHUB_TOKEN when GH_AW_REPO_TOKENS is unset", () => {
+    withEnv({ GH_AW_REPO_TOKENS: undefined, GITHUB_TOKEN: "default-token", GH_TOKEN: undefined }, () => {
+      expect(selectTokenForRepo("owner", "auto")).toBe("default-token");
+    });
+  });
+
+  it("falls back to GITHUB_TOKEN when GH_AW_REPO_TOKENS is malformed JSON", () => {
+    withEnv({ GH_AW_REPO_TOKENS: "{not json", GITHUB_TOKEN: "default-token", GH_TOKEN: undefined }, () => {
+      expect(selectTokenForRepo("owner", "auto")).toBe("default-token");
+    });
+  });
+
+  it("returns undefined when no env-var token is available and slug is missing", () => {
+    withEnv({ GH_AW_REPO_TOKENS: undefined, GITHUB_TOKEN: undefined, GH_TOKEN: undefined }, () => {
+      expect(selectTokenForRepo("owner", "auto")).toBeUndefined();
+    });
+  });
+});
+
 describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_request_branch)", () => {
   // Load the module under test directly so we can drive preStagePatch in
   // isolation against a real, throwaway git working tree. This is the
@@ -205,7 +271,7 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     return `diff --git a/${filePath} b/${filePath}\n` + `new file mode 100644\n` + `index 0000000..1111111\n` + `--- /dev/null\n` + `+++ b/${filePath}\n` + `@@ -0,0 +1,${lines.length} @@\n` + body + "\n";
   }
 
-  it("checks out the requested branch and commits the patch on it (create_pull_request)", () => {
+  it("checks out the requested branch and commits the patch on it (create_pull_request)", async () => {
     const workspace = makeTempDir("gh-aw-prestage-cpr-");
     initRepo(workspace, "main");
 
@@ -227,7 +293,7 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     const prev = process.env.GH_AW_CUSTOM_BASE_BRANCH;
     process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
     try {
-      preStagePatch(entry, 0, workspace);
+      await preStagePatch(entry, 0, workspace);
     } finally {
       if (prev === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
       else process.env.GH_AW_CUSTOM_BASE_BRANCH = prev;
@@ -260,36 +326,151 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     expect(diff).toContain("+hello from a deterministic sample");
   });
 
-  it("defaults the branch name to gh-aw-sample-<i+1> when none is supplied", () => {
-    const workspace = makeTempDir("gh-aw-prestage-default-");
+  it("derives push_to_pull_request_branch branch from pull_request event payload", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-pr-");
     initRepo(workspace, "main");
+
+    const headRef = "feat/copilot-push-branch";
+    const eventPath = path.join(workspace, "event.json");
+    fs.writeFileSync(
+      eventPath,
+      JSON.stringify({
+        pull_request: { number: 654, head: { ref: headRef } },
+      })
+    );
 
     const entry = {
       tool: "push_to_pull_request_branch",
-      arguments: {
-        body: "Sample push body",
-        // branch intentionally omitted — driver should synthesize one.
-      },
+      // No `branch` in arguments — the agent never supplies one now.
+      arguments: { message: "Push update" },
       sidecars: { patch: newFileDiff("push-feature.txt", "from push sample\n") },
     };
 
-    const prev = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
     process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_EVENT_PATH = eventPath;
     try {
-      preStagePatch(entry, 2, workspace);
+      await preStagePatch(entry, 0, workspace);
     } finally {
-      if (prev === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
-      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prev;
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevEvent;
     }
 
-    // Index in preStagePatch is zero-based; the default uses i+1 → "gh-aw-sample-3".
-    expect(entry.arguments.branch).toBe("gh-aw-sample-3");
-    const head = git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim();
-    expect(head).toBe("gh-aw-sample-3");
+    // The staged branch is the PR's head ref (not a synthetic "gh-aw-sample-N").
+    expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
     expect(fs.existsSync(path.join(workspace, "push-feature.txt"))).toBe(true);
+    // The agent input never carries `branch` for this tool.
+    expect(entry.arguments.branch).toBeUndefined();
   });
 
-  it("is a no-op when the sample tool isn't in the patch-sidecar set", () => {
+  it("derives push_to_pull_request_branch branch via PR API for issue_comment events", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-issue-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/issue-comment-branch";
+    const eventPath = path.join(workspace, "event.json");
+    fs.writeFileSync(
+      eventPath,
+      JSON.stringify({
+        issue: { number: 42, pull_request: { url: "https://api.github.com/repos/owner/repo/pulls/42" } },
+      })
+    );
+
+    // Spy on global fetch so the call-URL assertion happens on the test side
+    // (an assertion failure inside a global-mutating stub is hard to attribute).
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ head: { ref: headRef } }),
+    });
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_EVENT_PATH = eventPath;
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update" },
+        sidecars: { patch: newFileDiff("issue-comment.txt", "from issue comment\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/repos/owner/repo/pulls/42"), expect.anything());
+    } finally {
+      fetchSpy.mockRestore();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+    }
+  });
+
+  it("fails fast for push_to_pull_request_branch when no PR context is available", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-nopr-");
+    initRepo(workspace, "main");
+
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    delete process.env.GITHUB_EVENT_PATH;
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update" },
+        sidecars: { patch: newFileDiff("orphan.txt", "no PR context\n") },
+      };
+      await expect(preStagePatch(entry, 0, workspace)).rejects.toThrow(/cannot derive pull-request head branch/);
+    } finally {
+      if (prevEvent !== undefined) process.env.GITHUB_EVENT_PATH = prevEvent;
+    }
+  });
+
+  it("derives push_to_pull_request_branch branch from explicit arguments.pull_request_number when no event payload exists", async () => {
+    // Resolution path 3: no GITHUB_EVENT_PATH, but the sample entry carries an
+    // explicit `arguments.pull_request_number`. The driver should hit the PR
+    // API directly rather than fail fast.
+    const workspace = makeTempDir("gh-aw-prestage-push-argpr-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/explicit-pr-number";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ head: { ref: headRef } }),
+    });
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_EVENT_PATH; // force path 3
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update", pull_request_number: 99 },
+        sidecars: { patch: newFileDiff("arg-pr.txt", "via arg pr\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/repos/owner/repo/pulls/99"), expect.anything());
+    } finally {
+      fetchSpy.mockRestore();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent !== undefined) process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+    }
+  });
+
+  it("is a no-op when the sample tool isn't in the patch-sidecar set", async () => {
     // We assert this at the driver level (PATCH_SIDECAR_TOOLS gate in main()),
     // but preStagePatch itself should also be a no-op when called with an
     // entry that has no patch sidecar — protecting against misuse.
@@ -300,7 +481,7 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
       tool: "create_issue",
       arguments: { title: "x", body: "y" },
     };
-    preStagePatch(entry, 0, workspace);
+    await preStagePatch(entry, 0, workspace);
 
     // Still on main, no extra commits, no new files.
     expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe("main");

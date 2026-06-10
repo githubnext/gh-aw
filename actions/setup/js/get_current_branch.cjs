@@ -20,7 +20,14 @@ function getCurrentBranch(customCwd) {
       cwd: cwd,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
-    return branch;
+    // "HEAD" means the repo is in a detached-HEAD state (common with the
+    // default actions/checkout behaviour).  It is not a valid branch name;
+    // fall through to the GITHUB_HEAD_REF / GITHUB_REF_NAME env-var
+    // fallbacks so callers get a real ref rather than the literal "HEAD",
+    // which would later produce a misleading "remote ref not present" error.
+    if (branch && branch !== "HEAD") {
+      return branch;
+    }
   } catch (error) {
     // Ignore error and try fallback
   }
@@ -39,7 +46,9 @@ function getCurrentBranch(customCwd) {
     return ghRefName;
   }
 
-  throw new Error(`${ERR_CONFIG}: Failed to determine current branch: git command failed and no GitHub environment variables available`);
+  throw new Error(
+    `${ERR_CONFIG}: Failed to determine current branch: git command returned a detached-HEAD state and no GitHub environment variables (GITHUB_HEAD_REF / GITHUB_REF_NAME) are available. Ensure the workflow checks out the pull request's head ref before calling this step.`
+  );
 }
 
 module.exports = {

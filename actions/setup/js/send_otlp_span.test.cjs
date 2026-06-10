@@ -5328,7 +5328,7 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.aic"]).toBe(0.42);
     });
 
-    it("does not emit gh-aw.aic when both agent_usage.json and agent-stdio.log are absent", async () => {
+    it("emits gh-aw.aic as numeric 0 when both agent_usage.json and agent-stdio.log are absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5340,8 +5340,13 @@ describe("sendJobConclusionSpan", () => {
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const keys = agentSpan.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.aic");
+      const aicAttr = agentSpan.attributes.find(a => a.key === "gh-aw.aic");
+      // gh-aw.aic must be present as numeric 0 even when no data is available so
+      // Sentry EAP indexes the field as numeric (not string) and Tempo can query
+      // { span."gh-aw.aic" > 0 } without a manual schema override.
+      expect(aicAttr).toBeDefined();
+      expect(aicAttr.value.intValue).toBe(0);
+      expect(typeof aicAttr.value.intValue).toBe("number");
     });
   });
 

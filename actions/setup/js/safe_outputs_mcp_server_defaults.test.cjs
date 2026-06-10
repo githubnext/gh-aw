@@ -222,7 +222,7 @@ const canWriteDefault = canWriteToDefaultPath();
           }, 500));
       });
     }),
-      it("should have optional branch parameter for push_to_pull_request_branch", async () => {
+      it("should not expose a branch parameter for push_to_pull_request_branch", async () => {
         const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
         fs.writeFileSync(tempConfigPath, JSON.stringify({ push_to_pull_request_branch: {} }));
         const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -266,9 +266,10 @@ const canWriteDefault = canWriteToDefaultPath();
               (expect(pushTool).toBeDefined(),
                 expect(pushTool.inputSchema.required).toEqual(["message"]),
                 expect(pushTool.inputSchema.required).not.toContain("branch"),
-                expect(pushTool.inputSchema.properties.branch).toBeDefined(),
-                expect(pushTool.inputSchema.properties.branch.description).toContain("If omitted"),
-                expect(pushTool.inputSchema.properties.branch.description).toContain("current"),
+                // The agent must not be able to specify a branch — it's always
+                // derived from the pull request's head ref. See issue #37835.
+                expect(pushTool.inputSchema.properties.branch).toBeUndefined(),
+                expect(pushTool.description).toMatch(/derived from the pull request/i),
                 resolve());
             }, 500));
         });

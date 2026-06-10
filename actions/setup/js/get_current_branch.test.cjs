@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { execSync } from "child_process";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 describe("getCurrentBranch", () => {
   let originalEnv;
@@ -92,5 +96,65 @@ describe("getCurrentBranch", () => {
       // This is acceptable if we're not in a git repo
       expect(error.message).toContain("Failed to determine current branch");
     }
+  });
+});
+
+describe("getCurrentBranch detached-HEAD handling", () => {
+  let tmpDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = {
+      GITHUB_HEAD_REF: process.env.GITHUB_HEAD_REF,
+      GITHUB_REF_NAME: process.env.GITHUB_REF_NAME,
+      GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
+    };
+    delete process.env.GITHUB_HEAD_REF;
+    delete process.env.GITHUB_REF_NAME;
+    delete process.env.GITHUB_WORKSPACE;
+
+    // Create a real git repo and leave it in detached-HEAD state so that
+    // `git rev-parse --abbrev-ref HEAD` returns the literal string "HEAD".
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-detached-"));
+    execSync("git init -b main", { cwd: tmpDir, stdio: "pipe" });
+    execSync("git config user.email 'test@example.com'", { cwd: tmpDir, stdio: "pipe" });
+    execSync("git config user.name 'Test User'", { cwd: tmpDir, stdio: "pipe" });
+    fs.writeFileSync(path.join(tmpDir, "file.txt"), "content");
+    execSync("git add file.txt", { cwd: tmpDir, stdio: "pipe" });
+    execSync("git commit -m 'init'", { cwd: tmpDir, stdio: "pipe" });
+    const sha = execSync("git rev-parse HEAD", { cwd: tmpDir, stdio: "pipe" }).toString().trim();
+    // Detach HEAD by checking out the commit SHA directly.
+    execSync(`git checkout ${sha}`, { cwd: tmpDir, stdio: "pipe" });
+  });
+
+  afterEach(() => {
+    if (originalEnv.GITHUB_HEAD_REF !== undefined) process.env.GITHUB_HEAD_REF = originalEnv.GITHUB_HEAD_REF;
+    else delete process.env.GITHUB_HEAD_REF;
+    if (originalEnv.GITHUB_REF_NAME !== undefined) process.env.GITHUB_REF_NAME = originalEnv.GITHUB_REF_NAME;
+    else delete process.env.GITHUB_REF_NAME;
+    if (originalEnv.GITHUB_WORKSPACE !== undefined) process.env.GITHUB_WORKSPACE = originalEnv.GITHUB_WORKSPACE;
+    else delete process.env.GITHUB_WORKSPACE;
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch (_) {}
+  });
+
+  it("falls back to GITHUB_HEAD_REF when git returns HEAD (detached-HEAD state)", async () => {
+    process.env.GITHUB_HEAD_REF = "feature/pr-head-ref";
+    const { getCurrentBranch } = await import("./get_current_branch.cjs");
+    const result = getCurrentBranch(tmpDir);
+    expect(result).toBe("feature/pr-head-ref");
+  });
+
+  it("falls back to GITHUB_REF_NAME when git returns HEAD and GITHUB_HEAD_REF is absent", async () => {
+    process.env.GITHUB_REF_NAME = "feature/pr-ref-name";
+    const { getCurrentBranch } = await import("./get_current_branch.cjs");
+    const result = getCurrentBranch(tmpDir);
+    expect(result).toBe("feature/pr-ref-name");
+  });
+
+  it("throws an actionable error when git returns HEAD and no env vars are set", async () => {
+    const { getCurrentBranch } = await import("./get_current_branch.cjs");
+    expect(() => getCurrentBranch(tmpDir)).toThrow("detached-HEAD");
   });
 });

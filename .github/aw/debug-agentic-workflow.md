@@ -107,6 +107,10 @@ Inspect these when available:
 - prompt ambiguity or lack of context
 - timeout pressure
 - unnecessary token consumption
+- expensive model invoked on events that cheap triage could resolve
+- expensive model reading large raw logs or payloads that should be queried on demand
+- orchestrator context bloated by raw worker/tool output instead of compact summaries
+- unbounded sub-agent fan-out or recursive delegation
 - safe-output validation failures
 
 ## Workflow-Internal Use of `gh aw`
@@ -125,6 +129,8 @@ When you suggest a fix:
 2. explain the reason briefly
 3. validate with `gh aw compile <workflow-name>`
 4. suggest another run only after the workflow compiles
+
+When token cost is part of the issue, compare before/after runs with `gh aw audit` and inspect `aic`, input/output tokens, and cache read/write tokens. Treat quality regressions as failures even when token usage drops.
 
 ## Final Response Rules
 

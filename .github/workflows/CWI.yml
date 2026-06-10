@@ -117,3 +117,10 @@ jobs:
           GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
         run: |
           go test -v -timeout=5m -tags 'integration' -run 'TestLogs' ./pkg/cli
+
+      - name: Run Windows MCP server integration test
+        shell: bash
+        env:
+          GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
+        run: |
+          go test -v -timeout=5m -tags 'integration' -run '^TestMCPServer_WindowsSmokeCommands$' ./pkg/cli

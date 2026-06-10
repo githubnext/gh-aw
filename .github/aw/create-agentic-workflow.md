@@ -156,7 +156,17 @@ Rules:
 - Default behavior is team-only triggering.
 - For community-facing issue triage or other public entrypoints, recommend `roles: all`.
 
-### 8. Omit unnecessary defaults
+### 8. Add cost-aware triage and context flow
+
+- For high-volume inputs, design a cheap triage step before expensive analysis.
+- Require explicit `noop` or safe-output behavior for known, duplicate, stale, or low-value cases.
+- Reserve frontier-model reasoning for ambiguous/high-value cases and final synthesis.
+- Prefer pull-on-demand context retrieval over prompt-stuffing large logs or API payloads.
+- Use deterministic `steps:` plus compact files under `/tmp/gh-aw/` when large data must be preprocessed.
+
+See also: [workflow-patterns.md](workflow-patterns.md), [subagents.md](subagents.md), and [token-optimization.md](token-optimization.md).
+
+### 9. Omit unnecessary defaults
 
 Avoid adding fields just to restate defaults.
 
@@ -236,6 +246,17 @@ Before finalizing any `pull_request`-triggered reporting workflow, verify:
 - [ ] **Safe outputs**: `add-comment` for inline findings; `create-issue` for incidents needing follow-up
 - [ ] **Network**: infer ecosystem from repository lock files; never use `defaults` alone when packages are installed
 - [ ] **`noop` required**: prompt instructs the agent to call `noop` with a brief explanation when no issues are found
+
+## Generated Workflow Quality Checklist
+
+Before finalizing any newly generated workflow, verify:
+
+- [ ] **Trigger fit**: trigger matches user intent and event granularity (for example `pull_request`, `workflow_run`, `deployment_status`, `schedule`, `slash_command`)
+- [ ] **Tool fit**: enabled tools are the minimal set needed for reads/analysis (prefer `gh-proxy`; add `playwright`/`cache-memory` only when required)
+- [ ] **Safe outputs**: all visible writes route through `safe-outputs:` and include `noop` for explicit no-op outcomes
+- [ ] **Permissions**: agent job remains read-only; no direct write scopes granted
+- [ ] **Network**: access is inferred from repository ecosystem and avoids `network: defaults` alone for install/build/test workflows
+- [ ] **Prompt clarity**: prompt is concise, context-aware, and clearly states expected outputs and stop/no-op behavior
 
 ## Multi-Repository Requests
 

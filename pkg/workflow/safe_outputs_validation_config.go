@@ -208,9 +208,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"push_to_pull_request_branch": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"branch":              {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
 			"message":             {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"pull_request_number": {IssueOrPRNumber: true},
+			"branch":              {Type: "string", Sanitize: true, MaxLength: 256}, // Optional: stripped before MCP call; validated for type/length when present.
 		},
 	},
 	"create_pull_request_review_comment": {

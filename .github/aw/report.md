@@ -4,9 +4,9 @@ description: Guidelines for creating agentic workflows that generate reports —
 
 # Report Generation
 
-For agentic workflows that generate reports — status updates, audits, summaries, or any structured output posted as a GitHub issue, discussion, or comment.
+For workflows that generate reports — status updates, audits, summaries — posted as GitHub issues, discussions, or comments.
 
-## Choosing the Right Output Type
+## Choosing the Output Type
 
 | Use case | Recommended output |
 |---|---|
@@ -14,30 +14,22 @@ For agentic workflows that generate reports — status updates, audits, summarie
 | Inline update on an existing issue or PR | `add-comment` with `hide-older-comments` |
 | Discussion-based report (only when explicitly requested) | `create-discussion` with `close-older-discussions` |
 
-Default to `create-issue` — issues are searchable and support full close/expire cleanup. Only use `create-discussion` when explicitly requested.
+Default to `create-issue` — searchable, supports close/expire cleanup. Use `create-discussion` only when explicitly requested.
 
-### PM/Stakeholder Digest Guidance
+### PM/Stakeholder Digests
 
-For product, stakeholder, and leadership digests:
-
-- Use `create-issue` when the report is operational (backlog follow-ups, ownership tracking, recurring status history).
-- Use `create-discussion` only when the requester explicitly wants discussion-native collaboration (threaded ideation, broad async feedback).
-- If intent is unclear, default to `create-issue` and note in the prompt that discussions require explicit request.
-
-Examples:
-
-- Weekly release health digest for engineering managers → `create-issue`
-- Monthly roadmap status with action items and owners → `create-issue`
-- Community-facing product update seeking open feedback → `create-discussion` (explicitly requested)
+- `create-issue` for operational reports (backlog follow-ups, ownership tracking, recurring status).
+- `create-discussion` only when the requester explicitly wants threaded collaboration / async feedback.
+- If unclear, default to `create-issue`.
 
 ## Automatic Cleanup
 
-Always configure cleanup for scheduled or recurring reports.
+Configure cleanup for scheduled or recurring reports.
 
-- **`expires`**: Auto-closes after a time period (e.g. `7`, `2w`, `1m`). Use when reports go stale after a fixed window.
-- **`close-older-issues: true`**: Closes previous issues from the same workflow. Requires `title-prefix` or `labels`.
-- **`close-older-discussions: true`**: Closes older matching discussions as "OUTDATED". Requires `title-prefix` or `labels`.
-- **`hide-older-comments: true`**: Minimizes previous comments from the same workflow. Useful for rolling status updates.
+- **`expires`** — auto-close after a window (e.g. `7`, `2w`, `1m`).
+- **`close-older-issues: true`** — close previous issues from the same workflow. Requires `title-prefix` or `labels`.
+- **`close-older-discussions: true`** — close older matching discussions as "OUTDATED". Requires `title-prefix` or `labels`.
+- **`hide-older-comments: true`** — minimize previous comments. Useful for rolling status updates.
 
 **Recommended for recurring reports**: `create-issue` with `close-older-issues: true` and a stable `title-prefix`.
 
@@ -60,28 +52,22 @@ safe-outputs:
 
 ### Progressive Disclosure
 
-Wrap detailed content in `<details><summary>Section Name</summary>` tags. Use for:
-- Verbose details (full logs, raw data)
-- Secondary information (minor warnings, extra context)
-- Per-item breakdowns when there are many items
-
-Keep critical information visible (summary, critical issues, key metrics).
+Wrap detail content in `<details><summary>Section Name</summary>`. Use for verbose logs/raw data, secondary info, per-item breakdowns. Keep summary, critical issues, and key metrics visible.
 
 ### Alerts Instead of Emojis
 
-Use GitHub alert syntax for status and warning callouts:
-- `> [!NOTE]` for neutral status/context
-- `> [!WARNING]` for warnings
-- `> [!CAUTION]` for high-risk or blocking issues
+- `> [!NOTE]` — neutral status
+- `> [!WARNING]` — warnings
+- `> [!CAUTION]` — high-risk or blocking
 
-Do not use emoji-only severity markers in headings or status lines (e.g., `✅`, `⚠️`, `❌`, `🧪`).
+Do not use emoji severity markers (`✅`, `⚠️`, `❌`, `🧪`).
 
-### Report Structure Pattern
+### Structure Pattern
 
-1. **Overview**: 1–2 paragraphs summarizing key findings
-2. **Critical Information**: Show immediately (summary stats, critical issues)
-3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
-4. **Context**: Add helpful metadata (workflow run, date, trigger)
+1. **Overview** — 1–2 paragraphs of key findings
+2. **Critical info** — summary stats, critical issues (always visible)
+3. **Details** — `<details><summary>...</summary>` for expanded content
+4. **Context** — workflow run, date, trigger
 
 ### Example Report Structure
 
@@ -122,10 +108,10 @@ Do not use emoji-only severity markers in headings or status lines (e.g., `✅`,
 
 ## Avoiding Mentions and Backlinks
 
-Without filtering, `@username` notifies users and `#123` creates cross-reference backlinks on that issue/PR — noise every run.
+Without filtering, `@username` notifies users and `#123` creates cross-reference backlinks — noise every run.
 
-- **`mentions: false`** — escapes all `@mentions`, no notifications sent.
-- **`allowed-github-references: []`** — escapes all `#123` / `owner/repo#123` references, no backlinks.
+- **`mentions: false`** — escapes all `@mentions`, no notifications.
+- **`allowed-github-references: []`** — escapes `#123` / `owner/repo#123`, no backlinks.
 - **`max-bot-mentions: 0`** — neutralizes bot-trigger phrases like `fixes #123` / `closes #456`.
 
 ```yaml
