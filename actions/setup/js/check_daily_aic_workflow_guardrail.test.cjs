@@ -200,4 +200,97 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete process.env.GH_AW_GITHUB_TOKEN;
     }
   });
+
+  it("main() logs rate limit consumption delta when guardrail runs without candidate runs", async () => {
+    // Verify that fetchAndLogRateLimit is called at the start and end of the guardrail
+    // and that a consumption-delta diagnostic log is emitted.
+    const coreInfos = [];
+    const coreOutputs = {};
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: msg => coreInfos.push(msg),
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    let rateLimitCallCount = 0;
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => {
+            rateLimitCallCount += 1;
+            const remaining = rateLimitCallCount === 1 ? 4995 : 5000;
+            return {
+              data: {
+                resources: {
+                  core: { limit: 5000, remaining, used: 5000 - remaining, reset: Math.floor(Date.now() / 1000) + 3600 },
+                },
+              },
+              headers: {},
+            };
+          },
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 777,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => ({
+            data: { workflow_runs: [] },
+            headers: {},
+          }),
+        },
+      },
+    };
+
+    const mockContext = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 99,
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "50000";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+
+      // A consumption-delta log must have been emitted.
+      const consumptionLog = coreInfos.find(msg => msg.includes("rate limit consumed by daily AIC guardrail"));
+      expect(consumptionLog).toBeDefined();
+      expect(consumptionLog).toContain("rateLimitBeforeInspection");
+      expect(consumptionLog).toContain("rateLimitAfterInspection");
+      expect(consumptionLog).toContain("consumed");
+      const detailsPrefix = "[daily-workflow-aic] GitHub API rate limit consumed by daily AIC guardrail: ";
+      const details = JSON.parse(consumptionLog.slice(detailsPrefix.length));
+      expect(details).toMatchObject({
+        rateLimitBeforeInspection: 4995,
+        rateLimitAfterInspection: 5000,
+        consumed: 0,
+      });
+
+      // fetchAndLogRateLimit must have been called at least twice (start + end).
+      expect(rateLimitCallCount).toBe(2);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
 });

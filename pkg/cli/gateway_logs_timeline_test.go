@@ -581,6 +581,7 @@ func TestTimelineEventIcon_AllKinds(t *testing.T) {
 		TimelineKindAgentToolDone,
 		TimelineKindAssistantMessage,
 		TimelineKindReasoning,
+		TimelineKindSteering,
 	}
 	for _, k := range kinds {
 		icon := timelineEventIcon(k)
@@ -638,5 +639,322 @@ func TestRenderMessageSnippet_SkipsBlankLines(t *testing.T) {
 	out := renderMessageSnippet(content, "  ", noop, noop)
 	if !strings.Contains(out, "first line") || !strings.Contains(out, "second line") {
 		t.Errorf("renderMessageSnippet = %q; want non-blank lines shown", out)
+	}
+}
+
+// ─── steeringEntryToTimelineEvent ────────────────────────────────────────────
+
+func TestSteeringEntryToTimelineEvent_TokenWarning(t *testing.T) {
+	entry := proxyEventsEntry{
+		Event:   tokenSteeringEventName,
+		Message: awfTokenWarningPrefix + " You have used 80% of your effective token budget.",
+	}
+	evt, ok := steeringEntryToTimelineEvent(entry)
+	if !ok {
+		t.Fatal("steeringEntryToTimelineEvent returned ok=false; want true for token_steering")
+	}
+	if evt.Kind != TimelineKindSteering {
+		t.Errorf("Kind = %q; want steering", evt.Kind)
+	}
+	if evt.Status != "token" {
+		t.Errorf("Status = %q; want token", evt.Status)
+	}
+	if evt.Reason == "" {
+		t.Error("Reason is empty; want the steering message text")
+	}
+	if evt.Source != TimelineSourceFirewall {
+		t.Errorf("Source = %q; want firewall", evt.Source)
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_TimeoutWarning(t *testing.T) {
+	entry := proxyEventsEntry{
+		EventNameSnake: timeoutSteeringEventName,
+		Message:        awfTimeWarningPrefix + " You have used 80% of your allotted run time.",
+	}
+	evt, ok := steeringEntryToTimelineEvent(entry)
+	if !ok {
+		t.Fatal("steeringEntryToTimelineEvent returned ok=false; want true for timeout_steering")
+	}
+	if evt.Status != "time" {
+		t.Errorf("Status = %q; want time", evt.Status)
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_WithTimestamp(t *testing.T) {
+	entry := proxyEventsEntry{
+		Event:     tokenSteeringEventName,
+		Message:   awfTokenWarningPrefix + " 90% used.",
+		Timestamp: "2024-01-15T10:05:00.000Z",
+	}
+	evt, ok := steeringEntryToTimelineEvent(entry)
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if evt.Time.IsZero() {
+		t.Error("Time is zero; want parsed timestamp")
+	}
+	if evt.Time.UTC().Format("15:04:05") != "10:05:00" {
+		t.Errorf("Time = %s; want 10:05:00", evt.Time.UTC().Format("15:04:05"))
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_WithoutTimestamp(t *testing.T) {
+	entry := proxyEventsEntry{
+		Event:   tokenSteeringEventName,
+		Message: awfTokenWarningPrefix + " budget warning.",
+	}
+	evt, ok := steeringEntryToTimelineEvent(entry)
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if !evt.Time.IsZero() {
+		t.Errorf("Time = %s; want zero time for entry without timestamp", evt.Time)
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_NonSteering(t *testing.T) {
+	entry := proxyEventsEntry{
+		Event:   "request.forwarded",
+		Message: "some other message",
+	}
+	_, ok := steeringEntryToTimelineEvent(entry)
+	if ok {
+		t.Error("steeringEntryToTimelineEvent returned ok=true for non-steering event; want false")
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_WrongMessagePrefix(t *testing.T) {
+	entry := proxyEventsEntry{
+		Event:   tokenSteeringEventName,
+		Message: "warn 95%", // wrong prefix
+	}
+	_, ok := steeringEntryToTimelineEvent(entry)
+	if ok {
+		t.Error("steeringEntryToTimelineEvent returned ok=true for token_steering with wrong message prefix")
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_CamelCaseEventName(t *testing.T) {
+	entry := proxyEventsEntry{
+		EventNameCamel: timeoutSteeringEventName,
+		Message:        awfTimeWarningPrefix + " 90% time used.",
+	}
+	evt, ok := steeringEntryToTimelineEvent(entry)
+	if !ok {
+		t.Fatal("expected ok=true for camelCase eventName field")
+	}
+	if evt.Status != "time" {
+		t.Errorf("Status = %q; want time", evt.Status)
+	}
+}
+
+func TestSteeringEntryToTimelineEvent_TypeField(t *testing.T) {
+	entry := proxyEventsEntry{
+		Type:    tokenSteeringEventName,
+		Message: awfTokenWarningPrefix + " budget warning.",
+	}
+	evt, ok := steeringEntryToTimelineEvent(entry)
+	if !ok {
+		t.Fatal("expected ok=true for 'type' field")
+	}
+	if evt.Status != "token" {
+		t.Errorf("Status = %q; want token", evt.Status)
+	}
+}
+
+// ─── collectSteeringTimelineEvents ───────────────────────────────────────────
+
+func TestCollectSteeringTimelineEvents_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	events, err := collectSteeringTimelineEvents(dir, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("got %d events; want 0 for empty dir", len(events))
+	}
+}
+
+func TestCollectSteeringTimelineEvents_ReadsProxyEvents(t *testing.T) {
+	dir := t.TempDir()
+	logsDir := filepath.Join(dir, "sandbox", "firewall", "logs", "api-proxy-logs")
+	if err := os.MkdirAll(logsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	eventsPath := filepath.Join(logsDir, "events.jsonl")
+
+	lines := strings.Join([]string{
+		`{"event":"token_steering","message":"[AWF TOKEN WARNING] You have used 80% of your effective token budget."}`,
+		`{"event_name":"timeout_steering","message":"[AWF TIME WARNING] You have used 80% of your allotted run time."}`,
+		`{"event":"request.forwarded"}`,
+		`{"event":"token_steering","message":"warn 95%"}`,
+	}, "\n")
+	if err := os.WriteFile(eventsPath, []byte(lines+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := collectSteeringTimelineEvents(dir, false)
+	if err != nil {
+		t.Fatalf("collectSteeringTimelineEvents: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("got %d events; want 2 (only spec-compliant steering events)", len(events))
+	}
+	if events[0].Kind != TimelineKindSteering {
+		t.Errorf("events[0].Kind = %q; want steering", events[0].Kind)
+	}
+	if events[0].Status != "token" {
+		t.Errorf("events[0].Status = %q; want token", events[0].Status)
+	}
+	if events[1].Status != "time" {
+		t.Errorf("events[1].Status = %q; want time", events[1].Status)
+	}
+}
+
+func TestCollectSteeringTimelineEvents_WithTimestamps(t *testing.T) {
+	dir := t.TempDir()
+	logsDir := filepath.Join(dir, "sandbox", "firewall", "logs", "api-proxy-logs")
+	if err := os.MkdirAll(logsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	eventsPath := filepath.Join(logsDir, "events.jsonl")
+
+	lines := strings.Join([]string{
+		`{"event":"token_steering","timestamp":"2024-01-15T10:05:00.000Z","message":"[AWF TOKEN WARNING] 80% used."}`,
+		`{"event":"token_steering","timestamp":"2024-01-15T10:10:00.000Z","message":"[AWF TOKEN WARNING] 90% used."}`,
+	}, "\n")
+	if err := os.WriteFile(eventsPath, []byte(lines+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := collectSteeringTimelineEvents(dir, false)
+	if err != nil {
+		t.Fatalf("collectSteeringTimelineEvents: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("got %d events; want 2", len(events))
+	}
+	if events[0].Time.IsZero() || events[1].Time.IsZero() {
+		t.Error("expected non-zero timestamps for events with timestamp field")
+	}
+}
+
+// ─── BuildUnifiedTimeline includes steering ───────────────────────────────────
+
+func TestBuildUnifiedTimeline_IncludesSteeringEvents(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create proxy events file with one steering entry.
+	logsDir := filepath.Join(dir, "sandbox", "firewall", "logs", "api-proxy-logs")
+	if err := os.MkdirAll(logsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	eventsPath := filepath.Join(logsDir, "events.jsonl")
+	line := `{"event":"token_steering","message":"[AWF TOKEN WARNING] 80% of budget used."}`
+	if err := os.WriteFile(eventsPath, []byte(line+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := BuildUnifiedTimeline(dir, false)
+	if err != nil {
+		t.Fatalf("BuildUnifiedTimeline: %v", err)
+	}
+	var steeringCount int
+	for _, e := range events {
+		if e.Kind == TimelineKindSteering {
+			steeringCount++
+		}
+	}
+	if steeringCount != 1 {
+		t.Errorf("got %d steering events; want 1", steeringCount)
+	}
+}
+
+// ─── renderSteeringRow ────────────────────────────────────────────────────────
+
+func TestRenderSteeringRow_TokenWarning(t *testing.T) {
+	evt := UnifiedTimelineEvent{
+		Time:   time.Date(2024, 1, 15, 10, 5, 0, 0, time.UTC),
+		Source: TimelineSourceFirewall,
+		Kind:   TimelineKindSteering,
+		Status: "token",
+		Reason: awfTokenWarningPrefix + " You have used 80% of your effective token budget.",
+	}
+	row := renderSteeringRow(evt)
+	if len(row) != 5 {
+		t.Fatalf("row len = %d; want 5", len(row))
+	}
+	if row[1] != "FW" {
+		t.Errorf("Src = %q; want FW", row[1])
+	}
+	if !strings.Contains(row[2], "steering") {
+		t.Errorf("Kind = %q; want 'steering'", row[2])
+	}
+	if !strings.Contains(row[3], "AWF TOKEN WARNING") {
+		t.Errorf("Detail = %q; want message text containing 'AWF TOKEN WARNING'", row[3])
+	}
+	if row[4] != "token" {
+		t.Errorf("Status = %q; want token", row[4])
+	}
+}
+
+func TestRenderSteeringRow_TimeWarning(t *testing.T) {
+	evt := UnifiedTimelineEvent{
+		Time:   time.Date(2024, 1, 15, 10, 6, 0, 0, time.UTC),
+		Source: TimelineSourceFirewall,
+		Kind:   TimelineKindSteering,
+		Status: "time",
+		Reason: awfTimeWarningPrefix + " You have used 80% of your allotted run time.",
+	}
+	row := renderSteeringRow(evt)
+	if row[4] != "time" {
+		t.Errorf("Status = %q; want time", row[4])
+	}
+}
+
+// ─── renderUnifiedTimeline includes steering summary ─────────────────────────
+
+func TestRenderUnifiedTimeline_SteeringInSummary(t *testing.T) {
+	now := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+	events := []UnifiedTimelineEvent{
+		{
+			Time: now, Source: TimelineSourceFirewall, Kind: TimelineKindNetworkAllowed,
+			Host: "api.github.com:443", HTTPMethod: "CONNECT",
+		},
+		{
+			Time: now.Add(1 * time.Second), Source: TimelineSourceFirewall, Kind: TimelineKindSteering,
+			Status: "token", Reason: awfTokenWarningPrefix + " 80% budget used.",
+		},
+	}
+	out := renderUnifiedTimeline(events)
+	if !strings.Contains(out, "steering=1") {
+		t.Errorf("output missing 'steering=1' in summary; got:\n%s", out)
+	}
+	if !strings.Contains(out, "steering") {
+		t.Errorf("output missing 'steering' kind label; got:\n%s", out)
+	}
+}
+
+// ─── renderUnifiedTimelineStream includes steering ────────────────────────────
+
+func TestRenderUnifiedTimelineStream_SteeringEvent(t *testing.T) {
+	now := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+	events := []UnifiedTimelineEvent{
+		{Time: now, Source: TimelineSourceAgent, Kind: TimelineKindAgentTurn, TurnIndex: 1},
+		{
+			Time:   now.Add(1 * time.Second),
+			Source: TimelineSourceFirewall,
+			Kind:   TimelineKindSteering,
+			Status: "token",
+			Reason: awfTokenWarningPrefix + " 80% budget used.",
+		},
+	}
+	out := renderUnifiedTimelineStream(events)
+	if out == "" {
+		t.Fatal("renderUnifiedTimelineStream returned empty string")
+	}
+	if !strings.Contains(out, "AWF TOKEN WARNING") {
+		t.Errorf("output missing steering message; got:\n%s", out)
 	}
 }

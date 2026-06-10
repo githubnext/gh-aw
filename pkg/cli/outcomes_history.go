@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -174,7 +175,7 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 }
 
 func fetchHistoricalGitHubItems(repo string, limit int, source string) ([]historicalGitHubItem, error) {
-	args := []string{"--repo", repo, "--limit", fmt.Sprintf("%d", limit), "--json", "number,title,labels,url"}
+	args := []string{"--repo", repo, "--limit", strconv.Itoa(limit), "--json", "number,title,labels,url"}
 	spinner := "Listing closed issues..."
 	command := []string{"issue", "list", "--state", "closed"}
 

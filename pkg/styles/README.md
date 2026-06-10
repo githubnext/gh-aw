@@ -1,5 +1,7 @@
 # styles Package
 
+> Centralized Dracula-inspired terminal color palette, adaptive color variables, border definitions, and pre-configured lipgloss styles for consistent CLI output.
+
 The `styles` package provides centralized color constants, adaptive color variables, border definitions, and pre-configured `lipgloss` styles for consistent terminal output across the codebase.
 
 ## Overview
@@ -104,12 +106,35 @@ import "github.com/github/gh-aw/pkg/styles"
 form := huh.NewForm(...).WithTheme(styles.HuhTheme)
 ```
 
-## Design Notes
+## Wasm Build Variants
+
+Under the `js || wasm` build constraint, `theme_wasm.go` replaces all `lipgloss` types with lightweight no-op stubs that return text unchanged (no ANSI escape codes emitted):
+
+| Type | Implements | Behavior |
+|------|-----------|---------|
+| `WasmStyle` | `.Render(...string) string` | Returns input text concatenated, unchanged |
+| `WasmColor` | `color.Color` via `.RGBA()` | Returns transparent black `(0,0,0,0)` |
+| `WasmBorder` | — | No-op placeholder |
+
+All adaptive color variables, border variables, and style variables are re-declared as `WasmColor{}`, `WasmBorder{}`, or `WasmStyle{}` values in the Wasm build.
+
+## Dependencies
+
+**External**:
+- `charm.land/lipgloss/v2` — terminal style rendering (non-Wasm builds)
+- `charm.land/lipgloss/v2/compat` — adaptive color support (`compat.AdaptiveColor`)
+- `charm.land/huh/v2` — form library themed by `HuhTheme` (non-Wasm builds)
+
+## Design Decisions
 
 - Colors are defined with both light and dark hex constants (`hexColor*Light`, `hexColor*Dark`) so tests can assert exact color values without depending on the `lipgloss` type system.
 - The package uses `charm.land/lipgloss/v2` and `charm.land/lipgloss/v2/compat` for adaptive color support.
 - For visual examples and detailed usage guidelines, see `scratchpad/styles-guide.md`.
 - All `*` styles export pre-configured `lipgloss.Style` values (not functions), so they can be used with method chaining: `styles.Error.Copy().Underline(true)`.
+
+## Thread Safety
+
+All exported variables are package-level `lipgloss.Style` values initialized at program startup. They are safe to read concurrently. Creating derived styles via method chaining (e.g., `styles.Error.Copy().Underline(true)`) MUST be done per call site — `lipgloss.Style` values SHOULD NOT be mutated after initialization.
 
 ---
 

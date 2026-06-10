@@ -81,6 +81,12 @@ Conduct a thorough investigation comparing the **current state of Copilot CLI** 
 
 ## Research Phases
 
+### Tool Guardrails (Required)
+
+- Do **not** use inline Python shell one-liners (for example `shell(python3 -c "...")`) to read or parse repository files.
+- Prefer structured workflow tools for repository inspection (`glob`, `grep`, `view`) before falling back to shell commands.
+- Keep shell usage focused on simple allowed commands; avoid ad-hoc scripting patterns that trigger tool-denial guardrails.
+
 ### Phase 1: Inventory Current Copilot CLI Capabilities
 
 **Goal**: Understand what Copilot CLI offers today

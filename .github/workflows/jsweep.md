@@ -196,19 +196,38 @@ CLEANED_FILE="<basename>"
 CACHE_STATUS="<hit or miss>"
 
 export STATE_FILE TODAY RUN_ID CLEANED_FILE CACHE_STATUS
-python3 - << 'PYEOF'
-import json, os
-# Intentionally compact for token efficiency; behavior must remain unchanged.
-s={"cleaned_files":[],"last_run":"","last_file":"","cache_hit_history":[]}
-try: s=json.load(open(os.environ["STATE_FILE"]))
-except Exception: pass
-if os.environ["CLEANED_FILE"] not in [e["file"] for e in s.get("cleaned_files",[])]:
-    s.setdefault("cleaned_files",[]).append({"file":os.environ["CLEANED_FILE"],"cleaned_at":os.environ["TODAY"]})
-s["last_run"]=os.environ["TODAY"]; s["last_file"]=os.environ["CLEANED_FILE"]
-s.setdefault("cache_hit_history",[]).append({"run_id":os.environ["RUN_ID"],"date":os.environ["TODAY"],"status":os.environ["CACHE_STATUS"]})
-s["cache_hit_history"]=s["cache_hit_history"][-14:]
-json.dump(s, open(os.environ["STATE_FILE"], "w"), indent=2); print(json.dumps(s, indent=2))
-PYEOF
+node - << 'JSEOF'
+const fs = require('fs')
+
+const stateFile = process.env.STATE_FILE
+const today = process.env.TODAY
+const runId = process.env.RUN_ID
+const cleanedFile = process.env.CLEANED_FILE
+const cacheStatus = process.env.CACHE_STATUS
+
+let state = { cleaned_files: [], last_run: '', last_file: '', cache_hit_history: [] }
+try {
+  state = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
+} catch (error) {
+  // ENOENT is expected on cold start; missing state file is not an error condition.
+  if (error.code !== 'ENOENT') {
+    console.warn(`Warning: could not load state from ${stateFile}; using default state. ${error.message}`)
+  }
+}
+
+if (!state.cleaned_files.some((entry) => entry.file === cleanedFile)) {
+  state.cleaned_files.push({ file: cleanedFile, cleaned_at: today })
+}
+
+state.last_run = today
+state.last_file = cleanedFile
+state.cache_hit_history.push({ run_id: runId, date: today, status: cacheStatus })
+state.cache_hit_history = state.cache_hit_history.slice(-14)
+
+const serialized = JSON.stringify(state, null, 2)
+fs.writeFileSync(stateFile, serialized)
+console.log(serialized)
+JSEOF
 ```
 
 2. **Log final cache contents** to confirm the write succeeded:
@@ -253,6 +272,7 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 ## Important Constraints
 
 - **PRIORITIZE files with `@ts-nocheck`** - These files need type checking enabled. Remove `@ts-nocheck`, add proper type annotations, and fix all type errors.
+- **Do not use destructive cleanup commands** like `rm -rf /tmp/...`; if cleanup is required, only remove known files/directories with narrowly-scoped commands (for example, `rm -f /tmp/gh-aw/cache-memory/jsweep-state.json`).
 - **DO NOT change logic** - only make the code cleaner and more maintainable
 - **Always add or improve tests** - the file must have comprehensive test coverage with at least 5-10 test cases
 - **Preserve all functionality** - ensure the file works exactly as before

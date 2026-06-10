@@ -41,6 +41,61 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "sandbox.agent false with valid justification",
+			data: &WorkflowData{
+				Features: map[string]any{
+					"dangerously-disable-sandbox-agent": "controlled environment with no internet access",
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+			},
+		},
+		{
+			name: "sandbox.agent false without justification",
+			data: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "dangerously-disable-sandbox-agent",
+		},
+		{
+			name: "sandbox.agent false with short justification",
+			data: &WorkflowData{
+				Features: map[string]any{
+					"dangerously-disable-sandbox-agent": "too short",
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "at least 20 characters",
+		},
+		{
+			name: "sandbox.agent false with expression justification",
+			data: &WorkflowData{
+				Features: map[string]any{
+					"dangerously-disable-sandbox-agent": "${{ inputs.reason }}",
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "expressions",
+		},
 	}
 
 	for _, tt := range tests {

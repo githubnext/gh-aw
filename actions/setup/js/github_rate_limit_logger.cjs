@@ -123,14 +123,19 @@ function logRateLimitFromResponse(response, operation) {
  * Use this for a point-in-time snapshot at the start or end of a script,
  * rather than after every individual API call.
  *
+ * Returns the core rate-limit snapshot so callers can use a single API call
+ * for both logging and in-memory rate-limit tracking.
+ *
  * @param {any} github - The github object injected by actions/github-script
  * @param {string} [operation="fetch"] - Label recorded in each log entry
+ * @returns {Promise<{remaining:number,limit:number,used:number,reset:string}|null>}
+ *   Core rate-limit data, or null if the call fails or the core resource is absent.
  */
 async function fetchAndLogRateLimit(github, operation = "fetch") {
   try {
     const response = await github.rest.rateLimit.get();
     const resources = response?.data?.resources;
-    if (!resources) return;
+    if (!resources) return null;
 
     const timestamp = new Date().toISOString();
     for (const [resource, data] of Object.entries(resources)) {
@@ -148,8 +153,25 @@ async function fetchAndLogRateLimit(github, operation = "fetch") {
       };
       appendEntry(entry);
     }
+
+    const coreData = resources.core;
+    if (!coreData || typeof coreData !== "object") return null;
+    const remaining = Number(coreData.remaining);
+    const limit = Number(coreData.limit);
+    const used = Number(coreData.used);
+    const resetSeconds = Number(coreData.reset);
+    if (!Number.isFinite(remaining) || !Number.isFinite(limit) || !Number.isFinite(used) || !Number.isFinite(resetSeconds)) {
+      return null;
+    }
+    return {
+      remaining,
+      limit,
+      used,
+      reset: new Date(resetSeconds * 1000).toISOString(),
+    };
   } catch (err) {
     core.warning(`github_rate_limit_logger: fetchAndLogRateLimit failed: ${getErrorMessage(err)}`);
+    return null;
   }
 }
 

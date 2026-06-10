@@ -6,13 +6,13 @@ package errstringmatch
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -114,8 +114,7 @@ func isErrDotError(pass *analysis.Pass, expr ast.Expr) bool {
 
 // isStringLiteral returns true when expr is a string literal or untyped string constant.
 func isStringLiteral(pass *analysis.Pass, expr ast.Expr) bool {
-	lit, ok := expr.(*ast.BasicLit)
-	if ok && lit.Kind == token.STRING {
+	if astutil.IsStringLiteral(expr) {
 		return true
 	}
 	// Also accept typed/untyped string constants (e.g. a const identifier).

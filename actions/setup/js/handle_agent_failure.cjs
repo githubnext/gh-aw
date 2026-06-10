@@ -1253,25 +1253,17 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
 
-  try {
-    const templatePath = getPromptPath("tool_denials_exceeded_context.md");
-    const template = fs.readFileSync(templatePath, "utf8");
-    return (
-      "\n" +
-      renderTemplate(template, {
-        denial_count: denialCount,
-        threshold,
-        reason: `\`${normalizedReason}\``,
-        workflow_id: workflowId || "the workflow",
-      })
-    );
-  } catch {
-    return (
-      buildWarningAlertLine("Excessive Tool Denials", `The Copilot SDK stopped the session after ${denialCount}/${threshold} permission denials.`) +
-      `**Last denied request:** \`${normalizedReason}\`\n\n` +
-      "This is a guardrail stop (`guard.tool_denials_exceeded`) and indicates the workflow's allowed tool set does not match the prompt's requested actions.\n"
-    );
-  }
+  const templatePath = getPromptPath("tool_denials_exceeded_context.md");
+  const template = fs.readFileSync(templatePath, "utf8");
+  return (
+    "\n" +
+    renderTemplate(template, {
+      denial_count: denialCount,
+      threshold,
+      reason: normalizedReason,
+      workflow_id: workflowId || "the workflow",
+    })
+  );
 }
 
 /**
@@ -1353,6 +1345,31 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
 
   const templatePath = getPromptPath("agent_timeout.md");
   return "\n" + renderTemplateFromFile(templatePath, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
+}
+
+/**
+ * Determine whether engine-failure context should be included.
+ * Timeout outcomes should rely on dedicated timeout messaging instead.
+ * @param {string} agentConclusion
+ * @param {boolean} hasToolDenialsExceeded
+ * @param {boolean} isTimedOut
+ * @returns {boolean}
+ */
+function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) {
+  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut;
+}
+
+/**
+ * Determine whether issue create/update failed due to token permission limits.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isIssueWritePermissionError(error) {
+  /** @type {{status?: unknown} | null} */
+  const typedError = error && typeof error === "object" ? error : null;
+  const status = Number(typedError?.status);
+  const message = getErrorMessage(error).toLowerCase();
+  return status === 403 && (message.includes("resource not accessible by integration") || message.includes("resource not accessible by personal access token") || message.includes("insufficient permissions"));
 }
 
 /**
@@ -1485,20 +1502,22 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
   const formattedMaxAICredits = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? formatAIC(numericMaxAICredits) : "";
   const overage = Number.isFinite(numericAICredits) && Number.isFinite(numericMaxAICredits) && numericAICredits > numericMaxAICredits ? numericAICredits - numericMaxAICredits : NaN;
   const formattedOverage = Number.isFinite(overage) && overage > 0 ? formatAIC(overage) : "";
-  const metricsRows = [];
-  if (formattedAICredits) {
-    metricsRows.push(`| AI credits used | \`${formattedAICredits}\` |`);
+
+  // Build inline metrics summary (no table, no run URL)
+  let metricsSummary = "";
+  if (formattedAICredits && formattedMaxAICredits) {
+    metricsSummary = ` Used \`${formattedAICredits}\` of \`${formattedMaxAICredits}\` max`;
+    if (formattedOverage) {
+      metricsSummary += ` (over by \`${formattedOverage}\`)`;
+    }
+    metricsSummary += ".";
+  } else if (formattedAICredits) {
+    metricsSummary = ` Used \`${formattedAICredits}\`.`;
   }
-  if (formattedMaxAICredits) {
-    metricsRows.push(`| Guardrail limit (\`max-ai-credits\`) | \`${formattedMaxAICredits}\` |`);
-  }
-  if (formattedOverage) {
-    metricsRows.push(`| Over the limit by | \`${formattedOverage}\` |`);
-  }
-  if (runUrl) {
-    metricsRows.push(`| Run | [View workflow run](${runUrl}) |`);
-  }
-  const metricsTable = metricsRows.length > 0 ? `\n\n| Metric | Value |\n| --- | --- |\n${metricsRows.join("\n")}` : "";
+
+  // Suggest a new limit: 2x current max, or 2x actual usage if max is unknown, or a reasonable default
+  const baseForSuggestion = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? numericMaxAICredits : Number.isFinite(numericAICredits) && numericAICredits > 0 ? numericAICredits : 0;
+  const suggestedCredits = baseForSuggestion > 0 ? Math.ceil(baseForSuggestion * 2) : 2000;
 
   const templateName = "ai_credits_rate_limit_error.md";
   let templatePath = "";
@@ -1512,11 +1531,12 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     return (
       "\n" +
       renderTemplateFromFile(templatePath, {
-        metrics_table: metricsTable,
+        metrics_summary: metricsSummary,
+        suggested_credits: suggestedCredits,
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_table`);
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_summary, suggested_credits`);
   }
 }
 
@@ -2729,7 +2749,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2953,7 +2973,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -3082,7 +3102,11 @@ async function main() {
         await detectAndHandleFailureCascade(owner, repo, newIssue.data.number);
       }
     } catch (error) {
-      core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
+      if (isIssueWritePermissionError(error)) {
+        core.info(`Skipping failure tracking issue creation/update: token lacks issues:write permission (${getErrorMessage(error)})`);
+      } else {
+        core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
+      }
       // Don't fail the workflow if we can't create the issue
     }
   } catch (error) {
@@ -3100,6 +3124,8 @@ module.exports = {
   buildStaleLockFileFailedContext,
   buildDailyAICExceededContext,
   buildTimeoutContext,
+  shouldBuildEngineFailureContext,
+  isIssueWritePermissionError,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   buildReportIncompleteContext,

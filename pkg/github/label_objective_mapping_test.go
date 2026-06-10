@@ -146,9 +146,9 @@ func TestObjectiveMapping_GetObjectiveLabels(t *testing.T) {
 func TestDefaultObjectiveMapping(t *testing.T) {
 	mapping := DefaultObjectiveMapping()
 	require.NotNil(t, mapping)
-	assert.Greater(t, len(mapping.LabelToValue), 0)
+	assert.NotEmpty(t, mapping.LabelToValue)
 	assert.Equal(t, "max", mapping.MultiLabelLogic)
-	assert.Greater(t, len(mapping.PriorityLabels), 0)
+	assert.NotEmpty(t, mapping.PriorityLabels)
 
 	// Verify some expected labels
 	assert.Equal(t, 100, mapping.LabelToValue["critical"])
@@ -240,7 +240,7 @@ func TestLoadObjectiveMappingFromConfig_Default(t *testing.T) {
 
 	mapping := LoadObjectiveMappingFromConfig()
 	require.NotNil(t, mapping)
-	assert.Greater(t, len(mapping.LabelToValue), 0)
+	assert.NotEmpty(t, mapping.LabelToValue)
 	assert.Equal(t, "max", mapping.MultiLabelLogic)
 }
 

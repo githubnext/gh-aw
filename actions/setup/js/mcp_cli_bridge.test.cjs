@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
+import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -210,6 +210,121 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(stderrChunks.join("")).toContain("Progress: 2/5");
     expect(stdoutChunks.join("")).toBe("ok\n");
     expect(process.exitCode).toBe(0);
+  });
+
+  it("keeps top-level help compact for many commands", () => {
+    const tools = Array.from({ length: 25 }, (_, i) => ({
+      name: `tool_${i + 1}`,
+      description: `Description for command ${i + 1} that is intentionally verbose for truncation checks.`,
+    }));
+
+    showHelp("safeoutputs", tools);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    const output = outputLines.join("\n");
+    expect(outputLines.length).toBeLessThanOrEqual(20);
+    expect(output).not.toMatch(/\.\.\. \+\d+ more command\(s\)/);
+    for (const tool of tools) {
+      expect(output).toContain(tool.name);
+    }
+  });
+
+  it("does not truncate top-level help when commands exactly fit the line budget", () => {
+    const tools = Array.from({ length: 14 }, (_, i) => ({
+      name: `tool_${i + 1}`,
+      description: `Description for command ${i + 1}.`,
+    }));
+
+    showHelp("safeoutputs", tools);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    const output = outputLines.join("\n");
+    expect(outputLines.length).toBeLessThanOrEqual(20);
+    expect(output).not.toMatch(/\.\.\. \+\d+ more command\(s\)/);
+    for (const tool of tools) {
+      expect(output).toContain(tool.name);
+    }
+  });
+
+  it("keeps command help compact for many options", () => {
+    const properties = {};
+    for (let i = 1; i <= 24; i++) {
+      properties[`field_${i}`] = { type: "string", description: `Field ${i} description with additional details for truncation.` };
+    }
+
+    showToolHelp("safeoutputs", "create_issue", [
+      {
+        name: "create_issue",
+        description: "Create an issue with many available fields and optional metadata.",
+        inputSchema: {
+          properties,
+          required: ["field_1", "field_2"],
+        },
+      },
+    ]);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    const output = outputLines.join("\n");
+    expect(outputLines.length).toBeLessThanOrEqual(30);
+    expect(output).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(output).toContain("Required options are marked with *.");
+    for (let i = 1; i <= 24; i++) {
+      expect(output).toContain(`--field_${i}`);
+    }
+    expect(output).toContain("--field_1*");
+    expect(output).toContain("--field_2*");
+  });
+
+  it("does not truncate command help when options exactly fit the line budget", () => {
+    const properties = {};
+    for (let i = 1; i <= 13; i++) {
+      properties[`field_${i}`] = { type: "string", description: `Field ${i}.` };
+    }
+
+    showToolHelp("safeoutputs", "create_issue", [
+      {
+        name: "create_issue",
+        description: "Create an issue.",
+        inputSchema: {
+          properties,
+          required: ["field_1"],
+        },
+      },
+    ]);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    const output = outputLines.join("\n");
+    expect(outputLines.length).toBeLessThanOrEqual(30);
+    expect(output).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(output).toContain("Required options are marked with *.");
+    for (let i = 1; i <= 13; i++) {
+      expect(output).toContain(`--field_${i}`);
+    }
+  });
+
+  it("keeps required note when required options are in the compact list", () => {
+    const properties = {};
+    for (let i = 1; i <= 24; i++) {
+      properties[`field_${i}`] = { type: "string", description: `Field ${i}.` };
+    }
+
+    showToolHelp("safeoutputs", "create_issue", [
+      {
+        name: "create_issue",
+        description: "Create an issue.",
+        inputSchema: {
+          properties,
+          required: ["field_23", "field_24"],
+        },
+      },
+    ]);
+
+    const outputLines = stdoutChunks.join("").trimEnd().split("\n");
+    const output = outputLines.join("\n");
+    expect(output).not.toMatch(/\.\.\. \+\d+ more option\(s\)/);
+    expect(output).toContain("Required options are marked with *.");
+    expect(output).toContain("--field_23*");
+    expect(output).toContain("--field_24*");
   });
 
   describe("stdin placeholder removed — '-' is always a literal value", () => {

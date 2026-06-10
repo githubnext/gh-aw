@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"strings"
 	"testing"
 
 	ghmapping "github.com/github/gh-aw/pkg/github"
@@ -43,6 +42,7 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 			Labels: []struct {
 				Name string `json:"name"`
 			}{{Name: "automation"}},
+		},
 		{
 			Number:   2,
 			Title:    "Observability with testing",
@@ -51,6 +51,7 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 			Labels: []struct {
 				Name string `json:"name"`
 			}{{Name: "observability"}, {Name: "testing"}},
+		},
 		{
 			Number:   3,
 			Title:    "No mapped labels",
@@ -59,6 +60,7 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 			Labels: []struct {
 				Name string `json:"name"`
 			}{{Name: "docs"}},
+		},
 	}
 
 	report := buildHistoricalObjectiveReport(historySourceIssues, items, mapping)
@@ -131,5 +133,5 @@ func TestNewOutcomesHistorySubcommand_InheritsGlobalVerboseFlag(t *testing.T) {
 
 	inherited := cmd.InheritedFlags().Lookup("verbose")
 	require.NotNil(t, inherited)
-	assert.True(t, strings.Contains(inherited.Usage, "verbose output"))
+	assert.Contains(t, inherited.Usage, "verbose output")
 }

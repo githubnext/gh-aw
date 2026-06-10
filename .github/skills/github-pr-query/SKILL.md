@@ -69,6 +69,9 @@ Use the `--jq` argument to filter and transform the output:
 - `--state`: Filter by state (open, closed, merged, all). Default: open
 - `--limit`: Maximum number of PRs to fetch. Default: 30
 - `--repo`: Repository in owner/repo format. Default: current repo
+- `--author`: Filter PRs by author login
+- `--app`: Filter PRs by GitHub App author
+- `--search`: Apply GitHub issue/PR search syntax
 - `--jq`: (Optional) jq expression for filtering/transforming output. If omitted, returns schema info
 
 ### Example Queries
@@ -81,6 +84,24 @@ Use the `--jq` argument to filter and transform the output:
 **Get PRs awaiting review:**
 ```bash
 ./query-prs.sh --jq '.[] | select(.reviewDecision == "REVIEW_REQUIRED") | {number, title, author: .author.login}'
+```
+
+**Get PRs authored by GitHub Actions app activity context:**
+```bash
+./query-prs.sh --app github-actions --jq '.[] | {number, title, author: .author.login}'
+```
+
+**Find in-scope review feedback (team/collaborator + trusted automation):**
+```bash
+# Trusted automation is matched by login; humans are matched by association.
+./query-prs.sh --jq \
+  '.[] | {number, title, reviews: [.reviews[]? | select(.author.login == "github-actions[bot]" or .author.login == "app/github-copilot" or .authorAssociation == "MEMBER" or .authorAssociation == "OWNER" or .authorAssociation == "COLLABORATOR")] }'
+```
+
+**Ignore external review feedback:**
+```bash
+./query-prs.sh --jq \
+  '.[] | {number, title, external_reviews: [.reviews[]? | select(.authorAssociation == "CONTRIBUTOR" or .authorAssociation == "FIRST_TIME_CONTRIBUTOR" or .authorAssociation == "FIRST_TIMER" or .authorAssociation == "NONE")] }'
 ```
 
 **List PRs with their labels:**

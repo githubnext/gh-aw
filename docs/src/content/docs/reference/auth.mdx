@@ -298,6 +298,12 @@ For both tool authentication and safe outputs, you can scope the GitHub App toke
 - `repositories: ["*"]` - Org-wide access (all repos in the installation)
 - `repositories: ["repo1", "repo2"]` - Specific repositories only
 
+#### Omitting `owner`
+
+When `owner` is omitted, gh-aw derives the installation owner from the workflow's effective checkout target. For literal `owner/repo` repositories, the owner is emitted directly at compile time; for expression-based repositories, a generated pre-step extracts the owner at runtime before token minting. For `workflow_call` workflows with no explicit `checkout.repository`, derivation falls back to `${{ needs.activation.outputs.target_repo }}`.
+
+This lets multi-org workflows mint App tokens against the effective target without setting `owner:` explicitly. An explicit `owner:` always takes precedence. Owner derivation applies under `checkout[*].github-app`, top-level `safe-outputs.github-app`, and `tools.github.github-app`.
+
 ### Gracefully Skip Minting When Keys Are Missing (`ignore-if-missing:`)
 
 By default, jobs fail when `client-id` or `private-key` resolve to empty strings at runtime — for example, on fork pull requests where App secrets are unavailable. Set `ignore-if-missing: true` to skip the token mint step instead and fall back to the standard non-App token chain (`secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN`):

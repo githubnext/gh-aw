@@ -250,6 +250,8 @@ imports:
 - `env:` - Environment variables passed into the imported workflow context (object). Use when a shared workflow relies on environment variables that must be supplied by the importing workflow.
 - `checkout:` - Ref (branch, tag, or SHA) to check out when processing this import (string). Overrides the default checkout for this specific import entry.
 
+Conditional `imports:` entries are not supported. For experiment-specific prompt variants, keep the import unconditional and gate a `{{#runtime-import? ...}}` block (optional form) in the workflow body instead. The optional form is not promoted to unconditional lock-file macros, so the content is only injected when the condition is true at runtime.
+
 Inside the imported workflow, access values via `${{ github.aw.import-inputs.<name> }}`.
 
 ### Import File Structure

@@ -49,9 +49,8 @@ func TestBuildCacheMemoryPromptSection_SingleDefaultCacheWithAllowedExtensions(t
 
 	require.NotNil(t, section, "Should return a prompt section")
 	require.NotNil(t, section.EnvVars, "Should have environment variables")
-	// Allowed extensions should be wrapped in an XML element for the agent prompt
-	assert.Equal(t, "\n<allowed-extensions>.json, .txt</allowed-extensions>", section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"],
-		"Should wrap allowed extensions in XML element")
+	assert.Equal(t, "\nAllowed file extensions: .json, .txt.", section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"],
+		"Should include allowed extensions guidance")
 }
 
 func TestBuildCacheMemoryPromptSection_SingleDefaultCacheWithDescription(t *testing.T) {
@@ -74,7 +73,7 @@ func TestBuildCacheMemoryPromptSection_SingleDefaultCacheWithDescription(t *test
 	// Verify environment variables include description
 	require.NotNil(t, section.EnvVars, "Should have environment variables")
 	assert.Equal(t, "/tmp/gh-aw/cache-memory/", section.EnvVars["GH_AW_CACHE_DIR"], "Should have correct cache directory")
-	assert.Equal(t, " My custom cache", section.EnvVars["GH_AW_CACHE_DESCRIPTION"], "Description should be prefixed with space")
+	assert.Equal(t, "My custom cache", section.EnvVars["GH_AW_CACHE_DESCRIPTION"], "Description should match input")
 }
 
 func TestBuildCacheMemoryPromptSection_MultipleCaches(t *testing.T) {
@@ -131,8 +130,8 @@ func TestBuildCacheMemoryPromptSection_MultipleCachesWithAllowedExtensions(t *te
 	require.NotNil(t, section, "Should return a prompt section")
 	require.NotNil(t, section.EnvVars, "Should have environment variables")
 	// Union of .json, .jsonl, .txt — sorted
-	assert.Equal(t, "\n<allowed-extensions>.json, .jsonl, .txt</allowed-extensions>", section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"],
-		"Should wrap union of allowed extensions in XML element")
+	assert.Equal(t, "\nAllowed file extensions: .json, .jsonl, .txt.", section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"],
+		"Should include union of allowed extensions guidance")
 }
 
 func TestBuildCacheMemoryPromptSection_SingleNonDefaultCache(t *testing.T) {

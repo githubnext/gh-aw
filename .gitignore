@@ -41,6 +41,9 @@ run-*/
 ehthumbs.db
 Thumbs.db
 
+# Snapshot files
+__snapshots__/
+
 # PNG files (except docs/public/ and subfolders)
 *.png
 !docs/public/**/*.png

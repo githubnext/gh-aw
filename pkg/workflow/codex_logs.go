@@ -381,3 +381,9 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 func (e *CodexEngine) GetLogParserScriptId() string {
 	return "parse_codex_log"
 }
+
+// GetErrorDetectionScriptId returns the JavaScript script name for detecting
+// post-run agent errors from the host runner (including invalid/unsupported model names).
+func (e *CodexEngine) GetErrorDetectionScriptId() string {
+	return "detect_agent_errors"
+}

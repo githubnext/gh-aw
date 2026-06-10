@@ -5,6 +5,7 @@ package parser
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,4 +26,15 @@ func TestParseNestedImportEntries_LenientArrayParsing(t *testing.T) {
 	require.Nil(t, entries[0].inputs)
 	require.Equal(t, "valid-b.md", entries[1].path)
 	require.Equal(t, map[string]any{"env": "prod"}, entries[1].inputs)
+}
+
+func TestParseImportSpecsFromArray_RejectsIfField(t *testing.T) {
+	_, err := parseImportSpecsFromArray([]any{
+		map[string]any{
+			"uses": "shared/workflow.md",
+			"if":   "experiments.variant == 'a'",
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "import 'if' is no longer supported")
 }

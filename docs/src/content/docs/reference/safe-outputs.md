@@ -129,6 +129,8 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for compre
 
 #### `create_issue` tool field schema (`fields`)
 
+`create_issue.body` must be between **20** and **65000** characters.
+
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `fields` | `array<object>` | No | Optional issue field updates to apply immediately after issue creation. | `[{"name":"Priority","value":"P1"}]` |
@@ -309,6 +311,20 @@ The author of the parent issue, PR, or discussion receiving the comment is autom
 #### Hide Older Comments
 
 Set `hide-older-comments: true` to minimize previous comments from the same workflow (identified by `GITHUB_WORKFLOW`) before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, `low_quality`.
+
+To also minimize comments from one or more other workflows in the same pass, use the object form with `match`:
+
+```yaml wrap
+safe-outputs:
+  add-comment:
+    hide-older-comments:
+      enabled: true
+      match:
+        - other_workflow
+        - yet-another
+```
+
+`match` is an exact-match list of workflow IDs (the `GITHUB_WORKFLOW` value, not the file name). The current workflow is always included; entries in `match` are added to the set. Set `enabled: false` to disable hiding while keeping the object form. The boolean form (`hide-older-comments: true`) is still supported for the single-workflow case.
 
 #### Append-Only Status Comments
 

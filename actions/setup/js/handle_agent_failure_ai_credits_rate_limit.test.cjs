@@ -19,15 +19,23 @@ describe("handle_agent_failure AI Credits rate-limit context", () => {
     delete process.env.GH_AW_PROMPTS_DIR;
   });
 
-  it("shows actual usage, guardrail details, and collapsible optimization guidance", () => {
+  it("shows inline usage and overage without table, no run URL, with suggested limit snippet", () => {
     const rendered = buildAICreditsRateLimitErrorContext(true, "17.329230000000003", "10.1", "https://github.com/octo/repo/actions/runs/123");
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
-    expect(rendered).toContain("| AI credits used | `17.3` |");
-    expect(rendered).toContain("| Guardrail limit (`max-ai-credits`) | `10.1` |");
-    expect(rendered).toContain("| Over the limit by | `7.23` |");
-    expect(rendered).toContain("| Run | [View workflow run](https://github.com/octo/repo/actions/runs/123) |");
+    // inline metrics
+    expect(rendered).toContain("Used `17.3` of `10.1` max (over by `7.23`)");
+    // no table rows
+    expect(rendered).not.toContain("| AI credits used |");
+    expect(rendered).not.toContain("| Guardrail limit");
+    expect(rendered).not.toContain("| Over the limit by |");
+    // run URL not repeated
+    expect(rendered).not.toContain("https://github.com/octo/repo/actions/runs/123");
+    // suggested limit snippet (2x max = 20.2, ceiled to 21)
+    expect(rendered).toContain("max-ai-credits: 21");
+    // progressive disclosure
     expect(rendered).toContain("<details>");
+    expect(rendered).toContain("<summary>Increase the limit</summary>");
     expect(rendered).toContain("<summary>Tips for reducing AI credit usage</summary>");
     expect(rendered).toContain("https://github.github.com/gh-aw/reference/cost-management/");
     expect(rendered).not.toContain("Consult the billing dashboards for accurate usage and charges.");

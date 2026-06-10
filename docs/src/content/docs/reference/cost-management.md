@@ -11,11 +11,9 @@ The cost of running an agentic workflow is the sum of two components: **GitHub A
 
 **AI Credits (AIC)** are the primary metric for monitoring and budgeting inference costs in gh-aw. One AIC equals $0.01 USD. AIC values are computed from actual provider pricing data and appear in `gh aw logs`, `gh aw audit`, and run footer messages.
 
-| Provider | AIC computation |
-|----------|----------------|
-| `claude` | Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens) |
-| `codex` | Based on OpenAI token pricing |
-| `copilot` | Based on GitHub Copilot usage and billing data surfaced by GitHub documentation; cross-reference [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs |
+- **`claude`** — Based on Anthropic token pricing (prompt + completion + cache read/write + reasoning tokens)
+- **`codex`** — Based on OpenAI token pricing
+- **`copilot`** — Based on GitHub Copilot usage and billing data surfaced by GitHub documentation; cross-reference [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) docs
 
 AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit reports alongside raw token counts, and as `{ai_credits_suffix}` in workflow footer templates. For structured output, each run under `.runs[]` includes an `aic` field and each episode under `.episodes[]` includes `total_aic`.
 
@@ -28,10 +26,8 @@ AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit
 
 Every workflow job consumes Actions compute time billed at standard [GitHub Actions pricing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions). A typical agentic workflow run includes at least two jobs:
 
-| Job | Purpose | Typical duration |
-|-----|---------|-----------------|
-| Pre-activation / detection | Validates the trigger, runs membership checks, evaluates `skip-if-match` conditions | 10–30 seconds |
-| Agent | Runs the AI engine and executes tools | 1–15 minutes |
+- **Pre-activation / detection** — Validates the trigger, runs membership checks, evaluates `skip-if-match` conditions (typical duration: 10–30 seconds)
+- **Agent** — Runs the AI engine and executes tools (typical duration: 1–15 minutes)
 
 Each job also incurs approximately 1.5 minutes of runner setup overhead on top of its execution time.
 
@@ -39,11 +35,9 @@ Each job also incurs approximately 1.5 minutes of runner setup overhead on top o
 
 The agent job invokes an AI engine to process the prompt and call tools. Inference is billed by the provider:
 
-| Engine | Billed to | gh-aw cost metric |
-|--------|-----------|-------------------|
-| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | AIC (based on GitHub Copilot model and billing documentation — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
-| `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | AIC (AI Credits) |
-| `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | AIC (AI Credits) |
+- **`copilot`** — Billed to account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token); cost metric: AIC (based on GitHub Copilot model and billing documentation — see [models.dev](https://models.dev/), [GitHub Copilot models](https://docs.github.com/en/copilot/concepts/about-github-copilot-models), and [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot))
+- **`claude`** — Billed to Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key); cost metric: AIC (AI Credits)
+- **`codex`** — Billed to OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key); cost metric: AIC (AI Credits)
 
 > [!NOTE]
 > For Copilot, inference is charged to the individual account owning `COPILOT_GITHUB_TOKEN`, not the repository or organization. Use a dedicated service account to track spend per workflow.
@@ -93,15 +87,13 @@ Each run under `.runs[]` includes `duration`, `token_usage`, `aic`, `workflow_na
 
 Useful episode fields for usage analysis:
 
-| Field | Meaning |
-|-------|---------|
-| `total_runs` | Workflow runs in the logical execution |
-| `total_tokens` | Raw token aggregate across grouped runs |
-| `total_aic` | Total AI Credits (AIC) for the episode; preferred cost metric |
-| `total_duration` | Wall-clock duration across grouped runs |
-| `primary_workflow` | Main workflow label |
-| `resource_heavy_node_count` | Runs flagged as resource-heavy |
-| `blocked_request_count` | Aggregate blocked-network pressure |
+- **`total_runs`** — Workflow runs in the logical execution
+- **`total_tokens`** — Raw token aggregate across grouped runs
+- **`total_aic`** — Total AI Credits (AIC) for the episode; preferred cost metric
+- **`total_duration`** — Wall-clock duration across grouped runs
+- **`primary_workflow`** — Main workflow label
+- **`resource_heavy_node_count`** — Runs flagged as resource-heavy
+- **`blocked_request_count`** — Aggregate blocked-network pressure
 
 For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric — it reflects provider billing in AI Credits (1 AIC = $0.01 USD).
 
@@ -148,22 +140,32 @@ OpenTelemetry is most useful for answering questions such as:
 "Which repositories are driving the most token usage?",
 "Which model change caused a cost spike?", and
 "Which workflows should be moved to a smaller model or stricter
-trigger policy?" See [OpenTelemetry](/gh-aw/reference/open-telemetry/)
-for the full attribute reference and collector configuration.
+trigger policy?" See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/)
+for collector configuration and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/)
+for the emitted fields.
 
 ## Trigger Frequency and Cost Risk
 
 The primary cost lever for most workflows is how often they run. Some events are inherently high-frequency:
 
-| Trigger type | Risk | Notes |
-|-------------|------|-------|
-| `push` | High | Every commit to any matching branch fires the workflow |
-| `pull_request` | Medium–High | Fires on open, sync, re-open, label, and other subtypes |
-| `issues` | Medium–High | Fires on open, close, label, edit, and other subtypes |
-| `check_run`, `check_suite` | High | Can fire many times per push in busy repositories |
-| `issue_comment`, `pull_request_review_comment` | Medium | Scales with comment activity |
-| `schedule` | Low–Predictable | Fires at a fixed cadence; easy to budget |
-| `workflow_dispatch` | Low | Human-initiated; naturally rate-limited |
+#### High Risk
+
+- **`push`** — Every commit to any matching branch fires the workflow
+- **`check_run`**, **`check_suite`** — Can fire many times per push in busy repositories
+
+#### Medium–High Risk
+
+- **`pull_request`** — Fires on open, sync, re-open, label, and other subtypes
+- **`issues`** — Fires on open, close, label, edit, and other subtypes
+
+#### Medium Risk
+
+- **`issue_comment`**, **`pull_request_review_comment`** — Scales with comment activity
+
+#### Low / Predictable Risk
+
+- **`schedule`** — Fires at a fixed cadence; easy to budget
+- **`workflow_dispatch`** — Human-initiated; naturally rate-limited
 
 > [!CAUTION]
 > Attaching an agentic workflow to `push`, `check_run`, or `check_suite` in an active repository can generate hundreds of runs per day. Start with `schedule` or `workflow_dispatch` while evaluating cost, then move to event-based triggers with safeguards in place.
@@ -212,13 +214,21 @@ Use `pre-agent-steps:` instead of `steps:` when the check must run right before 
 
 Compared to `skip-if-match` and `skip-if-no-match`:
 
-| | `skip-if-match` / `skip-if-no-match` | `noop` in `steps:` |
-|---|---|---|
-| Evaluated in | Pre-activation job (earliest, cheapest) | Agent job (after checkout and steps) |
-| Condition type | GitHub search query | Arbitrary shell or script logic |
-| Actions minutes saved | Yes — agent job is never scheduled | No — agent job still runs through setup |
-| AI Credits saved | Yes | Yes |
-| Best for | Simple label/status/title filters | Complex API calls or file-based conditions |
+#### `skip-if-match` / `skip-if-no-match`
+
+- **Evaluated in:** Pre-activation job (earliest, cheapest)
+- **Condition type:** GitHub search query
+- **Actions minutes saved:** Yes — agent job is never scheduled
+- **AI Credits saved:** Yes
+- **Best for:** Simple label/status/title filters
+
+#### `noop` in `steps:`
+
+- **Evaluated in:** Agent job (after checkout and steps)
+- **Condition type:** Arbitrary shell or script logic
+- **Actions minutes saved:** No — agent job still runs through setup
+- **AI Credits saved:** Yes
+- **Best for:** Complex API calls or file-based conditions
 
 For maximum savings, prefer `skip-if-match` / `skip-if-no-match` when possible. Reserve `noop` in `steps:` for conditions that require full scripting access or the agent job environment.
 
@@ -243,6 +253,16 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 ### Limit Context Size
 
 Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
+
+### Prevent Runaway Costs from Agents
+
+GitHub Agentic Workflows includes default guardrails to help prevent runaway agent costs:
+
+- 20-minute timeout on the agentic step
+- 1000 AI Credits per workflow run
+- 5000 AI Credits per workflow per day (24-hour window)
+
+These defaults can be overridden with frontmatter (`timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) and enterprise environment variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
 
 ### Cap AI Credits per Run
 
@@ -503,14 +523,12 @@ tools:
 
 ### What to Optimize Automatically
 
-| Signal | Automatic action |
-|--------|-----------------|
-| High AIC per run (Claude/Codex) | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
-| High AIC per run (Copilot) | Switch to a smaller model or reduce context size |
-| High turn count per run | Set `max-turns` to cap iterations and prevent runaway loops |
-| Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
-| Long queue times due to concurrency | Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group |
-| Workflow running too often | Change trigger to `schedule` or add `workflow_dispatch` |
+- **High AIC per run (Claude/Codex)** — Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`)
+- **High AIC per run (Copilot)** — Switch to a smaller model or reduce context size
+- **High turn count per run** — Set `max-turns` to cap iterations and prevent runaway loops
+- **Frequent runs with no safe-output produced** — Add or tighten `skip-if-match`
+- **Long queue times due to concurrency** — Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group
+- **Workflow running too often** — Change trigger to `schedule` or add `workflow_dispatch`
 
 > [!NOTE]
 > The `agentic-workflows` tool requires `actions: read` permission and is configured under the `tools:` frontmatter key. See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
@@ -523,12 +541,29 @@ The [githubnext/agentic-ops](https://github.com/githubnext/agentic-ops) reposito
 
 These are rough estimates to help with budgeting. Actual costs vary by prompt size, tool usage, model, and provider pricing.
 
-| Scenario | Frequency | Actions minutes/month | Inference/month |
-|----------|-----------|----------------------|-----------------|
-| Weekly digest (schedule, 1 repo) | 4×/month | ~1 min | Varies by model and prompt size |
-| Issue triage (issues opened, 20/month) | 20×/month | ~10 min | Varies by model and prompt size |
-| PR review on every push (busy repo, 100 pushes/month) | 100×/month | ~100 min | Varies by model and prompt size |
-| On-demand via slash command | User-controlled | Varies | Varies |
+#### Weekly digest (schedule, 1 repo)
+
+- **Frequency:** 4×/month
+- **Actions minutes/month:** ~1 min
+- **Inference/month:** Varies by model and prompt size
+
+#### Issue triage (issues opened, 20/month)
+
+- **Frequency:** 20×/month
+- **Actions minutes/month:** ~10 min
+- **Inference/month:** Varies by model and prompt size
+
+#### PR review on every push (busy repo, 100 pushes/month)
+
+- **Frequency:** 100×/month
+- **Actions minutes/month:** ~100 min
+- **Inference/month:** Varies by model and prompt size
+
+#### On-demand via slash command
+
+- **Frequency:** User-controlled
+- **Actions minutes/month:** Varies
+- **Inference/month:** Varies
 
 > [!TIP]
 > Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
@@ -537,7 +572,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
+- [OpenTelemetry](/gh-aw/guides/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution

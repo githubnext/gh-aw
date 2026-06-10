@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -263,7 +264,7 @@ func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
 	})
 
 	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
-		return nil, fmt.Errorf("no linked issues")
+		return nil, errors.New("no linked issues")
 	}
 	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{{"name": "automation"}, {"name": "testing"}}, nil

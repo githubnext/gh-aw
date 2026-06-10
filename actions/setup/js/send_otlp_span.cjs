@@ -594,6 +594,111 @@ function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, en
 }
 
 // ---------------------------------------------------------------------------
+// OTLP metrics payload builder and sender
+// ---------------------------------------------------------------------------
+
+/**
+ * Build an OTLP/HTTP JSON metrics payload for a single Sum data point.
+ *
+ * Produces a `resourceMetrics` payload ready to POST to `/v1/metrics`.
+ * Uses a Sum with `isMonotonic: true` so backends treat each emitted value as
+ * a per-run total (cumulative, always non-negative).
+ *
+ * @param {{
+ *   name: string,
+ *   description: string,
+ *   unit: string,
+ *   value: number,
+ *   startMs: number,
+ *   endMs: number,
+ *   attributes: Array<{key: string, value: object}>,
+ *   serviceName: string,
+ *   scopeVersion?: string,
+ *   resourceAttributes?: Array<{key: string, value: object}>,
+ * }} opts
+ * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/metrics`
+ */
+function buildOTLPMetricsPayload({ name, description, unit, value, startMs, endMs, attributes, serviceName, scopeVersion, resourceAttributes }) {
+  const resourceAttrs = buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttributes);
+  return {
+    resourceMetrics: [
+      {
+        resource: { attributes: resourceAttrs },
+        scopeMetrics: [
+          {
+            scope: { name: "gh-aw", ...(scopeVersion ? { version: scopeVersion } : {}) },
+            metrics: [
+              {
+                name,
+                description,
+                unit,
+                sum: {
+                  dataPoints: [
+                    {
+                      attributes,
+                      startTimeUnixNano: toNanoString(startMs),
+                      timeUnixNano: toNanoString(endMs),
+                      asDouble: value,
+                    },
+                  ],
+                  aggregationTemporality: 2, // AGGREGATION_TEMPORALITY_CUMULATIVE
+                  isMonotonic: true,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * POST an OTLP metrics payload to `{endpoint}/v1/metrics`.
+ *
+ * Failures are surfaced as `console.warn` and never thrown — metric export
+ * failures must not break the workflow.
+ *
+ * @param {string} endpoint
+ * @param {object} payload
+ * @param {{ headersOverride?: string }} [opts]
+ * @returns {Promise<void>}
+ */
+async function sendOTLPMetric(endpoint, payload, { headersOverride = undefined } = {}) {
+  const url = endpoint.replace(/\/$/, "") + "/v1/metrics";
+  const rawHeaders = headersOverride !== undefined ? headersOverride : process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+  const extraHeaders = parseOTLPHeaders(rawHeaders);
+  const headers = { "Content-Type": "application/json", ...extraHeaders };
+  const body = JSON.stringify(payload);
+  try {
+    const response = hasProxyConfigured(endpoint) ? sendOTLPViaCurl(url, headers, body) : await fetch(url, { method: "POST", headers, body });
+    if (!response.ok) {
+      console.warn(`OTLP metrics export failed: ${response.status} ${response.statusText}`);
+    }
+  } catch (err) {
+    console.warn(`OTLP metrics export error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Send an OTLP metrics payload to all configured endpoints concurrently.
+ *
+ * @param {OTLPEndpointEntry[]} endpoints
+ * @param {object} payload
+ * @returns {Promise<void>}
+ */
+async function sendOTLPMetricToAllEndpoints(endpoints, payload) {
+  if (endpoints.length === 0) return;
+  await Promise.allSettled(
+    endpoints.map(ep =>
+      sendOTLPMetric(ep.url, payload, {
+        headersOverride: ep.headers !== undefined ? ep.headers : "",
+      })
+    )
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Local JSONL mirror
 // ---------------------------------------------------------------------------
 
@@ -2335,6 +2440,27 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
   await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
+
+  // Emit gh-aw.aic as a proper OTLP metric (Sum, cumulative) so backends can
+  // aggregate, alert on, and dashboard AIC without custom field mappings.
+  // Only emitted from the job that owns token usage to avoid double-counting.
+  if (typeof aiCredits === "number" && aiCredits > 0 && jobEmitsOwnTokenUsage) {
+    const metricAttributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.status", runStatus), buildAttr("gh-aw.job.name", jobName)];
+    if (engineId) metricAttributes.push(buildAttr("gh-aw.engine.id", engineId));
+    const aicMetricsPayload = buildOTLPMetricsPayload({
+      name: "gh_aw.aic",
+      description: "AI Credits consumed by this workflow run",
+      unit: "AIC",
+      value: aiCredits,
+      startMs,
+      endMs,
+      attributes: metricAttributes,
+      serviceName,
+      scopeVersion: version,
+      resourceAttributes,
+    });
+    await sendOTLPMetricToAllEndpoints(endpoints, aicMetricsPayload);
+  }
 }
 
 module.exports = {
@@ -2374,4 +2500,7 @@ module.exports = {
   buildExperimentAttributes,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,
+  buildOTLPMetricsPayload,
+  sendOTLPMetric,
+  sendOTLPMetricToAllEndpoints,
 };

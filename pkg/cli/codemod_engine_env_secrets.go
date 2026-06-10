@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -238,4 +240,60 @@ func removeEmptyEngineEnvBlock(lines []string) []string {
 		result = append(result, line)
 	}
 	return result
+}
+
+// getTopLevelEnvSecretsGuidedErrorCodemod creates a codemod that emits a guided error
+// when secrets are detected in the top-level env: block. Unlike the engine.env codemod
+// which can auto-remove unsafe keys, top-level env: secrets cannot be stripped
+// automatically because the token may be required by the workflow. Users must move
+// the secret into engine-specific secret configuration instead.
+func getTopLevelEnvSecretsGuidedErrorCodemod() Codemod {
+	return Codemod{
+		ID:           "top-level-env-secrets-guided-error",
+		Name:         "Detect secrets in top-level env section (manual fix required)",
+		Description:  "Detects secrets in the top-level env: block that will be leaked to the agent container in strict mode, and emits a guided error pointing users to engine-specific secret configuration.",
+		IntroducedIn: "1.5.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			envValue, hasEnv := frontmatter["env"]
+			if !hasEnv {
+				return content, false, nil
+			}
+			envMap, ok := envValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			envStrings := make(map[string]string)
+			for key, value := range envMap {
+				if strValue, ok := value.(string); ok {
+					envStrings[key] = strValue
+				}
+			}
+
+			secretExpressions := workflow.ExtractSecretsFromMap(envStrings)
+			if len(secretExpressions) == 0 {
+				return content, false, nil
+			}
+
+			var secretRefs []string
+			seenExpressions := make(map[string]bool)
+			for _, expr := range secretExpressions {
+				if seenExpressions[expr] {
+					continue
+				}
+				seenExpressions[expr] = true
+				secretRefs = append(secretRefs, expr)
+			}
+			sort.Strings(secretRefs)
+			engineEnvSecretsCodemodLog.Printf("Found %d secret(s) in top-level env section: %v", len(secretRefs), secretRefs)
+
+			return content, false, fmt.Errorf(
+				"top-level env: contains secrets that will be leaked to the agent container. "+
+					"Found: %s. "+
+					"Manual fix required: move the secret into engine-specific secret configuration. "+
+					"See: https://github.github.com/gh-aw/reference/engines/",
+				strings.Join(secretRefs, ", "),
+			)
+		},
+	}
 }

@@ -363,7 +363,15 @@ func extractFrontmatterForImport(fullPath string, content []byte) (*FrontmatterR
 }
 
 func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
-	nestedImports := parseNestedImportEntries(frontmatter)
+	importsField, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return nil
+	}
+	importSpecs, err := parseImportSpecsFromField(importsField)
+	if err != nil {
+		return err
+	}
+	nestedImports := nestedEntriesFromSpecs(importSpecs)
 	for _, nestedEntry := range nestedImports {
 		if err := enqueueNestedImportEntry(nestedEntry, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
@@ -556,6 +564,9 @@ func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 				} else {
 					return nil, errors.New("import 'inputs'/'with' must be an object")
 				}
+			}
+			if _, hasIf := importItem["if"]; hasIf {
+				return nil, errors.New("import 'if' is no longer supported; use {{#if ...}}{{#runtime-import? ...}}{{/if}} for experiment-specific prompt imports")
 			}
 			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs})
 		default:

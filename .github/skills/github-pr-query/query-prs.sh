@@ -9,6 +9,9 @@ set +o histexpand
 #   --repo OWNER/REPO    Repository to query (default: current repo)
 #   --state STATE        PR state: open, closed, merged, all (default: open)
 #   --limit N            Maximum number of PRs (default: 30)
+#   --author LOGIN       Filter by PR author login
+#   --app SLUG           Filter by GitHub App author
+#   --search QUERY       Apply GitHub search query
 #   --jq EXPRESSION      jq filter expression to apply to output (REQUIRED for data)
 #
 # Note: When --jq is not provided, returns schema and data size instead of full data.
@@ -20,6 +23,9 @@ set -e
 REPO=""
 STATE="open"
 LIMIT=30
+AUTHOR=""
+APP=""
+SEARCH=""
 JQ_FILTER=""
 
 # Parse arguments
@@ -37,6 +43,18 @@ while [[ $# -gt 0 ]]; do
             LIMIT="$2"
             shift 2
             ;;
+        --author)
+            AUTHOR="$2"
+            shift 2
+            ;;
+        --app)
+            APP="$2"
+            shift 2
+            ;;
+        --search)
+            SEARCH="$2"
+            shift 2
+            ;;
         --jq)
             JQ_FILTER="$2"
             shift 2
@@ -49,14 +67,24 @@ while [[ $# -gt 0 ]]; do
 done
 
 # JSON fields to fetch
-JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
+JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup,additions,deletions,changedFiles,labels,assignees,reviewRequests,latestReviews,reviews,comments,url"
 
 # Build and execute gh command with proper quoting
-if [[ -n "$REPO" ]]; then
-    OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
-else
-    OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+GH_ARGS=(--state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+
+if [[ -n "$AUTHOR" ]]; then
+    GH_ARGS+=(--author "$AUTHOR")
 fi
+if [[ -n "$APP" ]]; then
+    GH_ARGS+=(--app "$APP")
+fi
+if [[ -n "$SEARCH" ]]; then
+    GH_ARGS+=(--search "$SEARCH")
+fi
+if [[ -n "$REPO" ]]; then
+    GH_ARGS+=(--repo "$REPO")
+fi
+OUTPUT=$(gh pr list "${GH_ARGS[@]}")
 
 # Apply jq filter if specified
 if [[ -n "$JQ_FILTER" ]]; then
@@ -101,6 +129,12 @@ else
       "labels": "array - Array of label objects with name field",
       "assignees": "array - Array of assignee objects with login field",
       "reviewRequests": "array - Array of review request objects",
+      "latestReviews": "array - Latest reviews for each PR",
+      "reviews": "array - Review objects for each PR",
+      "comments": "object - PR conversation comments summary",
+      "mergeable": "string - Mergeability status",
+      "mergeStateStatus": "string - Merge state status",
+      "statusCheckRollup": "array|null - Check run rollup data",
       "url": "string - PR URL"
     }
   },
@@ -112,7 +146,8 @@ else
     {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
     {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
     {"description": "Get PRs with labels", "query": ".[] | {number, title, labels: [.labels[].name]}"},
-    {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+    {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"},
+    {"description": "Get PRs with actions-bot reviews", "query": ".[] | {number, title, botReviewCount: ([.reviews[]? | select(.author.login == \"github-actions[bot]\")] | length)}"}
   ]
 }
 EOF

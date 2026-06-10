@@ -274,13 +274,16 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.effective_tokens || '' }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.ai_credits_rate_limit_error || 'false' }}\n", mainJobName))
 
-	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
-	// These are set by the copilot_harness.cjs logic in the agentic_execution step and cover:
+	// Pass engine error-detection outputs to the conclusion job when the selected engine
+	// provides a host-runner detect-agent-errors step.
+	// Contract: engines returning a non-empty GetErrorDetectionScriptId() must run
+	// actions/setup/js/detect_agent_errors.cjs, which emits all four outputs below.
+	// These outputs cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
 	//   - agentic_engine_timeout: engine process killed by signal (step timeout)
-	//   - model_not_supported_error: requested model unavailable for the subscription tier
-	if _, ok := engine.(*CopilotEngine); ok {
+	//   - model_not_supported_error: configured model name is invalid or unavailable
+	if engine.GetErrorDetectionScriptId() != "" {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MCP_POLICY_ERROR: ${{ needs.%s.outputs.mcp_policy_error }}\n", mainJobName))
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))

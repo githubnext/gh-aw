@@ -384,6 +384,9 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 
 	workflowData := &WorkflowData{
 		Name: "Test",
+		Features: map[string]any{
+			"dangerously-disable-sandbox-agent": "controlled environment with no internet access",
+		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{Disabled: true},
 		},

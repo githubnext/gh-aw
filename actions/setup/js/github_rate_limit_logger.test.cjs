@@ -212,7 +212,7 @@ describe("fetchAndLogRateLimit", () => {
       },
     };
 
-    await expect(fetchAndLogRateLimit(mockGithub)).resolves.toBeUndefined();
+    await expect(fetchAndLogRateLimit(mockGithub)).resolves.toBeNull();
     expect(mockCore.warning).toHaveBeenCalled();
     expect(appendSpy).not.toHaveBeenCalled();
   });
@@ -236,6 +236,87 @@ describe("fetchAndLogRateLimit", () => {
 
     const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
     expect(entry.operation).toBe("fetch");
+  });
+
+  it("returns core rate-limit snapshot on success", async () => {
+    const resetSeconds = 1700000000;
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4321, used: 679, reset: resetSeconds },
+                search: { limit: 30, remaining: 28, used: 2, reset: resetSeconds },
+              },
+            },
+          }),
+        },
+      },
+    };
+
+    const result = await fetchAndLogRateLimit(mockGithub, "guardrail-start");
+
+    expect(result).not.toBeNull();
+    expect(result.remaining).toBe(4321);
+    expect(result.limit).toBe(5000);
+    expect(result.used).toBe(679);
+    expect(result.reset).toBe(new Date(resetSeconds * 1000).toISOString());
+  });
+
+  it("returns null when resources are absent", async () => {
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({ data: {} }),
+        },
+      },
+    };
+
+    const result = await fetchAndLogRateLimit(mockGithub, "guardrail-end");
+
+    expect(result).toBeNull();
+    expect(appendSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns null when core resource is absent", async () => {
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                search: { limit: 30, remaining: 28, used: 2, reset: 1700000000 },
+              },
+            },
+          }),
+        },
+      },
+    };
+
+    const result = await fetchAndLogRateLimit(mockGithub, "guardrail-end");
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when core used field is missing", async () => {
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4900, reset: 1700000000 },
+              },
+            },
+          }),
+        },
+      },
+    };
+
+    const result = await fetchAndLogRateLimit(mockGithub, "guardrail-end");
+
+    expect(result).toBeNull();
   });
 });
 
