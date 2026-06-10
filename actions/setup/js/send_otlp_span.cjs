@@ -2072,7 +2072,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
   const aiCreditsFromFile = agentUsage.ai_credits;
   const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
-  const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? (aiCreditsFromFile > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile))) : undefined;
+  const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile))) : undefined;
   if (typeof aiCredits === "number") {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
