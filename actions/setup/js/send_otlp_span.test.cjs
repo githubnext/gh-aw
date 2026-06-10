@@ -5351,6 +5351,36 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.detection.conclusion"]).toBe("success");
     });
 
+    it("includes engine-job token breakdown and cost attributes when the job name matches the engine id", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.INPUT_JOB_NAME = "copilot";
+      process.env.GH_AW_INFO_ENGINE_ID = "copilot";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, ai_credits: 0.125 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.copilot.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(5000);
+      expect(attrs["gen_ai.usage.output_tokens"]).toBe(200);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
+      expect(attrs["gen_ai.usage.total_tokens"]).toBe(5200);
+      expect(attrs["gh-aw.aic"]).toBe(0.125);
+    });
+
     it("includes detection-job warning result attribute when detection finds threats", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);

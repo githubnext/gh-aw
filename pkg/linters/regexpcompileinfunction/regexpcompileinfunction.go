@@ -4,16 +4,14 @@
 package regexpcompileinfunction
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
-	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -28,48 +26,44 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "regexpcompileinfunction")
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	insp.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
-		if !push {
-			return true
-		}
-
-		call, ok := n.(*ast.CallExpr)
+	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call, ok := cur.Node().(*ast.CallExpr)
 		if !ok || !isRegexpCompileCall(call) {
-			return true
+			continue
 		}
 		if !hasConstantStringPattern(pass, call) {
-			return true
+			continue
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
-			return true
+			continue
 		}
 
-		// Check if we're inside a function (not package-level)
-		if isInsideFunction(stack) {
-			if nolint.HasDirective(pos, noLintLinesByFile) {
-				return true
-			}
-			pass.Report(analysis.Diagnostic{
-				Pos:     call.Pos(),
-				End:     call.End(),
-				Message: "regexp compilation inside function should be moved to package-level variable",
-			})
+		// Check if we're inside a function (not package-level).
+		inside := false
+		for range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+			inside = true
+			break
 		}
-
-		return true
-	})
+		if !inside {
+			continue
+		}
+		if nolint.HasDirective(pos, noLintLinesByFile) {
+			continue
+		}
+		pass.Report(analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: "regexp compilation inside function should be moved to package-level variable",
+		})
+	}
 
 	return nil, nil
 }
@@ -85,17 +79,6 @@ func isRegexpCompileCall(call *ast.CallExpr) bool {
 		return false
 	}
 	return ident.Name == "regexp" && (sel.Sel.Name == "MustCompile" || sel.Sel.Name == "Compile")
-}
-
-// isInsideFunction checks if the current node is inside a function body.
-func isInsideFunction(stack []ast.Node) bool {
-	for i := range slices.Backward(stack) {
-		switch stack[i].(type) {
-		case *ast.FuncDecl, *ast.FuncLit:
-			return true
-		}
-	}
-	return false
 }
 
 // hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string,

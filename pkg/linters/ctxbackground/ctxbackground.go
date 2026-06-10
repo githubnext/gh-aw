@@ -4,14 +4,13 @@
 package ctxbackground
 
 import (
-	"fmt"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
@@ -25,9 +24,9 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {

@@ -1929,7 +1929,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
-  const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection";
+  const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection" || (!!engineId && jobName === engineId);
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
@@ -2052,8 +2052,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
   if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
-  // GH_AW_AIC is propagated to downstream jobs via needs.agent.outputs.*, so gate it
-  // behind jobEmitsOwnTokenUsage to prevent non-agent jobs from re-emitting it.
+  // GH_AW_AIC may be propagated to downstream jobs via workflow outputs, so gate it
+  // behind jobEmitsOwnTokenUsage to prevent non-owning jobs from re-emitting it.
   const aiCredits = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits) : undefined;
   if (typeof aiCredits === "number" && aiCredits > 0) {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
@@ -2302,7 +2302,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // Only attach token-usage attributes to jobs that actually executed an agent.
+  // Only attach token-usage attributes to jobs that actually executed model usage.
   // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
   // disk via artifact download but must NOT emit token data — otherwise every
   // sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.

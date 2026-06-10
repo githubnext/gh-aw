@@ -314,8 +314,7 @@ var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions"
 var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imports", "safe-outputs", "steps"}
 
 // IgnoredFrontmatterFields are fields that should be silently ignored during frontmatter validation
-// NOTE: user-invokable is a GitHub Copilot custom agent field that is not part of the gh-aw schema
-var IgnoredFrontmatterFields = []string{"user-invokable"}
+var IgnoredFrontmatterFields = []string{}
 
 // SharedWorkflowForbiddenFields lists fields that cannot be used in shared/included workflows.
 // These fields are only allowed in main workflows (workflows with an 'on' trigger field).
