@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -144,20 +145,93 @@ func (c *Compiler) buildInitialWorkflowData(
 	// Populate model mappings: merge builtin aliases with any imported-workflow aliases.
 	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, nil)
 
-	// Propagate models overlay from frontmatter for runtime merging with built-in models.json.
-	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognized
-	// tool config shapes like bash: ["*"]).
-	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
-		workflowData.ModelCosts = toolsResult.parsedFrontmatter.ModelCosts
-	} else if rawModels, ok := result.Frontmatter["models"]; ok {
-		if modelsMap, ok := rawModels.(map[string]any); ok {
-			if _, hasProviders := modelsMap["providers"]; hasProviders {
-				workflowData.ModelCosts = modelsMap
-			}
-		}
+	mainModelCosts := extractMainModelCostsOverlay(toolsResult, result.Frontmatter)
+	mergedModelCosts := mergeModelCostOverlays(importsResult.MergedModelCosts, mainModelCosts)
+	if len(mergedModelCosts) > 0 {
+		workflowData.ModelCosts = mergedModelCosts
 	}
 
 	return workflowData
+}
+
+func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string]any {
+	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognized
+	// tool config shapes like bash: ["*"]).
+	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
+		return toolsResult.parsedFrontmatter.ModelCosts
+	}
+
+	rawModels, ok := frontmatter["models"]
+	if !ok {
+		return nil
+	}
+	modelsMap, ok := rawModels.(map[string]any)
+	if !ok {
+		return nil
+	}
+	if _, hasProviders := modelsMap["providers"]; !hasProviders {
+		return nil
+	}
+	return modelsMap
+}
+
+func mergeModelCostOverlays(importedOverlays []map[string]any, mainOverlay map[string]any) map[string]any {
+	overlays := make([]map[string]any, 0, len(importedOverlays)+1)
+	overlays = append(overlays, importedOverlays...)
+	if len(mainOverlay) > 0 {
+		overlays = append(overlays, mainOverlay)
+	}
+	if len(overlays) == 0 {
+		return nil
+	}
+
+	merged := maps.Clone(overlays[0])
+	for i := 1; i < len(overlays); i++ {
+		merged = mergeModelCostOverlayPair(merged, overlays[i])
+	}
+	return merged
+}
+
+func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
+	result := maps.Clone(base)
+	baseProviders, _ := base["providers"].(map[string]any)
+	overlayProviders, _ := overlay["providers"].(map[string]any)
+
+	if len(overlayProviders) == 0 {
+		return result
+	}
+
+	mergedProviders := maps.Clone(baseProviders)
+	if mergedProviders == nil {
+		mergedProviders = make(map[string]any)
+	}
+	for providerName, overlayProviderAny := range overlayProviders {
+		overlayProvider, ok := overlayProviderAny.(map[string]any)
+		if !ok {
+			mergedProviders[providerName] = overlayProviderAny
+			continue
+		}
+
+		baseProvider, _ := baseProviders[providerName].(map[string]any)
+		baseModels, _ := baseProvider["models"].(map[string]any)
+		overlayModels, _ := overlayProvider["models"].(map[string]any)
+
+		mergedProvider := maps.Clone(baseProvider)
+		if mergedProvider == nil {
+			mergedProvider = make(map[string]any)
+		}
+		maps.Copy(mergedProvider, overlayProvider)
+		mergedModels := maps.Clone(baseModels)
+		if mergedModels == nil {
+			mergedModels = make(map[string]any)
+		}
+		maps.Copy(mergedModels, overlayModels)
+		mergedProvider["models"] = mergedModels
+		mergedProviders[providerName] = mergedProvider
+	}
+
+	result["providers"] = mergedProviders
+	return result
 }
 
 // resolveInlinedImports returns true if inlined-imports is enabled.
