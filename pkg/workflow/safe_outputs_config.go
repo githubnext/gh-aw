@@ -548,7 +548,16 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						config.TimeoutMinutes = int(v)
 					}
 				case float64:
+					// Reject NaN/Inf and out-of-range floats before narrowing — int(NaN)/int(±Inf)
+					// are implementation-defined and can produce surprising values.
+					if v != v || v > float64(math.MaxInt) || v < float64(math.MinInt) {
+						safeOutputsConfigLog.Printf("timeout-minutes: float value %.2f is out of range, ignoring", v)
+						break
+					}
 					intVal := int(v)
+					if v != float64(intVal) {
+						safeOutputsConfigLog.Printf("timeout-minutes: float value %.2f truncated to integer %d", v, intVal)
+					}
 					if intVal >= 1 {
 						config.TimeoutMinutes = intVal
 					}
