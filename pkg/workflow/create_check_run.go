@@ -42,6 +42,8 @@ func (c *Compiler) parseCreateCheckRunConfig(outputMap map[string]any) *CreateCh
 			if targetStr, ok := target.(string); ok {
 				checkRunConfig.Target = targetStr
 				createCheckRunLog.Printf("Using check run target: %s", targetStr)
+			} else {
+				createCheckRunLog.Printf("Warning: create-check-run target value %v is not a string and will be ignored", target)
 			}
 		}
 
