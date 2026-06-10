@@ -226,7 +226,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
         rateLimit: {
           get: async () => {
             rateLimitCallCount += 1;
-            const remaining = 5000 - rateLimitCallCount * 5;
+            const remaining = rateLimitCallCount === 1 ? 4995 : 5000;
             return {
               data: {
                 resources: {
@@ -275,9 +275,16 @@ describe("check_daily_aic_workflow_guardrail", () => {
       expect(consumptionLog).toContain("rateLimitBeforeInspection");
       expect(consumptionLog).toContain("rateLimitAfterInspection");
       expect(consumptionLog).toContain("consumed");
+      const detailsPrefix = "[daily-workflow-aic] GitHub API rate limit consumed by daily AIC guardrail: ";
+      const details = JSON.parse(consumptionLog.slice(detailsPrefix.length));
+      expect(details).toMatchObject({
+        rateLimitBeforeInspection: 4995,
+        rateLimitAfterInspection: 5000,
+        consumed: 0,
+      });
 
       // fetchAndLogRateLimit must have been called at least twice (start + end).
-      expect(rateLimitCallCount).toBeGreaterThanOrEqual(2);
+      expect(rateLimitCallCount).toBe(2);
     } finally {
       delete global.core;
       delete global.github;

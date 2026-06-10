@@ -298,6 +298,26 @@ describe("fetchAndLogRateLimit", () => {
 
     expect(result).toBeNull();
   });
+
+  it("returns null when core resource payload is partial", async () => {
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4900, reset: 1700000000 },
+              },
+            },
+          }),
+        },
+      },
+    };
+
+    const result = await fetchAndLogRateLimit(mockGithub, "guardrail-end");
+
+    expect(result).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

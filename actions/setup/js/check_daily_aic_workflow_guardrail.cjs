@@ -315,13 +315,13 @@ async function main() {
     const { owner, repo } = context.repo;
     // Capture a before-guardrail rate-limit snapshot and log it to the JSONL
     // so consumers can determine the baseline available quota before inspection starts.
-    await fetchAndLogRateLimit(githubClient, "daily-aic-guardrail-start");
+    const rateLimitStart = await fetchAndLogRateLimit(githubClient, "daily-aic-guardrail-start");
     const currentRun = await githubClient.rest.actions.getWorkflowRun({
       owner,
       repo,
       run_id: context.runId,
     });
-    const rateLimit = await getCoreRateLimitSnapshot(githubClient);
+    const rateLimit = rateLimitStart ?? (await getCoreRateLimitSnapshot(githubClient));
 
     const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
@@ -468,10 +468,12 @@ async function main() {
     // can be measured.  The delta between the before and after snapshots answers
     // whether the daily AIC guardrail is too hungry in GitHub API rate limits.
     const rateLimitEnd = await fetchAndLogRateLimit(githubClient, "daily-aic-guardrail-end");
+    const rateLimitBeforeInspection = rateLimitStart?.remaining ?? rateLimit.remaining;
+    const rateLimitAfterInspection = rateLimitEnd?.remaining ?? rateLimitBeforeInspection;
     logDailyGuardrail("GitHub API rate limit consumed by daily AIC guardrail", {
-      rateLimitBeforeInspection: rateLimit.remaining,
-      rateLimitAfterInspection: rateLimitEnd?.remaining ?? null,
-      consumed: rateLimit.remaining - (rateLimitEnd?.remaining ?? rateLimit.remaining),
+      rateLimitBeforeInspection,
+      rateLimitAfterInspection,
+      consumed: Math.max(0, rateLimitBeforeInspection - rateLimitAfterInspection),
       limit: rateLimit.limit,
       reset: rateLimit.reset,
     });

@@ -156,11 +156,18 @@ async function fetchAndLogRateLimit(github, operation = "fetch") {
 
     const coreData = resources.core;
     if (!coreData || typeof coreData !== "object") return null;
+    const remaining = Number(coreData.remaining);
+    const limit = Number(coreData.limit);
+    const used = Number(coreData.used);
+    const resetSeconds = Number(coreData.reset);
+    if (!Number.isFinite(remaining) || !Number.isFinite(limit) || !Number.isFinite(used) || !Number.isFinite(resetSeconds)) {
+      return null;
+    }
     return {
-      remaining: Number(coreData.remaining ?? 0),
-      limit: Number(coreData.limit ?? 0),
-      used: Number(coreData.used ?? 0),
-      reset: coreData.reset ? new Date(coreData.reset * 1000).toISOString() : "",
+      remaining,
+      limit,
+      used,
+      reset: new Date(resetSeconds * 1000).toISOString(),
     };
   } catch (err) {
     core.warning(`github_rate_limit_logger: fetchAndLogRateLimit failed: ${getErrorMessage(err)}`);
