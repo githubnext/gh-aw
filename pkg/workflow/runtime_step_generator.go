@@ -14,7 +14,8 @@ var runtimeStepGeneratorLog = logger.New("workflow:runtime_step_generator")
 // data is the WorkflowData for the workflow being compiled; it is forwarded to
 // generateSetupStep so that the gh-aw setup-cli step can use the lock-file-aware
 // pin resolver (getActionPinWithData) rather than the static embedded-pins fallback.
-// Pass nil when WorkflowData is not available (e.g. in tests).
+// Pass nil only when WorkflowData is unavailable or when tests specifically
+// target non-gh-aw runtime behavior.
 func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement, data *WorkflowData) []GitHubActionStep {
 	runtimeStepGeneratorLog.Printf("Generating runtime setup steps: requirement_count=%d", len(requirements))
 	runtimeSetupLog.Printf("Generating runtime setup steps for %d requirements", len(requirements))
