@@ -32,19 +32,17 @@ network:
 
 ## Valid Values for `network.allowed`
 
-Each entry in `network.allowed` must be one of:
-
 | Type | Examples | Notes |
 |---|---|---|
-| **Ecosystem identifier** | `defaults`, `node`, `python` | Expands to a curated list of domains for that runtime/tool |
-| **Exact domain** | `api.example.com`, `registry.npmjs.org` | Must be a fully-qualified domain name (FQDN) |
+| **Ecosystem identifier** | `defaults`, `node`, `python` | Expands to a curated list of domains |
+| **Exact domain** | `api.example.com`, `registry.npmjs.org` | Must be a fully-qualified domain (FQDN) |
 | **Wildcard subdomain** | `*.example.com` | Matches `sub.example.com`, `deep.nested.example.com`, and `example.com` itself |
 
-> ⚠️ **Bare shorthands like `npm`, `pypi`, or `localhost` are NOT valid** unless they are listed in the ecosystem identifiers table below. Using an unrecognised single-word entry causes a **compile-time error**. Use ecosystem identifiers (`node`, `python`) or explicit FQDNs (`registry.npmjs.org`, `pypi.org`) instead.
+> ⚠️ **Bare shorthands like `npm`, `pypi`, `localhost` are NOT valid** unless listed below. Unrecognised single-word entries cause a **compile-time error**. Use ecosystem identifiers (`node`, `python`) or explicit FQDNs (`registry.npmjs.org`, `pypi.org`) instead.
 
 ## Ecosystem Identifiers
 
-These keywords expand to curated lists of domains maintained by gh-aw:
+Keywords expanding to curated domain lists:
 
 | Identifier | Runtime / Tool | Key Domains Enabled |
 |---|---|---|
@@ -90,7 +88,7 @@ These keywords expand to curated lists of domains maintained by gh-aw:
 
 ## Invalid Shorthands
 
-These values look like ecosystem identifiers but are **not recognised** — using them in `network.allowed` causes a **compile-time error**:
+These look like ecosystem identifiers but are **not recognised** — using them causes a **compile-time error**:
 
 | Invalid value | What you probably meant | Correct value |
 |---|---|---|
@@ -108,13 +106,13 @@ These values look like ecosystem identifiers but are **not recognised** — usin
 
 ## Domain Pattern Rules
 
-- **Wildcard `*` requires a dot prefix**: `*.example.com` is valid; bare `*` is blocked (and rejected outright in strict mode).
-- **Protocol prefix is not supported**: `https://api.example.com` is not a valid entry — omit the scheme and write `api.example.com`.
-- **Subdomains must be explicit**: `github.com` does not cover `api.github.com`; use `*.github.com` or add both entries.
+- **Wildcard `*` requires a dot prefix**: `*.example.com` valid; bare `*` blocked (rejected outright in strict mode).
+- **No protocol prefix**: `https://api.example.com` is invalid — write `api.example.com`.
+- **Subdomains must be explicit**: `github.com` does not cover `api.github.com`; use `*.github.com` or both.
 
-## Inferring the Right Ecosystem From Repository Files
+## Inferring Ecosystem From Repository Files
 
-When a workflow builds, tests, or installs packages, always add the matching ecosystem alongside `defaults`:
+For workflows that build, test, or install packages, add the matching ecosystem alongside `defaults`:
 
 | File indicators | Ecosystem to add | Enables |
 |---|---|---|
@@ -129,7 +127,7 @@ When a workflow builds, tests, or installs packages, always add the matching eco
 | `composer.json` | `php` | `packagist.org` |
 | `pubspec.yaml` | `dart` | `pub.dev` |
 
-> ⚠️ **`network: defaults` alone is never sufficient for code workflows** — `defaults` covers basic infrastructure (certificate authorities, Ubuntu verification) but cannot reach package registries. Always add the language ecosystem identifier.
+> ⚠️ **`network: defaults` alone is never sufficient for code workflows** — `defaults` covers basic infrastructure (CAs, Ubuntu verification) but not package registries. Always add the language ecosystem.
 
 ## Common Patterns
 

@@ -18,9 +18,7 @@ MCP Scripts action fails; env var unavailable; template expression errors. Cause
 
 ### Step 1: Analyze Workflow Logs
 
-Download and analyze with `gh aw logs`:
-
-> **Note**: Run these commands locally or from a Copilot coding agent session. If you include `gh aw logs` / `gh aw audit` as workflow steps, add `actions: read` to `permissions:` and install the extension with the `setup-cli` action first — see [Logs and Metrics](../github-agentic-workflows.md#logs-and-metrics).
+> **Note**: Run locally or from a Copilot session. To use `gh aw logs` / `gh aw audit` inside a workflow, add `actions: read` to `permissions:` and install the extension via `setup-cli` first — see [Logs and Metrics](../github-agentic-workflows.md#logs-and-metrics).
 
 ```bash
 # Download logs from last 24 hours
@@ -33,18 +31,16 @@ gh aw logs --run-id <run-id> -o /tmp/workflow-logs
 gh aw logs --workflow <workflow-name> --start-date -7d
 ```
 
-Look in the "Run AI Agent" step for missing-tool errors, HTTP codes (401/403/404/500), and stack traces.
+Check the "Run AI Agent" step for missing-tool errors, HTTP codes (401/403/404/500), and stack traces.
 
 ### Step 2: Identify Missing-Tool Errors
-
-Missing-tool errors look like:
 
 ```
 Error: Tool 'github:read_issue' not found
 Error: missing tool configuration for mcpscripts-gh
 ```
 
-Check the workflow's `tools:` section, compare with similar working workflows, and verify the tool is configured in frontmatter.
+Check `tools:`, compare with working workflows, verify the tool is configured in frontmatter.
 
 ### Step 3: Verify MCP Server Configurations
 
@@ -75,15 +71,15 @@ permissions:
 ---
 ```
 
-Match the permission scope to the operation: read for queries, write for create/update.
+Match permission scope to operation: read for queries, write for create/update.
 
 ## Resolution Procedures
 
-### Adding GitHub MCP Server to Workflows
+### Adding GitHub MCP Server
 
-Add `tools.github.toolsets` to the workflow frontmatter, then `gh aw compile <workflow-name>.md` and `gh aw mcp inspect <workflow-name>` to verify.
+Add `tools.github.toolsets` to frontmatter, then `gh aw compile <workflow-name>.md` and `gh aw mcp inspect <workflow-name>` to verify.
 
-**Available toolsets**: `default` (repos + issues + pull_requests + common), `repos`, `issues`, `pull_requests`, `actions`.
+**Toolsets**: `default` (repos + issues + pull_requests + common), `repos`, `issues`, `pull_requests`, `actions`.
 
 **Example**: Dev workflow with GitHub MCP server
 

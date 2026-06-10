@@ -4,13 +4,13 @@ description: Imports, shared components, import-schema, and gh aw add/update for
 
 # Imports & Reusability
 
-Shared components eliminate duplication of tool configs, prompt instructions, MCP servers, and safe-output jobs across multiple workflows. Each consumer gets updates automatically when the shared file changes.
+Shared components eliminate duplication of tool configs, prompts, MCP servers, and safe-output jobs across workflows. Consumers get updates automatically when shared files change.
 
 ---
 
 ## Merged Fields
 
-Only these frontmatter fields are merged when a file is imported:
+Only these frontmatter fields are merged on import:
 
 | Field | Merge behaviour |
 |---|---|
@@ -54,7 +54,7 @@ imports:
 
 ## `import-schema:` Field
 
-Declare typed parameters consumers must (or may) supply:
+Declare typed parameters consumers supply:
 
 ```yaml
 ---
@@ -95,7 +95,7 @@ tools:
 
 ### 1 — Extract shared MCP server / tool config
 
-Create `.github/workflows/shared/mcp/tavily.md`:
+`.github/workflows/shared/mcp/tavily.md`:
 
 ```markdown
 ---
@@ -108,7 +108,7 @@ mcp-servers:
 ---
 ```
 
-Each workflow imports it with one line:
+Import with one line:
 
 ```yaml
 imports:
@@ -226,7 +226,7 @@ imports:
 gh aw add https://github.com/org/agentics/blob/main/workflows/shared/reporting.md
 ```
 
-Downloaded files are stored under `.github/aw/imports/org/agentics/<sha>/`. Reference them in `imports:` by that local path. The `source:` field in the file tracks the origin for future updates.
+Stored under `.github/aw/imports/org/agentics/<sha>/`. Reference via that local path. The `source:` field tracks origin for updates.
 
 MCP equivalent: `Use the add tool with url: "<url>"`
 
@@ -236,7 +236,7 @@ MCP equivalent: `Use the add tool with url: "<url>"`
 gh aw update
 ```
 
-Re-fetches every file under `.github/aw/imports/` using its `source:` field. Follows `redirect:` and rewrites `source:` automatically.
+Re-fetches every file under `.github/aw/imports/` using `source:`. Follows `redirect:` and rewrites `source:` automatically.
 
 MCP equivalent: `Use the update tool`
 
@@ -282,18 +282,18 @@ import-schema:
 
 ## Compile-Time Behaviour
 
-- Imports are resolved at **compile time**; the `.lock.yml` loads shared `.md` bodies at **runtime** — edits to shared files take effect on the next run without recompilation.
-- **`inlined-imports: true`** — bundles all imported content at compile time (required for workflows used as repository ruleset status checks). Cannot be combined with `.github/agents/` file imports.
-- Any change to the `imports:` list in frontmatter requires recompilation: `gh aw compile <workflow-name>`.
-- Editing only the *body* of a shared `.md` file (not its frontmatter) does **not** require recompilation.
+- Imports resolved at **compile time**; `.lock.yml` loads shared `.md` bodies at **runtime** — edits to shared bodies take effect next run without recompile.
+- **`inlined-imports: true`** — bundles imported content at compile time (required for ruleset status check workflows). Cannot combine with `.github/agents/` file imports.
+- Changes to the `imports:` list require recompile: `gh aw compile <workflow-name>`.
+- Editing only the *body* of a shared `.md` (not its frontmatter) does **not** require recompile.
 
 ---
 
 ## Quick Checklist: Extracting a Shared Component
 
 1. Identify the repeated frontmatter block or prompt section
-2. Create `.github/workflows/shared/<name>.md` with the extracted content
-3. Add `import-schema:` if values differ per consuming workflow
-4. Replace the duplicated block in each workflow with an `imports:` entry
+2. Create `.github/workflows/shared/<name>.md` with the content
+3. Add `import-schema:` if values differ per consumer
+4. Replace duplicates with an `imports:` entry
 5. Recompile: `gh aw compile` (or `gh aw compile <name>`)
 6. Verify: `gh aw compile --strict`

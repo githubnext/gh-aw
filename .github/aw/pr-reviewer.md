@@ -4,11 +4,9 @@ description: Guidance for implementing PR reviewer agentic workflows with ready_
 
 ## PR Reviewer Workflow Pattern
 
-Use this pattern for reviewer workflows that should run automatically when a PR is ready, and manually via slash command in PR discussions.
+For reviewer workflows that run automatically when a PR is ready and manually via slash command.
 
 ## Trigger Model
-
-Use `ready_for_review` for automatic review starts:
 
 ```yaml
 on:
@@ -20,23 +18,18 @@ on:
     events: [pull_request_comment, pull_request_review_comment]
 ```
 
-- `pull_request.types: [ready_for_review]` starts review when draft PRs become reviewable.
-- Centralized slash-command routing enables one command entrypoint for both PR comments and review comments.
+`ready_for_review` starts review when drafts become reviewable. Centralized routing handles both PR comments and review comments via one entrypoint.
 
-## Safe Output Behavior
+## Safe Outputs
 
-Reviewer workflows should focus on these outputs:
+- `create-pull-request-review-comment` — line-level feedback
+- `resolve-pull-request-review-thread` — resolved threads
+- `submit-pull-request-review` — final review state
+- `update-pull-request-review` — amend an existing review
 
-- `create-pull-request-review-comment` for line-level feedback.
-- `resolve-pull-request-review-thread` for resolved/handled threads.
-- `submit-pull-request-review` to create the final review state.
-- `update-pull-request-review` when amending an existing review is preferable to creating a new one.
-
-Keep caps conservative (`max`) to avoid noisy or runaway reviews.
+Keep `max` caps conservative to avoid runaway reviews.
 
 ## Integrity and GitHub Tool Access
-
-Use constrained GitHub access with explicit integrity and toolsets:
 
 ```yaml
 tools:
@@ -45,14 +38,11 @@ tools:
     toolsets: [pull_requests, issues, repos]
 ```
 
-Guidance:
 - Prefer `pull_requests` for reviewer operations.
-- Include `issues` only when the workflow intentionally interacts with issue-style comment surfaces or cross-links.
-- Choose the lowest `min-integrity` that still supports the required reviewer actions.
+- Add `issues` only when interacting with issue-style comment surfaces or cross-links.
+- Use the lowest `min-integrity` that supports the required actions.
 
-## Existing `ready_for_review` Reviewer Examples
-
-Use these workflows as references:
+## Examples
 
 - `.github/workflows/pr-code-quality-reviewer.md`
 - `.github/workflows/mattpocock-skills-reviewer.md`
