@@ -2054,8 +2054,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   // GH_AW_AIC may be propagated to downstream jobs via workflow outputs, so gate it
   // behind jobEmitsOwnTokenUsage to prevent non-owning jobs from re-emitting it.
-  const aiCredits = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits) : undefined;
-  if (typeof aiCredits === "number" && aiCredits > 0) {
+  // Prefer env var, then firewall-proxy AIC (non-zero), then engine-reported AIC from
+  // agent-stdio.log, then firewall-proxy AIC (zero) — so a zero from the proxy does
+  // not shadow a non-zero value the engine emitted in its result event. The `> 0`
+  // guard is intentionally absent: emitting gh-aw.aic=0 makes observability gaps
+  // visible (zero != no-data) and lets the EAP schema infer the attribute as numeric.
+  const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
+  const aiCreditsFromFile = agentUsage.ai_credits;
+  const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
+  const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? (aiCreditsFromFile || aiCreditsFromMetrics) ?? aiCreditsFromFile) : undefined;
+  if (typeof aiCredits === "number") {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
   if (typeof runtimeMetrics.turns === "number") {

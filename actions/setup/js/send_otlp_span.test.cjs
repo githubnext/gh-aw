@@ -5200,6 +5200,82 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
+
+    // CI guardrail: gh-aw.aic must be emitted as a numeric attribute alongside
+    // gh-aw.workflow.name so per-workflow AIC rollups work in Sentry EAP even
+    // when the total is zero (zero != no-data for observability purposes).
+    it("emits gh-aw.aic as a numeric zero and co-locates it with gh-aw.workflow.name on the agent span when ai_credits is 0", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      // Simulate parse_token_usage.cjs writing ai_credits: 0 (firewall proxy had no AIC data).
+      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, cache_write_tokens: 50, ai_credits: 0 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ workflow_name: "my-workflow" });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
+      // gh-aw.aic must be present as a numeric 0 — not absent — so EAP indexes it as number.
+      expect(attrs["gh-aw.aic"]).toBe(0);
+      expect(typeof attrs["gh-aw.aic"]).toBe("number");
+      // gh-aw.workflow.name must appear on the same span for per-workflow rollups.
+      expect(attrs["gh-aw.workflow.name"]).toBe("my-workflow");
+    });
+
+    it("prefers engine-reported ai_credits from agent-stdio.log over a zero from agent_usage.json", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      // Firewall proxy reports ai_credits: 0, but the engine result event carries 0.42.
+      const fileUsage = { input_tokens: 5000, output_tokens: 200, ai_credits: 0 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(fileUsage);
+        }
+        if (filePath === "/tmp/gh-aw/agent-stdio.log") {
+          return '{"type":"result","num_turns":3,"usage":{"input_tokens":5000,"output_tokens":200,"ai_credits":0.42}}\n';
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
+      // Engine-reported 0.42 must win over the file's 0.
+      expect(attrs["gh-aw.aic"]).toBe(0.42);
+    });
+
+    it("does not emit gh-aw.aic when both agent_usage.json and agent-stdio.log are absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      // readFileSpy already throws ENOENT for all paths
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = agentSpan.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.aic");
+    });
   });
 
   describe("token breakdown enrichment in conclusion span", () => {
