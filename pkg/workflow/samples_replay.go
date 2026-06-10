@@ -134,8 +134,8 @@ func marshalStringMapDeterministic(m map[string]string) []byte {
 		if i > 0 {
 			buf.WriteString(",")
 		}
-		kEnc, _ := json.Marshal(k)
-		vEnc, _ := json.Marshal(m[k])
+		kEnc, _ := json.Marshal(k)    //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		vEnc, _ := json.Marshal(m[k]) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		buf.Write(kEnc)
 		buf.WriteString(":")
 		buf.Write(vEnc)
