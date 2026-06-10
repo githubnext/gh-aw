@@ -1968,14 +1968,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const runtimeMetrics = readAgentRuntimeMetrics();
   // Read once and reuse for both gh-aw.aic and gen_ai.usage.* attributes.
   const agentUsageFilePath = "/tmp/gh-aw/agent_usage.json";
-  const agentUsageFileExists = fs.existsSync(agentUsageFilePath);
-  console.log(`[otlp] agent_usage.json exists=${agentUsageFileExists}`);
   const agentUsageRaw = readJSONIfExists(agentUsageFilePath);
-  if (agentUsageFileExists) {
-    console.log(`[otlp] agent_usage.json raw=${JSON.stringify(agentUsageRaw)}`);
-  }
   const agentUsageNormalized = normalizeRuntimeTokenUsage(agentUsageRaw);
-  console.log(`[otlp] agent_usage normalized=${JSON.stringify(agentUsageNormalized ?? null)}`);
   const agentUsage = agentUsageNormalized || runtimeMetrics.tokenUsage || {};
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentTimedOut = agentConclusion === "timed_out";
@@ -2081,11 +2075,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
   const aiCreditsFromFile = agentUsage.ai_credits;
   const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
-  console.log(
-    `[otlp] aic GH_AW_AIC=${process.env.GH_AW_AIC ?? "(unset)"} fromEnv=${aiCreditsFromEnv ?? "(undefined)"} fromFile=${aiCreditsFromFile ?? "(undefined)"} fromMetrics=${aiCreditsFromMetrics ?? "(undefined)"} jobEmitsOwnTokenUsage=${jobEmitsOwnTokenUsage}`
-  );
   const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile))) : undefined;
-  console.log(`[otlp] aic resolved=${aiCredits ?? "(undefined)"}`);
   if (typeof aiCredits === "number") {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
   }
