@@ -218,9 +218,10 @@ Main workflow body.
 	if err == nil {
 		t.Fatal("Expected CompileWorkflow to fail for imports.if, but it succeeded")
 	}
-	// imports.if is rejected — either by schema validation or the migration check.
+	// imports.if is rejected — either by schema validation ("Unknown property: if")
+	// or by the migration guard ("import 'if' is no longer supported").
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, "if") {
+	if !strings.Contains(errMsg, "Unknown property: if") && !strings.Contains(errMsg, "import 'if' is no longer supported") {
 		t.Errorf("Expected rejection of imports.if, got unrelated error: %v", err)
 	}
 }
