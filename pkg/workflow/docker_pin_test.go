@@ -5,6 +5,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,10 +94,11 @@ func TestApplyContainerPins(t *testing.T) {
 // TestCollectDockerImages_StoresInWorkflowData verifies that collectDockerImages
 // populates workflowData.DockerImages and DockerImagePins with the collected image refs.
 func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
+	const gatewayImage = "ghcr.io/github/gh-aw-mcpg"
 	workflowData := &WorkflowData{
-		SafeOutputs: &SafeOutputsConfig{
-			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{},
+		SandboxConfig: &SandboxConfig{
+			MCP: &MCPGatewayRuntimeConfig{
+				Container: gatewayImage,
 			},
 		},
 	}
@@ -105,13 +107,34 @@ func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
 
 	images := collectDockerImages(tools, workflowData, ActionModeRelease)
 
-	// DockerImages on workflowData should now be populated (node:lts-alpine from safe-outputs).
+	// DockerImages on workflowData should now be populated (MCP gateway from sandbox config).
 	require.NotEmpty(t, workflowData.DockerImages, "DockerImages should be populated after collectDockerImages")
 	assert.Equal(t, images, workflowData.DockerImages, "DockerImages should match the returned slice")
 
 	// DockerImagePins should also be populated with matching Image fields.
 	require.NotEmpty(t, workflowData.DockerImagePins, "DockerImagePins should be populated")
 	assert.Len(t, workflowData.DockerImagePins, len(workflowData.DockerImages), "pin count should match image count")
+}
+
+// TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine verifies that enabling
+// safe-outputs does not add node:lts-alpine to the Docker pull list. The safe-outputs
+// MCP server runs directly via system Node (not inside a Docker container), so pulling
+// the image is both unnecessary and fails when Docker Hub is unreachable.
+func TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine(t *testing.T) {
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{},
+			},
+		},
+	}
+
+	images := collectDockerImages(map[string]any{}, workflowData, ActionModeRelease)
+
+	for _, img := range images {
+		assert.NotEqual(t, constants.DefaultNodeAlpineLTSImage, img,
+			"safe-outputs should not add node:lts-alpine to the Docker pull list")
+	}
 }
 
 // TestMergeDockerImages verifies deduplication when merging two slices.
