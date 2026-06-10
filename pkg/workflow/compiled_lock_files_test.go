@@ -447,3 +447,88 @@ func TestCompiledLockFiles_SmokeCallWorkflowForwardsAwContext(t *testing.T) {
 		assert.Contains(t, lockContent, "${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}", "call-workflow job should forward aw_context from the handler payload")
 	})
 }
+
+// TestCompiledLockFiles_AgentJobExposesAICOutput verifies that every compiled lock file whose
+// agent job section is present exposes an "aic:" output.  The aic output is the source for the
+// gh-aw.aic OTLP span attribute: parse_mcp_gateway_log.cjs emits it via both core.setOutput
+// (for the agent job output) and core.exportVariable (for the post-step env), so downstream
+// jobs and the agent job's own post span both have access to the AI-credit total.
+func TestCompiledLockFiles_AgentJobExposesAICOutput(t *testing.T) {
+	lockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	require.NoError(t, err, "should glob .lock.yml files")
+	require.NotEmpty(t, lockFiles, "should find at least one .lock.yml file")
+
+	checkedWorkflows := 0
+
+	for _, lockPath := range lockFiles {
+		lockBytes, readErr := os.ReadFile(lockPath)
+		if readErr != nil {
+			continue
+		}
+		lockContent := string(lockBytes)
+
+		agentSection := extractJobSection(lockContent, "agent")
+		if agentSection == "" {
+			continue // workflow has no agent job (e.g. runtime-import, unlock-only)
+		}
+
+		baseName := filepath.Base(lockPath)
+
+		// The agent job must expose aic: in its outputs block so that downstream jobs
+		// (conclusion, safe_outputs) can wire GH_AW_AIC and emit the gh-aw.aic span.
+		assert.Contains(t, agentSection, "aic:",
+			"lock file %s: agent job should expose aic: output for gh-aw.aic span emission", baseName)
+
+		checkedWorkflows++
+	}
+
+	assert.Positive(t, checkedWorkflows, "should have validated at least one lock file with an agent job")
+	t.Logf("Validated agent job aic: output for %d lock file(s)", checkedWorkflows)
+}
+
+// TestCompiledLockFiles_SmokeAICSpanWiring verifies that the canonical smoke-copilot workflow
+// correctly wires the full gh-aw.aic span pipeline end to end:
+//
+//  1. The agent job calls parse-mcp-gateway (parse_mcp_gateway_log.cjs), which exports GH_AW_AIC
+//     via core.exportVariable so it is available to the agent job's post step.
+//  2. The agent job exposes aic: as an output sourced from the parse-mcp-gateway step.
+//  3. The conclusion job's noop step receives GH_AW_AIC wired from the agent output, so the
+//     conclusion OTLP post span can include the cost for the noop-message footer.
+//  4. The safe_outputs job receives GH_AW_AIC so it is visible to footer templates.
+func TestCompiledLockFiles_SmokeAICSpanWiring(t *testing.T) {
+	lockPath := filepath.Join(workflowsDir, "smoke-copilot.lock.yml")
+	lockBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "smoke-copilot.lock.yml should be readable")
+	lockContent := string(lockBytes)
+
+	agentSection := extractJobSection(lockContent, "agent")
+	require.NotEmpty(t, agentSection, "smoke-copilot should contain an agent job")
+
+	t.Run("AgentJobHasParseMCPGatewayStep", func(t *testing.T) {
+		assert.Contains(t, agentSection, "parse_mcp_gateway_log.cjs",
+			"agent job should call parse_mcp_gateway_log.cjs to export GH_AW_AIC and emit aic output")
+	})
+
+	t.Run("AgentJobExposesAICOutput", func(t *testing.T) {
+		assert.Contains(t, agentSection, "aic:",
+			"agent job should expose aic: output for gh-aw.aic span emission")
+		assert.Contains(t, agentSection, "steps.parse-mcp-gateway.outputs.aic",
+			"agent job aic output should reference the parse-mcp-gateway step")
+	})
+
+	t.Run("ConclusionNoopStepReceivesAIC", func(t *testing.T) {
+		conclusionSection := extractJobSection(lockContent, "conclusion")
+		require.NotEmpty(t, conclusionSection, "smoke-copilot should contain a conclusion job")
+		assert.Contains(t, conclusionSection, "GH_AW_AIC:",
+			"conclusion job should receive GH_AW_AIC wired from the agent output")
+		assert.Contains(t, conclusionSection, "needs.agent.outputs.aic",
+			"conclusion job should wire aic from the agent job outputs")
+	})
+
+	t.Run("SafeOutputsJobReceivesAIC", func(t *testing.T) {
+		safeOutputsSection := extractJobSection(lockContent, "safe_outputs")
+		require.NotEmpty(t, safeOutputsSection, "smoke-copilot should contain a safe_outputs job")
+		assert.Contains(t, safeOutputsSection, "GH_AW_AIC:",
+			"safe_outputs job should receive GH_AW_AIC for footer template rendering")
+	})
+}
