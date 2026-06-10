@@ -1,6 +1,6 @@
 ---
 emoji: "📊"
-description: Daily report of token consumption across all agentic workflows using OTel telemetry stored in Sentry
+description: Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry stored in Sentry
 on:
   schedule: daily on weekdays
 permissions:
