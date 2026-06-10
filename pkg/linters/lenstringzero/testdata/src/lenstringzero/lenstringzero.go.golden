@@ -1,0 +1,73 @@
+package lenstringzero
+
+func isEmpty(s string) bool {
+	return s == "" // want `use s == "" to check for empty string instead of len\(s\) == 0`
+}
+
+func isNotEmpty(s string) bool {
+	return s != "" // want `use s != "" to check for non-empty string instead of len\(s\) != 0`
+}
+
+func flippedEmpty(s string) bool {
+	return s == "" // want `use s == "" to check for empty string instead of len\(s\) == 0`
+}
+
+func flippedNotEmpty(s string) bool {
+	return s != "" // want `use s != "" to check for non-empty string instead of len\(s\) != 0`
+}
+
+func alreadyGoodEmpty(s string) bool {
+	return s == ""
+}
+
+func alreadyGoodNotEmpty(s string) bool {
+	return s != ""
+}
+
+func sliceNotFlagged(s []byte) bool {
+	return len(s) == 0
+}
+
+func arrayNotFlagged(s [1]byte) bool {
+	return len(s) != 0
+}
+
+func lenNotZeroOp(s string) bool {
+	return len(s) > 0
+}
+
+func lenNotComparedToZero(s string) bool {
+	return len(s) == 1
+}
+
+func aliasEmpty(s string) bool {
+	n := len(s)
+	return n == 0 // want `use s == "" to check for empty string instead of len\(s\) == 0`
+}
+
+func aliasNotEmpty(s string) bool {
+	n := len(s)
+	return n != 0 // want `use s != "" to check for non-empty string instead of len\(s\) != 0`
+}
+
+func aliasReassignedNotFlagged(s string) bool {
+	n := len(s)
+	n = 1
+	return n == 0
+}
+
+func aliasIncrementedNotFlagged(s string) bool {
+	n := len(s)
+	n++
+	return n == 0
+}
+
+func sliceAliasNotFlagged(s []byte) bool {
+	n := len(s)
+	return n == 0
+}
+
+func arrayAliasNotFlagged(s [1]byte) bool {
+	n := len(s)
+	return n == 0
+}

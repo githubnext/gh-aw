@@ -7,6 +7,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"slices"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -104,12 +105,7 @@ func isInSyncOnceDoFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
 }
 
 func containsExpr(args []ast.Expr, target ast.Expr) bool {
-	for _, a := range args {
-		if a == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, target)
 }
 
 func isSyncOnceType(t types.Type) bool {

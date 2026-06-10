@@ -4,6 +4,7 @@ package fprintlnsprintf
 
 import (
 	"go/ast"
+	"go/token"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -65,10 +66,52 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		pass.Reportf(call.Pos(), "use fmt.Fprintf instead of fmt.Fprintln(w, fmt.Sprintf(...))")
+		pass.Report(analysis.Diagnostic{
+			Pos:            call.Pos(),
+			End:            call.End(),
+			Message:        "use fmt.Fprintf instead of fmt.Fprintln(w, fmt.Sprintf(...))",
+			SuggestedFixes: buildFprintfFix(call, printedArg),
+		})
 	})
 
 	return nil, nil
+}
+
+// buildFprintfFix returns a SuggestedFix rewriting
+// fmt.Fprintln(w, fmt.Sprintf("format", args...)) to
+// fmt.Fprintf(w, "format\n", args...).
+// A fix is only emitted when the format argument is a plain double-quoted
+// string literal; other forms (raw strings, variables) are left unfixed.
+func buildFprintfFix(call *ast.CallExpr, sprintfCall *ast.CallExpr) []analysis.SuggestedFix {
+	if len(sprintfCall.Args) == 0 {
+		return nil
+	}
+	formatLit, ok := sprintfCall.Args[0].(*ast.BasicLit)
+	if !ok || formatLit.Kind != token.STRING {
+		return nil
+	}
+	raw := formatLit.Value
+	if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' {
+		return nil // not a plain double-quoted literal
+	}
+
+	// Build the replacement text: the closing '"' becomes '\n"' in source.
+	const newlineSuffix = `\n"`
+
+	outerSel := call.Fun.(*ast.SelectorExpr)
+	return []analysis.SuggestedFix{{
+		Message: `Replace fmt.Fprintln with fmt.Fprintf`,
+		TextEdits: []analysis.TextEdit{
+			// 1. "Fprintln" → "Fprintf"
+			{Pos: outerSel.Sel.Pos(), End: outerSel.Sel.End(), NewText: []byte("Fprintf")},
+			// 2. Delete "fmt.Sprintf(" — from the start of sprintfCall to after its "("
+			{Pos: sprintfCall.Pos(), End: sprintfCall.Lparen + 1, NewText: nil},
+			// 3. Replace the closing '"' of the format literal with '\n"'
+			{Pos: formatLit.End() - 1, End: formatLit.End(), NewText: []byte(newlineSuffix)},
+			// 4. Delete the closing ")" of fmt.Sprintf(...)
+			{Pos: sprintfCall.Rparen, End: sprintfCall.Rparen + 1, NewText: nil},
+		},
+	}}
 }
 
 // isFmtFunc returns true if call is a call to fmt.<name>.
