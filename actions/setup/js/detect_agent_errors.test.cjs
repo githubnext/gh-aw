@@ -102,6 +102,16 @@ describe("detect_agent_errors.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("unknown model gpt-unknown")).toBe(true);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("model 'gpt-foo' not found")).toBe(true);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("model 'claude-ultra' does not exist")).toBe(true);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("model claude-fake is not supported")).toBe(true);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("model gpt-unknown is not available")).toBe(true);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("model gemini-v99 is unavailable")).toBe(true);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
+    });
+
+    it("does not match unrelated invalid/unknown model wording", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Error: invalid model response format")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Error: invalid model schema definition")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("unknown model behavior detected")).toBe(false);
     });
 
     it("does not match other CAPIError 400 errors", () => {

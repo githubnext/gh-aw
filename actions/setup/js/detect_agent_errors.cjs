@@ -48,11 +48,12 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // Pattern: Configured model is invalid or unavailable.
 // Covers common engine/provider variants:
 //   - "The requested model is not supported"
-//   - "Invalid model"
-//   - "unknown model"
+//   - "invalid model name '...'"
+//   - "unknown model <id>"
 //   - "model ... not found"
 //   - "model ... does not exist"
-const MODEL_NOT_SUPPORTED_PATTERN = /(?:The requested model is not supported|invalid model(?:\s+name)?|unknown model|model(?:\s+name)?\s+['"`]?[a-z0-9._:/-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist))/i;
+const MODEL_NOT_SUPPORTED_PATTERN =
+  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=\s*(?:$|[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=\s*(?:$|[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable))/i;
 
 /**
  * Detect known error patterns in a log string and return detection results.
@@ -115,6 +116,8 @@ function main() {
   writeOutputs(results);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
 
 module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN };

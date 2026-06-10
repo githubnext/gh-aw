@@ -281,10 +281,13 @@ env_key = "OPENAI_API_KEY"
       it("returns true for invalid model name errors", () => {
         expect(isInvalidModelError("invalid model name 'claude-sonnet-999'")).toBe(true);
         expect(isInvalidModelError("model 'gpt-foo' not found")).toBe(true);
+        expect(isInvalidModelError("model gpt-unknown is not available")).toBe(true);
+        expect(isInvalidModelError("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
       });
 
       it("returns false for unrelated errors", () => {
         expect(isInvalidModelError("rate_limit_exceeded")).toBe(false);
+        expect(isInvalidModelError("unknown model behavior detected")).toBe(false);
         expect(isInvalidModelError("ServiceUnavailableError")).toBe(false);
         expect(isInvalidModelError("")).toBe(false);
       });

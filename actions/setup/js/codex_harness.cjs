@@ -47,6 +47,7 @@ const {
 const { emitMissingToolPermissionIssue, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -71,11 +72,6 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
-
-// Pattern to detect invalid or unavailable model configuration.
-// This is a persistent configuration error (invalid model name, unknown model,
-// model not found, or model unavailable for the account) and should not retry.
-const INVALID_MODEL_ERROR_PATTERN = /(?:The requested model is not supported|invalid model(?:\s+name)?|unknown model|model(?:\s+name)?\s+['"`]?[a-z0-9._:/-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist))/i;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.

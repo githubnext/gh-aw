@@ -48,6 +48,7 @@ const {
 const { emitMissingToolPermissionIssue, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -83,9 +84,6 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // window.  Retrying with --continue will always produce the same instant failure, so
 // this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
-// Pattern to detect invalid or unavailable model configuration.
-// This is non-retryable: retrying with the same model name will fail again.
-const INVALID_MODEL_ERROR_PATTERN = /(?:The requested model is not supported|invalid model(?:\s+name)?|unknown model|model(?:\s+name)?\s+['"`]?[a-z0-9._:/-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist))/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
 
 /**

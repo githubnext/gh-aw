@@ -276,6 +276,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Pass engine error-detection outputs to the conclusion job when the selected engine
 	// provides a host-runner detect-agent-errors step.
+	// Contract: engines returning a non-empty GetErrorDetectionScriptId() must run
+	// actions/setup/js/detect_agent_errors.cjs, which emits all four outputs below.
 	// These outputs cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
