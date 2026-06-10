@@ -8,7 +8,7 @@ const path = require("path");
 const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
 const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
+const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -313,6 +313,9 @@ async function main() {
   try {
     const githubClient = createRateLimitAwareGithub(github);
     const { owner, repo } = context.repo;
+    // Capture a before-guardrail rate-limit snapshot and log it to the JSONL
+    // so consumers can determine the baseline available quota before inspection starts.
+    await fetchAndLogRateLimit(githubClient, "daily-aic-guardrail-start");
     const currentRun = await githubClient.rest.actions.getWorkflowRun({
       owner,
       repo,
@@ -458,6 +461,19 @@ async function main() {
       currentAIC: totalAIC,
       threshold,
       exceeded: totalAIC > threshold,
+    });
+
+    // Capture an after-guardrail rate-limit snapshot and log it to the JSONL so
+    // the full cost of the inspection window (workflow-run listing + artifact downloads)
+    // can be measured.  The delta between the before and after snapshots answers
+    // whether the daily AIC guardrail is too hungry in GitHub API rate limits.
+    const rateLimitEnd = await fetchAndLogRateLimit(githubClient, "daily-aic-guardrail-end");
+    logDailyGuardrail("GitHub API rate limit consumed by daily AIC guardrail", {
+      rateLimitBeforeInspection: rateLimit.remaining,
+      rateLimitAfterInspection: rateLimitEnd?.remaining ?? null,
+      consumed: rateLimit.remaining - (rateLimitEnd?.remaining ?? rateLimit.remaining),
+      limit: rateLimit.limit,
+      reset: rateLimit.reset,
     });
 
     if (totalAIC <= threshold) {
