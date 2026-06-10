@@ -12,8 +12,8 @@ package github
 //
 // To customize these mappings:
 //  1. Create .github/objective-mapping.json in your repository root
-//  2. Set OBJECTIVE_MAPPING_JSON environment variable
-//  3. See docs/label-objective-mapping.md for configuration guide
+//  2. Set OBJECTIVE_MAPPING_JSON environment variable (JSON string or file path)
+//  3. See specs/objective-mapping-portfolio-reporting.md for configuration details
 //
 // Critical Priority Labels
 const (
