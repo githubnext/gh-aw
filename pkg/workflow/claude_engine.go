@@ -525,6 +525,12 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 	return "parse_claude_log"
 }
 
+// GetErrorDetectionScriptId returns the JavaScript script name for detecting
+// post-run agent errors from the host runner (including invalid/unsupported model names).
+func (e *ClaudeEngine) GetErrorDetectionScriptId() string {
+	return "detect_agent_errors"
+}
+
 // GetHarnessScriptName returns the filename of the JavaScript harness script that wraps
 // the Claude Code CLI with retry logic for transient Anthropic API errors (overload, rate limit).
 func (e *ClaudeEngine) GetHarnessScriptName() string {

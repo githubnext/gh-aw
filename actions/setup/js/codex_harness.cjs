@@ -72,6 +72,11 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
 
+// Pattern to detect invalid or unavailable model configuration.
+// This is a persistent configuration error (invalid model name, unknown model,
+// model not found, or model unavailable for the account) and should not retry.
+const INVALID_MODEL_ERROR_PATTERN = /(?:The requested model is not supported|invalid model(?:\s+name)?|unknown model|model(?:\s+name)?\s+['"`]?[a-z0-9._:/-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist))/i;
+
 /**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[codex-harness]" so they are easy to
@@ -118,6 +123,15 @@ function isMissingApiKeyError(output) {
  */
 function isServerError(output) {
   return SERVER_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates an invalid or unavailable model name.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isInvalidModelError(output) {
+  return INVALID_MODEL_ERROR_PATTERN.test(output);
 }
 
 /**
@@ -402,6 +416,7 @@ async function main() {
     const isAuthenticationFailed = isAuthenticationFailedError(result.output);
     const isMissingApiKey = isMissingApiKeyError(result.output);
     const isServer = isServerError(result.output);
+    const isInvalidModel = isInvalidModelError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
@@ -411,6 +426,7 @@ async function main() {
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
         ` isMissingApiKeyError=${isMissingApiKey}` +
         ` isServerError=${isServer}` +
+        ` isInvalidModelError=${isInvalidModel}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
@@ -442,6 +458,11 @@ async function main() {
 
     if (isMissingApiKey) {
       log(`attempt ${attempt + 1}: missing API key — not retrying (configure CODEX_API_KEY or OPENAI_API_KEY)`);
+      break;
+    }
+
+    if (isInvalidModel) {
+      log(`attempt ${attempt + 1}: invalid/unsupported model configuration — not retrying (specify a valid engine model name in workflow frontmatter)`);
       break;
     }
 
@@ -485,6 +506,7 @@ if (typeof module !== "undefined" && module.exports) {
     isAuthenticationFailedError,
     isMissingApiKeyError,
     isServerError,
+    isInvalidModelError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
     extractDeniedCommands,

@@ -1,12 +1,12 @@
 > [!WARNING]
-> **Model Not Supported**: The Copilot CLI failed because the requested model is not available for your subscription tier. This typically affects Copilot Pro and Education users.
+> **Invalid or Unsupported Model**: The agent failed because the configured model name is invalid, unknown, or unavailable for this engine/account.
 
 This is a **configuration issue**, not a transient error — retrying will not help.
 
 <details>
 <summary>How to fix this</summary>
 
-Specify a model that is supported by your subscription in the workflow frontmatter:
+Specify a valid model for the selected engine in the workflow frontmatter:
 
 ```yaml
 ---
@@ -15,6 +15,6 @@ model: gpt-5-mini
 ---
 ```
 
-To find the models available for your account, check your [Copilot settings](https://github.com/settings/copilot) or refer to the [supported models documentation](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line#supported-models).
+To find valid models, check your engine/provider documentation (for Copilot see [supported models](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line#supported-models)).
 
 </details>
