@@ -69,7 +69,7 @@ function normalizeProvider(provider) {
   const normalized = String(provider || "")
     .trim()
     .toLowerCase();
-  if (normalized === "github" || normalized === "copilot") return "github-copilot";
+  if (normalized === "github" || normalized === "copilot" || normalized === "github_models") return "github-copilot";
   return normalized;
 }
 
