@@ -28,7 +28,7 @@ func TestParseNestedImportEntries_LenientArrayParsing(t *testing.T) {
 	require.Equal(t, map[string]any{"env": "prod"}, entries[1].inputs)
 }
 
-func TestParseImportSpecsFromArray_RejectsIf(t *testing.T) {
+func TestParseImportSpecsFromArray_RejectsIfField(t *testing.T) {
 	_, err := parseImportSpecsFromArray([]any{
 		map[string]any{
 			"uses": "shared/workflow.md",

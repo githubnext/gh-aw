@@ -29,7 +29,7 @@ imports:
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[safeoutputs]"
-  - shared/aw-logs-24h-fetch-setup.md
+  - uses: shared/aw-logs-24h-fetch-setup.md
   - shared/activation-app.md
   - ../skills/jqschema/SKILL.md
   - uses: shared/daily-audit-base.md
