@@ -292,5 +292,5 @@ experiments:
 - ❌ **Interpreting early results** (<~20 runs/variant) — chance variation dominates.
 - ❌ **Experiments as feature flags** — use `features:` for deterministic switches.
 - ❌ **Engine experiments in one file** — `engine:` cannot switch mid-run; use two parallel files.
-- ❌ **Nesting `{{#if experiments.<name> }}` inside `{{#runtime-import? }}`** — evaluation order not guaranteed across import boundaries.
+- ❌ **Nesting `{{#if experiments.<name> }}` inside `{{#runtime-import? }}`** — evaluation order is brittle across import boundaries. Prefer explicit branching in the main workflow prompt or separate workflow files per variant.
 - ❌ **Writing the internal env-var form** `__GH_AW_EXPERIMENTS__*` — implementation detail, may change.

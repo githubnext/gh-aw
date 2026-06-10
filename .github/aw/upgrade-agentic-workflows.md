@@ -102,7 +102,13 @@ Before attempting to compile, apply automatic codemods:
    
    This will automatically update workflow files with changes like:
    - Replacing 'timeout_minutes' with 'timeout-minutes'
-   - Replacing 'network.firewall' with 'sandbox.agent: false'
+   - Replacing `network.firewall: false` with:
+     ```yaml
+     features:
+       dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+     sandbox:
+       agent: false
+     ```
    - Removing deprecated 'mcp-scripts.mode' field
 
 2. **Review the Changes**
