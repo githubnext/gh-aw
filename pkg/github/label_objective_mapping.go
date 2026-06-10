@@ -138,10 +138,21 @@ func LoadObjectiveMappingFromConfig() *ObjectiveMapping {
 		labelObjectiveMappingLog.Print("Attempting to load from OBJECTIVE_MAPPING_JSON env var")
 		var om ObjectiveMapping
 		if err := json.Unmarshal([]byte(mappingJSON), &om); err == nil {
-			labelObjectiveMappingLog.Printf("Loaded mapping from env var: %d labels", len(om.LabelToValue))
+			labelObjectiveMappingLog.Printf("Loaded mapping from env var JSON: %d labels", len(om.LabelToValue))
 			return &om
 		} else {
-			labelObjectiveMappingLog.Printf("Failed to parse OBJECTIVE_MAPPING_JSON: %v", err)
+			labelObjectiveMappingLog.Printf("Failed to parse OBJECTIVE_MAPPING_JSON as JSON: %v", err)
+		}
+
+		// If it's not valid JSON, treat it as a file path.
+		if data, err := os.ReadFile(mappingJSON); err == nil {
+			if err := json.Unmarshal(data, &om); err == nil {
+				labelObjectiveMappingLog.Printf("Loaded mapping from env var file %q: %d labels", mappingJSON, len(om.LabelToValue))
+				return &om
+			}
+			labelObjectiveMappingLog.Printf("Failed to parse OBJECTIVE_MAPPING_JSON file %q: %v", mappingJSON, err)
+		} else {
+			labelObjectiveMappingLog.Printf("Could not read OBJECTIVE_MAPPING_JSON as file %q: %v", mappingJSON, err)
 		}
 	}
 
