@@ -105,13 +105,10 @@ func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
 
 	images := collectDockerImages(tools, workflowData, ActionModeRelease)
 
-	// DockerImages on workflowData should now be populated (node:lts-alpine from safe-outputs).
-	require.NotEmpty(t, workflowData.DockerImages, "DockerImages should be populated after collectDockerImages")
-	assert.Equal(t, images, workflowData.DockerImages, "DockerImages should match the returned slice")
-
-	// DockerImagePins should also be populated with matching Image fields.
-	require.NotEmpty(t, workflowData.DockerImagePins, "DockerImagePins should be populated")
-	assert.Len(t, workflowData.DockerImagePins, len(workflowData.DockerImages), "pin count should match image count")
+	assert.Empty(t, images, "Safe outputs alone should not return Docker images")
+	// Safe outputs run on the host Node.js runtime, so they should not force a Docker pull.
+	require.Empty(t, workflowData.DockerImages, "Safe outputs alone should not populate DockerImages")
+	assert.Empty(t, workflowData.DockerImagePins, "Safe outputs alone should not populate DockerImagePins")
 }
 
 // TestMergeDockerImages verifies deduplication when merging two slices.

@@ -45,15 +45,8 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		}
 	}
 
-	// Check for safe-outputs MCP server (uses node:lts-alpine container)
-	if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		image := constants.DefaultNodeAlpineLTSImage
-		if !imageSet[image] {
-			images = append(images, image)
-			imageSet[image] = true
-			dockerLog.Printf("Added safe-outputs MCP server container: %s", image)
-		}
-	}
+	// Safe outputs run via start_safe_outputs_server.sh on the host runner's Node.js
+	// runtime, so they no longer require a pre-pulled node:lts-alpine container.
 
 	// Check for agentic-workflows tool
 	// In dev mode, the image is built locally in the workflow, so don't add to pull list
