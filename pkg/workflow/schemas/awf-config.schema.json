@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/github/gh-aw-firewall/main/docs/awf-config.schema.json",
+  "$id": "https://github.com/github/gh-aw-firewall/releases/download/v0.27.0/awf-config.schema.json",
   "title": "AWF Configuration",
   "description": "JSON/YAML configuration for awf CLI. CLI flags override config file values. See https://github.com/github/gh-aw-firewall for documentation.",
   "type": "object",
@@ -49,7 +49,7 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md \u00a79 for credential isolation semantics."
+          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md §9 for credential isolation semantics."
         },
         "enableTokenSteering": {
           "type": "boolean",
@@ -67,16 +67,44 @@
         "maxEffectiveTokens": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input \u00d71, cache-read \u00d70.1, output \u00d74, reasoning \u00d74. See spec \u00a710."
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
         },
         "maxAiCredits": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Maximum cumulative AI credits allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'ai_credits_limit_exceeded'."
+          "description": "Maximum cumulative AI credits allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'ai_credits_limit_exceeded'. AWF also enforces a non-overridable hard cap of 10,000 AI credits; values above 10,000 are effectively clamped."
+        },
+        "defaultAiCreditsPricing": {
+          "type": "object",
+          "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. When maxAiCredits is active and a model is unrecognized, this rate is used. If not set, unrecognized models are rejected with HTTP 400 (type: unknown_model_ai_credits).",
+          "required": ["input", "output"],
+          "properties": {
+            "input": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Input token price per 1M tokens in dollars."
+            },
+            "output": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Output token price per 1M tokens in dollars."
+            },
+            "cachedInput": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Cached input token price per 1M tokens. Defaults to input × 0.1 if omitted."
+            },
+            "cacheWrite": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "description": "Cache write token price per 1M tokens. Null means cache writes are free."
+            }
+          },
+          "additionalProperties": false
         },
         "modelMultipliers": {
           "type": "object",
-          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec \u00a710.2.",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec §10.2.",
           "additionalProperties": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -92,10 +120,15 @@
           "exclusiveMinimum": 0,
           "description": "Maximum allowed model multiplier. When set, the proxy resolves each incoming request's model against the configured modelMultipliers (and defaultModelMultiplier) and rejects any request whose resolved multiplier exceeds this cap with HTTP 400 and error type model_multiplier_cap_exceeded. This guards against unexpected pricing spikes from model routing changes."
         },
+        "maxTurns": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
+        },
         "maxRuns": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec \u00a711."
+          "description": "Deprecated alias for maxTurns. Use maxTurns instead."
         },
         "maxPermissionDenied": {
           "type": "integer",
@@ -112,17 +145,8 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "oneOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "pattern": "^\\$\\{\\{.*\\}\\}$",
-                  "description": "GitHub Actions expression that resolves to a boolean at runtime"
-                }
-              ],
-              "description": "Enable or disable middle-power fallback when model resolution fails. Supports literal booleans and GitHub Actions expressions in compiled workflows."
+              "type": "boolean",
+              "description": "Enable or disable middle-power fallback when model resolution fails."
             },
             "strategy": {
               "type": "string",
@@ -192,7 +216,7 @@
         },
         "auth": {
           "type": "object",
-          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC \u2192 Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md \u00a79.5.",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md §9.5.",
           "additionalProperties": false,
           "properties": {
             "type": {
@@ -458,12 +482,86 @@
         "dockerHostPathPrefix": {
           "type": "string",
           "description": "Prefix bind-mount source paths so the Docker daemon can resolve runner filesystem paths. Required for ARC DinD sidecar runners where the runner and daemon have separate filesystems. Example: \"/host\". Kernel virtual filesystems (/dev, /sys, /proc) are automatically excluded from prefixing. When this points at a daemon-visible shared /tmp path, AWF also stages the invoking CLI binary plus /etc/passwd, /etc/group, and the generated chroot /etc/hosts there."
+        },
+        "runnerToolCachePath": {
+          "type": "string",
+          "description": "Host runner tool cache directory to mount read-only into chroot mode. When set, AWF checks this path first before environment-based auto-detection."
+        }
+      }
+    },
+    "chroot": {
+      "type": "object",
+      "description": "Chroot execution overrides for split-filesystem ARC/DinD runners.",
+      "additionalProperties": false,
+      "properties": {
+        "binariesSourcePath": {
+          "type": "string",
+          "description": "Optional runner-side directory to overlay at /usr/local/bin inside chroot mode (for split-filesystem ARC/DinD runners)."
+        },
+        "identity": {
+          "type": "object",
+          "description": "Identity values applied after chroot pivot to override HOME/USER defaults inside chroot mode.",
+          "additionalProperties": false,
+          "properties": {
+            "home": {
+              "type": "string",
+              "description": "Home directory path to export inside chroot mode (for example: \"/tmp/gh-aw/home\")."
+            },
+            "user": {
+              "type": "string",
+              "description": "User/LOGNAME string to export inside chroot mode (for example: \"runner\")."
+            },
+            "uid": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "UID hint used for chroot identity synthesis and user switching."
+            },
+            "gid": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "GID hint used for chroot identity synthesis and user switching."
+            }
+          }
+        }
+      }
+    },
+    "dind": {
+      "type": "object",
+      "description": "Bootstrap helpers for ARC/DinD split runner/daemon filesystems.",
+      "additionalProperties": false,
+      "properties": {
+        "preStageDirs": {
+          "type": "boolean",
+          "description": "When true and DinD is detected, AWF pre-creates the required /tmp/gh-aw directory tree inside the daemon-visible filesystem before compose startup."
+        },
+        "workDir": {
+          "type": "string",
+          "description": "Daemon-visible working directory for DinD pre-staging (default: \"/tmp/gh-aw\")."
+        },
+        "stagingImage": {
+          "type": "string",
+          "description": "Container image used for short-lived DinD staging operations."
+        },
+        "stageEngineBinary": {
+          "type": "object",
+          "description": "Engine binary staging settings for split-filesystem DinD setups.",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Runner-side path to the engine binary to stage (for example: \"/usr/local/bin/copilot\")."
+            },
+            "targetPath": {
+              "type": "string",
+              "description": "Daemon filesystem destination path for the staged engine binary."
+            }
+          }
         }
       }
     },
     "environment": {
       "type": "object",
-      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md \u00a78\u20139 for credential isolation rules.",
+      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md §8–9 for credential isolation rules.",
       "additionalProperties": false,
       "properties": {
         "envFile": {
@@ -472,7 +570,7 @@
         },
         "envAll": {
           "type": "boolean",
-          "description": "Forward all host environment variables into the agent container. Use with caution \u2014 may expose secrets."
+          "description": "Forward all host environment variables into the agent container. Use with caution — may expose secrets."
         },
         "excludeEnv": {
           "type": "array",
@@ -591,6 +689,10 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Opt-in session identifier injected as the `x-session-id` request header and `session_id` body field on Copilot BYOK upstream requests. This is a GitHub Copilot API convention; strict OpenAI-compatible servers (e.g. Azure OpenAI) reject the unknown body field with HTTP 400, so the value must be set explicitly and is never auto-derived from `GITHUB_RUN_ID`. Maps to AWF_PROVIDER_SESSION_ID in the sidecar."
         }
       }
     }

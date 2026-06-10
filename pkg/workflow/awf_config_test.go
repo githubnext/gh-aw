@@ -988,6 +988,11 @@ func TestValidateAWFConfigJSON_RejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestValidateAWFConfigJSON_AllowsTemplatableModelFallbackEnabled(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"modelFallback":{"enabled":"${{ inputs.model-fallback }}"}}}`)
+	require.NoError(t, err, "modelFallback.enabled expressions should pass compile-time schema validation")
+}
+
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
 // WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
 func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {
