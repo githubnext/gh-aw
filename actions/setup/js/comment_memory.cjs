@@ -160,6 +160,10 @@ async function main(config = {}) {
     });
     if (!targetResult.success) {
       core.warning(`comment_memory: target resolution failed: ${targetResult.error}`);
+      if (!targetResult.shouldFail) {
+        // No triggering context (e.g. schedule/workflow_dispatch run) — skip rather than fail
+        return { success: false, skipped: true, error: targetResult.error };
+      }
       return { success: false, error: targetResult.error };
     }
     core.info(`comment_memory: resolved target item_number=${targetResult.number}`);

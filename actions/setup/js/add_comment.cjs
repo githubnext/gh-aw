@@ -775,10 +775,7 @@ async function main(config = {}) {
     const rawTarget = message.target;
     const allowedTargets = ["status"];
     if (rawTarget !== undefined && !allowedTargets.includes(rawTarget)) {
-      return {
-        success: false,
-        error: `target must be one of: [${allowedTargets.join(", ")}]`,
-      };
+      core.warning(`Ignoring unrecognized message-level target value "${rawTarget}": only "status" is supported. Proceeding without comment reuse.`);
     }
     const isStatusCommentTarget = rawTarget === "status";
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";

@@ -707,6 +707,35 @@ describe("add_comment", () => {
       );
       expect(createCommentCalled).toBe(false);
     });
+
+    it("should warn and ignore unrecognized message-level target values instead of failing", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      let createCommentCalled = false;
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+      mockGithub.rest.issues.createComment = async () => {
+        createCommentCalled = true;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/pull/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+      // Agent hallucinated target: "discussion" — should warn and proceed (not fail)
+      const result = await handler({ type: "add_comment", body: "Test comment", target: "discussion" }, {});
+
+      expect(result.success).toBe(true);
+      expect(createCommentCalled).toBe(true);
+      // Should have warned about the unrecognized target value
+      const targetWarning = warningCalls.find(msg => msg.includes("discussion") && msg.includes("target"));
+      expect(targetWarning).toBeTruthy();
+    });
   });
 
   describe("discussion support", () => {
