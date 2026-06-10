@@ -89,6 +89,7 @@ The main agent job must stay read-only.
 
 - Do not grant `issues: write`, `pull-requests: write`, or `contents: write` to the agent job.
 - Route GitHub writes through `safe-outputs:`.
+- When targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` so Copilot can authenticate with `${{ github.token }}`.
 - If the user asks for direct writes, explain why the safe-output pattern is required.
 
 ### 4. Select tools
