@@ -773,12 +773,9 @@ async function main(config = {}) {
     // accepted for compatibility with forwarded/legacy payload variants.
     const explicitCommentIdRaw = message.comment_id ?? message.commentId ?? message["comment-id"];
     const rawTarget = message.target;
-    const allowedTargets = ["status"];
+    const allowedTargets = ["status", "issue", "discussion"];
     if (rawTarget !== undefined && !allowedTargets.includes(rawTarget)) {
-      return {
-        success: false,
-        error: `target must be one of: [${allowedTargets.join(", ")}]`,
-      };
+      core.warning(`Ignoring unrecognized message-level target value "${rawTarget}": only "status", "issue", or "discussion" are supported. Proceeding without comment reuse.`);
     }
     const isStatusCommentTarget = rawTarget === "status";
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";

@@ -1,7 +1,11 @@
 // @ts-check
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe("comment_memory", () => {
   let originalPromptsDir;
@@ -132,5 +136,87 @@ describe("comment_memory", () => {
 
     const found = await module.findManagedComment(github, "octo", "repo", 123, "default");
     expect(found?.id).toBe(2);
+  });
+
+  describe("handler integration", () => {
+    let mockCore;
+    let mockGithub;
+    let mockContext;
+    let originalGlobals;
+
+    beforeEach(() => {
+      originalGlobals = {
+        core: global.core,
+        github: global.github,
+        context: global.context,
+      };
+
+      mockCore = {
+        debug: () => {},
+        info: () => {},
+        warning: () => {},
+        error: () => {},
+        setOutput: () => {},
+        setFailed: () => {},
+      };
+
+      mockGithub = {
+        rest: {
+          issues: {
+            listComments: async () => ({ data: [] }),
+            createComment: async () => ({
+              data: { id: 99, html_url: "https://github.com/owner/repo/issues/1#issuecomment-99" },
+            }),
+            updateComment: async () => ({
+              data: { id: 99, html_url: "https://github.com/owner/repo/issues/1#issuecomment-99" },
+            }),
+          },
+        },
+      };
+
+      mockContext = {
+        eventName: "pull_request",
+        runId: 1,
+        repo: { owner: "owner", repo: "repo" },
+        payload: { pull_request: { number: 42 } },
+        serverUrl: "https://github.com",
+      };
+
+      global.core = mockCore;
+      global.github = mockGithub;
+      global.context = mockContext;
+    });
+
+    afterEach(() => {
+      global.core = originalGlobals.core;
+      global.github = originalGlobals.github;
+      global.context = originalGlobals.context;
+    });
+
+    it("should skip (not fail) when target is 'triggering' but running in workflow_dispatch context", async () => {
+      const commentMemoryScript = fs.readFileSync(path.join(__dirname, "comment_memory.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      // workflow_dispatch has no triggering issue or PR
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {};
+
+      const handler = await eval(`(async () => { ${commentMemoryScript}; return await main({ target: 'triggering' }); })()`);
+
+      const result = await handler({ type: "comment_memory", body: "Agent memory" }, {});
+
+      // Should be skipped, not failed — workflow_dispatch has no triggering issue/PR
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("triggering");
+
+      // Should have warned about the failed target resolution
+      const targetWarning = warningCalls.find(msg => msg.includes("target resolution failed"));
+      expect(targetWarning).toBeTruthy();
+    });
   });
 });
