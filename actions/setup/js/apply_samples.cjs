@@ -273,7 +273,7 @@ async function preStagePatch(entry, index, workspace) {
     if (!branch) {
       throw new Error(
         `apply_samples: cannot derive pull-request head branch for sample[${index}] (tool=${entry.tool}). ` +
-          `Trigger the workflow from a pull_request event, or set sample.pull_request_number, ` +
+          `Trigger the workflow from a pull_request event, or set arguments.pull_request_number on the sample, ` +
           `or provide GITHUB_TOKEN so the PR can be fetched.`
       );
     }
