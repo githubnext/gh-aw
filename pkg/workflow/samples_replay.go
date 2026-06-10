@@ -116,6 +116,34 @@ func collectSampleRepoTokens(configs []*CheckoutConfig) map[string]string {
 	return tokens
 }
 
+// marshalStringMapDeterministic returns a compact JSON object encoding of m
+// with keys sorted lexicographically so the emitted YAML is byte-stable
+// across runs. Returns nil for empty/nil maps so callers can skip emission.
+func marshalStringMapDeterministic(m map[string]string) []byte {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var buf strings.Builder
+	buf.WriteString("{")
+	for i, k := range keys {
+		if i > 0 {
+			buf.WriteString(",")
+		}
+		kEnc, _ := json.Marshal(k)
+		vEnc, _ := json.Marshal(m[k])
+		buf.Write(kEnc)
+		buf.WriteString(":")
+		buf.Write(vEnc)
+	}
+	buf.WriteString("}")
+	return []byte(buf.String())
+}
+
 // generateSamplesReplayStep emits the YAML that replaces the agentic
 // `Execute coding agent` step when the hidden `gh aw compile --use-samples`
 // flag is used. It spawns the safe-outputs MCP server over stdio and feeds it
@@ -149,29 +177,7 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	// require a non-default token (cross-repo `checkout:` entries with their
 	// own `github-token:` or `github-app:`).
 	repoTokens := collectSampleRepoTokens(data.CheckoutConfigs)
-	var repoTokensPayload []byte
-	if len(repoTokens) > 0 {
-		// Sort keys for deterministic output.
-		keys := make([]string, 0, len(repoTokens))
-		for k := range repoTokens {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		var buf strings.Builder
-		buf.WriteString("{")
-		for i, k := range keys {
-			if i > 0 {
-				buf.WriteString(",")
-			}
-			kEnc, _ := json.Marshal(k)
-			vEnc, _ := json.Marshal(repoTokens[k])
-			buf.Write(kEnc)
-			buf.WriteString(":")
-			buf.Write(vEnc)
-		}
-		buf.WriteString("}")
-		repoTokensPayload = []byte(buf.String())
-	}
+	repoTokensPayload := marshalStringMapDeterministic(repoTokens)
 
 	yaml.WriteString("      - name: Replay safe-outputs samples (deterministic)\n")
 	yaml.WriteString("        id: agentic_execution\n")

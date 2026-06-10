@@ -2070,7 +2070,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // (zero != no-data) and lets the Sentry EAP schema infer the attribute as numeric
   // so sum()/avg()/percentile() aggregations work without manual schema configuration.
   const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
-  const aiCreditsFromFile = agentUsage.ai_credits;
+  const aiCreditsFromFile = agentUsage.ai_credits ?? 0;
   const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
   const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? (aiCreditsFromFile > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile))) : undefined;
   if (typeof aiCredits === "number") {
