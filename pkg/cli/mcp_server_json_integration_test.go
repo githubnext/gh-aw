@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -594,6 +595,74 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 					outputPreview = outputPreview[:100] + "..."
 				}
 				t.Logf("%s tool returned content: %s", tc.toolName, outputPreview)
+			}
+		})
+	}
+}
+
+// TestMCPServer_WindowsSmokeCommands verifies a running MCP server on Windows
+// can handle multiple tool commands without protocol errors.
+func TestMCPServer_WindowsSmokeCommands(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only integration test")
+	}
+
+	binaryPath := "../../gh-aw.exe"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw.exe binary not found")
+	}
+
+	session, _, ctx, cancel := setupMCPServerTest(t, binaryPath)
+	defer cancel()
+	defer session.Close()
+
+	testCases := []struct {
+		name        string
+		tool        string
+		args        map[string]any
+		allowErrMsg []string
+	}{
+		{name: "status", tool: "status", args: map[string]any{}},
+		{name: "compile", tool: "compile", args: map[string]any{}},
+		{name: "mcp-inspect", tool: "mcp-inspect", args: map[string]any{}},
+		{
+			name:        "checks missing parameter",
+			tool:        "checks",
+			args:        map[string]any{},
+			allowErrMsg: []string{"pr_number", "required", "missing"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      tc.tool,
+				Arguments: tc.args,
+			})
+			if err != nil {
+				if len(tc.allowErrMsg) == 0 {
+					t.Fatalf("Failed to call tool %q: %v", tc.tool, err)
+				}
+				errMsg := err.Error()
+				for _, allowed := range tc.allowErrMsg {
+					if strings.Contains(errMsg, allowed) {
+						t.Logf("Tool %q returned expected validation error: %v", tc.tool, err)
+						return
+					}
+				}
+				t.Fatalf("Tool %q returned unexpected error: %v", tc.tool, err)
+			}
+
+			if len(result.Content) == 0 {
+				t.Fatalf("Expected non-empty result from tool %q", tc.tool)
+			}
+
+			textContent, ok := result.Content[0].(*mcp.TextContent)
+			if !ok {
+				t.Fatalf("Expected text content from tool %q", tc.tool)
+			}
+			if strings.TrimSpace(textContent.Text) == "" {
+				t.Fatalf("Expected non-empty text output from tool %q", tc.tool)
 			}
 		})
 	}
