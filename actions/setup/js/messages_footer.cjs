@@ -129,7 +129,7 @@ function getAICFromEnv() {
  * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
- * @property {number} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
+ * @property {number|string} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
  * @property {string} [slashCommandPlaceholder] - Custom hint text appended after the command name (replaces default "to run again")
@@ -310,6 +310,7 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
  * @property {string} [workflowSource] - Source of the workflow (owner/repo/path@ref)
  * @property {string} [workflowSourceUrl] - GitHub URL for the workflow source
  * @property {string} [historyUrl] - GitHub search URL for issues created by this workflow (for the history link)
+ * @property {number|string} [aiCredits] - Total AI Credits cost for the run (1 AIC == 0.01 USD)
  */
 
 /**
@@ -326,8 +327,23 @@ function getFooterAgentFailureIssueMessage(ctx) {
   // Pre-compute agentic_workflow_url as the direct link to the agentic workflow page
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
-  const { aiCredits, aiCreditsFormatted, aiCreditsSuffix, agentAiCredits, agentAiCreditsFormatted, agentAiCreditsSuffix, threatDetectionAiCredits, threatDetectionAiCreditsFormatted, threatDetectionAiCreditsSuffix } = getAICFromEnv();
+  const {
+    aiCredits: envAIC,
+    aiCreditsFormatted: envAICFormatted,
+    aiCreditsSuffix: envAICSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  } = getAICFromEnv();
   const { ambientContext, ambientContextFormatted, ambientContextSuffix } = getAmbientContextFromEnv();
+  const explicitContextAIC = parsePositiveAIC(ctx.aiCredits != null ? String(ctx.aiCredits) : undefined);
+  const aiCredits = explicitContextAIC ?? envAIC;
+  const hasExplicitContextAIC = explicitContextAIC !== undefined;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (aiCredits ? formatAIC(aiCredits) : undefined) : envAICFormatted;
+  const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
