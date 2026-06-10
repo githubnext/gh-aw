@@ -474,10 +474,11 @@ func TestCompiledLockFiles_AgentJobExposesAICOutput(t *testing.T) {
 
 		baseName := filepath.Base(lockPath)
 
-		// The agent job must expose aic: in its outputs block so that downstream jobs
-		// (conclusion, safe_outputs) can wire GH_AW_AIC and emit the gh-aw.aic span.
-		assert.Contains(t, agentSection, "aic:",
-			"lock file %s: agent job should expose aic: output for gh-aw.aic span emission", baseName)
+		// The agent job must expose aic: in its outputs block, referencing the
+		// parse-mcp-gateway step, so that downstream jobs (conclusion, safe_outputs)
+		// can wire GH_AW_AIC and emit the gh-aw.aic span.
+		assert.Contains(t, agentSection, "steps.parse-mcp-gateway.outputs.aic",
+			"lock file %s: agent job aic: output should reference steps.parse-mcp-gateway.outputs.aic", baseName)
 
 		checkedWorkflows++
 	}
@@ -530,5 +531,7 @@ func TestCompiledLockFiles_SmokeAICSpanWiring(t *testing.T) {
 		require.NotEmpty(t, safeOutputsSection, "smoke-copilot should contain a safe_outputs job")
 		assert.Contains(t, safeOutputsSection, "GH_AW_AIC:",
 			"safe_outputs job should receive GH_AW_AIC for footer template rendering")
+		assert.Contains(t, safeOutputsSection, "needs.agent.outputs.aic",
+			"safe_outputs job should wire GH_AW_AIC from needs.agent.outputs.aic")
 	})
 }
