@@ -18,11 +18,9 @@ imports:
 
   - shared/otlp.md
 safe-outputs:
-  close-issue:
-    required-title-prefix: "[refactor] "
-    target: "*"
-    max: 10
   create-issue:
+    close-older-issues: true
+    close-older-key: semantic-function-refactor
     expires: 2d
     title-prefix: "[refactor] "
     labels: [refactoring, code-quality, automated-analysis, cookie]
@@ -46,15 +44,12 @@ You are an AI agent that analyzes Go code to identify potential refactoring oppo
 
 ## Mission
 
-**IMPORTANT: Before performing analysis, close any existing open issues with the title prefix `[refactor]` to avoid duplicate issues.**
-
 Analyze all Go source files (`.go` files, excluding test files) in the repository to:
-1. **First, close existing open issues** with the `[refactor]` prefix
-2. Collect all function names per file
-3. Cluster functions semantically by name and purpose
-4. Identify outliers (functions that might be in the wrong file)
-5. Use Serena's semantic analysis to detect potential duplicates
-6. Suggest refactoring fixes
+1. Collect all function names per file
+2. Cluster functions semantically by name and purpose
+3. Identify outliers (functions that might be in the wrong file)
+4. Use Serena's semantic analysis to detect potential duplicates
+5. Suggest refactoring fixes
 
 ## Important Constraints
 
@@ -72,42 +67,11 @@ The Serena MCP server is configured for this workspace:
 - **Context**: codex
 - **Language service**: Go (gopls)
 
-## Close Existing Refactor Issues (CRITICAL FIRST STEP)
-
-**Before performing any analysis**, you must close existing open issues with the `[refactor]` title prefix to prevent duplicate issues.
-
-Use the GitHub API tools to:
-1. Search for open issues with title containing `[refactor]` in repository ${{ github.repository }}
-2. Close each found issue with a comment explaining a new analysis is being performed
-3. Use the `close_issue` safe output to close these issues
-
-**Important**: The `close-issue` safe output is configured with:
-- `required-title-prefix: "[refactor]"` - Only issues starting with this prefix will be closed
-- `target: "*"` - Can close any issue by number (not just triggering issue)
-- `max: 10` - Can close up to 10 issues in one run
-
-To close an existing refactor issue, emit:
-```
-close_issue(issue_number=123, body="Closing this issue as a new semantic function refactoring analysis is being performed.")
-```
-
-**Do not proceed with analysis until all existing `[refactor]` issues are closed.**
-
 ## Task Steps
 
-### 1. Close Existing Refactor Issues
+### 1. Activate Serena Project
 
-**CRITICAL FIRST STEP**: Before performing any analysis, close existing open issues with the `[refactor]` prefix to prevent duplicate issues.
-
-1. Use GitHub search to find open issues with `[refactor]` in the title
-2. For each found issue, use `close_issue` to close it with an explanatory comment
-3. Example: `close_issue(issue_number=4542, body="Closing this issue as a new semantic function refactoring analysis is being performed.")`
-
-**Do not proceed to step 2 until all existing `[refactor]` issues are closed.**
-
-### 2. Activate Serena Project
-
-After closing existing issues, activate the project in Serena to enable semantic analysis:
+Activate the project in Serena to enable semantic analysis:
 
 ```bash
 # Serena's activate_project tool should be called with the workspace path
@@ -116,7 +80,7 @@ After closing existing issues, activate the project in Serena to enable semantic
 
 Use Serena's `activate_project` tool with the workspace path.
 
-### 3. Discover Go Source Files
+### 2. Discover Go Source Files
 
 Find all non-test Go files in the repository:
 
@@ -127,7 +91,7 @@ find pkg -name "*.go" ! -name "*_test.go" -type f | sort
 
 Group files by package/directory to understand the organization.
 
-### 4. Collect Function Names Per File
+### 3. Collect Function Names Per File
 
 For each discovered Go file:
 
@@ -150,7 +114,7 @@ Functions:
   - validateFrontmatter(fm map[string]interface{}) error
 ```
 
-### 5. Semantic Clustering Analysis
+### 4. Semantic Clustering Analysis
 
 Analyze the collected functions to identify patterns:
 
@@ -174,7 +138,7 @@ Look for functions that don't match their file's primary purpose:
 - Helper functions scattered across multiple files
 - Generic utility functions not in a dedicated utils file
 
-### 6. Use Serena for Semantic Duplicate Detection
+### 5. Use Serena for Semantic Duplicate Detection
 
 For each cluster of similar functions:
 
@@ -193,7 +157,7 @@ Example Serena tool usage:
 # Use search_for_pattern to find similar implementations
 ```
 
-### 7. Deep Reasoning Analysis
+### 6. Deep Reasoning Analysis
 
 Apply deep reasoning to identify refactoring opportunities:
 
@@ -210,7 +174,7 @@ Apply deep reasoning to identify refactoring opportunities:
 - **Use Generics**: When similar functions differ only by type
 - **Extract Interface**: When similar methods are defined on different types
 
-### 8. Generate Refactoring Report
+### 7. Generate Refactoring Report
 
 Create a comprehensive issue with findings:
 
