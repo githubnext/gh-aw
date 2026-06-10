@@ -262,7 +262,7 @@ async function testCopilotToken(token, orgBilling) {
     return {
       status: Status.SKIPPED,
       message: "Copilot org billing mode — GITHUB_TOKEN is used for Copilot authentication; COPILOT_GITHUB_TOKEN is not required",
-      details: { note: "Set copilot-requests: write in your workflow permissions to use the built-in GITHUB_TOKEN" },
+      details: { note: "copilot-requests: write is set in the workflow permissions, so the built-in GITHUB_TOKEN handles Copilot authentication" },
     };
   }
   return testCopilotCLI(token);

@@ -949,6 +949,7 @@ jobs:
 
 `)
 		// Build the Validate Secrets step, conditionally including the org billing flag.
+		// The line uses 10-space indentation to match the surrounding env block structure.
 		copilotOrgBillingLine := ""
 		if copilotOrgBilling {
 			maintenanceWorkflowYAMLLog.Print("Copilot org billing mode detected: adding GH_AW_COPILOT_ORG_BILLING=true to secret-validation step")
