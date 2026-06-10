@@ -1,8 +1,9 @@
 package github
 
-// DefaultObjectiveLabelValues defines the built-in label-to-value mappings
-// specifically tailored for gh-aw (GitHub Agentic Workflows).
+// Objective label/value constants used by the objective-mapping feature.
 //
+// Note: keep these values in sync with DefaultObjectiveMapping (pkg/github/label_objective_mapping.go)
+// and/or the repository-level .github/objective-mapping.json to avoid divergent scoring semantics.
 // These mappings reflect the actual work domains and priorities:
 //   - Safety/Reliability: Safe outputs, testing, reliability = critical
 //   - Core engine: Compilation, parsing, workflow execution = critical
