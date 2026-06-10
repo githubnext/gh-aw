@@ -361,6 +361,45 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"modelMultipliers"`, "apiProxy should omit modelMultipliers when empty")
 	})
 
+	t.Run("engine allowed-models are emitted in apiProxy allowedModels", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:            "copilot",
+					AllowedModels: []string{"copilot/gpt-*", "copilot/claude-sonnet-*"},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"allowedModels"`, "apiProxy should emit allowedModels")
+		assert.Contains(t, jsonStr, `"copilot/gpt-*"`, "apiProxy should include first allowed-models pattern")
+		assert.Contains(t, jsonStr, `"copilot/claude-sonnet-*"`, "apiProxy should include second allowed-models pattern")
+	})
+
+	t.Run("apiProxy allowedModels omitted when engine allowed-models not set", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"allowedModels"`, "apiProxy should omit allowedModels when not configured")
+	})
+
 	t.Run("anthropic API target is included in apiProxy targets", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "claude",

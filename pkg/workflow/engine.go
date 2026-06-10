@@ -77,6 +77,17 @@ type EngineConfig struct {
 	// When true the compiler enables a harness-managed Copilot CLI headless sidecar
 	// and sets COPILOT_SDK_URI on child processes so the SDK can connect to it.
 	CopilotSDK bool
+
+	// AllowedModels is the list of model glob patterns permitted by this workflow.
+	// When non-empty, the AWF api-proxy enforces the list: any resolved model that
+	// does not match at least one pattern is rejected with HTTP 403
+	// (error type: model_blocked_by_policy). Empty means "allow all models".
+	// Patterns follow the gh-aw model-alias specification:
+	//   - "provider/modelglob" — restricts match to the named provider
+	//   - "*/modelglob" or bare "modelglob" — matches any provider
+	//   - "*" acts as a case-insensitive wildcard within the model segment
+	// Maps to: apiProxy.allowedModels in the AWF config file (config-only).
+	AllowedModels []string
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -506,6 +517,30 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if config.CopilotSDKDriver != "" && !config.CopilotSDK {
 				config.CopilotSDK = true
 				engineLog.Print("Enabled copilot-sdk because copilot-sdk-driver is configured")
+			}
+
+			// Extract optional 'allowed-models' field (array of model glob patterns)
+			if allowedModelsVal, hasAllowedModels := engineObj["allowed-models"]; hasAllowedModels {
+				switch v := allowedModelsVal.(type) {
+				case []any:
+					config.AllowedModels = make([]string, 0, len(v))
+					for _, m := range v {
+						if mStr, ok := m.(string); ok && mStr != "" {
+							config.AllowedModels = append(config.AllowedModels, mStr)
+						}
+					}
+					engineLog.Printf("Extracted engine.allowed-models: %v", config.AllowedModels)
+				case []string:
+					config.AllowedModels = make([]string, 0, len(v))
+					for _, m := range v {
+						if m != "" {
+							config.AllowedModels = append(config.AllowedModels, m)
+						}
+					}
+					engineLog.Printf("Extracted engine.allowed-models ([]string): %v", config.AllowedModels)
+				default:
+					engineLog.Printf("Unexpected type for engine.allowed-models: %T, ignoring", allowedModelsVal)
+				}
 			}
 
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)

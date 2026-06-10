@@ -379,6 +379,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex", Version: "beta", Model: "gpt-4o", MaxTurns: "3", UserAgent: "complete-custom-agent", Env: map[string]string{"CUSTOM_VAR": "value1"}},
 		},
+		{
+			name: "object format - with allowed-models",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":             "copilot",
+					"allowed-models": []any{"copilot/gpt-*", "copilot/claude-sonnet-*"},
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", AllowedModels: []string{"copilot/gpt-*", "copilot/claude-sonnet-*"}},
+		},
 	}
 
 	for _, test := range tests {
@@ -436,6 +447,16 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.CopilotSDK != test.expectedConfig.CopilotSDK {
 					t.Errorf("Expected config.CopilotSDK '%v', got '%v'", test.expectedConfig.CopilotSDK, config.CopilotSDK)
+				}
+
+				if len(config.AllowedModels) != len(test.expectedConfig.AllowedModels) {
+					t.Errorf("Expected config.AllowedModels length %d, got %d", len(test.expectedConfig.AllowedModels), len(config.AllowedModels))
+				} else {
+					for i, expected := range test.expectedConfig.AllowedModels {
+						if config.AllowedModels[i] != expected {
+							t.Errorf("Expected config.AllowedModels[%d] = '%s', got '%s'", i, expected, config.AllowedModels[i])
+						}
+					}
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

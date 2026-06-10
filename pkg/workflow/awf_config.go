@@ -207,6 +207,14 @@ type AWFAPIProxyConfig struct {
 	// AWF resolves aliases recursively; loops are not permitted.
 	// Per the AWF config schema, this lives under apiProxy.models.
 	Models map[string][]string `json:"models,omitempty"`
+
+	// AllowedModels is the list of model glob patterns that the api-proxy will serve.
+	// When non-empty, any resolved model that does not match at least one pattern is
+	// rejected with HTTP 403 (error type: model_blocked_by_policy).
+	// Empty means "allow all models".
+	// Maps to: apiProxy.allowedModels in the AWF config file (config-only;
+	// maps to AWF_ALLOWED_MODELS env var inside the sidecar).
+	AllowedModels []string `json:"allowedModels,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
@@ -404,6 +412,13 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
 		apiProxy.Models = config.WorkflowData.ModelMappings
 		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
+	}
+
+	// ── Allowed-models section ─────────────────────────────────────────────────
+	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil &&
+		len(config.WorkflowData.EngineConfig.AllowedModels) > 0 {
+		apiProxy.AllowedModels = config.WorkflowData.EngineConfig.AllowedModels
+		awfConfigLog.Printf("API proxy: allowed-models restriction: %v", apiProxy.AllowedModels)
 	}
 
 	awfConfig.APIProxy = apiProxy
