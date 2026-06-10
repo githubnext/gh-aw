@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -473,7 +474,7 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 	aic := loadCachedRunAIC(context.Background(), 999_000_001, false)
 	require.InDelta(t, 12.34, aic, 1e-9)
 	require.True(t, analyzeCalled)
-	require.Equal(t, []string{"usage"}, downloaded)
+	require.Equal(t, []string{constants.UsageArtifactName}, downloaded)
 }
 
 func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
@@ -498,5 +499,5 @@ func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
 	aic := loadCachedRunAIC(context.Background(), 999_000_002, false)
 	require.Zero(t, aic)
 	require.False(t, analyzeCalled)
-	require.Equal(t, []string{"usage"}, downloaded)
+	require.Equal(t, []string{constants.UsageArtifactName}, downloaded)
 }

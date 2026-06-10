@@ -661,32 +661,94 @@ func buildUsageArtifactDownloadSteps(prefix string, pinAction func(string) strin
 	}, pinAction)
 }
 
+type usageArtifactFileSpec struct {
+	sourcePaths  []string
+	targetPath   string
+	ensureTarget bool
+}
+
+func buildUsageArtifactFileSpecs() []usageArtifactFileSpec {
+	const usageArtifactRoot = "/tmp/gh-aw/usage"
+
+	return []usageArtifactFileSpec{
+		{
+			sourcePaths: []string{"/tmp/gh-aw/aw-info.jsonl"},
+			targetPath:  usageArtifactRoot + "/aw-info.jsonl",
+		},
+		{
+			sourcePaths: []string{"/tmp/gh-aw/agent_usage.jsonl"},
+			targetPath:  usageArtifactRoot + "/agent_usage.jsonl",
+		},
+		{
+			sourcePaths: []string{"/tmp/gh-aw/detection_usage.jsonl"},
+			targetPath:  usageArtifactRoot + "/detection_usage.jsonl",
+		},
+		{
+			sourcePaths: []string{
+				"/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl",
+				"/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl",
+				"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
+			},
+			targetPath:   usageArtifactRoot + "/agent/token_usage.jsonl",
+			ensureTarget: true,
+		},
+		{
+			sourcePaths: []string{
+				"/tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl",
+				"/tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl",
+				"/tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
+			},
+			targetPath:   usageArtifactRoot + "/detection/token_usage.jsonl",
+			ensureTarget: true,
+		},
+	}
+}
+
 // buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
 // The artifact includes aw-info.jsonl, agent_usage.jsonl, detection_usage.jsonl, and agent/detection token usage JSONL files (when present).
 func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string) []string {
 	usageArtifactName := prefix + constants.UsageArtifactName
-	return []string{
+	fileSpecs := buildUsageArtifactFileSpecs()
+
+	mkdirPaths := []string{"/tmp/gh-aw/usage"}
+	statusPaths := make([]string, 0)
+	uploadPaths := make([]string, 0, len(fileSpecs))
+	for _, spec := range fileSpecs {
+		uploadPaths = append(uploadPaths, spec.targetPath)
+		dir := spec.targetPath[:strings.LastIndex(spec.targetPath, "/")]
+		if !slices.Contains(mkdirPaths, dir) {
+			mkdirPaths = append(mkdirPaths, dir)
+		}
+		for _, sourcePath := range spec.sourcePaths {
+			if !slices.Contains(statusPaths, sourcePath) {
+				statusPaths = append(statusPaths, sourcePath)
+			}
+		}
+	}
+
+	steps := []string{
 		"      - name: Collect usage artifact files\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		"        run: |\n",
-		"          mkdir -p /tmp/gh-aw/usage/agent /tmp/gh-aw/usage/detection\n",
+		fmt.Sprintf("          mkdir -p %s\n", strings.Join(mkdirPaths, " ")),
 		"          echo \"Usage artifact source file status:\"\n",
-		"          for file in /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl; do\n",
+		fmt.Sprintf("          for file in %s; do\n", strings.Join(statusPaths, " ")),
 		"            [ -f \"$file\" ] && echo \"FOUND: $file\" || echo \"MISSING: $file\"\n",
 		"          done\n",
-		"          [ -f /tmp/gh-aw/aw-info.jsonl ] && cp /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/usage/aw-info.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/agent_usage.jsonl ] && cp /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/usage/agent_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/detection_usage.jsonl ] && cp /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/usage/detection_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/usage/agent/token_usage.jsonl ] || : > /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
-		"          [ -f /tmp/gh-aw/usage/detection/token_usage.jsonl ] || : > /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
-		"          find /tmp/gh-aw/usage -type f -print | sort\n",
+	}
+
+	for _, spec := range fileSpecs {
+		for _, sourcePath := range spec.sourcePaths {
+			steps = append(steps, fmt.Sprintf("          [ -f %s ] && cp %s %s || true\n", sourcePath, sourcePath, spec.targetPath))
+		}
+		if spec.ensureTarget {
+			steps = append(steps, fmt.Sprintf("          [ -f %s ] || : > %s\n", spec.targetPath, spec.targetPath))
+		}
+	}
+	steps = append(steps, "          find /tmp/gh-aw/usage -type f -print | sort\n")
+
+	steps = append(steps,
 		"      - name: Upload usage artifact\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
@@ -694,13 +756,12 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"        with:\n",
 		fmt.Sprintf("          name: %s\n", usageArtifactName),
 		"          path: |\n",
-		"            /tmp/gh-aw/usage/aw-info.jsonl\n",
-		"            /tmp/gh-aw/usage/agent_usage.jsonl\n",
-		"            /tmp/gh-aw/usage/detection_usage.jsonl\n",
-		"            /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
-		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
-		"          if-no-files-found: ignore\n",
+	)
+	for _, uploadPath := range uploadPaths {
+		steps = append(steps, fmt.Sprintf("            %s\n", uploadPath))
 	}
+	steps = append(steps, "          if-no-files-found: ignore\n")
+	return steps
 }
 
 // isGroupConcurrencyQueueEnabled reports whether compiler-generated concurrency groups

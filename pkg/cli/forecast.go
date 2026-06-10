@@ -928,7 +928,7 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	tryDownload := func(filter []string) error {
 		return forecastDownloadRunArtifacts(ctx, runID, dir, verbose, "", "", "", filter)
 	}
-	usageFilter := []string{"usage"}
+	usageFilter := []string{constants.UsageArtifactName}
 	if err := tryDownload(usageFilter); err != nil {
 		if errors.Is(err, ErrNoArtifacts) {
 			forecastRunLog.Printf("No usage artifact for run %d; AIC will be 0", runID)
@@ -959,7 +959,7 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 
 // forecastDownloadUsageArtifact is a forecast-specific replacement for
 // downloadRunArtifacts. Unlike the general-purpose downloader, it:
-//   - Downloads only artifacts matching artifactFilter (typically ["usage"]).
+//   - Downloads only artifacts matching artifactFilter (typically [constants.UsageArtifactName]).
 //   - Skips workflow run log downloads entirely — logs are not needed for
 //     AIC computation and downloading them wastes time when forecasting
 //     many runs.

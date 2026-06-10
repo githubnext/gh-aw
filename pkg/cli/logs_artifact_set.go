@@ -65,7 +65,7 @@ const (
 
 	// ArtifactSetUsage downloads the compact usage artifact produced by the
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
-	ArtifactSetUsage ArtifactSet = "usage"
+	ArtifactSetUsage ArtifactSet = ArtifactSet(constants.UsageArtifactName)
 )
 
 // artifactSetArtifacts maps each named set to the list of artifact base names it includes.
