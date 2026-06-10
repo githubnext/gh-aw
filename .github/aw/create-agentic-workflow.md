@@ -148,6 +148,7 @@ Rules:
 - always restrict `create-pull-request.allowed-files`
 - prefer the dedicated safe output instead of shelling out to `gh` for the same mutation
 - include `noop` guidance in the prompt so successful no-op runs are explicit
+- when using `create-issue`, instruct the agent to provide a meaningful body (20-65000 characters; avoid placeholder-only text)
 
 ### 7. Decide who can trigger the workflow
 

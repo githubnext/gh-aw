@@ -37,7 +37,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 checkout: false
@@ -61,7 +61,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 ---
@@ -108,7 +108,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 ---
@@ -131,7 +131,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: true
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 ---

@@ -88,7 +88,42 @@ func escapeBareShellDollarSigns(s string) string {
 	return result.String()
 }
 
-// buildDockerCommandWithExpandableVars builds a properly quoted docker command
+// shellEscapeArgWithVarPreserved escapes arg for use as a double-quoted shell argument,
+// preserving ${{ }} GitHub Actions expressions and a specific ${varName} shell variable
+// reference intact while escaping all other bare $ signs.
+//
+// This is used for the AWF config JSON when a local shell variable (such as
+// ${GH_AW_MAX_AI_CREDITS}) has been injected into the JSON: the variable reference
+// must survive into the shell so bash can expand it, and any ${{ }} expressions in
+// the JSON (e.g. from AllowedDomains) must remain verbatim for GitHub Actions to
+// evaluate. All other bare $ signs (e.g. "$schema") are escaped as \$.
+func shellEscapeArgWithVarPreserved(arg, varName string) string {
+	varRef := "${" + varName + "}"
+	escaped := strings.ReplaceAll(arg, `"`, `\"`)
+	var result strings.Builder
+	result.Grow(len(escaped) + 2)
+	result.WriteByte('"')
+	for i := range len(escaped) {
+		if escaped[i] != '$' {
+			result.WriteByte(escaped[i])
+			continue
+		}
+		switch {
+		case i+2 < len(escaped) && escaped[i+1] == '{' && escaped[i+2] == '{':
+			// ${{ }}: GitHub Actions expression — leave as-is so GA can evaluate it.
+			result.WriteByte(escaped[i])
+		case strings.HasPrefix(escaped[i:], varRef):
+			// ${varName}: shell variable reference — leave as-is so bash expands it.
+			result.WriteByte(escaped[i])
+		default:
+			// Bare $: escape to \$ so bash treats it as a literal dollar sign.
+			result.WriteString(`\$`)
+		}
+	}
+	result.WriteByte('"')
+	return result.String()
+}
+
 // that allows ${VAR_NAME} variables to be expanded at runtime.
 func buildDockerCommandWithExpandableVars(cmd string) string {
 	shellLog.Printf("Building docker command with expandable vars (length: %d)", len(cmd))
@@ -140,6 +175,9 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 }
 
 // findExpandableVars returns all unique ${VAR_NAME} patterns in the string.
+// It intentionally skips ${{ }} GitHub Actions expressions: those are evaluated
+// by the GH Actions runner before the shell runs and must remain intact inside
+// single-quoted strings — they should NOT be broken out as shell variables.
 func findExpandableVars(s string) []string {
 	var vars []string
 	seen := make(map[string]bool)
@@ -147,6 +185,12 @@ func findExpandableVars(s string) []string {
 		start := strings.Index(s, "${")
 		if start < 0 {
 			break
+		}
+		// Skip GitHub Actions expressions (${{ ... }}): they start with ${{ and
+		// must not be treated as shell variable references.
+		if start+2 < len(s) && s[start+2] == '{' {
+			s = s[start+3:]
+			continue
 		}
 		end := strings.Index(s[start:], "}")
 		if end < 0 {

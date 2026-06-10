@@ -82,6 +82,7 @@ permissions:
 	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
 	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
 	assert.Contains(t, result, "agent: false", "Should convert firewall false to sandbox.agent: false")
+	assert.Contains(t, result, `dangerously-disable-sandbox-agent: "migrated from deprecated network.firewall disable setting"`, "Should add required sandbox-disable justification feature")
 }
 
 func TestNetworkFirewallCodemod_NoNetworkField(t *testing.T) {
@@ -208,6 +209,43 @@ sandbox:
 	assert.Contains(t, result, "sandbox:", "Should preserve existing sandbox block")
 	assert.Contains(t, result, "mcp: true", "Should preserve existing sandbox settings")
 	assert.Contains(t, result, "agent: false", "Should migrate firewall false to sandbox.agent: false")
+	assert.Contains(t, result, `dangerously-disable-sandbox-agent: "migrated from deprecated network.firewall disable setting"`, "Should add required sandbox-disable justification feature")
+}
+
+func TestNetworkFirewallCodemod_PreservesExistingSandboxDisableJustification(t *testing.T) {
+	codemod := getNetworkFirewallCodemod()
+
+	content := `---
+on: workflow_dispatch
+network:
+  firewall: false
+features:
+  dangerously-disable-sandbox-agent: "already documented justification string with enough detail"
+sandbox:
+  mcp: true
+---
+
+# Test Workflow`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"network": map[string]any{
+			"firewall": false,
+		},
+		"features": map[string]any{
+			"dangerously-disable-sandbox-agent": "already documented justification string with enough detail",
+		},
+		"sandbox": map[string]any{
+			"mcp": true,
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, `dangerously-disable-sandbox-agent: "already documented justification string with enough detail"`)
+	assert.NotContains(t, result, migratedSandboxDisableJustification, "Should not overwrite existing justification")
 }
 
 func TestNetworkFirewallCodemod_MigratesFirewallVersionIntoExistingSandbox(t *testing.T) {

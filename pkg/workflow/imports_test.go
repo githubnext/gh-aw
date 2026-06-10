@@ -174,6 +174,69 @@ This is a test workflow with multiple imports.
 	}
 }
 
+func TestCompileWorkflowWithConditionalImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	sharedPath := filepath.Join(tempDir, "shared-conditional.md")
+	sharedContent := `---
+steps:
+  - name: Conditional Imported Step
+    run: echo "from import"
+---
+
+Imported conditional instructions.
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared conditional file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+experiments:
+  strategy: [eager, lazy]
+imports:
+  - path: shared-conditional.md
+    if: "experiments.strategy == 'eager'"
+---
+
+# Test Workflow
+
+Main workflow body.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	compiled := string(lockFileContent)
+	assertions := []string{
+		`{{#if experiments.strategy == "eager"}}`,
+		"{{/if}}",
+		"needs.activation.outputs.strategy == 'eager'",
+	}
+	for _, expected := range assertions {
+		if !strings.Contains(compiled, expected) {
+			t.Errorf("Expected compiled workflow to contain %q", expected)
+		}
+	}
+}
+
 func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")

@@ -84,6 +84,6 @@ const (
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  dangerously-disable-sandbox-agent: true
+	//	  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 	DangerouslyDisableSandboxAgentFeatureFlag FeatureFlag = "dangerously-disable-sandbox-agent"
 )

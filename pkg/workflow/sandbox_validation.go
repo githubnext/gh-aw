@@ -11,12 +11,19 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
 
 var sandboxValidationLog = newValidationLogger("sandbox")
+
+const minSandboxDisableJustificationLength = 20
+
+var githubActionsExpressionPattern = regexp.MustCompile(`\$\{\{[\s\S]*\}\}`)
 
 // validateMountsSyntax validates that mount strings follow the correct syntax
 // Expected format: "source:destination:mode" where mode is either "ro" or "rw"
@@ -76,19 +83,21 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	sandboxConfig := workflowData.SandboxConfig
 
 	// Check if sandbox.agent: false was specified
-	// This requires the "dangerously-disable-sandbox-agent" feature flag to be enabled.
-	// Without the feature flag, setting sandbox.agent: false is a validation error.
+	// This requires the "dangerously-disable-sandbox-agent" feature to include a
+	// justification string. Without a valid justification, disabling the sandbox
+	// is a validation error.
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		if !isFeatureEnabled(constants.DangerouslyDisableSandboxAgentFeatureFlag, workflowData) {
+		justification, err := getSandboxDisableJustification(workflowData)
+		if err != nil {
 			flag := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
 			return NewValidationError(
 				"sandbox.agent",
 				"false",
-				fmt.Sprintf("disabling the agent sandbox requires the '%s' feature flag", flag),
-				fmt.Sprintf("Add the feature flag to your workflow frontmatter:\n\nfeatures:\n  %s: true\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
+				fmt.Sprintf("disabling the agent sandbox requires '%s' to be a justification string (%d+ chars, expressions not allowed): %v", flag, minSandboxDisableJustificationLength, err),
+				fmt.Sprintf("Add the feature value to your workflow frontmatter:\n\nfeatures:\n  %s: \"controlled environment with no internet access\"\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
 			)
 		}
-		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s feature flag", constants.DangerouslyDisableSandboxAgentFeatureFlag)
+		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s justification: %q", constants.DangerouslyDisableSandboxAgentFeatureFlag, justification)
 	}
 
 	// Validate mounts syntax if specified in agent config
@@ -135,4 +144,44 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	}
 
 	return nil
+}
+
+func getSandboxDisableJustification(workflowData *WorkflowData) (string, error) {
+	if workflowData == nil || workflowData.Features == nil {
+		return "", errors.New("dangerously-disable-sandbox-agent feature is missing")
+	}
+
+	flagName := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
+	value, found := getFeatureValueCaseInsensitive(workflowData.Features, flagName)
+	if !found {
+		return "", errors.New("dangerously-disable-sandbox-agent feature is missing")
+	}
+
+	justification, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("feature must be a string, got %T", value)
+	}
+
+	trimmed := strings.TrimSpace(justification)
+	if len(trimmed) < minSandboxDisableJustificationLength {
+		return "", fmt.Errorf("feature must be at least %d characters", minSandboxDisableJustificationLength)
+	}
+
+	if githubActionsExpressionPattern.MatchString(trimmed) {
+		return "", errors.New("feature cannot use GitHub Actions expressions")
+	}
+
+	return trimmed, nil
+}
+
+func getFeatureValueCaseInsensitive(features map[string]any, flagName string) (any, bool) {
+	if value, exists := features[flagName]; exists {
+		return value, true
+	}
+	for key, value := range features {
+		if strings.EqualFold(key, flagName) {
+			return value, true
+		}
+	}
+	return nil, false
 }
