@@ -3,7 +3,6 @@
 package panicinlibrarycode
 
 import (
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -15,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -35,91 +35,75 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "panicinlibrarycode")
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	insp.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
-		if !push {
-			return true
-		}
-
-		call, ok := n.(*ast.CallExpr)
+	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call, ok := cur.Node().(*ast.CallExpr)
 		if !ok {
-			return true
+			continue
 		}
 		// Skip test files
 		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
-			return true
+			continue
 		}
 
 		// Check if this is a call to the builtin panic function
 		ident, ok := call.Fun.(*ast.Ident)
-		if !ok {
-			return true
-		}
-
-		if ident.Name != "panic" {
-			return true
+		if !ok || ident.Name != "panic" {
+			continue
 		}
 
 		// Verify it's the builtin panic, not a user-defined function
 		if obj := pass.TypesInfo.Uses[ident]; obj != nil {
 			if _, ok := obj.(*types.Builtin); !ok {
-				return true // Not the builtin panic
+				continue // Not the builtin panic
 			}
 		}
 
-		if shouldSkipPanic(pass, call, stack) {
-			return true
+		if shouldSkipPanic(pass, call, cur) {
+			continue
 		}
 		position := pass.Fset.PositionFor(call.Pos(), false)
 		if nolint.HasDirective(position, noLintLinesByFile) {
-			return true
+			continue
 		}
 
 		pass.ReportRangef(call, "avoid panic in library code; return an error instead")
-		return true
-	})
+	}
 
 	return nil, nil
 }
 
-func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, stack []ast.Node) bool {
-	return isInSyncOnceDoFuncLit(pass, stack) ||
+func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, cur inspector.Cursor) bool {
+	return isInSyncOnceDoFuncLit(pass, cur) ||
 		panicMessageStartsWithBUG(pass, call) ||
-		isInInitFunction(stack) ||
-		hasDocumentedPanicContract(stack)
+		isInInitFunction(cur) ||
+		hasDocumentedPanicContract(cur)
 }
 
-func isInSyncOnceDoFuncLit(pass *analysis.Pass, stack []ast.Node) bool {
-	for forwardIdx, node := range slices.Backward(stack) {
-		funcLit, ok := node.(*ast.FuncLit)
-		if !ok || forwardIdx == 0 {
-			continue
+func isInSyncOnceDoFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
+	for encl := range cur.Enclosing((*ast.FuncLit)(nil)) {
+		funcLit, ok := encl.Node().(*ast.FuncLit)
+		if !ok {
+			break
 		}
-
-		call, ok := stack[forwardIdx-1].(*ast.CallExpr)
+		parent := encl.Parent()
+		call, ok := parent.Node().(*ast.CallExpr)
 		if !ok || !containsExpr(call.Args, funcLit) {
 			continue
 		}
-
 		sel, ok := call.Fun.(*ast.SelectorExpr)
 		if !ok || sel.Sel.Name != "Do" {
 			continue
 		}
-
 		if isSyncOnceType(pass.TypesInfo.TypeOf(sel.X)) {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -194,29 +178,36 @@ func isFmtSprintf(pass *analysis.Pass, call *ast.CallExpr) bool {
 // isInInitFunction reports whether the panic is inside a top-level init()
 // function. Only top-level (no receiver) init functions are recognized;
 // methods named init are ordinary methods and are not exempt.
-func isInInitFunction(stack []ast.Node) bool {
-	decl := enclosingFuncDecl(stack)
-	return decl != nil && decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init"
-}
-
-func hasDocumentedPanicContract(stack []ast.Node) bool {
-	decl := enclosingFuncDecl(stack)
-	if decl == nil || decl.Doc == nil {
-		return false
-	}
-
-	doc := strings.ToLower(decl.Doc.Text())
-	return strings.Contains(doc, "panics on") ||
-		strings.Contains(doc, "panics if") ||
-		strings.Contains(doc, "panic on") ||
-		strings.Contains(doc, "panic if")
-}
-
-func enclosingFuncDecl(stack []ast.Node) *ast.FuncDecl {
-	for _, node := range slices.Backward(stack) {
-		if decl, ok := node.(*ast.FuncDecl); ok {
-			return decl
+func isInInitFunction(cur inspector.Cursor) bool {
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
+		decl, ok := encl.Node().(*ast.FuncDecl)
+		if !ok {
+			break
 		}
+		if decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init" {
+			return true
+		}
+		break // only check the immediate enclosing FuncDecl
 	}
-	return nil
+	return false
+}
+
+func hasDocumentedPanicContract(cur inspector.Cursor) bool {
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
+		decl, ok := encl.Node().(*ast.FuncDecl)
+		if !ok {
+			break
+		}
+		if decl.Doc != nil {
+			doc := strings.ToLower(decl.Doc.Text())
+			if strings.Contains(doc, "panics on") ||
+				strings.Contains(doc, "panics if") ||
+				strings.Contains(doc, "panic on") ||
+				strings.Contains(doc, "panic if") {
+				return true
+			}
+		}
+		break // only check the immediate enclosing FuncDecl
+	}
+	return false
 }

@@ -615,13 +615,24 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	// secrets (e.g. for GitHub App token minting) are accessible in this job.
 	safeOutputsEnvironment := resolveSafeOutputsEnvironment(data)
 
+	// Use the configured timeout or fall back to the default of 45 minutes.
+	// The previous default was 15 minutes, which is insufficient for workflows
+	// with many sequential safe output operations (e.g. push_to_pull_request_branch
+	// against large monorepos). 45 minutes is the new default; users can override
+	// via safe-outputs.timeout-minutes in frontmatter.
+	const defaultSafeOutputsTimeoutMinutes = 45
+	timeoutMinutes := defaultSafeOutputsTimeoutMinutes
+	if data.SafeOutputs.TimeoutMinutes > 0 {
+		timeoutMinutes = data.SafeOutputs.TimeoutMinutes
+	}
+
 	job := &Job{
 		Name:           "safe_outputs",
 		If:             RenderCondition(jobCondition),
 		RunsOn:         c.formatFrameworkJobRunsOn(data),
 		Environment:    c.indentYAMLLines(safeOutputsEnvironment, "    "),
 		Permissions:    permissions.RenderToYAML(),
-		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
+		TimeoutMinutes: timeoutMinutes,
 		Concurrency:    concurrency,
 		Env:            jobEnv,
 		Steps:          steps,

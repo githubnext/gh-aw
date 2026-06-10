@@ -163,6 +163,126 @@ describe("create_check_run", () => {
       process.env.GITHUB_SHA = "sha-abc123";
     });
 
+    describe("target resolution", () => {
+      beforeEach(() => {
+        process.env.GITHUB_SHA = "sha-abc123";
+        mockContext.eventName = "workflow_dispatch";
+        mockContext.payload = {};
+      });
+
+      it("uses pull_request_number when target is '*'", async () => {
+        mockGithub.rest.pulls = {
+          get: async ({ pull_number }) => ({
+            data: { number: pull_number, head: { sha: "target-pr-sha-42" } },
+          }),
+        };
+
+        let capturedParams;
+        mockGithub.rest.checks.create = makeChecksCreate(p => {
+          capturedParams = p;
+        });
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "*" });
+        const result = await handler({ type: "create_check_run", pull_request_number: 42, conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(true);
+        expect(capturedParams.head_sha).toBe("target-pr-sha-42");
+      });
+
+      it("returns error when target is '*' and pull_request_number is missing", async () => {
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "*" });
+        const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "*"');
+      });
+
+      it("uses explicit target PR number from config", async () => {
+        mockGithub.rest.pulls = {
+          get: async ({ pull_number }) => ({
+            data: { number: pull_number, head: { sha: "target-pr-sha-7" } },
+          }),
+        };
+
+        let capturedParams;
+        mockGithub.rest.checks.create = makeChecksCreate(p => {
+          capturedParams = p;
+        });
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "7" });
+        const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(true);
+        expect(capturedParams.head_sha).toBe("target-pr-sha-7");
+      });
+
+      it("returns error and emits core.error when pulls.get throws (e.g. 404 or 403)", async () => {
+        mockGithub.rest.pulls = {
+          get: async () => {
+            throw new Error("Not Found");
+          },
+        };
+
+        let coreErrorMessage = null;
+        mockCore.error = msg => {
+          coreErrorMessage = msg;
+        };
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "*" });
+        const result = await handler({ type: "create_check_run", pull_request_number: 42, conclusion: "success", title: "Title", summary: "Summary" }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Failed to resolve pull request");
+        expect(coreErrorMessage).toContain("Failed to resolve pull request");
+      });
+
+      it("resolves triggering PR context when target is 'triggering'", async () => {
+        mockContext.eventName = "pull_request";
+        mockContext.payload = { pull_request: { number: 99, head: { sha: "payload-sha-99" } } };
+        mockGithub.rest.pulls = {
+          get: async ({ pull_number }) => ({
+            data: { number: pull_number, head: { sha: "api-sha-99" } },
+          }),
+        };
+
+        let capturedParams;
+        mockGithub.rest.checks.create = makeChecksCreate(p => {
+          capturedParams = p;
+        });
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "triggering" });
+        const result = await handler({ type: "create_check_run", conclusion: "success", title: "T", summary: "S" }, {});
+
+        expect(result.success).toBe(true);
+        // Uses the API-fetched SHA (not the payload SHA) so it is always current
+        expect(capturedParams.head_sha).toBe("api-sha-99");
+      });
+
+      it("skips pulls.get API call and returns staged preview when target is set and staged mode is active", async () => {
+        process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+        let pullsGetCalled = false;
+        mockGithub.rest.pulls = {
+          get: async () => {
+            pullsGetCalled = true;
+            return { data: { head: { sha: "should-not-be-called" } } };
+          },
+        };
+
+        const { main } = require("./create_check_run.cjs");
+        const handler = await main({ max: 10, target: "*" });
+        const result = await handler({ type: "create_check_run", pull_request_number: 42, conclusion: "failure", title: "Title", summary: "Summary" }, {});
+
+        expect(pullsGetCalled).toBe(false);
+        expect(result.success).toBe(true);
+        expect(result.staged).toBe(true);
+      });
+    });
+
     it("returns error when conclusion is missing", async () => {
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ max: 10 });

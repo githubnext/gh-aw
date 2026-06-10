@@ -4,7 +4,7 @@ description: Network access configuration reference for gh-aw workflows — vali
 
 # Network Access Configuration
 
-Use the `network` frontmatter field to control which domains an AI engine can reach during a workflow run. All traffic is enforced by the Agent Workflow Firewall (AWF).
+The `network` frontmatter controls which domains an AI engine can reach. Enforced by the Agent Workflow Firewall (AWF).
 
 ## Quick Reference
 

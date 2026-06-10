@@ -1388,6 +1388,15 @@ const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
 const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
 
 /**
+ * Path to the failure categories file written by handle_agent_failure and read
+ * by the OTLP conclusion span so it can record them as gh-aw.failure.categories.
+ * Mirrors FAILURE_CATEGORIES_PATH from handle_agent_failure.cjs without
+ * introducing a runtime require() dependency on that module.
+ * @type {string}
+ */
+const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
+
+/**
  * Path to the agent stdio log file.
  * @type {string}
  */
@@ -1929,7 +1938,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
-  const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection";
+  const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection" || (!!engineId && jobName === engineId);
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
@@ -2052,8 +2061,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
   if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
-  // GH_AW_AIC is propagated to downstream jobs via needs.agent.outputs.*, so gate it
-  // behind jobEmitsOwnTokenUsage to prevent non-agent jobs from re-emitting it.
+  // GH_AW_AIC may be propagated to downstream jobs via workflow outputs, so gate it
+  // behind jobEmitsOwnTokenUsage to prevent non-owning jobs from re-emitting it.
   const aiCredits = jobEmitsOwnTokenUsage ? (normalizeNonNegativeNumber(process.env.GH_AW_AIC) ?? agentUsage.ai_credits) : undefined;
   if (typeof aiCredits === "number" && aiCredits > 0) {
     attributes.push(buildAttr("gh-aw.aic", aiCredits));
@@ -2084,6 +2093,13 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (detectionReason) {
     attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
+  }
+  // Read failure categories written by handle_agent_failure so the reason/type
+  // of each failure issue is captured as a queryable OTLP attribute.
+  const rawFailureCategories = readJSONIfExists(FAILURE_CATEGORIES_PATH);
+  const failureCategories = Array.isArray(rawFailureCategories) ? rawFailureCategories.filter(c => typeof c === "string" && c) : [];
+  if (failureCategories.length > 0) {
+    attributes.push(buildArrayAttr("gh-aw.failure.categories", failureCategories));
   }
   attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
   const otlpExportErrorDetails = formatOTLPExportErrorDetails();
@@ -2302,7 +2318,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // Only attach token-usage attributes to jobs that actually executed an agent.
+  // Only attach token-usage attributes to jobs that actually executed model usage.
   // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
   // disk via artifact download but must NOT emit token data — otherwise every
   // sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
@@ -2367,6 +2383,7 @@ module.exports = {
   buildEpisodeAttributesFromContext,
   resolveEngineId,
   GITHUB_RATE_LIMITS_JSONL_PATH,
+  FAILURE_CATEGORIES_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,
   OTEL_JSONL_PATH,

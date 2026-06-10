@@ -353,7 +353,7 @@ func TestAntigravityEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		// With config file support, domains and apiProxy are in the JSON config
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
-		assert.Contains(t, stepContent, `"enabled":true`, "Should include apiProxy enabled in config JSON")
+		assert.Contains(t, stepContent, `\"enabled\":true`, "Should include apiProxy enabled in config JSON")
 		assert.Contains(t, stepContent, "--exclude-env GEMINI_API_KEY", "Should exclude GEMINI_API_KEY from sandbox env")
 		assert.Contains(t, stepContent, "ANTIGRAVITY_API_BASE_URL: http://host.docker.internal:10003", "Should set ANTIGRAVITY_API_BASE_URL to LLM gateway URL")
 	})

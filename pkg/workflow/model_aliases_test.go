@@ -284,25 +284,6 @@ func TestMergeImportedModelAliases(t *testing.T) {
 
 // correctly by ParseFrontmatterConfig.
 func TestFrontmatterModelsField(t *testing.T) {
-	t.Run("models field is parsed from frontmatter", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"name": "test-workflow",
-			"models": map[string]any{
-				"my-model": []any{"copilot/my-model-v1", "openai/my-model-v1"},
-				"":         []any{"my-model"},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		require.NoError(t, err, "ParseFrontmatterConfig should succeed with models field")
-		require.NotNil(t, config, "parsed config should not be nil")
-
-		assert.Equal(t, []string{"copilot/my-model-v1", "openai/my-model-v1"}, config.Models["my-model"],
-			"models[my-model] should be parsed correctly")
-		assert.Equal(t, []string{"my-model"}, config.Models[""],
-			"models default policy (empty key) should be parsed correctly")
-	})
-
 	t.Run("models field is optional", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"name": "test-workflow",
@@ -311,6 +292,36 @@ func TestFrontmatterModelsField(t *testing.T) {
 		config, err := ParseFrontmatterConfig(frontmatter)
 		require.NoError(t, err, "ParseFrontmatterConfig should succeed without models field")
 		require.NotNil(t, config, "parsed config should not be nil")
-		assert.Nil(t, config.Models, "models should be nil when not specified in frontmatter")
+		assert.Nil(t, config.ModelCosts, "ModelCosts should be nil when not specified in frontmatter")
+	})
+
+	t.Run("models field with providers structure populates ModelCosts", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "test-workflow",
+			"models": map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"my-custom-claude": map[string]any{
+								"cost": map[string]any{
+									"input":  "3e-06",
+									"output": "1.5e-05",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err, "ParseFrontmatterConfig should succeed with models providers structure")
+		require.NotNil(t, config, "parsed config should not be nil")
+
+		require.NotNil(t, config.ModelCosts, "ModelCosts should be populated from models providers structure")
+
+		providers, ok := config.ModelCosts["providers"].(map[string]any)
+		require.True(t, ok, "ModelCosts should contain a providers key")
+		assert.Contains(t, providers, "anthropic", "providers should contain anthropic")
 	})
 }

@@ -157,8 +157,8 @@ safe-outputs:
 				t.Errorf("Expected output %q or outputs section not found", tt.expectedOutput)
 			}
 
-			// Verify timeout is set (consolidated safe_outputs job uses 15 minute timeout)
-			if !strings.Contains(yamlStr, "timeout-minutes: 15") && !strings.Contains(yamlStr, "timeout-minutes:") {
+			// Verify timeout is set (consolidated safe_outputs job uses 45 minute default timeout)
+			if !strings.Contains(yamlStr, "timeout-minutes: 45") && !strings.Contains(yamlStr, "timeout-minutes:") {
 				t.Error("Expected timeout-minutes not found in output")
 			}
 

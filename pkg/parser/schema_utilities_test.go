@@ -46,18 +46,6 @@ func TestFilterIgnoredFields(t *testing.T) {
 				"engine": "claude",
 			},
 		},
-		{
-			name: "frontmatter with user-invokable - should be filtered",
-			frontmatter: map[string]any{
-				"user-invokable": true,
-				"on":             "push",
-				"engine":         "claude",
-			},
-			expected: map[string]any{
-				"on":     "push",
-				"engine": "claude",
-			},
-		},
 	}
 
 	for _, tt := range tests {

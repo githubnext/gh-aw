@@ -546,12 +546,6 @@
         }
       }
     },
-    "disable-model-invocation": {
-      "type": "boolean",
-      "desc": "Controls whether the custom agent should disable model invocation.",
-      "enum": [true, false],
-      "leaf": true
-    },
     "secrets": {
       "type": "object",
       "desc": "Secret values passed to workflow execution."
@@ -1364,7 +1358,7 @@
             },
             "mode": {
               "type": "string",
-              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use play...",
+              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use play...",
               "enum": ["cli", "mcp"],
               "leaf": true
             }
@@ -2648,7 +2642,6 @@
     "steps",
     "post-steps",
     "features",
-    "disable-model-invocation",
     "secrets",
     "secret-masking",
     "bots",

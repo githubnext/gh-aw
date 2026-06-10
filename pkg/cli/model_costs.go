@@ -133,7 +133,7 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 
 func normalizeCatalogProvider(provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "github":
+	case "github", "copilot", "github_models":
 		return "github-copilot"
 	default:
 		return strings.ToLower(strings.TrimSpace(provider))

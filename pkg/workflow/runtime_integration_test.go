@@ -504,7 +504,7 @@ func TestRuntimeIfConditionIntegration(t *testing.T) {
 				reqSlice = append(reqSlice, *req)
 			}
 
-			steps := GenerateRuntimeSetupSteps(reqSlice)
+			steps := GenerateRuntimeSetupSteps(reqSlice, nil)
 			allSteps := ""
 			for _, step := range steps {
 				for _, line := range step {

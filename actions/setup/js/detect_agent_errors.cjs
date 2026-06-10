@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Detect Copilot CLI errors in the agent stdio log.
+ * Detect agent engine errors in the agent stdio log.
  *
  * Scans the agent stdio log for known error patterns and sets GitHub Actions
  * output variables for each detected error class:
@@ -13,8 +13,9 @@
  *   - agentic_engine_timeout: The agentic engine process was killed by a
  *     signal (SIGTERM/SIGKILL/SIGINT), typically due to the step
  *     timeout-minutes limit being reached.
- *   - model_not_supported_error: The requested model is not supported for
- *     the user's Copilot subscription tier (e.g., Copilot Pro/Education).
+ *   - model_not_supported_error: The configured model is invalid or unsupported
+ *     for the selected engine/account (for example unknown model name, model not
+ *     found, or model unavailable for the plan).
  *
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
@@ -44,11 +45,15 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 // making it engine-agnostic.
 const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 
-// Pattern: Requested model is not supported for the user's subscription tier.
-// This occurs when Copilot Pro/Education users attempt to use a model that is
-// not available for their plan.  The full error from the Copilot CLI is:
-//   Execution failed: CAPIError: 400 The requested model is not supported.
-const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+// Pattern: Configured model is invalid or unavailable.
+// Covers common engine/provider variants:
+//   - "The requested model is not supported"
+//   - "invalid model name '...'"
+//   - "unknown model <id>"
+//   - "model ... not found"
+//   - "model ... does not exist"
+const MODEL_NOT_SUPPORTED_PATTERN =
+  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable))/i;
 
 /**
  * Detect known error patterns in a log string and return detection results.
@@ -105,12 +110,14 @@ function main() {
     process.stderr.write("[detect-agent-errors] Detected timeout: engine process was killed by signal (step timeout-minutes likely exceeded)\n");
   }
   if (results.modelNotSupportedError) {
-    process.stderr.write("[detect-agent-errors] Detected model-not-supported error: the requested model is unavailable for this subscription tier\n");
+    process.stderr.write("[detect-agent-errors] Detected model configuration error: configured model is invalid or unavailable for this engine/account\n");
   }
 
   writeOutputs(results);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
 
 module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN };

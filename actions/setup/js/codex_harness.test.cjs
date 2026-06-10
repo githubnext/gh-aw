@@ -13,6 +13,7 @@ const {
   isAuthenticationFailedError,
   isMissingApiKeyError,
   isServerError,
+  isInvalidModelError,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
@@ -270,6 +271,26 @@ env_key = "OPENAI_API_KEY"
   describe("isServerError", () => {
     it("returns true for InternalServerError", () => {
       expect(isServerError("InternalServerError: The server had an error processing your request")).toBe(true);
+    });
+
+    describe("isInvalidModelError", () => {
+      it("returns true for model-not-supported errors", () => {
+        expect(isInvalidModelError("Execution failed: CAPIError: 400 The requested model is not supported.")).toBe(true);
+      });
+
+      it("returns true for invalid model name errors", () => {
+        expect(isInvalidModelError("invalid model name 'claude-sonnet-999'")).toBe(true);
+        expect(isInvalidModelError("model 'gpt-foo' not found")).toBe(true);
+        expect(isInvalidModelError("model gpt-unknown is not available")).toBe(true);
+        expect(isInvalidModelError("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
+      });
+
+      it("returns false for unrelated errors", () => {
+        expect(isInvalidModelError("rate_limit_exceeded")).toBe(false);
+        expect(isInvalidModelError("unknown model behavior detected")).toBe(false);
+        expect(isInvalidModelError("ServiceUnavailableError")).toBe(false);
+        expect(isInvalidModelError("")).toBe(false);
+      });
     });
 
     it("returns true for ServiceUnavailableError", () => {

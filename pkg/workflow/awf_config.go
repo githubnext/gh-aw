@@ -59,7 +59,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -112,10 +111,35 @@ func validateAWFConfigJSON(configJSON string) error {
 	if err := json.Unmarshal([]byte(configJSON), &doc); err != nil {
 		return fmt.Errorf("failed to parse AWF config JSON: %w", err)
 	}
+	normalizeTemplatableModelFallbackEnabled(doc)
 	if err := schema.Validate(doc); err != nil {
 		return fmt.Errorf("AWF config schema validation failed: %w", err)
 	}
 	return nil
+}
+
+// normalizeTemplatableModelFallbackEnabled adjusts a generated AWF config document
+// for compile-time schema validation by coercing modelFallback.enabled GitHub Actions
+// expressions to a boolean placeholder. GitHub Actions resolves these expressions at
+// runtime before AWF consumes the config.
+func normalizeTemplatableModelFallbackEnabled(doc any) {
+	root, ok := doc.(map[string]any)
+	if !ok {
+		return
+	}
+	apiProxy, ok := root["apiProxy"].(map[string]any)
+	if !ok {
+		return
+	}
+	modelFallback, ok := apiProxy["modelFallback"].(map[string]any)
+	if !ok {
+		return
+	}
+	enabled, ok := modelFallback["enabled"].(string)
+	if !ok || !isExpression(enabled) {
+		return
+	}
+	modelFallback["enabled"] = true
 }
 
 // AWFConfigFile represents the AWF configuration file schema.
@@ -278,7 +302,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	// ── API proxy section ─────────────────────────────────────────────────────
-	maxAICredits := compilerenv.ResolveDefaultMaxAICredits(constants.DefaultMaxAICredits)
+	// maxAICredits is taken from frontmatter/imports only; when unset (0) the
+	// runtime value is resolved from vars.GH_AW_DEFAULT_MAX_AI_CREDITS via a
+	// GitHub Actions expression injected directly into the JSON string in
+	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
+	maxAICredits := int64(0)
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
@@ -289,6 +317,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// Token steering is enabled by default. Setting max-ai-credits to a negative
 	// value (-1) omits that budget from the AWF config and disables token steering.
+	// When maxAICredits is 0 (runtime default), token steering stays enabled here.
 	enableTokenSteering := maxAICredits >= 0
 	if maxAICredits < 0 {
 		// Negative signals "disabled" — omit the budget from the AWF config.

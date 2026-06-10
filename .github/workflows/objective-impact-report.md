@@ -6,7 +6,12 @@ on:
 permissions:
   issues: read
 safe-outputs:
+  close-issue:
+    required-title-prefix: "Impact Efficiency Report - "
+    target: "*"
+    max: 1
   create-issue:
+    title-prefix: "Impact Efficiency Report - "
     max: 1
 ---
 
@@ -21,7 +26,7 @@ Use this model:
 ```text
 Outcome = recorded work item produced by a GitHub Agentic Workflow run
 Objective = issue/epic/work item linked to the outcome
-Objective Value = value from planning metadata (priority, severity, milestone, project)
+Objective Value = numeric value from the repository objective-mapping configuration applied to traced root labels
 Outcome Indicator = 1 for accepted/delivered outcomes, 0 otherwise
 Outcome Value = Outcome Indicator × Objective Value
 Impact Efficiency = Σ Outcome Value / AI Credits
@@ -30,13 +35,26 @@ Impact Efficiency = Σ Outcome Value / AI Credits
 Treat an outcome as one recorded result item produced by a GitHub Agentic Workflow run (for example, a PR change, completed fix, or report action), which may later be accepted or not accepted.
 Use workflow run outputs/artifacts and linked GitHub objects (issues, PRs, comments, discussions) as the outcome source of truth.
 Treat AI Credits as total model-credit cost consumed by the workflow runs that produced the analyzed outcomes.
-Retrieve AI Credits from workflow-run usage/billing data available to the run context, and use the same time window as outcomes.
+When available, use deterministic precomputed run data that already includes each run's `aic` field.
+Prefer existing gh-aw outputs that already surface `aic`, such as pre-downloaded `gh aw logs --json` data or audit/log artifacts derived from the same run summaries.
+Only fall back to MCP or other live retrieval if deterministic precomputed AIC inputs are unavailable.
+Use the same time window for AIC as for outcomes.
 
 Do not perform workflow attribution.
 Outcomes deliver value.
 Objectives provide context and importance.
 AI Credits provide cost.
 Do not use an LLM judge.
+
+## AIC Source of Truth
+
+Resolve AI Credits in this order:
+
+1. Deterministic precomputed `gh aw logs --json` style workflow-run data with per-run `aic`
+2. Pre-downloaded audit/log artifacts that already expose run-level `aic`
+3. MCP or other live retrieval only as a documented fallback
+
+If a run's `aic` field is missing or null, treat it as `0` and count it as missing-cost data in the report.
 
 ## Scope
 
@@ -46,46 +64,39 @@ Analyze workflow outcomes and linked objectives from the last 180 days.
 
 For each outcome, find the associated objective first, then compute `Objective Value`.
 
-Use the first matching priority or severity signal from objective labels or fields as the base value:
+Use the repository objective mapping as the source of truth:
 
 ```text
-P0 / urgent / critical = 100
-P1 / high              = 50
-P2 / medium            = 20
-P3 / low               = 5
-unknown                = 1
+.github/objective-mapping.json
+or OBJECTIVE_MAPPING_JSON when explicitly provided
 ```
 
-Recognize common label forms case-insensitively:
+Treat labels on the traced root object as the input to the mapping.
+The mapping is label-based and already defines both value and multi-label behavior.
 
 ```text
-P0, priority:P0, priority/P0, severity:critical, critical, urgent
-P1, priority:P1, priority/P1, severity:high, high
-P2, priority:P2, priority/P2, severity:medium, medium
-P3, priority:P3, priority/P3, severity:low, low
+Objective Value = mapping.ComputeObjectiveValue(root_labels)
+Objective Labels = mapping.GetObjectiveLabels(root_labels)
 ```
 
-Then apply planning context adjustments:
+Do not invent fallback scoring rules such as milestone bonuses, project bonuses, or priority-to-points heuristics when the mapping file is present.
 
 ```text
-Objective is assigned to a milestone = +10
-Objective is assigned to a project   = +10
+Examples of mapped labels in this repository include campaign, security, observability, testing, automation, and other configured objective labels.
 ```
 
-Cap `Objective Value` at 120 (`100 + 10 + 10` maximum from base plus planning adjustments).
-
-The cap prevents a small number of heavily tagged objectives from dominating the metric.
-
-All other labels are classification only.
+If a traced root object has no labels that exist in the mapping, mark the outcome as `unmapped`.
 
 ## Outcome association rules
 
-For each workflow outcome, associate one objective using this order:
+For each workflow outcome, follow the implemented root-tracing behavior:
 
-1. Explicit linked issue or work item reference in the outcome.
-2. Issue linked through the related pull request.
-3. Parent issue/epic if explicitly linked.
-4. If no objective can be found, mark as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
+1. For pull-request outcomes, trace the PR to its linked closing issue and use that root issue's labels.
+2. If PR root tracing fails, or for direct issue outcomes, use labels on the issue itself.
+3. Record the traced root URL when one is found so the report preserves an audit trail.
+4. If no mapped objective labels can be found, mark the outcome as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
+
+Prefer precomputed outcome evaluation data when available. Do not re-derive a different mapping model inside the report.
 
 ## Computation
 
@@ -105,12 +116,25 @@ Then compute:
 ```text
 Accepted Outcome Count = count(outcomes where Outcome Indicator = 1)
 Total Outcome Value    = sum(Outcome Value)
+AI Credits             = sum(run.aic across analyzed runs)
 Impact Efficiency      = Total Outcome Value / AI Credits  (value units per AI Credit; undefined when AI Credits = 0)
 ```
 
 If AI Credits is missing or zero, report that Impact Efficiency is not computable and explain whether credits data was unavailable or no credits were consumed in the analysis window.
+If only some runs are missing `aic`, still compute the metric from the available values and explicitly report how many runs had missing cost data.
 
 ## Report
+
+Before creating the new report, search for an existing open issue titled:
+
+```text
+Impact Efficiency Report - YYYY-MM-DD
+```
+
+If one already exists for today:
+
+1. Close that issue first with a brief comment explaining that it is being replaced by a freshly generated report for the same day.
+2. Then create the new report issue.
 
 Create one issue titled:
 
@@ -137,8 +161,8 @@ The report must include:
 
 ### Top objectives by delivered value
 
-| Objective | Priority/Severity | Milestone | Project | Delivered Outcome Value |
-|---|---|---|---|---:|
+| Objective Label | Delivered Outcome Value | Attempted Outcome Value | Delivered Outcomes | Efficiency |
+|---|---:|---:|---:|---:|
 
 ### Unmapped outcomes
 
@@ -159,12 +183,14 @@ Explain which one better reflects meaningful delivered value relative to cost.
 Mention missing or weak links in:
 
 - outcome-to-objective association
-- priority/severity metadata
-- milestone/project metadata
+- root tracing and linked-object coverage
+- label mapping coverage in `.github/objective-mapping.json`
 - AI Credits availability
+
+State whether AI Credits came from deterministic precomputed data or from a live fallback path.
+
+If AI Credits are unavailable, still produce the delivered-value analysis and clearly state that the cost-normalized Impact Efficiency metric could not be computed.
 
 ## Safe output
 
-Use only `create-issue`.
-
-If a report for today already exists, do nothing.
+Use only `close-issue` and `create-issue`.

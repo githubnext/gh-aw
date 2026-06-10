@@ -22,7 +22,9 @@ Configure the coding agent sandbox type to control how the AI engine is isolated
 sandbox:
   agent: awf
 
-# Disable coding agent sandbox (firewall only) - use with caution
+# Disable coding agent sandbox - requires an operator-authored justification
+features:
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 sandbox:
   agent: false
 
@@ -35,7 +37,23 @@ If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: a
 
 **Disabling Coding Agent Sandbox**
 
-Setting `sandbox.agent: false` disables only the agent firewall while keeping the MCP gateway enabled. This reduces security isolation and should only be used when necessary. The MCP gateway cannot be disabled and remains active in all workflows.
+Setting `sandbox.agent: false` disables the agent firewall while keeping the MCP gateway enabled. This removes a trust boundary and should only be used when strictly necessary.
+
+To disable the agent sandbox, you **must** add `features.dangerously-disable-sandbox-agent` with a literal justification string of at least 20 characters. The justification must explain why the trust boundary is being removed and is stored for diagnostics and audit. The following values are rejected by the compiler:
+
+- Boolean `true` — no longer accepted as a legacy shorthand
+- Expressions such as `${{ inputs.reason }}` — must be a static literal
+- Strings shorter than 20 characters after trimming whitespace
+
+```yaml wrap
+features:
+  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+sandbox:
+  agent: false
+```
+
+> [!WARNING]
+> Disabling the agent sandbox removes a security trust boundary. The `dangerously-disable-sandbox-agent` value is a permanent, reviewable record of why this workflow runs without the agent firewall. Write a reason that will be meaningful to future reviewers.
 
 ### MCP Gateway (Experimental)
 

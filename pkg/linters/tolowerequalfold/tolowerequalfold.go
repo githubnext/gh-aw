@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -28,9 +27,9 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "tolowerequalfold")
 	caseConvAliases := collectCaseConvAliases(pass)
@@ -71,12 +70,54 @@ func run(pass *analysis.Pass) (any, error) {
 			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
 				return
 			}
-			pass.ReportRangef(expr,
-				"use strings.EqualFold for case-insensitive comparison instead of strings.ToLower/ToUpper with ==")
+			pass.Report(analysis.Diagnostic{
+				Pos:            expr.Pos(),
+				End:            expr.End(),
+				Message:        "use strings.EqualFold for case-insensitive comparison instead of strings.ToLower/ToUpper with ==",
+				SuggestedFixes: buildEqualFoldFix(pass, expr),
+			})
 		}
 	})
 
 	return nil, nil
+}
+
+// buildEqualFoldFix returns a SuggestedFix that rewrites a direct
+// strings.ToLower/ToUpper comparison to strings.EqualFold.
+// A fix is only emitted when at least one side is a direct caseConvCall (not
+// an alias variable), since alias variables may be defined at a different
+// source location.
+func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.SuggestedFix {
+	leftArg, leftOK := caseConvArg(expr.X)
+	rightArg, rightOK := caseConvArg(expr.Y)
+	if !leftOK && !rightOK {
+		return nil
+	}
+	arg1 := expr.X
+	if leftOK {
+		arg1 = leftArg
+	}
+	arg2 := expr.Y
+	if rightOK {
+		arg2 = rightArg
+	}
+	text1 := astutil.NodeText(pass.Fset, arg1)
+	text2 := astutil.NodeText(pass.Fset, arg2)
+	if text1 == "" || text2 == "" {
+		return nil
+	}
+	call := fmt.Sprintf("strings.EqualFold(%s, %s)", text1, text2)
+	if expr.Op == token.NEQ {
+		call = "!" + call
+	}
+	return []analysis.SuggestedFix{{
+		Message: "Replace with strings.EqualFold",
+		TextEdits: []analysis.TextEdit{{
+			Pos:     expr.Pos(),
+			End:     expr.End(),
+			NewText: []byte(call),
+		}},
+	}}
 }
 
 func collectCaseConvAliases(pass *analysis.Pass) map[types.Object]ast.Expr {

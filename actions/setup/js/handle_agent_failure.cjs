@@ -25,6 +25,8 @@ const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+/** Path to the failure categories file written by handle_agent_failure and read by the OTLP conclusion span. */
+const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
 const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 // Engine-side 429/rate-limit signatures:
@@ -1348,6 +1350,31 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
 }
 
 /**
+ * Determine whether engine-failure context should be included.
+ * Timeout outcomes should rely on dedicated timeout messaging instead.
+ * @param {string} agentConclusion
+ * @param {boolean} hasToolDenialsExceeded
+ * @param {boolean} isTimedOut
+ * @returns {boolean}
+ */
+function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) {
+  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut;
+}
+
+/**
+ * Determine whether issue create/update failed due to token permission limits.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isIssueWritePermissionError(error) {
+  /** @type {{status?: unknown} | null} */
+  const typedError = error && typeof error === "object" ? error : null;
+  const status = Number(typedError?.status);
+  const message = getErrorMessage(error).toLowerCase();
+  return status === 403 && (message.includes("resource not accessible by integration") || message.includes("resource not accessible by personal access token") || message.includes("insufficient permissions"));
+}
+
+/**
  * Build a context string when the Copilot CLI failed due to the token lacking inference access.
  * @param {boolean} hasInferenceAccessError - Whether an inference access error was detected
  * @returns {string} Formatted context string, or empty string if no error
@@ -2623,6 +2650,15 @@ async function main() {
       hasDailyAICExceeded,
     });
 
+    // Persist failure categories so the OTLP conclusion span can record them
+    // as gh-aw.failure.categories for metrics and counting in OTLP backends.
+    try {
+      fs.mkdirSync(path.dirname(FAILURE_CATEGORIES_PATH), { recursive: true });
+      fs.writeFileSync(FAILURE_CATEGORIES_PATH, JSON.stringify(failureCategories));
+    } catch (writeError) {
+      core.warning(`Failed to write failure categories: ${getErrorMessage(writeError)}`);
+    }
+
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);
 
     try {
@@ -2724,7 +2760,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -2948,7 +2984,7 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = agentConclusion === "failure" && !hasToolDenialsExceeded ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -3077,7 +3113,11 @@ async function main() {
         await detectAndHandleFailureCascade(owner, repo, newIssue.data.number);
       }
     } catch (error) {
-      core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
+      if (isIssueWritePermissionError(error)) {
+        core.info(`Skipping failure tracking issue creation/update: token lacks issues:write permission (${getErrorMessage(error)})`);
+      } else {
+        core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
+      }
       // Don't fail the workflow if we can't create the issue
     }
   } catch (error) {
@@ -3095,6 +3135,8 @@ module.exports = {
   buildStaleLockFileFailedContext,
   buildDailyAICExceededContext,
   buildTimeoutContext,
+  shouldBuildEngineFailureContext,
+  isIssueWritePermissionError,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   buildReportIncompleteContext,
@@ -3126,4 +3168,6 @@ module.exports = {
   CASCADE_ROLLUP_LABEL,
   CASCADE_ROLLUP_TITLE,
   FAILURE_TITLE_PATTERN,
+  buildFailureMatchCategories,
+  FAILURE_CATEGORIES_PATH,
 };

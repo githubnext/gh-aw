@@ -50,6 +50,7 @@ type AgentSandboxConfig struct {
 	Type          SandboxType                           `yaml:"type,omitempty"`           // Sandbox type: "awf" or "srt" (legacy, use ID instead)
 	Version       string                                `yaml:"version,omitempty"`        // AWF version override used to install and run the matching firewall version
 	Disabled      bool                                  `yaml:"-"`                        // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
+	DisableReason string                                `yaml:"-"`                        // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
 	Config        *SandboxRuntimeConfig                 `yaml:"config,omitempty"`         // Custom SRT config (optional)
 	Command       string                                `yaml:"command,omitempty"`        // Custom command to replace AWF or SRT installation
 	Args          []string                              `yaml:"args,omitempty"`           // Additional arguments to append to the command

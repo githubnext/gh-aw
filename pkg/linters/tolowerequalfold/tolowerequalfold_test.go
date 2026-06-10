@@ -12,5 +12,5 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, tolowerequalfold.Analyzer, "tolowerequalfold")
+	analysistest.RunWithSuggestedFixes(t, testdata, tolowerequalfold.Analyzer, "tolowerequalfold")
 }

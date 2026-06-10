@@ -103,4 +103,33 @@ describe("model_costs.cjs", () => {
     expect(aicViaEmbedded).toBeGreaterThan(0);
     expect(aicViaEmbedded).toBeCloseTo(aicViaProvider, 6);
   });
+
+  it("resolves 'github_models' provider alias to 'github-copilot' for AIC lookup", async () => {
+    writeModelsFixture({
+      "github-copilot": {
+        models: {
+          "gpt-5-mini": {
+            cost: {
+              input: "0.00000025",
+              output: "0.000002",
+            },
+          },
+        },
+      },
+    });
+
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+
+    // provider="github_models" (written by the AWF proxy for Copilot engine runs)
+    // should be treated as "github-copilot" so AIC is computed and emitted
+    const aic = computeInferenceAIC({
+      provider: "github_models",
+      model: "gpt-5-mini",
+      inputTokens: 1000,
+      outputTokens: 100,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(aic).toBeGreaterThan(0);
+  });
 });

@@ -3,13 +3,15 @@
 package fprintlnsprintf
 
 import (
-	"fmt"
 	"go/ast"
+	"go/token"
+	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -24,9 +26,9 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "fprintlnsprintf")
 
@@ -66,10 +68,67 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		pass.Reportf(call.Pos(), "use fmt.Fprintf instead of fmt.Fprintln(w, fmt.Sprintf(...))")
+		pass.Report(analysis.Diagnostic{
+			Pos:            call.Pos(),
+			End:            call.End(),
+			Message:        "use fmt.Fprintf instead of fmt.Fprintln(w, fmt.Sprintf(...))",
+			SuggestedFixes: buildFprintfFix(call, printedArg),
+		})
 	})
 
 	return nil, nil
+}
+
+// buildFprintfFix returns a SuggestedFix rewriting
+// fmt.Fprintln(w, fmt.Sprintf("format", args...)) to
+// fmt.Fprintf(w, "format\n", args...).
+// A fix is only emitted when the format argument is a plain double-quoted
+// string literal; other forms (raw strings, variables) are left unfixed.
+func buildFprintfFix(call *ast.CallExpr, sprintfCall *ast.CallExpr) []analysis.SuggestedFix {
+	if len(sprintfCall.Args) == 0 {
+		return nil
+	}
+	formatLit, ok := sprintfCall.Args[0].(*ast.BasicLit)
+	if !ok || formatLit.Kind != token.STRING {
+		return nil
+	}
+	raw := formatLit.Value
+	if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' {
+		return nil // not a plain double-quoted literal
+	}
+
+	// Decode the literal to check for a trailing newline so we don't produce
+	// a double \n when the format string already ends with one.
+	decoded, err := strconv.Unquote(raw)
+	if err != nil {
+		return nil
+	}
+
+	// Build the replacement format literal: append \n only when not already present.
+	var newFormatLit []byte
+	if strings.HasSuffix(decoded, "\n") {
+		newFormatLit = []byte(raw) // already ends with \n; keep as-is
+	} else {
+		newFormatLit = []byte(raw[:len(raw)-1] + `\n"`)
+	}
+
+	outerSel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil
+	}
+	return []analysis.SuggestedFix{{
+		Message: `Replace fmt.Fprintln with fmt.Fprintf`,
+		TextEdits: []analysis.TextEdit{
+			// 1. "Fprintln" → "Fprintf"
+			{Pos: outerSel.Sel.Pos(), End: outerSel.Sel.End(), NewText: []byte("Fprintf")},
+			// 2. Delete "fmt.Sprintf(" — from the start of sprintfCall to after its "("
+			{Pos: sprintfCall.Pos(), End: sprintfCall.Lparen + 1, NewText: nil},
+			// 3. Replace the format literal (adding \n if not already present).
+			{Pos: formatLit.Pos(), End: formatLit.End(), NewText: newFormatLit},
+			// 4. Delete the closing ")" of fmt.Sprintf(...)
+			{Pos: sprintfCall.Rparen, End: sprintfCall.Rparen + 1, NewText: nil},
+		},
+	}}
 }
 
 // isFmtFunc returns true if call is a call to fmt.<name>.

@@ -8,6 +8,7 @@ const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs")
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateContextVariables } = require("./validate_context_variables.cjs");
 const validateLockdownRequirements = require("./validate_lockdown_requirements.cjs");
+const { writeMergedModelsJSON } = require("./merge_frontmatter_models.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -160,6 +161,7 @@ async function main(core, ctx) {
   // Write to /tmp/gh-aw directory to avoid inclusion in PR
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   writeMergedModelMultipliers(core, tokenWeights);
+  writeMergedModelsJSON(core);
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";
   fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
 

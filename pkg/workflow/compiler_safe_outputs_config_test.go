@@ -1467,6 +1467,50 @@ func TestHandlerConfigClosePullRequestTargetRepo(t *testing.T) {
 	}
 }
 
+func TestHandlerConfigCreateCheckRunTarget(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreateCheckRun: &CreateCheckRunConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				Target: "*",
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	foundHandlerConfig := false
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			foundHandlerConfig = true
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err)
+
+				checkRunConfig, ok := config["create_check_run"]
+				require.True(t, ok)
+
+				target, ok := checkRunConfig["target"]
+				require.True(t, ok)
+				assert.Equal(t, "*", target)
+			}
+		}
+	}
+	require.True(t, foundHandlerConfig, "Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in generated steps")
+}
+
 // TestHandlerConfigPatchSize tests max patch size configuration
 func TestHandlerConfigPatchSize(t *testing.T) {
 	tests := []struct {

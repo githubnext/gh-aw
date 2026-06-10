@@ -4,7 +4,7 @@ description: Guide for choosing the right persistent memory strategy in agentic 
 
 # Persistent Memory in Agentic Workflows
 
-Consult this file when designing a workflow that needs to **persist state across runs** — deduplication, incremental processing, cross-run context, or knowledge accumulation.
+For workflows that **persist state across runs** — deduplication, incremental processing, cross-run context, or knowledge accumulation.
 
 > ⚠️ **`repo-memory` does NOT mean "cache-memory"**. They are two distinct tools with different backends, tradeoffs, and use cases. `cache-memory` is almost always the right first choice.
 
@@ -257,10 +257,10 @@ The compiler automatically creates a separate `push_repo_memory` job with `conte
 | ✅ Pros | ❌ Cons |
 |---|---|
 | Persists indefinitely (no expiry) | Produces Git commits — repository noise |
-| Auditable: Git history shows every change | Produces Git commits — repository noise |
-| Survives cache invalidation | Slower: requires Git clone + push |
-| Human-readable via GitHub branch UI | Not available for Copilot engine (requires GitHub tools) |
-| Can target a different repository | More complex setup |
+| Auditable: Git history shows every change | Slower: requires Git clone + push |
+| Survives cache invalidation | Not available for Copilot engine (requires GitHub tools) |
+| Human-readable via GitHub branch UI | More complex setup |
+| Can target a different repository | |
 
 ---
 
@@ -292,9 +292,9 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 | ✅ Pros | ❌ Cons |
 |---|---|
 | Browsable in the GitHub Wiki UI | Produces Git commits to wiki repo |
-| Great for human-readable knowledge bases | Produces Git commits to wiki repo |
-| Standard Markdown with wiki link syntax | Restricted to `.md` files in practice |
-| Separate from main repo history | Less suitable for structured JSON state |
+| Great for human-readable knowledge bases | Restricted to `.md` files in practice |
+| Standard Markdown with wiki link syntax | Less suitable for structured JSON state |
+| Separate from main repo history | |
 
 ---
 

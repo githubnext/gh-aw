@@ -222,7 +222,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	}
 
 	// Generate runtime setup steps (after filtering out user-customized ones)
-	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
+	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements, data)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
 
 	// Decision logic for where to place runtime steps:

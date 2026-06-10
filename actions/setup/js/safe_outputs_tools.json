@@ -345,7 +345,7 @@
         "temporary_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
-          "description": "Unique temporary identifier for this pull request. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_pr1', '#aw_fix_123'. The bare 'aw_pr1' form is also accepted and normalised to '#aw_pr1'. Use this same '#aw_ID' form in body text to cross-reference this PR; these references are replaced with the real pull request number after creation.",
+          "description": "Unique temporary identifier for this pull request. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_pr1', '#aw_fix_123'. The bare 'aw_pr1' form is also accepted and normalised to '#aw_pr1'. Use this same '#aw_ID' form in body text to cross-reference this PR; these references are replaced with the real pull request number after creation.",
           "x-synonyms": ["temporaryId"]
         },
         "secrecy": {
@@ -1621,7 +1621,7 @@
   },
   {
     "name": "create_check_run",
-    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name.",
+    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name. When `safe-outputs.create-check-run.target` is configured, pull request targeting follows standard PR target rules. With `target: \"*\"`, include `pull_request_number` (or `pr_number`/`pr`/`pull_number`) in each call.",
     "inputSchema": {
       "type": "object",
       "required": ["conclusion", "title", "summary"],
@@ -1642,6 +1642,26 @@
         "text": {
           "type": "string",
           "description": "Optional detailed Markdown content shown in the check run details. Use this for longer output such as full analysis reports, line-by-line findings, or remediation steps. Maximum 65535 characters."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to attach the check run to when the workflow uses `create-check-run: target: \"*\"` (or equivalent explicit PR targeting). This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876).",
+          "x-synonyms": ["pr_number", "pr", "pull_number"]
+        },
+        "pr_number": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
+          "x-synonyms": ["prNumber"]
+        },
+        "pr": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
+          "x-synonyms": ["pullRequest", "pull"]
+        },
+        "pull_number": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
+          "x-synonyms": ["pullNumber"]
         }
       },
       "additionalProperties": false
