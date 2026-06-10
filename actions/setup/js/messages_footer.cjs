@@ -43,6 +43,15 @@ function parsePositiveAIC(raw) {
 }
 
 /**
+ * @param {number|string|undefined} raw
+ * @returns {number|undefined}
+ */
+function parseExplicitContextAIC(raw) {
+  const parsed = raw !== undefined && raw !== null && raw !== "" ? Number.parseFloat(String(raw)) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+/**
  * @param {string|undefined} raw
  * @returns {number|undefined}
  */
@@ -165,10 +174,11 @@ function getFooterMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
   let aiCreditsFormatted = envAICFormatted;
   let aiCreditsSuffix = envAICSuffix;
   if (hasExplicitContextAIC) {
-    aiCreditsFormatted = aiCredits ? formatAIC(aiCredits) : undefined;
+    aiCreditsFormatted = explicitContextAIC ? formatAIC(explicitContextAIC) : undefined;
     aiCreditsSuffix = aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
   }
 
@@ -339,10 +349,10 @@ function getFooterAgentFailureIssueMessage(ctx) {
     threatDetectionAiCreditsSuffix,
   } = getAICFromEnv();
   const { ambientContext, ambientContextFormatted, ambientContextSuffix } = getAmbientContextFromEnv();
-  const explicitContextAIC = parsePositiveAIC(ctx.aiCredits != null ? String(ctx.aiCredits) : undefined);
-  const aiCredits = explicitContextAIC ?? envAIC;
-  const hasExplicitContextAIC = explicitContextAIC !== undefined;
-  const aiCreditsFormatted = hasExplicitContextAIC ? (aiCredits ? formatAIC(aiCredits) : undefined) : envAICFormatted;
+  const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
+  const aiCredits = hasExplicitContextAIC ? ctx.aiCredits : envAIC;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
@@ -401,8 +411,38 @@ function getFooterAgentFailureCommentMessage(ctx) {
   // Pre-compute agentic_workflow_url as the direct link to the agentic workflow page
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
+  const {
+    aiCredits: envAIC,
+    aiCreditsFormatted: envAICFormatted,
+    aiCreditsSuffix: envAICSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  } = getAICFromEnv();
+  const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
+  const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
+  const aiCredits = hasExplicitContextAIC ? ctx.aiCredits : envAIC;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
+  const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
+
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
-  const templateContext = toSnakeCase({ ...ctx, historyLink, agenticWorkflowUrl });
+  const templateContext = toSnakeCase({
+    ...ctx,
+    historyLink,
+    agenticWorkflowUrl,
+    aiCredits,
+    aiCreditsFormatted,
+    aiCreditsSuffix,
+    agentAiCredits,
+    agentAiCreditsFormatted,
+    agentAiCreditsSuffix,
+    threatDetectionAiCredits,
+    threatDetectionAiCreditsFormatted,
+    threatDetectionAiCreditsSuffix,
+  });
 
   // Use custom agent failure comment footer if configured, otherwise use default footer
   let footer;
@@ -411,6 +451,9 @@ function getFooterAgentFailureCommentMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+    if (aiCredits) {
+      defaultFooter += "{ai_credits_suffix}";
+    }
     // Append history link when available
     if (ctx.historyUrl) {
       defaultFooter += " · [◷]({history_url})";
