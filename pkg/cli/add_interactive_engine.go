@@ -151,6 +151,16 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 		return nil
 	}
 
+	// For Copilot, ask the user whether to use copilot-requests (org billing) or a PAT.
+	if engine == string(constants.CopilotEngine) {
+		if err := c.selectCopilotAuthMethod(); err != nil {
+			return err
+		}
+		if c.UseCopilotRequests {
+			return nil
+		}
+	}
+
 	// If user doesn't have write access, skip secrets configuration.
 	// Users without write access cannot configure repository secrets.
 	if !c.hasWriteAccess {
@@ -186,6 +196,48 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	if opt != nil {
 		c.existingSecrets[opt.SecretName] = true
 		addInteractiveLog.Printf("Updated existingSecrets to include %s after upload", opt.SecretName)
+	}
+
+	return nil
+}
+
+// selectCopilotAuthMethod prompts the user to choose between copilot-requests (org billing)
+// and a Personal Access Token for Copilot authentication.
+// Sets c.UseCopilotRequests when org billing is chosen.
+func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
+	addInteractiveLog.Print("Prompting user for Copilot authentication method")
+
+	const (
+		authMethodCopilotRequests = "copilot-requests"
+		authMethodPAT             = "pat"
+	)
+
+	fmt.Fprintln(os.Stderr, "")
+
+	var authMethod string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("How would you like Copilot workflows to authenticate?").
+				Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN.").
+				Options(
+					huh.NewOption("Use copilot-requests (org Copilot billing, no PAT) [recommended for orgs]", authMethodCopilotRequests),
+					huh.NewOption("Use a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN", authMethodPAT),
+				).
+				Value(&authMethod),
+		),
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+
+	if err := form.RunWithContext(c.Ctx); err != nil {
+		return fmt.Errorf("failed to select Copilot authentication method: %w", err)
+	}
+
+	if authMethod == authMethodCopilotRequests {
+		c.UseCopilotRequests = true
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected copilot-requests: permissions.copilot-requests: write will be added to your workflow"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No COPILOT_GITHUB_TOKEN secret is required — Copilot usage is billed to your org's Copilot seat."))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
 	}
 
 	return nil

@@ -30,6 +30,12 @@ type AddInteractiveConfig struct {
 	SkipSecret      bool   // Skip the API secret prompt (useful when secret is set at org level)
 	RepoOverride    string // owner/repo format, if user provides it
 
+	// UseCopilotRequests indicates the user chose org-billing (copilot-requests) auth
+	// instead of a PAT when setting up the Copilot engine during the wizard.
+	// When true, COPILOT_GITHUB_TOKEN secret setup is skipped and
+	// permissions.copilot-requests: write is injected into the workflow.
+	UseCopilotRequests bool
+
 	// isPublicRepo tracks whether the target repository is public
 	// This is populated by checkGitRepository() when determining the repo
 	isPublicRepo bool
@@ -131,7 +137,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 
 	// Step 8: Confirm with user
 	var secretName, secretValue string
-	if config.hasWriteAccess && !config.SkipSecret {
+	if config.hasWriteAccess && !config.SkipSecret && !config.UseCopilotRequests {
 		secretName, secretValue, err = config.resolveEngineApiKeyCredential()
 		if err != nil {
 			return err

@@ -33,6 +33,10 @@ type AddOptions struct {
 	NoStopAfter            bool
 	StopAfter              string
 	DisableSecurityScanner bool
+	// AddCopilotRequestsPermission injects permissions.copilot-requests: write into
+	// the workflow frontmatter, enabling GitHub Actions token auth for Copilot.
+	// Set by the add-wizard when the user selects org-billing auth instead of a PAT.
+	AddCopilotRequestsPermission bool
 }
 
 // AddWorkflowsResult contains the result of adding workflows
@@ -439,6 +443,21 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		}
 	}
 
+	// Inject permissions.copilot-requests: write when the user chose org-billing auth.
+	if opts.AddCopilotRequestsPermission {
+		updatedContent, err := addCopilotRequestsPermissionToContent(content)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add copilot-requests permission: %v", err)))
+			}
+		} else {
+			content = updatedContent
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Added permissions.copilot-requests: write to workflow"))
+			}
+		}
+	}
+
 	// Add source field to frontmatter
 	commitSHA := ""
 	if sourceInfo != nil {
@@ -774,4 +793,18 @@ func printCompilationError(err error, quiet bool) {
 		return
 	}
 	fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
+}
+
+// addCopilotRequestsPermissionToContent injects `permissions.copilot-requests: write`
+// into the workflow frontmatter. It is idempotent: if the permission is already present
+// the content is returned unchanged.
+func addCopilotRequestsPermissionToContent(content string) (string, error) {
+	newContent, _, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+		updated := ensureCopilotRequestsWritePermission(lines)
+		return updated, true // always reconstruct; ensureCopilotRequestsWritePermission is idempotent
+	})
+	if err != nil {
+		return content, err
+	}
+	return newContent, nil
 }
