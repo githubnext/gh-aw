@@ -1498,7 +1498,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry OTel)"
-          WORKFLOW_DESCRIPTION: "Daily report of token consumption across all agentic workflows using OTel telemetry stored in Sentry"
+          WORKFLOW_DESCRIPTION: "Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry stored in Sentry"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
