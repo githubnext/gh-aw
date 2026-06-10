@@ -204,16 +204,18 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	return nil
 }
 
+// authMethodCopilotRequests is the wizard option value for Copilot org-billing authentication
+// (permissions.copilot-requests: write). Extracted as a package-level constant so both the
+// form definition and applyCopilotAuthMethodChoice reference the same sentinel.
+const authMethodCopilotRequests = "copilot-requests"
+
 // selectCopilotAuthMethod prompts the user to choose between copilot-requests (org billing)
 // and a Personal Access Token for Copilot authentication.
 // Sets c.UseCopilotRequests when org billing is chosen.
 func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	addInteractiveLog.Print("Prompting user for Copilot authentication method")
 
-	const (
-		authMethodCopilotRequests = "copilot-requests"
-		authMethodPAT             = "pat"
-	)
+	const authMethodPAT = "pat"
 
 	fmt.Fprintln(os.Stderr, "")
 
@@ -243,7 +245,6 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 // the corresponding status message. It is pure (no I/O beyond stderr) and intentionally
 // separated from the huh form so the assignment logic is unit-testable without mocking the TUI.
 func (c *AddInteractiveConfig) applyCopilotAuthMethodChoice(authMethod string) {
-	const authMethodCopilotRequests = "copilot-requests"
 	if authMethod == authMethodCopilotRequests {
 		c.UseCopilotRequests = true
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected copilot-requests: permissions.copilot-requests: write will be added to your workflow"))

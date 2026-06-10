@@ -831,10 +831,10 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 	newContent, _, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 		updated := ensureCopilotRequestsWritePermission(lines)
 		// Detect whether ensureCopilotRequestsWritePermission actually made a change.
-		// When the lengths differ a line was added; otherwise compare element by element.
+		// When lengths differ, a line was added — modified is true without needing element comparison.
+		// When lengths are equal, compare element-by-element (safe since len(updated)==len(lines)).
 		modified := len(updated) != len(lines)
 		if !modified {
-			// Lengths are equal here, so iterating over lines indices is safe for updated too.
 			for i := range lines {
 				if lines[i] != updated[i] {
 					modified = true
@@ -845,16 +845,7 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 		if !modified {
 			// Lines unchanged — either the permission is already present (idempotent) or
 			// it could not be injected (e.g., `permissions:` is a scalar like `read-all`).
-			hasPerm := false
-			for _, line := range updated {
-				// Match the exact YAML key, ignoring comments and unrelated lines.
-				trimmed := strings.TrimSpace(line)
-				if !strings.HasPrefix(trimmed, "#") && parseYAMLMapKey(trimmed) == "copilot-requests" {
-					hasPerm = true
-					break
-				}
-			}
-			if !hasPerm {
+			if !copilotRequestsPermissionPresentInLines(updated) {
 				injectionFailed = true
 			}
 		}
@@ -867,4 +858,17 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 		return content, err
 	}
 	return newContent, nil
+}
+
+// copilotRequestsPermissionPresentInLines returns true when the frontmatter lines contain
+// a `copilot-requests:` key (ignoring comment lines). It is used to distinguish the idempotent
+// case (permission already present) from the injection-failure case (scalar permissions field).
+func copilotRequestsPermissionPresentInLines(lines []string) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "#") && parseYAMLMapKey(trimmed) == "copilot-requests" {
+			return true
+		}
+	}
+	return false
 }
