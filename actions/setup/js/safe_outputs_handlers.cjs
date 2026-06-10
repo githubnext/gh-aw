@@ -919,8 +919,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // like issue_comment on PRs targeting non-default branches.
     entry.base_branch = baseBranch;
 
-    // If branch is not provided, is empty, or equals the base branch, use the current branch from git
-    // This handles cases where the agent incorrectly passes the base branch instead of the working branch
+    // Always derive the source branch from the current checkout (the agent does not supply one).
     // The agent never supplies a branch. Always derive it from the current
     // checkout: the working tree must already be on the PR head ref because
     // that's what the agent committed onto. The apply-time push job
