@@ -69,7 +69,7 @@ First, attempt to call `search_events` using:
 If `search_events` is **not available** (the tool is absent from the available tool list because no embedded LLM provider is configured), fall back to `list_events` with direct Sentry query syntax:
 - `organizationSlug`: the org discovered in Step 1
 - `dataset: spans`
-- `query`: a filter for AI/LLM spans with token data; start with `span.op:ai*` and also try `span.op:gen_ai*` if the first returns no results; if neither matches, try an empty query and filter client-side for records with token fields
+- `query`: a filter for AI/LLM spans with AIC/cost data; start with `span.op:ai*` and also try `span.op:gen_ai*` if the first returns no results; if neither matches, try an empty query and filter client-side for records with AIC fields
 - `fields`: include AIC/cost fields such as `gh-aw.aic`, `gh_aw.aic`, `aic`, `agent_usage.aic`, plus workflow metadata (`github.workflow`, `github.run_id`, `span.op`, `span.description`, `timestamp`); omit fields that return errors and retry with remaining fields
 - `sort`: `-timestamp`
 - Use pagination to cover the last 24 hours
