@@ -2263,13 +2263,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (totalTokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.total_tokens", totalTokens));
   }
-  // Emit gen_ai.usage.cost in USD as a backend-consumable alias for gh-aw.aic.
-  // Backends such as Sentry and Datadog index gen_ai.usage.cost natively following
-  // the OTel GenAI semantic conventions, making cost discoverable without custom
-  // field mappings. Conversion: 1 AIC = 0.01 USD.
-  if (typeof aiCredits === "number" && aiCredits > 0) {
-    usageAttrs.push(buildAttr("gen_ai.usage.cost", aiCredits * 0.01));
-  }
 
   const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
