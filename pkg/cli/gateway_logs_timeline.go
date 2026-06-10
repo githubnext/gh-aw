@@ -66,6 +66,9 @@ const (
 	TimelineKindAssistantMessage TimelineEventKind = "assistant_message"
 	// TimelineKindReasoning is a model reasoning/thinking trace (reasoning or assistant.reasoning event).
 	TimelineKindReasoning TimelineEventKind = "reasoning"
+	// TimelineKindSteering is a budget or time pressure steering message injected by the AWF
+	// API proxy (token_steering or timeout_steering event from api-proxy-logs/events.jsonl).
+	TimelineKindSteering TimelineEventKind = "steering"
 )
 
 // UnifiedTimelineEvent represents a single event from the MCP Gateway, the AWF
@@ -520,9 +523,117 @@ func collectAgentTimelineEvents(logDir string, verbose bool) ([]UnifiedTimelineE
 	return events, nil
 }
 
+// proxyEventsEntry is a JSONL record from api-proxy-logs/events.jsonl.
+// The event name appears under one of four field names depending on the proxy version;
+// the message field is present on steering events.
+type proxyEventsEntry struct {
+	// Event name appears under one of these four keys; all are checked.
+	Event          string `json:"event"`
+	Type           string `json:"type"`
+	EventNameSnake string `json:"event_name"`
+	EventNameCamel string `json:"eventName"`
+	// Message text (present on steering events).
+	Message string `json:"message"`
+	// Optional RFC3339/RFC3339Nano timestamp (not always present).
+	Timestamp string `json:"timestamp"`
+}
+
+// eventName returns the normalised event name from whichever field is populated.
+func (e proxyEventsEntry) eventName() string {
+	for _, v := range []string{e.Event, e.Type, e.EventNameSnake, e.EventNameCamel} {
+		if v = strings.TrimSpace(v); v != "" {
+			return strings.ToLower(v)
+		}
+	}
+	return ""
+}
+
+// steeringEntryToTimelineEvent converts a proxyEventsEntry into a
+// UnifiedTimelineEvent with Kind == TimelineKindSteering.
+// Returns (zero, false) when the entry is not a recognised steering event.
+//
+// The Status field is set to "token" for token_steering events and "time" for
+// timeout_steering events so that the renderer can apply appropriate icons.
+// The Reason field carries the full message text.
+// The Time field is set from the Timestamp field when present; zero otherwise.
+func steeringEntryToTimelineEvent(entry proxyEventsEntry) (UnifiedTimelineEvent, bool) {
+	name := entry.eventName()
+	msg := strings.TrimSpace(entry.Message)
+	if !isSteeringEvent(name, msg) {
+		return UnifiedTimelineEvent{}, false
+	}
+
+	var status string
+	switch name {
+	case tokenSteeringEventName:
+		status = "token"
+	case timeoutSteeringEventName:
+		status = "time"
+	}
+
+	var t time.Time
+	if entry.Timestamp != "" {
+		if parsed, ok := gatewayTimestampToTime(entry.Timestamp); ok {
+			t = parsed
+		}
+	}
+
+	return UnifiedTimelineEvent{
+		Time:   t,
+		Source: TimelineSourceFirewall,
+		Kind:   TimelineKindSteering,
+		Status: status,
+		Reason: msg,
+	}, true
+}
+
+// collectSteeringTimelineEvents reads the api-proxy events.jsonl from logDir and
+// returns a slice of TimelineKindSteering timeline events, one per recognised steering
+// record.  Returns nil (not an error) when no proxy events file is found.
+func collectSteeringTimelineEvents(logDir string, verbose bool) ([]UnifiedTimelineEvent, error) {
+	eventsPath := findAPIProxyEventsFile(logDir)
+	if eventsPath == "" {
+		gatewayLogsLog.Printf("No api-proxy events.jsonl found in %s; skipping steering timeline collection", logDir)
+		return nil, nil
+	}
+
+	gatewayLogsLog.Printf("Collecting steering timeline events from: %s", eventsPath)
+
+	f, err := os.Open(filepath.Clean(eventsPath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open proxy events file: %w", err)
+	}
+	defer f.Close()
+
+	var events []UnifiedTimelineEvent
+	scanner := bufio.NewScanner(f)
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !containsSteeringKeyword(line) {
+			continue
+		}
+		var entry proxyEventsEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			gatewayLogsLog.Printf("Skipping malformed proxy events line: %v", err)
+			continue
+		}
+		if evt, ok := steeringEntryToTimelineEvent(entry); ok {
+			events = append(events, evt)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error reading proxy events: %w", err)
+	}
+
+	gatewayLogsLog.Printf("Collected %d steering timeline events from %s", len(events), filepath.Base(eventsPath))
+	return events, nil
+}
+
 // BuildUnifiedTimeline collects all JSONL events from the MCP Gateway, the AWF
-// firewall, and the agent session in logDir, merges them into a single slice, and
-// sorts the slice in ascending wall-clock order (oldest first).
+// firewall, the agent session, and the AWF API proxy in logDir, merges them into a
+// single slice, and sorts the slice in ascending wall-clock order (oldest first).
 //
 // If a source is unavailable (no matching file), it is silently skipped; collection
 // errors are logged but do not prevent events from the other sources from being returned.
@@ -542,10 +653,17 @@ func BuildUnifiedTimeline(logDir string, verbose bool) ([]UnifiedTimelineEvent, 
 		gatewayLogsLog.Printf("collectAgentTimelineEvents error: %v", agErr)
 	}
 
-	events := make([]UnifiedTimelineEvent, 0, len(gatewayEvents)+len(firewallEvents)+len(agentEvents))
+	steeringEvents, stErr := collectSteeringTimelineEvents(logDir, verbose)
+	if stErr != nil {
+		gatewayLogsLog.Printf("collectSteeringTimelineEvents error: %v", stErr)
+	}
+
+	events := make([]UnifiedTimelineEvent, 0,
+		len(gatewayEvents)+len(firewallEvents)+len(agentEvents)+len(steeringEvents))
 	events = append(events, gatewayEvents...)
 	events = append(events, firewallEvents...)
 	events = append(events, agentEvents...)
+	events = append(events, steeringEvents...)
 
 	slices.SortFunc(events, func(a, b UnifiedTimelineEvent) int {
 		switch {
@@ -558,8 +676,8 @@ func BuildUnifiedTimeline(logDir string, verbose bool) ([]UnifiedTimelineEvent, 
 		}
 	})
 
-	gatewayLogsLog.Printf("Built unified timeline: %d events (gateway=%d, firewall=%d, agent=%d)",
-		len(events), len(gatewayEvents), len(firewallEvents), len(agentEvents))
+	gatewayLogsLog.Printf("Built unified timeline: %d events (gateway=%d, firewall=%d, agent=%d, steering=%d)",
+		len(events), len(gatewayEvents), len(firewallEvents), len(agentEvents), len(steeringEvents))
 
 	return events, nil
 }
