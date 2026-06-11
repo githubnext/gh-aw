@@ -71,4 +71,14 @@ func TestWithNonInteractiveCIEnv(t *testing.T) {
 		assert.NotContains(t, output, "CI=false")
 		assert.Contains(t, output, "HOME=/tmp/test-home")
 	})
+
+	t.Run("adds CI when missing", func(t *testing.T) {
+		input := []string{"HOME=/tmp/test-home"}
+
+		output := withNonInteractiveCIEnv(input)
+
+		assert.Equal(t, []string{"HOME=/tmp/test-home"}, input, "must not mutate input")
+		assert.Contains(t, output, "CI=1")
+		assert.Contains(t, output, "HOME=/tmp/test-home")
+	})
 }
