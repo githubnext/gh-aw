@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 // getRepository retrieves the current repository name (owner/repo format).
 // Results are cached for 1 hour to avoid repeated queries.
 // Checks GITHUB_REPOSITORY environment variable first, then falls back to gh repo view.
-func getRepository() (string, error) {
+func getRepository(ctx context.Context) (string, error) {
 	// Check cache first
 	if repo, ok := mcpCache.GetRepo(); ok {
 		mcpLog.Printf("Using cached repository: %s", repo)
@@ -29,8 +30,8 @@ func getRepository() (string, error) {
 
 	// Fall back to gh repo view
 	mcpLog.Print("Querying repository using gh repo view")
-	cmd := workflow.ExecGH("repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
-	output, err := cmd.Output()
+	cmd := workflow.ExecGHContext(ctx, "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+	output, err := runMCPSubprocessOutput(ctx, cmd)
 	if err != nil {
 		mcpLog.Printf("Failed to get repository: %v", err)
 		return "", fmt.Errorf("failed to get repository: %w", err)

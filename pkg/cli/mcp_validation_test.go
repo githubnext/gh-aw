@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -57,5 +58,39 @@ func TestGetBinaryPath(t *testing.T) {
 			assert.Equal(t, path, resolved, "Path should already be resolved (no symlinks)")
 		}
 		// If EvalSymlinks fails, that's OK - the original path is still valid
+	})
+}
+
+func TestSetNonInteractiveCIEnv(t *testing.T) {
+	t.Run("returns copied env with CI forced on", func(t *testing.T) {
+		input := []string{"CI=false", "HOME=/tmp/test-home"}
+
+		output := withNonInteractiveCIEnv(input)
+
+		assert.Equal(t, []string{"CI=false", "HOME=/tmp/test-home"}, input)
+		assert.Contains(t, output, "CI=1")
+		assert.NotContains(t, output, "CI=false")
+		assert.Contains(t, output, "HOME=/tmp/test-home")
+	})
+
+	t.Run("adds CI when missing", func(t *testing.T) {
+		cmd := exec.Command("echo")
+		cmd.Env = []string{"HOME=/tmp/test-home"}
+
+		setNonInteractiveCIEnv(cmd)
+
+		assert.Contains(t, cmd.Env, "CI=1")
+		assert.Contains(t, cmd.Env, "HOME=/tmp/test-home")
+	})
+
+	t.Run("overrides existing CI value", func(t *testing.T) {
+		cmd := exec.Command("echo")
+		cmd.Env = []string{"CI=false", "HOME=/tmp/test-home"}
+
+		setNonInteractiveCIEnv(cmd)
+
+		assert.Contains(t, cmd.Env, "CI=1")
+		assert.NotContains(t, cmd.Env, "CI=false")
+		assert.Contains(t, cmd.Env, "HOME=/tmp/test-home")
 	})
 }

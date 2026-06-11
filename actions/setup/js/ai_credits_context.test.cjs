@@ -166,3 +166,74 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
     });
   });
 });
+
+describe("ai_credits_context unknown_model_ai_credits detection", () => {
+  let tmpDir;
+  let parseUnknownModelAICreditsFromAuditLog;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-unknown-test-"));
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    const mod = await import("./ai_credits_context.cjs");
+    const exports = mod.default || mod;
+    parseUnknownModelAICreditsFromAuditLog = exports.parseUnknownModelAICreditsFromAuditLog;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.GH_AW_AGENT_OUTPUT;
+  });
+
+  function writeAuditLog(lines, filename = "log.jsonl") {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    const logPath = path.join(auditDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  it("detects unknown_model_ai_credits type in audit log", () => {
+    writeAuditLog([{ type: "unknown_model_ai_credits", model: "my-custom-model" }]);
+    expect(parseUnknownModelAICreditsFromAuditLog()).toBe(true);
+  });
+
+  it("detects unknown_model_ai_credits using audit.jsonl filename", () => {
+    writeAuditLog([{ type: "unknown_model_ai_credits" }], "audit.jsonl");
+    expect(parseUnknownModelAICreditsFromAuditLog()).toBe(true);
+  });
+
+  it("detects unknown_model_ai_credits in a multi-entry log", () => {
+    writeAuditLog([
+      { type: "response", status: 200 },
+      { type: "unknown_model_ai_credits", model: "my-model" },
+      { type: "response", status: 200 },
+    ]);
+    expect(parseUnknownModelAICreditsFromAuditLog()).toBe(true);
+  });
+
+  it("returns false when no unknown_model_ai_credits signal is present", () => {
+    writeAuditLog([{ type: "response", status: 200 }]);
+    expect(parseUnknownModelAICreditsFromAuditLog()).toBe(false);
+  });
+
+  it("returns false for missing audit log", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    expect(parseUnknownModelAICreditsFromAuditLog("/nonexistent/path/log.jsonl")).toBe(false);
+  });
+
+  it("returns false for empty audit log", () => {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    fs.writeFileSync(path.join(auditDir, "log.jsonl"), "", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    expect(parseUnknownModelAICreditsFromAuditLog()).toBe(false);
+  });
+
+  it("does not detect other error types as unknown_model_ai_credits", () => {
+    writeAuditLog([{ type: "ai_credits_rate_limit_error" }]);
+    expect(parseUnknownModelAICreditsFromAuditLog()).toBe(false);
+  });
+});

@@ -68,8 +68,7 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 		}
 
 		// Execute the CLI command
-		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
 
 		if err != nil {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to add workflows", map[string]any{"error": err.Error(), "output": string(output)})
@@ -152,8 +151,7 @@ Returns formatted text output showing:
 		}
 
 		// Execute the CLI command
-		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
 
 		if err != nil {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to update workflows", map[string]any{"error": err.Error(), "output": string(output)})
@@ -234,8 +232,7 @@ Returns formatted text output showing:
 		}
 
 		// Execute the CLI command
-		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
 
 		if err != nil {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fix workflows", map[string]any{"error": err.Error(), "output": string(output)})

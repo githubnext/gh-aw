@@ -221,6 +221,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// ai_credits_rate_limit_error is true when MCP gateway logs indicate AI credits
 		// budget exhaustion or API rate limiting attributable to credit constraints.
 		"ai_credits_rate_limit_error": fmt.Sprintf("${{ steps.%s.outputs.ai_credits_rate_limit_error || 'false' }}", constants.ParseMCPGatewayStepID),
+		// unknown_model_ai_credits is true when the AWF API proxy rejects a request because the
+		// model is not in the built-in pricing table and maxAiCredits is active.
+		"unknown_model_ai_credits": fmt.Sprintf("${{ steps.%s.outputs.unknown_model_ai_credits || 'false' }}", constants.ParseMCPGatewayStepID),
 		// setup-trace-id propagates the shared OTLP trace ID to downstream jobs (detection, safe_outputs, cache, etc.)
 		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
 		// setup-span-id propagates the setup span parent so downstream setup spans form one tree.

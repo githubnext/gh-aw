@@ -193,8 +193,7 @@ from where the previous request stopped due to timeout.`,
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and error details
-		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
 
 		// The logs command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
@@ -404,8 +403,7 @@ Multi-run diff returns JSON describing changes between the base and each compari
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
-		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
 
 		// The audit command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
@@ -536,8 +534,7 @@ Returns JSON describing the differences between the base run and each comparison
 
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 
-		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
 		outputStr := string(stdout)
 
 		if err != nil {
