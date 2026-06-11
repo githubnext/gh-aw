@@ -27,11 +27,45 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"item_number":123}';
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"schedule"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"workflow_dispatch"}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+  });
+
+  it("does not skip for label command triggers in aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request","trigger_label":"smoke"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issues","trigger_label":"ci-doctor"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+  });
+
+  it("does not skip for slash command triggers in aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issue_comment","trigger_label":""}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request_review_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"discussion_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+  });
+
+  it("skips for workflow_dispatch with aw_context that has no trigger_label and non-slash event_type", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"push","trigger_label":""}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    // Malformed JSON should still skip (safe fallback)
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "not-json";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
   });
 
   it("matches usage artifacts only", () => {

@@ -56,14 +56,37 @@ function logDailyGuardrail(message, details) {
 }
 
 /**
+ * Event types that indicate a user-initiated slash command trigger.
+ * When aw_context.event_type is one of these, the workflow was triggered by a user
+ * typing a slash command in a comment, and the daily guardrail should not be skipped.
+ */
+const SLASH_COMMAND_EVENT_TYPES = ["issue_comment", "pull_request_review_comment", "discussion_comment"];
+
+/**
  * @returns {boolean}
  */
 function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const isWorkflowCall = eventName === "workflow_call";
   const isRepositoryDispatch = eventName === "repository_dispatch";
-  const hasDispatchContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "";
-  return isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext);
+  const rawContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim();
+  const hasDispatchContext = rawContext !== "";
+  if (!(isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext))) {
+    return false;
+  }
+  if (eventName === "workflow_dispatch" && hasDispatchContext) {
+    try {
+      const awContext = JSON.parse(rawContext);
+      const isLabelCommand = typeof awContext.trigger_label === "string" && awContext.trigger_label.trim() !== "";
+      const isSlashCommand = SLASH_COMMAND_EVENT_TYPES.includes(awContext.event_type);
+      if (isLabelCommand || isSlashCommand) {
+        return false;
+      }
+    } catch {
+      // Malformed aw_context: fall through and skip as before.
+    }
+  }
+  return true;
 }
 
 /**
