@@ -231,6 +231,11 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
 					break
 				}
+				// Skip bash comment lines – expressions inside comments are
+				// documentation-only and must not generate env bindings.
+				if strings.HasPrefix(t, "#") {
+					continue
+				}
 				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j], shellIsPowerShell, bindingExprs)
 				if len(bindings) > 0 {
 					stepLines[j] = updatedLine
