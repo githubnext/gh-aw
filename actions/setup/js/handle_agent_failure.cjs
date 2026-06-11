@@ -200,7 +200,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
-  if (options.hasDailyAICExceeded) categories.push("daily_effective_workflow_exceeded");
+  if (options.hasDailyAICExceeded) categories.push("daily_ai_credits_exceeded");
 
   if (options.agentConclusion === "failure" && !options.isTimedOut) {
     categories.push("agent_failure");
@@ -231,7 +231,7 @@ function buildFailureMatchCategories(options) {
  */
 function buildFailureIssueTitle(options) {
   const { workflowName } = options;
-  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily effective workflow budget`;
+  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily AI credits budget`;
   if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
   if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
   if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
@@ -2376,9 +2376,9 @@ async function main() {
     // stored in the compiled .lock.yml no longer matches the source .md file.
     // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
     const hasStaleLockFileFailed = process.env.GH_AW_STALE_LOCK_FILE_FAILED === "true";
-    const hasDailyAICExceeded = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED === "true";
-    const dailyAICTotal = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS || "";
-    const dailyAICThreshold = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD || "";
+    const hasDailyAICExceeded = process.env.GH_AW_DAILY_AI_CREDITS_EXCEEDED === "true";
+    const dailyAICTotal = process.env.GH_AW_DAILY_AI_CREDITS_TOTAL_EFFECTIVE_TOKENS || "";
+    const dailyAICThreshold = process.env.GH_AW_DAILY_AI_CREDITS_THRESHOLD || "";
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
@@ -2899,7 +2899,7 @@ async function main() {
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
-          daily_effective_workflow_exceeded_context: dailyAICExceededContext,
+          daily_ai_credits_exceeded_context: dailyAICExceededContext,
         };
 
         // Render the comment template
@@ -3128,7 +3128,7 @@ async function main() {
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
-          daily_effective_workflow_exceeded_context: dailyAICExceededContext,
+          daily_ai_credits_exceeded_context: dailyAICExceededContext,
         };
 
         // Render the issue template

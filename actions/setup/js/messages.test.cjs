@@ -531,6 +531,24 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⌖ 0.25 AIC");
     });
 
+    it("should include ambient context in ai_credits_suffix for custom footer templates", async () => {
+      process.env.GH_AW_AGENT_AIC = "1.25";
+      process.env.GH_AW_THREAT_DETECTION_AIC = "0.25";
+      process.env.GH_AW_AMBIENT_CONTEXT = "900";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url}){ai_credits_suffix}",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⌖ 0.25 AIC · ⊞ 900");
+    });
+
     it("should not include mini-tier model identifiers in default footer suffixes", async () => {
       const { getFooterMessage } = await import("./messages.cjs");
 
@@ -1154,7 +1172,22 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · 2.5 AIC");
     });
 
+    it("should include ambient context in the default footer when available", async () => {
+      process.env.GH_AW_AIC = "1.25";
+      process.env.GH_AW_AMBIENT_CONTEXT = "900";
+
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⊞ 900");
+    });
+
     it("should expose ai_credits_suffix in custom comment footer templates", async () => {
+      process.env.GH_AW_AMBIENT_CONTEXT = "900";
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         agentFailureComment: "> Custom: [{workflow_name}]({run_url}){ai_credits_suffix}",
       });
@@ -1167,7 +1200,7 @@ describe("messages.cjs", () => {
         aiCredits: "2.5",
       });
 
-      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 2.5 AIC");
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 2.5 AIC · ⊞ 900");
     });
 
     it("should not include effective tokens in custom footer unless placeholder is used", async () => {

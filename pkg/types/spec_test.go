@@ -199,7 +199,7 @@ func TestSpec_Types_TokenClassWeights(t *testing.T) {
 	assert.InDelta(t, 0.0, zero.Input, 1e-9, "zero value of Input must be 0 (use default)")
 	assert.InDelta(t, 0.0, zero.CachedInput, 1e-9, "zero value of CachedInput must be 0 (use default)")
 
-	// Verify JSON field names from struct tags (underscores, matching pkg/cli/data/model_multipliers.json)
+	// Verify JSON field names from struct tags (underscores for stable wire compatibility)
 	data, err := json.Marshal(w)
 	require.NoError(t, err, "TokenClassWeights must serialize to JSON")
 	assert.Contains(t, string(data), `"cached_input"`, "JSON must use underscore field name 'cached_input'")

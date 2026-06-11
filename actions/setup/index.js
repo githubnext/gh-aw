@@ -12,7 +12,6 @@ const setupStartMs = Date.now();
 // runner versions preserve the original hyphen form. getActionInput() handles
 // both forms automatically.
 const safeOutputCustomTokens = getActionInput("SAFE_OUTPUT_CUSTOM_TOKENS") || "false";
-const safeOutputArtifactClient = getActionInput("SAFE_OUTPUT_ARTIFACT_CLIENT") || "false";
 const inputTraceId = getActionInput("TRACE_ID");
 const inputParentSpanId = getActionInput("PARENT_SPAN_ID");
 const inputJobName = getActionInput("JOB_NAME");
@@ -22,7 +21,6 @@ const result = spawnSync(path.join(__dirname, "setup.sh"), [], {
   stdio: "inherit",
   env: Object.assign({}, process.env, {
     INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: safeOutputCustomTokens,
-    INPUT_SAFE_OUTPUT_ARTIFACT_CLIENT: safeOutputArtifactClient,
     INPUT_TRACE_ID: inputTraceId,
     INPUT_PARENT_SPAN_ID: inputParentSpanId,
     INPUT_JOB_NAME: inputJobName,

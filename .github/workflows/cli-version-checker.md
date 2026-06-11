@@ -1,6 +1,6 @@
 ---
 emoji: "🔢"
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway, Pi) for new versions
 on:
   schedule: daily
   workflow_dispatch:
@@ -36,7 +36,7 @@ timeout-minutes: 45
 
 # CLI Version Checker
 
-Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, and MCP Gateway.
+Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway, and Pi.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
@@ -82,6 +82,9 @@ For each CLI/MCP server:
   - Release Notes: https://github.com/github/gh-aw-mcpg/releases
   - Docker Image: `ghcr.io/github/gh-aw-mcpg:v{VERSION}`
   - Used as default sandbox.agent container (see `pkg/constants/constants.go`)
+- **Pi**: Use `npm view @earendil-works/pi-coding-agent version`
+  - Package: https://www.npmjs.com/package/@earendil-works/pi-coding-agent
+  - Constant: `DefaultPiVersion` in `pkg/constants/version_constants.go`
 **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
 
 ### Research & Analysis
@@ -129,6 +132,9 @@ For each update, analyze intermediate versions:
   - Parse release body for changelog entries
   - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/github/gh-aw-mcpg/pull/123`)
   - Note: Used as default sandbox.agent container in MCP Gateway configuration
+- **Pi**: No public GitHub repository; rely on NPM metadata and CLI help output
+  - Use `npm view @earendil-works/pi-coding-agent --json` for package metadata
+  - Compare CLI help output between versions
 **NPM Metadata Fallback**: When GitHub release notes are unavailable, use:
 - `npm view <package> --json` for package metadata
 - Compare CLI help outputs between versions
@@ -148,12 +154,14 @@ For each CLI tool update:
    - Codex: `npm install -g @openai/codex@<version>`
    - Playwright MCP: `npm install -g @playwright/mcp@<version>`
    - Playwright CLI: `npm install -g @playwright/cli@<version>`
+   - Pi: `npm install -g @earendil-works/pi-coding-agent@<version>`
 2. Invoke help to discover commands and flags (compare with cached output if available):
    - Run `claude-code --help`
    - Run `copilot --help` or `copilot help copilot`
    - Run `codex --help`
    - Run `npx @playwright/mcp@<version> --help` (if available)
    - Run `playwright-cli --help` (if available)
+   - Run `pi --help` (if available)
 3. **Explore subcommand help** for each tool (especially Copilot CLI):
    - Identify all available subcommands from main help output
    - For each subcommand, run its help command (e.g., `copilot help config`, `copilot help environment`, `copilot config --help`)
@@ -281,6 +289,7 @@ Legacy template reference (adapt to use Report Structure Pattern above):
   - Copilot CLI: Try to fetch, but may be inaccessible (private repo)
   - Playwright MCP: Check NPM metadata, uses Playwright versioning
   - Playwright CLI: Fetch from https://github.com/microsoft/playwright-cli/releases
+  - Pi: No public GitHub repository; rely on NPM metadata (`npm view @earendil-works/pi-coding-agent --json`)
 - **EXPLORE SUBCOMMANDS**: Install and test CLI tools to discover new features via `--help` and explore each subcommand
   - For Copilot CLI, explicitly check: `config`, `environment` and any other available subcommands
   - Use commands like `copilot help <subcommand>` or `<tool> <subcommand> --help`

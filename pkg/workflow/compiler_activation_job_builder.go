@@ -197,9 +197,9 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	c.maybeAddActivationAppTokenMintStep(ctx)
 	if hasMaxDailyAICGuardrail(data) {
 		ctx.steps = append(ctx.steps, c.buildActivationDailyAICGuardrailStep(data)...)
-		ctx.outputs["daily_effective_workflow_exceeded"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}"
-		ctx.outputs["daily_effective_workflow_total_effective_tokens"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}"
-		ctx.outputs["daily_effective_workflow_threshold"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}"
+		ctx.outputs["daily_ai_credits_exceeded"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_exceeded == 'true' }}"
+		ctx.outputs["daily_ai_credits_total_effective_tokens"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_total_effective_tokens || '' }}"
+		ctx.outputs["daily_ai_credits_threshold"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_threshold || '' }}"
 	}
 	c.addActivationReactionStep(ctx)
 	c.addActivationSecretValidationStep(ctx)
@@ -661,7 +661,6 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "          include-hidden-files: true\n")
 	ctx.steps = append(ctx.steps, "          path: |\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw_info.json\n")
-	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/model_multipliers.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/models.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-template.txt\n")

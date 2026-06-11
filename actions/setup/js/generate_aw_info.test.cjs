@@ -31,7 +31,6 @@ const mockContext = {
 describe("generate_aw_info.cjs", () => {
   let main;
   let awInfoPath;
-  let mergedMultipliersPath;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -41,7 +40,6 @@ describe("generate_aw_info.cjs", () => {
       fs.mkdirSync("/tmp/gh-aw", { recursive: true });
     }
     awInfoPath = "/tmp/gh-aw/aw_info.json";
-    mergedMultipliersPath = "/tmp/gh-aw/model_multipliers.json";
 
     // Set default env vars for compile-time values
     process.env.GH_AW_INFO_ENGINE_ID = "copilot";
@@ -71,9 +69,6 @@ describe("generate_aw_info.cjs", () => {
   afterEach(() => {
     if (fs.existsSync(awInfoPath)) {
       fs.unlinkSync(awInfoPath);
-    }
-    if (fs.existsSync(mergedMultipliersPath)) {
-      fs.unlinkSync(mergedMultipliersPath);
     }
     // Clean up env vars
     const keysToDelete = Object.keys(process.env).filter(k => k.startsWith("GH_AW_INFO_"));
@@ -105,24 +100,12 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.created_at).toBeTruthy();
   });
 
-  it("should write merged model multipliers file", async () => {
-    await main(mockCore, mockContext);
-    expect(fs.existsSync(mergedMultipliersPath)).toBe(true);
-    const merged = JSON.parse(fs.readFileSync(mergedMultipliersPath, "utf8"));
-    expect(merged).toHaveProperty("token_class_weights");
-    expect(merged).toHaveProperty("multipliers");
-    expect(merged.multipliers).toHaveProperty("claude-sonnet-4.5");
-  });
-
-  it("should merge custom token weights into model multipliers file", async () => {
+  it("should persist custom token weights in aw_info.json", async () => {
     process.env.GH_AW_INFO_TOKEN_WEIGHTS = JSON.stringify({
       token_class_weights: { output: 8.0 },
       multipliers: { "my-custom-model": 2.5 },
     });
     await main(mockCore, mockContext);
-    const merged = JSON.parse(fs.readFileSync(mergedMultipliersPath, "utf8"));
-    expect(merged.token_class_weights.output).toBe(8.0);
-    expect(merged.multipliers["my-custom-model"]).toBe(2.5);
     const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
     expect(awInfo.token_weights.multipliers["my-custom-model"]).toBe(2.5);
   });

@@ -74,6 +74,8 @@ export default defineConfig({
 
 		// Introduction how-it-works → how-they-work
 		'/introduction/how-it-works/': '/gh-aw/introduction/how-they-work/',
+		'/introduction/slides/': '/gh-aw/',
+		'/slides/': '/gh-aw/',
 
 		// Tools → Setup renames
 		'/tools/cli/': '/gh-aw/setup/cli/',

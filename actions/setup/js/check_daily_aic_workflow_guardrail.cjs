@@ -4,6 +4,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { DefaultArtifactClient } = require("./artifact_client.cjs");
 
 const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
 const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
@@ -19,10 +20,9 @@ const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 
 /**
- * @returns {Promise<import("@actions/artifact").DefaultArtifactClient>}
+ * @returns {Promise<DefaultArtifactClient>}
  */
 async function getArtifactClient() {
-  const { DefaultArtifactClient } = await import("@actions/artifact");
   return new DefaultArtifactClient();
 }
 
@@ -56,14 +56,37 @@ function logDailyGuardrail(message, details) {
 }
 
 /**
+ * Event types that indicate a user-initiated slash command trigger.
+ * When aw_context.event_type is one of these, the workflow was triggered by a user
+ * typing a slash command in a comment, and the daily guardrail should not be skipped.
+ */
+const SLASH_COMMAND_EVENT_TYPES = ["issue_comment", "pull_request_review_comment", "discussion_comment"];
+
+/**
  * @returns {boolean}
  */
 function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const isWorkflowCall = eventName === "workflow_call";
   const isRepositoryDispatch = eventName === "repository_dispatch";
-  const hasDispatchContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim() !== "";
-  return isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext);
+  const rawContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim();
+  const hasDispatchContext = rawContext !== "";
+  if (!(isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext))) {
+    return false;
+  }
+  if (eventName === "workflow_dispatch" && hasDispatchContext) {
+    try {
+      const awContext = JSON.parse(rawContext);
+      const isLabelCommand = typeof awContext.trigger_label === "string" && awContext.trigger_label.trim() !== "";
+      const isSlashCommand = SLASH_COMMAND_EVENT_TYPES.includes(awContext.event_type);
+      if (isLabelCommand || isSlashCommand) {
+        return false;
+      }
+    } catch {
+      // Malformed aw_context: fall through and skip as before.
+    }
+  }
+  return true;
 }
 
 /**
@@ -78,7 +101,7 @@ function matchesGuardrailArtifactName(artifactName) {
 }
 
 /**
- * @param {import("@actions/artifact").DefaultArtifactClient} artifactClient
+ * @param {{ listArtifacts: Function, downloadArtifact: Function }} artifactClient
  * @param {number} runId
  * @param {string} token
  * @param {string} owner
@@ -285,16 +308,15 @@ async function appendDailyAICSummary(workflowName, actorLogin, threshold, counte
  *
  * Error handling: all GitHub API interactions after the initial guard checks are wrapped
  * in a top-level try-catch. Any unexpected error (network failure, permission error, etc.)
- * is logged as a warning and the function returns cleanly with `daily_effective_workflow_exceeded`
- * left at its default value of `"false"`. This design ensures the step never fails the
- * activation job — a guardrail error results in a safe bypass (agent allowed to run) rather
- * than a confusing workflow failure that blocks the agent entirely.
+ * is logged as a warning and the function returns cleanly with `daily_ai_credits_exceeded`
+ * left at its default value of `"false"` (safe bypass). When the guardrail is actually exceeded,
+ * the step marks the job as failed after setting outputs so downstream conclusion handling can
+ * still run and produce failure issues.
  */
 async function main() {
-  core.setOutput("daily_effective_workflow_exceeded", "false");
-  core.setOutput("daily_effective_workflow_total_effective_tokens", "");
-  core.setOutput("daily_effective_workflow_total_ai_credits", "");
-  core.setOutput("daily_effective_workflow_threshold", "");
+  core.setOutput("daily_ai_credits_exceeded", "false");
+  core.setOutput("daily_ai_credits_total_effective_tokens", "");
+  core.setOutput("daily_ai_credits_threshold", "");
   const threshold = parsePositiveCompactNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS);
   if (threshold <= 0) {
     return;
@@ -312,7 +334,7 @@ async function main() {
 
   // Wrap all GitHub API interactions in a top-level try-catch so that transient API
   // errors, permission failures, or unexpected exceptions never fail the activation
-  // job step.  A failure here would leave `daily_effective_workflow_exceeded` at its
+  // job step.  A failure here would leave `daily_ai_credits_exceeded` at its
   // default "false" value, which is the safe fallback: the agent is allowed to run
   // and the guardrail is effectively bypassed for this invocation rather than causing
   // a confusing workflow failure.
@@ -410,7 +432,7 @@ async function main() {
       truncatedByRateLimit,
     });
 
-    const artifactClient = await getArtifactClient();
+    const artifactClient = await module.exports.getArtifactClient();
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
@@ -420,7 +442,7 @@ async function main() {
         break;
       }
       try {
-        const runAIC = await getRunAIC(artifactClient, run.id, token, owner, repo);
+        const runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
         if (runAIC <= 0) {
           logDailyGuardrail("Skipping run without AIC usage artifact data", {
             runId: run.id,
@@ -449,9 +471,8 @@ async function main() {
       }
     }
 
-    core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalAIC));
-    core.setOutput("daily_effective_workflow_total_ai_credits", String(totalAIC));
-    core.setOutput("daily_effective_workflow_threshold", String(threshold));
+    core.setOutput("daily_ai_credits_total_effective_tokens", String(totalAIC));
+    core.setOutput("daily_ai_credits_threshold", String(threshold));
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
     const summaryMeta = {
@@ -490,19 +511,26 @@ async function main() {
       return;
     }
 
-    core.setOutput("daily_effective_workflow_exceeded", "true");
-    await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+    core.setOutput("daily_ai_credits_exceeded", "true");
+    try {
+      await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+    } catch (summaryError) {
+      core.warning(`Failed to write daily AIC summary: ${getErrorMessage(summaryError)}`);
+    }
     core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
+    core.setFailed(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
-    // Treat any unexpected error as a non-blocking skip so the step never fails the
-    // activation job.  The output stays at the default "false", allowing the agent to
-    // run.  The guardrail is effectively bypassed for this invocation.
+    // Treat unexpected guardrail execution errors as non-blocking skips so transient
+    // API/runtime issues do not fail activation. The output stays at the default "false",
+    // allowing the agent to run. Legitimate threshold exceedance still fails via setFailed.
     core.warning(`Daily workflow AI Credits guardrail encountered an unexpected error and will be skipped: ${getErrorMessage(error)}`);
   }
 }
 
 module.exports = {
   main,
+  getArtifactClient,
+  getRunAIC,
   shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,

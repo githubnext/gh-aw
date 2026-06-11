@@ -2,7 +2,6 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
-const path = require("path");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -160,7 +159,6 @@ async function main(core, ctx) {
 
   // Write to /tmp/gh-aw directory to avoid inclusion in PR
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
-  writeMergedModelMultipliers(core, tokenWeights);
   writeMergedModelsJSON(core);
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";
   fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
@@ -192,49 +190,6 @@ async function main(core, ctx) {
     }
   }
 
-  /**
-   * Load and merge model multiplier data, then persist it to /tmp/gh-aw for downstream jobs.
-   * Base data is read from the setup action directory; custom workflow overrides (if any)
-   * are merged on top.
-   * @param {typeof import('@actions/core')} core
-   * @param {Record<string, unknown> | null} tokenWeights
-   */
-  function writeMergedModelMultipliers(core, tokenWeights) {
-    const builtInPath = path.join(__dirname, "model_multipliers.json");
-    /** @type {Record<string, unknown>} */
-    let builtIn = {};
-    if (fs.existsSync(builtInPath)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(builtInPath, "utf8"));
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          builtIn = parsed;
-        } else {
-          core.warning(`Built-in model_multipliers.json is not a JSON object: ${builtInPath}`);
-        }
-      } catch (error) {
-        core.warning(`Failed to parse built-in model_multipliers.json: ${String(error)}`);
-      }
-    } else {
-      core.warning(`Built-in model_multipliers.json not found at ${builtInPath}`);
-    }
-
-    const builtInTokenClassWeights = getPlainObjectOrEmpty(builtIn.token_class_weights);
-    const builtInMultipliers = getPlainObjectOrEmpty(builtIn.multipliers);
-
-    const customTokenClassWeights = getPlainObjectOrEmpty(tokenWeights?.token_class_weights);
-    const customMultipliers = getPlainObjectOrEmpty(tokenWeights?.multipliers);
-
-    const merged = {
-      ...builtIn,
-      token_class_weights: { ...builtInTokenClassWeights, ...customTokenClassWeights },
-      multipliers: { ...builtInMultipliers, ...customMultipliers },
-    };
-
-    const mergedPath = `${TMP_GH_AW_PATH}/model_multipliers.json`;
-    fs.writeFileSync(mergedPath, JSON.stringify(merged, null, 2));
-    core.info(`Generated merged model multipliers at: ${mergedPath}`);
-  }
-
   core.info("Generated aw_info.json at: " + tmpPath);
   core.info(JSON.stringify(awInfo, null, 2));
 
@@ -247,22 +202,3 @@ async function main(core, ctx) {
 }
 
 module.exports = { main };
-
-/**
- * @param {unknown} value
- * @returns {Record<string, unknown>}
- */
-function getPlainObjectOrEmpty(value) {
-  if (isPlainObject(value)) {
-    return value;
-  }
-  return {};
-}
-
-/**
- * @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}

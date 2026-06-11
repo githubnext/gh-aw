@@ -122,7 +122,7 @@ Guardrail test workflow`
 	}
 
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
-		t.Fatal("expected activation job to include the daily workflow ET guardrail step")
+		t.Fatal("expected activation job to include the daily AI Credits guardrail step")
 	}
 	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail step to use env-based runtime gating")
@@ -133,29 +133,29 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_AI_CREDITS: "100000000"`) {
 		t.Fatal("expected activation job env to include normalized guardrail threshold")
 	}
-	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {
-		t.Fatal("expected activation job to expose daily_effective_workflow_exceeded output")
+	if !strings.Contains(lockStr, "daily_ai_credits_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_exceeded == 'true' }}") {
+		t.Fatal("expected activation job to expose daily_ai_credits_exceeded output")
 	}
-	if !strings.Contains(lockStr, "daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}") {
-		t.Fatal("expected activation job to expose the aggregated ET total output")
+	if !strings.Contains(lockStr, "daily_ai_credits_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_total_effective_tokens || '' }}") {
+		t.Fatal("expected activation job to expose the aggregated AI Credits total output")
 	}
-	if strings.Contains(lockStr, "daily_effective_workflow_issue_url") {
-		t.Fatal("expected activation job to avoid surfacing a separate daily workflow ET issue URL")
+	if strings.Contains(lockStr, "daily_ai_credits_issue_url") {
+		t.Fatal("expected activation job to avoid surfacing a separate daily AI Credits issue URL")
 	}
-	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_effective_workflow_exceeded != 'true'") {
-		t.Fatal("expected the agent job to be skipped when the daily workflow ET guardrail is exceeded")
+	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'") {
+		t.Fatal("expected the agent job to be skipped when the daily AI Credits guardrail is exceeded")
 	}
-	if !strings.Contains(lockStr, "GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}") {
-		t.Fatal("expected the conclusion job to receive the daily workflow ET guardrail output")
+	if !strings.Contains(lockStr, "GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}") {
+		t.Fatal("expected the conclusion job to receive the daily AI Credits guardrail output")
 	}
-	if !strings.Contains(lockStr, "needs.activation.outputs.daily_effective_workflow_exceeded == 'true'") {
+	if !strings.Contains(lockStr, "needs.activation.outputs.daily_ai_credits_exceeded == 'true'") {
 		t.Fatal("expected the conclusion job condition to allow activation guardrail failures through")
 	}
 	if !strings.Contains(activationSection, "actions: read") {
 		t.Fatal("expected activation permissions to include actions: read for workflow run inspection")
 	}
 	if strings.Contains(activationSection, "issues: write") {
-		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
+		t.Fatal("expected activation permissions to avoid issues: write for the daily AI Credits guardrail")
 	}
 	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail to gate artifact client installation dynamically")
@@ -194,13 +194,13 @@ No daily guardrail`
 
 	lockStr := string(lockContent)
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
-		t.Fatal("expected activation job to emit the daily ET guardrail step even when threshold is unset")
+		t.Fatal("expected activation job to emit the daily AI Credits guardrail step even when threshold is unset")
 	}
 	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
-		t.Fatal("expected emitted daily ET guardrail step to be dynamically skipped when threshold is unset")
+		t.Fatal("expected emitted daily AI Credits guardrail step to be dynamically skipped when threshold is unset")
 	}
-	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
-		t.Fatal("expected workflows to continue wiring daily ET outputs when guardrail step is emitted")
+	if !strings.Contains(lockStr, "daily_ai_credits_exceeded") {
+		t.Fatal("expected workflows to continue wiring daily AI Credits outputs when guardrail step is emitted")
 	}
 	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected emitted guardrail to gate artifact client installation dynamically")
@@ -241,13 +241,13 @@ Daily guardrail via env var`
 	lockStr := string(lockContent)
 
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
-		t.Fatal("expected activation job to include the daily ET guardrail step when env var is configured")
+		t.Fatal("expected activation job to include the daily AI Credits guardrail step when env var is configured")
 	}
 	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
-		t.Fatal("expected daily ET guardrail step to gate execution on GH_AW_MAX_DAILY_AI_CREDITS")
+		t.Fatal("expected daily AI Credits guardrail step to gate execution on GH_AW_MAX_DAILY_AI_CREDITS")
 	}
 	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
-		t.Fatal("expected setup step to conditionally install artifact client when daily ET guardrail is env-configured")
+		t.Fatal("expected setup step to conditionally install artifact client when daily AI Credits guardrail is env-configured")
 	}
 }
 

@@ -27,11 +27,45 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"item_number":123}';
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"schedule"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"workflow_dispatch"}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+  });
+
+  it("does not skip for label command triggers in aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request","trigger_label":"smoke"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issues","trigger_label":"ci-doctor"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+  });
+
+  it("does not skip for slash command triggers in aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issue_comment","trigger_label":""}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request_review_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"discussion_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+  });
+
+  it("skips for workflow_dispatch with aw_context that has no trigger_label and non-slash event_type", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"push","trigger_label":""}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    // Malformed JSON should still skip (safe fallback)
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "not-json";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
   });
 
   it("matches usage artifacts only", () => {
@@ -173,7 +207,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
 
   it("main() does not fail the step when GitHub API calls throw", async () => {
     // Simulate a scenario where the GitHub API throws during workflow run lookup.
-    // The step should catch the error and NOT rethrow it, keeping daily_effective_workflow_exceeded at "false".
+    // The step should catch the error and NOT rethrow it, keeping daily_ai_credits_exceeded at "false".
     const coreOutputs = {};
     const coreWarnings = [];
     const mockCore = {
@@ -219,7 +253,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
       // Should resolve without throwing even though the API calls throw
       await expect(exports.main()).resolves.toBeUndefined();
       // The default "false" output must be set
-      expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
       // A warning must be emitted describing the error
       expect(coreWarnings.some(w => /unexpected error.*skipped/i.test(w))).toBe(true);
     } finally {
@@ -321,6 +355,102 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete global.context;
       delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
       delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
+
+  it("main() marks the step failed when the daily AI Credits guardrail is exceeded", async () => {
+    const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(200);
+
+    const coreOutputs = {};
+    const setFailed = vi.fn();
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      setFailed,
+      info: () => {},
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    const nowIso = new Date().toISOString();
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 777,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => ({
+            data: {
+              workflow_runs: [
+                {
+                  id: 41,
+                  html_url: "https://example.test/runs/41",
+                  created_at: nowIso,
+                  conclusion: "success",
+                },
+              ],
+            },
+            headers: {},
+          }),
+        },
+      },
+    };
+
+    const mockContext = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 42,
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "100";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GH_AW_WORKFLOW_NAME = "Daily Guardrail Test";
+    process.env.GH_AW_WORKFLOW_ID = "daily-guardrail-test";
+    process.env.GITHUB_TRIGGERING_ACTOR = "octocat";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("true");
+      expect(coreOutputs["daily_ai_credits_total_effective_tokens"]).toBe("200");
+      expect(coreOutputs["daily_ai_credits_threshold"]).toBe("100");
+      expect(setFailed).toHaveBeenCalledTimes(1);
+      expect(setFailed.mock.calls[0][0]).toMatch(/guardrail exceeded/i);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GITHUB_TRIGGERING_ACTOR;
+      delete process.env.GITHUB_EVENT_NAME;
+      getRunAICSpy.mockRestore();
     }
   });
 });
