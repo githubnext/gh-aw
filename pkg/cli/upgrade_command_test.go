@@ -24,4 +24,9 @@ func TestUpgradeCommandHelpTextConsistency(t *testing.T) {
 	assert.Contains(t, preReleasesFlag.Usage, "Include pre-release versions", "--pre-releases description should mention pre-release upgrades")
 	assert.Contains(t, preReleasesFlag.Usage, "installed by exact tag", "--pre-releases description should explain prerelease pinning")
 	assert.Contains(t, cmd.Long, "stable releases are the default", "help text should distinguish stable releases from prereleases")
+
+	disableCodemodFlag := cmd.Flags().Lookup("disable-codemod")
+	require.NotNil(t, disableCodemodFlag, "--disable-codemod flag should exist")
+	assert.Equal(t, "stringSlice", disableCodemodFlag.Value.Type())
+	assert.Contains(t, disableCodemodFlag.Usage, "Disable specific codemod IDs", "--disable-codemod usage should describe codemod exclusion")
 }

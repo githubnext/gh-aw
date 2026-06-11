@@ -1,6 +1,12 @@
 package cli
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var fixCodemodsLog = logger.New("cli:fix_codemods")
 
@@ -84,4 +90,47 @@ func GetAllCodemods() []Codemod {
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods
+}
+
+// GetCodemods returns all codemods except any explicitly disabled by ID.
+func GetCodemods(disabledIDs []string) ([]Codemod, error) {
+	codemods := GetAllCodemods()
+	if len(disabledIDs) == 0 {
+		return codemods, nil
+	}
+
+	disabledSet := make(map[string]struct{}, len(disabledIDs))
+	for _, id := range disabledIDs {
+		if id == "" {
+			continue
+		}
+		disabledSet[id] = struct{}{}
+	}
+
+	if len(disabledSet) == 0 {
+		return codemods, nil
+	}
+
+	knownIDs := make([]string, 0, len(codemods))
+	filtered := make([]Codemod, 0, len(codemods))
+	for _, codemod := range codemods {
+		knownIDs = append(knownIDs, codemod.ID)
+		if _, disabled := disabledSet[codemod.ID]; disabled {
+			continue
+		}
+		filtered = append(filtered, codemod)
+	}
+
+	var unknown []string
+	for id := range disabledSet {
+		if !slices.Contains(knownIDs, id) {
+			unknown = append(unknown, id)
+		}
+	}
+	if len(unknown) > 0 {
+		slices.Sort(unknown)
+		return nil, fmt.Errorf("unknown codemod ID(s): %s", strings.Join(unknown, ", "))
+	}
+
+	return filtered, nil
 }

@@ -19,14 +19,15 @@ var upgradeLog = logger.New("cli:upgrade_command")
 
 // UpgradeConfig contains configuration for the upgrade command
 type UpgradeConfig struct {
-	Verbose     bool
-	WorkflowDir string
-	NoFix       bool
-	NoCompile   bool
-	CreatePR    bool
-	NoActions   bool
-	Audit       bool
-	JSON        bool
+	Verbose            bool
+	WorkflowDir        string
+	NoFix              bool
+	NoCompile          bool
+	CreatePR           bool
+	NoActions          bool
+	Audit              bool
+	JSON               bool
+	DisabledCodemodIDs []string
 }
 
 // NewUpgradeCommand creates the upgrade command
@@ -79,6 +80,7 @@ Examples:
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
+			disabledCodemods, _ := cmd.Flags().GetStringSlice("disable-codemod")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
 			approveUpgrade, _ := cmd.Flags().GetBool("approve")
 			preReleases, _ := cmd.Flags().GetBool("pre-releases")
@@ -101,6 +103,7 @@ Examples:
 				noFix:                noFix,
 				noCompile:            noCompile,
 				noActions:            noActions,
+				disabledCodemodIDs:   disabledCodemods,
 				skipExtensionUpgrade: skipExtensionUpgrade,
 				approve:              approveUpgrade,
 				preReleases:          preReleases,
@@ -123,6 +126,7 @@ Examples:
 	cmd.Flags().Bool("no-fix", false, "Skip codemods, action version updates, and workflow compilation (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions (ignored when --no-fix is set)")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files; ignored when --no-fix is set)")
+	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
@@ -166,6 +170,7 @@ type upgradeOptions struct {
 	noFix                bool
 	noCompile            bool
 	noActions            bool
+	disabledCodemodIDs   []string
 	skipExtensionUpgrade bool
 	approve              bool
 	preReleases          bool
@@ -173,8 +178,8 @@ type upgradeOptions struct {
 
 // runUpgradeCommand executes the upgrade process
 func runUpgradeCommand(opts upgradeOptions) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
-		opts.verbose, opts.workflowDir, opts.noFix, opts.noCompile, opts.noActions, opts.skipExtensionUpgrade)
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, disabledCodemodIDs=%v, skipExtensionUpgrade=%v",
+		opts.verbose, opts.workflowDir, opts.noFix, opts.noCompile, opts.noActions, opts.disabledCodemodIDs, opts.skipExtensionUpgrade)
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary
@@ -221,10 +226,11 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		upgradeLog.Print("Applying codemods to all workflows")
 
 		fixConfig := FixConfig{
-			WorkflowIDs: nil, // nil means all workflows
-			Write:       true,
-			Verbose:     opts.verbose,
-			WorkflowDir: opts.workflowDir,
+			WorkflowIDs:        nil, // nil means all workflows
+			Write:              true,
+			Verbose:            opts.verbose,
+			WorkflowDir:        opts.workflowDir,
+			DisabledCodemodIDs: opts.disabledCodemodIDs,
 		}
 
 		if err := RunFix(fixConfig); err != nil {
