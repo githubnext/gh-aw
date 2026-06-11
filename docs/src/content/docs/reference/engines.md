@@ -241,6 +241,9 @@ For Entra authentication, omit `COPILOT_PROVIDER_API_KEY` and configure
 GitHub OIDC in `engine.auth`:
 
 ```yaml wrap
+permissions:
+  id-token: write
+
 engine:
   id: copilot
   model: o4-mini-aw
@@ -254,7 +257,6 @@ network:
   allowed:
     - defaults
     - RESOURCE.openai.azure.com
-```
 
 ### Engine Command-Line Arguments
 
