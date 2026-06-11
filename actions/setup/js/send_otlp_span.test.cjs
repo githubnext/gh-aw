@@ -3561,6 +3561,23 @@ describe("sendJobConclusionSpan", () => {
     expect(aicAttr.value.doubleValue).toBe(0.125);
   });
 
+  it("includes gh-aw.aic when INPUT_JOB_NAME is missing but span name is gh-aw.agent.conclusion", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_AIC = "0.125";
+    delete process.env.INPUT_JOB_NAME;
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const aicAttr = span.attributes.find(a => a.key === "gh-aw.aic");
+    expect(aicAttr).toBeDefined();
+    expect(aicAttr.value.doubleValue).toBe(0.125);
+  });
+
   it("emits dashboard metrics and aliases on the conclusion span", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
