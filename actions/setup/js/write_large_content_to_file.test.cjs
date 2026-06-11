@@ -114,4 +114,61 @@ describe("writeLargeContentToFile", () => {
     const written = fs.readFileSync(filepath, "utf8");
     expect(written).toBe(content);
   });
+
+  it("should handle non-JSON content gracefully", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = "this is plain text, not JSON";
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("text content");
+    const filepath = path.join(testDir, result.filename);
+    expect(fs.readFileSync(filepath, "utf8")).toBe(content);
+  });
+
+  it("should handle empty object", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify({});
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("{}");
+  });
+
+  it("should handle empty array", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify([]);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("[]");
+  });
+
+  it("should handle nested object (only top-level keys listed)", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify({ a: { b: 1 }, c: [1, 2] });
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("{a, c}");
+  });
+
+  it("should work when directory already exists", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    fs.mkdirSync(testDir, { recursive: true });
+    expect(fs.existsSync(testDir)).toBe(true);
+
+    const content = JSON.stringify({ already: "there" });
+    expect(() => writeLargeContentToFile(content)).not.toThrow();
+  });
+
+  it("should handle JSON primitive (number)", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify(42);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("number");
+  });
 });

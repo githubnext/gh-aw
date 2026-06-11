@@ -15,10 +15,7 @@ const { generateCompactSchema } = require("./generate_compact_schema.cjs");
 function writeLargeContentToFile(content) {
   const logsDir = "/tmp/gh-aw/safeoutputs";
 
-  // Ensure directory exists
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-  }
+  fs.mkdirSync(logsDir, { recursive: true });
 
   // Generate SHA256 hash of content
   const hash = crypto.createHash("sha256").update(content).digest("hex");
@@ -27,16 +24,11 @@ function writeLargeContentToFile(content) {
   const filename = `${hash}.json`;
   const filepath = path.join(logsDir, filename);
 
-  // Write content to file
   fs.writeFileSync(filepath, content, "utf8");
 
-  // Generate compact schema description for jq/agent
   const description = generateCompactSchema(content);
 
-  return {
-    filename: filename,
-    description: description,
-  };
+  return { filename, description };
 }
 
 module.exports = {
