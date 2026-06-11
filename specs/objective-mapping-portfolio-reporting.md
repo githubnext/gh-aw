@@ -498,9 +498,6 @@ type DomainBreakdown struct {
 
 // Aggregate outcomes by objective label
 func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown
-
-// Generate strategic insight
-func AnalyzeDomainPerformance(breakdown DomainBreakdown) DomainInsight
 ```
 
 ## Testing

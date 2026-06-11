@@ -46,26 +46,6 @@ const (
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
 )
 
-// ResolveDefaultMaxDailyAICredits returns the resolved daily AI Credits guardrail
-// default, checking the enterprise env var GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS.
-// Falls back to fallback (built-in default) when the env var is unset or invalid.
-//
-// A value of -1 is preserved to allow explicitly disabling the guardrail.
-func ResolveDefaultMaxDailyAICredits(fallback string) string {
-	if raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyAICredits)); raw != "" {
-		if raw == "-1" {
-			managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyAICredits, raw, fallback)
-			return "-1"
-		}
-		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
-			managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyAICredits, normalized, fallback)
-			return normalized
-		}
-		managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyAICredits, raw, fallback)
-	}
-	return fallback
-}
-
 // ResolveDefaultMaxAICredits returns the resolved max AI credits default, checking
 // the enterprise env var GH_AW_DEFAULT_MAX_AI_CREDITS.
 // Falls back to fallback (built-in default) when the env var is unset or invalid.
