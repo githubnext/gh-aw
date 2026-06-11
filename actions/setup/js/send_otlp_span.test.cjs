@@ -3613,12 +3613,13 @@ describe("sendJobConclusionSpan", () => {
 
     const stdioContent = Buffer.from("CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
     const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+    const MOCK_FD = 42;
     const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(p => p === stdioLogPath);
     const statSpy = vi.spyOn(fs, "statSync").mockImplementation(p => {
       if (p === stdioLogPath) return /** @type {fs.Stats} */ { size: stdioContent.length };
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
-    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(/** @type {number} */ 42);
+    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(/** @type {number} */ MOCK_FD);
     const readSpy = vi.spyOn(fs, "readSync").mockImplementation((_fd, buf) => {
       stdioContent.copy(/** @type {Buffer} */ buf);
       return stdioContent.length;
