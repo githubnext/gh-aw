@@ -11,6 +11,7 @@ describe("handle_agent_failure", () => {
   let buildPushRepoMemoryFailureContext;
   let buildReportIncompleteContext;
   let buildFailureIssueTitle;
+  let buildSecretVerificationContext;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
 
@@ -29,7 +30,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, buildFailureIssueTitle, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, buildFailureIssueTitle, buildSecretVerificationContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -1296,6 +1297,32 @@ describe("handle_agent_failure", () => {
 
       expect(renderTemplate(commentTemplate, templateContext)).toContain(reportIncompleteMarker);
       expect(renderTemplate(issueTemplate, templateContext)).toContain(reportIncompleteMarker);
+    });
+  });
+
+  describe("buildSecretVerificationContext", () => {
+    it("returns empty string when verification did not fail", () => {
+      expect(buildSecretVerificationContext("", "copilot")).toBe("");
+      expect(buildSecretVerificationContext("success", "copilot")).toBe("");
+      expect(buildSecretVerificationContext("", "")).toBe("");
+    });
+
+    it("returns generic warning for non-copilot engines when verification failed", () => {
+      const result = buildSecretVerificationContext("failed", "claude");
+      expect(result).toContain("Secret Verification Failed");
+      expect(result).toContain("required secrets are configured");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/engines/");
+      expect(result).not.toContain("copilot-requests");
+    });
+
+    it("returns copilot-specific message with copilot-requests: write permissions suggestion when verification failed", () => {
+      const result = buildSecretVerificationContext("failed", "copilot");
+      const mixedCaseResult = buildSecretVerificationContext("failed", "Copilot");
+      expect(result).toContain("Secret Verification Failed");
+      expect(result).toContain("required secrets are configured");
+      expect(result).toContain("```yaml\npermissions:\n  copilot-requests: write\n```");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/engines/#github-copilot-default");
+      expect(mixedCaseResult).toContain("copilot-requests: write");
     });
   });
 
