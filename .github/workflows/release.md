@@ -53,7 +53,8 @@ jobs:
           done < <(find . -name "actions-lock.json" -not -path "*/node_modules/*" -print0)
 
           if [ ${#LOCK_FILES[@]} -eq 0 ]; then
-            echo "No actions-lock.json files found"
+            echo "❌ No actions-lock.json files found in the repository."
+            echo "   Run 'gh aw compile' to generate lock files with resolved container SHA pins."
             exit 1
           fi
 
