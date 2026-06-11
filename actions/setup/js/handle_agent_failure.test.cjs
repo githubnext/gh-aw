@@ -376,6 +376,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_WORKFLOW_ID;
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
       delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
       delete process.env.GITHUB_HEAD_REF;
       delete process.env.GITHUB_WORKSPACE;
@@ -754,7 +755,9 @@ describe("handle_agent_failure", () => {
       const createIssueMock = vi.fn(async () => ({
         data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
       }));
+      fs.writeFileSync(path.join(promptsDir, "agent_timeout.md"), "TIMEOUT TEMPLATE");
       process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
+      process.env.GH_AW_FAILURE_REPORT_AS_ISSUE = "true";
 
       global.github = {
         rest: {
@@ -772,6 +775,7 @@ describe("handle_agent_failure", () => {
 
       await main();
 
+      expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
       expect(createCall.title).toBe("[aw] Test Workflow timed out");
     });
@@ -780,6 +784,7 @@ describe("handle_agent_failure", () => {
       const createIssueMock = vi.fn(async () => ({
         data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
       }));
+      process.env.GH_AW_FAILURE_REPORT_AS_ISSUE = "true";
 
       global.github = {
         rest: {
@@ -797,6 +802,7 @@ describe("handle_agent_failure", () => {
 
       await main();
 
+      expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
       expect(createCall.title).toBe("[aw] Test Workflow produced no safe outputs");
     });
@@ -829,6 +835,7 @@ describe("handle_agent_failure", () => {
         delete process.env.GH_AW_AGENT_OUTPUT;
       }
 
+      expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
       expect(createCall.title).toBe("[aw] Test Workflow reported incomplete result");
     });
