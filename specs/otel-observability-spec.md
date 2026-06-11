@@ -455,6 +455,9 @@ This section defines the attributes each span type MUST or MAY carry.
 | `gh-aw.trigger.*` | string | Trigger context (same fields as setup span) |
 | `gh-aw.frontmatter.*` | string | Frontmatter metadata (same fields as setup span) |
 | `gh-aw.aic` | double | AI credits consumed (AIC); always emitted as a numeric attribute on agent and detection conclusion spans (0 when no usage data is available, so Sentry EAP and Tempo index the field as numeric from first emission). |
+| `gh-aw.max_ai_credits` | double | Configured max AI credits budget for the run when a valid numeric value is available. |
+| `gh-aw.max_ai_credits_exceeded` | boolean | True when a max-AI-credits hard-limit exceedance signal is detected for the run. |
+| `gh-aw.ai_credits_rate_limit_error` | boolean | True when an AI-credits-related rate-limit or budget-exhaustion signal is detected. |
 | `gh-aw.turns` | int | Number of agent turns |
 | `gh-aw.agent.conclusion` | string | Agent job outcome |
 | `gh-aw.detection.conclusion` | string | Threat detection outcome |

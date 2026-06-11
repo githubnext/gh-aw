@@ -167,7 +167,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 
 	// Scan workflows for expires fields and track the minimum expires value
-	hasExpires, minExpires := scanWorkflowsForExpires(workflowDataList)
+	hasExpires, minExpires, triggerReason := scanWorkflowsForExpires(workflowDataList)
 
 	// Get the setup action reference (local or remote based on mode).
 	// Use the first available WorkflowData's ActionResolver to enable SHA pinning.
@@ -210,6 +210,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		})
 	}
 
+	maintenanceLog.Printf("Maintenance workflow generation triggered: %s", triggerReason)
 	maintenanceLog.Printf("Generating maintenance workflow for expired discussions, issues, and pull requests (minimum expires: %d hours)", minExpires)
 
 	// Convert hours to days for cron schedule generation
@@ -338,10 +339,19 @@ func allCopilotWorkflowsUseOrgBilling(workflowDataList []*WorkflowData) bool {
 }
 
 // scanWorkflowsForExpires checks all workflow data for expires fields and returns
-// whether any expires fields are set and the minimum expires value in hours.
-func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
+// whether any expires fields are set, the minimum expires value in hours, and the
+// first reason that triggered maintenance workflow generation.
+func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int, string) {
 	hasExpires := false
 	minExpires := 0 // Track minimum expires value in hours
+	triggerReason := ""
+
+	setTriggerReason := func(reason string) {
+		if triggerReason == "" {
+			triggerReason = reason
+			maintenanceLog.Printf("Maintenance workflow became required: %s", reason)
+		}
+	}
 
 	for _, workflowData := range workflowDataList {
 		if workflowData == nil || workflowData.SafeOutputs == nil {
@@ -352,6 +362,7 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 			if workflowData.SafeOutputs.CreateDiscussions.Expires > 0 {
 				hasExpires = true
 				expires := workflowData.SafeOutputs.CreateDiscussions.Expires
+				setTriggerReason(fmt.Sprintf("workflow %q sets safe_outputs.create_discussions.expires=%dh", workflowData.Name, expires))
 				maintenanceLog.Printf("Workflow %s has expires field set to %d hours for discussions", workflowData.Name, expires)
 				if minExpires == 0 || expires < minExpires {
 					minExpires = expires
@@ -363,6 +374,7 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 			if workflowData.SafeOutputs.CreateIssues.Expires > 0 {
 				hasExpires = true
 				expires := workflowData.SafeOutputs.CreateIssues.Expires
+				setTriggerReason(fmt.Sprintf("workflow %q sets safe_outputs.create_issues.expires=%dh", workflowData.Name, expires))
 				maintenanceLog.Printf("Workflow %s has expires field set to %d hours for issues", workflowData.Name, expires)
 				if minExpires == 0 || expires < minExpires {
 					minExpires = expires
@@ -374,6 +386,7 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 			if workflowData.SafeOutputs.CreatePullRequests.Expires > 0 {
 				hasExpires = true
 				expires := workflowData.SafeOutputs.CreatePullRequests.Expires
+				setTriggerReason(fmt.Sprintf("workflow %q sets safe_outputs.create_pull_requests.expires=%dh", workflowData.Name, expires))
 				maintenanceLog.Printf("Workflow %s has expires field set to %d hours for pull requests", workflowData.Name, expires)
 				if minExpires == 0 || expires < minExpires {
 					minExpires = expires
@@ -385,6 +398,7 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 			if isNoOpReportAsIssueEnabled(workflowData.SafeOutputs.NoOp.ReportAsIssue) {
 				hasExpires = true
 				expires := defaultNoOpIssueExpirationHours
+				setTriggerReason(fmt.Sprintf("workflow %q enables no-op issue reporting (default expiration %dh)", workflowData.Name, expires))
 				maintenanceLog.Printf("Workflow %s has no-op report-as-issue enabled, using %d-hour no-op issue expiration", workflowData.Name, expires)
 				if minExpires == 0 || expires < minExpires {
 					minExpires = expires
@@ -393,5 +407,5 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 		}
 	}
 
-	return hasExpires, minExpires
+	return hasExpires, minExpires, triggerReason
 }

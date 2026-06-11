@@ -2,26 +2,25 @@
 import octicons, { type IconName } from '@primer/octicons';
 
 interface Props {
-  icon: IconName;
+  icon?: IconName;
   title: string;
   href?: string;
   badge?: string;
 }
 
 const { icon, title, href, badge } = Astro.props;
-const iconData = octicons[icon];
 
-if (!iconData) {
+if (icon && !octicons[icon]) {
   throw new Error(`Octicon "${icon}" not found. Check https://primer.style/octicons/`);
 }
 
-const svg = iconData.toSVG({ width: 28, height: 28 });
+const svg = icon ? octicons[icon].toSVG({ width: 28, height: 28 }) : null;
 const Tag = href ? 'a' : 'div';
 ---
 
 <Tag class="feature-card" href={href}>
   <div class="feature-header">
-    <div class="feature-icon" set:html={svg} />
+    {svg && <div class="feature-icon" set:html={svg} />}
     <div class="feature-title-wrap">
       <h3 class="feature-title">{title}</h3>
       {badge && <span class="feature-badge">{badge}</span>}

@@ -88,6 +88,9 @@ These attributes appear on built-in workflow setup, agent, and conclusion spans 
     <tr><td><code>gh-aw.action_minutes</code></td><td>Elapsed runtime converted to minutes.</td></tr>
     <tr><td><code>gh-aw.tracker.id</code></td><td>Tracker identifier when present.</td></tr>
     <tr><td><code>gh-aw.aic</code></td><td>AI credits consumed for the run when available.</td></tr>
+    <tr><td><code>gh-aw.max_ai_credits</code></td><td>Configured max AI credits budget for the run when available.</td></tr>
+    <tr><td><code>gh-aw.max_ai_credits_exceeded</code></td><td>Whether the run exceeded the max AI credits budget.</td></tr>
+    <tr><td><code>gh-aw.ai_credits_rate_limit_error</code></td><td>Whether an AI-credits rate-limit or budget-exhaustion signal was detected.</td></tr>
     <tr><td><code>gh-aw.turns</code></td><td>Total agent turns recorded for the run.</td></tr>
     <tr><td><code>gh-aw.agent.conclusion</code></td><td>Normalized agent conclusion.</td></tr>
     <tr><td><code>gh-aw.detection.conclusion</code></td><td>Detection subsystem conclusion when present.</td></tr>

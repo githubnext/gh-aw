@@ -36,8 +36,72 @@ imports:
   - shared/community-attribution.md
   - shared/otlp.md
 jobs:
-  config:
+  validate_container_pins:
     needs: ["pre_activation", "activation"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          persist-credentials: false
+      - name: Validate container SHA pins in actions-lock.json files
+        run: |
+          echo "Validating container SHA pins in actions-lock.json files..."
+          LOCK_FILES=()
+          while IFS= read -r -d '' f; do
+            LOCK_FILES+=("$f")
+          done < <(find . -name "actions-lock.json" -not -path "*/node_modules/*" -print0)
+
+          if [ ${#LOCK_FILES[@]} -eq 0 ]; then
+            echo "❌ No actions-lock.json files found in the repository."
+            echo "   Run 'gh aw compile' to generate lock files with resolved container SHA pins."
+            exit 1
+          fi
+
+          FAILED=0
+          for lock_file in "${LOCK_FILES[@]}"; do
+            echo "Checking: $lock_file"
+            container_count=$(jq '.containers | length // 0' "$lock_file")
+            echo "  Found $container_count container entries"
+
+            if [ "$container_count" -eq 0 ]; then
+              echo "  ✓ No containers to validate"
+              continue
+            fi
+
+            missing_pins=$(jq -r '
+              .containers // {} |
+              to_entries[] |
+              select(
+                ((.value.digest // "") | test("^sha256:[a-f0-9]{64}$") | not) or
+                ((.value.pinned_image // "") | test("@sha256:[a-f0-9]{64}$") | not)
+              ) |
+              .key
+            ' "$lock_file")
+
+            if [ -n "$missing_pins" ]; then
+              echo "  ❌ Missing or invalid SHA pins for:"
+              echo "$missing_pins" | while read -r image; do
+                echo "    - $image"
+              done
+              FAILED=1
+            else
+              echo "  ✓ All $container_count containers have valid SHA pins"
+            fi
+          done
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "❌ Validation failed: Some container images are missing SHA pins."
+            echo "   Run 'gh aw compile' to resolve and cache container SHA pins before releasing."
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All container SHA pins are resolved and cached in actions-lock.json files."
+
+  config:
+    needs: ["pre_activation", "activation", "validate_container_pins"]
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}

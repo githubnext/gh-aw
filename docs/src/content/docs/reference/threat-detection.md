@@ -95,6 +95,28 @@ safe-outputs:
 | `runs-on` | string/array/object | Runner for the detection job (default: inherits from workflow `runs-on`) |
 | `steps` | array | Additional GitHub Actions steps to run **before** AI analysis (pre-steps) |
 | `post-steps` | array | Additional GitHub Actions steps to run **after** AI analysis (post-steps) |
+| `max-ai-credits` | integer | AI Credits cap for the detection run, independent of the main agent budget. Defaults to `400` when unset, with runtime override via `vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`. Accepts plain integers; `-1` disables the detection budget. |
+
+## Detection Budget
+
+Threat-detection runs have their own AI Credits budget, separate from the main agent's `max-ai-credits`. Detection does **not** inherit the main agent's budget — both caps apply independently to their respective jobs.
+
+Set `safe-outputs.threat-detection.max-ai-credits` to override the per-run detection budget:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    max-ai-credits: 750
+```
+
+When unset, the compiler emits a runtime resolution that falls back to the built-in default of `400`:
+
+```yaml
+${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}
+```
+
+Set the org-wide default with the [`GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`](/gh-aw/reference/compiler-enterprise-environment-controls/) GitHub Actions variable. A value of `-1` disables AWF budget steering for detection runs.
 
 ## AI-Based Detection (Default)
 

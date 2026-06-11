@@ -124,6 +124,27 @@ func TestGetAllCodemods_NoduplicateIDs(t *testing.T) {
 	}
 }
 
+func TestGetCodemods_DisablesRequestedCodemods(t *testing.T) {
+	codemods, err := GetCodemods([]string{"timeout-minutes-migration", "network-firewall-migration"})
+	require.NoError(t, err)
+
+	var ids []string
+	for _, codemod := range codemods {
+		ids = append(ids, codemod.ID)
+	}
+
+	assert.NotContains(t, ids, "timeout-minutes-migration")
+	assert.NotContains(t, ids, "network-firewall-migration")
+	assert.Contains(t, ids, "command-to-slash-command-migration")
+}
+
+func TestGetCodemods_UnknownDisabledCodemodReturnsError(t *testing.T) {
+	codemods, err := GetCodemods([]string{"not-a-real-codemod"})
+	require.Error(t, err)
+	assert.Nil(t, codemods)
+	assert.Contains(t, err.Error(), "unknown codemod ID(s): not-a-real-codemod")
+}
+
 func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 	codemods := GetAllCodemods()
 

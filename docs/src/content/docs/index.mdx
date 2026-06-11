@@ -5,7 +5,7 @@ template: splash
 tableOfContents: true
 hero:
   title: GitHub Agentic Workflows
-  tagline: <strong>Repository automation, running the coding agents you know and love, with strong guardrails in GitHub Actions.</strong>
+  tagline: <strong>Intelligent automation for GitHub. Run the coding agents you know and love, with strong guardrails and cost controls, in GitHub Actions.</strong>
   actions:
     - text: Quick Start with CLI
       link: /gh-aw/setup/quick-start/
@@ -16,7 +16,6 @@ hero:
       icon: right-arrow
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
 import FeatureCard from '../../components/FeatureCard.astro';
 import FeatureGrid from '../../components/FeatureGrid.astro';
 import Video from '../../components/Video.astro';
@@ -25,7 +24,7 @@ import WorkflowHero from '../../components/WorkflowHero.astro';
 
 <WorkflowHero />
 
-Wake up to ready-to-review repository improvements—automated triage, CI insights, docs updates, and test enhancements from simple markdown workflows.
+Wake up to ready-to-review repository improvements-automated triage, CI insights, docs updates, and test enhancements from simple markdown workflows.
 
 GitHub Agentic Workflows deliver this: repository automation, running the coding agents you know and love, in GitHub Actions, with strong guardrails and security-first design principles.
 
@@ -38,23 +37,23 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
 ## Key Features
 
 <FeatureGrid columns={3}>
-  <FeatureCard icon="pencil" title="Automated Markdown Workflows" href="/gh-aw/introduction/overview/#natural-language-to-github-actions">
-    Write automation in markdown instead of complex YAML
+  <FeatureCard icon="pencil" title="Simple Markdown Files" href="#example-daily-issues-report">
+    Write automation in plain markdown instead of complex YAML
   </FeatureCard>
-  <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="/gh-aw/introduction/how-they-work/">
+  <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="#gallery">
     Workflows that understand context and adapt to situations
-  </FeatureCard>
-  <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/github-tools/">
-    Deep integration with Actions, Issues, PRs, Discussions, and repository management
-  </FeatureCard>
-  <FeatureCard icon="shield-lock" title="Safety First" href="/gh-aw/introduction/architecture/">
-    Sandboxed execution with minimal permissions and safe output processing
   </FeatureCard>
   <FeatureCard icon="beaker" title="Multiple AI Engines" href="/gh-aw/reference/engines/">
     Support for Copilot, Claude, Codex, and custom AI processors
   </FeatureCard>
-  <FeatureCard icon="workflow" title="Continuous AI" href="/gh-aw/introduction/how-they-work/">
-    Systematic, automated application of AI to software collaboration
+  <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/github-tools/">
+    Deep integration with Actions, Issues, PRs, Discussions, and repository management
+  </FeatureCard>
+  <FeatureCard icon="shield-lock" title="Safety First" href="#guardrails-built-in">
+    Sandboxed execution with minimal permissions and safe output processing
+  </FeatureCard>
+  <FeatureCard icon="workflow" title="Cost Controls" href="#manage-cost-and-capacity">
+    Per-run AI credit budgets, spend visibility, and OpenTelemetry cost analysis
   </FeatureCard>
 </FeatureGrid>
 
@@ -72,31 +71,32 @@ flowchart LR
     DETECT --> APPLY["Scoped Write Job"]
 ```
 
-<CardGrid>
-  <Card title="Read-only token">
+<FeatureGrid columns={3}>
+  <FeatureCard title="Read-only token">
     The agent can read repository state, but it cannot
     push commits or write to issues directly.
-  </Card>
-  <Card title="No secrets in agent runtime">
+  </FeatureCard>
+  <FeatureCard title="No secrets in agent runtime">
     Sensitive credentials stay in isolated downstream
     jobs, not inside the agent process.
-  </Card>
-  <Card title="Sandbox + network firewall">
-    The agent runs in a container behind the
-    [Agent Workflow Firewall](/gh-aw/introduction/architecture/#agent-workflow-firewall-awf)
+  </FeatureCard>
+  <FeatureCard title="Sandbox + network firewall" href="/gh-aw/introduction/architecture/#agent-workflow-firewall-awf">
+    The agent runs in a container behind the Agent Workflow Firewall
     and can only reach allowed destinations.
-  </Card>
-  <Card title="Safe outputs gate">
-    Requested actions are validated against your
-    configured [safe outputs](/gh-aw/reference/safe-outputs/)
+  </FeatureCard>
+  <FeatureCard title="Safe outputs gate" href="/gh-aw/reference/safe-outputs/">
+    Requested actions are validated against your configured safe outputs
     policy before anything is applied.
-  </Card>
-  <Card title="Threat detection">
-    A dedicated
-    [threat detection job](/gh-aw/reference/threat-detection/)
-    scans proposed outputs and blocks suspicious changes.
-  </Card>
-</CardGrid>
+  </FeatureCard>
+  <FeatureCard title="Threat detection" href="/gh-aw/reference/threat-detection/">
+    A dedicated threat detection job scans proposed outputs and blocks
+    suspicious changes.
+  </FeatureCard>
+  <FeatureCard title="Compile-time validation" href="/gh-aw/introduction/architecture/#compilation-time-security">
+    Schema validation, expression allowlisting, action pinning, and security
+    scanners reject misconfigurations before deployment.
+  </FeatureCard>
+</FeatureGrid>
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
 

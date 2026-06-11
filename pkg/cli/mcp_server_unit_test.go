@@ -19,7 +19,7 @@ import (
 // TestMCPServerUnit_ListTools verifies that the MCP server exposes exactly the
 // expected set of tools without spawning a subprocess.
 func TestMCPServerUnit_ListTools(t *testing.T) {
-	server := createMCPServer("", "", false, "")
+	server := createMCPServer("", "", false, "", nil)
 	session := connectInMemory(t, server)
 
 	ctx := context.Background()
@@ -43,7 +43,7 @@ func TestMCPServerUnit_ListTools(t *testing.T) {
 // TestMCPServerUnit_ServerCapabilities verifies that the server advertises the
 // Tools capability with ListChanged=false (tools are static, no notifications needed).
 func TestMCPServerUnit_ServerCapabilities(t *testing.T) {
-	server := createMCPServer("", "", false, "")
+	server := createMCPServer("", "", false, "", nil)
 	session := connectInMemory(t, server)
 
 	initResult := session.InitializeResult()
@@ -66,7 +66,7 @@ func TestMCPServerUnit_StatusTool(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir), "should change to temp dir")
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	server := createMCPServer("", "", false, "")
+	server := createMCPServer("", "", false, "", nil)
 	session := connectInMemory(t, server)
 
 	ctx := context.Background()

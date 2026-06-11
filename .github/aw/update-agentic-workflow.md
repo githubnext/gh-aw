@@ -45,6 +45,7 @@ Use [workflow-editing.md](workflow-editing.md) as the source of truth.
 - preserve existing style and structure unless reorganization is required
 - do not rewrite unrelated frontmatter sections
 - keep the agent job read-only
+- when targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` for Copilot authentication
 - use `safe-outputs:` for writes
 - prefer `toolsets:` for GitHub tools
 

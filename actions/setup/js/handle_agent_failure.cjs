@@ -35,7 +35,7 @@ const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "ag
 // - Copilot/CAPI "CAPIError: 429" and utility-model quota text
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
-  /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
+  /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -195,6 +195,7 @@ function buildFailureMatchCategories(options) {
   if (options.mcpPolicyError) categories.push("mcp_policy_error");
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
   if (options.aiCreditsRateLimitError) categories.push("ai_credits_rate_limit_error");
+  if (options.unknownModelAICredits) categories.push("unknown_model_ai_credits");
   if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
@@ -206,6 +207,44 @@ function buildFailureMatchCategories(options) {
   }
 
   return categories.sort();
+}
+
+/**
+ * Build a precise failure issue title for known failure classes.
+ * Falls back to the generic failure title when no specific class matches.
+ * @param {Object} options
+ * @param {string} options.workflowName
+ * @param {boolean} options.isTimedOut
+ * @param {boolean} options.hasMissingSafeOutputs
+ * @param {boolean} options.hasReportIncomplete
+ * @param {boolean} options.hasMissingTool
+ * @param {boolean} options.hasMissingData
+ * @param {boolean} options.hasCacheMissMisconfiguration
+ * @param {boolean} options.hasToolDenialsExceeded
+ * @param {boolean} options.hasAppTokenMintingFailed
+ * @param {boolean} options.hasLockdownCheckFailed
+ * @param {boolean} options.hasStaleLockFileFailed
+ * @param {boolean} options.hasDailyAICExceeded
+ * @param {boolean} options.aiCreditsRateLimitError
+ * @param {boolean} options.maxAICreditsExceeded
+ * @returns {string}
+ */
+function buildFailureIssueTitle(options) {
+  const { workflowName } = options;
+  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily effective workflow budget`;
+  if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
+  if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
+  if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
+  if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
+  if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
+  if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
+  if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
+  if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory miss misconfiguration`;
+  if (options.hasReportIncomplete) return `[aw] ${workflowName} reported incomplete result`;
+  if (options.hasMissingSafeOutputs) return `[aw] ${workflowName} produced no safe outputs`;
+  if (options.hasMissingTool) return `[aw] ${workflowName} is missing required tool`;
+  if (options.hasMissingData) return `[aw] ${workflowName} is missing required data`;
+  return `[aw] ${workflowName} failed`;
 }
 
 /**
@@ -1418,6 +1457,19 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Builds the unknown_model_ai_credits failure context block for templates.
+ * @param {boolean} hasUnknownModelAICreditsError
+ * @returns {string}
+ */
+function buildUnknownModelAICreditsContext(hasUnknownModelAICreditsError) {
+  if (!hasUnknownModelAICreditsError) {
+    return "";
+  }
+
+  return "\n" + renderPromptTemplate("unknown_model_ai_credits.md");
+}
+
+/**
  * Detect HTTP 429/rate-limit engine failures in text payloads.
  * @param {string} content
  * @returns {boolean}
@@ -2030,8 +2082,8 @@ const CASCADE_ROLLUP_LABEL = "cascade-rollup";
 /** Daily-cap rollup constants */
 const DAILY_CAP_ROLLUP_TITLE = "[aw] Daily failure issue cap exceeded";
 const DAILY_CAP_ROLLUP_LABEL = "daily-cap-exceeded";
-/** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
-const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
+/** Matches individual failure issue titles produced by handle_agent_failure */
+const FAILURE_TITLE_PATTERN = /^\[aw\] \S.*$/;
 
 /**
  * Ensure a GitHub label exists in the repository, creating it with a deterministic
@@ -2070,7 +2122,7 @@ async function ensureLabelExists(owner, repo, labelName) {
 }
 
 /**
- * Detect whether a failure cascade is active by counting `[aw] * failed` issues
+ * Detect whether a failure cascade is active by counting `[aw] *` failure issues
  * created within the last CASCADE_WINDOW_MINUTES minutes.
  *
  * @param {string} owner
@@ -2083,7 +2135,7 @@ async function findRecentFailureIssues(owner, repo) {
   const since = windowStart.toISOString().slice(0, 19) + "Z"; // e.g. "2026-05-22T02:00:00Z"
 
   // GitHub search API supports `created:>=YYYY-MM-DDTHH:MM:SSZ`
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" "failed" in:title created:>=${since}`;
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" in:title created:>=${since}`;
 
   try {
     const result = await github.rest.search.issuesAndPullRequests({
@@ -2303,6 +2355,7 @@ async function main() {
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
+    const unknownModelAICredits = process.env.GH_AW_UNKNOWN_MODEL_AI_CREDITS === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
@@ -2369,6 +2422,7 @@ async function main() {
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
     core.info(`Model not supported error: ${modelNotSupportedError}`);
+    core.info(`Unknown model AI credits error: ${unknownModelAICredits}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -2622,7 +2676,22 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
+    const issueTitle = buildFailureIssueTitle({
+      workflowName: sanitizedWorkflowName,
+      isTimedOut,
+      hasMissingSafeOutputs,
+      hasReportIncomplete,
+      hasMissingTool,
+      hasMissingData,
+      hasCacheMissMisconfiguration,
+      hasToolDenialsExceeded,
+      hasAppTokenMintingFailed,
+      hasLockdownCheckFailed,
+      hasStaleLockFileFailed,
+      hasDailyAICExceeded,
+      aiCreditsRateLimitError,
+      maxAICreditsExceeded,
+    });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,
       isTimedOut,
@@ -2643,6 +2712,7 @@ async function main() {
       mcpPolicyError,
       modelNotSupportedError,
       aiCreditsRateLimitError,
+      unknownModelAICredits,
       maxAICreditsExceeded,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
@@ -2774,6 +2844,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError || maxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
+        const unknownModelAICreditsContext = buildUnknownModelAICreditsContext(unknownModelAICredits);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -2824,6 +2895,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
+          unknown_model_ai_credits_context: unknownModelAICreditsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -3000,6 +3072,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError || maxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
+        const unknownModelAICreditsContext = buildUnknownModelAICreditsContext(unknownModelAICredits);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -3051,6 +3124,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
+          unknown_model_ai_credits_context: unknownModelAICreditsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -3154,6 +3228,7 @@ module.exports = {
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
+  buildUnknownModelAICreditsContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
   buildEngineRateLimit429Context,
@@ -3173,5 +3248,6 @@ module.exports = {
   CASCADE_ROLLUP_TITLE,
   FAILURE_TITLE_PATTERN,
   buildFailureMatchCategories,
+  buildFailureIssueTitle,
   FAILURE_CATEGORIES_PATH,
 };

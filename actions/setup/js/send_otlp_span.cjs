@@ -11,6 +11,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
 const { parseJsonlContent } = require("./jsonl_helpers.cjs");
 const { countSteeringEventsInApiProxyJsonl } = require("./steering_helpers.cjs");
+const { resolveAICreditsFailureState } = require("./ai_credits_context.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -103,6 +104,22 @@ function buildAttr(key, value) {
 }
 
 /**
+ * Build an OTLP key-value attribute whose wire type is always `doubleValue`.
+ * Use for OTel attributes declared as `double` in the observability spec
+ * (e.g. `gh-aw.aic`) so that Sentry EAP infers the field schema as float
+ * rather than int — enabling sum()/avg()/percentile() rollups even when the
+ * value is 0, which JavaScript treats as an integer and `buildAttr` would
+ * encode as `intValue`, potentially creating a type mismatch across spans.
+ *
+ * @param {string} key
+ * @param {number} value
+ * @returns {{ key: string, value: { doubleValue: number } }}
+ */
+function buildDoubleAttr(key, value) {
+  return { key, value: { doubleValue: typeof value === "number" && Number.isFinite(value) ? value : 0 } };
+}
+
+/**
  * Build an OTLP key-value attribute with an array of string values.
  * Used for OTel attributes whose type is `string[]`, such as
  * `gen_ai.response.finish_reasons`.
@@ -137,6 +154,25 @@ function parseBooleanEnv(value) {
   if (value === "true") return true;
   if (value === "false") return false;
   return undefined;
+}
+
+/**
+ * Resolve the job name for conclusion spans.
+ *
+ * Normally this comes from INPUT_JOB_NAME (job-name action input), but some
+ * deployment paths can miss that env var in the post step. In that case, fall
+ * back to parsing the conclusion span name ("gh-aw.<job>.conclusion").
+ *
+ * @param {string} spanName
+ * @returns {string}
+ */
+function resolveConclusionJobName(spanName) {
+  const inputJobName = (process.env.INPUT_JOB_NAME || "").trim();
+  if (inputJobName) {
+    return inputJobName;
+  }
+  const match = /^gh-aw\.([^.]+)\.conclusion$/.exec(spanName);
+  return match ? match[1] : "";
 }
 
 /**
@@ -1937,7 +1973,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
-  const jobName = process.env.INPUT_JOB_NAME || "";
+  const jobName = resolveConclusionJobName(spanName);
   const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection" || (!!engineId && jobName === engineId);
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -2079,7 +2115,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
   const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile ?? 0))) : undefined;
   if (typeof aiCredits === "number") {
-    attributes.push(buildAttr("gh-aw.aic", aiCredits));
+    // Always encode gh-aw.aic as doubleValue (not intValue) so that Sentry EAP
+    // infers the field schema as float on first emission, enabling sum()/avg()/
+    // percentile() aggregations even when the value is 0 (an integer in JS).
+    attributes.push(buildDoubleAttr("gh-aw.aic", aiCredits));
   }
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
@@ -2340,6 +2379,18 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(...usageAttrs);
   }
 
+  const { maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded } = resolveAICreditsFailureState({ logProvenance: false });
+  const maxAICreditsValue = normalizeNonNegativeNumber(maxAICredits);
+  if (typeof maxAICreditsValue === "number") {
+    attributes.push(buildAttr("gh-aw.max_ai_credits", maxAICreditsValue));
+  }
+  if (typeof maxAICreditsExceeded === "boolean") {
+    attributes.push(buildAttr("gh-aw.max_ai_credits_exceeded", maxAICreditsExceeded));
+  }
+  if (typeof aiCreditsRateLimitError === "boolean") {
+    attributes.push(buildAttr("gh-aw.ai_credits_rate_limit_error", aiCreditsRateLimitError));
+  }
+
   const payload = buildOTLPPayload({
     traceId,
     spanId: conclusionSpanId,
@@ -2379,6 +2430,7 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildDoubleAttr,
   buildArrayAttr,
   buildGitHubActionsResourceAttributes,
   buildOTLPSpan,

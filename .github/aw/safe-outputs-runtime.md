@@ -189,6 +189,8 @@ safe-outputs:
 
 Fields that influence permission computation (`add-comment.discussions`, `create-pull-request.fallback-as-issue`) remain literal booleans.
 
+- `timeout-minutes:` - Timeout for the safe-outputs job in minutes (integer, default: `45`)
+  - Increase for workflows with many sequential safe-output operations (e.g. `push-to-pull-request-branch` against large repositories)
 - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
   - Patches exceeding this size are rejected to prevent accidental large changes
 - `max-patch-files:` - Maximum allowed number of unique files in a create-pull-request patch (integer, default: 100)
@@ -235,10 +237,14 @@ Fields that influence permission computation (`add-comment.discussions`, `create
 - `threat-detection:` - Threat detection configuration (auto-enabled for all safe-outputs workflows)
   - Automatically enabled by default; customizable via explicit configuration
   - Fields:
-    - `enabled:` - Enable/disable threat detection (boolean, default: `true`)
+    - `enabled:` - Enable/disable threat detection (boolean or expression, default: `true`)
     - `prompt:` - Additional instructions appended to threat detection analysis (string)
     - `engine:` - AI engine for threat detection (engine config or `false` to disable AI detection)
-    - `steps:` - Extra job steps to run after detection (array)
+    - `steps:` - Extra job steps to run before engine execution (array)
+    - `post-steps:` - Extra job steps to run after engine execution (array)
+    - `max-ai-credits:` - Per-run AIC budget for the detection engine (numeric only, no expressions; default `${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}`)
+    - `runs-on:` - Runner override for the detection job (defaults to `agent.runs-on`)
+    - `continue-on-error:` - When `true` (default), detection failures emit a warning and proceed with a `needs-review` label; when `false`, failures block safe outputs (boolean or expression)
   - Example to disable AI-based detection (use custom steps only):
 
     ```yaml

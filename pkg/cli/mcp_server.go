@@ -16,15 +16,21 @@ type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 // The second return value is a reserved SDK extension slot and must be nil for now.
 
 // createMCPServer creates and configures the MCP server with all tools
-func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string) *mcp.Server {
+func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string, env []string) *mcp.Server {
 	// Helper function to execute command with proper path
 	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		var cmd *exec.Cmd
 		if cmdPath != "" {
 			// Use custom command path
-			return exec.CommandContext(ctx, cmdPath, args...)
+			cmd = exec.CommandContext(ctx, cmdPath, args...)
+		} else {
+			// Use default gh aw command with proper token handling
+			cmd = workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
 		}
-		// Use default gh aw command with proper token handling
-		return workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
+		if env != nil {
+			cmd.Env = append([]string(nil), env...)
+		}
+		return cmd
 	}
 
 	// Log actor and validation settings

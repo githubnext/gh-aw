@@ -99,10 +99,10 @@ The YAML frontmatter supports these fields:
     - When `"full"`, checks both the frontmatter hash and body hash; use when prompt-body edits should also trigger recompilation detection
 
 - **`permissions:`** - GitHub token permissions
-  - Object with permission levels: `read`, `none`
-  - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
+  - Object with permission levels: `read`, `none` (and limited `write` for specific scopes)
+  - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`, `copilot-requests`
   - Write permissions are not allowed for security reasons; use `safe-outputs` for write operations instead
-  - Exception: `id-token: write` is allowed to enable OIDC token minting for external authentication, but use with caution and follow security best practices
+  - Exceptions: `id-token: write` is allowed to enable OIDC token minting; `copilot-requests: write` is recommended when targeting the Copilot coding agent so it can authenticate with `${{ github.token }}`
 - **`runs-on:`** - Runner type for the main agent job (string, array, or object)
 - **`runs-on-slim:`** - Runner type for all framework/generated jobs (activation, safe-outputs, unlock, etc.). Defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence for safe-output jobs specifically.
 - **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions are useful in compiled workflows that define `workflow_call` inputs, for example `timeout-minutes: ${{ inputs.timeout }}`. This setting applies to the workflow being compiled, not to plain GitHub Actions caller jobs that use job-level `uses:` (GitHub does not allow `timeout-minutes` on those caller jobs).

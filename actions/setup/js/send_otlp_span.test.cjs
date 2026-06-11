@@ -13,6 +13,7 @@ const {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildDoubleAttr,
   buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
   buildOTLPBatchPayload,
@@ -179,6 +180,25 @@ describe("buildAttr", () => {
   it("coerces non-string non-number non-boolean to stringValue", () => {
     // @ts-expect-error intentional type violation for coverage
     expect(buildAttr("k", null).value).toHaveProperty("stringValue");
+  });
+});
+
+describe("buildDoubleAttr", () => {
+  it("returns doubleValue for integer 0", () => {
+    expect(buildDoubleAttr("k", 0)).toEqual({ key: "k", value: { doubleValue: 0 } });
+  });
+
+  it("returns doubleValue for positive float", () => {
+    expect(buildDoubleAttr("k", 1.25)).toEqual({ key: "k", value: { doubleValue: 1.25 } });
+  });
+
+  it("returns doubleValue for positive integer", () => {
+    expect(buildDoubleAttr("k", 42)).toEqual({ key: "k", value: { doubleValue: 42 } });
+  });
+
+  it("falls back to doubleValue 0 for non-finite values", () => {
+    expect(buildDoubleAttr("k", Infinity).value).toEqual({ doubleValue: 0 });
+    expect(buildDoubleAttr("k", NaN).value).toEqual({ doubleValue: 0 });
   });
 });
 
@@ -2523,6 +2543,8 @@ describe("sendJobConclusionSpan", () => {
     "OTEL_SERVICE_NAME",
     "GH_AW_EFFECTIVE_TOKENS",
     "GH_AW_AIC",
+    "GH_AW_MAX_AI_CREDITS",
+    "GH_AW_AI_CREDITS_RATE_LIMIT_ERROR",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_CLI_VERSION",
     "GITHUB_AW_OTEL_TRACE_ID",
@@ -2645,6 +2667,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.INPUT_JOB_NAME = "agent";
     process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
     process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
+    process.env.GH_AW_MAX_AI_CREDITS = "1000";
 
     const startMs = 1_700_000_000_000;
     const endMs = 1_700_000_005_000;
@@ -2677,6 +2700,14 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
     expect(agentSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
     expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
+    const agentKeys = agentSpan.attributes.map(a => a.key);
+    const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
+    expect(agentKeys).not.toContain("gh-aw.max_ai_credits");
+    expect(agentKeys).not.toContain("gh-aw.max_ai_credits_exceeded");
+    expect(agentKeys).not.toContain("gh-aw.ai_credits_rate_limit_error");
+    expect(conclusionKeys).toContain("gh-aw.max_ai_credits");
+    expect(conclusionKeys).toContain("gh-aw.max_ai_credits_exceeded");
+    expect(conclusionKeys).toContain("gh-aw.ai_credits_rate_limit_error");
   });
 
   it("uses agent_cli_start_ms.txt as agent span start time when file is present", async () => {
@@ -3559,6 +3590,92 @@ describe("sendJobConclusionSpan", () => {
     const aicAttr = span.attributes.find(a => a.key === "gh-aw.aic");
     expect(aicAttr).toBeDefined();
     expect(aicAttr.value.doubleValue).toBe(0.125);
+  });
+
+  it("includes gh-aw.aic when INPUT_JOB_NAME is missing but span name is gh-aw.agent.conclusion", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_AIC = "0.125";
+    delete process.env.INPUT_JOB_NAME;
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const aicAttr = span.attributes.find(a => a.key === "gh-aw.aic");
+    expect(aicAttr).toBeDefined();
+    expect(aicAttr.value.doubleValue).toBe(0.125);
+  });
+
+  it("emits gh-aw.max_ai_credits as a numeric conclusion-span attribute when available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_MAX_AI_CREDITS = "1000.5";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const maxAICreditsAttr = span.attributes.find(a => a.key === "gh-aw.max_ai_credits");
+    expect(maxAICreditsAttr).toBeDefined();
+    expect(maxAICreditsAttr.value.doubleValue).toBe(1000.5);
+  });
+
+  it("emits AI credits boolean cap/rate-limit attributes on conclusion spans when detected", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const stdioContent = Buffer.from("CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+    const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+    const MOCK_FD = 42;
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(p => p === stdioLogPath);
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(p => {
+      if (p === stdioLogPath) return /** @type {fs.Stats} */ { size: stdioContent.length };
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(/** @type {number} */ MOCK_FD);
+    const readSpy = vi.spyOn(fs, "readSync").mockImplementation((_fd, buf) => {
+      stdioContent.copy(/** @type {Buffer} */ buf);
+      return stdioContent.length;
+    });
+    const closeSpy = vi.spyOn(fs, "closeSync").mockImplementation(() => {});
+
+    try {
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+    } finally {
+      existsSpy.mockRestore();
+      statSpy.mockRestore();
+      openSpy.mockRestore();
+      readSpy.mockRestore();
+      closeSpy.mockRestore();
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.boolValue ?? a.value.doubleValue ?? a.value.intValue ?? a.value.stringValue]));
+    expect(attrs["gh-aw.max_ai_credits_exceeded"]).toBe(true);
+    expect(attrs["gh-aw.ai_credits_rate_limit_error"]).toBe(true);
+  });
+
+  it("does not emit gh-aw.max_ai_credits when max AI credits is missing or invalid", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_MAX_AI_CREDITS = "not-a-number";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.max_ai_credits");
   });
 
   it("emits dashboard metrics and aliases on the conclusion span", async () => {
@@ -5345,8 +5462,11 @@ describe("sendJobConclusionSpan", () => {
       // Sentry EAP indexes the field as numeric (not string) and Tempo can query
       // { span."gh-aw.aic" > 0 } without a manual schema override.
       expect(aicAttr).toBeDefined();
-      expect(aicAttr.value.intValue).toBe(0);
-      expect(typeof aicAttr.value.intValue).toBe("number");
+      // gh-aw.aic is declared as type `double` in the OTel spec; use doubleValue
+      // (not intValue) so Sentry EAP consistently indexes it as float even when
+      // the value is 0, enabling sum()/avg()/p95() rollups without schema overrides.
+      expect(aicAttr.value.doubleValue).toBe(0);
+      expect(typeof aicAttr.value.doubleValue).toBe("number");
     });
   });
 
