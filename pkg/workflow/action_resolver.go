@@ -151,3 +151,30 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 
 	return sha, nil
 }
+
+// ResolveGhAwRef resolves a branch, tag, or SHA ref in the github/gh-aw
+// repository to its full 40-character commit SHA.
+// If ref is already a valid full SHA it is returned unchanged.
+// Otherwise the GitHub API commits endpoint is queried, which accepts
+// branch names, tag names, and SHAs.
+func ResolveGhAwRef(ctx context.Context, ref string) (string, error) {
+	if gitutil.IsValidFullSHA(ref) {
+		resolverLog.Printf("--gh-aw-ref %q is already a full SHA, no resolution needed", ref)
+		return ref, nil
+	}
+	resolverLog.Printf("Resolving --gh-aw-ref %q to commit SHA via GitHub API", ref)
+	apiPath := fmt.Sprintf("/repos/github/gh-aw/commits/%s", ref)
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := ExecGHContext(callCtx, "api", apiPath, "--jq", ".sha")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve gh-aw ref %q to SHA: %w", ref, err)
+	}
+	sha := strings.TrimSpace(string(output))
+	if !gitutil.IsValidFullSHA(sha) {
+		return "", fmt.Errorf("unexpected response resolving gh-aw ref %q: got %q (expected 40-char hex SHA)", ref, sha)
+	}
+	resolverLog.Printf("Resolved --gh-aw-ref %q to commit SHA %s", ref, sha)
+	return sha, nil
+}

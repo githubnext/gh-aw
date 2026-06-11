@@ -169,7 +169,9 @@ Examples of valid `<REF>` values:
 ~/gh-aw/gh-aw compile --gh-aw-ref abc123def456 .github/workflows/my-workflow.md
 ```
 
-This emits action references of the form `github/gh-aw/actions/setup@<REF>` in the compiled `.lock.yml` files. It is exactly equivalent to passing `--action-mode release --action-tag <REF>` and exists as a single, mnemonic flag for the `gh-aw`-developer workflow.
+When a branch or tag name is supplied, the compiler resolves it to its commit SHA at compile time using the GitHub API, so the baked-in ref is immutable. Passing a full 40-character SHA skips the resolution call.
+
+This emits action references of the form `github/gh-aw/actions/setup@<SHA>` in the compiled `.lock.yml` files. It is exactly equivalent to passing `--action-mode release --action-tag <sha>` and exists as a single, mnemonic flag for the `gh-aw`-developer workflow.
 
 **When to use**: Running a downstream workflow against an unreleased branch of `gh-aw` to validate changes before merging. This flag is for developers of `gh-aw` itself; end users should rely on released versions instead.
 
