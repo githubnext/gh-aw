@@ -293,7 +293,6 @@ async function appendDailyAICSummary(workflowName, actorLogin, threshold, counte
 async function main() {
   core.setOutput("daily_ai_credits_exceeded", "false");
   core.setOutput("daily_ai_credits_total_effective_tokens", "");
-  core.setOutput("daily_ai_credits_total_ai_credits", "");
   core.setOutput("daily_ai_credits_threshold", "");
   const threshold = parsePositiveCompactNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS);
   if (threshold <= 0) {
@@ -450,7 +449,6 @@ async function main() {
     }
 
     core.setOutput("daily_ai_credits_total_effective_tokens", String(totalAIC));
-    core.setOutput("daily_ai_credits_total_ai_credits", String(totalAIC));
     core.setOutput("daily_ai_credits_threshold", String(threshold));
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
