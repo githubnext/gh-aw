@@ -132,7 +132,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip). Use `--no-skill` or `--no-agent` to skip either artifact, or `--engine` to select a non-Copilot engine and skip Copilot-specific artifacts.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), the workflow designer skill (`.github/skills/agentic-workflow-designer/SKILL.md`), creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip). Use `--no-skill` or `--no-agent` to skip either artifact, or `--engine` to select a non-Copilot engine and skip Copilot-specific artifacts.
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
@@ -140,7 +140,7 @@ gh aw init --engine claude              # Skip Copilot-specific artifacts
 gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --no-skill                   # Skip dispatcher skill creation
 gh aw init --no-agent                   # Skip custom agent creation
-gh aw init --codespaces ""              # Configure devcontainer for current repo only
+gh aw init --codespaces ""              # Configure Codespaces for current repo only
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
@@ -206,7 +206,7 @@ gh aw new my-workflow --force          # Overwrite if exists
 gh aw new my-workflow --engine claude  # Inject engine into frontmatter
 ```
 
-**Options:** `--force`, `--engine/-e`, `--interactive/-i`
+**Options:** `--force/-f`, `--engine/-e`, `--interactive/-i`
 
 When `--engine` is specified, the engine is injected into the generated frontmatter template:
 
@@ -394,7 +394,7 @@ gh aw list --dir custom/workflows           # List from a local custom directory
 gh aw list --repo owner/repo --path .github/workflows  # List from a remote repository
 ```
 
-**Options:** `--json`, `--label`, `--dir/-d`, `--path`, `--repo`
+**Options:** `--json/-j`, `--label`, `--dir/-d`, `--path`, `--repo/-r`
 
 Two flags control the workflow directory location, with different purposes:
 - `--dir` (`-d`): overrides the **local** workflow directory. Applies only when `--repo` is not set.
@@ -413,7 +413,7 @@ gh aw status --label automation             # Filter by label
 gh aw status --repo owner/other-repo        # Check different repository
 ```
 
-**Options:** `--ref`, `--label`, `--json`, `--repo`
+**Options:** `--ref`, `--label`, `--json/-j`, `--repo/-r`
 
 #### `logs`
 
@@ -555,7 +555,7 @@ gh aw health --json                # Output in JSON format
 gh aw health issue-monster --days 90  # 90-day metrics for workflow
 ```
 
-**Options:** `--days`, `--threshold`, `--repo`, `--json`
+**Options:** `--days`, `--threshold`, `--repo/-r`, `--json/-j`
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
@@ -589,7 +589,7 @@ gh aw forecast --repo owner/repo            # Forecast in another repository
 gh aw forecast --eval                       # Backtest forecast quality against past data
 ```
 
-**Options:** `--days`, `--period`, `--sample`, `--eval`, `--repo/-r`, `--json/-j`
+**Options:** `--days`, `--period`, `--sample`, `--eval`, `--timeout`, `--repo/-r`, `--json/-j`
 
 ### Management
 
@@ -604,7 +604,7 @@ gh aw enable ci-doctor daily                # Enable multiple workflows
 gh aw enable ci-doctor --repo owner/repo    # Enable in specific repository
 ```
 
-**Options:** `--repo`
+**Options:** `--repo/-r`
 
 #### `disable`
 
@@ -617,7 +617,7 @@ gh aw disable ci-doctor daily               # Disable multiple workflows
 gh aw disable ci-doctor --repo owner/repo   # Disable in specific repository
 ```
 
-**Options:** `--repo`
+**Options:** `--repo/-r`
 
 #### `remove`
 
@@ -649,7 +649,7 @@ gh aw update --repo owner/repo            # Update workflows in another reposito
 gh aw update --create-pull-request        # Update and open a pull request
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--disable-security-scanner`, `--create-pull-request`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
+**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--disable-security-scanner`, `--create-pull-request`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
 
 The `--no-redirect` flag causes `update` to fail when the source workflow has a [`redirect`](/gh-aw/reference/frontmatter/) field, rather than following the redirect to its new location. Use this when you want explicit control over redirect handling.
 
@@ -746,7 +746,7 @@ gh aw mcp-server --port 8080          # HTTP server with SSE
 gh aw mcp-server --validate-actor     # Enable actor validation
 ```
 
-**Options:** `--port` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
+**Options:** `--port/-p` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
 
 **Available Tools:** status, compile, logs, audit, checks, mcp-inspect, add, update, fix
 
