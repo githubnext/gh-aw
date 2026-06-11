@@ -210,6 +210,44 @@ function buildFailureMatchCategories(options) {
 }
 
 /**
+ * Build a precise failure issue title for known failure classes.
+ * Falls back to the generic failure title when no specific class matches.
+ * @param {Object} options
+ * @param {string} options.workflowName
+ * @param {boolean} options.isTimedOut
+ * @param {boolean} options.hasMissingSafeOutputs
+ * @param {boolean} options.hasReportIncomplete
+ * @param {boolean} options.hasMissingTool
+ * @param {boolean} options.hasMissingData
+ * @param {boolean} options.hasCacheMissMisconfiguration
+ * @param {boolean} options.hasToolDenialsExceeded
+ * @param {boolean} options.hasAppTokenMintingFailed
+ * @param {boolean} options.hasLockdownCheckFailed
+ * @param {boolean} options.hasStaleLockFileFailed
+ * @param {boolean} options.hasDailyAICExceeded
+ * @param {boolean} options.aiCreditsRateLimitError
+ * @param {boolean} options.maxAICreditsExceeded
+ * @returns {string}
+ */
+function buildFailureIssueTitle(options) {
+  const { workflowName } = options;
+  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily effective workflow budget`;
+  if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
+  if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
+  if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
+  if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
+  if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
+  if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
+  if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
+  if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory miss misconfiguration`;
+  if (options.hasReportIncomplete) return `[aw] ${workflowName} reported incomplete result`;
+  if (options.hasMissingSafeOutputs) return `[aw] ${workflowName} produced no safe outputs`;
+  if (options.hasMissingTool) return `[aw] ${workflowName} is missing required tool`;
+  if (options.hasMissingData) return `[aw] ${workflowName} is missing required data`;
+  return `[aw] ${workflowName} failed`;
+}
+
+/**
  * Generate a precise failure-match marker for failure issue bodies.
  * @param {Object} options - Marker options
  * @param {string} options.workflowId - Workflow identifier
@@ -2044,8 +2082,8 @@ const CASCADE_ROLLUP_LABEL = "cascade-rollup";
 /** Daily-cap rollup constants */
 const DAILY_CAP_ROLLUP_TITLE = "[aw] Daily failure issue cap exceeded";
 const DAILY_CAP_ROLLUP_LABEL = "daily-cap-exceeded";
-/** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
-const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
+/** Matches individual failure issue titles produced by handle_agent_failure */
+const FAILURE_TITLE_PATTERN = /^\[aw\] \S.*$/;
 
 /**
  * Ensure a GitHub label exists in the repository, creating it with a deterministic
@@ -2084,7 +2122,7 @@ async function ensureLabelExists(owner, repo, labelName) {
 }
 
 /**
- * Detect whether a failure cascade is active by counting `[aw] * failed` issues
+ * Detect whether a failure cascade is active by counting `[aw] *` failure issues
  * created within the last CASCADE_WINDOW_MINUTES minutes.
  *
  * @param {string} owner
@@ -2097,7 +2135,7 @@ async function findRecentFailureIssues(owner, repo) {
   const since = windowStart.toISOString().slice(0, 19) + "Z"; // e.g. "2026-05-22T02:00:00Z"
 
   // GitHub search API supports `created:>=YYYY-MM-DDTHH:MM:SSZ`
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" "failed" in:title created:>=${since}`;
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" in:title created:>=${since}`;
 
   try {
     const result = await github.rest.search.issuesAndPullRequests({
@@ -2638,7 +2676,22 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
+    const issueTitle = buildFailureIssueTitle({
+      workflowName: sanitizedWorkflowName,
+      isTimedOut,
+      hasMissingSafeOutputs,
+      hasReportIncomplete,
+      hasMissingTool,
+      hasMissingData,
+      hasCacheMissMisconfiguration,
+      hasToolDenialsExceeded,
+      hasAppTokenMintingFailed,
+      hasLockdownCheckFailed,
+      hasStaleLockFileFailed,
+      hasDailyAICExceeded,
+      aiCreditsRateLimitError,
+      maxAICreditsExceeded,
+    });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,
       isTimedOut,
@@ -3195,5 +3248,6 @@ module.exports = {
   CASCADE_ROLLUP_TITLE,
   FAILURE_TITLE_PATTERN,
   buildFailureMatchCategories,
+  buildFailureIssueTitle,
   FAILURE_CATEGORIES_PATH,
 };
