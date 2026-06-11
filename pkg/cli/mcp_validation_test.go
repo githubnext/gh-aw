@@ -62,6 +62,17 @@ func TestGetBinaryPath(t *testing.T) {
 }
 
 func TestSetNonInteractiveCIEnv(t *testing.T) {
+	t.Run("returns copied env with CI forced on", func(t *testing.T) {
+		input := []string{"CI=false", "HOME=/tmp/test-home"}
+
+		output := withNonInteractiveCIEnv(input)
+
+		assert.Equal(t, []string{"CI=false", "HOME=/tmp/test-home"}, input)
+		assert.Contains(t, output, "CI=1")
+		assert.NotContains(t, output, "CI=false")
+		assert.Contains(t, output, "HOME=/tmp/test-home")
+	})
+
 	t.Run("adds CI when missing", func(t *testing.T) {
 		cmd := exec.Command("echo")
 		cmd.Env = []string{"HOME=/tmp/test-home"}

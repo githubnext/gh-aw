@@ -3,11 +3,8 @@ package cli
 import (
 	"context"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -72,28 +69,10 @@ Examples:
 	return cmd
 }
 
-// checkAndLogGHVersion checks if gh CLI is available and logs its version.
-// Diagnostics are emitted through the debug logger only.
-func checkAndLogGHVersion(ctx context.Context) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	cmd := workflow.ExecGHContext(ctx, "version")
-	setNonInteractiveCIEnv(cmd)
-	output, err := runMCPSubprocessCombinedOutput(ctx, cmd)
-
-	if err != nil {
-		mcpLog.Print("WARNING: gh CLI not found in PATH")
-		return
-	}
-
-	// Parse and log the version
-	versionOutput := strings.TrimSpace(string(output))
-	mcpLog.Printf("gh CLI version: %s", versionOutput)
-}
-
 // runMCPServer starts the MCP server on stdio or HTTP transport
 func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor bool) error {
+	mcpServerEnv := withNonInteractiveCIEnv(nil)
+
 	// Get actor from environment variable
 	actor := os.Getenv("GITHUB_ACTOR")
 
@@ -132,13 +111,10 @@ func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor b
 		mcpLog.Printf("WARNING: Failed to get current working directory: %v", err)
 	}
 
-	// Check and log gh CLI version
-	checkAndLogGHVersion(ctx)
-
 	// Validate that the CLI and secrets are properly configured
 	// Note: Validation failures are logged as warnings but don't prevent server startup
 	// This allows the server to start in test environments or non-repository directories
-	if err := validateMCPServerConfiguration(ctx, cmdPath); err != nil {
+	if err := validateMCPServerConfiguration(ctx, cmdPath, mcpServerEnv); err != nil {
 		mcpLog.Printf("Configuration validation warning: %v", err)
 	}
 
@@ -164,7 +140,7 @@ func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor b
 	}
 
 	// Create the server configuration
-	server := createMCPServer(cmdPath, actor, validateActor, manifestCacheFile)
+	server := createMCPServer(cmdPath, actor, validateActor, manifestCacheFile, mcpServerEnv)
 
 	if port > 0 {
 		// Run HTTP server with SSE transport

@@ -70,23 +70,26 @@ func logAndValidateBinaryPath() (string, error) {
 	return binaryPath, nil
 }
 
+func withNonInteractiveCIEnv(env []string) []string {
+	if env == nil {
+		env = os.Environ()
+	}
+
+	env = append([]string(nil), env...)
+	for i, entry := range env {
+		if strings.HasPrefix(entry, "CI=") {
+			env[i] = "CI=1"
+			return env
+		}
+	}
+
+	return append(env, "CI=1")
+}
+
 func setNonInteractiveCIEnv(cmd *exec.Cmd) {
 	if cmd == nil {
 		return
 	}
 
-	env := cmd.Env
-	if env == nil {
-		env = os.Environ()
-	}
-
-	for i, entry := range env {
-		if strings.HasPrefix(entry, "CI=") {
-			env[i] = "CI=1"
-			cmd.Env = env
-			return
-		}
-	}
-
-	cmd.Env = append(env, "CI=1")
+	cmd.Env = withNonInteractiveCIEnv(cmd.Env)
 }
