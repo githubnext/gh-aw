@@ -80,7 +80,7 @@ timeout-minutes: 10
 
 Execute the following tests sequentially in a single turn:
 
-1. **GitHub MCP Testing**: Use GitHub MCP tools to fetch details of exactly 2 merged pull requests from ${{ github.repository }} (title and number only)
+1. **GitHub CLI Testing**: Use `gh` CLI commands to fetch details of exactly 2 merged pull requests from ${{ github.repository }} (title and number only)
 2. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch MCP tool directly)
 3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-pi-${{ github.run_id }}.txt` with content "Smoke test passed for Pi at $(date)" (create the directory if it doesn't exist)
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
@@ -102,4 +102,8 @@ Execute the following tests sequentially in a single turn:
 
 If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-pi` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
 
-{{#runtime-import shared/noop-reminder.md}}
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Pass arguments directly to the tool. Do **NOT** wrap them under a `noop` key. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"message": "No action needed: [brief explanation of what was analyzed and why]"}
+```
