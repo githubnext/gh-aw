@@ -286,9 +286,9 @@ async function appendDailyAICSummary(workflowName, actorLogin, threshold, counte
  * Error handling: all GitHub API interactions after the initial guard checks are wrapped
  * in a top-level try-catch. Any unexpected error (network failure, permission error, etc.)
  * is logged as a warning and the function returns cleanly with `daily_effective_workflow_exceeded`
- * left at its default value of `"false"`. This design ensures the step never fails the
- * activation job — a guardrail error results in a safe bypass (agent allowed to run) rather
- * than a confusing workflow failure that blocks the agent entirely.
+ * left at its default value of `"false"` (safe bypass). When the guardrail is actually exceeded,
+ * the step marks the job as failed after setting outputs so downstream conclusion handling can
+ * still run and produce failure issues.
  */
 async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
@@ -493,6 +493,7 @@ async function main() {
     core.setOutput("daily_effective_workflow_exceeded", "true");
     await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
     core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
+    core.setFailed(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
     // Treat any unexpected error as a non-blocking skip so the step never fails the
     // activation job.  The output stays at the default "false", allowing the agent to
