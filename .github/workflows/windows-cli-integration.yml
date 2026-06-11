@@ -70,39 +70,210 @@ jobs:
           $size = (Get-Item $env:BINARY).Length
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ Binary found ($size bytes)"
 
-      # pwsh (PowerShell Core) - explicit per-command timeouts via WaitForExit
-      - name: "[pwsh] --help with timeout"
+      - name: Windows CLI scenario matrix (shell × launch-mode × env-shape × path-style)
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "--help" -PassThru -NoNewWindow
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: --help hung for 30s in pwsh"
-          }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
-          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] --help OK"
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
 
-      - name: "[pwsh] version with timeout"
-        shell: pwsh
-        run: |
-          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "version" -PassThru -NoNewWindow
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: version hung for 30s in pwsh"
-          }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
-          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] version OK"
+          function Invoke-CliProcess {
+            param(
+              [Parameter(Mandatory)] [string] $FilePath,
+              [string[]] $ArgumentList = @(),
+              [int] $TimeoutMs = 30000,
+              [string] $WorkingDirectory = (Get-Location).Path,
+              [hashtable] $EnvironmentOverrides = @{},
+              [string[]] $UnsetEnvironment = @(),
+              [switch] $MinimalEnvironment,
+              [switch] $ExpectFailure,
+              [string] $ExpectedErrorPattern = "",
+              [switch] $AssertNoAnsi
+            )
 
-      - name: "[pwsh] compile --help with timeout"
-        shell: pwsh
-        run: |
-          $proc = Start-Process -FilePath $env:BINARY -ArgumentList "compile","--help" -PassThru -NoNewWindow
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: compile --help hung for 30s in pwsh"
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = $FilePath
+            $psi.WorkingDirectory = $WorkingDirectory
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+
+            foreach ($arg in $ArgumentList) {
+              [void]$psi.ArgumentList.Add($arg)
+            }
+
+            if ($MinimalEnvironment) {
+              $psi.Environment.Clear()
+              foreach ($key in @("PATH", "TEMP", "TMP", "SystemRoot")) {
+                $value = [System.Environment]::GetEnvironmentVariable($key)
+                if ($null -ne $value -and $value -ne "") {
+                  $psi.Environment[$key] = $value
+                }
+              }
+            }
+
+            foreach ($key in $UnsetEnvironment) {
+              [void]$psi.Environment.Remove($key)
+            }
+            foreach ($key in $EnvironmentOverrides.Keys) {
+              $value = $EnvironmentOverrides[$key]
+              if ($null -eq $value) {
+                [void]$psi.Environment.Remove($key)
+              } else {
+                $psi.Environment[$key] = [string]$value
+              }
+            }
+
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            if (-not $proc.WaitForExit($TimeoutMs)) {
+              try { $proc.Kill($true) } catch {}
+              throw "TIMEOUT: '$FilePath $($ArgumentList -join ' ')' exceeded ${TimeoutMs}ms"
+            }
+
+            $stdout = $proc.StandardOutput.ReadToEnd()
+            $stderr = $proc.StandardError.ReadToEnd()
+            $output = "$stdout`n$stderr"
+
+            if ($AssertNoAnsi -and $output -match "\x1B\[[0-9;]*[A-Za-z]") {
+              throw "Unexpected ANSI escape sequences in output"
+            }
+
+            if ($ExpectFailure) {
+              if ($proc.ExitCode -eq 0) {
+                throw "Expected failure but command exited 0"
+              }
+              if ($ExpectedErrorPattern -and $output -notmatch $ExpectedErrorPattern) {
+                throw "Expected error pattern '$ExpectedErrorPattern' not found"
+              }
+            } elseif ($proc.ExitCode -ne 0) {
+              throw "Exit code $($proc.ExitCode) for '$FilePath $($ArgumentList -join ' ')'`n$output"
+            }
+
+            return @{
+              ExitCode = $proc.ExitCode
+              Output   = $output
+            }
           }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
-          Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] compile --help OK"
+
+          $workspace = $env:GITHUB_WORKSPACE
+          $binary = $env:BINARY
+          $originalPath = $env:PATH
+          $toolcacheDir = Join-Path $env:RUNNER_TEMP "toolcache-like"
+          $spaceDir = Join-Path $env:RUNNER_TEMP "path with spaces"
+          $parenDir = Join-Path $env:RUNNER_TEMP "Program Files (x86)"
+          $unicodeDir = Join-Path $env:TEMP "tëst-dïr-αβγ"
+          foreach ($dir in @($toolcacheDir, $spaceDir, $parenDir, $unicodeDir)) {
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          }
+          Copy-Item -Path $binary -Destination (Join-Path $spaceDir "gh-aw.exe") -Force
+          Copy-Item -Path $binary -Destination (Join-Path $parenDir "gh-aw.exe") -Force
+
+          $scenarioMatrix = @(
+            @{ name = "pwsh-default/direct/default/default"; shell = "pwsh-default"; launch = "direct"; env = "default"; path = "default" },
+            @{ name = "pwsh-noprofile/direct/default/default"; shell = "pwsh-noprofile"; launch = "direct"; env = "default"; path = "default" },
+            @{ name = "powershell-default/direct/default/default"; shell = "powershell-default"; launch = "direct"; env = "default"; path = "default" },
+            @{ name = "powershell-noprofile/direct/default/default"; shell = "powershell-noprofile"; launch = "direct"; env = "default"; path = "default" },
+            @{ name = "pwsh-default/path/default/workspace-first"; shell = "pwsh-default"; launch = "path"; env = "default"; path = "workspace-first" },
+            @{ name = "cmd/path/default/toolcache-first"; shell = "cmd"; launch = "path"; env = "default"; path = "toolcache-first" },
+            @{ name = "pwsh-default/path/default/duplicate-workspace"; shell = "pwsh-default"; launch = "path"; env = "default"; path = "duplicate-workspace" },
+            @{ name = "pwsh-default/path/no-color/workspace-first"; shell = "pwsh-default"; launch = "path"; env = "no-color"; path = "workspace-first" },
+            @{ name = "pwsh-default/path/term-dumb/workspace-first"; shell = "pwsh-default"; launch = "path"; env = "term-dumb"; path = "workspace-first" },
+            @{ name = "pwsh-default/path/term-unset/workspace-first"; shell = "pwsh-default"; launch = "path"; env = "term-unset"; path = "workspace-first" },
+            @{ name = "pwsh-default/path/ci-true/workspace-first"; shell = "pwsh-default"; launch = "path"; env = "ci-true"; path = "workspace-first" },
+            @{ name = "pwsh-default/path/ci-unset/workspace-first"; shell = "pwsh-default"; launch = "path"; env = "ci-unset"; path = "workspace-first" }
+          )
+
+          foreach ($scenario in $scenarioMatrix) {
+            $env:PATH = $originalPath
+            switch ($scenario.path) {
+              "workspace-first" { $env:PATH = "$workspace;$originalPath" }
+              "toolcache-first" { $env:PATH = "$toolcacheDir;$workspace;$originalPath" }
+              "duplicate-workspace" { $env:PATH = "$workspace;$workspace;$originalPath" }
+              default {}
+            }
+
+            $envOverrides = @{}
+            $unsetVars = @()
+            $assertNoAnsi = $false
+            switch ($scenario.env) {
+              "no-color" { $envOverrides["NO_COLOR"] = "1" }
+              "term-dumb" { $envOverrides["TERM"] = "dumb"; $assertNoAnsi = $true }
+              "term-unset" { $unsetVars += "TERM" }
+              "ci-true" { $envOverrides["CI"] = "true" }
+              "ci-unset" { $unsetVars += "CI" }
+              default {}
+            }
+
+            if ($scenario.launch -eq "path") {
+              $whereResult = Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", "where gh-aw") -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars
+              $firstResolved = ($whereResult.Output -split "`r?`n" | Where-Object { $_ -match "gh-aw\.exe$" } | Select-Object -First 1)
+              if (-not $firstResolved -or -not $firstResolved.StartsWith($workspace, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "PATH resolution mismatch for '$($scenario.name)': $firstResolved"
+              }
+            }
+
+            switch ($scenario.shell) {
+              "pwsh-default" {
+                $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
+                Invoke-CliProcess -FilePath "pwsh" -ArgumentList @("-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+              }
+              "pwsh-noprofile" {
+                $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
+                Invoke-CliProcess -FilePath "pwsh" -ArgumentList @("-NoProfile", "-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+              }
+              "powershell-default" {
+                $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
+                Invoke-CliProcess -FilePath "powershell" -ArgumentList @("-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+              }
+              "powershell-noprofile" {
+                $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
+                Invoke-CliProcess -FilePath "powershell" -ArgumentList @("-NoProfile", "-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+              }
+              "cmd" {
+                $cmd = if ($scenario.launch -eq "path") { "gh-aw --help" } else { """$binary"" --help" }
+                Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+              }
+              default {
+                throw "Unknown shell scenario: $($scenario.shell)"
+              }
+            }
+
+            Add-Content $env:GITHUB_STEP_SUMMARY "✅ Matrix scenario passed: $($scenario.name)"
+          }
+
+          if ($env:PATHEXT -notmatch "(?i)\.EXE") {
+            throw "PATHEXT missing .EXE"
+          }
+          Invoke-CliProcess -FilePath "pwsh" -ArgumentList @("-NoProfile", "-Command", "& gh-aw --help") | Out-Null
+          Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", "gh-aw --help") | Out-Null
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ PATHEXT/extension resolution checks passed from pwsh and cmd"
+
+          $spaceBinary = Join-Path $spaceDir "gh-aw.exe"
+          $spaceBinaryForwardSlashes = $spaceBinary -replace "\\", "/"
+          $parenBinary = Join-Path $parenDir "gh-aw.exe"
+          Invoke-CliProcess -FilePath $spaceBinary -ArgumentList @("--help") | Out-Null
+          Invoke-CliProcess -FilePath $spaceBinaryForwardSlashes -ArgumentList @("--help") | Out-Null
+          Invoke-CliProcess -FilePath $parenBinary -ArgumentList @("--help") | Out-Null
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Paths with spaces, mixed slashes, and parentheses passed"
+
+          Invoke-CliProcess -FilePath $binary -ArgumentList @("--help") -WorkingDirectory $unicodeDir | Out-Null
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Unicode working directory check passed ($unicodeDir)"
+
+          Invoke-CliProcess -FilePath $binary -ArgumentList @("--help") -MinimalEnvironment | Out-Null
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Minimal environment execution passed"
+
+          foreach ($command in @(
+            @{ name = "--help"; args = @("--help") },
+            @{ name = "version"; args = @("version") },
+            @{ name = "compile --help"; args = @("compile", "--help") },
+            @{ name = "help"; args = @("help") },
+            @{ name = "run --help"; args = @("run", "--help") }
+          )) {
+            Invoke-CliProcess -FilePath $binary -ArgumentList $command.args | Out-Null
+            Add-Content $env:GITHUB_STEP_SUMMARY "✅ Command variant passed: $($command.name)"
+          }
+
+          Invoke-CliProcess -FilePath $binary -ArgumentList @("totally-unknown-subcommand-xyz") -TimeoutMs 10000 -ExpectFailure -ExpectedErrorPattern "unknown|not found|invalid|unrecognized" | Out-Null
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Unknown subcommand fails fast with explicit error output"
 
       # Explicit check for stdin-blocking hang (common bubbletea/TUI regression)
       - name: "[pwsh] stdin hang detection"
@@ -118,51 +289,6 @@ jobs:
             throw "HANG DETECTED: binary blocked on stdin - TUI may be reading terminal input inappropriately"
           }
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ [pwsh] No stdin hang detected"
-
-      # Windows PowerShell (legacy powershell.exe) - catches PS 5.x-specific regressions
-      - name: "[powershell] --help with timeout"
-        shell: powershell
-        run: |
-          $psi = New-Object System.Diagnostics.ProcessStartInfo
-          $psi.FileName = $env:BINARY
-          $psi.Arguments = "--help"
-          $psi.UseShellExecute = $false
-          $proc = [System.Diagnostics.Process]::Start($psi)
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: --help hung for 30s in Windows PowerShell"
-          }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
-          Write-Output "[powershell] --help OK"
-
-      - name: "[powershell] version with timeout"
-        shell: powershell
-        run: |
-          $psi = New-Object System.Diagnostics.ProcessStartInfo
-          $psi.FileName = $env:BINARY
-          $psi.Arguments = "version"
-          $psi.UseShellExecute = $false
-          $proc = [System.Diagnostics.Process]::Start($psi)
-          if (-Not $proc.WaitForExit(30000)) {
-            $proc.Kill()
-            throw "TIMEOUT: version hung for 30s in Windows PowerShell"
-          }
-          if ($proc.ExitCode -ne 0) { throw "Exit code $($proc.ExitCode)" }
-          Write-Output "[powershell] version OK"
-
-      # cmd.exe - catches Win32 console and PATH resolution regressions
-      # Per-command timeout not available in cmd; job-level timeout-minutes: 20 applies
-      - name: "[cmd] --help"
-        shell: cmd
-        run: |
-          "%BINARY%" --help
-          if errorlevel 1 exit /b 1
-
-      - name: "[cmd] version"
-        shell: cmd
-        run: |
-          "%BINARY%" version
-          if errorlevel 1 exit /b 1
 
       - name: Integration summary
         if: always()
