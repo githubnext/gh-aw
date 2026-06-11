@@ -319,6 +319,8 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
   const { aiCredits: auditAICredits, maxAICredits: auditMaxAICredits, rateLimitError: auditRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded } = parseAuditLogCombined();
   const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
+  const envRateLimitSignal = process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
+  const envRateLimitSignalHasEvidence = envRateLimitSignal && (auditAICredits || stdioSignals.aiCredits || envAICredits);
 
   // Log provenance so failing issues can be diagnosed when credit data is missing.
   if (logProvenance) {
@@ -342,13 +344,21 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
       console.log(`[ai-credits] maxAICredits source=none GH_AW_MAX_AI_CREDITS=${process.env.GH_AW_MAX_AI_CREDITS || "(unset)"}`);
     }
 
-    const rawRateLimitSignalSource = auditRateLimitError ? "audit_log" : stdioSignals.rateLimitError ? "agent_stdio" : process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true" ? "env(GH_AW_AI_CREDITS_RATE_LIMIT_ERROR)" : "none";
+    const rawRateLimitSignalSource = auditRateLimitError
+      ? "audit_log"
+      : stdioSignals.rateLimitError
+        ? "agent_stdio"
+        : envRateLimitSignalHasEvidence
+          ? "env(GH_AW_AI_CREDITS_RATE_LIMIT_ERROR)"
+          : envRateLimitSignal
+            ? "env_ignored_no_ai_credits"
+            : "none";
     console.log(`[ai-credits] rateLimitSignal source=${rawRateLimitSignalSource}`);
   }
 
   const aiCredits = auditAICredits || stdioSignals.aiCredits || envAICredits || "";
   const maxAICredits = auditMaxAICredits || stdioSignals.maxAICredits || envMaxAICredits || "";
-  const rawAICreditsRateLimitError = auditRateLimitError || stdioSignals.rateLimitError || process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
+  const rawAICreditsRateLimitError = auditRateLimitError || stdioSignals.rateLimitError || envRateLimitSignalHasEvidence;
   const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError, aiCredits, maxAICredits);
   return { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded || stdioSignals.maxAICreditsExceeded };
 }

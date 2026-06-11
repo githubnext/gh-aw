@@ -164,6 +164,16 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.aiCredits).toBe("");
       expect(result.maxAICredits).toBe("");
     });
+
+    it("ignores env rate-limit signal when no AI credits evidence is present", () => {
+      writeAuditLog([{ type: "response", status: 200 }]);
+      process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR = "true";
+      process.env.GH_AW_MAX_AI_CREDITS = "1000";
+      const result = resolveAICreditsFailureState();
+      expect(result.aiCreditsRateLimitError).toBe(false);
+      expect(result.aiCredits).toBe("");
+      expect(result.maxAICredits).toBe("1000");
+    });
   });
 });
 
