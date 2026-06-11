@@ -1126,7 +1126,7 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	assert.Contains(t, command, `\"enabled\":true`, "config JSON should have apiProxy enabled")
 }
 
-func TestBuildAWFCommand_ModelMultipliersLoadedFromFile(t *testing.T) {
+func TestBuildAWFCommand_ModelMultipliersInlineInConfigJSON(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:    "copilot",
 		EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
@@ -1148,9 +1148,9 @@ func TestBuildAWFCommand_ModelMultipliersLoadedFromFile(t *testing.T) {
 
 	command := BuildAWFCommand(config)
 
-	assert.Contains(t, command, awfModelMultipliersFilePath, "expected model multipliers artifact path in runtime updater script")
-	assert.Contains(t, command, `node "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"`, "expected runtime updater script to invoke JS model multiplier merger")
-	assert.NotContains(t, command, "my-custom-model", "expected custom model multipliers to be omitted from inline AWF config JSON")
+	assert.Contains(t, command, "modelMultipliers", "expected model multipliers key in inline AWF config JSON")
+	assert.Contains(t, command, "my-custom-model", "expected custom model multiplier to be embedded in inline AWF config JSON")
+	assert.NotContains(t, command, "merge_awf_model_multipliers.cjs", "expected no runtime model multiplier merger script")
 }
 
 func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {
