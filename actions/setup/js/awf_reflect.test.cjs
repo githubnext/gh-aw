@@ -149,6 +149,9 @@ describe("awf_reflect.cjs", () => {
   describe("fetchModelsFromUrl", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
+      delete process.env.AWF_AUTH_TYPE;
+      delete process.env.AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS;
+      vi.useRealTimers();
     });
 
     it("returns model IDs on successful fetch", async () => {
@@ -204,6 +207,27 @@ describe("awf_reflect.cjs", () => {
       expect(result).toBeNull();
       expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(AWF_MODELS_URL_MAX_ATTEMPTS - 1);
       expect(logs.some(l => l.includes("models fetch returned 503"))).toBe(true);
+    });
+
+    it("delays initial probe for github-oidc auth when probing api-proxy", async () => {
+      vi.useFakeTimers();
+      process.env.AWF_AUTH_TYPE = "github-oidc";
+      process.env.AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS = "5000";
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const logs = [];
+      const run = fetchModelsFromUrl("http://api-proxy:10001/v1/models", 1000, msg => logs.push(msg));
+
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      await run;
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(logs.some(l => l.includes("delaying initial models probe"))).toBe(true);
     });
   });
 
