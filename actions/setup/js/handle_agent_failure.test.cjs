@@ -10,6 +10,7 @@ describe("handle_agent_failure", () => {
   let buildCodePushFailureContext;
   let buildPushRepoMemoryFailureContext;
   let buildReportIncompleteContext;
+  let buildFailureIssueTitle;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
 
@@ -28,7 +29,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, buildFailureIssueTitle, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -55,6 +56,49 @@ describe("handle_agent_failure", () => {
       expect(getActionFailureIssueExpiresHours()).toBe(168);
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+  });
+
+  describe("buildFailureIssueTitle", () => {
+    const baseOptions = {
+      workflowName: "Test Workflow",
+      isTimedOut: false,
+      hasMissingSafeOutputs: false,
+      hasReportIncomplete: false,
+      hasMissingTool: false,
+      hasMissingData: false,
+      hasCacheMissMisconfiguration: false,
+      hasToolDenialsExceeded: false,
+      hasAppTokenMintingFailed: false,
+      hasLockdownCheckFailed: false,
+      hasStaleLockFileFailed: false,
+      hasDailyAICExceeded: false,
+      aiCreditsRateLimitError: false,
+      maxAICreditsExceeded: false,
+    };
+
+    const cases = [
+      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow exceeded daily effective workflow budget" },
+      { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow exceeded max AI credits" },
+      { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow hit AI credits rate limit" },
+      { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
+      { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow failed lockdown check" },
+      { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow has stale lock file" },
+      { flag: "isTimedOut", expected: "[aw] Test Workflow timed out" },
+      { flag: "hasToolDenialsExceeded", expected: "[aw] Test Workflow exceeded tool denial limit" },
+      { flag: "hasCacheMissMisconfiguration", expected: "[aw] Test Workflow has cache-memory miss misconfiguration" },
+      { flag: "hasReportIncomplete", expected: "[aw] Test Workflow reported incomplete result" },
+      { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow produced no safe outputs" },
+      { flag: "hasMissingTool", expected: "[aw] Test Workflow is missing required tool" },
+      { flag: "hasMissingData", expected: "[aw] Test Workflow is missing required data" },
+    ];
+
+    it.each(cases)("returns expected title for isolated $flag", ({ flag, expected }) => {
+      expect(buildFailureIssueTitle({ ...baseOptions, [flag]: true })).toBe(expected);
+    });
+
+    it("falls back to generic failed title when no specific condition matches", () => {
+      expect(buildFailureIssueTitle(baseOptions)).toBe("[aw] Test Workflow failed");
     });
   });
 
@@ -3776,7 +3820,7 @@ describe("handle_agent_failure", () => {
       expect(capturedBody).toContain("[aw] Workflow 0 failed");
     });
 
-    it("filters out non-[aw] failed issues from findRecentFailureIssues", async () => {
+    it("filters out non-[aw] issues from findRecentFailureIssues", async () => {
       const mixedItems = [
         {
           number: 1,
@@ -3792,8 +3836,26 @@ describe("handle_agent_failure", () => {
         },
         {
           number: 3,
-          title: "[aw] Another Workflow failed",
+          title: "[aw] Another Workflow timed out",
           html_url: "https://github.com/owner/repo/issues/3",
+          created_at: new Date().toISOString(),
+        },
+        {
+          number: 4,
+          title: "Workflow timed out",
+          html_url: "https://github.com/owner/repo/issues/4",
+          created_at: new Date().toISOString(),
+        },
+        {
+          number: 5,
+          title: "[aw] Budget Workflow exceeded daily effective workflow budget",
+          html_url: "https://github.com/owner/repo/issues/5",
+          created_at: new Date().toISOString(),
+        },
+        {
+          number: 6,
+          title: "[aw] Rate Limit Workflow hit AI credits rate limit",
+          html_url: "https://github.com/owner/repo/issues/6",
           created_at: new Date().toISOString(),
         },
       ];
@@ -3809,8 +3871,13 @@ describe("handle_agent_failure", () => {
       };
 
       const result = await findRecentFailureIssues("owner", "repo");
-      expect(result).toHaveLength(2);
-      expect(result.map(i => i.number)).toEqual([1, 3]);
+      expect(result).toHaveLength(4);
+      expect(result.map(i => i.number)).toEqual([1, 3, 5, 6]);
+      expect(result.map(i => i.number)).not.toContain(2);
+      expect(result.map(i => i.number)).not.toContain(4);
+      const query = searchMock.mock.calls[0][0].q;
+      expect(query).toContain('"[aw]" in:title');
+      expect(query).not.toContain('"failed" in:title');
     });
 
     it("is non-fatal: handles search API errors gracefully", async () => {

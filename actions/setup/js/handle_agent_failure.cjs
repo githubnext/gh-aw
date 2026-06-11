@@ -238,7 +238,7 @@ function buildFailureIssueTitle(options) {
   if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
   if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
   if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
-  if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory path mismatch`;
+  if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory miss misconfiguration`;
   if (options.hasReportIncomplete) return `[aw] ${workflowName} reported incomplete result`;
   if (options.hasMissingSafeOutputs) return `[aw] ${workflowName} produced no safe outputs`;
   if (options.hasMissingTool) return `[aw] ${workflowName} is missing required tool`;
@@ -2068,8 +2068,8 @@ const CASCADE_ROLLUP_LABEL = "cascade-rollup";
 /** Daily-cap rollup constants */
 const DAILY_CAP_ROLLUP_TITLE = "[aw] Daily failure issue cap exceeded";
 const DAILY_CAP_ROLLUP_LABEL = "daily-cap-exceeded";
-/** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
-const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
+/** Matches individual failure issue titles produced by handle_agent_failure */
+const FAILURE_TITLE_PATTERN = /^\[aw\] \S.*$/;
 
 /**
  * Ensure a GitHub label exists in the repository, creating it with a deterministic
@@ -2108,7 +2108,7 @@ async function ensureLabelExists(owner, repo, labelName) {
 }
 
 /**
- * Detect whether a failure cascade is active by counting `[aw] * failed` issues
+ * Detect whether a failure cascade is active by counting `[aw] *` failure issues
  * created within the last CASCADE_WINDOW_MINUTES minutes.
  *
  * @param {string} owner
@@ -2121,7 +2121,7 @@ async function findRecentFailureIssues(owner, repo) {
   const since = windowStart.toISOString().slice(0, 19) + "Z"; // e.g. "2026-05-22T02:00:00Z"
 
   // GitHub search API supports `created:>=YYYY-MM-DDTHH:MM:SSZ`
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" "failed" in:title created:>=${since}`;
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" in:title created:>=${since}`;
 
   try {
     const result = await github.rest.search.issuesAndPullRequests({
@@ -3226,5 +3226,6 @@ module.exports = {
   CASCADE_ROLLUP_TITLE,
   FAILURE_TITLE_PATTERN,
   buildFailureMatchCategories,
+  buildFailureIssueTitle,
   FAILURE_CATEGORIES_PATH,
 };
