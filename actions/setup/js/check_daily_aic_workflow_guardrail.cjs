@@ -432,7 +432,7 @@ async function main() {
       truncatedByRateLimit,
     });
 
-    const artifactClient = await getArtifactClient();
+    const artifactClient = await module.exports.getArtifactClient();
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
@@ -442,7 +442,7 @@ async function main() {
         break;
       }
       try {
-        const runAIC = await getRunAIC(artifactClient, run.id, token, owner, repo);
+        const runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
         if (runAIC <= 0) {
           logDailyGuardrail("Skipping run without AIC usage artifact data", {
             runId: run.id,
@@ -529,6 +529,8 @@ async function main() {
 
 module.exports = {
   main,
+  getArtifactClient,
+  getRunAIC,
   shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,
