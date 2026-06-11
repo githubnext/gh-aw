@@ -35,7 +35,7 @@ const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "ag
 // - Copilot/CAPI "CAPIError: 429" and utility-model quota text
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
-  /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
+  /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 
 /**
  * Parse action failure issue expiration from environment.

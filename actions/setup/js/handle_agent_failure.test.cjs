@@ -2963,6 +2963,7 @@ describe("handle_agent_failure", () => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-engine-fail-guard-"));
       stdioLogPath = path.join(tmpDir, "agent-stdio.log");
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      process.env.GH_AW_OTEL_JSONL_PATH = path.join(tmpDir, "otel.jsonl");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
     });
@@ -2970,6 +2971,7 @@ describe("handle_agent_failure", () => {
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_OTEL_JSONL_PATH;
       delete process.env.RUNNER_TEMP;
       if (fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
