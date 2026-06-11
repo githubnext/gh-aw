@@ -256,10 +256,6 @@ network:
     - RESOURCE.openai.azure.com
 ```
 
-See the
-[Azure Foundry OpenAI API key smoke test](https://github.com/github/gh-aw/actions/workflows/smoke-copilot-aoai-apikey.lock.yml)
-for a working workflow run.
-
 ### Engine Command-Line Arguments
 
 All engines support custom command-line arguments through the `args` field, injected before the prompt:
