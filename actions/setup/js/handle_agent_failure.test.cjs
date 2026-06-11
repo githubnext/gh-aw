@@ -78,7 +78,7 @@ describe("handle_agent_failure", () => {
     };
 
     const cases = [
-      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow exceeded daily effective workflow budget" },
+      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow exceeded daily AI credits budget" },
       { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow exceeded max AI credits" },
       { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow hit AI credits rate limit" },
       { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
@@ -3893,7 +3893,7 @@ describe("handle_agent_failure", () => {
         },
         {
           number: 5,
-          title: "[aw] Budget Workflow exceeded daily effective workflow budget",
+          title: "[aw] Budget Workflow exceeded daily AI credits budget",
           html_url: "https://github.com/owner/repo/issues/5",
           created_at: new Date().toISOString(),
         },
