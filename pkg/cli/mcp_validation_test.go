@@ -4,7 +4,6 @@ package cli
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -61,7 +60,7 @@ func TestGetBinaryPath(t *testing.T) {
 	})
 }
 
-func TestSetNonInteractiveCIEnv(t *testing.T) {
+func TestWithNonInteractiveCIEnv(t *testing.T) {
 	t.Run("returns copied env with CI forced on", func(t *testing.T) {
 		input := []string{"CI=false", "HOME=/tmp/test-home"}
 
@@ -74,23 +73,12 @@ func TestSetNonInteractiveCIEnv(t *testing.T) {
 	})
 
 	t.Run("adds CI when missing", func(t *testing.T) {
-		cmd := exec.Command("echo")
-		cmd.Env = []string{"HOME=/tmp/test-home"}
+		input := []string{"HOME=/tmp/test-home"}
 
-		setNonInteractiveCIEnv(cmd)
+		output := withNonInteractiveCIEnv(input)
 
-		assert.Contains(t, cmd.Env, "CI=1")
-		assert.Contains(t, cmd.Env, "HOME=/tmp/test-home")
-	})
-
-	t.Run("overrides existing CI value", func(t *testing.T) {
-		cmd := exec.Command("echo")
-		cmd.Env = []string{"CI=false", "HOME=/tmp/test-home"}
-
-		setNonInteractiveCIEnv(cmd)
-
-		assert.Contains(t, cmd.Env, "CI=1")
-		assert.NotContains(t, cmd.Env, "CI=false")
-		assert.Contains(t, cmd.Env, "HOME=/tmp/test-home")
+		assert.Equal(t, []string{"HOME=/tmp/test-home"}, input, "must not mutate input")
+		assert.Contains(t, output, "CI=1")
+		assert.Contains(t, output, "HOME=/tmp/test-home")
 	})
 }

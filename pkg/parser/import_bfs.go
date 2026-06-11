@@ -380,55 +380,6 @@ func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, base
 	return nil
 }
 
-func parseNestedImportEntries(frontmatter map[string]any) []nestedImportEntry {
-	importsField, hasImports := frontmatter["imports"]
-	if !hasImports {
-		return nil
-	}
-	switch v := importsField.(type) {
-	case []any:
-		nestedImports := make([]nestedImportEntry, 0, len(v))
-		for _, item := range v {
-			entry, ok := parseNestedImportEntry(item)
-			if !ok {
-				continue
-			}
-			nestedImports = append(nestedImports, entry)
-		}
-		return nestedImports
-	case []string:
-		return nestedEntriesFromSpecs(importSpecsFromStringSlice(v))
-	default:
-		return nil
-	}
-}
-
-func parseNestedImportEntry(item any) (nestedImportEntry, bool) {
-	switch nestedItem := item.(type) {
-	case string:
-		return nestedImportEntry{path: nestedItem}, true
-	case map[string]any:
-		var nestedPath string
-		if usesPath, ok := nestedItem["uses"].(string); ok {
-			nestedPath = usesPath
-		} else if pathVal, ok := nestedItem["path"].(string); ok {
-			nestedPath = pathVal
-		}
-		if nestedPath == "" {
-			return nestedImportEntry{}, false
-		}
-		var nestedInputs map[string]any
-		if withVal, ok := nestedItem["with"].(map[string]any); ok {
-			nestedInputs = withVal
-		} else if inputsVal, ok := nestedItem["inputs"].(map[string]any); ok {
-			nestedInputs = inputsVal
-		}
-		return nestedImportEntry{path: nestedPath, inputs: nestedInputs}, true
-	default:
-		return nestedImportEntry{}, false
-	}
-}
-
 func nestedEntriesFromSpecs(specs []ImportSpec) []nestedImportEntry {
 	nestedImports := make([]nestedImportEntry, 0, len(specs))
 	for _, spec := range specs {

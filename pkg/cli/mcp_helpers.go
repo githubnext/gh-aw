@@ -7,7 +7,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -84,12 +83,4 @@ func withNonInteractiveCIEnv(env []string) []string {
 	}
 
 	return append(env, "CI=1")
-}
-
-func setNonInteractiveCIEnv(cmd *exec.Cmd) {
-	if cmd == nil {
-		return
-	}
-
-	cmd.Env = withNonInteractiveCIEnv(cmd.Env)
 }

@@ -63,9 +63,9 @@ func TestSpec_DailyAICreditsGuardrail_ExpressionForm(t *testing.T) {
 
 // TestSpec_DailyAICreditsGuardrail_RuntimeNotCompileTime validates AIC spec §9.3 (2):
 // GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS MUST be resolved at action runtime, not at
-// compiler process environment lookup. The BuildDefaultMaxDailyAICreditsExpression
-// function is the conforming API; ResolveDefaultMaxDailyAICredits is retained for
-// other compile-time uses but MUST NOT be called for the daily guardrail default path.
+// compiler process environment lookup. BuildDefaultMaxDailyAICreditsExpression is
+// the sole conforming API for this path; the compile-time resolver
+// ResolveDefaultMaxDailyAICredits has been removed as dead code.
 //
 // T-AIC-DG-006: The compiler produces an expression, not a pre-resolved value.
 func TestSpec_DailyAICreditsGuardrail_RuntimeNotCompileTime(t *testing.T) {
