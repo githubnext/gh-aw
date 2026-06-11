@@ -38,6 +38,26 @@ test.describe('Slide Preview on Homepage', () => {
     await expect(slideHero).toHaveClass(/is-ready/);
   });
 
+  test('should keep the rendered slide within the frame on mobile screens', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/gh-aw/');
+    await page.waitForLoadState('networkidle');
+
+    const loading = page.locator('[data-slide-loading]');
+    await expect(loading).toBeHidden({ timeout: 10000 });
+
+    const stage = page.locator('[data-slide-stage]');
+    const canvas = page.locator('[data-slide-canvas]');
+    const stageBox = await stage.boundingBox();
+    const canvasBox = await canvas.boundingBox();
+
+    expect(stageBox).not.toBeNull();
+    expect(canvasBox).not.toBeNull();
+
+    expect(canvasBox!.width).toBeLessThanOrEqual(stageBox!.width);
+    expect(canvasBox!.height).toBeLessThanOrEqual(stageBox!.height);
+  });
+
   test('should be keyboard accessible', async ({ page }) => {
     // Wait for slides to load
     const loading = page.locator('[data-slide-loading]');

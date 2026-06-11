@@ -103,8 +103,12 @@ function unmountFromHero() {
 
       const devicePixelRatio = window.devicePixelRatio || 1;
       const baseViewport = page.getViewport({ scale: 1 });
-      const availableWidth = stage.clientWidth - 16;
-      const scale = Math.max(availableWidth / baseViewport.width, 0.5);
+      const availableWidth = Math.max(stage.clientWidth - 16, 1);
+      const availableHeight = Math.max(stage.clientHeight - 16, 1);
+      const scale = Math.max(
+        Math.min(availableWidth / baseViewport.width, availableHeight / baseViewport.height),
+        0.1,
+      );
       const viewport = page.getViewport({ scale });
 
       bufferCanvas.width = Math.floor(viewport.width * devicePixelRatio);
@@ -130,7 +134,10 @@ function unmountFromHero() {
       canvasContext.drawImage(bufferCanvas, 0, 0);
 
       activePage = pageNumber;
-      loading?.setAttribute('hidden', 'hidden');
+      if (loading) {
+        loading.setAttribute('hidden', 'hidden');
+        loading.style.display = 'none';
+      }
       root.classList.add('is-ready');
     }
 
@@ -242,6 +249,8 @@ function unmountFromHero() {
     z-index: 2;
     width: 100%;
     height: 100%;
+    max-width: 100%;
+    max-height: 100%;
     border-radius: 1rem;
     border: 0;
     background: transparent;
