@@ -36,8 +36,8 @@ engine:
   auth:
     type: github-oidc
     provider: azure
-    azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-    azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+    azure-tenant-id: 398a6654-997b-47e9-b12b-9515b896b4de
+    azure-client-id: adb907fd-188c-4029-b67f-2559d96b2f1b
 imports:
   - shared/github-guard-policy.md
   - shared/gh.md
