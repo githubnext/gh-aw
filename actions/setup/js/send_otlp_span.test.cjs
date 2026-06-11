@@ -2523,6 +2523,8 @@ describe("sendJobConclusionSpan", () => {
     "OTEL_SERVICE_NAME",
     "GH_AW_EFFECTIVE_TOKENS",
     "GH_AW_AIC",
+    "GH_AW_MAX_AI_CREDITS",
+    "GH_AW_AI_CREDITS_RATE_LIMIT_ERROR",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_CLI_VERSION",
     "GITHUB_AW_OTEL_TRACE_ID",
@@ -2645,6 +2647,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.INPUT_JOB_NAME = "agent";
     process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
     process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
+    process.env.GH_AW_MAX_AI_CREDITS = "1000";
 
     const startMs = 1_700_000_000_000;
     const endMs = 1_700_000_005_000;
@@ -2677,6 +2680,14 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
     expect(agentSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
     expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
+    const agentKeys = agentSpan.attributes.map(a => a.key);
+    const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
+    expect(agentKeys).not.toContain("gh-aw.max_ai_credits");
+    expect(agentKeys).not.toContain("gh-aw.max_ai_credits_exceeded");
+    expect(agentKeys).not.toContain("gh-aw.ai_credits_rate_limit_error");
+    expect(conclusionKeys).toContain("gh-aw.max_ai_credits");
+    expect(conclusionKeys).toContain("gh-aw.max_ai_credits_exceeded");
+    expect(conclusionKeys).toContain("gh-aw.ai_credits_rate_limit_error");
   });
 
   it("uses agent_cli_start_ms.txt as agent span start time when file is present", async () => {
@@ -3576,6 +3587,58 @@ describe("sendJobConclusionSpan", () => {
     const aicAttr = span.attributes.find(a => a.key === "gh-aw.aic");
     expect(aicAttr).toBeDefined();
     expect(aicAttr.value.doubleValue).toBe(0.125);
+  });
+
+  it("emits gh-aw.max_ai_credits as a numeric conclusion-span attribute when available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_MAX_AI_CREDITS = "1000.5";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const maxAICreditsAttr = span.attributes.find(a => a.key === "gh-aw.max_ai_credits");
+    expect(maxAICreditsAttr).toBeDefined();
+    expect(maxAICreditsAttr.value.doubleValue).toBe(1000.5);
+  });
+
+  it("emits AI credits boolean cap/rate-limit attributes on conclusion spans when detected", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    fs.writeFileSync("/tmp/gh-aw/agent-stdio.log", "CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+
+    try {
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+    } finally {
+      fs.rmSync("/tmp/gh-aw/agent-stdio.log", { force: true });
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.boolValue ?? a.value.doubleValue ?? a.value.intValue ?? a.value.stringValue]));
+    expect(attrs["gh-aw.max_ai_credits_exceeded"]).toBe(true);
+    expect(attrs["gh-aw.ai_credits_rate_limit_error"]).toBe(true);
+  });
+
+  it("does not emit gh-aw.max_ai_credits when max AI credits is missing or invalid", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_MAX_AI_CREDITS = "not-a-number";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.max_ai_credits");
   });
 
   it("emits dashboard metrics and aliases on the conclusion span", async () => {

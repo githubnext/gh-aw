@@ -11,6 +11,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
 const { parseJsonlContent } = require("./jsonl_helpers.cjs");
 const { countSteeringEventsInApiProxyJsonl } = require("./steering_helpers.cjs");
+const { resolveAICreditsFailureState } = require("./ai_credits_context.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -2357,6 +2358,18 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
   if (!hasDedicatedAgentSpan && jobEmitsOwnTokenUsage) {
     attributes.push(...usageAttrs);
+  }
+
+  const { maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded } = resolveAICreditsFailureState();
+  const maxAICreditsValue = normalizeNonNegativeNumber(maxAICredits);
+  if (typeof maxAICreditsValue === "number") {
+    attributes.push(buildAttr("gh-aw.max_ai_credits", maxAICreditsValue));
+  }
+  if (typeof maxAICreditsExceeded === "boolean") {
+    attributes.push(buildAttr("gh-aw.max_ai_credits_exceeded", maxAICreditsExceeded));
+  }
+  if (typeof aiCreditsRateLimitError === "boolean") {
+    attributes.push(buildAttr("gh-aw.ai_credits_rate_limit_error", aiCreditsRateLimitError));
   }
 
   const payload = buildOTLPPayload({
