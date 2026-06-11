@@ -266,6 +266,7 @@ func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
 		require.Equal(t, 24, minExpires)
 		require.Contains(t, triggerReason, "first-trigger")
 		require.Contains(t, triggerReason, "safe_outputs.create_issues.expires=72h")
+		require.NotContains(t, triggerReason, "second-trigger")
 	})
 }
 
