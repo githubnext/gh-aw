@@ -64,12 +64,14 @@ test.describe('Slide Preview on Homepage', () => {
     const stage = page.locator('[data-slide-stage]');
     await stage.focus();
 
-    // Listen for navigation
-    const [response] = await Promise.all([
-      page.waitForEvent('popup', { timeout: 5000 }).catch(() => null) || 
-        page.waitForNavigation({ timeout: 5000 }).catch(() => null),
-      stage.press('Enter'),
+    // Listen for navigation - use Promise.race to wait for either event
+    const navigationPromise = Promise.race([
+      page.waitForEvent('popup', { timeout: 5000 }).catch(() => null),
+      page.waitForNavigation({ timeout: 5000 }).catch(() => null),
     ]);
+
+    await stage.press('Enter');
+    const response = await navigationPromise;
 
     // If navigation happened, verify the URL contains the PDF path
     if (response) {
@@ -89,12 +91,14 @@ test.describe('Slide Preview on Homepage', () => {
     const stage = page.locator('[data-slide-stage]');
     await stage.focus();
 
-    // Listen for navigation
-    const [response] = await Promise.all([
-      page.waitForEvent('popup', { timeout: 5000 }).catch(() => null) || 
-        page.waitForNavigation({ timeout: 5000 }).catch(() => null),
-      stage.press('Space'),
+    // Listen for navigation - use Promise.race to wait for either event
+    const navigationPromise = Promise.race([
+      page.waitForEvent('popup', { timeout: 5000 }).catch(() => null),
+      page.waitForNavigation({ timeout: 5000 }).catch(() => null),
     ]);
+
+    await stage.press('Space');
+    const response = await navigationPromise;
 
     // If navigation happened, verify the URL contains the PDF path
     if (response) {
