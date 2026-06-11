@@ -241,6 +241,48 @@ steps:
       print(f"Failed runs in payload: {len(payload['failed_run_ids'])}")
       print(f"Existing tracking issues in payload: {len(existing_tracking_issues)}")
       PY
+jobs:
+  conclusion:
+    pre-steps:
+      - name: Write conclusion summary file
+        if: always()
+        env:
+          GH_AW_INVESTIGATION_RESULT: ${{ needs.agent.result }}
+          GH_AW_FAILURE_CLASSIFICATION: ${{ needs.detection.outputs.detection_conclusion || 'unknown' }}
+          GH_AW_FAILURE_REASON: ${{ needs.detection.outputs.detection_reason || '' }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          path = "/tmp/gh-aw/conclusion.json"
+          payload = {
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "run_url": os.getenv("GH_AW_RUN_URL", ""),
+              "investigation": {
+                  "result": os.getenv("GH_AW_INVESTIGATION_RESULT", ""),
+              },
+              "failure_classification": {
+                  "classification": os.getenv("GH_AW_FAILURE_CLASSIFICATION", ""),
+                  "reason": os.getenv("GH_AW_FAILURE_REASON", ""),
+              },
+          }
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(payload, f, indent=2)
+              f.write("\n")
+          print(f"Wrote {path}")
+          PY
+
+      - name: Upload conclusion artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: conclusion
+          path: /tmp/gh-aw/conclusion.json
+          if-no-files-found: error
 ---
 
 # [aw] Failure Investigator (6h)
