@@ -242,8 +242,8 @@ func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
 
 	// The step should create the Copilot config directory and write a settings file
 	// that disables the rubber-duck sub-agent.
-	if !strings.Contains(stepContent, "mkdir -p /home/runner/.copilot") {
-		t.Errorf("Expected 'mkdir -p /home/runner/.copilot' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "mkdir -p \"$HOME/.copilot\"") {
+		t.Errorf("Expected 'mkdir -p \"$HOME/.copilot\"' in step content:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, copilotSettingsContent) {
 		t.Errorf("Expected copilot settings content %q in step content:\n%s", copilotSettingsContent, stepContent)
@@ -251,7 +251,7 @@ func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
 	if !strings.Contains(stepContent, copilotSettingsPath) {
 		t.Errorf("Expected copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
 	}
-	if !strings.Contains(stepContent, "rm -f "+copilotSettingsPath) {
+	if !strings.Contains(stepContent, "rm -f \""+copilotSettingsPath+"\"") {
 		t.Errorf("Expected cleanup command to remove copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
 	}
 }
@@ -2634,8 +2634,8 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		if !strings.Contains(stepContent, "GH_AW_ENGINE_COMMAND_EOF") {
 			t.Errorf("Expected step to include heredoc delimiter for script serialization, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)" /home/runner/.copilot`) {
-			t.Errorf("Expected step to fix ownership for /home/runner/.copilot in custom engine.command mode, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)" "$HOME/.copilot"`) {
+			t.Errorf("Expected step to fix ownership for $HOME/.copilot in custom engine.command mode, got:\n%s", stepContent)
 		}
 	})
 }

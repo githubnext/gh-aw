@@ -208,6 +208,29 @@ function assertNotSymlink(p) {
   }
 }
 
+/**
+ * Resolves the Copilot CLI config directory and the MCP config file path from
+ * the runtime $HOME. The Copilot CLI uses ~/.copilot, which is
+ * /home/runner/.copilot on standard GitHub-hosted runners (HOME=/home/runner)
+ * but may differ on self-hosted or containerized runners. HOME is a standard
+ * POSIX environment variable inherited from the runner's parent process and
+ * passed through to shell steps; other generators (copilot_mcp.go,
+ * copilot_engine_execution.go) rely on it the same way.
+ *
+ * Exported for testability; throws Error rather than exiting so tests can
+ * exercise the missing-HOME branch.
+ *
+ * @returns {{ dir: string, file: string }}
+ */
+function resolveCopilotConfigPaths() {
+  const home = process.env.HOME;
+  if (!home) {
+    throw new Error("HOME environment variable is not set; cannot locate Copilot CLI config directory");
+  }
+  const dir = path.join(home, ".copilot");
+  return { dir, file: path.join(dir, "mcp-config.json") };
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -670,10 +693,19 @@ async function main() {
     process.exit(1);
   }
 
+  // Resolve the Copilot CLI config directory under the runtime $HOME.
+  let copilotConfigDir, copilotConfigFile;
+  try {
+    ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
+  } catch (err) {
+    core.error(`ERROR: ${err.message}`);
+    process.exit(1);
+  }
+
   // Determine engine type
   let engineType = process.env.GH_AW_ENGINE || "";
   if (!engineType) {
-    if (fs.existsSync("/home/runner/.copilot") || process.env.GITHUB_COPILOT_CLI_MODE) {
+    if (fs.existsSync(copilotConfigDir) || process.env.GITHUB_COPILOT_CLI_MODE) {
       engineType = "copilot";
     } else if (fs.existsSync(path.join(configDir, "config.toml"))) {
       engineType = "codex";
@@ -702,7 +734,7 @@ async function main() {
     core.info(`No agent-specific converter found for engine: ${engineType}`);
     core.info("Using gateway output directly");
     // Default fallback – copy to most common location, filtering CLI-mounted servers
-    fs.mkdirSync("/home/runner/.copilot", { recursive: true });
+    fs.mkdirSync(copilotConfigDir, { recursive: true });
     const cliServersRaw = process.env.GH_AW_MCP_CLI_SERVERS;
     if (cliServersRaw) {
       try {
@@ -716,16 +748,16 @@ async function main() {
             }
           }
         }
-        fs.writeFileSync("/home/runner/.copilot/mcp-config.json", JSON.stringify(filtered, null, 2), { mode: 0o600 });
+        fs.writeFileSync(copilotConfigFile, JSON.stringify(filtered, null, 2), { mode: 0o600 });
       } catch {
         core.error("ERROR: Failed to filter CLI-mounted servers from agent MCP config");
         core.info("Falling back to unfiltered config");
-        fs.copyFileSync(outputPath, "/home/runner/.copilot/mcp-config.json");
+        fs.copyFileSync(outputPath, copilotConfigFile);
       }
     } else {
-      fs.copyFileSync(outputPath, "/home/runner/.copilot/mcp-config.json");
+      fs.copyFileSync(outputPath, copilotConfigFile);
     }
-    core.info(fs.readFileSync("/home/runner/.copilot/mcp-config.json", "utf8"));
+    core.info(fs.readFileSync(copilotConfigFile, "utf8"));
   }
   printTiming(configConvertStart, "Configuration conversion");
   core.info("");
@@ -845,4 +877,5 @@ module.exports = {
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
+  resolveCopilotConfigPaths,
 };

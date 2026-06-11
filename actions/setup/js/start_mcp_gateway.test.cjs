@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders } from "./start_mcp_gateway.cjs";
+import { applyOTLPIgnoreIfMissing, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {
   let originalWarning;
@@ -106,5 +106,74 @@ describe("start_mcp_gateway OTLP if-missing helpers", () => {
 
     expect(config.gateway.opentelemetry.headers).toBeUndefined();
     expect(warningSpy).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------------
+// resolveCopilotConfigPaths — guards against the regression where /home/runner
+// was hard-coded and broke self-hosted runners with HOME != /home/runner.
+// -----------------------------------------------------------------------------
+describe("start_mcp_gateway resolveCopilotConfigPaths", () => {
+  let originalHome;
+
+  beforeEach(() => {
+    originalHome = process.env.HOME;
+  });
+
+  afterEach(() => {
+    if (originalHome === undefined) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
+  });
+
+  it("resolves the Copilot config dir under the runtime $HOME", () => {
+    process.env.HOME = "/home/runner";
+    expect(resolveCopilotConfigPaths()).toEqual({
+      dir: "/home/runner/.copilot",
+      file: "/home/runner/.copilot/mcp-config.json",
+    });
+  });
+
+  it("respects a self-hosted runner HOME (not /home/runner)", () => {
+    process.env.HOME = "/home/actions";
+    expect(resolveCopilotConfigPaths()).toEqual({
+      dir: "/home/actions/.copilot",
+      file: "/home/actions/.copilot/mcp-config.json",
+    });
+  });
+
+  it("respects a containerized HOME (/root)", () => {
+    process.env.HOME = "/root";
+    expect(resolveCopilotConfigPaths()).toEqual({
+      dir: "/root/.copilot",
+      file: "/root/.copilot/mcp-config.json",
+    });
+  });
+
+  it("handles HOME with spaces and special characters via path.join", () => {
+    process.env.HOME = "/var/lib/actions runner";
+    expect(resolveCopilotConfigPaths()).toEqual({
+      dir: "/var/lib/actions runner/.copilot",
+      file: "/var/lib/actions runner/.copilot/mcp-config.json",
+    });
+  });
+
+  it("throws (not exits) when HOME is unset so tests can exercise the branch", () => {
+    delete process.env.HOME;
+    expect(() => resolveCopilotConfigPaths()).toThrow(/HOME environment variable is not set/);
+  });
+
+  it("throws when HOME is empty string", () => {
+    process.env.HOME = "";
+    expect(() => resolveCopilotConfigPaths()).toThrow(/HOME environment variable is not set/);
+  });
+
+  it("never returns a path containing the literal /home/runner when HOME is different", () => {
+    process.env.HOME = "/opt/actions/home";
+    const { dir, file } = resolveCopilotConfigPaths();
+    expect(dir).not.toContain("/home/runner");
+    expect(file).not.toContain("/home/runner");
   });
 });

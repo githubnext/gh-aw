@@ -401,7 +401,9 @@ func (c *Compiler) buildClearMCPConfigStep() []string {
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
 		"          rm -f \"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json\"\n",
-		"          rm -f /home/runner/.copilot/mcp-config.json\n",
+		// Use $HOME (not the literal /home/runner) so this works on self-hosted
+		// or containerized runners where HOME differs from the GitHub-hosted default.
+		"          rm -f \"$HOME/.copilot/mcp-config.json\"\n",
 		"          rm -f \"$GITHUB_WORKSPACE/.gemini/settings.json\"\n",
 	}
 }

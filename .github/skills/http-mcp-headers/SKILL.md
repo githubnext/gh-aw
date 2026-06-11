@@ -82,10 +82,11 @@ env:
   DD_API_KEY: ${{ secrets.DD_API_KEY }}
   DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
   DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
-  GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
   COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
   # ... other env vars
 ```
+
+`GH_AW_MCP_CONFIG` is intentionally NOT in the YAML `env:` block — it is exported from the run script (`export GH_AW_MCP_CONFIG="$HOME/.copilot/mcp-config.json"`) so `$HOME` is resolved at runtime. GitHub Actions does not shell-expand `env:` values, so the path must be set via `export` to work on self-hosted/containerized runners where `HOME` is not `/home/runner`.
 
 ## Implementation Details
 

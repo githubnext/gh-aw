@@ -18,15 +18,20 @@ func copilotMCPToolFilter(toolName string) bool {
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	copilotMCPLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
 
-	// Create the directory first
-	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
+	// Create the Copilot CLI config directory under the runtime $HOME. The Copilot CLI
+	// resolves its config dir as ~/.copilot, which is /home/runner/.copilot on standard
+	// GitHub-hosted runners but may differ on self-hosted or containerized runners.
+	// HOME is a standard POSIX environment variable inherited from the runner's parent
+	// process and passed through to shell steps; other generators (mcp_setup_generator.go,
+	// copilot_engine.go session-state) rely on it the same way.
+	yaml.WriteString("          mkdir -p \"$HOME/.copilot\"\n")
 
 	// Copilot uses JSON format with type and tools fields, and inline args
 	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
 		tools:                tools,
 		mcpTools:             mcpTools,
 		workflowData:         workflowData,
-		configPath:           "/home/runner/.copilot/mcp-config.json",
+		configPath:           "$HOME/.copilot/mcp-config.json",
 		includeCopilotFields: true,
 		inlineArgs:           true,
 		renderCustom: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {

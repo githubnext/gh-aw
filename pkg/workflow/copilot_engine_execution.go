@@ -39,10 +39,13 @@ var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
 
-// copilotSettingsPath is the path to the Copilot CLI settings file on GitHub Actions runners.
-// The Copilot CLI resolves its config directory as ~/.copilot, which on GitHub Actions
-// runners is /home/runner/.copilot (HOME=/home/runner).
-const copilotSettingsPath = "/home/runner/.copilot/settings.json"
+// copilotSettingsPath is the shell expression that resolves to the Copilot CLI settings
+// file at runtime. The Copilot CLI resolves its config directory as ~/.copilot, which is
+// /home/runner/.copilot on standard GitHub-hosted runners (HOME=/home/runner) but may
+// differ on self-hosted or containerized runners. HOME is a standard POSIX environment
+// variable inherited from the runner's parent process and passed through to shell steps;
+// other generators (copilot_mcp.go, mcp_setup_generator.go) rely on it the same way.
+const copilotSettingsPath = "$HOME/.copilot/settings.json"
 
 // copilotSettingsContent is the JSON content written to the Copilot CLI settings file.
 // Setting builtInAgents.rubberDuck to false disables the rubber-duck sub-agent, which
@@ -54,18 +57,38 @@ const copilotSettingsContent = `{"builtInAgents":{"rubberDuck":false}}`
 // buildCopilotSettingsSetup returns shell commands that write the Copilot CLI settings
 // file before the agent runs, disabling the rubber-duck sub-agent.
 func buildCopilotSettingsSetup(fixOwnershipForCustomCommand bool) string {
-	setup := "mkdir -p /home/runner/.copilot\n"
+	setup := "mkdir -p \"$HOME/.copilot\"\n"
 	if fixOwnershipForCustomCommand {
-		setup += "sudo chown -R \"$(id -u):$(id -g)\" /home/runner/.copilot\n"
+		setup += "sudo chown -R \"$(id -u):$(id -g)\" \"$HOME/.copilot\"\n"
 	}
-	return setup + fmt.Sprintf("printf '%%s' %s > %s\n",
+	return setup + fmt.Sprintf("printf '%%s' %s > \"%s\"\n",
 		shellEscapeArg(copilotSettingsContent), copilotSettingsPath)
 }
 
 // buildCopilotSettingsCleanupTrap returns a shell trap command that removes the
-// temporary Copilot settings file at step exit.
+// temporary Copilot settings file at step exit. The trap body is single-quoted so
+// $HOME is expanded by the shell at trap-fire time rather than trap-definition time.
 func buildCopilotSettingsCleanupTrap() string {
-	return fmt.Sprintf("trap %s EXIT\n", shellEscapeArg("rm -f "+copilotSettingsPath))
+	return fmt.Sprintf("trap 'rm -f \"%s\"' EXIT\n", copilotSettingsPath)
+}
+
+// buildCopilotMCPConfigExport returns shell commands that export Copilot-CLI-specific
+// env vars whose values depend on the runtime $HOME (which may not be /home/runner on
+// self-hosted or containerized runners). GitHub Actions does not shell-expand env:
+// values, so these must be exported from the run script rather than the YAML env: block.
+//
+// Always exports:
+//   - XDG_CONFIG_HOME=$HOME (Copilot CLI resolves its config dir from this)
+//
+// Exported only when the workflow has MCP servers:
+//   - GH_AW_MCP_CONFIG=$HOME/.copilot/mcp-config.json
+func buildCopilotMCPConfigExport(workflowData *WorkflowData) string {
+	var b strings.Builder
+	b.WriteString("export XDG_CONFIG_HOME=\"$HOME\"\n")
+	if HasMCPServers(workflowData) {
+		b.WriteString("export GH_AW_MCP_CONFIG=\"$HOME/.copilot/mcp-config.json\"\n")
+	}
+	return b.String()
 }
 
 const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi`
@@ -429,7 +452,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Write the Copilot settings file before AWF starts. The file is created on the
 		// host and AWF mounts it into the container, where the Copilot CLI reads it to
 		// disable the rubber-duck sub-agent.
-		pathSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + pathSetup
+		pathSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
 		// Build the list of core secret var names to hide from the agent shell tools.
 		// In BYOK mode COPILOT_GITHUB_TOKEN is not injected into the step env at all,
 		// so there is nothing to exclude. Excluding it unconditionally would produce
@@ -470,7 +493,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 		// Write the Copilot settings file before the agent runs to disable the rubber-duck
 		// sub-agent. This reduces token overhead and latency for Copilot engine runs.
-		preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + preCommandSetup
+		preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + preCommandSetup
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
@@ -508,8 +531,10 @@ touch %s
 	}
 
 	env := map[string]string{
-		"XDG_CONFIG_HOME":           "/home/runner",
 		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
+		// Note: XDG_CONFIG_HOME is exported from the run script (see buildCopilotMCPConfigExport)
+		// rather than set here so $HOME is resolved at runtime; GitHub Actions does not
+		// shell-expand env: values, and HOME may differ from /home/runner on self-hosted runners.
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real
@@ -567,10 +592,9 @@ touch %s
 		env["GH_AW_VERSION"] = "dev"
 	}
 
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
-	}
+	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers.
+	// The value is exported from the run script (see buildCopilotMCPConfigExport) so
+	// that $HOME is resolved at runtime; GitHub Actions does not shell-expand env: values.
 
 	if hasGitHubTool(workflowData.ParsedTools) {
 		// If GitHub App is configured, use the app token minted directly in the agent job.

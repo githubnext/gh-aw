@@ -380,7 +380,7 @@ fi
 # Check for engine-specific indicators and call appropriate converter
 if [ -n "$GH_AW_ENGINE" ]; then
   ENGINE_TYPE="$GH_AW_ENGINE"
-elif [ -f "/home/runner/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
+elif [ -f "$HOME/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
   ENGINE_TYPE="copilot"
 elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
   ENGINE_TYPE="codex"
@@ -417,19 +417,19 @@ case "$ENGINE_TYPE" in
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"
     # Default fallback - copy to most common location, filtering out CLI-mounted servers
-    mkdir -p /home/runner/.copilot
+    mkdir -p "$HOME/.copilot"
     if [ -n "$GH_AW_MCP_CLI_SERVERS" ]; then
       if ! jq --argjson cliServers "$GH_AW_MCP_CLI_SERVERS" \
         '.mcpServers |= with_entries(select(.key | IN($cliServers[]) | not))' \
-        /tmp/gh-aw/mcp-config/gateway-output.json > /home/runner/.copilot/mcp-config.json; then
+        /tmp/gh-aw/mcp-config/gateway-output.json > "$HOME/.copilot/mcp-config.json"; then
         echo "ERROR: Failed to filter CLI-mounted servers from agent MCP config"
         echo "Falling back to unfiltered config"
-        cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+        cp /tmp/gh-aw/mcp-config/gateway-output.json "$HOME/.copilot/mcp-config.json"
       fi
     else
-      cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+      cp /tmp/gh-aw/mcp-config/gateway-output.json "$HOME/.copilot/mcp-config.json"
     fi
-    cat /home/runner/.copilot/mcp-config.json
+    cat "$HOME/.copilot/mcp-config.json"
     ;;
 esac
 print_timing $CONFIG_CONVERT_START "Configuration conversion"

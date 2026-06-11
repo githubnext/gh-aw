@@ -10,20 +10,43 @@ require("./shim.cjs");
  * Converts the MCP gateway's standard HTTP-based configuration to the format
  * expected by GitHub Copilot CLI. Reads the gateway output JSON, filters out
  * CLI-mounted servers, adds tools:["*"] if missing, rewrites URLs to use the
- * correct domain, and writes the result to /home/runner/.copilot/mcp-config.json.
+ * correct domain, and writes the result to $HOME/.copilot/mcp-config.json
+ * (typically /home/runner/.copilot/mcp-config.json on GitHub-hosted runners,
+ * but may differ on self-hosted or containerized runners where HOME varies).
  *
  * Required environment variables:
  * - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
  * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
  * - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
+ * - HOME: User home directory (standard POSIX env var inherited by the runner)
  *
  * Optional:
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
  */
 
+const path = require("path");
 const { rewriteUrl, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 
-const OUTPUT_PATH = "/home/runner/.copilot/mcp-config.json";
+/**
+ * Resolves the Copilot CLI MCP config output path from the runtime $HOME.
+ * The Copilot CLI uses ~/.copilot, which is /home/runner/.copilot on standard
+ * GitHub-hosted runners (HOME=/home/runner) but may differ on self-hosted or
+ * containerized runners. HOME is a standard POSIX environment variable inherited
+ * from the runner's parent process and passed through to shell steps; other
+ * generators (copilot_mcp.go, copilot_engine_execution.go) rely on it the same way.
+ *
+ * Exported for testability; throws Error rather than exiting so tests can
+ * exercise the missing-HOME branch.
+ *
+ * @returns {string}
+ */
+function resolveCopilotConfigOutputPath() {
+  const home = process.env.HOME;
+  if (!home) {
+    throw new Error("HOME environment variable is not set; cannot locate Copilot CLI config directory");
+  }
+  return path.join(home, ".copilot", "mcp-config.json");
+}
 
 /**
  * @param {Record<string, unknown>} entry
@@ -44,6 +67,14 @@ function transformCopilotEntry(entry, urlPrefix) {
 }
 
 function main() {
+  let outputPath;
+  try {
+    outputPath = resolveCopilotConfigOutputPath();
+  } catch (err) {
+    core.error(`ERROR: ${err.message}`);
+    process.exit(1);
+  }
+
   const { gatewayOutput, domain, port, urlPrefix, cliServers, servers } = loadGatewayContext();
 
   core.info("Converting gateway configuration to Copilot format...");
@@ -58,9 +89,9 @@ function main() {
   // Write with owner-only permissions (0o600) to protect the gateway bearer token.
   // An attacker who reads mcp-config.json could bypass --allowed-tools by issuing
   // raw JSON-RPC calls directly to the gateway.
-  writeSecureOutput(OUTPUT_PATH, output);
+  writeSecureOutput(outputPath, output);
 
-  core.info(`Copilot configuration written to ${OUTPUT_PATH}`);
+  core.info(`Copilot configuration written to ${outputPath}`);
   core.info("");
   core.info("Converted configuration:");
   core.info(output);
@@ -70,4 +101,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { rewriteUrl, transformCopilotEntry, main };
+module.exports = { rewriteUrl, transformCopilotEntry, resolveCopilotConfigOutputPath, main };
