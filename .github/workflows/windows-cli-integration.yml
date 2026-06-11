@@ -124,13 +124,16 @@ jobs:
             }
 
             $proc = [System.Diagnostics.Process]::Start($psi)
+            $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $proc.StandardError.ReadToEndAsync()
             if (-not $proc.WaitForExit($TimeoutMs)) {
               try { $proc.Kill($true) } catch {}
               throw "TIMEOUT: '$FilePath $($ArgumentList -join ' ')' exceeded ${TimeoutMs}ms"
             }
 
-            $stdout = $proc.StandardOutput.ReadToEnd()
-            $stderr = $proc.StandardError.ReadToEnd()
+            $proc.WaitForExit()
+            $stdout = $stdoutTask.GetAwaiter().GetResult()
+            $stderr = $stderrTask.GetAwaiter().GetResult()
             $output = "$stdout`n$stderr"
 
             if ($AssertNoAnsi -and $output -match "\x1B\[[0-9;]*[A-Za-z]") {
