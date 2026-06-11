@@ -873,6 +873,15 @@ describe("safe_output_type_validator", () => {
       expect(Array.isArray(result.normalizedItem.labels)).toBe(true);
     });
 
+    it("should normalize comma-separated labels string to array", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: "reliability, telemetry" }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual(["reliability", "telemetry"]);
+    });
+
     it("should reject array with non-string items", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 

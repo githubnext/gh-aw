@@ -409,6 +409,15 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   }
 
   if (validation.type === "array") {
+    // Backward compatibility: agents sometimes provide comma-separated labels as a string.
+    // Normalize this into a string array before strict array validation.
+    if (fieldName === "labels" && typeof value === "string") {
+      value = value
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean);
+    }
+
     if (!Array.isArray(value)) {
       // For required fields, use "requires a" format for both missing and wrong type
       if (validation.required) {
