@@ -1213,10 +1213,43 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/detection/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to ensure detection token usage file exists.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "Download usage artifact") {
-		t.Errorf("Expected conclusion job to download usage artifact (uploaded by agent job) before collecting usage files.\nGenerated steps:\n%s", allSteps)
+	// Download step is only emitted when firewall is enabled (non-firewall workflows have no artifact to download).
+	if strings.Contains(allSteps, "Download usage artifact") {
+		t.Errorf("Expected conclusion job NOT to download usage artifact when firewall is disabled.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "overwrite: true") {
 		t.Errorf("Expected usage artifact upload to use overwrite: true so the conclusion job's complete set replaces the agent job's initial upload.\nGenerated steps:\n%s", allSteps)
+	}
+}
+
+// TestConclusionJobDownloadsUsageArtifactWhenFirewallEnabled verifies that the conclusion job
+// includes a "Download usage artifact" step when the firewall is enabled. The agent job only
+// uploads the agent-usage artifact (aw-info.jsonl, agent_usage.jsonl) when firewall is enabled,
+// so the download step must be gated on the same condition to avoid "artifact not found" noise
+// in non-firewall workflow runs.
+func TestConclusionJobDownloadsUsageArtifactWhenFirewallEnabled(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "issues",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+	if !strings.Contains(allSteps, "Download usage artifact") {
+		t.Errorf("Expected conclusion job to download usage artifact when firewall is enabled.\nGenerated steps:\n%s", allSteps)
 	}
 }

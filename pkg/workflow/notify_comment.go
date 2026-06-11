@@ -75,7 +75,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
 	// Download the agent-usage artifact uploaded by the agent job (aw-info.jsonl, agent_usage.jsonl)
 	// so they are available when the usage artifact is assembled below.
-	steps = append(steps, buildUsageArtifactDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Only emit this step when the firewall is enabled, because the agent-usage artifact is only
+	// uploaded by the agent job when isFirewallEnabled — omitting it for non-firewall workflows
+	// avoids noisy "artifact not found" failures in the conclusion job logs.
+	if isFirewallEnabled(data) {
+		steps = append(steps, buildUsageArtifactDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	}
 	// Package a compact usage artifact so forecasting/analytics commands can fetch
 	// token usage and aw_info without downloading full agent artifacts.
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
