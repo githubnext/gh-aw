@@ -269,6 +269,13 @@ When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
 
+> [!NOTE]
+> Threat-detection runs have their own AI Credits cap, separate
+> from the main agent budget. See
+> [Threat Detection → Detection Budget](/gh-aw/reference/threat-detection/#detection-budget)
+> for `safe-outputs.threat-detection.max-ai-credits` (defaults to
+> `400`, overridable via `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`).
+
 ### Cap Turns per Run
 
 Use the top-level `max-turns` frontmatter field to cap the number
