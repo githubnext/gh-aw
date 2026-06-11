@@ -12,6 +12,9 @@ const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason",
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
 const MAX_AI_CREDITS_EXCEEDED_FIELDS = new Set(["max_ai_credits_exceeded", "maxAiCreditsExceeded"]);
 const BUDGET_EXCEEDED_EVENT = "budget_exceeded";
+// The literal error type emitted by the AWF API proxy (HTTP 400) when maxAiCredits is active
+// and the requested model is not in the built-in pricing table.
+const UNKNOWN_MODEL_AI_CREDITS_TYPE = "unknown_model_ai_credits";
 const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?/i;
 const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
 const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
@@ -252,6 +255,37 @@ function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
 }
 
 /**
+ * Detects an `unknown_model_ai_credits` error from the firewall audit log.
+ * This HTTP 400 error is emitted by the AWF API proxy when `maxAiCredits` is active and
+ * the requested model is not in the built-in pricing table and no `defaultAiCreditsPricing`
+ * fallback is configured.
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {boolean}
+ */
+function parseUnknownModelAICreditsFromAuditLog(auditJsonlPathOverride) {
+  return iterateAuditEntries(
+    auditJsonlPathOverride,
+    false,
+    content => content.includes(UNKNOWN_MODEL_AI_CREDITS_TYPE),
+    (acc, entry) => {
+      if (acc) return true;
+      if (!entry || typeof entry !== "object") return false;
+      const stack = [entry];
+      while (stack.length > 0) {
+        const node = stack.pop();
+        if (!node || typeof node !== "object") continue;
+        for (const [, value] of Object.entries(node)) {
+          if (value === UNKNOWN_MODEL_AI_CREDITS_TYPE) return true;
+          if (value && typeof value === "object") stack.push(value);
+        }
+      }
+      return false;
+    }
+  );
+}
+
+/**
  * Single-pass combined read of the audit log, returning all AI credits fields at once.
  * Used by resolveAICreditsFailureState to avoid reading the same file twice.
  * No contentGuard is applied: rate-limit signal detection must scan all entries anyway,
@@ -369,5 +403,6 @@ module.exports = {
   parseMaxAICreditsFromAuditLog,
   parseAICreditsErrorInfoFromAuditLog,
   parseMaxAICreditsExceededFromAuditLog,
+  parseUnknownModelAICreditsFromAuditLog,
   resolveAICreditsFailureState,
 };

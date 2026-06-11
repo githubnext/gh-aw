@@ -8,6 +8,7 @@ const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { formatModelEmojiAlias } = require("./model_aliases.cjs");
 const { computeInferenceAIC, formatAIC } = require("./model_costs.cjs");
 const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
+const { parseUnknownModelAICreditsFromAuditLog } = require("./ai_credits_context.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -29,6 +30,9 @@ const AI_CREDITS_RATE_LIMIT_PATTERNS = [
   /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i,
   /\b429\b.*(?:rate[\s-]*limit|too many requests|ai[\s_-]*credits?)/i,
 ];
+// Detects the AWF API proxy HTTP 400 error emitted when maxAiCredits is active and
+// the requested model is not in the built-in pricing table.
+const UNKNOWN_MODEL_AI_CREDITS_PATTERNS = [/\bunknown_model_ai_credits\b/i];
 
 /**
  * Formats milliseconds as a human-readable duration string.
@@ -251,6 +255,27 @@ function hasAICreditsRateLimitError(contents) {
 function setAICreditsRateLimitOutput(coreObj, value) {
   const strValue = value ? "true" : "false";
   coreObj.setOutput("ai_credits_rate_limit_error", strValue);
+}
+
+/**
+ * Detects `unknown_model_ai_credits` errors from gateway log text content.
+ * Also checks the firewall audit log via ai_credits_context.
+ * @param {string[]} contents
+ * @returns {boolean}
+ */
+function hasUnknownModelAICreditsError(contents) {
+  const joined = contents.filter(Boolean).join("\n");
+  if (joined && UNKNOWN_MODEL_AI_CREDITS_PATTERNS.some(pattern => pattern.test(joined))) return true;
+  return parseUnknownModelAICreditsFromAuditLog();
+}
+
+/**
+ * Exports unknown_model_ai_credits output.
+ * @param {typeof import('@actions/core')} coreObj
+ * @param {boolean} value
+ */
+function setUnknownModelAICreditsOutput(coreObj, value) {
+  coreObj.setOutput("unknown_model_ai_credits", value ? "true" : "false");
 }
 
 /**
@@ -797,6 +822,7 @@ async function main() {
     const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
     let aiCreditsRateLimitError = false;
+    let unknownModelAICredits = false;
 
     // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
@@ -811,6 +837,7 @@ async function main() {
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(jsonlContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(jsonlContent);
       aiCreditsRateLimitError ||= hasAICreditsRateLimitError([jsonlContent]);
+      unknownModelAICredits ||= hasUnknownModelAICreditsError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
@@ -830,6 +857,7 @@ async function main() {
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(rpcMessagesContent);
       aiCreditsRateLimitError ||= hasAICreditsRateLimitError([rpcMessagesContent]);
+      unknownModelAICredits ||= hasUnknownModelAICreditsError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
@@ -849,6 +877,7 @@ async function main() {
       if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
         aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayMdContent]);
+        unknownModelAICredits ||= hasUnknownModelAICreditsError([gatewayMdContent]);
 
         // Write the markdown directly to the step summary
         core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
@@ -870,6 +899,7 @@ async function main() {
         }
 
         setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
+        setUnknownModelAICreditsOutput(core, unknownModelAICredits);
         writeStepSummaryWithTokenUsage(core);
         return;
       }
@@ -900,6 +930,7 @@ async function main() {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
       }
       setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
+      setUnknownModelAICreditsOutput(core, unknownModelAICredits);
       writeStepSummaryWithTokenUsage(core);
       return;
     }
@@ -913,6 +944,7 @@ async function main() {
       gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
       core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
       aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayLogContent]);
+      unknownModelAICredits ||= hasUnknownModelAICreditsError([gatewayLogContent]);
     } else {
       core.info(`No gateway.log found at: ${gatewayLogPath}`);
     }
@@ -922,6 +954,7 @@ async function main() {
       stderrLogContent = fs.readFileSync(stderrLogPath, "utf8");
       core.info(`Found stderr.log (${stderrLogContent.length} bytes)`);
       aiCreditsRateLimitError ||= hasAICreditsRateLimitError([stderrLogContent]);
+      unknownModelAICredits ||= hasUnknownModelAICreditsError([stderrLogContent]);
     } else {
       core.info(`No stderr.log found at: ${stderrLogPath}`);
     }
@@ -936,6 +969,7 @@ async function main() {
     ) {
       core.info("MCP gateway log files are empty or missing");
       setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
+      setUnknownModelAICreditsOutput(core, unknownModelAICredits);
       writeStepSummaryWithTokenUsage(core);
       return;
     }
@@ -957,7 +991,7 @@ async function main() {
       core.summary.addRaw(fullSummary);
     }
     setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
-    writeStepSummaryWithTokenUsage(core);
+    setUnknownModelAICreditsOutput(core, unknownModelAICredits);
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }
@@ -1086,6 +1120,8 @@ if (typeof module !== "undefined" && module.exports) {
     generateTokenUsageSummary,
     formatDurationMs,
     hasAICreditsRateLimitError,
+    hasUnknownModelAICreditsError,
+    setUnknownModelAICreditsOutput,
   };
 }
 

@@ -230,6 +230,46 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 	}
 }
 
+func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
+	t.Run("no triggers", func(t *testing.T) {
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
+			{
+				Name:        "no-safe-outputs",
+				SafeOutputs: nil,
+			},
+		})
+		require.False(t, hasExpires)
+		require.Equal(t, 0, minExpires)
+		require.Empty(t, triggerReason)
+	})
+
+	t.Run("captures first trigger reason", func(t *testing.T) {
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
+			{
+				Name: "first-trigger",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{
+						Expires: 72,
+					},
+				},
+			},
+			{
+				Name: "second-trigger",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateDiscussions: &CreateDiscussionsConfig{
+						Expires: 24,
+					},
+				},
+			},
+		})
+		require.True(t, hasExpires)
+		require.Equal(t, 24, minExpires)
+		require.Contains(t, triggerReason, "first-trigger")
+		require.Contains(t, triggerReason, "safe_outputs.create_issues.expires=72h")
+		require.NotContains(t, triggerReason, "second-trigger")
+	})
+}
+
 func TestGenerateMaintenanceWorkflow_CreatesWorkflowDirRecursively(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowDir := filepath.Join(tmpDir, "nested", "workflows")

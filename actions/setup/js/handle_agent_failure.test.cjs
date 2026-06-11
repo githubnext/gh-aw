@@ -2206,7 +2206,52 @@ describe("handle_agent_failure", () => {
     });
   });
 
-  // buildMissingDataContext
+  // buildUnknownModelAICreditsContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildUnknownModelAICreditsContext", () => {
+    let buildUnknownModelAICreditsContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-unknown-model-aic-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildUnknownModelAICreditsContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when no unknown_model_ai_credits error", () => {
+      expect(buildUnknownModelAICreditsContext(false)).toBe("");
+    });
+
+    it("returns template content when error is true and template exists", () => {
+      const templateContent = "\n> [!WARNING]\n> **Unknown Model for AI Credits Pricing**: Test message.\n";
+      fs.writeFileSync(path.join(promptsDir, "unknown_model_ai_credits.md"), templateContent);
+      const result = buildUnknownModelAICreditsContext(true);
+      expect(result).toContain("Unknown Model for AI Credits Pricing");
+    });
+
+    it("throws when template is missing", () => {
+      expect(() => buildUnknownModelAICreditsContext(true)).toThrow(/ENOENT|no such file/i);
+    });
+  });
   // ──────────────────────────────────────────────────────
 
   describe("buildMissingDataContext", () => {

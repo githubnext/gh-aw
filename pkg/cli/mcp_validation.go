@@ -170,7 +170,7 @@ func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, 
 // validateMCPServerConfiguration validates that the CLI is properly configured
 // by running the status command as a test.
 // Diagnostics are emitted through the debug logger only.
-func validateMCPServerConfiguration(cmdPath string) error {
+func validateMCPServerConfiguration(ctx context.Context, cmdPath string, env []string) error {
 	mcpValidationLog.Printf("Validating MCP server configuration: cmdPath=%s", cmdPath)
 
 	// Determine, log, and validate the binary path only if --cmd flag is not provided
@@ -185,7 +185,7 @@ func validateMCPServerConfiguration(cmdPath string) error {
 	}
 
 	// Try to run the status command to verify CLI is working
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -198,7 +198,10 @@ func validateMCPServerConfiguration(cmdPath string) error {
 		// Use default gh aw command with proper token handling
 		cmd = workflow.ExecGHContext(ctx, "aw", "status")
 	}
-	output, err := cmd.CombinedOutput()
+	if env != nil {
+		cmd.Env = append([]string(nil), env...)
+	}
+	output, err := runMCPSubprocessCombinedOutput(ctx, cmd)
 
 	if err != nil {
 		// Check for common error cases

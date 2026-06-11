@@ -13,6 +13,7 @@ const {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildDoubleAttr,
   buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
   buildOTLPBatchPayload,
@@ -179,6 +180,25 @@ describe("buildAttr", () => {
   it("coerces non-string non-number non-boolean to stringValue", () => {
     // @ts-expect-error intentional type violation for coverage
     expect(buildAttr("k", null).value).toHaveProperty("stringValue");
+  });
+});
+
+describe("buildDoubleAttr", () => {
+  it("returns doubleValue for integer 0", () => {
+    expect(buildDoubleAttr("k", 0)).toEqual({ key: "k", value: { doubleValue: 0 } });
+  });
+
+  it("returns doubleValue for positive float", () => {
+    expect(buildDoubleAttr("k", 1.25)).toEqual({ key: "k", value: { doubleValue: 1.25 } });
+  });
+
+  it("returns doubleValue for positive integer", () => {
+    expect(buildDoubleAttr("k", 42)).toEqual({ key: "k", value: { doubleValue: 42 } });
+  });
+
+  it("falls back to doubleValue 0 for non-finite values", () => {
+    expect(buildDoubleAttr("k", Infinity).value).toEqual({ doubleValue: 0 });
+    expect(buildDoubleAttr("k", NaN).value).toEqual({ doubleValue: 0 });
   });
 });
 
@@ -5442,8 +5462,11 @@ describe("sendJobConclusionSpan", () => {
       // Sentry EAP indexes the field as numeric (not string) and Tempo can query
       // { span."gh-aw.aic" > 0 } without a manual schema override.
       expect(aicAttr).toBeDefined();
-      expect(aicAttr.value.intValue).toBe(0);
-      expect(typeof aicAttr.value.intValue).toBe("number");
+      // gh-aw.aic is declared as type `double` in the OTel spec; use doubleValue
+      // (not intValue) so Sentry EAP consistently indexes it as float even when
+      // the value is 0, enabling sum()/avg()/p95() rollups without schema overrides.
+      expect(aicAttr.value.doubleValue).toBe(0);
+      expect(typeof aicAttr.value.doubleValue).toBe("number");
     });
   });
 

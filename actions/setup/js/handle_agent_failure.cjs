@@ -195,6 +195,7 @@ function buildFailureMatchCategories(options) {
   if (options.mcpPolicyError) categories.push("mcp_policy_error");
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
   if (options.aiCreditsRateLimitError) categories.push("ai_credits_rate_limit_error");
+  if (options.unknownModelAICredits) categories.push("unknown_model_ai_credits");
   if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
@@ -1418,6 +1419,19 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Builds the unknown_model_ai_credits failure context block for templates.
+ * @param {boolean} hasUnknownModelAICreditsError
+ * @returns {string}
+ */
+function buildUnknownModelAICreditsContext(hasUnknownModelAICreditsError) {
+  if (!hasUnknownModelAICreditsError) {
+    return "";
+  }
+
+  return "\n" + renderPromptTemplate("unknown_model_ai_credits.md");
+}
+
+/**
  * Detect HTTP 429/rate-limit engine failures in text payloads.
  * @param {string} content
  * @returns {boolean}
@@ -2303,6 +2317,7 @@ async function main() {
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
+    const unknownModelAICredits = process.env.GH_AW_UNKNOWN_MODEL_AI_CREDITS === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
@@ -2369,6 +2384,7 @@ async function main() {
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
     core.info(`Model not supported error: ${modelNotSupportedError}`);
+    core.info(`Unknown model AI credits error: ${unknownModelAICredits}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -2643,6 +2659,7 @@ async function main() {
       mcpPolicyError,
       modelNotSupportedError,
       aiCreditsRateLimitError,
+      unknownModelAICredits,
       maxAICreditsExceeded,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
@@ -2774,6 +2791,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError || maxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
+        const unknownModelAICreditsContext = buildUnknownModelAICreditsContext(unknownModelAICredits);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -2824,6 +2842,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
+          unknown_model_ai_credits_context: unknownModelAICreditsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -3000,6 +3019,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const aiCreditsRateLimitErrorContext = buildAICreditsRateLimitErrorContext(aiCreditsRateLimitError || maxAICreditsExceeded, aiCredits, maxAICredits, runUrl);
+        const unknownModelAICreditsContext = buildUnknownModelAICreditsContext(unknownModelAICredits);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -3051,6 +3071,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
+          unknown_model_ai_credits_context: unknownModelAICreditsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -3154,6 +3175,7 @@ module.exports = {
   buildToolDenialsExceededContext,
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
+  buildUnknownModelAICreditsContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
   buildEngineRateLimit429Context,
