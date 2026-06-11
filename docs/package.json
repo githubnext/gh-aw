@@ -6,8 +6,8 @@
     "dev": "astro dev",
     "start": "astro dev",
     "prebuild": "npm run generate-agent-factory && npm run generate-model-tables && npm run build:slides",
-    "build": "astro build",
-    "build:slides": "mkdir -p public/js && cp node_modules/mermaid/dist/mermaid.min.js public/js/ && npx @marp-team/marp-cli slides/index.md --html --allow-local-files --theme slides/gh-aw-theme.css -o public/slides/index.html && mkdir -p public/slides && cp slides/*.pdf public/slides/",
+    "build": "rm -rf dist && astro build",
+    "build:slides": "mkdir -p public/slides && cp slides/github-agentic-workflows.pdf public/slides/github-agentic-workflows.pdf",
     "preview": "astro preview",
     "astro": "astro",
     "validate-links": "astro build",
@@ -25,6 +25,7 @@
     "astro": "^6.4.4",
     "astro-mermaid": "^2.0.2",
     "mermaid": "^11.15.0",
+    "pdfjs-dist": "^6.0.227",
     "sharp": "^0.34.5",
     "starlight-blog": "^0.26.1",
     "starlight-changelogs": "^0.5.0",
@@ -33,7 +34,6 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@marp-team/marp-cli": "^4.4.0",
     "@playwright/test": "^1.60.0",
     "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
