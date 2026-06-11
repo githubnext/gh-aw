@@ -4,6 +4,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { DefaultArtifactClient } = require("./artifact_client.cjs");
 
 const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
 const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
@@ -19,10 +20,9 @@ const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 
 /**
- * @returns {Promise<import("@actions/artifact").DefaultArtifactClient>}
+ * @returns {Promise<DefaultArtifactClient>}
  */
 async function getArtifactClient() {
-  const { DefaultArtifactClient } = await import("@actions/artifact");
   return new DefaultArtifactClient();
 }
 
@@ -78,7 +78,7 @@ function matchesGuardrailArtifactName(artifactName) {
 }
 
 /**
- * @param {import("@actions/artifact").DefaultArtifactClient} artifactClient
+ * @param {{ listArtifacts: Function, downloadArtifact: Function }} artifactClient
  * @param {number} runId
  * @param {string} token
  * @param {string} owner
