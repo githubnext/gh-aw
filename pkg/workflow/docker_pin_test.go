@@ -35,6 +35,13 @@ func TestApplyContainerPins(t *testing.T) {
 			expectedDigests: []string{"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"},
 		},
 		{
+			name:            "embedded firewall pin used when cache is absent",
+			images:          []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.0"},
+			pins:            nil,
+			expectedRefs:    []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.0@sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
+			expectedDigests: []string{"sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
+		},
+		{
 			name:   "pinned image replaced with digest reference",
 			images: []string{"node:lts-alpine"},
 			pins: map[string]ContainerPin{
