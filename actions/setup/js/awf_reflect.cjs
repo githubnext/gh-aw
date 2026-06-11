@@ -19,7 +19,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
-const { withRetry } = require("./error_recovery.cjs");
+const { withRetry, sleep } = require("./error_recovery.cjs");
 
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
@@ -38,6 +38,9 @@ const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
 const AWF_MODELS_URL_RETRY_BASE_MS = 250;
 // Cap for exponential backoff delay between retries.
 const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
+// Delay before the first models_url probe when using GitHub OIDC auth with the local api-proxy.
+// This reduces startup-race 503s while the proxy completes OIDC token exchange.
+const AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS_DEFAULT = 5000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
@@ -93,6 +96,22 @@ function extractModelIds(json) {
  * @returns {Promise<string[]|null>}
  */
 async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
+  let isInitialProbeDelayed = false;
+  try {
+    const modelsHost = new URL(modelsUrl).hostname.toLowerCase();
+    isInitialProbeDelayed = process.env.AWF_AUTH_TYPE === "github-oidc" && modelsHost === "api-proxy";
+  } catch {
+    // Ignore invalid URL parsing and proceed without startup delay.
+  }
+  if (isInitialProbeDelayed) {
+    const configuredDelay = Number.parseInt(process.env.AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS || "", 10);
+    const initialProbeDelay = Number.isFinite(configuredDelay) && configuredDelay >= 0 ? configuredDelay : AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS_DEFAULT;
+    if (initialProbeDelay > 0) {
+      logger(`awf-reflect: delaying initial models probe for ${modelsUrl} by ${initialProbeDelay}ms (AWF_AUTH_TYPE=github-oidc)`);
+      await sleep(initialProbeDelay);
+    }
+  }
+
   let attemptCounter = 0;
   const retryConfig = {
     maxRetries: AWF_MODELS_URL_MAX_ATTEMPTS - 1,
