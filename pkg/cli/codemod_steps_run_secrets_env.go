@@ -231,8 +231,10 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
 					break
 				}
-				// Skip bash comment lines – expressions inside comments are
+				// Skip shell comment lines – expressions inside # comments are
 				// documentation-only and must not generate env bindings.
+				// NOTE: heredoc boundaries are not tracked; lines starting with
+				// '#' inside a heredoc body are also skipped (follow-up needed).
 				if strings.HasPrefix(t, "#") {
 					continue
 				}
