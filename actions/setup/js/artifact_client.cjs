@@ -194,6 +194,17 @@ async function uploadFileToSignedURL(filePath, signedUploadURL, contentType) {
   return stats.size;
 }
 
+async function hashFile(filePath) {
+  const hash = crypto.createHash("sha256");
+  const nodeStream = fs.createReadStream(filePath);
+  await pipeline(nodeStream, async function* (source) {
+    for await (const chunk of source) {
+      hash.update(chunk);
+    }
+  });
+  return hash.digest("hex");
+}
+
 function formatRetentionTimestamp(retentionDays) {
   if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
     return "";
@@ -268,7 +279,7 @@ class DefaultArtifactClient {
       },
       redirect: "manual",
     });
-    if (redirectResponse.status !== 302) {
+    if (![301, 302, 303, 307, 308].includes(redirectResponse.status)) {
       throw new Error(`unable to download artifact: unexpected status ${redirectResponse.status}`);
     }
     const location = redirectResponse.headers.get("location");
@@ -319,7 +330,6 @@ class DefaultArtifactClient {
         throw new Error("skipArchive option is only supported when uploading a single file");
       }
       uploadPath = files[0];
-      artifactName = path.basename(uploadPath);
       contentType = "application/octet-stream";
     } else {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-upload-"));
@@ -347,7 +357,7 @@ class DefaultArtifactClient {
     }
 
     const uploadSize = await uploadFileToSignedURL(uploadPath, createResponse.signed_upload_url, contentType);
-    const sha256 = crypto.createHash("sha256").update(fs.readFileSync(uploadPath)).digest("hex");
+    const sha256 = await hashFile(uploadPath);
 
     const finalizeRequest = {
       workflow_run_backend_id: workflowRunBackendId,
