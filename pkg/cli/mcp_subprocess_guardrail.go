@@ -20,8 +20,16 @@ func newMCPSubprocessGuardrail(limit int) *mcpSubprocessGuardrail {
 }
 
 func (g *mcpSubprocessGuardrail) acquire(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	select {
 	case g.slots <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			g.release()
+			return err
+		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -50,10 +58,16 @@ func (g *mcpSubprocessGuardrail) combinedOutput(ctx context.Context, cmd *exec.C
 	return cmd.CombinedOutput()
 }
 
+// runMCPSubprocessOutput executes cmd under the shared MCP subprocess guardrail.
+// ctx governs slot acquisition and any subprocess cancellation only when cmd was
+// created with the same context (for example via exec.CommandContext or ExecGHContext).
 func runMCPSubprocessOutput(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 	return defaultMCPSubprocessGuardrail.output(ctx, cmd)
 }
 
+// runMCPSubprocessCombinedOutput executes cmd under the shared MCP subprocess
+// guardrail. ctx governs slot acquisition and any subprocess cancellation only
+// when cmd was created with the same context.
 func runMCPSubprocessCombinedOutput(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 	return defaultMCPSubprocessGuardrail.combinedOutput(ctx, cmd)
 }

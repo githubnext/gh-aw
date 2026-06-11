@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -74,8 +75,11 @@ Examples:
 // checkAndLogGHVersion checks if gh CLI is available and logs its version.
 // Diagnostics are emitted through the debug logger only.
 func checkAndLogGHVersion() {
-	cmd := workflow.ExecGH("version")
-	output, err := runMCPSubprocessCombinedOutput(context.Background(), cmd)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := workflow.ExecGHContext(ctx, "version")
+	output, err := runMCPSubprocessCombinedOutput(ctx, cmd)
 
 	if err != nil {
 		mcpLog.Print("WARNING: gh CLI not found in PATH")

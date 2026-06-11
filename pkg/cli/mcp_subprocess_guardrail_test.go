@@ -1,3 +1,5 @@
+//go:build !integration
+
 package cli
 
 import (
@@ -67,20 +69,57 @@ func TestMCPSubprocessGuardrailLimitsConcurrentAcquisitions(t *testing.T) {
 	close(errCh)
 
 	for err := range errCh {
-		require.NoError(t, err)
+		require.NoError(t, err, "goroutine should not receive an acquisition error")
 	}
 
-	assert.Equal(t, int32(maxActiveMCPChildProcesses), maxObserved.Load())
+	assert.Equal(t, int32(maxActiveMCPChildProcesses), maxObserved.Load(), "peak concurrent acquisitions should not exceed the guardrail limit")
 }
 
 func TestMCPSubprocessGuardrailAcquireHonorsContextCancellation(t *testing.T) {
 	guardrail := newMCPSubprocessGuardrail(1)
-	require.NoError(t, guardrail.acquire(context.Background()))
+	require.NoError(t, guardrail.acquire(context.Background()), "initial acquire on empty guardrail should succeed")
 	defer guardrail.release()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	err := guardrail.acquire(ctx)
-	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled, "acquire with a cancelled context should return context.Canceled")
+}
+
+func TestMCPSubprocessGuardrailAcquireHonorsCanceledContextWithAvailableSlot(t *testing.T) {
+	guardrail := newMCPSubprocessGuardrail(1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := guardrail.acquire(ctx)
+	require.ErrorIs(t, err, context.Canceled, "acquire with a cancelled context should fail even when a slot is available")
+}
+
+func TestMCPSubprocessGuardrailAcquireCancelsWhileBlocked(t *testing.T) {
+	guardrail := newMCPSubprocessGuardrail(1)
+	require.NoError(t, guardrail.acquire(context.Background()), "initial acquire on empty guardrail should succeed")
+	defer guardrail.release()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	startedCh := make(chan struct{})
+	errCh := make(chan error, 1)
+	go func() {
+		close(startedCh)
+		errCh <- guardrail.acquire(ctx)
+	}()
+
+	<-startedCh
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, context.Canceled, "blocked acquire should return context.Canceled after cancellation")
+	case <-time.After(time.Second):
+		t.Fatal("blocked acquire did not unblock after context cancellation")
+	}
 }
