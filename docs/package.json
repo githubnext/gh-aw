@@ -2,6 +2,9 @@
   "name": "docs",
   "type": "module",
   "version": "0.0.1",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
