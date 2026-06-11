@@ -773,7 +773,11 @@ describe("handle_agent_failure", () => {
         graphql: vi.fn(),
       };
 
-      await main();
+      try {
+        await main();
+      } finally {
+        delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
+      }
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
@@ -800,7 +804,11 @@ describe("handle_agent_failure", () => {
         graphql: vi.fn(),
       };
 
-      await main();
+      try {
+        await main();
+      } finally {
+        delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
+      }
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
