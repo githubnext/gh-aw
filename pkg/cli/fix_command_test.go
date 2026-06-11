@@ -482,7 +482,6 @@ func TestGetAllCodemods(t *testing.T) {
 	if len(codemods) == 0 {
 		t.Fatal("Expected at least one codemod, got none")
 	}
-
 	// Check for required codemods
 	expectedIDs := []string{
 		"timeout-minutes-migration",
@@ -515,6 +514,41 @@ func TestGetAllCodemods(t *testing.T) {
 			t.Errorf("Expected codemod with ID %s not found", expectedID)
 		}
 	}
+}
+
+func TestNewFixCommand_HasDisableCodemodFlag(t *testing.T) {
+	cmd := NewFixCommand()
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("disable-codemod")
+	require.NotNil(t, flag, "fix command should register --disable-codemod")
+	assert.Equal(t, "stringSlice", flag.Value.Type())
+	assert.Contains(t, flag.Usage, "Disable specific codemod IDs")
+}
+
+func TestRunFix_DisabledCodemodSkipsMatchingFix(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test.md")
+
+	content := `---
+on: workflow_dispatch
+timeout_minutes: 30
+---
+# Test Workflow
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	err := RunFix(FixConfig{
+		Write:              true,
+		WorkflowDir:        tmpDir,
+		DisabledCodemodIDs: []string{"timeout-minutes-migration"},
+	})
+	require.NoError(t, err)
+
+	updatedContent, err := os.ReadFile(workflowFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(updatedContent), "timeout_minutes: 30")
+	assert.NotContains(t, string(updatedContent), "timeout-minutes: 30")
 }
 
 func TestFixCommand_CommandToSlashCommandMigration(t *testing.T) {
