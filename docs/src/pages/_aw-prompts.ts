@@ -15,7 +15,7 @@ export interface AwPrompt {
 }
 
 function parseFrontmatterDescription(content: string): string {
-	const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+	const match = content.match(/^---[\r\n]+([\s\S]*?)[\r\n]+---/);
 	if (!match) return '';
 	// Simple key extraction – avoids pulling in a YAML parser at this layer
 	const descMatch = match[1].match(/^description:\s*(.+)$/m);
