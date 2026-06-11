@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"770a6f6dde8928b9b82a9d70c98815c6a2352c77013e24961f0e70c8767b9631","body_hash":"f59c2fe90e015dcc785c4941af762863e9e95653e19ebdccf2c9b563a44b57b7","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"a7da606789363306a701c2bbce25b8a98ea3ef1c70a6b3246f7d9a0920067357","body_hash":"daa9ee096708ff88e3e8fe3d4d6d6ec99b6f8848e09d57cdf7b02c67c6a71a8d","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60"}}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"f9f3042f7e2789586610d6e8b85c8f03e5195baf","version":"v7.2.0"},{"repo":"docker/setup-buildx-action","sha":"d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5","version":"v4.1.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.1","digest":"sha256:55149fa2daf8fa8afa2803f2ac1a3534591a7c96f173ee2aec9545fbe67305df","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.1@sha256:55149fa2daf8fa8afa2803f2ac1a3534591a7c96f173ee2aec9545fbe67305df"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.1","digest":"sha256:2802437f05830336ea3ae8639f628776608d14d95b5b3cf30f161eb505e29752","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.1@sha256:2802437f05830336ea3ae8639f628776608d14d95b5b3cf30f161eb505e29752"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.1","digest":"sha256:2e6dc98321dbf82840f83ec0ef8b198506149255a15d3a7854d59c0d34063e27","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.1@sha256:2e6dc98321dbf82840f83ec0ef8b198506149255a15d3a7854d59c0d34063e27"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.1","digest":"sha256:1f3df3207dc9faa9080088115ca50a5ab0d7a692c61dffa8c8898d0b7b750413","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.1@sha256:1f3df3207dc9faa9080088115ca50a5ab0d7a692c61dffa8c8898d0b7b750413"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.25","digest":"sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.25@sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -101,8 +101,10 @@ jobs:
       daily_effective_workflow_threshold: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}
       daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}
       engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
+      experiments: ${{ steps.pick-experiment.outputs.experiments }}
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
+      prefetch_strategy: ${{ steps.pick-experiment.outputs.prefetch_strategy }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
       setup-span-id: ${{ steps.setup.outputs.span-id }}
@@ -215,10 +217,45 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Restore experiment state from git
+        id: restore-experiment-state
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_EXPERIMENT_BRANCH: experiments/weeklyblogpostwriter
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/load_experiment_state_from_repo.cjs');
+            await main();
+      - name: Pick experiment variants
+        id: pick-experiment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_EXPERIMENT_SPEC: '{"prefetch_strategy":{"variants":["lazy","eager"],"description":"Tests whether pre-fetching GitHub releases and merged PRs in setup steps reduces agent turn count and run duration vs. letting the agent fetch lazily via tools","hypothesis":"H0: no change in agent_turn_count. H1: eager pre-fetching reduces agent turns by ≥20% and duration by ≥15% by eliminating tool round-trips for data gathering","metric":"agent_turn_count","secondary_metrics":["run_duration_ms","pr_creation_rate"],"guardrail_metrics":[{"name":"pr_creation_success_rate","direction":"min","threshold":"0.8"}],"min_samples":10,"weight":[50,50],"issue":38590,"start_date":"2026-06-11"}}'
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/pick_experiment.cjs');
+            await main();
+      - name: Upload experiment artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: weeklyblogpostwriter-experiment
+          path: /tmp/gh-aw/experiments
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
+          GH_AW_EXPERIMENTS_PREFETCH_STRATEGY: ${{ steps.pick-experiment.outputs.prefetch_strategy }}
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
@@ -295,6 +332,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPERIMENTS_PREFETCH_STRATEGY: ${{ steps.pick-experiment.outputs.prefetch_strategy }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -305,6 +343,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPERIMENTS_PREFETCH_STRATEGY: ${{ steps.pick-experiment.outputs.prefetch_strategy }}
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
@@ -332,6 +371,7 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
+                GH_AW_EXPERIMENTS_PREFETCH_STRATEGY: process.env.GH_AW_EXPERIMENTS_PREFETCH_STRATEGY,
                 GH_AW_EXPR_1A3A194A: process.env.GH_AW_EXPR_1A3A194A,
                 GH_AW_EXPR_463A214A: process.env.GH_AW_EXPR_463A214A,
                 GH_AW_EXPR_802A9F6A: process.env.GH_AW_EXPR_802A9F6A,
@@ -489,6 +529,40 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Start DIFC Proxy
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          DIFC_PROXY_POLICY: '{"allow-only":{"min-integrity":"approved","repos":["github/gh-aw"]}}'
+          DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.3.25'
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
+      - name: Pre-fetch release and merged PR data
+        if: ${{ needs.activation.outputs.prefetch_strategy == 'eager' }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gh-aw/agent
+
+          SINCE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Prefetching data since: $SINCE"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            | jq --arg since "$SINCE" '[.[] | select(.published_at != null and .published_at >= $since)]' \
+            > /tmp/gh-aw/agent/releases.json
+
+          gh api "search/issues?q=repo:${GITHUB_REPOSITORY}+is:pr+is:merged+merged:>=$SINCE&sort=updated&order=desc&per_page=100" \
+            | jq '.items' \
+            > /tmp/gh-aw/agent/merged-prs.json
+          echo "Wrote pre-fetched releases to /tmp/gh-aw/agent/releases.json"
+          echo "Wrote pre-fetched merged PRs to /tmp/gh-aw/agent/merged-prs.json"
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone wiki-memory branch (default)
         env:
@@ -540,6 +614,10 @@ jobs:
           GH_AW_APPROVAL_LABELS_EXTRA: cookie,community
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh"
+      - name: Stop DIFC Proxy
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh"
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -1153,6 +1231,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_experiments_state
       - push_repo_memory
       - safe_outputs
     if: >
@@ -1416,6 +1495,12 @@ jobs:
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+      - name: Download experiment artifact
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: weeklyblogpostwriter-experiment
+          path: /tmp/gh-aw/experiments/
       - name: Checkout repository for patch context
         if: needs.agent.outputs.has_patch == 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -1610,6 +1695,84 @@ jobs:
                 core.setFailed(msg);
               }
             }
+
+  push_experiments_state:
+    needs: activation
+    if: always() && (!cancelled()) && needs.activation.result == 'success'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Weekly Blog Post Writer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/weekly-blog-post-writer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_AWF_VERSION: "v0.27.1"
+          GH_AW_INFO_ENGINE_ID: "copilot"
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download experiment artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          name: weeklyblogpostwriter-experiment
+          path: /tmp/gh-aw/experiments
+      - name: Push experiment state to git
+        id: push_experiments_state
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_EXPERIMENT_BRANCH: experiments/weeklyblogpostwriter
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/push_experiment_state.cjs');
+            await main();
+      - name: Restore actions folder
+        if: always()
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions/setup
+          sparse-checkout-cone-mode: true
+          persist-credentials: false
 
   push_repo_memory:
     needs:
