@@ -2,7 +2,7 @@ package types
 
 // TokenClassWeights holds per-token-class weights for cost computation.
 // Each field corresponds to one token class; a zero value means "use default".
-// The JSON keys use underscores to match pkg/cli/data/model_multipliers.json format.
+// The JSON keys use underscores for stable wire compatibility.
 type TokenClassWeights struct {
 	Input       float64 `json:"input,omitempty"`
 	CachedInput float64 `json:"cached_input,omitempty"`
@@ -12,7 +12,7 @@ type TokenClassWeights struct {
 }
 
 // TokenWeights defines custom model cost information for AI Credits cost ratios.
-// It mirrors the structure of model_multipliers.json and allows per-workflow overrides.
+// It allows per-workflow overrides for model and token-class cost ratios.
 // Specified under engine.token-weights in the workflow frontmatter and stored in
 // aw_info.json at runtime.
 type TokenWeights struct {

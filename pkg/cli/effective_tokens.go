@@ -16,12 +16,10 @@ package cli
 //   - R  = reasoning tokens     (w_reason = 4.0 default)
 //   - m  = per-model multiplier relative to the reference model
 //
-// Token class weights and model multipliers are loaded from the embedded
-// data/model_multipliers.json file and can be updated without recompilation.
+// Token class weights and model costs are derived from embedded models catalog data.
 //
 // Key responsibilities:
-//   - Embedding model_multipliers.json at compile time
-//   - Applying token class weights before the model multiplier
+//   - Applying token class weights before model normalization
 //   - Computing effective tokens from raw per-model token usage data
 //   - Populating effective token counts on TokenUsageSummary after parsing
 

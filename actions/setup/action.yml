@@ -7,7 +7,7 @@ inputs:
     description: 'Destination directory for activation files (default: ${RUNNER_TEMP}/gh-aw/actions)'
     required: false
   safe-output-artifact-client:
-    description: 'Install @actions/artifact so upload_artifact.cjs can upload GitHub Actions artifacts via REST API directly'
+    description: 'Deprecated no-op (artifact support is now built into setup action scripts)'
     required: false
     default: 'false'
   job-name:

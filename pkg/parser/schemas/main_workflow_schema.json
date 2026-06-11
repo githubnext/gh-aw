@@ -11622,7 +11622,7 @@
             },
             "token-weights": {
               "type": "object",
-              "description": "Custom model token weights for AI Credits cost ratio adjustment. Overrides or extends the built-in model multipliers from model_multipliers.json. Useful for custom models or adjusted cost ratios.",
+              "description": "Custom model token weights for AI Credits cost ratio adjustment. Overrides or extends built-in model cost defaults. Useful for custom models or adjusted cost ratios.",
               "properties": {
                 "multipliers": {
                   "type": "object",

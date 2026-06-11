@@ -5,7 +5,7 @@
  * upload_artifact handler
  *
  * Validates artifact upload requests emitted by the model via the upload_artifact safe output
- * tool, then uploads the approved files directly via the @actions/artifact REST API client.
+ * tool, then uploads the approved files directly via the internal artifact client.
  *
  * Files can be pre-staged in /tmp/gh-aw/safeoutputs/upload-artifacts/ or referenced by their
  * original path.  When a requested path is not found in the staging directory the handler
@@ -34,6 +34,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
@@ -421,16 +422,14 @@ function deriveArtifactName(request, slotIndex) {
 }
 
 /**
- * Create or return the @actions/artifact DefaultArtifactClient.
+ * Create or return the internal DefaultArtifactClient.
  * global.__createArtifactClient can be set in tests to inject a mock client factory.
- * Uses dynamic import() because @actions/artifact v2+ is an ES module.
  * @returns {Promise<{ uploadArtifact: (name: string, files: string[], rootDir: string, opts: object) => Promise<{id?: number, size?: number}> }>}
  */
 async function getArtifactClient() {
   if (typeof global.__createArtifactClient === "function") {
     return global.__createArtifactClient();
   }
-  const { DefaultArtifactClient } = await import("@actions/artifact");
   return new DefaultArtifactClient();
 }
 
@@ -532,7 +531,7 @@ async function main(config = {}) {
     let artifactUrl = "";
 
     if (!isStaged) {
-      // Upload files directly via @actions/artifact REST API.
+      // Upload files directly via the internal artifact client.
       const absoluteFiles = files.map(f => path.join(STAGING_DIR, f));
       const client = await getArtifactClient();
       try {

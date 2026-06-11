@@ -569,6 +569,131 @@ steps:
 		assert.NotContains(t, result, "$env:EXPR_GITHUB_ACTOR", "bash step must not use $env:VARNAME")
 	})
 
+	t.Run("ignores expressions inside shell comment lines in run block", func(t *testing.T) {
+		// Expressions inside shell comments are documentation-only and must not
+		// generate env bindings or be rewritten.
+		content := `---
+on: workflow_dispatch
+steps:
+  - name: Use parsed value
+    env:
+      VALUE: ${{ steps.parse.outputs.value }}
+    run: |
+      echo "Got: $VALUE"
+      # Note: the prompt placeholders ${{ steps.parse.outputs.* }} resolve to
+      # empty strings because they're evaluated in a different context.
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"steps": []any{
+				map[string]any{
+					"name": "Use parsed value",
+					"env": map[string]any{
+						"VALUE": "${{ steps.parse.outputs.value }}",
+					},
+					"run": "echo \"Got: $VALUE\"\n# Note: the prompt placeholders ${{ steps.parse.outputs.* }} resolve to\n# empty strings because they're evaluated in a different context.",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.False(t, applied, "codemod should not modify content when only expression is in a bash comment")
+		assert.Equal(t, content, result, "content should be unchanged")
+		assert.NotContains(t, result, "EXPR_", "no EXPR_ bindings should be generated for comment-only expressions")
+		assert.Contains(t, result, "${{ steps.parse.outputs.* }}", "original comment text should be preserved verbatim")
+	})
+
+	t.Run("ignores expressions in shell comments but still hoists real run expressions", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+steps:
+  - name: Use parsed value
+    run: |
+      echo "${{ steps.parse.outputs.value }}"
+      # See also ${{ steps.parse.outputs.* }} for all outputs
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"steps": []any{
+				map[string]any{
+					"name": "Use parsed value",
+					"run":  "echo \"${{ steps.parse.outputs.value }}\"\n# See also ${{ steps.parse.outputs.* }} for all outputs",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply for real run expression")
+		assert.Contains(t, result, "EXPR_STEPS_PARSE_OUTPUTS_VALUE: ${{ steps.parse.outputs.value }}", "real expression should be hoisted")
+		assert.Contains(t, result, `echo "$EXPR_STEPS_PARSE_OUTPUTS_VALUE"`, "real expression reference should be rewritten")
+		assert.Contains(t, result, "${{ steps.parse.outputs.* }}", "comment expression should be preserved verbatim")
+		assert.NotContains(t, result, ": ${{ steps.parse.outputs.* }}", "wildcard comment expression must not generate an env binding")
+	})
+
+	t.Run("ignores expressions inside pwsh comment lines in run block", func(t *testing.T) {
+		// Expressions inside # comments are documentation-only for all shells,
+		// including PowerShell.
+		content := `---
+on: workflow_dispatch
+steps:
+  - name: PS step
+    shell: pwsh
+    run: |
+      Write-Output "hello"
+      # ${{ steps.parse.outputs.value }} is documented here
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"steps": []any{
+				map[string]any{
+					"name":  "PS step",
+					"shell": "pwsh",
+					"run":   "Write-Output \"hello\"\n# ${{ steps.parse.outputs.value }} is documented here",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.False(t, applied, "codemod should not modify content when only expression is in a comment")
+		assert.Equal(t, content, result, "content should be unchanged")
+		assert.NotContains(t, result, "EXPR_", "no EXPR_ bindings should be generated for comment-only expressions")
+	})
+
+	t.Run("ignores expressions in shell comments in folded run block", func(t *testing.T) {
+		// The comment-skip logic applies to folded-scalar (>) run blocks as well.
+		content := `---
+on: workflow_dispatch
+steps:
+  - name: Use value
+    run: >
+      echo "${{ steps.parse.outputs.value }}"
+      # doc ${{ steps.parse.outputs.* }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"steps": []any{
+				map[string]any{
+					"name": "Use value",
+					"run":  "echo \"${{ steps.parse.outputs.value }}\"\n# doc ${{ steps.parse.outputs.* }}",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "real expression should be hoisted")
+		assert.Contains(t, result, "EXPR_STEPS_PARSE_OUTPUTS_VALUE: ${{ steps.parse.outputs.value }}", "real expression should be hoisted to env")
+		assert.NotContains(t, result, ": ${{ steps.parse.outputs.* }}", "comment expression must not generate an env binding")
+		assert.Contains(t, result, "${{ steps.parse.outputs.* }}", "comment expression should be preserved verbatim")
+	})
+
 	t.Run("uses distinct bindings when different bodies collide to the same EXPR_ name", func(t *testing.T) {
 		// inputs.my-input and inputs.my_input both sanitize to EXPR_INPUTS_MY_INPUT.
 		// The second one must fall back to a hash-based name to avoid being silently
