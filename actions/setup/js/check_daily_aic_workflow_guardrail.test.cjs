@@ -413,6 +413,9 @@ describe("check_daily_aic_workflow_guardrail", () => {
     try {
       await expect(exports.main()).resolves.toBeUndefined();
       expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("true");
+      expect(coreOutputs["daily_effective_workflow_total_ai_credits"]).toBe("200");
+      expect(coreOutputs["daily_effective_workflow_total_effective_tokens"]).toBe("200");
+      expect(coreOutputs["daily_effective_workflow_threshold"]).toBe("100");
       expect(setFailed).toHaveBeenCalledTimes(1);
       expect(setFailed.mock.calls[0][0]).toMatch(/guardrail exceeded/i);
     } finally {

@@ -491,7 +491,11 @@ async function main() {
     }
 
     core.setOutput("daily_effective_workflow_exceeded", "true");
-    await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+    try {
+      await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+    } catch (summaryError) {
+      core.warning(`Failed to write daily AIC summary: ${getErrorMessage(summaryError)}`);
+    }
     core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
     core.setFailed(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
