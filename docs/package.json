@@ -10,7 +10,7 @@
     "start": "astro dev",
     "prebuild": "npm run generate-agent-factory && npm run generate-model-tables && npm run build:slides",
     "build": "rm -rf dist && astro build",
-    "build:slides": "mkdir -p public/slides && cp slides/github-agentic-workflows.pdf public/slides/github-agentic-workflows.pdf",
+    "build:slides": "head -c 5 slides/github-agentic-workflows.pdf | grep -q '%PDF-' && mkdir -p public/slides && cp slides/github-agentic-workflows.pdf public/slides/github-agentic-workflows.pdf || (echo 'slides/github-agentic-workflows.pdf is not a real PDF. Did checkout skip Git LFS?' >&2; exit 1)",
     "preview": "astro preview",
     "astro": "astro",
     "validate-links": "astro build",

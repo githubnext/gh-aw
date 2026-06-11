@@ -32,12 +32,25 @@ const deck = {
     const root = document.querySelector('[data-slide-hero]');
     if (!root) throw new Error('Slide hero root not found');
 
+    /** @type {HTMLElement | null} */
+    let heroRoot = null;
+
     function mountIntoHero() {
       const hero = document.querySelector('.hero');
-      if (!hero || root.parentElement === hero) return;
+      if (!hero) return;
+
+      heroRoot = hero;
+      hero.dataset.workflowHeroMounted = 'true';
+      if (root.parentElement === hero) return;
 
       hero.append(root);
       root.classList.add('workflow-hero--mounted');
+    }
+
+    function unmountFromHero() {
+      stopCarousel();
+      root.remove();
+      heroRoot?.removeAttribute('data-workflow-hero-mounted');
     }
 
     mountIntoHero();
@@ -131,7 +144,7 @@ const deck = {
         startCarousel();
       } catch (error) {
         console.error('Failed to load PDF slides', error);
-        if (loading) loading.textContent = 'Unable to load slides';
+        unmountFromHero();
       }
     }
 
@@ -247,7 +260,7 @@ const deck = {
   }
 
   @media (min-width: 50rem) {
-    :global(.hero) {
+    :global(.hero[data-workflow-hero-mounted='true']) {
       grid-template-columns: minmax(0, 7fr) minmax(0, 13fr);
       align-items: center;
       gap: 1.5rem;

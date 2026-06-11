@@ -122,9 +122,11 @@ test.describe('Slide Preview on Homepage', () => {
     // Wait a bit for the error to be displayed
     await page.waitForTimeout(2000);
 
-    // Verify error message is displayed
-    const loading = page.locator('[data-slide-loading]');
-    const errorText = await loading.textContent();
-    expect(errorText).toContain('Unable to load slides');
+    // Verify the slide preview is removed so the default hero layout remains.
+    const slideHero = page.locator('[data-slide-hero]');
+    await expect(slideHero).toHaveCount(0);
+
+    const hero = page.locator('.hero');
+    await expect(hero).not.toHaveAttribute('data-workflow-hero-mounted', 'true');
   });
 });
