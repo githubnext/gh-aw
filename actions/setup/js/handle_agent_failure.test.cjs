@@ -1319,8 +1319,7 @@ describe("handle_agent_failure", () => {
       const result = buildSecretVerificationContext("failed", "copilot");
       expect(result).toContain("Secret Verification Failed");
       expect(result).toContain("required secrets are configured");
-      expect(result).toContain("copilot-requests: write");
-      expect(result).toContain("permissions");
+      expect(result).toContain("```yaml\npermissions:\n  copilot-requests: write\n```");
     });
   });
 

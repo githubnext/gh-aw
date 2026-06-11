@@ -1888,7 +1888,8 @@ function buildSecretVerificationContext(secretVerificationResult, engineId) {
 
   if (engineId === "copilot") {
     context +=
-      "\n**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding `permissions: copilot-requests: write` to your workflow frontmatter. This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
+      "\n**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding the following to your workflow frontmatter. This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
+      "\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
       "\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n";
   }
 
