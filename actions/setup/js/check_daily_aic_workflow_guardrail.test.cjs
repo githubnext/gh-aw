@@ -323,4 +323,111 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete process.env.GH_AW_GITHUB_TOKEN;
     }
   });
+
+  it("main() marks the step failed when the daily AI Credits guardrail is exceeded", async () => {
+    const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-guardrail-exceeded-"));
+    fs.writeFileSync(path.join(artifactDir, "token-usage.jsonl"), JSON.stringify({ usage: { aic: 200 } }) + "\n", "utf8");
+
+    vi.doMock("@actions/artifact", () => ({
+      DefaultArtifactClient: class {
+        async listArtifacts() {
+          return { artifacts: [{ id: 123, name: "usage" }] };
+        }
+        async downloadArtifact() {
+          return { downloadPath: artifactDir };
+        }
+      },
+    }));
+
+    const coreOutputs = {};
+    const setFailed = vi.fn();
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      setFailed,
+      info: () => {},
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    const nowIso = new Date().toISOString();
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 777,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => ({
+            data: {
+              workflow_runs: [
+                {
+                  id: 41,
+                  html_url: "https://example.test/runs/41",
+                  created_at: nowIso,
+                  conclusion: "success",
+                },
+              ],
+            },
+            headers: {},
+          }),
+        },
+      },
+    };
+
+    const mockContext = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 42,
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "100";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GH_AW_WORKFLOW_NAME = "Daily Guardrail Test";
+    process.env.GH_AW_WORKFLOW_ID = "daily-guardrail-test";
+    process.env.GITHUB_TRIGGERING_ACTOR = "octocat";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+      expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("true");
+      expect(coreOutputs["daily_effective_workflow_total_ai_credits"]).toBe("200");
+      expect(coreOutputs["daily_effective_workflow_total_effective_tokens"]).toBe("200");
+      expect(coreOutputs["daily_effective_workflow_threshold"]).toBe("100");
+      expect(setFailed).toHaveBeenCalledTimes(1);
+      expect(setFailed.mock.calls[0][0]).toMatch(/guardrail exceeded/i);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GITHUB_TRIGGERING_ACTOR;
+      vi.doUnmock("@actions/artifact");
+    }
+  });
 });

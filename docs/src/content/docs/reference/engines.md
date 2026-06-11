@@ -185,7 +185,7 @@ Set `COPILOT_PROVIDER_BASE_URL` in `engine.env` to activate BYOK mode. The crede
 
 | Variable | Required | Description |
 |---|---|---|
-| `COPILOT_PROVIDER_BASE_URL` | ✅ for BYOK | Base URL of the external provider (e.g. `https://api.openai.com/v1`) |
+| `COPILOT_PROVIDER_BASE_URL` | ✅ for BYOK | Base URL of the external provider (e.g. `https://api.openai.com/v1` or `https://RESOURCE.openai.azure.com/openai/v1` for Azure Foundry OpenAI) |
 | `COPILOT_MODEL` | ✅ for BYOK | Model to use (e.g. `claude-sonnet-4`, `gpt-4o`); required by most providers |
 | `COPILOT_PROVIDER_API_KEY` | Optional | API key for cloud providers (OpenAI, Anthropic, etc.); not needed for local providers |
 | `COPILOT_PROVIDER_BEARER_TOKEN` | Optional | Bearer token alternative to `COPILOT_PROVIDER_API_KEY`; takes precedence when set |
@@ -215,6 +215,48 @@ network:
 
 > [!NOTE]
 > Credentials are kept out of the agent container — only a dummy API key activating the AWF BYOK detection path is visible to the agent process; the real credential is isolated in the AWF API proxy sidecar. See [AWF sandbox architecture](/gh-aw/reference/sandbox/).
+
+#### Azure Foundry OpenAI
+
+Azure Foundry OpenAI supports the newer OpenAI v1 URL style. Set
+`COPILOT_PROVIDER_BASE_URL` to the resource endpoint with the `/openai/v1`
+path, then choose one authentication method:
+
+```yaml wrap
+engine:
+  id: copilot
+  model: o4-mini-aw
+  env:
+    COPILOT_PROVIDER_BASE_URL: https://RESOURCE.openai.azure.com/openai/v1
+    COPILOT_PROVIDER_API_KEY: ${{ secrets.FOUNDRY_API_KEY }}
+    COPILOT_PROVIDER_WIRE_API: responses
+
+network:
+  allowed:
+    - defaults
+    - RESOURCE.openai.azure.com
+```
+
+For Entra authentication, omit `COPILOT_PROVIDER_API_KEY` and configure
+GitHub OIDC in `engine.auth`:
+
+```yaml wrap
+permissions:
+  id-token: write
+
+engine:
+  id: copilot
+  model: o4-mini-aw
+  auth:
+    type: github-oidc
+  env:
+    COPILOT_PROVIDER_BASE_URL: https://RESOURCE.openai.azure.com/openai/v1
+    COPILOT_PROVIDER_WIRE_API: responses
+
+network:
+  allowed:
+    - defaults
+    - RESOURCE.openai.azure.com
 
 ### Engine Command-Line Arguments
 
