@@ -1874,7 +1874,7 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
  * For the Copilot engine, adds a suggestion to use `permissions.copilot-requests: write`
  * to enable Copilot inference through the org without a personal access token.
  * @param {string} secretVerificationResult - The secret verification result ("failed" or other)
- * @param {string} engineId - The lowercase engine ID (e.g. "copilot")
+ * @param {string} engineId - The engine ID (e.g. "copilot")
  * @returns {string} Formatted context string, or empty string if verification did not fail
  */
 function buildSecretVerificationContext(secretVerificationResult, engineId) {
@@ -1886,9 +1886,9 @@ function buildSecretVerificationContext(secretVerificationResult, engineId) {
     buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
     "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n";
 
-  if (engineId === "copilot") {
+  if ((engineId || "").toLowerCase() === "copilot") {
     context +=
-      "\n**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding the following to your workflow frontmatter. This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
+      "\n**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
       "\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
       "\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n";
   }

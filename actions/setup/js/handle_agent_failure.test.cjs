@@ -1315,11 +1315,14 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("copilot-requests");
     });
 
-    it("returns copilot-specific message with permissions.copilot-requests:write suggestion when verification failed", () => {
+    it("returns copilot-specific message with copilot-requests: write permissions suggestion when verification failed", () => {
       const result = buildSecretVerificationContext("failed", "copilot");
+      const mixedCaseResult = buildSecretVerificationContext("failed", "Copilot");
       expect(result).toContain("Secret Verification Failed");
       expect(result).toContain("required secrets are configured");
       expect(result).toContain("```yaml\npermissions:\n  copilot-requests: write\n```");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/engines/#github-copilot-default");
+      expect(mixedCaseResult).toContain("copilot-requests: write");
     });
   });
 
