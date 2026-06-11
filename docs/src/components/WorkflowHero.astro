@@ -76,8 +76,8 @@ function unmountFromHero() {
     let renderVersion = 0;
     /** @type {number | undefined} */
     let autoplayTimer;
-    const minimumStageDimension = 1;
-    const minimumRenderScale = 0.1;
+    const MINIMUM_STAGE_DIMENSION = 1;
+    const MINIMUM_RENDER_SCALE = 0.1;
 
     function stopCarousel() {
       window.clearInterval(autoplayTimer);
@@ -106,13 +106,14 @@ function unmountFromHero() {
       const devicePixelRatio = window.devicePixelRatio || 1;
       const baseViewport = page.getViewport({ scale: 1 });
       const stageStyles = window.getComputedStyle(stage);
-      const horizontalInset = parseFloat(stageStyles.paddingLeft) + parseFloat(stageStyles.paddingRight);
-      const verticalInset = parseFloat(stageStyles.paddingTop) + parseFloat(stageStyles.paddingBottom);
-      const availableWidth = Math.max(stage.clientWidth - horizontalInset, minimumStageDimension);
-      const availableHeight = Math.max(stage.clientHeight - verticalInset, minimumStageDimension);
+      const parseInset = (value) => Number.parseFloat(value) || 0;
+      const horizontalInset = parseInset(stageStyles.paddingLeft) + parseInset(stageStyles.paddingRight);
+      const verticalInset = parseInset(stageStyles.paddingTop) + parseInset(stageStyles.paddingBottom);
+      const availableWidth = Math.max(stage.clientWidth - horizontalInset, MINIMUM_STAGE_DIMENSION);
+      const availableHeight = Math.max(stage.clientHeight - verticalInset, MINIMUM_STAGE_DIMENSION);
       const scale = Math.max(
         Math.min(availableWidth / baseViewport.width, availableHeight / baseViewport.height),
-        minimumRenderScale,
+        MINIMUM_RENDER_SCALE,
       );
       const viewport = page.getViewport({ scale });
 
