@@ -320,7 +320,7 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
   const envAICredits = parsePositiveNumberString(process.env.GH_AW_AIC);
   const envMaxAICredits = parsePositiveNumberString(process.env.GH_AW_MAX_AI_CREDITS);
   const envRateLimitSignal = process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR === "true";
-  const envRateLimitSignalHasEvidence = envRateLimitSignal && (auditAICredits || stdioSignals.aiCredits || envAICredits);
+  const envRateLimitSignalHasEvidence = envRateLimitSignal && !!(auditAICredits || stdioSignals.aiCredits || envAICredits);
 
   // Log provenance so failing issues can be diagnosed when credit data is missing.
   if (logProvenance) {
