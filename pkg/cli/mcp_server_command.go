@@ -61,7 +61,7 @@ Examples:
   GITHUB_ACTOR=octocat gh aw mcp-server                # Set actor via environment variable for access control
   DEBUG=mcp:* GITHUB_ACTOR=octocat gh aw mcp-server    # Run with verbose debug logging and actor set via environment variable`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMCPServer(port, cmdPath, validateActor)
+			return runMCPServer(cmd.Context(), port, cmdPath, validateActor)
 		},
 	}
 
@@ -74,11 +74,12 @@ Examples:
 
 // checkAndLogGHVersion checks if gh CLI is available and logs its version.
 // Diagnostics are emitted through the debug logger only.
-func checkAndLogGHVersion() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func checkAndLogGHVersion(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	cmd := workflow.ExecGHContext(ctx, "version")
+	setNonInteractiveCIEnv(cmd)
 	output, err := runMCPSubprocessCombinedOutput(ctx, cmd)
 
 	if err != nil {
@@ -92,7 +93,7 @@ func checkAndLogGHVersion() {
 }
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
-func runMCPServer(port int, cmdPath string, validateActor bool) error {
+func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor bool) error {
 	// Get actor from environment variable
 	actor := os.Getenv("GITHUB_ACTOR")
 
@@ -132,12 +133,12 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 	}
 
 	// Check and log gh CLI version
-	checkAndLogGHVersion()
+	checkAndLogGHVersion(ctx)
 
 	// Validate that the CLI and secrets are properly configured
 	// Note: Validation failures are logged as warnings but don't prevent server startup
 	// This allows the server to start in test environments or non-repository directories
-	if err := validateMCPServerConfiguration(cmdPath); err != nil {
+	if err := validateMCPServerConfiguration(ctx, cmdPath); err != nil {
 		mcpLog.Printf("Configuration validation warning: %v", err)
 	}
 
@@ -172,5 +173,5 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 
 	// Run stdio transport
 	mcpLog.Print("MCP server ready on stdio")
-	return server.Run(context.Background(), &mcp.StdioTransport{})
+	return server.Run(ctx, &mcp.StdioTransport{})
 }

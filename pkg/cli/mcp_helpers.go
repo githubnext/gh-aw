@@ -7,7 +7,9 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -66,4 +68,25 @@ func logAndValidateBinaryPath() (string, error) {
 	// Log the binary path for debugging
 	mcpHelpersLog.Printf("gh-aw binary path: %s", binaryPath)
 	return binaryPath, nil
+}
+
+func setNonInteractiveCIEnv(cmd *exec.Cmd) {
+	if cmd == nil {
+		return
+	}
+
+	env := cmd.Env
+	if env == nil {
+		env = os.Environ()
+	}
+
+	for i, entry := range env {
+		if strings.HasPrefix(entry, "CI=") {
+			env[i] = "CI=1"
+			cmd.Env = env
+			return
+		}
+	}
+
+	cmd.Env = append(env, "CI=1")
 }
