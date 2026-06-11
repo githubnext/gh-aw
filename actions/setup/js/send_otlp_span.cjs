@@ -104,6 +104,22 @@ function buildAttr(key, value) {
 }
 
 /**
+ * Build an OTLP key-value attribute whose wire type is always `doubleValue`.
+ * Use for OTel attributes declared as `double` in the observability spec
+ * (e.g. `gh-aw.aic`) so that Sentry EAP infers the field schema as float
+ * rather than int — enabling sum()/avg()/percentile() rollups even when the
+ * value is 0, which JavaScript treats as an integer and `buildAttr` would
+ * encode as `intValue`, potentially creating a type mismatch across spans.
+ *
+ * @param {string} key
+ * @param {number} value
+ * @returns {{ key: string, value: { doubleValue: number } }}
+ */
+function buildDoubleAttr(key, value) {
+  return { key, value: { doubleValue: typeof value === "number" && Number.isFinite(value) ? value : 0 } };
+}
+
+/**
  * Build an OTLP key-value attribute with an array of string values.
  * Used for OTel attributes whose type is `string[]`, such as
  * `gen_ai.response.finish_reasons`.
@@ -2099,7 +2115,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
   const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile ?? 0))) : undefined;
   if (typeof aiCredits === "number") {
-    attributes.push(buildAttr("gh-aw.aic", aiCredits));
+    // Always encode gh-aw.aic as doubleValue (not intValue) so that Sentry EAP
+    // infers the field schema as float on first emission, enabling sum()/avg()/
+    // percentile() aggregations even when the value is 0 (an integer in JS).
+    attributes.push(buildDoubleAttr("gh-aw.aic", aiCredits));
   }
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
@@ -2411,6 +2430,7 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildDoubleAttr,
   buildArrayAttr,
   buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
