@@ -125,7 +125,6 @@ const deck = {
       try {
         const task = pdfjsLib.getDocument({
           url: pdfSrc,
-          disableWorker: true,
         });
         pdfDocument = await task.promise;
         await renderPage(1);
