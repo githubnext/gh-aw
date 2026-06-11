@@ -38,6 +38,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
@@ -66,6 +67,7 @@ func main() {
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
+		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 	)
