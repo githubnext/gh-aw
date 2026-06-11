@@ -76,7 +76,7 @@ auth := &types.MCPAuthConfig{
 
 ### `TokenWeights`
 
-Defines custom model cost information for effective token computation. Specified under `engine.token-weights` in workflow frontmatter and stored in `aw_info.json` at runtime.
+Defines custom model cost information for AI Credits cost ratios. Specified under `engine.token-weights` in workflow frontmatter and stored in `aw_info.json` at runtime.
 
 ```go
 weights := types.TokenWeights{
@@ -92,7 +92,7 @@ weights := types.TokenWeights{
 
 ### `TokenClassWeights`
 
-Per-token-class weights for effective token computation. Each field corresponds to one token class; a zero value means "use the default weight".
+Per-token-class weights for cost computation. Each field corresponds to one token class; a zero value means "use the default weight".
 
 | Field | Token class |
 |-------|-------------|

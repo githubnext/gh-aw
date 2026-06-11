@@ -21,8 +21,8 @@ experiments:
   model_size:
     variants: [gpt-5.4, gpt-5-codex]
     description: "Compares codex-compatible models for cache issue detection quality and efficiency."
-    hypothesis: "H0: no change in issue creation rate or run success rate. H1: gpt-5-codex reduces effective tokens while keeping run success rate >=0.90."
-    metric: effective_tokens_total
+    hypothesis: "H0: no change in issue creation rate or run success rate. H1: gpt-5-codex reduces AI Credits while keeping run success rate >=0.90."
+    metric: ai_credits_total
     secondary_metrics: [run_success_rate, run_duration_ms]
     guardrail_metrics:
       - name: run_success_rate

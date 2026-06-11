@@ -2736,7 +2736,7 @@
       ]
     },
     "models": {
-      "description": "Custom model pricing data in the same structure as models.json. Merged with the built-in models.json at runtime; frontmatter entries override matching models and fill gaps for unknown models. Useful for custom or private models, or to adjust pricing for effective-token cost accounting.",
+      "description": "Custom model pricing data in the same structure as models.json. Merged with the built-in models.json at runtime; frontmatter entries override matching models and fill gaps for unknown models. Useful for custom or private models, or to adjust pricing for AI Credits cost accounting.",
       "type": "object",
       "required": ["providers"],
       "properties": {
@@ -2837,7 +2837,7 @@
               },
               "metric": {
                 "type": "string",
-                "description": "Primary metric to observe (e.g. 'effective_tokens')."
+                "description": "Primary metric to observe (e.g. 'ai_credits_total')."
               },
               "weight": {
                 "type": "array",
@@ -2953,9 +2953,9 @@
         {
           "prompt_style": {
             "variants": ["concise", "verbose"],
-            "description": "Test whether concise vs verbose prompts reduce token consumption",
-            "hypothesis": "H0: no change in tokens. H1: concise reduces by >=15%",
-            "metric": "effective_tokens",
+            "description": "Test whether concise vs verbose prompts reduce AI Credits consumption",
+            "hypothesis": "H0: no change in AI Credits. H1: concise reduces by >=15%",
+            "metric": "ai_credits_total",
             "secondary_metrics": ["duration_ms", "discussion_word_count"],
             "guardrail_metrics": [
               {
@@ -11622,7 +11622,7 @@
             },
             "token-weights": {
               "type": "object",
-              "description": "Custom model token weights for effective token computation. Overrides or extends the built-in model multipliers from model_multipliers.json. Useful for custom models or adjusted cost ratios.",
+              "description": "Custom model token weights for AI Credits cost ratio adjustment. Overrides or extends the built-in model multipliers from model_multipliers.json. Useful for custom models or adjusted cost ratios.",
               "properties": {
                 "multipliers": {
                   "type": "object",

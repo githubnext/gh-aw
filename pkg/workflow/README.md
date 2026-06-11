@@ -139,7 +139,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `Agent` | `string` | `engine.agent` | Agent identifier for `copilot --agent` flag (copilot engine only) |
 | `APITarget` | `string` | `engine.api-target` | Custom API endpoint hostname |
 | `Bare` | `bool` | `engine.bare` | Disables automatic loading of context/instructions |
-| `TokenWeights` | `*types.TokenWeights` | `engine.token-weights` | Custom model cost data for effective token computation |
+| `TokenWeights` | `*types.TokenWeights` | `engine.token-weights` | Custom model cost data for AI Credits cost ratios |
 | `IsInlineDefinition` | `bool` | _(internal)_ | `true` when engine is defined inline via `engine.runtime` |
 | `MCPSessionTimeout` | `string` | `engine.mcp.session-timeout` | Go duration for MCP gateway sessions (e.g. `"4h"`) |
 | `MCPToolTimeout` | `string` | `engine.mcp.tool-timeout` | Go duration for individual MCP tool calls (e.g. `"2m"`) |

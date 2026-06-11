@@ -1,10 +1,11 @@
 package cli
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -246,32 +247,32 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 		})
 	}
 
-	sort.Slice(buckets, func(i, j int) bool {
-		if buckets[i].ContributedValue != buckets[j].ContributedValue {
-			return buckets[i].ContributedValue > buckets[j].ContributedValue
+	slices.SortFunc(buckets, func(a, b historicalObjectiveBucket) int {
+		if a.ContributedValue != b.ContributedValue {
+			return cmp.Compare(b.ContributedValue, a.ContributedValue)
 		}
-		if buckets[i].Count != buckets[j].Count {
-			return buckets[i].Count > buckets[j].Count
+		if a.Count != b.Count {
+			return cmp.Compare(b.Count, a.Count)
 		}
-		if buckets[i].MappedValue != buckets[j].MappedValue {
-			return buckets[i].MappedValue > buckets[j].MappedValue
+		if a.MappedValue != b.MappedValue {
+			return cmp.Compare(b.MappedValue, a.MappedValue)
 		}
-		return buckets[i].Label < buckets[j].Label
+		return strings.Compare(a.Label, b.Label)
 	})
 
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].ObjectiveValue != rows[j].ObjectiveValue {
-			return rows[i].ObjectiveValue > rows[j].ObjectiveValue
+	slices.SortFunc(rows, func(a, b historicalObjectiveItem) int {
+		if a.ObjectiveValue != b.ObjectiveValue {
+			return cmp.Compare(b.ObjectiveValue, a.ObjectiveValue)
 		}
-		leftTime := rows[i].ClosedAt
+		leftTime := a.ClosedAt
 		if leftTime == "" {
-			leftTime = rows[i].MergedAt
+			leftTime = a.MergedAt
 		}
-		rightTime := rows[j].ClosedAt
+		rightTime := b.ClosedAt
 		if rightTime == "" {
-			rightTime = rows[j].MergedAt
+			rightTime = b.MergedAt
 		}
-		return leftTime < rightTime
+		return strings.Compare(leftTime, rightTime)
 	})
 
 	representative := make([]historicalObjectiveItem, 0, min(len(rows), 15))

@@ -23,7 +23,7 @@ experiments:
     variants: [claude-sonnet-4.6, claude-haiku-4.5]
     description: "Tests whether Claude Haiku produces equivalent instruction conciseness improvements at lower token cost versus Claude Sonnet."
     hypothesis: "H0: no change in PR creation rate or run success rate. H1: Claude Haiku reduces AI credit usage >=30% with equivalent run success rate (>=0.90)."
-    metric: effective_tokens_total
+    metric: ai_credits_total
     secondary_metrics: [run_success_rate, run_duration_ms]
     guardrail_metrics:
       - name: run_success_rate

@@ -140,6 +140,25 @@ function parseBooleanEnv(value) {
 }
 
 /**
+ * Resolve the job name for conclusion spans.
+ *
+ * Normally this comes from INPUT_JOB_NAME (job-name action input), but some
+ * deployment paths can miss that env var in the post step. In that case, fall
+ * back to parsing the conclusion span name ("gh-aw.<job>.conclusion").
+ *
+ * @param {string} spanName
+ * @returns {string}
+ */
+function resolveConclusionJobName(spanName) {
+  const inputJobName = (process.env.INPUT_JOB_NAME || "").trim();
+  if (inputJobName) {
+    return inputJobName;
+  }
+  const match = /^gh-aw\.([^.]+)\.conclusion$/.exec(spanName);
+  return match ? match[1] : "";
+}
+
+/**
  * Parse setup-time aw_context passed via environment before aw_info.json exists.
  *
  * @param {string | undefined} raw
@@ -1937,7 +1956,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
-  const jobName = process.env.INPUT_JOB_NAME || "";
+  const jobName = resolveConclusionJobName(spanName);
   const jobEmitsOwnTokenUsage = jobName === "agent" || jobName === "detection" || (!!engineId && jobName === engineId);
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
