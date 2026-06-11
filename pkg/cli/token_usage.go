@@ -16,7 +16,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
-	"github.com/github/gh-aw/pkg/types"
 )
 
 var tokenUsageLog = logger.New("cli:token_usage")
@@ -129,7 +128,7 @@ const awfTimeWarningPrefix = "[AWF TIME WARNING]"
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
-func parseTokenUsageFile(filePath string, _ *types.TokenWeights) (*TokenUsageSummary, error) {
+func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
 	file, err := os.Open(filePath)
@@ -375,7 +374,7 @@ func findAgentUsageFile(runDir string) string {
 	return found
 }
 
-func parseAgentUsageFile(filePath string, _ *types.TokenWeights) (*TokenUsageSummary, error) {
+func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 	cleanPath := filepath.Clean(filePath)
 	data, err := os.ReadFile(cleanPath)
 	if err != nil {
@@ -446,9 +445,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 			}
 		}
 
-		// Try to load custom token weights from aw_info.json for this run
-		customWeights := extractCustomTokenWeightsFromDir(runDir)
-		summary, err := parseTokenUsageFile(filePath, customWeights)
+		summary, err := parseTokenUsageFile(filePath)
 		if err != nil || summary == nil {
 			return summary, err
 		}
@@ -468,8 +465,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		}
 	}
 
-	customWeights := extractCustomTokenWeightsFromDir(runDir)
-	summary, err := parseAgentUsageFile(agentUsagePath, customWeights)
+	summary, err := parseAgentUsageFile(agentUsagePath)
 	if err != nil || summary == nil {
 		return summary, err
 	}
@@ -848,20 +844,6 @@ func findAgentStdioFile(runDir string) string {
 	}
 
 	return found
-}
-
-// extractCustomTokenWeightsFromDir reads aw_info.json from a run directory and returns
-// any custom token weights embedded there at compile time. Returns nil when not found.
-func extractCustomTokenWeightsFromDir(runDir string) *types.TokenWeights {
-	awInfoPath := findAwInfoPath(runDir)
-	if awInfoPath == "" {
-		return nil
-	}
-	awInfo, err := parseAwInfo(awInfoPath, false)
-	if err != nil || awInfo == nil {
-		return nil
-	}
-	return awInfo.TokenWeights
 }
 
 func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
