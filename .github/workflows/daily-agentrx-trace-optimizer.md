@@ -16,7 +16,7 @@ experiments:
     description: "Test whether delegating trajectory-builder, artifacts-summarizer, and failure-pattern-classifier to small-model sub-agents improves recommendation quality vs. inline analysis by the main agent"
     hypothesis: "H0: no change in issue quality or run success rate. H1: sub_agents variant yields higher evidence completeness score with equal or lower token cost"
     metric: issue_evidence_completeness
-    secondary_metrics: [run_success_rate, effective_tokens_total, run_duration_ms]
+    secondary_metrics: [run_success_rate, ai_credits_total, run_duration_ms]
     guardrail_metrics:
       - name: empty_output_rate
         threshold: "<=0.10"

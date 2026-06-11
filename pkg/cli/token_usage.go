@@ -130,7 +130,7 @@ var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 // Custom weights, when non-nil, override the built-in model multipliers and token class
-// weights for effective token computation.
+// weights for legacy ET computation.
 func parseTokenUsageFile(filePath string, _ *types.TokenWeights) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
@@ -437,7 +437,7 @@ func parseAgentUsageFile(filePath string, _ *types.TokenWeights) (*TokenUsageSum
 
 // analyzeTokenUsage finds and parses the token-usage.jsonl file from a run directory.
 // It automatically reads custom token weights from aw_info.json when present and
-// applies them to the effective token computation.
+// applies them to the legacy ET computation.
 func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage in: %s", runDir)
 
