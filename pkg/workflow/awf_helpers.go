@@ -272,15 +272,27 @@ fi`,
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
 		// When max-ai-credits is not set by frontmatter/imports, export a local shell
-		// variable (GH_AW_MAX_AI_CREDITS) holding the GitHub Actions runtime expression
-		// ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}, then inject a reference
-		// to that variable (${GH_AW_MAX_AI_CREDITS}) into the "maxAiCredits" field of
-		// the apiProxy JSON object. GitHub Actions evaluates the ${{ }} expression before
-		// the shell runs, so the variable is set to the resolved integer (e.g. "1000")
-		// by the time printf writes the config file.
+		// variable (GH_AW_MAX_AI_CREDITS) holding a GitHub Actions runtime expression,
+		// then inject a reference to that variable (${GH_AW_MAX_AI_CREDITS}) into the
+		// "maxAiCredits" field of the apiProxy JSON object. GitHub Actions evaluates
+		// the ${{ }} expression before the shell runs, so the variable is set to the
+		// resolved integer by the time printf writes the config file.
+		//
+		// Standard agent runs use vars.GH_AW_DEFAULT_MAX_AI_CREDITS with built-in
+		// fallback 1000. Threat-detection runs use
+		// vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS with built-in fallback 400.
+		// EngineConfig.MaxAICredits is 0 when no compile-time value was set
+		// (neither frontmatter nor detection-engine config provided one).
+		// In that case, emit a runtime expression that lets the org variable
+		// or the built-in default resolve the budget at action run time.
+		// For detection runs, use the detection-specific variable/fallback;
+		// for standard agent runs, use the main-agent variable/fallback.
 		var maxAICreditsExportLine string
 		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
 			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
+			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
+				expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
+			}
 			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
 			maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
 			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")

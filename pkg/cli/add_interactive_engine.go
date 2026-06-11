@@ -141,6 +141,8 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
 	// If --skip-secret flag is set, skip secrets configuration entirely.
+	// Note: for Copilot workflows, --skip-secret implies the PAT path; users who want
+	// copilot-requests (org billing) should not pass --skip-secret.
 	if c.SkipSecret {
 		opt := constants.GetEngineOption(engine)
 		if opt != nil {
@@ -149,6 +151,17 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping secret setup (--skip-secret flag set)."))
 		}
 		return nil
+	}
+
+	// For Copilot, ask the user whether to use copilot-requests (org billing) or a PAT.
+	// Only prompt when an interactive context is available (wizard path); default to PAT otherwise.
+	if engine == string(constants.CopilotEngine) && c.Ctx != nil {
+		if err := c.selectCopilotAuthMethod(); err != nil {
+			return err
+		}
+		if c.UseCopilotRequests {
+			return nil
+		}
 	}
 
 	// If user doesn't have write access, skip secrets configuration.
@@ -189,4 +202,55 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	}
 
 	return nil
+}
+
+// authMethodCopilotRequests is the wizard option value for Copilot org-billing authentication
+// (permissions.copilot-requests: write). Extracted as a package-level constant so both the
+// form definition and applyCopilotAuthMethodChoice reference the same sentinel.
+const authMethodCopilotRequests = "copilot-requests"
+
+// selectCopilotAuthMethod prompts the user to choose between copilot-requests (org billing)
+// and a Personal Access Token for Copilot authentication.
+// Sets c.UseCopilotRequests when org billing is chosen.
+func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
+	addInteractiveLog.Print("Prompting user for Copilot authentication method")
+
+	const authMethodPAT = "pat"
+
+	fmt.Fprintln(os.Stderr, "")
+
+	var authMethod string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("How would you like Copilot workflows to authenticate?").
+				Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN (requires repo write access to configure).").
+				Options(
+					huh.NewOption("Use copilot-requests (org's Copilot billing, no PAT) [recommended for orgs]", authMethodCopilotRequests),
+					huh.NewOption("Use a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN", authMethodPAT),
+				).
+				Value(&authMethod),
+		),
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+
+	if err := form.RunWithContext(c.Ctx); err != nil {
+		return fmt.Errorf("failed to select Copilot authentication method: %w", err)
+	}
+
+	c.applyCopilotAuthMethodChoice(authMethod)
+	return nil
+}
+
+// applyCopilotAuthMethodChoice records the user's Copilot auth method selection and prints
+// the corresponding status message. It is pure (no I/O beyond stderr) and intentionally
+// separated from the huh form so the assignment logic is unit-testable without mocking the TUI.
+func (c *AddInteractiveConfig) applyCopilotAuthMethodChoice(authMethod string) {
+	if authMethod == authMethodCopilotRequests {
+		c.UseCopilotRequests = true
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected copilot-requests: permissions.copilot-requests: write will be added to your workflow"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No COPILOT_GITHUB_TOKEN secret is required — Copilot usage is billed to your org's Copilot seat."))
+	} else {
+		c.UseCopilotRequests = false
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
+	}
 }

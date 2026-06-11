@@ -232,6 +232,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		enableCompileCreatePullRequest,
 		strings.TrimSpace(compileGitHubTokenSecret) != "",
 	)
+	copilotOrgBilling := allCopilotWorkflowsUseOrgBilling(workflowDataList)
 	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule:        cronSchedule,
 		scheduleDesc:        scheduleDesc,
@@ -246,6 +247,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		disableLabelTrigger: disableLabelTrigger,
 		compileGitHubToken:  getEffectiveMaintenanceGitHubToken(compileGitHubTokenSecret),
 		createCompilePR:     enableCompileCreatePullRequest,
+		copilotOrgBilling:   copilotOrgBilling,
 	})
 
 	// Write the maintenance workflow file
@@ -308,6 +310,31 @@ func handleMaintenanceDisabled(workflowDataList []*WorkflowData, workflowDir str
 		}
 	}
 	return nil
+}
+
+// allCopilotWorkflowsUseOrgBilling reports whether all Copilot-engine workflows
+// in the list have copilot-requests: write set. This indicates org billing mode,
+// where the GITHUB_TOKEN is used for Copilot authentication and the
+// COPILOT_GITHUB_TOKEN secret is not required.
+// Returns false if no Copilot workflows are found (billing mode is indeterminate)
+// or if any Copilot workflow does not have copilot-requests: write set.
+func allCopilotWorkflowsUseOrgBilling(workflowDataList []*WorkflowData) bool {
+	copilotCount := 0
+	for _, data := range workflowDataList {
+		if data == nil {
+			continue
+		}
+		engineID := ResolveEngineID(data)
+		// Default engine (empty string) is Copilot, as is an explicit "copilot" ID.
+		if engineID != "" && engineID != string(constants.CopilotEngine) {
+			continue
+		}
+		copilotCount++
+		if !hasCopilotRequestsWritePermission(data) {
+			return false
+		}
+	}
+	return copilotCount > 0
 }
 
 // scanWorkflowsForExpires checks all workflow data for expires fields and returns

@@ -19,6 +19,7 @@ type ThreatDetectionConfig struct {
 	Prompt              string        `yaml:"prompt,omitempty"`            // Additional custom prompt instructions to append
 	Steps               []any         `yaml:"steps,omitempty"`             // Array of extra job steps to run before engine execution
 	PostSteps           []any         `yaml:"post-steps,omitempty"`        // Array of extra job steps to run after engine execution
+	MaxAICredits        int64         `yaml:"max-ai-credits,omitempty"`    // Maximum AI credits budget for threat-detection engine execution
 	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
 	EngineDisabled      bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
 	RunsOn              string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
@@ -188,6 +189,11 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 		if postStepsArray, ok := postSteps.([]any); ok {
 			threatConfig.PostSteps = postStepsArray
 		}
+	}
+
+	// Parse max-ai-credits field
+	if maxAICredits, exists := configMap["max-ai-credits"]; exists {
+		threatConfig.MaxAICredits = parseMaxAICreditsValue(maxAICredits)
 	}
 
 	// Parse runs-on field
@@ -622,9 +628,10 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args, APITarget.
-	// MaxTurns, Concurrency, UserAgent, Firewall, and Agent are intentionally omitted —
-	// the detection job is a simple threat-analysis invocation and must never run as a
-	// custom agent (no repo checkout, agent file unavailable).
+	// MaxTurns, Concurrency, UserAgent, Firewall, Agent, and MaxAICredits are intentionally
+	// omitted — MaxAICredits is set independently below from safe-outputs.threat-detection
+	// so the detection budget is always resolved from its own default expression rather than
+	// silently reusing the main agent budget.
 	detectionEngineConfig := engineConfig
 	if detectionEngineConfig == nil {
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
@@ -643,6 +650,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 	if detectionEngineConfig.ID == "" {
 		detectionEngineConfig.ID = engineSetting
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.MaxAICredits != 0 {
+		detectionEngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
 	}
 
 	// Apply enterprise and engine default detection models when no model was explicitly configured.

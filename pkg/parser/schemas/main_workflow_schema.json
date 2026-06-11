@@ -9818,6 +9818,10 @@
                     "$ref": "#/$defs/githubActionsStep"
                   }
                 },
+                "max-ai-credits": {
+                  "$ref": "#/$defs/max_ai_credits_limit_numeric",
+                  "description": "Per-run AI Credits budget for threat-detection engine execution. Accepts numeric values only (expressions are not supported). When unset, gh-aw emits a runtime default expression `${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}`."
+                },
                 "runs-on": {
                   "type": "string",
                   "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
@@ -11330,6 +11334,31 @@
       "oneOf": [
         {
           "$ref": "#/$defs/positive_ai_credits_limit"
+        },
+        {
+          "type": "integer",
+          "const": -1
+        },
+        {
+          "type": "string",
+          "pattern": "^-1$"
+        }
+      ]
+    },
+    "max_ai_credits_limit_numeric": {
+      "description": "AI Credits budget control (numeric values only; GitHub Actions expressions are not supported). Accepts positive integers (including K/M suffix strings). Set to -1 to disable budget enforcement.",
+      "oneOf": [
+        {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*([kKmM])?$"
+            }
+          ]
         },
         {
           "type": "integer",

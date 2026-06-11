@@ -12,6 +12,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 | Variable | Source | Purpose | Applies when |
 | --- | --- | --- | --- |
 | `GH_AW_DEFAULT_MAX_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default AWF `apiProxy.maxAiCredits` budget | `max-ai-credits` is not set in frontmatter or any imported workflow |
+| `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default threat-detection AWF `apiProxy.maxAiCredits` budget | `safe-outputs.threat-detection.max-ai-credits` is not set |
 | `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default `max-daily-ai-credits` guardrail threshold | `max-daily-ai-credits` is not set in frontmatter or any imported workflow |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
@@ -23,7 +24,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 Use `gh aw env get` and `gh aw env update` to manage these
 variables in batch at repo, org, or enterprise scope. The defaults file uses
-`default_`-prefixed keys such as `default_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
+`default_`-prefixed keys such as `default_max_ai_credits`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
 `default_model_copilot`, and `default_utc`.
 
 ## Project Timezone
@@ -61,6 +62,14 @@ For max AI credits, precedence is:
 4. Built-in constant default: `1000` AIC
 
 The compiler emits `${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}` in a runtime patch script when no frontmatter or imported value is set, so the organization variable is resolved at workflow run time by the GitHub Actions runner — not at compile time. A value of `-1` disables AWF budget steering at runtime. Positive values accept `K`/`M` suffixes such as `100M`.
+
+For threat-detection max AI credits, precedence is:
+
+1. `safe-outputs.threat-detection.max-ai-credits` in workflow frontmatter (compile-time literal)
+2. `vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` GitHub Actions variable (action runtime)
+3. Built-in constant default: `400` AIC
+
+The compiler emits `${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}` for threat-detection runs when `safe-outputs.threat-detection.max-ai-credits` is unset, so the organization variable is resolved at workflow run time by the GitHub Actions runner — not at compile time. A value of `-1` disables AWF budget steering for detection runs at runtime. Positive values accept `K`/`M` suffixes such as `100M`.
 
 For daily AI credits workflow guardrails, precedence is:
 
@@ -111,6 +120,12 @@ gh variable set GH_AW_DEFAULT_MAX_AI_CREDITS --org my-org --body "15M"
 
 ```bash
 gh variable set GH_AW_DEFAULT_MAX_AI_CREDITS --org my-org --body "100M"
+```
+
+Set an org-wide default detection max-ai-credits guardrail:
+
+```bash
+gh variable set GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS --org my-org --body "750"
 ```
 
 Set an org-wide default daily workflow AIC guardrail:

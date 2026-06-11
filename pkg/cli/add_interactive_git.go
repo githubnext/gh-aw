@@ -34,18 +34,19 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
 	// This returns the result including PR number and HasWorkflowDispatch
 	opts := AddOptions{
-		Verbose:                c.Verbose,
-		Quiet:                  true,
-		EngineOverride:         c.EngineOverride,
-		Name:                   "",
-		Force:                  false,
-		AppendText:             "",
-		CreatePR:               true,
-		NoGitattributes:        c.NoGitattributes,
-		WorkflowDir:            c.WorkflowDir,
-		NoStopAfter:            c.NoStopAfter,
-		StopAfter:              c.StopAfter,
-		DisableSecurityScanner: false,
+		Verbose:                      c.Verbose,
+		Quiet:                        true,
+		EngineOverride:               c.EngineOverride,
+		Name:                         "",
+		Force:                        false,
+		AppendText:                   "",
+		CreatePR:                     true,
+		NoGitattributes:              c.NoGitattributes,
+		WorkflowDir:                  c.WorkflowDir,
+		NoStopAfter:                  c.NoStopAfter,
+		StopAfter:                    c.StopAfter,
+		DisableSecurityScanner:       false,
+		AddCopilotRequestsPermission: c.UseCopilotRequests,
 	}
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {

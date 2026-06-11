@@ -1635,3 +1635,32 @@ func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
 	argsStr := strings.Join(args, " ")
 	assert.NotContains(t, argsStr, "--image-tag", "expected --image-tag to be absent from CLI args when config file is used")
 }
+
+// TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression verifies that
+// a standard (non-detection) main-agent run emits the main-agent credits expression
+// (vars.GH_AW_DEFAULT_MAX_AI_CREDITS) and not the detection-specific one, so a future
+// refactor that accidentally sets IsDetectionRun on main-agent data will be caught.
+func TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+			// MaxAICredits is zero (not set in frontmatter) to trigger runtime expression injection.
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+		// IsDetectionRun is false by default — this is a main-agent run.
+	}
+
+	engine := NewClaudeEngine()
+	steps := engine.GetExecutionSteps(workflowData, "test.log")
+	require.NotEmpty(t, steps, "should produce execution steps")
+
+	stepContent := strings.Join(steps[0], "\n")
+
+	assert.Contains(t, stepContent, "vars.GH_AW_DEFAULT_MAX_AI_CREDITS",
+		"main-agent run should use standard credits expression")
+	assert.NotContains(t, stepContent, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS",
+		"main-agent run must not use detection credits expression")
+}

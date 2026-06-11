@@ -245,6 +245,30 @@ async function testGitHubGraphQLAPI(token, owner, repo) {
 }
 
 /**
+ * Test Copilot token availability, accounting for copilot org billing mode.
+ *
+ * When all repository workflows use `copilot-requests: write`, the built-in
+ * GITHUB_TOKEN is used for Copilot authentication and no separate
+ * COPILOT_GITHUB_TOKEN secret is required. In that case the maintenance
+ * workflow sets GH_AW_COPILOT_ORG_BILLING="true" and validation is skipped
+ * rather than flagging the missing token as unconfigured.
+ *
+ * @param {string | undefined} token - Value of GH_AW_COPILOT_TOKEN
+ * @param {boolean} orgBilling - Whether copilot org billing mode is active (GH_AW_COPILOT_ORG_BILLING="true")
+ * @returns {Promise<{status: string, message: string, details?: any}>}
+ */
+async function testCopilotToken(token, orgBilling) {
+  if (!token && orgBilling) {
+    return {
+      status: Status.SKIPPED,
+      message: "Copilot org billing mode — GITHUB_TOKEN is used for Copilot authentication; COPILOT_GITHUB_TOKEN is not required",
+      details: { note: "copilot-requests: write is set in the workflow permissions, so the built-in GITHUB_TOKEN handles Copilot authentication" },
+    };
+  }
+  return testCopilotCLI(token);
+}
+
+/**
  * Test Copilot CLI availability
  * @param {string | undefined} token
  * @returns {Promise<{status: string, message: string, details?: any}>}
@@ -665,7 +689,8 @@ async function main() {
     // Test GH_AW_COPILOT_TOKEN
     core.info("Testing GH_AW_COPILOT_TOKEN...");
     const copilotToken = process.env.GH_AW_COPILOT_TOKEN;
-    const copilotResult = await testCopilotCLI(copilotToken);
+    const copilotOrgBilling = process.env.GH_AW_COPILOT_ORG_BILLING === "true";
+    const copilotResult = await testCopilotToken(copilotToken, copilotOrgBilling);
     results.push({
       secret: "GH_AW_COPILOT_TOKEN",
       test: "Copilot CLI Availability",
@@ -756,6 +781,7 @@ module.exports = {
   testGitHubRESTAPI,
   testGitHubGraphQLAPI,
   testCopilotCLI,
+  testCopilotToken,
   testAnthropicAPI,
   testOpenAIAPI,
   testBraveSearchAPI,

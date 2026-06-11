@@ -8,6 +8,7 @@ import {
   testGitHubRESTAPI,
   testGitHubGraphQLAPI,
   testCopilotCLI,
+  testCopilotToken,
   testAnthropicAPI,
   testOpenAIAPI,
   testBraveSearchAPI,
@@ -52,6 +53,38 @@ describe("validate_secrets", () => {
       const result = await testCopilotCLI("");
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("Token not set");
+    });
+  });
+
+  describe("testCopilotToken", () => {
+    it("should return SKIPPED when token is not set and org billing is active", async () => {
+      const result = await testCopilotToken("", true);
+      expect(result.status).toBe("skipped");
+      expect(result.message).toContain("org billing");
+    });
+
+    it("should return SKIPPED when token is undefined and org billing is active", async () => {
+      const result = await testCopilotToken(undefined, true);
+      expect(result.status).toBe("skipped");
+      expect(result.message).toContain("GITHUB_TOKEN");
+    });
+
+    it("should return NOT_SET when token is not set and org billing is not active", async () => {
+      const result = await testCopilotToken("", false);
+      expect(result.status).toBe("not_set");
+      expect(result.message).toBe("Token not set");
+    });
+
+    it("should delegate to testCopilotCLI when token is set regardless of org billing", async () => {
+      // testCopilotCLI with a non-empty token checks CLI availability (skipped if not installed)
+      const result = await testCopilotToken("some-token", true);
+      // Result should be skipped or success depending on environment, but NOT the org billing skip
+      expect(result.message).not.toContain("org billing");
+    });
+
+    it("should not suppress warning when token is missing and org billing is false", async () => {
+      const result = await testCopilotToken(undefined, false);
+      expect(result.status).toBe("not_set");
     });
   });
 

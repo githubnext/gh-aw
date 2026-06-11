@@ -250,12 +250,13 @@ Example file:
 
 ```yaml
 default_max_ai_credits: "1000"
+default_detection_max_ai_credits: "400"
 default_max_turns: "12"
 default_model_copilot: "gpt-5-mini"
 default_model_codex: null   # delete this variable
 ```
 
-Recognized keys include `default_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`, `default_max_turns`, `default_detection_model`, `default_utc`, `default_model_copilot`, `default_model_claude`, `default_model_codex`. The compiler resolves model selection as `GH_AW_MODEL_*` → `GH_AW_DEFAULT_MODEL_*` → built-in engine fallback.
+Recognized keys include `default_max_ai_credits`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`, `default_max_turns`, `default_detection_model`, `default_utc`, `default_model_copilot`, `default_model_claude`, `default_model_codex`. The compiler resolves model selection as `GH_AW_MODEL_*` → `GH_AW_DEFAULT_MODEL_*` → built-in engine fallback.
 
 **MCP equivalent**: Not available — run from a local terminal.
 

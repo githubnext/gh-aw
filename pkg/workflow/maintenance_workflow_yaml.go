@@ -25,6 +25,7 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	disableLabelTrigger bool
 	compileGitHubToken  string
 	createCompilePR     bool
+	copilotOrgBilling   bool // all Copilot workflows use copilot-requests: write (GITHUB_TOKEN); COPILOT_GITHUB_TOKEN is not required
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -47,7 +48,8 @@ func buildMaintenanceWorkflowYAML(
 	disableLabelTrigger := opts.disableLabelTrigger
 	compileGitHubToken := opts.compileGitHubToken
 	createCompilePR := opts.createCompilePR
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR)
+	copilotOrgBilling := opts.copilotOrgBilling
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v copilotOrgBilling=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR, copilotOrgBilling)
 
 	var yaml strings.Builder
 
@@ -945,7 +947,16 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Validate Secrets
+`)
+		// Build the Validate Secrets step, conditionally including the org billing flag.
+		// The line uses 10-space indentation to match the surrounding env block structure.
+		copilotOrgBillingLine := ""
+		if copilotOrgBilling {
+			maintenanceWorkflowYAMLLog.Print("Copilot org billing mode detected: adding GH_AW_COPILOT_ORG_BILLING=true to secret-validation step")
+			copilotOrgBillingLine = `          GH_AW_COPILOT_ORG_BILLING: "true"
+`
+		}
+		yaml.WriteString(`      - name: Validate Secrets
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           # GitHub tokens
@@ -953,7 +964,7 @@ jobs:
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           GH_AW_COPILOT_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN }}
-          # AI Engine API keys
+` + copilotOrgBillingLine + `          # AI Engine API keys
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}

@@ -178,7 +178,7 @@ COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_CO
 Use `gh aw env get` / `gh aw env update` to batch-manage
 these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
 `default_`-prefixed YAML keys such as `default_max_ai_credits`,
-`default_max_daily_ai_credits`, and `default_model_copilot`.
+`default_detection_max_ai_credits`, `default_max_daily_ai_credits`, and `default_model_copilot`.
 
 ### Agent runs
 

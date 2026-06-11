@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -674,5 +675,92 @@ func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
 		err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to determine relative path")
+	})
+}
+
+func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
+	t.Run("adds permission to workflow without existing permissions block", func(t *testing.T) {
+		content := "---\nengine: copilot\n---\nDo the thing.\n"
+		result, err := addCopilotRequestsPermissionToContent(content)
+		require.NoError(t, err)
+		assert.Contains(t, result, "permissions:")
+		assert.Contains(t, result, "copilot-requests: write")
+	})
+
+	t.Run("adds permission to workflow with existing permissions block", func(t *testing.T) {
+		content := "---\nengine: copilot\npermissions:\n  contents: read\n---\nDo the thing.\n"
+		result, err := addCopilotRequestsPermissionToContent(content)
+		require.NoError(t, err)
+		assert.Contains(t, result, "copilot-requests: write")
+		assert.Contains(t, result, "contents: read")
+	})
+
+	t.Run("is idempotent when permission already present", func(t *testing.T) {
+		content := "---\nengine: copilot\npermissions:\n  copilot-requests: write\n---\nDo the thing.\n"
+		result, err := addCopilotRequestsPermissionToContent(content)
+		require.NoError(t, err)
+		count := strings.Count(result, "copilot-requests: write")
+		assert.Equal(t, 1, count, "copilot-requests: write should appear exactly once")
+	})
+
+	t.Run("returns error when permissions is a non-mapping scalar", func(t *testing.T) {
+		content := "---\nengine: copilot\npermissions: read-all\n---\nDo the thing.\n"
+		_, err := addCopilotRequestsPermissionToContent(content)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "non-mapping scalar")
+	})
+}
+
+func TestAddWorkflowWithTracking_CopilotRequestsPermission(t *testing.T) {
+	t.Run("injects copilot-requests permission when option is set", func(t *testing.T) {
+		dir := testutil.TempDir(t, "test-copilot-requests-perm-*")
+		setupMinimalGitRepo(t, dir)
+
+		content := "---\nengine: copilot\n---\nDo the thing.\n"
+		resolved := &ResolvedWorkflow{
+			Spec:    &WorkflowSpec{WorkflowPath: "workflows/my-workflow.md", WorkflowName: "my-workflow"},
+			Content: []byte(content),
+			SourceInfo: &FetchedWorkflow{
+				IsLocal: true,
+			},
+		}
+
+		err := addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{
+			Quiet:                        true,
+			AddCopilotRequestsPermission: true,
+			DisableSecurityScanner:       true,
+		})
+		require.NoError(t, err)
+
+		workflowsDir := filepath.Join(dir, ".github", "workflows")
+		written, readErr := os.ReadFile(filepath.Join(workflowsDir, "my-workflow.md"))
+		require.NoError(t, readErr)
+		assert.Contains(t, string(written), "copilot-requests: write")
+	})
+
+	t.Run("does not inject permission when option is false", func(t *testing.T) {
+		dir := testutil.TempDir(t, "test-copilot-requests-noperm-*")
+		setupMinimalGitRepo(t, dir)
+
+		content := "---\nengine: copilot\n---\nDo the thing.\n"
+		resolved := &ResolvedWorkflow{
+			Spec:    &WorkflowSpec{WorkflowPath: "workflows/my-workflow2.md", WorkflowName: "my-workflow2"},
+			Content: []byte(content),
+			SourceInfo: &FetchedWorkflow{
+				IsLocal: true,
+			},
+		}
+
+		err := addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{
+			Quiet:                        true,
+			AddCopilotRequestsPermission: false,
+			DisableSecurityScanner:       true,
+		})
+		require.NoError(t, err)
+
+		workflowsDir := filepath.Join(dir, ".github", "workflows")
+		written, readErr := os.ReadFile(filepath.Join(workflowsDir, "my-workflow2.md"))
+		require.NoError(t, readErr)
+		assert.NotContains(t, string(written), "copilot-requests: write")
 	})
 }
