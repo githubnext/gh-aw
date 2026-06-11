@@ -495,9 +495,9 @@ async function main() {
     core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
     core.setFailed(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
-    // Treat any unexpected error as a non-blocking skip so the step never fails the
-    // activation job.  The output stays at the default "false", allowing the agent to
-    // run.  The guardrail is effectively bypassed for this invocation.
+    // Treat unexpected guardrail execution errors as non-blocking skips so transient
+    // API/runtime issues do not fail activation. The output stays at the default "false",
+    // allowing the agent to run. Legitimate threshold exceedance still fails via setFailed.
     core.warning(`Daily workflow AI Credits guardrail encountered an unexpected error and will be skipped: ${getErrorMessage(error)}`);
   }
 }
