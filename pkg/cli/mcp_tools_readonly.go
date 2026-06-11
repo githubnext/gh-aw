@@ -221,8 +221,7 @@ Returns JSON array with validation results for each workflow:
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages that shouldn't be mixed with JSON
-		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
 
 		// The compile command always outputs JSON to stdout when --json flag is used, even on error.
 		// We should return the JSON output to the LLM so it can see validation errors.
@@ -329,8 +328,7 @@ Returns formatted text output showing:
 		cmdArgs = append(cmdArgs, "--check-secrets")
 
 		// Execute the CLI command
-		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
 
 		if err != nil {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to inspect MCP servers", map[string]any{"error": err.Error(), "output": string(output)})

@@ -75,7 +75,7 @@ Examples:
 // Diagnostics are emitted through the debug logger only.
 func checkAndLogGHVersion() {
 	cmd := workflow.ExecGH("version")
-	output, err := cmd.CombinedOutput()
+	output, err := runMCPSubprocessCombinedOutput(context.Background(), cmd)
 
 	if err != nil {
 		mcpLog.Print("WARNING: gh CLI not found in PATH")

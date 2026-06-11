@@ -198,7 +198,7 @@ func validateMCPServerConfiguration(cmdPath string) error {
 		// Use default gh aw command with proper token handling
 		cmd = workflow.ExecGHContext(ctx, "aw", "status")
 	}
-	output, err := cmd.CombinedOutput()
+	output, err := runMCPSubprocessCombinedOutput(ctx, cmd)
 
 	if err != nil {
 		// Check for common error cases

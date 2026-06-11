@@ -34,7 +34,7 @@ func queryActorRole(ctx context.Context, actor string, repo string) (string, err
 	mcpLog.Printf("Querying GitHub API for %s's permission in %s", actor, repo)
 
 	cmd := workflow.ExecGHContext(ctx, "api", apiPath, "--jq", ".permission")
-	output, err := cmd.Output()
+	output, err := runMCPSubprocessOutput(ctx, cmd)
 	if err != nil {
 		mcpLog.Printf("Failed to query actor permission: %v", err)
 		return "", fmt.Errorf("failed to query actor permission: %w", err)
@@ -83,7 +83,7 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 	}
 
 	// Get repository using cached lookup
-	repo, err := getRepository()
+	repo, err := getRepository(ctx)
 	if err != nil {
 		mcpLog.Printf("Tool %s: failed to get repository context, denying access: %v", toolName, err)
 		return newMCPError(jsonrpc.CodeInternalError, "permission check failed", map[string]any{
