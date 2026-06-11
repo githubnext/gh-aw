@@ -750,6 +750,89 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).toHaveBeenCalledOnce();
     });
 
+    it("uses a precise timeout title when the agent times out", async () => {
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
+      process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: vi.fn(),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.title).toBe("[aw] Test Workflow timed out");
+    });
+
+    it("uses a precise missing safe outputs title", async () => {
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: vi.fn(),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.title).toBe("[aw] Test Workflow produced no safe outputs");
+    });
+
+    it("uses a precise report incomplete title", async () => {
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
+      const agentOutputPath = path.join(tmpDir, "agent_output.json");
+      fs.writeFileSync(agentOutputPath, JSON.stringify({ items: [{ type: "report_incomplete", reason: "tool failed" }] }));
+      process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: vi.fn(),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      try {
+        await main();
+      } finally {
+        delete process.env.GH_AW_AGENT_OUTPUT;
+      }
+
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.title).toBe("[aw] Test Workflow reported incomplete result");
+    });
+
     it("continues searching later pages until it finds an exact metadata match", async () => {
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
       const createIssueMock = vi.fn();

@@ -209,6 +209,44 @@ function buildFailureMatchCategories(options) {
 }
 
 /**
+ * Build a precise failure issue title for known failure classes.
+ * Falls back to the generic failure title when no specific class matches.
+ * @param {Object} options
+ * @param {string} options.workflowName
+ * @param {boolean} options.isTimedOut
+ * @param {boolean} options.hasMissingSafeOutputs
+ * @param {boolean} options.hasReportIncomplete
+ * @param {boolean} options.hasMissingTool
+ * @param {boolean} options.hasMissingData
+ * @param {boolean} options.hasCacheMissMisconfiguration
+ * @param {boolean} options.hasToolDenialsExceeded
+ * @param {boolean} options.hasAppTokenMintingFailed
+ * @param {boolean} options.hasLockdownCheckFailed
+ * @param {boolean} options.hasStaleLockFileFailed
+ * @param {boolean} options.hasDailyAICExceeded
+ * @param {boolean} options.aiCreditsRateLimitError
+ * @param {boolean} options.maxAICreditsExceeded
+ * @returns {string}
+ */
+function buildFailureIssueTitle(options) {
+  const { workflowName } = options;
+  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily effective workflow budget`;
+  if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
+  if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
+  if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
+  if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
+  if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
+  if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
+  if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
+  if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory path mismatch`;
+  if (options.hasReportIncomplete) return `[aw] ${workflowName} reported incomplete result`;
+  if (options.hasMissingSafeOutputs) return `[aw] ${workflowName} produced no safe outputs`;
+  if (options.hasMissingTool) return `[aw] ${workflowName} is missing required tool`;
+  if (options.hasMissingData) return `[aw] ${workflowName} is missing required data`;
+  return `[aw] ${workflowName} failed`;
+}
+
+/**
  * Generate a precise failure-match marker for failure issue bodies.
  * @param {Object} options - Marker options
  * @param {string} options.workflowId - Workflow identifier
@@ -2622,7 +2660,22 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
+    const issueTitle = buildFailureIssueTitle({
+      workflowName: sanitizedWorkflowName,
+      isTimedOut,
+      hasMissingSafeOutputs,
+      hasReportIncomplete,
+      hasMissingTool,
+      hasMissingData,
+      hasCacheMissMisconfiguration,
+      hasToolDenialsExceeded,
+      hasAppTokenMintingFailed,
+      hasLockdownCheckFailed,
+      hasStaleLockFileFailed,
+      hasDailyAICExceeded,
+      aiCreditsRateLimitError,
+      maxAICreditsExceeded,
+    });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,
       isTimedOut,
