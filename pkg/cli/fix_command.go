@@ -18,15 +18,16 @@ var fixLog = logger.New("cli:fix_command")
 
 // FixConfig contains configuration for the fix command
 type FixConfig struct {
-	WorkflowIDs []string
-	Write       bool
-	Verbose     bool
-	WorkflowDir string // Custom workflow directory
+	WorkflowIDs        []string
+	Write              bool
+	Verbose            bool
+	WorkflowDir        string   // Custom workflow directory
+	DisabledCodemodIDs []string // Codemod IDs to skip
 }
 
 // RunFix runs the fix command with the given configuration
 func RunFix(config FixConfig) error {
-	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir)
+	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs)
 }
 
 // NewFixCommand creates the fix command
@@ -69,18 +70,20 @@ Examples:
 			write, _ := cmd.Flags().GetBool("write")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
+			disabledCodemods, _ := cmd.Flags().GetStringSlice("disable-codemod")
 
 			if listCodemods {
 				return listAvailableCodemods()
 			}
 
-			return runFixCommand(args, write, verbose, dir)
+			return runFixCommand(args, write, verbose, dir, disabledCodemods)
 		},
 	}
 
 	cmd.Flags().Bool("write", false, "Write changes to files (without this flag, no changes are made)")
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
+	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs (repeatable)")
 
 	// Register completions
 	cmd.ValidArgsFunction = CompleteWorkflowNames
@@ -110,8 +113,8 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string) error {
-	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s", workflowIDs, write, verbose, workflowDir)
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error {
+	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s, disabledCodemodIDs=%v", workflowIDs, write, verbose, workflowDir, disabledCodemodIDs)
 
 	// Set up workflow directory (using default if not specified)
 	if workflowDir == "" {
@@ -149,7 +152,10 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	}
 
 	// Load all codemods
-	codemods := GetAllCodemods()
+	codemods, err := GetCodemods(disabledCodemodIDs)
+	if err != nil {
+		return err
+	}
 	fixLog.Printf("Loaded %d codemods", len(codemods))
 
 	// Process each file

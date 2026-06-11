@@ -2,7 +2,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
-import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightBlog from 'starlight-blog';
@@ -288,28 +287,6 @@ export default defineConfig({
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
 					errorOnLocalLinks: true,
-				}),
-				starlightLlmsTxt({
-					description: 'GitHub Agentic Workflows (gh-aw) is a Go-based GitHub CLI extension that enables writing agentic workflows in natural language using markdown files, and running them as GitHub Actions workflows.',
-					optionalLinks: [
-						{
-							label: 'GitHub Repository',
-							url: 'https://github.com/github/gh-aw',
-							description: 'Source code and development resources for gh-aw'
-						},
-						{
-							label: 'GitHub CLI Documentation',
-							url: 'https://cli.github.com/manual/',
-							description: 'Documentation for the GitHub CLI tool'
-						}
-					],
-					customSets: [
-						{
-							label: "agentic-workflows",
-							paths: ['blog/*meet-the-workflows*'],
-							description: "A comprehensive blog series documenting workflow patterns, best practices, and real-world examples of agentic workflows created at Peli's Agent Factory"
-						}
-					]
 				})
 			],
 			sidebar: [

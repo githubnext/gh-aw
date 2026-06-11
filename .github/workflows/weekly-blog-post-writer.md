@@ -13,6 +13,21 @@ tracker-id: weekly-blog-post-writer
 engine: copilot
 strict: true
 timeout-minutes: 30
+experiments:
+  prefetch_strategy:
+    variants: [lazy, eager]
+    description: "Tests whether pre-fetching GitHub releases and merged PRs in setup steps reduces agent turn count and run duration vs. letting the agent fetch lazily via tools"
+    hypothesis: "H0: no change in agent_turn_count. H1: eager pre-fetching reduces agent turns by ≥20% and duration by ≥15% by eliminating tool round-trips for data gathering"
+    metric: agent_turn_count
+    secondary_metrics: [run_duration_ms, pr_creation_rate]
+    guardrail_metrics:
+      - name: pr_creation_success_rate
+        direction: min
+        threshold: 0.80
+    min_samples: 10
+    weight: [50, 50]
+    start_date: "2026-06-11"
+    issue: 38590
 network:
   allowed:
     - defaults
@@ -36,6 +51,29 @@ tools:
   repo-memory:
     wiki: true
     description: "Agent of the Week history – tracks which workflows have been featured so we rotate fairly"
+
+steps:
+  - name: Pre-fetch release and merged PR data
+    if: ${{ needs.activation.outputs.prefetch_strategy == 'eager' }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+
+      SINCE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+      echo "Prefetching data since: $SINCE"
+
+      gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+        | jq --arg since "$SINCE" '[.[] | select(.published_at != null and .published_at >= $since)]' \
+        > /tmp/gh-aw/agent/releases.json
+
+      gh api "search/issues?q=repo:${GITHUB_REPOSITORY}+is:pr+is:merged+merged:>=$SINCE&sort=updated&order=desc&per_page=100" \
+        | jq '.items' \
+        > /tmp/gh-aw/agent/merged-prs.json
+      echo "Wrote pre-fetched releases to /tmp/gh-aw/agent/releases.json"
+      echo "Wrote pre-fetched merged PRs to /tmp/gh-aw/agent/merged-prs.json"
 
 imports:
   - shared/github-guard-policy.md
@@ -76,7 +114,11 @@ Store today's date for use throughout the workflow. You will use the GitHub API'
 
 ### Step 2: Review Recent Releases
 
+{{#if experiments.prefetch_strategy == 'eager'}}
+Read pre-fetched release data from `/tmp/gh-aw/agent/releases.json` (do not call `list_releases`).
+{{else}}
 Use the GitHub `list_releases` tool to fetch all releases in the repository. Look for any releases published in the past 7 days.
+{{/if}}
 
 For each recent release:
 - Note the **tag name** (e.g., `v1.2.3`)
@@ -88,7 +130,11 @@ If there are no recent releases, still proceed — you will write about recent c
 
 ### Step 3: Review Recent Pull Requests
 
+{{#if experiments.prefetch_strategy == 'eager'}}
+Read pre-fetched merged PR data from `/tmp/gh-aw/agent/merged-prs.json` (do not call `list_pull_requests`).
+{{else}}
 Use the GitHub `list_pull_requests` tool to fetch pull requests that were **merged** in the past 7 days. Look at the merged PRs to understand what changed.
+{{/if}}
 
 For each merged PR:
 - Note the **PR number and title**

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"cmp"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -110,71 +109,4 @@ func countTotalAttempted(breakdowns []DomainBreakdown) int {
 		total += d.Attempted
 	}
 	return total
-}
-
-// DomainInsight provides a human-readable assessment of a domain's performance.
-type DomainInsight struct {
-	Label      string
-	Status     string // "excellent", "good", "fair", "poor", "new"
-	Efficiency float64
-	Message    string
-	Suggestion string
-}
-
-// AnalyzeDomainPerformance provides strategic insights about domain efficiency.
-func AnalyzeDomainPerformance(breakdown DomainBreakdown) DomainInsight {
-	insight := DomainInsight{
-		Label:      breakdown.Label,
-		Efficiency: breakdown.ObjectiveEfficiency,
-	}
-
-	if breakdown.Attempted == 0 {
-		insight.Status = "new"
-		insight.Message = "No outcomes yet"
-		return insight
-	}
-
-	switch {
-	case breakdown.ObjectiveEfficiency >= 0.90:
-		insight.Status = "excellent"
-		insight.Message = fmt.Sprintf("✅ %s: %.0f%% efficiency | %d/%d outcomes accepted | %d value delivered",
-			breakdown.Label,
-			breakdown.ObjectiveEfficiency*100,
-			breakdown.Accepted,
-			breakdown.Attempted,
-			breakdown.AcceptedObjectiveValue)
-		insight.Suggestion = "Keep current strategy working well"
-
-	case breakdown.ObjectiveEfficiency >= 0.75:
-		insight.Status = "good"
-		insight.Message = fmt.Sprintf("✅ %s: %.0f%% efficiency | %d/%d outcomes accepted | %d value delivered",
-			breakdown.Label,
-			breakdown.ObjectiveEfficiency*100,
-			breakdown.Accepted,
-			breakdown.Attempted,
-			breakdown.AcceptedObjectiveValue)
-		insight.Suggestion = "Good progress; monitor for regressions"
-
-	case breakdown.ObjectiveEfficiency >= 0.50:
-		insight.Status = "fair"
-		insight.Message = fmt.Sprintf("⚠️ %s: %.0f%% efficiency | %d/%d outcomes accepted | %d value delivered",
-			breakdown.Label,
-			breakdown.ObjectiveEfficiency*100,
-			breakdown.Accepted,
-			breakdown.Attempted,
-			breakdown.AcceptedObjectiveValue)
-		insight.Suggestion = "Consider reviewing agent strategy or adding human review"
-
-	default:
-		insight.Status = "poor"
-		insight.Message = fmt.Sprintf("🔴 %s: %.0f%% efficiency | %d/%d outcomes accepted | %d value delivered",
-			breakdown.Label,
-			breakdown.ObjectiveEfficiency*100,
-			breakdown.Accepted,
-			breakdown.Attempted,
-			breakdown.AcceptedObjectiveValue)
-		insight.Suggestion = "Major issues; investigate root cause or pause automation"
-	}
-
-	return insight
 }
