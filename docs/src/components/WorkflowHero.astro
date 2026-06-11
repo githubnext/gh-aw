@@ -47,11 +47,13 @@ const deck = {
       root.classList.add('workflow-hero--mounted');
     }
 
-    function unmountFromHero() {
-      stopCarousel();
-      root.remove();
-      heroRoot?.removeAttribute('data-workflow-hero-mounted');
-    }
+function unmountFromHero() {
+  stopCarousel();
+  pdfDocument = null;
+  renderVersion += 1;
+  root.remove();
+  heroRoot?.removeAttribute('data-workflow-hero-mounted');
+}
 
     mountIntoHero();
 
