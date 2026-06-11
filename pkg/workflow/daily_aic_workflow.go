@@ -11,7 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
-var dailyAICWorkflowLog = logger.New("workflow:daily_effective_workflow")
+var dailyAICWorkflowLog = logger.New("workflow:daily_ai_credits")
 
 const maxDailyAICreditsField = "max-daily-ai-credits"
 const maxDailyAICreditsEnvVar = "GH_AW_MAX_DAILY_AI_CREDITS"

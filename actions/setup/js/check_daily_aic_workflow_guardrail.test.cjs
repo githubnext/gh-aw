@@ -207,7 +207,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
 
   it("main() does not fail the step when GitHub API calls throw", async () => {
     // Simulate a scenario where the GitHub API throws during workflow run lookup.
-    // The step should catch the error and NOT rethrow it, keeping daily_effective_workflow_exceeded at "false".
+    // The step should catch the error and NOT rethrow it, keeping daily_ai_credits_exceeded at "false".
     const coreOutputs = {};
     const coreWarnings = [];
     const mockCore = {
@@ -253,7 +253,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
       // Should resolve without throwing even though the API calls throw
       await expect(exports.main()).resolves.toBeUndefined();
       // The default "false" output must be set
-      expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
       // A warning must be emitted describing the error
       expect(coreWarnings.some(w => /unexpected error.*skipped/i.test(w))).toBe(true);
     } finally {
@@ -359,19 +359,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
   });
 
   it("main() marks the step failed when the daily AI Credits guardrail is exceeded", async () => {
-    const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-guardrail-exceeded-"));
-    fs.writeFileSync(path.join(artifactDir, "token-usage.jsonl"), JSON.stringify({ usage: { aic: 200 } }) + "\n", "utf8");
-
-    vi.doMock("@actions/artifact", () => ({
-      DefaultArtifactClient: class {
-        async listArtifacts() {
-          return { artifacts: [{ id: 123, name: "usage" }] };
-        }
-        async downloadArtifact() {
-          return { downloadPath: artifactDir };
-        }
-      },
-    }));
+    const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(200);
 
     const coreOutputs = {};
     const setFailed = vi.fn();
@@ -443,13 +431,13 @@ describe("check_daily_aic_workflow_guardrail", () => {
     process.env.GH_AW_WORKFLOW_NAME = "Daily Guardrail Test";
     process.env.GH_AW_WORKFLOW_ID = "daily-guardrail-test";
     process.env.GITHUB_TRIGGERING_ACTOR = "octocat";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
 
     try {
       await expect(exports.main()).resolves.toBeUndefined();
-      expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("true");
-      expect(coreOutputs["daily_effective_workflow_total_ai_credits"]).toBe("200");
-      expect(coreOutputs["daily_effective_workflow_total_effective_tokens"]).toBe("200");
-      expect(coreOutputs["daily_effective_workflow_threshold"]).toBe("100");
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("true");
+      expect(coreOutputs["daily_ai_credits_total_effective_tokens"]).toBe("200");
+      expect(coreOutputs["daily_ai_credits_threshold"]).toBe("100");
       expect(setFailed).toHaveBeenCalledTimes(1);
       expect(setFailed.mock.calls[0][0]).toMatch(/guardrail exceeded/i);
     } finally {
@@ -461,7 +449,8 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete process.env.GH_AW_WORKFLOW_NAME;
       delete process.env.GH_AW_WORKFLOW_ID;
       delete process.env.GITHUB_TRIGGERING_ACTOR;
-      vi.doUnmock("@actions/artifact");
+      delete process.env.GITHUB_EVENT_NAME;
+      getRunAICSpy.mockRestore();
     }
   });
 });

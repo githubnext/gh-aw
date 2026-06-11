@@ -181,6 +181,7 @@ function getFooterMessage(ctx) {
     aiCreditsFormatted = explicitContextAIC ? formatAIC(explicitContextAIC) : undefined;
     aiCreditsSuffix = aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "";
   }
+  const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${envAmbientContextSuffix}`;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -189,7 +190,7 @@ function getFooterMessage(ctx) {
     historyLink,
     agenticWorkflowUrl,
     aiCreditsFormatted,
-    aiCreditsSuffix,
+    aiCreditsSuffix: aiCreditsSuffixForTemplate,
     ambientContext,
     ambientContextFormatted: envAmbientContextFormatted,
     ambientContextSuffix: envAmbientContextSuffix,
@@ -354,6 +355,7 @@ function getFooterAgentFailureIssueMessage(ctx) {
   const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
   const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
+  const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${ambientContextSuffix}`;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -362,7 +364,7 @@ function getFooterAgentFailureIssueMessage(ctx) {
     agenticWorkflowUrl,
     aiCredits,
     aiCreditsFormatted,
-    aiCreditsSuffix,
+    aiCreditsSuffix: aiCreditsSuffixForTemplate,
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
@@ -382,10 +384,10 @@ function getFooterAgentFailureIssueMessage(ctx) {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
     if (aiCredits) {
-      defaultFooter += "{ai_credits_suffix}";
+      defaultFooter += aiCreditsSuffix;
     }
     if (ambientContext) {
-      defaultFooter += "{ambient_context_suffix}";
+      defaultFooter += ambientContextSuffix;
     }
     // Append history link when available
     if (ctx.historyUrl) {
@@ -422,11 +424,13 @@ function getFooterAgentFailureCommentMessage(ctx) {
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
   } = getAICFromEnv();
+  const { ambientContext, ambientContextFormatted, ambientContextSuffix } = getAmbientContextFromEnv();
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
   const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
   const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
   const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? (aiCreditsFormatted ? ` · ${aiCreditsFormatted} AIC` : "") : envAICSuffix;
+  const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${ambientContextSuffix}`;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -435,13 +439,16 @@ function getFooterAgentFailureCommentMessage(ctx) {
     agenticWorkflowUrl,
     aiCredits,
     aiCreditsFormatted,
-    aiCreditsSuffix,
+    aiCreditsSuffix: aiCreditsSuffixForTemplate,
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
+    ambientContext,
+    ambientContextFormatted,
+    ambientContextSuffix,
   });
 
   // Use custom agent failure comment footer if configured, otherwise use default footer
@@ -452,7 +459,10 @@ function getFooterAgentFailureCommentMessage(ctx) {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
     if (aiCredits) {
-      defaultFooter += "{ai_credits_suffix}";
+      defaultFooter += aiCreditsSuffix;
+    }
+    if (ambientContext) {
+      defaultFooter += ambientContextSuffix;
     }
     // Append history link when available
     if (ctx.historyUrl) {
