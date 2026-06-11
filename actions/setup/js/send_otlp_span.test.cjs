@@ -3610,13 +3610,29 @@ describe("sendJobConclusionSpan", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync("/tmp/gh-aw/agent-stdio.log", "CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+
+    const stdioContent = Buffer.from("CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+    const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(p => p === stdioLogPath);
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(p => {
+      if (p === stdioLogPath) return /** @type {fs.Stats} */ { size: stdioContent.length };
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(/** @type {number} */ 42);
+    const readSpy = vi.spyOn(fs, "readSync").mockImplementation((_fd, buf) => {
+      stdioContent.copy(/** @type {Buffer} */ buf);
+      return stdioContent.length;
+    });
+    const closeSpy = vi.spyOn(fs, "closeSync").mockImplementation(() => {});
 
     try {
       await sendJobConclusionSpan("gh-aw.job.conclusion");
     } finally {
-      fs.rmSync("/tmp/gh-aw/agent-stdio.log", { force: true });
+      existsSpy.mockRestore();
+      statSpy.mockRestore();
+      openSpy.mockRestore();
+      readSpy.mockRestore();
+      closeSpy.mockRestore();
     }
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);

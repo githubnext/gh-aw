@@ -2360,7 +2360,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(...usageAttrs);
   }
 
-  const { maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded } = resolveAICreditsFailureState();
+  const { maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded } = resolveAICreditsFailureState({ logProvenance: false });
   const maxAICreditsValue = normalizeNonNegativeNumber(maxAICredits);
   if (typeof maxAICreditsValue === "number") {
     attributes.push(buildAttr("gh-aw.max_ai_credits", maxAICreditsValue));
