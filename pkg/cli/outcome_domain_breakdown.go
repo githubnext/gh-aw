@@ -1,8 +1,9 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -92,11 +93,11 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 	}
 
 	// Sort by total_objective_value descending
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].TotalObjectiveValue != result[j].TotalObjectiveValue {
-			return result[i].TotalObjectiveValue > result[j].TotalObjectiveValue
+	slices.SortFunc(result, func(a, b DomainBreakdown) int {
+		if a.TotalObjectiveValue != b.TotalObjectiveValue {
+			return cmp.Compare(b.TotalObjectiveValue, a.TotalObjectiveValue)
 		}
-		return result[i].Label < result[j].Label
+		return strings.Compare(a.Label, b.Label)
 	})
 
 	domainBreakdownLog.Printf("Computed domain breakdowns: domains=%d, total_attempted=%d", len(result), countTotalAttempted(result))
