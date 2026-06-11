@@ -133,22 +133,22 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_AI_CREDITS: "100000000"`) {
 		t.Fatal("expected activation job env to include normalized guardrail threshold")
 	}
-	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {
-		t.Fatal("expected activation job to expose daily_effective_workflow_exceeded output")
+	if !strings.Contains(lockStr, "daily_ai_credits_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_exceeded == 'true' }}") {
+		t.Fatal("expected activation job to expose daily_ai_credits_exceeded output")
 	}
-	if !strings.Contains(lockStr, "daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}") {
+	if !strings.Contains(lockStr, "daily_ai_credits_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_total_effective_tokens || '' }}") {
 		t.Fatal("expected activation job to expose the aggregated ET total output")
 	}
 	if strings.Contains(lockStr, "daily_effective_workflow_issue_url") {
 		t.Fatal("expected activation job to avoid surfacing a separate daily workflow ET issue URL")
 	}
-	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_effective_workflow_exceeded != 'true'") {
+	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'") {
 		t.Fatal("expected the agent job to be skipped when the daily workflow ET guardrail is exceeded")
 	}
-	if !strings.Contains(lockStr, "GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}") {
+	if !strings.Contains(lockStr, "GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}") {
 		t.Fatal("expected the conclusion job to receive the daily workflow ET guardrail output")
 	}
-	if !strings.Contains(lockStr, "needs.activation.outputs.daily_effective_workflow_exceeded == 'true'") {
+	if !strings.Contains(lockStr, "needs.activation.outputs.daily_ai_credits_exceeded == 'true'") {
 		t.Fatal("expected the conclusion job condition to allow activation guardrail failures through")
 	}
 	if !strings.Contains(activationSection, "actions: read") {
@@ -199,7 +199,7 @@ No daily guardrail`
 	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected emitted daily ET guardrail step to be dynamically skipped when threshold is unset")
 	}
-	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
+	if !strings.Contains(lockStr, "daily_ai_credits_exceeded") {
 		t.Fatal("expected workflows to continue wiring daily ET outputs when guardrail step is emitted")
 	}
 	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {

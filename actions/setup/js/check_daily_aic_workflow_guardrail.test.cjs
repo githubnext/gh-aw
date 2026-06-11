@@ -173,7 +173,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
 
   it("main() does not fail the step when GitHub API calls throw", async () => {
     // Simulate a scenario where the GitHub API throws during workflow run lookup.
-    // The step should catch the error and NOT rethrow it, keeping daily_effective_workflow_exceeded at "false".
+    // The step should catch the error and NOT rethrow it, keeping daily_ai_credits_exceeded at "false".
     const coreOutputs = {};
     const coreWarnings = [];
     const mockCore = {
@@ -219,7 +219,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
       // Should resolve without throwing even though the API calls throw
       await expect(exports.main()).resolves.toBeUndefined();
       // The default "false" output must be set
-      expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
       // A warning must be emitted describing the error
       expect(coreWarnings.some(w => /unexpected error.*skipped/i.test(w))).toBe(true);
     } finally {

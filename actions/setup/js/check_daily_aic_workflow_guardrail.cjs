@@ -285,16 +285,16 @@ async function appendDailyAICSummary(workflowName, actorLogin, threshold, counte
  *
  * Error handling: all GitHub API interactions after the initial guard checks are wrapped
  * in a top-level try-catch. Any unexpected error (network failure, permission error, etc.)
- * is logged as a warning and the function returns cleanly with `daily_effective_workflow_exceeded`
+ * is logged as a warning and the function returns cleanly with `daily_ai_credits_exceeded`
  * left at its default value of `"false"`. This design ensures the step never fails the
  * activation job — a guardrail error results in a safe bypass (agent allowed to run) rather
  * than a confusing workflow failure that blocks the agent entirely.
  */
 async function main() {
-  core.setOutput("daily_effective_workflow_exceeded", "false");
-  core.setOutput("daily_effective_workflow_total_effective_tokens", "");
-  core.setOutput("daily_effective_workflow_total_ai_credits", "");
-  core.setOutput("daily_effective_workflow_threshold", "");
+  core.setOutput("daily_ai_credits_exceeded", "false");
+  core.setOutput("daily_ai_credits_total_effective_tokens", "");
+  core.setOutput("daily_ai_credits_total_ai_credits", "");
+  core.setOutput("daily_ai_credits_threshold", "");
   const threshold = parsePositiveCompactNumber(process.env.GH_AW_MAX_DAILY_AI_CREDITS);
   if (threshold <= 0) {
     return;
@@ -312,7 +312,7 @@ async function main() {
 
   // Wrap all GitHub API interactions in a top-level try-catch so that transient API
   // errors, permission failures, or unexpected exceptions never fail the activation
-  // job step.  A failure here would leave `daily_effective_workflow_exceeded` at its
+  // job step.  A failure here would leave `daily_ai_credits_exceeded` at its
   // default "false" value, which is the safe fallback: the agent is allowed to run
   // and the guardrail is effectively bypassed for this invocation rather than causing
   // a confusing workflow failure.
@@ -449,9 +449,9 @@ async function main() {
       }
     }
 
-    core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalAIC));
-    core.setOutput("daily_effective_workflow_total_ai_credits", String(totalAIC));
-    core.setOutput("daily_effective_workflow_threshold", String(threshold));
+    core.setOutput("daily_ai_credits_total_effective_tokens", String(totalAIC));
+    core.setOutput("daily_ai_credits_total_ai_credits", String(totalAIC));
+    core.setOutput("daily_ai_credits_threshold", String(threshold));
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
     const summaryMeta = {
@@ -490,7 +490,7 @@ async function main() {
       return;
     }
 
-    core.setOutput("daily_effective_workflow_exceeded", "true");
+    core.setOutput("daily_ai_credits_exceeded", "true");
     await appendDailyAICSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
     core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {

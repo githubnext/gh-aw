@@ -356,9 +356,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// expression evaluates to "" which handle_agent_failure treats as "not failed".
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.%s.outputs.stale_lock_file_failed }}\n", string(constants.ActivationJobName)))
 	if hasMaxDailyAICGuardrail(data) {
-		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.%s.outputs.daily_effective_workflow_exceeded }}\n", string(constants.ActivationJobName)))
-		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.daily_effective_workflow_total_effective_tokens }}\n", string(constants.ActivationJobName)))
-		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.%s.outputs.daily_effective_workflow_threshold }}\n", string(constants.ActivationJobName)))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.%s.outputs.daily_ai_credits_exceeded }}\n", string(constants.ActivationJobName)))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_AI_CREDITS_TOTAL_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.daily_ai_credits_total_effective_tokens }}\n", string(constants.ActivationJobName)))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.%s.outputs.daily_ai_credits_threshold }}\n", string(constants.ActivationJobName)))
 	}
 
 	// Pass custom messages config if present (JSON computed once above)
@@ -552,7 +552,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	activationGuardrailsFailed := BuildOr(lockdownCheckFailed, staleLockFileFailed)
 	if hasMaxDailyAICGuardrail(data) {
 		dailyAICWorkflowExceeded := BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_effective_workflow_exceeded", string(constants.ActivationJobName))),
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded", string(constants.ActivationJobName))),
 			BuildStringLiteral("true"),
 		)
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dailyAICWorkflowExceeded)
