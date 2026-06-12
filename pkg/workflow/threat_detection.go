@@ -1026,23 +1026,15 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	permissions := perms.RenderToYAML()
 
 	// Determine environment: use threat detection override if set, otherwise inherit from
-	// the top-level environment when OIDC is required (GitHub OIDC auth or OTLP GitHub OIDC auth).
-	// Azure OIDC federation rules require the environment to match the configured OIDC subject claims.
+	// the top-level environment (matching the same unconditional fallback used by agent
+	// and safe-output jobs so that environment-scoped secrets are accessible).
 	environment := ""
 	if data.SafeOutputs.ThreatDetection.Environment != "" {
 		// ThreatDetectionConfig.Environment holds the raw environment name; normalize it to
 		// a YAML field so Job.Environment renders as "environment: <name>" not just "<name>".
 		environment = "environment: " + data.SafeOutputs.ThreatDetection.Environment
-	} else if data.EngineConfig != nil && data.EngineConfig.Auth != nil && data.EngineConfig.Auth.Type == "github-oidc" {
-		// When engine uses GitHub OIDC, inherit top-level environment for Azure federation
-		if data.Environment != "" {
-			environment = data.Environment
-		}
-	} else if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
-		// When OTLP uses GitHub OIDC, inherit top-level environment
-		if data.Environment != "" {
-			environment = data.Environment
-		}
+	} else {
+		environment = data.Environment
 	}
 
 	job := &Job{
