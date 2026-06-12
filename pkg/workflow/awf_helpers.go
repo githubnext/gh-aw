@@ -899,6 +899,9 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 // config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
 // embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
 // (see buildArcDindChrootConfigInjectScript for standalone use and tests).
+//
+// The Python is intentionally written as a dense single line to minimise script size
+// and stay within GitHub Actions' 21 KB per-step expression limit.
 func buildArcDindChrootConfigPatchBody() string {
 	return fmt.Sprintf(`  python - <<'PY'
 import json,os,subprocess as sp

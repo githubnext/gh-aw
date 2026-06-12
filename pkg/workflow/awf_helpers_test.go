@@ -1445,7 +1445,16 @@ func TestArcDindChrootConfigInjection(t *testing.T) {
 			configPath := ghAwDir + "/awf-config.json"
 
 			// Write a minimal AWF config file (simulating the printf step).
-			initialConfig := `{"apiProxy":{"enabled":true,"maxRuns":100}}`
+			// Use json.Marshal of a real AWFConfigFile to stay in sync with the struct.
+			minimalConfig := &AWFConfigFile{
+				APIProxy: &AWFAPIProxyConfig{
+					Enabled: true,
+					MaxRuns: 100,
+				},
+			}
+			initialConfigBytes, err := json.Marshal(minimalConfig)
+			require.NoError(t, err, "failed to marshal minimal AWF config")
+			initialConfig := string(initialConfigBytes)
 			writeScript := fmt.Sprintf(`mkdir -p %s && printf '%%s\n' '%s' > %s`, ghAwDir, initialConfig, configPath)
 
 			script := buildArcDindChrootConfigInjectScript()
