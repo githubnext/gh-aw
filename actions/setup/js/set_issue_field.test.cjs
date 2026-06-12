@@ -325,7 +325,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
   it("GraphQL discovery errors propagate as actionable errors, not as 'No issue fields were discovered'", async () => {
     const graphqlError = new Error("Selections can't be made directly on unions (see selections on IssueFields)");
     mockGraphql.mockImplementation(query => {
-      if (query.includes("issueFields")) {
+      if (query.includes("repository(owner")) {
         return Promise.reject(graphqlError);
       }
       if (query.includes("setIssueFieldValue")) {
