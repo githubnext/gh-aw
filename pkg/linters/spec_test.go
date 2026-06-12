@@ -20,6 +20,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
+	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
@@ -50,7 +51,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 24 analyzer
+// "Public API > Subpackages" table. The README documents 25 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -58,7 +59,7 @@ type docAnalyzer struct {
 //
 //	contextcancelnotdeferred, ctxbackground, excessivefuncparams, errormessage,
 //	errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
-//	jsonmarshalignoredeerror, largefunc, lenstringzero, manualmutexunlock,
+//	hardcodedfilepath, jsonmarshalignoredeerror, largefunc, lenstringzero, manualmutexunlock,
 //	osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, ssljson,
 //	strconvparseignorederror, tolowerequalfold, uncheckedtypeassertion
@@ -73,6 +74,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"fileclosenotdeferred", fileclosenotdeferred.Analyzer},
 		{"fmterrorfnoverbs", fmterrorfnoverbs.Analyzer},
 		{"fprintlnsprintf", fprintlnsprintf.Analyzer},
+		{"hardcodedfilepath", hardcodedfilepath.Analyzer},
 		{"jsonmarshalignoredeerror", jsonmarshalignoredeerror.Analyzer},
 		{"largefunc", largefunc.Analyzer},
 		{"lenstringzero", lenstringzero.Analyzer},
