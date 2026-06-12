@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * @safe-outputs-exempt SEC-004: "body" references are HTTP transport payloads
+ * (Twirp RPC request JSON bodies and artifact upload stream bodies), not
+ * user-authored issue/PR/comment bodies.
+ */
+
 const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
