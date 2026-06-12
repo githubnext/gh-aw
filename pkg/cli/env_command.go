@@ -135,7 +135,7 @@ func newDefaultsGetCommand() *cobra.Command {
 		Short: "Download defaults into a YAML file",
 		Long: `Download compiler defaults into a YAML file.
 
-When [file] is omitted, the command writes to ./file.yml.
+When [file] is omitted, the command writes to file.yml.
 
 Scope resolution:
 - --scope defaults to repo.
@@ -172,7 +172,7 @@ func newDefaultsUpdateCommand() *cobra.Command {
 		Short: "Upload defaults from a YAML file",
 		Long: `Upload compiler defaults from a YAML file.
 
-When [file] is omitted, the command reads from ./file.yml.
+When [file] is omitted, the command reads from file.yml.
 
 Scope and flag behavior:
 - --scope is required (repo|org|ent).
