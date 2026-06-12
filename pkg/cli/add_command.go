@@ -59,20 +59,6 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 This command adds workflows directly without interactive prompts. Use 'add-wizard'
 for a guided setup that configures secrets, creates a pull request, and more.
 
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/repo-assist              # Add package from repository root aw.yml
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/packages/repo-assist     # Add package from nested aw.yml
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
-  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
-  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/my-workflow.md           # Add workflow from any HTTPS URL
-  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/workflow.json            # Import JSON workflow definition
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
-  ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
-  ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
-
 Workflow specifications:
   - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
   - Three+ parts without .md: "owner/repo/folder[@version]" (loads nested aw.yml package when present)
@@ -96,6 +82,19 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
       Use full https://github.com/... source URLs for other public github.com workflows.
 Note: To create a new workflow from scratch, use the 'new' command instead.
 Note: For guided interactive setup, use the 'add-wizard' command instead.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/repo-assist              # Add package from repository root aw.yml
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/packages/repo-assist     # Add package from nested aw.yml
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/my-workflow.md           # Add workflow from any HTTPS URL
+  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/workflow.json            # Import JSON workflow definition
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
+  ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
+  ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
+`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())

@@ -65,10 +65,8 @@ Each argument accepts:
 When a job URL is provided (single-run mode only):
 - If a step number is included (#step:7:1), extracts that specific step's output
 - If no step number, finds and extracts the first failing step's output
-- Saves job logs to the output directory
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890                    # Audit run with ID 1234567890
+- Saves job logs to the output directory`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890                    # Audit run with ID 1234567890
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit job and extract first failing step
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1  # Extract step 7 output

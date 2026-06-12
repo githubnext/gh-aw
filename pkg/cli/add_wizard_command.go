@@ -27,17 +27,6 @@ This command walks you through:
 
 Use 'add' for non-interactive workflow addition.
 
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics                    # Guided setup for repository-root aw.yml package
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/packages/repo-assist # Guided setup for nested aw.yml package
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/daily-repo-status    # Guided setup
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor@v1.0.0     # Guided setup with version
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard ./my-workflow.md                         # Guided setup for local workflow
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/my-workflow.md       # Guided setup from any HTTPS URL
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --skip-secret      # Skip secret prompt
-
 Workflow specifications:
   - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
   - Three+ parts without .md: "owner/repo/folder[@version]" (loads nested aw.yml package when present)
@@ -55,6 +44,16 @@ Note: In GitHub Enterprise repos, shorthand specs resolve on your enterprise hos
       For github/*, githubnext/*, and microsoft/*, shorthand resolves on github.com.
       Use full https://github.com/... URLs when sourcing other public github.com workflows.
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics                    # Guided setup for repository-root aw.yml package
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/packages/repo-assist # Guided setup for nested aw.yml package
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/daily-repo-status    # Guided setup
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor@v1.0.0     # Guided setup with version
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard ./my-workflow.md                         # Guided setup for local workflow
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/my-workflow.md       # Guided setup from any HTTPS URL
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --skip-secret      # Skip secret prompt
+`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return errors.New("missing workflow specification\n\nRun 'gh aw add-wizard --help' for usage information")

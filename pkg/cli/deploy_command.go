@@ -28,10 +28,8 @@ func NewDeployCommand(validateEngine func(string) error) *cobra.Command {
 		Short: "Deploy agentic workflows to a target repository using a pull request",
 		Long: `Deploy one or more workflows to a target repository by combining clone, update, add, compile, and pull request creation.
 
-The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles lock files with purge enabled, and opens a pull request.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --repo owner/repo
+The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles lock files with purge enabled, and opens a pull request.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
   ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo`,
 		Args: validateDeployArgs,
