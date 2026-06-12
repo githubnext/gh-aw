@@ -331,6 +331,21 @@ func (c *Compiler) addActivationCrossRepoGuidanceStep(ctx *activationJobBuildCon
 
 func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []string {
 	var steps []string
+	// Prepend cache restore step so cached AIC values from prior runs are available
+	// when the guardrail script runs, allowing it to skip artifact downloads.
+	if data.WorkflowID != "" {
+		sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+		cacheKeyPrefix := fmt.Sprintf("agentic-workflow-usage-%s-", sanitized)
+		steps = append(steps, "      - name: Restore daily AIC usage cache\n")
+		steps = append(steps, "        id: restore-daily-aic-cache\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+		steps = append(steps, "        continue-on-error: true\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/cache/restore", data)))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          key: %s${{ github.run_id }}\n", cacheKeyPrefix))
+		steps = append(steps, fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix))
+		steps = append(steps, "          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n")
+	}
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
 	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))

@@ -549,4 +549,66 @@ describe("check_daily_aic_workflow_guardrail", () => {
       getRunAICSpy.mockRestore();
     }
   });
+
+  describe("loadAICUsageCache", () => {
+    let tmpDir;
+    let cacheFile;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-cache-test-"));
+      cacheFile = path.join(tmpDir, "agentic-workflow-usage-cache.jsonl");
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      delete global.core;
+    });
+
+    it("returns an empty map when the cache file does not exist", () => {
+      const cache = exports.loadAICUsageCache(path.join(tmpDir, "nonexistent.jsonl"));
+      expect(cache).toBeInstanceOf(Map);
+      expect(cache.size).toBe(0);
+    });
+
+    it("returns an empty map when the cache file is empty", () => {
+      fs.writeFileSync(cacheFile, "", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache).toBeInstanceOf(Map);
+      expect(cache.size).toBe(0);
+    });
+
+    it("parses valid JSONL entries into a run_id → aic map", () => {
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 101, aic: 5.5 }), JSON.stringify({ run_id: 202, aic: 12.0 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.size).toBe(2);
+      expect(cache.get(101)).toBe(5.5);
+      expect(cache.get(202)).toBe(12.0);
+    });
+
+    it("skips malformed lines without throwing", () => {
+      fs.writeFileSync(cacheFile, ["not-json-at-all", JSON.stringify({ run_id: 303, aic: 7.0 }), "{bad json", "", JSON.stringify({ run_id: 404, aic: 3.0 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.size).toBe(2);
+      expect(cache.get(303)).toBe(7.0);
+      expect(cache.get(404)).toBe(3.0);
+    });
+
+    it("uses the last entry when run_id appears more than once (last-writer-wins)", () => {
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 505, aic: 1.0 }), JSON.stringify({ run_id: 505, aic: 9.9 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.size).toBe(1);
+      expect(cache.get(505)).toBe(9.9);
+    });
+
+    it("skips entries with non-positive or non-finite aic values", () => {
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 601, aic: 0 }), JSON.stringify({ run_id: 602, aic: -1.5 }), JSON.stringify({ run_id: 603, aic: null }), JSON.stringify({ run_id: 604, aic: 4.2 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      // Only the entry with a finite positive aic should be loaded
+      expect(cache.has(601)).toBe(false);
+      expect(cache.has(602)).toBe(false);
+      expect(cache.has(603)).toBe(false);
+      expect(cache.get(604)).toBe(4.2);
+    });
+  });
 });

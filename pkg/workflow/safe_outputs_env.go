@@ -12,6 +12,31 @@ import (
 var safeOutputsEnvLog = logger.New("workflow:safe_outputs_env")
 
 // ========================================
+// Trace Context Environment Variables
+// ========================================
+
+// applyTraceContextEnvToMap injects the W3C trace context (TRACEPARENT) into an engine
+// execution step environment map. The value is derived at runtime from
+// GITHUB_AW_OTEL_TRACE_ID and GITHUB_AW_OTEL_PARENT_SPAN_ID, which are written to
+// GITHUB_ENV by the setup action.
+//
+// The TRACEPARENT variable is formatted as a W3C Trace Context traceparent header
+// (version 00, trace-flags 01 / sampled): 00-<trace-id>-<span-id>-01.
+// When either ID is absent (OTEL not configured) the variable resolves to an empty
+// string, which engines that implement W3C trace context (e.g. Claude Code) treat as
+// "no parent context" — a safe no-op.
+//
+// Propagating TRACEPARENT lets those engines nest their internal spans (interaction,
+// LLM request, tool call) under the gh-aw.agent.setup span, producing a complete
+// end-to-end distributed trace in the OTEL backend.
+func applyTraceContextEnvToMap(env map[string]string) {
+	// Format: 00-<trace-id>-<span-id>-01 (W3C traceparent, sampled flag = 01).
+	// Only set when both OTEL IDs are non-empty; the conditional || '' fallback
+	// ensures engines see an empty string rather than a malformed traceparent.
+	env["TRACEPARENT"] = "${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}"
+}
+
+// ========================================
 // Safe Output Environment Variables
 // ========================================
 
