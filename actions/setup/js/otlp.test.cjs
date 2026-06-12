@@ -111,6 +111,7 @@ describe("otlp.cjs", () => {
       GH_AW_CURRENT_WORKFLOW_REF: process.env.GH_AW_CURRENT_WORKFLOW_REF,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
       GH_AW_INFO_VERSION: process.env.GH_AW_INFO_VERSION,
+      GH_AW_INFO_CLI_VERSION: process.env.GH_AW_INFO_CLI_VERSION,
       OTEL_SERVICE_NAME: process.env.OTEL_SERVICE_NAME,
       GITHUB_SERVER_URL: process.env.GITHUB_SERVER_URL,
     };
@@ -122,6 +123,7 @@ describe("otlp.cjs", () => {
     process.env.GITHUB_RUN_ID = "99887766";
     process.env.GITHUB_EVENT_NAME = "push";
     process.env.GH_AW_INFO_VERSION = "v1.2.3";
+    delete process.env.GH_AW_INFO_CLI_VERSION;
     delete process.env.OTEL_SERVICE_NAME;
     delete process.env.GH_AW_INFO_STAGED;
   });
@@ -472,6 +474,15 @@ describe("otlp.cjs", () => {
 
       const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
       expect(payloadOpts.scopeVersion).toBe("v4.0.0");
+    });
+
+    it("prefers cli_version over engine version fields in aw_info.json", async () => {
+      mockReadJSONIfExists.mockReturnValue({ cli_version: "v9.1.0", agent_version: "2.1.168", version: "2.1.168" });
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.scopeVersion).toBe("v9.1.0");
     });
 
     it("reads staged=true from aw_info.json when env var is absent", async () => {
