@@ -66,7 +66,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// we keep the condition on the agent job
 	}
 	if activationJobCreated && hasMaxDailyAICGuardrail(data) {
-		guard := &ExpressionNode{Expression: fmt.Sprintf("needs.%s.outputs.daily_effective_workflow_exceeded != 'true'", constants.ActivationJobName)}
+		guard := &ExpressionNode{Expression: fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded != 'true'", constants.ActivationJobName)}
 		if jobCondition == "" {
 			jobCondition = RenderCondition(guard)
 		} else {

@@ -40,7 +40,7 @@ Commit and push the updated `.lock.yml` file.
 
 The `max-daily-ai-credits` frontmatter option sets a per-workflow spending cap measured in *AI Credits* across the 24-hour window before the current run. The cap is scoped to the repository and workflow — it aggregates usage across all runs of this workflow regardless of who triggered them.
 
-When the aggregated AI Credits usage across all completed runs of this workflow in the last 24 hours exceeds the threshold, the activation job sets the `daily_effective_workflow_exceeded` output to `true` and the agent job is skipped for that run. The conclusion job still runs and creates this report.
+When the aggregated AI Credits usage across all completed runs of this workflow in the last 24 hours exceeds the threshold, the activation job sets the `daily_ai_credits_exceeded` output to `true` and the agent job is skipped for that run. The conclusion job still runs and creates this report.
 
 The guardrail is evaluated at activation time, not retrospectively, so a single very large run that pushes usage over the threshold only blocks *subsequent* runs in the same window — it does not cancel a run that is already in progress.
 

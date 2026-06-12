@@ -200,7 +200,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
-  if (options.hasDailyAICExceeded) categories.push("daily_effective_workflow_exceeded");
+  if (options.hasDailyAICExceeded) categories.push("daily_ai_credits_exceeded");
 
   if (options.agentConclusion === "failure" && !options.isTimedOut) {
     categories.push("agent_failure");
@@ -231,7 +231,7 @@ function buildFailureMatchCategories(options) {
  */
 function buildFailureIssueTitle(options) {
   const { workflowName } = options;
-  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily effective workflow budget`;
+  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily AI credits budget`;
   if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
   if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
   if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
@@ -1870,6 +1870,33 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
 }
 
 /**
+ * Build the secret verification failure context for the agent failure issue/comment.
+ * For the Copilot engine, adds a suggestion to use `permissions.copilot-requests: write`
+ * to enable Copilot inference through the org without a personal access token.
+ * @param {string} secretVerificationResult - The secret verification result ("failed" or other)
+ * @param {string} engineId - The engine ID (e.g. "copilot")
+ * @returns {string} Formatted context string, or empty string if verification did not fail
+ */
+function buildSecretVerificationContext(secretVerificationResult, engineId) {
+  if (secretVerificationResult !== "failed") {
+    return "";
+  }
+
+  let context =
+    buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
+    "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n";
+
+  if ((engineId || "").toLowerCase() === "copilot") {
+    context +=
+      "\n**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
+      "\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
+      "\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n";
+  }
+
+  return context;
+}
+
+/**
  * Check whether agent-stdio.log contains a terminal_reason: "completed" result entry,
  * indicating the agent finished its task successfully despite a non-zero job exit code.
  * Log lines may be prefixed with a timestamp (e.g. "2026-04-27T21:45:00.080Z  {JSON}").
@@ -2376,9 +2403,9 @@ async function main() {
     // stored in the compiled .lock.yml no longer matches the source .md file.
     // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
     const hasStaleLockFileFailed = process.env.GH_AW_STALE_LOCK_FILE_FAILED === "true";
-    const hasDailyAICExceeded = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED === "true";
-    const dailyAICTotal = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS || "";
-    const dailyAICThreshold = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD || "";
+    const hasDailyAICExceeded = process.env.GH_AW_DAILY_AI_CREDITS_EXCEEDED === "true";
+    const dailyAICTotal = process.env.GH_AW_DAILY_AI_CREDITS_TOTAL_EFFECTIVE_TOKENS || "";
+    const dailyAICThreshold = process.env.GH_AW_DAILY_AI_CREDITS_THRESHOLD || "";
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
@@ -2870,11 +2897,7 @@ async function main() {
           workflow_source: workflowSource,
           workflow_source_url: workflowSourceURL,
           secret_verification_failed: String(secretVerificationResult === "failed"),
-          secret_verification_context:
-            secretVerificationResult === "failed"
-              ? buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
-                "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
-              : "",
+          secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineId),
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
@@ -2899,7 +2922,7 @@ async function main() {
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
-          daily_effective_workflow_exceeded_context: dailyAICExceededContext,
+          daily_ai_credits_exceeded_context: dailyAICExceededContext,
         };
 
         // Render the comment template
@@ -3099,11 +3122,7 @@ async function main() {
           branch: currentBranch,
           pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
           secret_verification_failed: String(secretVerificationResult === "failed"),
-          secret_verification_context:
-            secretVerificationResult === "failed"
-              ? buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
-                "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
-              : "",
+          secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineId),
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
@@ -3128,7 +3147,7 @@ async function main() {
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
-          daily_effective_workflow_exceeded_context: dailyAICExceededContext,
+          daily_ai_credits_exceeded_context: dailyAICExceededContext,
         };
 
         // Render the issue template
@@ -3240,6 +3259,7 @@ module.exports = {
   hasAgentTerminalReasonCompleted,
   detectAndHandleFailureCascade,
   findRecentFailureIssues,
+  buildSecretVerificationContext,
   CASCADE_WINDOW_MINUTES,
   CASCADE_WINDOW_MS,
   CASCADE_THRESHOLD,

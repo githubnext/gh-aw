@@ -49,7 +49,7 @@ type EngineConfig struct {
 	APITarget        string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 	Bare             bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
 	// TokenWeights provides custom model cost data for AI Credits cost ratios.
-	// When set, overrides or extends the built-in model_multipliers.json values.
+	// When set, overrides or extends built-in model cost defaults.
 	TokenWeights *types.TokenWeights
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)

@@ -42,8 +42,6 @@ const (
 	awfMaxAICreditsVarName      = "GH_AW_MAX_AI_CREDITS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
 	awfModelsJSONPathExpr       = "/tmp/gh-aw/models.json"
-	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
-	awfMergeModelMultipliersJS  = "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
@@ -92,24 +90,6 @@ func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
 		data.NetworkPermissions != nil &&
 		data.NetworkPermissions.AllowedInput &&
 		hasWorkflowCallTrigger(data.On)
-}
-
-func cloneWorkflowDataWithoutModelMultipliers(data *WorkflowData) *WorkflowData {
-	if data == nil || data.EngineConfig == nil || data.EngineConfig.TokenWeights == nil || len(data.EngineConfig.TokenWeights.Multipliers) == 0 {
-		return data
-	}
-
-	workflowCopy := *data
-	engineCopy := *data.EngineConfig
-	tokenWeightsCopy := *data.EngineConfig.TokenWeights
-	tokenWeightsCopy.Multipliers = nil
-	engineCopy.TokenWeights = &tokenWeightsCopy
-	workflowCopy.EngineConfig = &engineCopy
-	return &workflowCopy
-}
-
-func buildModelMultipliersFromFileScript() string {
-	return fmt.Sprintf(`GH_AW_MODEL_MULTIPLIERS_PATH=%q node "%s"`, awfModelMultipliersFilePath, awfMergeModelMultipliersJS)
 }
 
 func buildModelsJSONPathExportScript() string {
@@ -265,9 +245,7 @@ fi`,
 	// invocation, using printf to a fixed path inside the pre-existing ${RUNNER_TEMP}/gh-aw/
 	// directory that is already set up by actions/setup.
 	var configFileSetup string
-	configWithoutInlineMultipliers := config
-	configWithoutInlineMultipliers.WorkflowData = cloneWorkflowDataWithoutModelMultipliers(config.WorkflowData)
-	awfConfigJSON, err := BuildAWFConfigJSON(configWithoutInlineMultipliers)
+	awfConfigJSON, err := BuildAWFConfigJSON(config)
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
@@ -327,7 +305,6 @@ fi`,
 				configFileSetup += "\n" + updateScript
 			}
 		}
-		configFileSetup += "\n" + buildModelMultipliersFromFileScript()
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
