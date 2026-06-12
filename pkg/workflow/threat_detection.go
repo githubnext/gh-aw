@@ -1030,7 +1030,9 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Azure OIDC federation rules require the environment to match the configured OIDC subject claims.
 	environment := ""
 	if data.SafeOutputs.ThreatDetection.Environment != "" {
-		environment = data.SafeOutputs.ThreatDetection.Environment
+		// ThreatDetectionConfig.Environment holds the raw environment name; normalize it to
+		// a YAML field so Job.Environment renders as "environment: <name>" not just "<name>".
+		environment = "environment: " + data.SafeOutputs.ThreatDetection.Environment
 	} else if data.EngineConfig != nil && data.EngineConfig.Auth != nil && data.EngineConfig.Auth.Type == "github-oidc" {
 		// When engine uses GitHub OIDC, inherit top-level environment for Azure federation
 		if data.Environment != "" {
@@ -1048,7 +1050,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		Needs:       needs,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(runsOn, "    "),
-		Environment: environment,
+		Environment: c.indentYAMLLines(environment, "    "),
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
