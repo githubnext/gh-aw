@@ -127,20 +127,17 @@ function parseCopilotLog(logContent) {
   const legacyRenderEntries = isEventFormat ? convertCopilotEventsToLegacyLogEntries(canonicalLogEntries) : logEntries;
   if (isEventFormat && !canonicalLogEntries.some(entry => entry?.type === "session.result")) {
     const legacyResult = legacyRenderEntries.find(entry => entry?.type === "result");
-    canonicalLogEntries = [
-      ...canonicalLogEntries,
-      {
-        type: "session.result",
-        data: {
-          numTurns: legacyResult?.num_turns,
-          durationMs: legacyResult?.duration_ms,
-          totalCostUsd: legacyResult?.total_cost_usd,
-          usage: legacyResult?.usage,
-          errors: legacyResult?.errors,
-          permissionDenials: legacyResult?.permission_denials,
-        },
+    canonicalLogEntries.push({
+      type: "session.result",
+      data: {
+        numTurns: legacyResult?.num_turns,
+        durationMs: legacyResult?.duration_ms,
+        totalCostUsd: legacyResult?.total_cost_usd,
+        usage: legacyResult?.usage,
+        errors: legacyResult?.errors,
+        permissionDenials: legacyResult?.permission_denials,
       },
-    ];
+    });
   }
 
   // Generate conversation markdown using shared function

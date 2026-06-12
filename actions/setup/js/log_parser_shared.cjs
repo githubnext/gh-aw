@@ -824,6 +824,13 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
     return `mcp__${serverName}__${toolName}`;
   };
 
+  const readString = (...values) => {
+    for (const value of values) {
+      if (typeof value === "string") return value;
+    }
+    return "";
+  };
+
   for (const entry of logEntries) {
     if (!entry || typeof entry !== "object") continue;
     const data = entry.data && typeof entry.data === "object" ? entry.data : {};
@@ -848,7 +855,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         break;
 
       case "assistant.message": {
-        const text = typeof data.content === "string" ? data.content : typeof data.message === "string" ? data.message : "";
+        const text = readString(data.content, data.message);
         if (!text.trim()) break;
         assistantMessageCount++;
         normalizedEntries.push({
@@ -916,7 +923,18 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         }
 
         const success = typeof data.success === "boolean" ? data.success : !data.error;
-        const output = typeof data.output === "string" ? data.output : typeof data.result === "string" ? data.result : data.error ? String(data.error) : success ? "success" : "Tool execution failed";
+        let output = "";
+        if (typeof data.output === "string") {
+          output = data.output;
+        } else if (typeof data.result === "string") {
+          output = data.result;
+        } else if (data.error) {
+          output = String(data.error);
+        } else if (success) {
+          output = "success";
+        } else {
+          output = "Tool execution failed";
+        }
 
         normalizedEntries.push({
           type: "user",
