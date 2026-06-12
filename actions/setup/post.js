@@ -31,7 +31,7 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
   let readErrors = 0;
 
   const walk = (currentDir, depth) => {
-    if (depth > maxDepth || files.length >= maxFiles) {
+    if (depth >= maxDepth || files.length >= maxFiles) {
       return;
     }
 
