@@ -700,10 +700,24 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 // buildDailyAICUsageCacheSteps creates steps that compute AIC for the current run and persist
 // it to a per-workflow JSONL cache via actions/cache/save.  The cache is restored by the
 // activation job so that subsequent guardrail checks can skip artifact downloads for known runs.
+//
+// The sequence is: restore latest snapshot → append current run entry → save updated snapshot.
+// The restore step uses a prefix restore-key so it picks up the most recent snapshot even when
+// the exact key (which includes the current run ID) does not exist yet.
 func buildDailyAICUsageCacheSteps(data *WorkflowData, pinAction func(string) string) []string {
 	sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
-	cacheKey := fmt.Sprintf("agentic-workflow-usage-%s-${{ github.run_id }}", sanitized)
+	cacheKeyPrefix := fmt.Sprintf("agentic-workflow-usage-%s-", sanitized)
+	cacheKey := cacheKeyPrefix + "${{ github.run_id }}"
 	return []string{
+		"      - name: Restore daily AIC usage cache\n",
+		"        id: restore-daily-aic-cache-conclusion\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/cache/restore")),
+		"        with:\n",
+		fmt.Sprintf("          key: %s\n", cacheKey),
+		fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix),
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
 		"      - name: Write daily AIC usage cache entry\n",
 		"        id: write-daily-aic-cache\n",
 		"        if: always()\n",

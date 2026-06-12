@@ -66,6 +66,14 @@ async function main() {
     const aic = sumAICFromUsageJSONLFiles(usageFiles);
     logCache("Computed AIC for current run", { runId, aic });
 
+    // Skip writing a zero or non-finite AIC: it most likely means the usage files were missing
+    // or empty.  Writing {aic: 0} would make the cache entry sticky and prevent the guardrail
+    // from falling back to getRunAIC() on the next activation.
+    if (!Number.isFinite(aic) || aic <= 0) {
+      core.warning(`[daily-aic-cache] Computed AIC is ${aic} (non-positive or non-finite); skipping cache write so the guardrail can retry via artifact download.`);
+      return;
+    }
+
     // Read existing cache content (restored from the previous run's cache snapshot, if any).
     let existingLines = "";
     try {
