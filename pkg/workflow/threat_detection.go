@@ -1028,13 +1028,11 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Determine environment: use threat detection override if set, otherwise inherit from
 	// the top-level environment (matching the same unconditional fallback used by agent
 	// and safe-output jobs so that environment-scoped secrets are accessible).
-	environment := ""
+	environment := data.Environment
 	if data.SafeOutputs.ThreatDetection.Environment != "" {
 		// ThreatDetectionConfig.Environment holds the raw environment name; normalize it to
 		// a YAML field so Job.Environment renders as "environment: <name>" not just "<name>".
 		environment = "environment: " + data.SafeOutputs.ThreatDetection.Environment
-	} else {
-		environment = data.Environment
 	}
 
 	job := &Job{
