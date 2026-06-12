@@ -1,4 +1,4 @@
-// Package pathconsts provides known file path constants for testing.
+// Package constants provides known file path constants for testing.
 package constants
 
 // ConfigFilePath is the path to the config file.

@@ -160,8 +160,9 @@ func collectKnownPathConsts(pass *analysis.Pass) map[string]constRef {
 		if !ok || (basic.Kind() != types.String && basic.Kind() != types.UntypedString) {
 			return
 		}
-		// c.Val().String() returns the value with surrounding quotes.
-		val := strings.Trim(c.Val().String(), `"`)
+		// c.Val().String() returns the value with surrounding double-quote characters.
+		raw := c.Val().String()
+		val := strings.TrimPrefix(strings.TrimSuffix(raw, `"`), `"`)
 		if !isPathLike(val) {
 			return
 		}
