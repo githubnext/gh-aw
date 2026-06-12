@@ -376,11 +376,20 @@ if [ -z "$MCP_GATEWAY_API_KEY" ]; then
   exit 1
 fi
 
+require_home_for_copilot_config() {
+  if [ -z "${HOME:-}" ]; then
+    echo "ERROR: HOME environment variable must be set before using Copilot MCP config paths"
+    exit 1
+  fi
+}
+
 # Determine which agent-specific converter to use based on engine type
 # Check for engine-specific indicators and call appropriate converter
 if [ -n "$GH_AW_ENGINE" ]; then
   ENGINE_TYPE="$GH_AW_ENGINE"
-elif [ -f "$HOME/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
+elif [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
+  ENGINE_TYPE="copilot"
+elif [ -n "${HOME:-}" ] && [ -d "$HOME/.copilot" ]; then
   ENGINE_TYPE="copilot"
 elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
   ENGINE_TYPE="codex"
@@ -417,6 +426,7 @@ case "$ENGINE_TYPE" in
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"
     # Default fallback - copy to most common location, filtering out CLI-mounted servers
+    require_home_for_copilot_config
     mkdir -p "$HOME/.copilot"
     if [ -n "$GH_AW_MCP_CLI_SERVERS" ]; then
       if ! jq --argjson cliServers "$GH_AW_MCP_CLI_SERVERS" \

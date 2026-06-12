@@ -231,6 +231,35 @@ function resolveCopilotConfigPaths() {
   return { dir, file: path.join(dir, "mcp-config.json") };
 }
 
+/**
+ * Determines which engine-specific MCP config converter to use.
+ * Copilot auto-detection consults HOME only when HOME is available so
+ * explicit non-Copilot engines do not fail just because HOME is unset.
+ *
+ * @param {string} configDir
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(p: string) => boolean} [existsSync]
+ * @returns {string}
+ */
+function detectEngineType(configDir, env = process.env, existsSync = fs.existsSync) {
+  if (env.GH_AW_ENGINE) {
+    return env.GH_AW_ENGINE;
+  }
+  if (env.GITHUB_COPILOT_CLI_MODE) {
+    return "copilot";
+  }
+  if (env.HOME && existsSync(path.join(env.HOME, ".copilot"))) {
+    return "copilot";
+  }
+  if (existsSync(path.join(configDir, "config.toml"))) {
+    return "codex";
+  }
+  if (existsSync(path.join(configDir, "mcp-servers.json"))) {
+    return "claude";
+  }
+  return "unknown";
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -693,28 +722,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Resolve the Copilot CLI config directory under the runtime $HOME.
-  let copilotConfigDir, copilotConfigFile;
-  try {
-    ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
-  } catch (err) {
-    core.error(`ERROR: ${err.message}`);
-    process.exit(1);
-  }
-
   // Determine engine type
-  let engineType = process.env.GH_AW_ENGINE || "";
-  if (!engineType) {
-    if (fs.existsSync(copilotConfigDir) || process.env.GITHUB_COPILOT_CLI_MODE) {
-      engineType = "copilot";
-    } else if (fs.existsSync(path.join(configDir, "config.toml"))) {
-      engineType = "codex";
-    } else if (fs.existsSync(path.join(configDir, "mcp-servers.json"))) {
-      engineType = "claude";
-    } else {
-      engineType = "unknown";
-    }
-  }
+  const engineType = detectEngineType(configDir);
 
   core.info(`Detected engine type: ${engineType}`);
 
@@ -731,6 +740,13 @@ async function main() {
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);
     execSync(`node "${converterPath}"`, { stdio: "inherit", env: process.env });
   } else {
+    let copilotConfigDir, copilotConfigFile;
+    try {
+      ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
+    } catch (err) {
+      core.error(`ERROR: ${err.message}`);
+      process.exit(1);
+    }
     core.info(`No agent-specific converter found for engine: ${engineType}`);
     core.info("Using gateway output directly");
     // Default fallback – copy to most common location, filtering CLI-mounted servers
@@ -874,6 +890,7 @@ if (require.main === module) {
 
 module.exports = {
   applyOTLPIgnoreIfMissing,
+  detectEngineType,
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,

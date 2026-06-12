@@ -38,6 +38,15 @@ if [ -z "$MCP_GATEWAY_PORT" ]; then
   exit 1
 fi
 
+if [ -z "${HOME:-}" ]; then
+  echo "ERROR: HOME environment variable is required"
+  exit 1
+fi
+
+COPILOT_CONFIG_DIR="$HOME/.copilot"
+COPILOT_CONFIG_PATH="$COPILOT_CONFIG_DIR/mcp-config.json"
+mkdir -p "$COPILOT_CONFIG_DIR"
+
 echo "Converting gateway configuration to Copilot format..."
 echo "Input: $MCP_GATEWAY_OUTPUT"
 echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
@@ -88,15 +97,15 @@ jq --arg urlPrefix "$URL_PREFIX" '
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
   )
-' "$MCP_GATEWAY_OUTPUT" > "$HOME/.copilot/mcp-config.json"
+' "$MCP_GATEWAY_OUTPUT" > "$COPILOT_CONFIG_PATH"
 
 # Restrict permissions so only the runner process owner can read this file.
 # mcp-config.json contains the bearer token for the MCP gateway; an attacker
 # who reads it could bypass the --allowed-tools constraint by issuing raw
 # JSON-RPC calls directly to the gateway.
-chmod 600 "$HOME/.copilot/mcp-config.json"
+chmod 600 "$COPILOT_CONFIG_PATH"
 
-echo "Copilot configuration written to $HOME/.copilot/mcp-config.json"
+echo "Copilot configuration written to $COPILOT_CONFIG_PATH"
 echo ""
 echo "Converted configuration:"
-cat "$HOME/.copilot/mcp-config.json"
+cat "$COPILOT_CONFIG_PATH"

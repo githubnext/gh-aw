@@ -451,7 +451,7 @@ func TestBashIntegration_TrapFiresWithRuntimeHome(t *testing.T) {
 
 	// The original file must still exist (trap targeted the later HOME).
 	_, err = os.Stat(originalFile)
-	assert.NoError(t, err,
+	require.NoError(t, err,
 		"original-home settings.json must NOT be deleted: trap should use runtime HOME, not definition-time HOME")
 
 	// The later-home file must be gone.

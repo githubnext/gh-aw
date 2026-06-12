@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+import { applyOTLPIgnoreIfMissing, detectEngineType, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {
   let originalWarning;
@@ -175,5 +175,25 @@ describe("start_mcp_gateway resolveCopilotConfigPaths", () => {
     const { dir, file } = resolveCopilotConfigPaths();
     expect(dir).not.toContain("/home/runner");
     expect(file).not.toContain("/home/runner");
+  });
+});
+
+describe("start_mcp_gateway detectEngineType", () => {
+  const configDir = "/tmp/gh-aw/mcp-config";
+
+  it("does not require HOME for an explicit non-copilot engine", () => {
+    expect(detectEngineType(configDir, { GH_AW_ENGINE: "codex" }, () => false)).toBe("codex");
+  });
+
+  it("does not require HOME when auto-detecting codex", () => {
+    const existsSync = vi.fn(p => p === `${configDir}/config.toml`);
+    expect(detectEngineType(configDir, {}, existsSync)).toBe("codex");
+    expect(existsSync).not.toHaveBeenCalledWith("/.copilot");
+  });
+
+  it("auto-detects copilot from the HOME-scoped config directory", () => {
+    const env = { HOME: "/var/lib/actions runner" };
+    const existsSync = vi.fn(p => p === "/var/lib/actions runner/.copilot");
+    expect(detectEngineType(configDir, env, existsSync)).toBe("copilot");
   });
 });
