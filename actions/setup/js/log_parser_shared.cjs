@@ -610,6 +610,388 @@ function parseLogEntries(logContent) {
   return logEntries;
 }
 
+/**
+ * Detects whether entries are in Copilot event log format.
+ * @param {Array<any>} logEntries
+ * @returns {boolean}
+ */
+function isCopilotEventLogEntries(logEntries) {
+  if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    return false;
+  }
+
+  const eventTypePrefixes = ["user.", "assistant.", "tool.", "session."];
+  let eventLikeCount = 0;
+
+  for (const entry of logEntries) {
+    if (!entry || typeof entry !== "object" || typeof entry.type !== "string") continue;
+    if (entry.type === "assistant" || entry.type === "user" || entry.type === "system" || entry.type === "result") {
+      return false;
+    }
+    if (eventTypePrefixes.some(prefix => entry.type.startsWith(prefix))) {
+      eventLikeCount++;
+    }
+  }
+
+  return eventLikeCount > 0;
+}
+
+/**
+ * Converts legacy trace entries to Copilot event log format.
+ * @param {Array<any>} logEntries
+ * @param {{sourceEngine?: string}} [options]
+ * @returns {Array<any>}
+ */
+function convertLegacyLogEntriesToCopilotEvents(logEntries, options = {}) {
+  if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    return [];
+  }
+  if (isCopilotEventLogEntries(logEntries)) {
+    return logEntries;
+  }
+
+  const { sourceEngine = "unknown" } = options;
+  /** @type {Array<any>} */
+  const events = [];
+  const toolUsesById = new Map();
+
+  for (const entry of logEntries) {
+    if (!entry || typeof entry !== "object") continue;
+
+    if (entry.type === "system" && entry.subtype === "init") {
+      events.push({
+        type: "session.init",
+        data: {
+          sourceEngine,
+          model: entry.model,
+          sessionId: entry.session_id,
+          cwd: entry.cwd,
+          tools: Array.isArray(entry.tools) ? entry.tools : [],
+          mcpServers: Array.isArray(entry.mcp_servers) ? entry.mcp_servers : [],
+          slashCommands: Array.isArray(entry.slash_commands) ? entry.slash_commands : [],
+          modelInfo: entry.model_info,
+        },
+      });
+      continue;
+    }
+
+    if (entry.type === "system" && entry.subtype && entry.subtype !== "init") {
+      if (entry.message?.content && Array.isArray(entry.message.content)) {
+        for (const content of entry.message.content) {
+          if (content?.type === "text" && typeof content.text === "string" && content.text.trim()) {
+            events.push({
+              type: "assistant.message",
+              data: { content: content.text },
+            });
+          }
+        }
+      } else if (typeof entry.message === "string" && entry.message.trim()) {
+        events.push({
+          type: "assistant.message",
+          data: { content: entry.message },
+        });
+      }
+      continue;
+    }
+
+    if (entry.type === "assistant" && entry.message?.content && Array.isArray(entry.message.content)) {
+      for (const content of entry.message.content) {
+        if (!content || typeof content !== "object") continue;
+
+        if (content.type === "text" && typeof content.text === "string" && content.text.trim()) {
+          events.push({
+            type: "assistant.message",
+            data: { content: content.text },
+          });
+        } else if (content.type === "thinking" && typeof content.thinking === "string" && content.thinking.trim()) {
+          events.push({
+            type: "assistant.reasoning",
+            data: { content: content.thinking },
+          });
+        } else if (content.type === "tool_use") {
+          const toolCallId = typeof content.id === "string" && content.id.trim() ? content.id : `tool_${events.length + 1}`;
+          toolUsesById.set(toolCallId, content);
+          events.push({
+            type: "tool.execution_start",
+            data: {
+              toolCallId,
+              toolName: content.name,
+              input: content.input || {},
+            },
+          });
+        }
+      }
+      continue;
+    }
+
+    if (entry.type === "user" && entry.message?.content && Array.isArray(entry.message.content)) {
+      for (const content of entry.message.content) {
+        if (!content || content.type !== "tool_result") continue;
+        const toolCallId = typeof content.tool_use_id === "string" && content.tool_use_id.trim() ? content.tool_use_id : `tool_${events.length + 1}`;
+        const toolUse = toolUsesById.get(toolCallId);
+        events.push({
+          type: "tool.execution_complete",
+          data: {
+            toolCallId,
+            toolName: toolUse?.name,
+            success: content.is_error !== true,
+            output: content.content,
+            durationMs: content.duration_ms,
+          },
+        });
+      }
+      continue;
+    }
+
+    if (entry.type === "result") {
+      events.push({
+        type: "session.result",
+        data: {
+          numTurns: entry.num_turns,
+          durationMs: entry.duration_ms,
+          totalCostUsd: entry.total_cost_usd,
+          usage: entry.usage,
+          errors: entry.errors,
+          permissionDenials: entry.permission_denials,
+        },
+      });
+    }
+  }
+
+  return events;
+}
+
+/**
+ * Converts Copilot event log entries to legacy trace entries used by renderers.
+ * @param {Array<any>} logEntries
+ * @returns {Array<any>}
+ */
+function convertCopilotEventsToLegacyLogEntries(logEntries) {
+  if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    return [];
+  }
+  if (!isCopilotEventLogEntries(logEntries)) {
+    return logEntries;
+  }
+
+  /** @type {Array<any>} */
+  const normalizedEntries = [];
+  const pendingByToolCallId = new Map();
+  const pendingIdsByToolName = new Map();
+  let toolCounter = 0;
+  let turnCount = 0;
+  let assistantMessageCount = 0;
+
+  const addPendingId = (toolName, toolId) => {
+    const existing = pendingIdsByToolName.get(toolName);
+    if (existing) {
+      existing.push(toolId);
+      return;
+    }
+    pendingIdsByToolName.set(toolName, [toolId]);
+  };
+
+  const shiftPendingId = toolName => {
+    const existing = pendingIdsByToolName.get(toolName);
+    if (!existing || existing.length === 0) return null;
+    const toolId = existing.shift();
+    if (existing.length === 0) {
+      pendingIdsByToolName.delete(toolName);
+    }
+    return toolId || null;
+  };
+
+  const removePendingId = (toolName, toolId) => {
+    const existing = pendingIdsByToolName.get(toolName);
+    if (!existing || existing.length === 0) return;
+    const idx = existing.indexOf(toolId);
+    if (idx === -1) return;
+    existing.splice(idx, 1);
+    if (existing.length === 0) {
+      pendingIdsByToolName.delete(toolName);
+    }
+  };
+
+  const normalizeToolName = (rawToolName, mcpServerName) => {
+    const toolName = typeof rawToolName === "string" && rawToolName.trim() ? rawToolName.trim() : "unknown";
+    if (toolName.startsWith("mcp__")) {
+      return toolName;
+    }
+    const serverName = typeof mcpServerName === "string" ? mcpServerName.trim() : "";
+    if (!serverName) {
+      return toolName;
+    }
+    return `mcp__${serverName}__${toolName}`;
+  };
+
+  const readString = (...values) => {
+    for (const value of values) {
+      if (typeof value === "string") return value;
+    }
+    return "";
+  };
+
+  for (const entry of logEntries) {
+    if (!entry || typeof entry !== "object") continue;
+    const data = entry.data && typeof entry.data === "object" ? entry.data : {};
+
+    switch (entry.type) {
+      case "session.init":
+        normalizedEntries.push({
+          type: "system",
+          subtype: "init",
+          model: data.model,
+          session_id: data.sessionId,
+          cwd: data.cwd,
+          tools: Array.isArray(data.tools) ? data.tools : [],
+          mcp_servers: Array.isArray(data.mcpServers) ? data.mcpServers : [],
+          slash_commands: Array.isArray(data.slashCommands) ? data.slashCommands : [],
+          model_info: data.modelInfo,
+        });
+        break;
+
+      case "user.message":
+        turnCount++;
+        break;
+
+      case "assistant.message": {
+        const text = readString(data.content, data.message);
+        if (!text.trim()) break;
+        assistantMessageCount++;
+        normalizedEntries.push({
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text }],
+          },
+        });
+        break;
+      }
+
+      case "assistant.reasoning":
+      case "reasoning": {
+        const text = typeof data.content === "string" ? data.content : "";
+        if (!text.trim()) break;
+        normalizedEntries.push({
+          type: "assistant",
+          message: {
+            content: [{ type: "thinking", thinking: text }],
+          },
+        });
+        break;
+      }
+
+      case "tool.execution_start": {
+        const toolName = normalizeToolName(data.toolName, data.mcpServerName);
+        const toolCallId = typeof data.toolCallId === "string" && data.toolCallId.trim() ? data.toolCallId : null;
+        const resolvedToolId = toolCallId || `sdk_tool_${++toolCounter}`;
+        if (toolCallId) {
+          pendingByToolCallId.set(toolCallId, resolvedToolId);
+        }
+        addPendingId(toolName, resolvedToolId);
+        normalizedEntries.push({
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: data.input || data.parameters || {} }],
+          },
+        });
+        break;
+      }
+
+      case "tool.execution_complete": {
+        const toolName = normalizeToolName(data.toolName, data.mcpServerName);
+        const toolCallId = typeof data.toolCallId === "string" && data.toolCallId.trim() ? data.toolCallId : null;
+        let resolvedToolId = null;
+
+        if (toolCallId && pendingByToolCallId.has(toolCallId)) {
+          resolvedToolId = pendingByToolCallId.get(toolCallId);
+          pendingByToolCallId.delete(toolCallId);
+          if (resolvedToolId) {
+            removePendingId(toolName, resolvedToolId);
+          }
+        }
+        if (!resolvedToolId) {
+          resolvedToolId = shiftPendingId(toolName);
+        }
+        if (!resolvedToolId) {
+          resolvedToolId = `sdk_tool_${++toolCounter}`;
+          normalizedEntries.push({
+            type: "assistant",
+            message: {
+              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: data.input || data.parameters || {} }],
+            },
+          });
+        }
+
+        const success = typeof data.success === "boolean" ? data.success : !data.error;
+        let output = "";
+        if (typeof data.output === "string") {
+          output = data.output;
+        } else if (typeof data.result === "string") {
+          output = data.result;
+        } else if (data.error) {
+          output = String(data.error);
+        } else if (success) {
+          output = "success";
+        } else {
+          output = "Tool execution failed";
+        }
+
+        normalizedEntries.push({
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: resolvedToolId,
+                content: output,
+                is_error: !success,
+                duration_ms: typeof data.durationMs === "number" ? data.durationMs : undefined,
+              },
+            ],
+          },
+        });
+        break;
+      }
+
+      case "session.result": {
+        const usage = data.usage && typeof data.usage === "object" ? data.usage : {};
+        normalizedEntries.push({
+          type: "result",
+          num_turns: typeof data.numTurns === "number" ? data.numTurns : undefined,
+          duration_ms: typeof data.durationMs === "number" ? data.durationMs : undefined,
+          total_cost_usd: typeof data.totalCostUsd === "number" ? data.totalCostUsd : undefined,
+          usage: {
+            input_tokens: usage.input_tokens ?? usage.inputTokens,
+            output_tokens: usage.output_tokens ?? usage.outputTokens,
+            cache_creation_input_tokens: usage.cache_creation_input_tokens ?? usage.cacheCreationInputTokens,
+            cache_read_input_tokens: usage.cache_read_input_tokens ?? usage.cacheReadInputTokens,
+          },
+          errors: Array.isArray(data.errors) ? data.errors : undefined,
+          permission_denials: Array.isArray(data.permissionDenials) ? data.permissionDenials : undefined,
+        });
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  if (normalizedEntries.length === 0) {
+    return [];
+  }
+
+  const hasResult = normalizedEntries.some(entry => entry.type === "result");
+  if (!hasResult) {
+    normalizedEntries.push({
+      type: "result",
+      num_turns: turnCount > 0 ? turnCount : assistantMessageCount,
+    });
+  }
+
+  return normalizedEntries;
+}
+
 const { generateConversationMarkdown, formatToolUse, generatePlainTextSummary, generateCopilotCliStyleSummary } = createLogParserFormatters({
   formatBashCommand,
   formatMcpName,
@@ -621,6 +1003,8 @@ const { generateConversationMarkdown, formatToolUse, generatePlainTextSummary, g
   estimateTokens,
   formatDuration,
   unfenceMarkdown,
+  isCopilotEventLogEntries,
+  convertCopilotEventsToLegacyLogEntries,
   MAX_AGENT_TEXT_LENGTH,
   SIZE_LIMIT_WARNING,
 });
@@ -963,6 +1347,9 @@ module.exports = {
   formatToolDisplayName,
   formatInitializationSummary,
   formatToolUse,
+  isCopilotEventLogEntries,
+  convertLegacyLogEntriesToCopilotEvents,
+  convertCopilotEventsToLegacyLogEntries,
   parseLogEntries,
   formatToolCallAsDetails,
   formatResultPreview,

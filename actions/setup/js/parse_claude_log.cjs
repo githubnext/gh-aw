@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Claude",
@@ -30,7 +30,8 @@ function parseClaudeLog(logContent) {
   const mcpFailures = [];
 
   // Generate conversation markdown using shared function
-  const conversationResult = generateConversationMarkdown(logEntries, {
+  const canonicalLogEntries = convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "claude" });
+  const conversationResult = generateConversationMarkdown(canonicalLogEntries, {
     formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
     formatInitCallback: initEntry => {
       const result = formatInitializationSummary(initEntry, {
@@ -98,7 +99,7 @@ function parseClaudeLog(logContent) {
     }
   }
 
-  return { markdown, mcpFailures, maxTurnsHit, logEntries };
+  return { markdown, mcpFailures, maxTurnsHit, logEntries: canonicalLogEntries };
 }
 
 // Export for testing

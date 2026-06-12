@@ -1,28 +1,27 @@
 # Serena Language Server Tool
 
-Serena is a **language service protocol (LSP) MCP server** for semantic code analysis. Use it ONLY when you need deep code understanding beyond text manipulation.
+Serena is an **LSP MCP server** for semantic code analysis. Use ONLY when you need deep code understanding beyond text manipulation.
 
-## Quick Decision: Should I Use Serena?
+## When to Use Serena
 
-**✅ YES - Use Serena when you need:**
+**Use when you need:**
 - Symbol navigation (find all usages of a function/type)
 - Call graph analysis across files
 - Semantic duplicate detection (not just text matching)
 - Refactoring analysis (functions in wrong files, extraction opportunities)
 - Type relationships and interface implementations
 
-**❌ NO - Use simpler tools when:**
-- Searching text patterns → Use `grep`
-- Editing files → Use `edit` tool
-- Running commands → Use `bash`
-- Working with YAML/JSON/Markdown → Use `edit` tool
-- Simple file operations → Use `bash` or `create`
+**Don't use Serena for:**
+- Text patterns → `grep`
+- File edits → `edit` tool
+- Commands → `bash`
+- YAML/JSON/Markdown → `edit` tool
 
-**Rule of thumb**: If `grep` or `bash` can solve it in 1-2 commands, don't use Serena.
+If `grep` or `bash` can solve it in 1-2 commands, don't use Serena.
 
 ## Configuration
 
-Configure Serena through the shared workflow import. For multi-language, the first entry is the default fallback:
+Import the shared workflow. For multi-language, the first entry is the default fallback:
 
 ```yaml
 imports:
@@ -60,11 +59,11 @@ imports:
 
 ### 1. Activate Serena First
 
-Always call `activate_project` before other Serena tools, passing the workspace path.
+Call `activate_project` before any other Serena tool, passing the workspace path.
 
 ### 2. Combine with Other Tools
 
-Use `bash` for file discovery, Serena for semantic analysis, `edit` for changes.
+`bash` for file discovery, Serena for semantic analysis, `edit` for changes.
 
 ```yaml
 imports:

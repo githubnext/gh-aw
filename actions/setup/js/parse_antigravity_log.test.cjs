@@ -61,7 +61,7 @@ describe("parse_antigravity_log.cjs", () => {
       const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("Final answer");
-      expect(result.logEntries).toHaveLength(1);
+      expect(result.logEntries.some(e => e.type === "assistant.message")).toBe(true);
     });
 
     it("should use the last valid JSON line as the final response", () => {
@@ -71,8 +71,9 @@ describe("parse_antigravity_log.cjs", () => {
 
       expect(result.markdown).toContain("Complete final answer");
       expect(result.markdown).not.toContain("Partial answer");
-      expect(result.logEntries).toHaveLength(1);
-      expect(result.logEntries[0].message.content[0].text).toBe("Complete final answer");
+      const assistantMsg = result.logEntries.find(e => e.type === "assistant.message");
+      expect(assistantMsg).toBeDefined();
+      expect(assistantMsg.data?.content).toBe("Complete final answer");
     });
 
     it("should aggregate token counts across multiple models", () => {
@@ -110,8 +111,7 @@ describe("parse_antigravity_log.cjs", () => {
       expect(result.markdown).toContain("Hello from Antigravity");
       expect(result.markdown).toContain("500");
       expect(result.markdown).toContain("200");
-      expect(result.logEntries).toHaveLength(1);
-      expect(result.logEntries[0].type).toBe("assistant");
+      expect(result.logEntries.some(e => e.type === "assistant.message")).toBe(true);
     });
 
     it("should handle missing stats gracefully", () => {
@@ -120,7 +120,7 @@ describe("parse_antigravity_log.cjs", () => {
       const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("Response without stats");
-      expect(result.logEntries).toHaveLength(1);
+      expect(result.logEntries.some(e => e.type === "assistant.message")).toBe(true);
     });
 
     it("should handle empty response in the last JSONL entry", () => {
