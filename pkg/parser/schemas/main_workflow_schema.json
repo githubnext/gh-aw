@@ -2634,9 +2634,18 @@
       ]
     },
     "runs-on-slim": {
-      "type": "string",
-      "description": "Runner for all framework/generated jobs (activation, pre-activation, safe-outputs, unlock, APM, etc.). Provides a compile-stable override for generated job runners without requiring a safe-outputs section. Overridden by safe-outputs.runs-on when both are set. Defaults to 'ubuntu-slim'. Use this when your infrastructure does not provide the default runner or when you need consistent runner selection across all jobs.",
-      "examples": ["self-hosted", "ubuntu-latest", "ubuntu-22.04"]
+      "$ref": "#/$defs/github_actions_runs_on",
+      "description": "Runner for all framework/generated jobs (activation, pre-activation, safe-outputs, unlock, APM, etc.). Provides a compile-stable override for generated job runners without requiring a safe-outputs section. Supports the same string, array, and runner-group object forms as runs-on. Overridden by safe-outputs.runs-on when both are set. Defaults to 'ubuntu-slim'. Use this when your infrastructure does not provide the default runner or when you need consistent runner selection across all jobs.",
+      "examples": [
+        "self-hosted",
+        "ubuntu-latest",
+        "ubuntu-22.04",
+        ["self-hosted", "ubuntu2404", "x64", "host"],
+        {
+          "group": "larger-runners",
+          "labels": ["ubuntu-latest-8-cores"]
+        }
+      ]
     },
     "timeout-minutes": {
       "$ref": "#/$defs/templatable_integer",

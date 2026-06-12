@@ -113,6 +113,7 @@ safe-outputs:
 
 > [!NOTE]
 > `runs-on` controls only the main agent job. `runs-on-slim` controls all framework/generated jobs. `safe-outputs.runs-on` still takes precedence over `runs-on-slim` for safe-output jobs specifically.
+> `runs-on-slim` accepts the same string, array, or runner-group object forms as `runs-on`.
 
 ## Configuring the maintenance workflow runner
 

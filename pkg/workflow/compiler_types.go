@@ -488,7 +488,7 @@ type WorkflowData struct {
 	PreAgentSteps                  string // steps to run immediately before the agent execution step
 	PostSteps                      string // steps to run after AI execution
 	RunsOn                         string
-	RunsOnSlim                     string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
+	RunsOnSlim                     string // rendered runs-on snippet for framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	Environment                    string // environment setting for the main job
 	Container                      string // container setting for the main job
 	Services                       string // services setting for the main job

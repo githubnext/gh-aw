@@ -415,6 +415,33 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsJobRunsOnAr
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsRunsOnSlimArrayForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on":           "workflow_dispatch",
+		"runs-on-slim": []any{"self-hosted", "linux"},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsRunsOnSlimObjectForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"runs-on-slim": map[string]any{
+			"group":  "arc-custom",
+			"labels": []any{"ubuntu2404", "x64"},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsAllowedBaseBranchesInCreatePullRequest(t *testing.T) {
 	frontmatter := map[string]any{
 		"on": map[string]any{
