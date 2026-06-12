@@ -164,8 +164,8 @@ async function runLogParser(options) {
       // Generate lightweight plain text summary for core.info and Copilot CLI style for step summary
       if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
         // Extract model from init entry if available
-        const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-        const model = initEntry?.model || null;
+        const initEntry = logEntries.find(entry => (entry.type === "system" && entry.subtype === "init") || entry.type === "session.init");
+        const model = initEntry?.model || initEntry?.data?.model || null;
 
         const plainTextSummary = generatePlainTextSummary(logEntries, {
           model,
