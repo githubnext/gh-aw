@@ -26,10 +26,11 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		githubConfigLog.Print("Skipping GitHub MCP lockdown detection step: GitHub tool not enabled")
 		return
 	}
+	githubToolMap, _ := githubTool.(map[string]any)
 
 	// Skip when guard policy is already fully configured in the workflow.
 	// The step is only needed to auto-configure guard policies for public repos.
-	if len(getGitHubGuardPolicies(githubTool)) > 0 {
+	if len(getGitHubGuardPolicies(githubToolMap)) > 0 {
 		githubConfigLog.Print("Guard policy already configured in workflow, skipping automatic guard policy determination")
 		return
 	}
@@ -168,9 +169,10 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 		githubConfigLog.Print("Skipping parse-guard-vars step: GitHub tool not enabled")
 		return
 	}
+	githubToolMap, _ := githubTool.(map[string]any)
 
 	// Only generate the step when guard policies are configured.
-	if len(getGitHubGuardPolicies(githubTool)) == 0 {
+	if len(getGitHubGuardPolicies(githubToolMap)) == 0 {
 		githubConfigLog.Print("Skipping parse-guard-vars step: no explicit guard policies configured")
 		return
 	}

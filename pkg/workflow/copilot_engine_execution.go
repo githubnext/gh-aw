@@ -604,12 +604,14 @@ touch %s
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
 			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
 			if workflowData.ParsedTools.GitHub.GitHubApp.shouldIgnoreMissingKey() {
-				customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+				githubToolConfig, _ := workflowData.Tools["github"].(map[string]any)
+				customGitHubToken := getGitHubToken(githubToolConfig)
 				tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
 			}
 			env["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
-			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+			githubToolConfig, _ := workflowData.Tools["github"].(map[string]any)
+			customGitHubToken := getGitHubToken(githubToolConfig)
 			// Use effective token with precedence: custom > default
 			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 			env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken

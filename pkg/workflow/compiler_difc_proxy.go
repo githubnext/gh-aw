@@ -83,7 +83,8 @@ func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 	if !hasGitHub || githubTool == false {
 		return false
 	}
-	return len(getGitHubGuardPolicies(githubTool)) > 0
+	toolConfig, _ := githubTool.(map[string]any)
+	return len(getGitHubGuardPolicies(toolConfig)) > 0
 }
 
 // isIntegrityProxyEnabled returns true unless the user has explicitly disabled the DIFC proxy
@@ -167,20 +168,15 @@ func hasPreAgentStepsWithGHToken(data *WorkflowData) bool {
 // endorser-min-integrity) are also included in the proxy policy.
 //
 // Returns an empty string if no guard policy fields are found.
-func getDIFCProxyPolicyJSON(githubTool any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) string {
-	toolConfig, ok := githubTool.(map[string]any)
-	if !ok {
-		return ""
-	}
-
+func getDIFCProxyPolicyJSON(githubTool map[string]any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) string {
 	policy := make(map[string]any)
 
 	// Support both 'allowed-repos' (preferred) and deprecated 'repos'
-	repos, hasRepos := toolConfig["allowed-repos"]
+	repos, hasRepos := githubTool["allowed-repos"]
 	if !hasRepos {
-		repos, hasRepos = toolConfig["repos"]
+		repos, hasRepos = githubTool["repos"]
 	}
-	integrity, hasIntegrity := toolConfig["min-integrity"]
+	integrity, hasIntegrity := githubTool["min-integrity"]
 
 	if !hasRepos && !hasIntegrity {
 		return ""
@@ -198,7 +194,7 @@ func getDIFCProxyPolicyJSON(githubTool any, data *WorkflowData, gatewayConfig *M
 	}
 
 	// Inject reaction fields when the feature flag is enabled and MCPG supports it.
-	injectIntegrityReactionFields(policy, toolConfig, data, gatewayConfig)
+	injectIntegrityReactionFields(policy, githubTool, data, gatewayConfig)
 
 	guardPolicy := map[string]any{
 		"allow-only": policy,
@@ -229,16 +225,16 @@ func resolveProxyContainerImage(gatewayConfig *MCPGatewayRuntimeConfig) string {
 func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	difcProxyLog.Print("Building Start DIFC proxy step YAML")
 
-	githubTool := data.Tools["github"]
+	githubToolConfig, _ := data.Tools["github"].(map[string]any)
 
 	// Get MCP server token (same token the gateway uses for the GitHub MCP server)
-	customGitHubToken := getGitHubToken(githubTool)
+	customGitHubToken := getGitHubToken(githubToolConfig)
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
 	// Build the simplified guard policy JSON (static fields only)
 	// (plus reaction fields when integrity-reactions feature flag is enabled)
 	ensureDefaultMCPGatewayConfig(data)
-	policyJSON := getDIFCProxyPolicyJSON(githubTool, data, data.SandboxConfig.MCP)
+	policyJSON := getDIFCProxyPolicyJSON(githubToolConfig, data, data.SandboxConfig.MCP)
 	if policyJSON == "" {
 		difcProxyLog.Print("Could not build DIFC proxy policy JSON, skipping proxy start")
 		return ""
@@ -498,10 +494,10 @@ const defaultCliProxyPolicyJSON = `{"allow-only":{"repos":"all","min-integrity":
 func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	difcProxyLog.Print("Building Start CLI proxy step YAML")
 
-	githubTool := data.Tools["github"]
+	githubToolConfig, _ := data.Tools["github"].(map[string]any)
 
 	// Get token for the proxy
-	customGitHubToken := getGitHubToken(githubTool)
+	customGitHubToken := getGitHubToken(githubToolConfig)
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
 	// Build the guard policy JSON (static fields only, plus reaction fields when enabled).
@@ -509,7 +505,7 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	// calls return HTTP 503 ("proxy enforcement not configured"). Use the default
 	// permissive policy when no guard policy is configured in the frontmatter.
 	ensureDefaultMCPGatewayConfig(data)
-	policyJSON := getDIFCProxyPolicyJSON(githubTool, data, data.SandboxConfig.MCP)
+	policyJSON := getDIFCProxyPolicyJSON(githubToolConfig, data, data.SandboxConfig.MCP)
 	if policyJSON == "" {
 		policyJSON = defaultCliProxyPolicyJSON
 		difcProxyLog.Print("No guard policy configured, using default CLI proxy policy")

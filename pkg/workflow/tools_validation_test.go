@@ -974,7 +974,7 @@ func TestGetDIFCProxyPolicyJSONWithReactions(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		githubTool       any
+		githubTool       map[string]any
 		data             *WorkflowData
 		gatewayConfig    *MCPGatewayRuntimeConfig
 		expectedContains []string

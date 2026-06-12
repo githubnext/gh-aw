@@ -175,7 +175,7 @@ func buildStandardJSONMCPRenderers(
 ) MCPToolRenderers {
 	mcpRenderingLog.Printf("Building standard JSON MCP renderers")
 	return MCPToolRenderers{
-		RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+		RenderGitHub: func(yaml *strings.Builder, githubTool map[string]any, isLast bool, workflowData *WorkflowData) {
 			createRenderer(isLast).RenderGitHubMCP(yaml, githubTool, workflowData)
 		},
 		RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {

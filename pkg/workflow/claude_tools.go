@@ -322,7 +322,7 @@ func appendGitHubMCPTools(allowedTools []string, toolName string, toolValue any,
 	}
 	githubMode := getGitHubType(mcpConfig)
 	defaultTools := constants.DefaultGitHubToolsLocal
-	if githubMode == "remote" {
+	if githubMode == GitHubMCPModeRemote {
 		defaultTools = constants.DefaultGitHubToolsRemote
 	}
 	for _, defaultTool := range defaultTools {

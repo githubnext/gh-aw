@@ -20,10 +20,11 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	imageSet := make(map[string]bool) // Use a set to avoid duplicates
 
 	// Check for GitHub tool (uses Docker image)
-	if githubTool, hasGitHub := tools["github"]; hasGitHub {
+	if rawGithubTool, hasGitHub := tools["github"]; hasGitHub {
+		githubTool, _ := rawGithubTool.(map[string]any)
 		githubType := getGitHubType(githubTool)
 		// Only add if using local (Docker) mode
-		if githubType == "local" {
+		if githubType == GitHubMCPModeLocal {
 			githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 			image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
 			if !imageSet[image] {

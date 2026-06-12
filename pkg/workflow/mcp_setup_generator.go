@@ -574,7 +574,8 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	ensureDefaultMCPGatewayConfig(workflowData)
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
-	githubTool, hasGitHub := tools["github"]
+	githubToolRaw, hasGitHub := tools["github"]
+	githubTool, _ := githubToolRaw.(map[string]any)
 	writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
 		engine:               engine,
 		workflowData:         workflowData,
@@ -657,7 +658,7 @@ type writeMCPGatewayExportsOptions struct {
 	workflowData         *WorkflowData
 	gatewayConfig        *MCPGatewayRuntimeConfig
 	hasGitHub            bool
-	githubTool           any
+	githubTool           map[string]any
 	port                 int
 	domain               string
 	payloadDir           string
@@ -712,7 +713,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS=" + escapedCLIServersJSON + "\n")
 		}
 	}
-	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
+	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		yaml.WriteString("          export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"\n")
 	}
 	if len(gatewayConfig.Env) > 0 {
@@ -733,7 +734,7 @@ type buildMCPGatewayContainerCommandOptions struct {
 	payloadDir        string
 	payloadPathPrefix string
 	hasGitHub         bool
-	githubTool        any
+	githubTool        map[string]any
 	tools             map[string]any
 }
 
@@ -835,8 +836,8 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GITHUB_BASE_REF")
 }
 
-func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, hasGitHub bool, githubTool any, tools map[string]any) {
-	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
+func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, hasGitHub bool, githubTool map[string]any, tools map[string]any) {
+	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		containerCmd.WriteString(" -e GITHUB_PERSONAL_ACCESS_TOKEN")
 	}
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
@@ -861,7 +862,7 @@ func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflow
 	}
 }
 
-func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool any, tools map[string]any, engine CodingAgentEngine) {
+func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := sliceutil.MapKeys(gatewayConfig.Env)
 		sort.Strings(envVarNames)
@@ -888,7 +889,7 @@ func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workfl
 	}
 }
 
-func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool any, tools map[string]any, engine CodingAgentEngine) map[string]bool {
+func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) map[string]bool {
 	addedEnvVars := make(map[string]bool)
 	standardEnvVars := []string{
 		"MCP_GATEWAY_PORT", "MCP_GATEWAY_DOMAIN", "MCP_GATEWAY_API_KEY", "MCP_GATEWAY_PAYLOAD_DIR", "DEBUG",
@@ -906,7 +907,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 	for _, envVar := range standardEnvVars {
 		addedEnvVars[envVar] = true
 	}
-	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
+	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = true
 	}
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {

@@ -10,7 +10,7 @@ import (
 func TestGetGitHubToolsets(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    any
+		input    map[string]any
 		expected string
 	}{
 		{
@@ -54,8 +54,8 @@ func TestGetGitHubToolsets(t *testing.T) {
 			expected: "context,repos,issues,pull_requests,discussions",
 		},
 		{
-			name:     "Non-map input returns action-friendly",
-			input:    "not a map",
+			name:     "Nil map input returns action-friendly",
+			input:    nil,
 			expected: "context,repos,issues,pull_requests",
 		},
 	}
@@ -73,7 +73,7 @@ func TestGetGitHubToolsets(t *testing.T) {
 func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 	tests := []struct {
 		name           string
-		githubTool     any
+		githubTool     map[string]any
 		expectedInYAML []string
 		notInYAML      []string
 	}{
@@ -162,7 +162,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 	tests := []struct {
 		name           string
-		githubTool     any
+		githubTool     map[string]any
 		expectedInYAML []string
 		notInYAML      []string
 	}{
@@ -241,7 +241,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 	tests := []struct {
 		name           string
-		githubTool     any
+		githubTool     map[string]any
 		expectedInYAML []string
 		notInYAML      []string
 	}{
@@ -320,7 +320,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 	tests := []struct {
 		name           string
-		githubTool     any
+		githubTool     map[string]any
 		expectedInYAML []string
 	}{
 		{
