@@ -49,6 +49,16 @@ const (
 	// any other TCP Docker daemon configuration.
 	awfArcDindDockerHostRegex    = `^tcp://`
 	awfArcDindHostPathPrefixFlag = "--docker-host-path-prefix /tmp/gh-aw"
+
+	// awfArcDindChrootBinariesSourcePath is the runner-side directory that AWF overlays
+	// at /usr/local/bin inside chroot mode for ARC/DinD split-filesystem runners.
+	// This is the gh-aw staging directory that holds pre-downloaded binaries (e.g., copilot).
+	awfArcDindChrootBinariesSourcePath = "/tmp/gh-aw"
+
+	// awfArcDindChrootIdentityHome is the home directory path exported inside chroot mode
+	// for ARC/DinD runners. A dedicated directory under /tmp/gh-aw is used so that the
+	// runner user has a consistent home that exists on the daemon-visible filesystem.
+	awfArcDindChrootIdentityHome = "/tmp/gh-aw/home"
 )
 
 // AWFCommandConfig contains configuration for building AWF commands.
@@ -200,17 +210,24 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// Auto-detect ARC/DinD split daemon topology at runtime and emit
 	// --docker-host-path-prefix when supported by the selected AWF version.
 	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
+	// When AWF also supports chroot config (v0.27.1+), the Python patch body is embedded inside
+	// the same if-block so the script only contains one DOCKER_HOST condition check.
 	arcDindPrefixProbe := ""
 	arcDindPrefixArgsRef := ""
 	if awfSupportsDockerHostPathPrefix(firewallConfig) {
+		chrootPatchBody := ""
+		if awfSupportsChrootConfig(firewallConfig) {
+			chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBody()
+		}
 		arcDindPrefixProbe = fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
-  %s="%s"
+  %s="%s"%s
 fi`,
 			awfArcDindPrefixArgsVarName,
 			awfArcDindDockerHostRegex,
 			awfArcDindPrefixArgsVarName,
-			awfArcDindHostPathPrefixFlag)
+			awfArcDindHostPathPrefixFlag,
+			chrootPatchBody)
 		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
 	toolCacheMountProbe := fmt.Sprintf(`%s=""
@@ -870,4 +887,38 @@ func awfSupportsDockerHostPathPrefix(firewallConfig *FirewallConfig) bool {
 // apiProxy.enableTokenSteering.
 func awfSupportsTokenSteering(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFTokenSteeringMinVersion)
+}
+
+// awfSupportsChrootConfig returns true when the effective AWF version supports
+// chroot.binariesSourcePath and chroot.identity.* in the config file (AWF v0.27.1+).
+func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFChrootConfigMinVersion)
+}
+
+// buildArcDindChrootConfigPatchBody returns the Python heredoc that patches the AWF
+// config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
+// embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
+// (see buildArcDindChrootConfigInjectScript for standalone use and tests).
+func buildArcDindChrootConfigPatchBody() string {
+	return fmt.Sprintf(`  python - <<'PY'
+import json,os,subprocess as sp
+from pathlib import Path
+p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
+c=json.loads(p.read_text())
+c["chroot"]={"binariesSourcePath":"%s","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"%s"}}
+p.write_text(json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n")
+PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome)
+}
+
+// buildArcDindChrootConfigInjectScript returns a standalone bash+Python script that
+// patches the AWF config file with chroot.binariesSourcePath and chroot.identity.* when the
+// runner is in an ARC/DinD topology (detected via DOCKER_HOST=tcp://...).
+//
+// This standalone form is used by tests. In production, the patch body is embedded
+// inside the arcDindPrefixProbe if-block (see BuildAWFCommand) so there is only one
+// DOCKER_HOST condition check in the generated script.
+func buildArcDindChrootConfigInjectScript() string {
+	return fmt.Sprintf(`if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
+%s
+fi`, awfArcDindDockerHostRegex, buildArcDindChrootConfigPatchBody())
 }
