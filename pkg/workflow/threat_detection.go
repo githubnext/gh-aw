@@ -23,6 +23,7 @@ type ThreatDetectionConfig struct {
 	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
 	EngineDisabled      bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
 	RunsOn              string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
+	Environment         string        `yaml:"environment,omitempty"`       // GitHub Actions environment override for the detection job (defaults to top-level environment when OIDC is used)
 	ContinueOnError     *bool         `yaml:"continue-on-error,omitempty"` // When true (default), detection failures produce warnings instead of blocking safe outputs
 	EnabledExpr         *string       `yaml:"-"`                           // Expression form of the enabled flag, e.g. "${{ inputs.enable-threat-detection }}"
 	ContinueOnErrorExpr *string       `yaml:"-"`                           // Expression form of continue-on-error, e.g. "${{ inputs.coe }}"
@@ -1024,11 +1025,30 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	}
 	permissions := perms.RenderToYAML()
 
+	// Determine environment: use threat detection override if set, otherwise inherit from
+	// the top-level environment when OIDC is required (GitHub OIDC auth or OTLP GitHub OIDC auth).
+	// Azure OIDC federation rules require the environment to match the configured OIDC subject claims.
+	environment := ""
+	if data.SafeOutputs.ThreatDetection.Environment != "" {
+		environment = data.SafeOutputs.ThreatDetection.Environment
+	} else if data.EngineConfig != nil && data.EngineConfig.Auth != nil && data.EngineConfig.Auth.Type == "github-oidc" {
+		// When engine uses GitHub OIDC, inherit top-level environment for Azure federation
+		if data.Environment != "" {
+			environment = data.Environment
+		}
+	} else if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		// When OTLP uses GitHub OIDC, inherit top-level environment
+		if data.Environment != "" {
+			environment = data.Environment
+		}
+	}
+
 	job := &Job{
 		Name:        string(constants.DetectionJobName),
 		Needs:       needs,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(runsOn, "    "),
+		Environment: environment,
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,

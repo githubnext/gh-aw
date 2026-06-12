@@ -2373,6 +2373,7 @@ jobs:
     if: >
       always() && needs.agent.result != 'skipped' && (needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true')
     runs-on: ubuntu-latest
+    environment: aoai-model
     permissions:
       contents: read
       id-token: write
