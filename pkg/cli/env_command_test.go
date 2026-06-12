@@ -16,11 +16,12 @@ func TestNewEnvCommand(t *testing.T) {
 	require.NotNil(t, cmd)
 	assert.Equal(t, "env", cmd.Use)
 
-	var updateCmd *cobra.Command
+	var getCmd, updateCmd *cobra.Command
 	var hasGet, hasUpdate bool
 	for _, sub := range cmd.Commands() {
 		if sub.Name() == "get" {
 			hasGet = true
+			getCmd = sub
 		}
 		if sub.Name() == "update" {
 			hasUpdate = true
@@ -29,7 +30,15 @@ func TestNewEnvCommand(t *testing.T) {
 	}
 	assert.True(t, hasGet, "env command should include get subcommand")
 	assert.True(t, hasUpdate, "env command should include update subcommand")
+	require.NotNil(t, getCmd)
 	require.NotNil(t, updateCmd)
+	assert.Contains(t, getCmd.Long, "./file.yml")
+	assert.Contains(t, getCmd.Long, "--scope defaults to repo")
+	assert.Contains(t, getCmd.Long, "--enterprise <slug>")
+	assert.Contains(t, updateCmd.Long, "./file.yml")
+	assert.Contains(t, updateCmd.Long, "--scope is required")
+	assert.Contains(t, updateCmd.Long, "--dry-run previews planned changes")
+	assert.Contains(t, updateCmd.Long, "--yes skips the confirmation prompt")
 	assert.NotNil(t, updateCmd.Flags().Lookup("yes"))
 	assert.NotNil(t, updateCmd.Flags().Lookup("dry-run"))
 }
