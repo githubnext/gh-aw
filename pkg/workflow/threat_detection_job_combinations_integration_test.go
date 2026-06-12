@@ -365,6 +365,7 @@ func TestWorkflowFilesCompile(t *testing.T) {
 
 	threatFiles := []string{
 		"test-copilot-threat-detection-expression.md",
+		"test-copilot-threat-detection-environment.md",
 		"test-copilot-repo-memory-threat-detection.md",
 		"test-copilot-repo-memory-threat-detection-expression.md",
 		"test-copilot-cache-memory-threat-detection.md",
@@ -408,6 +409,14 @@ func TestWorkflowFilesCompile(t *testing.T) {
 			if strings.Contains(filename, "threat-detection") && !strings.Contains(filename, "expression") {
 				assert.Contains(t, yaml, "  detection:",
 					"file %s should produce a detection job", filename)
+			}
+
+			// Environment fixture must propagate top-level environment to detection.
+			if filename == "test-copilot-threat-detection-environment.md" {
+				detectionSection := extractJobSection(yaml, string(constants.DetectionJobName))
+				require.NotEmpty(t, detectionSection, "detection job section should be present")
+				assert.Contains(t, detectionSection, "environment: production",
+					"detection job in %s should inherit top-level environment", filename)
 			}
 
 			// Repo-memory files should produce push_repo_memory job

@@ -45,7 +45,6 @@
  *   not a numeric database ID. Push events always produce a hex SHA here.
  */
 
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
@@ -146,58 +145,44 @@ function validateNumericValue(value, varName) {
  * @param {object} ctx - GitHub Actions context object
  */
 async function validateContextVariables(coreArg, ctx) {
-  try {
-    coreArg.info("Starting context variable validation...");
+  coreArg.info("Starting context variable validation...");
 
-    const failures = [];
-    let checkedCount = 0;
+  const failures = [];
+  let checkedCount = 0;
 
-    // Validate each numeric context variable by reading directly from context
-    for (const { path, name } of NUMERIC_CONTEXT_PATHS) {
-      const value = getNestedValue(ctx, path);
-
-      // Only validate if the value exists
-      if (value !== undefined) {
-        checkedCount++;
-        const result = validateNumericValue(value, name);
-
-        if (result.valid) {
-          coreArg.info(`✓ ${result.message}`);
-        } else {
-          coreArg.error(`✗ ${result.message}`);
-          failures.push({
-            name,
-            value,
-            message: result.message,
-          });
-        }
+  for (const { path, name } of NUMERIC_CONTEXT_PATHS) {
+    const value = getNestedValue(ctx, path);
+    if (value !== undefined) {
+      checkedCount++;
+      const result = validateNumericValue(value, name);
+      if (result.valid) {
+        coreArg.info(`✓ ${result.message}`);
+      } else {
+        coreArg.error(`✗ ${result.message}`);
+        failures.push({ name, value, message: result.message });
       }
     }
-
-    coreArg.info(`Validated ${checkedCount} context variables`);
-
-    // If there are any failures, fail the workflow
-    if (failures.length > 0) {
-      const errorMessage =
-        `Context variable validation failed!\n\n` +
-        `Found ${failures.length} malicious or invalid numeric field(s):\n\n` +
-        failures.map(f => `  - ${f.name}: "${f.value}"\n    ${f.message}`).join("\n\n") +
-        "\n\n" +
-        "Numeric context variables (like github.event.issue.number) must be either empty or valid integers.\n" +
-        "This validation prevents injection attacks where special text or code is hidden in numeric fields.\n\n" +
-        "If you believe this is a false positive, please report it at:\n" +
-        "https://github.com/github/gh-aw/issues";
-
-      coreArg.setFailed(errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    coreArg.info("✅ All context variables validated successfully");
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    coreArg.setFailed(`${ERR_VALIDATION}: Context variable validation failed: ${errorMessage}`);
-    throw error;
   }
+
+  coreArg.info(`Validated ${checkedCount} context variables`);
+
+  if (failures.length > 0) {
+    const failureDetails = failures.map(f => `  - ${f.name}: "${f.value}"\n    ${f.message}`).join("\n\n");
+    const errorMessage =
+      `${ERR_VALIDATION}: Context variable validation failed!\n\n` +
+      `Found ${failures.length} malicious or invalid numeric field(s):\n\n` +
+      failureDetails +
+      "\n\n" +
+      "Numeric context variables (like github.event.issue.number) must be either empty or valid integers.\n" +
+      "This validation prevents injection attacks where special text or code is hidden in numeric fields.\n\n" +
+      "If you believe this is a false positive, please report it at:\n" +
+      "https://github.com/github/gh-aw/issues";
+
+    coreArg.setFailed(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  coreArg.info("✅ All context variables validated successfully");
 }
 
 /**

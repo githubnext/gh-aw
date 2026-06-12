@@ -41,6 +41,8 @@ describe("parse_codex_log.cjs", () => {
   });
 
   describe("parseCodexLog function", () => {
+    const getEventData = (entries, eventType) => entries.filter(e => e.type === eventType).map(e => e.data || {});
+
     it("should parse basic tool call with success", () => {
       const logContent = `tool github.list_pull_requests({"state":"open"})
 github.list_pull_requests(...) success in 123ms:
@@ -213,13 +215,9 @@ github.list_pull_requests(...) success in 123ms:
       expect(result.logEntries).toBeDefined();
       expect(result.logEntries.length).toBeGreaterThan(0);
 
-      // Should contain a tool_use entry for the tool call
-      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
-      expect(assistantEntries.length).toBeGreaterThan(0);
-
-      const toolUseEntry = assistantEntries.find(e => e.message?.content?.some(c => c.type === "tool_use"));
-      expect(toolUseEntry).toBeDefined();
-      expect(toolUseEntry.message.content[0].name).toBe("github__list_pull_requests");
+      const toolStarts = getEventData(result.logEntries, "tool.execution_start");
+      expect(toolStarts.length).toBeGreaterThan(0);
+      expect(toolStarts[0].toolName).toBe("github__list_pull_requests");
     });
 
     it("should populate logEntries with response for new-format tool calls", () => {
@@ -231,13 +229,9 @@ github.create_issue(...) success in 200ms:
 
       expect(result.logEntries.length).toBeGreaterThan(0);
 
-      // Should have a tool_result entry (user entry with tool_result)
-      const userEntries = result.logEntries.filter(e => e.type === "user");
-      expect(userEntries.length).toBeGreaterThan(0);
-
-      const toolResultEntry = userEntries.find(e => e.message?.content?.some(c => c.type === "tool_result"));
-      expect(toolResultEntry).toBeDefined();
-      expect(toolResultEntry.message.content[0].is_error).toBe(false);
+      const toolCompletes = getEventData(result.logEntries, "tool.execution_complete");
+      expect(toolCompletes.length).toBeGreaterThan(0);
+      expect(toolCompletes[0].success).toBe(true);
     });
 
     it("should mark failed new-format tool calls as errors in logEntries", () => {
@@ -249,10 +243,9 @@ github.create_issue(...) failed in 100ms:
 
       expect(result.logEntries.length).toBeGreaterThan(0);
 
-      const userEntries = result.logEntries.filter(e => e.type === "user");
-      const toolResultEntry = userEntries.find(e => e.message?.content?.some(c => c.type === "tool_result"));
-      expect(toolResultEntry).toBeDefined();
-      expect(toolResultEntry.message.content[0].is_error).toBe(true);
+      const toolCompletes = getEventData(result.logEntries, "tool.execution_complete");
+      expect(toolCompletes.length).toBeGreaterThan(0);
+      expect(toolCompletes[0].success).toBe(false);
     });
 
     it("should handle tokens with commas in final count", () => {
@@ -681,7 +674,7 @@ github.list_pull_requests(...) success in 123ms:
     it("should always include a system init entry", () => {
       const result = parseCodexLog("thinking\nsome thinking here");
 
-      const initEntry = result.logEntries.find(e => e.type === "system" && e.subtype === "init");
+      const initEntry = result.logEntries.find(e => e.type === "session.init");
       expect(initEntry).toBeDefined();
     });
 
@@ -703,9 +696,9 @@ Some analysis here`;
 
       const result = parseCodexLog(logContent);
 
-      const initEntry = result.logEntries.find(e => e.type === "system" && e.subtype === "init");
+      const initEntry = result.logEntries.find(e => e.type === "session.init");
       expect(initEntry).toBeDefined();
-      expect(initEntry.model).toBe("gpt-4o");
+      expect(initEntry.data?.model).toBe("gpt-4o");
     });
 
     it("should still include system init entry when model is absent from log", () => {
@@ -714,9 +707,9 @@ Some analysis here`;
 
       const result = parseCodexLog(logContent);
 
-      const initEntry = result.logEntries.find(e => e.type === "system" && e.subtype === "init");
+      const initEntry = result.logEntries.find(e => e.type === "session.init");
       expect(initEntry).toBeDefined();
-      expect(initEntry.model).toBeUndefined();
+      expect(initEntry.data?.model).toBeUndefined();
     });
 
     it("should add error messages as assistant entries when there are no tool calls", () => {
@@ -725,11 +718,9 @@ ERROR: cyber_policy_violation`;
 
       const result = parseCodexLog(logContent);
 
-      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
-      expect(assistantEntries.length).toBeGreaterThan(0);
-      const textContent = assistantEntries.flatMap(e => e.message?.content || []).find(c => c.type === "text");
-      expect(textContent).toBeDefined();
-      expect(textContent.text).toContain("cyber_policy_violation");
+      const assistantMessages = result.logEntries.filter(e => e.type === "assistant.message");
+      expect(assistantMessages.length).toBeGreaterThan(0);
+      expect(assistantMessages[0].data?.content).toContain("cyber_policy_violation");
     });
 
     it("should add reconnect count as assistant entry when no tool calls and reconnects occurred", () => {
@@ -739,11 +730,10 @@ ERROR: connection lost`;
 
       const result = parseCodexLog(logContent);
 
-      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
-      const textContents = assistantEntries.flatMap(e => e.message?.content || []).filter(c => c.type === "text");
-      const reconnectEntry = textContents.find(c => c.text.includes("Reconnect attempts:"));
+      const assistantMessages = result.logEntries.filter(e => e.type === "assistant.message");
+      const reconnectEntry = assistantMessages.find(c => (c.data?.content || "").includes("Reconnect attempts:"));
       expect(reconnectEntry).toBeDefined();
-      expect(reconnectEntry.text).toContain("2/3");
+      expect(reconnectEntry.data?.content).toContain("2/3");
     });
 
     it("should not add error assistant entries when tool calls are present", () => {
@@ -754,12 +744,11 @@ github.list_issues(...) success in 50ms:
 
       const result = parseCodexLog(logContent);
 
-      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
-      const toolUseEntries = assistantEntries.filter(e => e.message?.content?.some(c => c.type === "tool_use"));
+      const toolUseEntries = result.logEntries.filter(e => e.type === "tool.execution_start");
       expect(toolUseEntries.length).toBeGreaterThan(0);
 
       // Error messages should NOT be added as extra assistant text entries
-      const errorTextEntries = assistantEntries.filter(e => e.message?.content?.some(c => c.type === "text" && c.text.includes("some error")));
+      const errorTextEntries = result.logEntries.filter(e => e.type === "assistant.message" && (e.data?.content || "").includes("some error"));
       expect(errorTextEntries.length).toBe(0);
     });
 
