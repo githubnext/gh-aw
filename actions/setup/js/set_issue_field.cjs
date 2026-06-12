@@ -41,74 +41,50 @@ async function getIssueNodeId(githubClient, owner, repo, issueNumber) {
  * @returns {Promise<Array<{id: string, name: string, __typename?: string, options?: Array<{id: string, name: string}>}>>}
  */
 async function fetchIssueFields(githubClient, owner, repo) {
-  try {
-    const result = await githubClient.graphql(
-      `query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          issueFields(first: 100) {
-            nodes {
-              __typename
-              id
-              name
-              ... on IssueFieldSingleSelect {
-                options {
-                  id
-                  name
-                }
-              }
-            }
-          }
-          owner {
+  const result = await githubClient.graphql(
+    `query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        issueFields(first: 100) {
+          nodes {
             __typename
-            ... on Organization {
-              issueFields(first: 100) {
-                nodes {
-                  __typename
-                  id
-                  name
-                  ... on IssueFieldSingleSelect {
-                    options {
-                      id
-                      name
-                    }
-                  }
-                }
-              }
-            }
-            ... on User {
-              issueFields(first: 100) {
-                nodes {
-                  __typename
-                  id
-                  name
-                  ... on IssueFieldSingleSelect {
-                    options {
-                      id
-                      name
-                    }
-                  }
-                }
+            ... on IssueField { id name }
+            ... on IssueFieldText { id name }
+            ... on IssueFieldNumber { id name }
+            ... on IssueFieldDate { id name }
+            ... on IssueFieldSingleSelect { id name options { id name } }
+            ... on IssueFieldMultiSelect { id name options { id name } }
+          }
+        }
+        owner {
+          __typename
+          ... on Organization {
+            issueFields(first: 100) {
+              nodes {
+                __typename
+                ... on IssueField { id name }
+                ... on IssueFieldText { id name }
+                ... on IssueFieldNumber { id name }
+                ... on IssueFieldDate { id name }
+                ... on IssueFieldSingleSelect { id name options { id name } }
+                ... on IssueFieldMultiSelect { id name options { id name } }
               }
             }
           }
         }
-      }`,
-      { owner, repo }
-    );
+      }
+    }`,
+    { owner, repo }
+  );
 
-    const repoFields = result?.repository?.issueFields?.nodes ?? [];
-    if (repoFields.length > 0) {
-      return repoFields;
-    }
+  const isValidNode = node => typeof node?.id === "string" && typeof node?.name === "string";
 
-    const ownerFields = result?.repository?.owner?.issueFields?.nodes ?? [];
-    return ownerFields;
-  } catch (error) {
-    if (typeof core !== "undefined") {
-      core.debug(`Could not fetch issue fields (may not be enabled): ${error instanceof Error ? error.message : String(error)}`);
-    }
-    return [];
+  const repoFields = (result?.repository?.issueFields?.nodes ?? []).filter(isValidNode);
+  if (repoFields.length > 0) {
+    return repoFields;
   }
+
+  const ownerFields = (result?.repository?.owner?.issueFields?.nodes ?? []).filter(isValidNode);
+  return ownerFields;
 }
 
 /**

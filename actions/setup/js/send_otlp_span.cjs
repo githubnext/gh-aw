@@ -1282,7 +1282,8 @@ async function sendJobSetupSpan(options = {}) {
   const runnerArch = process.env.RUNNER_ARCH || "";
   const runnerName = process.env.RUNNER_NAME || "";
   const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
-  const scopeVersion = process.env.GH_AW_INFO_VERSION || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown";
+  const scopeVersion =
+    (typeof awInfo.cli_version === "string" ? awInfo.cli_version : "") || process.env.GH_AW_INFO_CLI_VERSION || awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || process.env.GITHUB_SHA || "unknown";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -1937,7 +1938,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
-  const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || awInfo.cli_version || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown";
+  const version = (typeof awInfo.cli_version === "string" ? awInfo.cli_version : "") || process.env.GH_AW_INFO_CLI_VERSION || awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || process.env.GITHUB_SHA || "unknown";
 
   // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
   // all spans in the same job share one trace.  Fall back to aw_context.otel_trace_id

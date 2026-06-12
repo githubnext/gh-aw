@@ -4043,7 +4043,7 @@ describe("sendJobConclusionSpan", () => {
     expect(spanAttrs).toContainEqual({ key: "gh-aw.cli.version", value: { stringValue: "v3.1.0" } });
   });
 
-  it("prefers agent_version from aw_info.json over cli_version for scope version", async () => {
+  it("prefers cli_version from aw_info.json over agent_version for scope version", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -4052,7 +4052,7 @@ describe("sendJobConclusionSpan", () => {
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/aw_info.json") {
-        return JSON.stringify({ agent_version: "2.1.150" });
+        return JSON.stringify({ cli_version: "v3.2.0", agent_version: "2.1.150" });
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
@@ -4062,7 +4062,7 @@ describe("sendJobConclusionSpan", () => {
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("2.1.150");
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v3.2.0");
   });
 
   it("uses GITHUB_AW_OTEL_TRACE_ID from env as trace ID (1 trace per run)", async () => {
