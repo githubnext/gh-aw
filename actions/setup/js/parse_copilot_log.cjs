@@ -199,7 +199,6 @@ function parseCopilotLog(logContent) {
 
   // Add Information section
   const lastEntry = legacyRenderEntries[legacyRenderEntries.length - 1];
-  const initEntry = legacyRenderEntries.find(entry => entry.type === "system" && entry.subtype === "init");
 
   markdown += generateInformationSection(lastEntry, {
     additionalInfoCallback: () => "",
