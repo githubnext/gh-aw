@@ -132,7 +132,9 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""
 
-	agentValidationLog.Printf("Validating max-turns support: engine=%s", engine.GetID())
+	if hasMaxTurns {
+		agentValidationLog.Printf("Validating max-turns support: engine=%s", engine.GetID())
+	}
 	return validateCapabilitySupport("max-turns", hasMaxTurns, engine.GetCapabilities().MaxTurns, engine.GetID())
 }
 
@@ -143,7 +145,9 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 
 	hasMaxContinuations := engineConfig != nil && engineConfig.MaxContinuations != 0
 
-	agentValidationLog.Printf("Validating max-continuations support: engine=%s", engine.GetID())
+	if hasMaxContinuations {
+		agentValidationLog.Printf("Validating max-continuations support: engine=%s", engine.GetID())
+	}
 	return validateCapabilitySupport("max-continuations", hasMaxContinuations, engine.GetCapabilities().MaxContinuations, engine.GetID())
 }
 
