@@ -358,6 +358,102 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
+  it("main() stops paginating as soon as a run older than the 24h cutoff is found", async () => {
+    const nowIso = new Date().toISOString();
+    const staleIso = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+
+    let listCallCount = 0;
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: { workflow_id: 999, actor: { login: "bot" }, triggering_actor: { login: "bot" } },
+            headers: {},
+          }),
+          listWorkflowRuns: async ({ page }) => {
+            listCallCount += 1;
+            // Page 1: one recent run followed by a stale run.
+            // If early-exit works, page 2 should never be requested.
+            if (page === 1) {
+              return {
+                data: {
+                  workflow_runs: [
+                    { id: 10, html_url: "https://example.test/runs/10", created_at: nowIso, conclusion: "success" },
+                    // A stale run: encountering this should immediately stop pagination.
+                    { id: 9, html_url: "https://example.test/runs/9", created_at: staleIso, conclusion: "success" },
+                  ],
+                },
+                headers: {},
+              };
+            }
+            // Should never reach page 2.
+            return { data: { workflow_runs: [] }, headers: {} };
+          },
+        },
+      },
+    };
+
+    const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(50);
+
+    const coreOutputs = {};
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: () => {},
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    const mockContext = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+
+      // Only page 1 should have been fetched; the stale run should have
+      // terminated pagination before page 2 was requested.
+      expect(listCallCount).toBe(1);
+
+      // Only the recent run (id: 10) should have been inspected.
+      expect(getRunAICSpy).toHaveBeenCalledTimes(1);
+      expect(getRunAICSpy.mock.calls[0][1]).toBe(10);
+
+      // Guardrail not exceeded (50 < 1000).
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GITHUB_EVENT_NAME;
+      getRunAICSpy.mockRestore();
+    }
+  });
+
   it("main() marks the step failed when the daily AI Credits guardrail is exceeded", async () => {
     const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(200);
 

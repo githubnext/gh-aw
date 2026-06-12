@@ -382,6 +382,11 @@ async function main() {
     const candidateRuns = [];
     let page = 1;
     let truncatedByRateLimit = false;
+    // listWorkflowRuns returns runs in descending creation order (newest first).
+    // The first run whose created_at falls before the cutoff means all remaining
+    // runs on this page and every subsequent page are also outside the window, so
+    // we can stop paginating immediately rather than exhausting the page budget.
+    let reachedCutoff = false;
     while (page <= MAX_WORKFLOW_RUN_PAGES) {
       logDailyGuardrail("Querying completed workflow runs", {
         workflowId: currentRun.data.workflow_id,
@@ -401,7 +406,8 @@ async function main() {
       logDailyGuardrail("Received workflow runs page", {
         page,
         runCount: runs.length,
-        runIds: runs.map(run => run?.id).filter(Boolean),
+        firstRunId: runs[0]?.id ?? null,
+        lastRunId: runs[runs.length - 1]?.id ?? null,
       });
       if (runs.length === 0) {
         break;
@@ -412,7 +418,10 @@ async function main() {
         }
         const createdAtMs = Date.parse(run.created_at || "");
         if (!Number.isFinite(createdAtMs) || createdAtMs < cutoffMs) {
-          continue;
+          // Runs are newest-first; any run older than the cutoff means all
+          // remaining runs (and pages) are also outside the 24h window.
+          reachedCutoff = true;
+          break;
         }
         candidateRuns.push(run);
         if (candidateRuns.length >= maxInspectableRuns) {
@@ -420,7 +429,7 @@ async function main() {
           break;
         }
       }
-      if (candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
+      if (reachedCutoff || candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
         break;
       }
       page += 1;
@@ -437,10 +446,6 @@ async function main() {
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
     for (const run of candidateRuns) {
-      if (countedRuns.length >= maxInspectableRuns) {
-        truncatedByRateLimit = true;
-        break;
-      }
       try {
         const runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
         if (runAIC <= 0) {
