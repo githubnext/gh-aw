@@ -27,7 +27,7 @@ func TestGenerateWorkflowHeader_VersionInDevBuild(t *testing.T) {
 	if !strings.HasPrefix(firstLine, "# This file was automatically generated") {
 		t.Errorf("Expected auto-generated notice on first line, got: %s", firstLine)
 	}
-	if !strings.Contains(firstLine, "github.ghaw.github.gill.agenticworkflow") {
+	if !strings.Contains(firstLine, "https://github.com/github/gh-aw/blob/main/debug.md") {
 		t.Errorf("Expected skill URL on first line, got: %s", firstLine)
 	}
 }
