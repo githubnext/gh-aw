@@ -47,6 +47,7 @@ async function fetchIssueFields(githubClient, owner, repo) {
         issueFields(first: 100) {
           nodes {
             __typename
+            ... on IssueField { id name }
             ... on IssueFieldText { id name }
             ... on IssueFieldNumber { id name }
             ... on IssueFieldDate { id name }
@@ -60,6 +61,7 @@ async function fetchIssueFields(githubClient, owner, repo) {
             issueFields(first: 100) {
               nodes {
                 __typename
+                ... on IssueField { id name }
                 ... on IssueFieldText { id name }
                 ... on IssueFieldNumber { id name }
                 ... on IssueFieldDate { id name }
@@ -74,12 +76,14 @@ async function fetchIssueFields(githubClient, owner, repo) {
     { owner, repo }
   );
 
-  const repoFields = result?.repository?.issueFields?.nodes ?? [];
+  const isValidNode = node => typeof node?.id === "string" && typeof node?.name === "string";
+
+  const repoFields = (result?.repository?.issueFields?.nodes ?? []).filter(isValidNode);
   if (repoFields.length > 0) {
     return repoFields;
   }
 
-  const ownerFields = result?.repository?.owner?.issueFields?.nodes ?? [];
+  const ownerFields = (result?.repository?.owner?.issueFields?.nodes ?? []).filter(isValidNode);
   return ownerFields;
 }
 
