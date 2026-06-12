@@ -198,9 +198,10 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	awfArgs := BuildAWFArgs(config)
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 
-	// Auto-detect ARC/DinD split daemon topology at runtime and emit
+	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
+	// tcp:// scheme and pass it through to AWF via --docker-host, and emit
 	// --docker-host-path-prefix when supported by the selected AWF version.
-	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
+	// Both behaviors avoid requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
 	arcDindPrefixProbe := ""
 	arcDindPrefixArgsRef := ""
 	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
