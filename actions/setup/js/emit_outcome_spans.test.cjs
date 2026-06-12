@@ -110,6 +110,7 @@ describe("emit_outcome_spans.cjs", () => {
       RUNNER_ENVIRONMENT: process.env.RUNNER_ENVIRONMENT,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
       GH_AW_INFO_VERSION: process.env.GH_AW_INFO_VERSION,
+      GH_AW_INFO_CLI_VERSION: process.env.GH_AW_INFO_CLI_VERSION,
       OTEL_SERVICE_NAME: process.env.OTEL_SERVICE_NAME,
     };
 
@@ -131,6 +132,7 @@ describe("emit_outcome_spans.cjs", () => {
     process.env.RUNNER_ENVIRONMENT = "github-hosted";
     delete process.env.GH_AW_INFO_STAGED;
     delete process.env.GH_AW_INFO_VERSION;
+    delete process.env.GH_AW_INFO_CLI_VERSION;
     delete process.env.OTEL_SERVICE_NAME;
 
     const emitModulePath = req.resolve("./emit_outcome_spans.cjs");
@@ -174,7 +176,7 @@ describe("emit_outcome_spans.cjs", () => {
   });
 
   it("builds item and summary spans using aw_info staged/version metadata and mirrors locally without endpoints", async () => {
-    currentAwInfo = { staged: true, agent_version: "v9.9.9" };
+    currentAwInfo = { staged: true, cli_version: "v0.79.1", agent_version: "2.1.168" };
     currentSummary = {
       runs_checked: 3,
       total_outcomes: 2,
@@ -252,7 +254,7 @@ describe("emit_outcome_spans.cjs", () => {
     expect(mockBuildOTLPBatchPayload).toHaveBeenCalledWith(
       expect.objectContaining({
         serviceName: "gh-aw",
-        scopeVersion: "v9.9.9",
+        scopeVersion: "v0.79.1",
         resourceAttributes: [
           { key: "github.repository", value: "github/gh-aw" },
           { key: "deployment.environment", value: "staging" },

@@ -324,26 +324,10 @@ This is a test.`,
 			}
 			yamlStr := string(lockContent)
 
-			// Find the safe_outputs job section
-			safeOutputsIdx := strings.Index(yamlStr, "  safe_outputs:\n")
-			if safeOutputsIdx == -1 {
+			safeOutputsSection := extractJobSection(yamlStr, "safe_outputs")
+			if safeOutputsSection == "" {
 				t.Fatal("safe_outputs job not found in generated YAML")
 			}
-
-			// Find the next top-level job after safe_outputs (indented by 2 spaces)
-			nextJobIdx := len(yamlStr)
-			lines := strings.Split(yamlStr[safeOutputsIdx+len("  safe_outputs:\n"):], "\n")
-			offset := safeOutputsIdx + len("  safe_outputs:\n")
-			for _, line := range lines {
-				if line != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "  #") {
-					nextJobIdx = offset
-					break
-				}
-				offset += len(line) + 1
-			}
-
-			safeOutputsSection := yamlStr[safeOutputsIdx:nextJobIdx]
-
 			if tt.expectEnvInSafe {
 				if !strings.Contains(safeOutputsSection, tt.expectedEnvValue) {
 					t.Errorf("Expected safe_outputs job to contain %q, but got:\n%s", tt.expectedEnvValue, safeOutputsSection)
@@ -351,6 +335,88 @@ This is a test.`,
 			} else {
 				if strings.Contains(safeOutputsSection, "environment:") {
 					t.Errorf("Expected safe_outputs job to have no environment field, but found one in:\n%s", safeOutputsSection)
+				}
+			}
+		})
+	}
+}
+
+// TestDetectionJobEnvironmentPropagation verifies that the top-level environment: field is
+// propagated to the detection job during full workflow compilation.
+func TestDetectionJobEnvironmentPropagation(t *testing.T) {
+	tests := []struct {
+		name             string
+		frontmatter      string
+		expectEnvInDet   bool
+		expectedEnvValue string
+	}{
+		{
+			name: "top-level environment propagated to detection job",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+environment: production
+safe-outputs:
+  add-comment: {}
+---
+
+# Test Workflow
+
+This is a test.`,
+			expectEnvInDet:   true,
+			expectedEnvValue: "environment: production",
+		},
+		{
+			name: "no environment means detection job has no environment",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  add-comment: {}
+---
+
+# Test Workflow
+
+This is a test.`,
+			expectEnvInDet:   false,
+			expectedEnvValue: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "detection-env-test")
+			workflowFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(workflowFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(workflowFile); err != nil {
+				t.Fatalf("CompileWorkflow() error: %v", err)
+			}
+
+			lockFile := stringutil.MarkdownToLockFile(workflowFile)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			yamlStr := string(lockContent)
+
+			detectionSection := extractJobSection(yamlStr, string(constants.DetectionJobName))
+			if detectionSection == "" {
+				t.Fatal("detection job not found in generated YAML")
+			}
+
+			if tt.expectEnvInDet {
+				if !strings.Contains(detectionSection, tt.expectedEnvValue) {
+					t.Errorf("Expected detection job to contain %q, but got:\n%s", tt.expectedEnvValue, detectionSection)
+				}
+			} else {
+				if strings.Contains(detectionSection, "environment:") {
+					t.Errorf("Expected detection job to have no environment field, but found one in:\n%s", detectionSection)
 				}
 			}
 		})

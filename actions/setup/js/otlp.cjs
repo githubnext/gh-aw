@@ -105,7 +105,7 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     // source (written by generate_aw_info.cjs and read by conclusion spans).
     const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
     const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
-    const scopeVersion = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
+    const scopeVersion = (typeof awInfo.cli_version === "string" ? awInfo.cli_version : "") || process.env.GH_AW_INFO_CLI_VERSION || awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
     const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
     const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
     const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";

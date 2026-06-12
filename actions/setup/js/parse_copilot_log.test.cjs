@@ -55,6 +55,8 @@ describe("parse_copilot_log.cjs", () => {
   });
 
   describe("parseCopilotLog function", () => {
+    const getSessionResultData = entries => entries.find(e => e.type === "session.result")?.data;
+
     it("should parse JSON array format", () => {
       const jsonArrayLog = JSON.stringify([
         { type: "system", subtype: "init", session_id: "copilot-test-123", tools: ["Bash", "Read", "mcp__github__create_issue"], model: "gpt-5" },
@@ -118,8 +120,8 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("🤖 Commands and Tools");
       expect(result.markdown).toContain("report_intent");
       expect(result.markdown).toContain("Rendered summary content");
-      const resultEntry = result.logEntries.find(e => e.type === "result");
-      expect(resultEntry?.num_turns).toBe(1);
+      const resultData = getSessionResultData(result.logEntries);
+      expect(resultData?.numTurns).toBe(1);
     });
 
     it("should handle tool calls with details in HTML format", () => {
@@ -238,9 +240,9 @@ describe("parse_copilot_log.cjs", () => {
 
       // num_turns should be 5 (from Turns: line), not 2 (from toolEntries.length)
       expect(result.logEntries).toBeDefined();
-      const resultEntry = result.logEntries.find(e => e.type === "result");
-      expect(resultEntry).toBeDefined();
-      expect(resultEntry?.num_turns).toBe(5);
+      const resultData = getSessionResultData(result.logEntries);
+      expect(resultData).toBeDefined();
+      expect(resultData?.numTurns).toBe(5);
     });
 
     it("strips harness driver lines from rendered pretty-print output", () => {
@@ -276,7 +278,7 @@ describe("parse_copilot_log.cjs", () => {
       const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes   +0 -0", "Duration  11s", "Tokens    ↑ 163.9k • ↓ 567 • 149.2k (cached)"].join("\n");
 
       const result = parseCopilotLog(prettyLog);
-      const resultEntry = result.logEntries.find(e => e.type === "result");
+      const resultEntry = getSessionResultData(result.logEntries);
 
       expect(resultEntry).toBeDefined();
       expect(resultEntry.usage).toEqual(
@@ -299,7 +301,7 @@ describe("parse_copilot_log.cjs", () => {
       const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes    +0 -0", "Duration   3m 13s", "Tokens     ↑ 422.2k (375.0k cached) • ↓ 2.4k"].join("\n");
 
       const result = parseCopilotLog(prettyLog);
-      const resultEntry = result.logEntries.find(e => e.type === "result");
+      const resultEntry = getSessionResultData(result.logEntries);
 
       expect(resultEntry).toBeDefined();
       expect(resultEntry.usage).toEqual(
@@ -319,7 +321,7 @@ describe("parse_copilot_log.cjs", () => {
       const prettyLog = ["● Bash", "    └ ok", "", "Tokens    ↑ 1.2k • ↓ 50"].join("\n");
 
       const result = parseCopilotLog(prettyLog);
-      const resultEntry = result.logEntries.find(e => e.type === "result");
+      const resultEntry = getSessionResultData(result.logEntries);
 
       expect(resultEntry.usage.input_tokens).toBe(1200);
       expect(resultEntry.usage.output_tokens).toBe(50);

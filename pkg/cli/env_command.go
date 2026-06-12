@@ -133,7 +133,16 @@ func newDefaultsGetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get [file]",
 		Short: "Download defaults into a YAML file",
-		Args:  cobra.MaximumNArgs(1),
+		Long: `Download compiler defaults into a YAML file.
+
+When [file] is omitted, the command writes to file.yml.
+
+Scope resolution:
+- --scope defaults to repo.
+- repo scope uses --repo owner/repo, or the current repository when --repo is omitted.
+- org scope uses --org when provided; otherwise it infers the organization from --repo (or the current repository).
+- ent scope requires --enterprise <slug>.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFile := "file.yml"
 			if len(args) == 1 {
@@ -161,7 +170,18 @@ func newDefaultsUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [file]",
 		Short: "Upload defaults from a YAML file",
-		Args:  cobra.MaximumNArgs(1),
+		Long: `Upload compiler defaults from a YAML file.
+
+When [file] is omitted, the command reads from file.yml.
+
+Scope and flag behavior:
+- --scope is required (repo|org|ent).
+- repo scope uses --repo owner/repo, or the current repository when --repo is omitted.
+- org scope uses --org when provided; otherwise it infers the organization from --repo (or the current repository).
+- ent scope requires --enterprise <slug>.
+- --dry-run previews planned changes and exits without applying updates.
+- --yes skips the confirmation prompt for real updates; it has no effect with --dry-run.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inputFile := "file.yml"
 			if len(args) == 1 {

@@ -86,12 +86,12 @@ async function main() {
     console.log("[outcome-otel] No OTLP endpoints configured, writing JSONL mirror only");
   }
 
-  // Read aw_info.json first: GH_AW_INFO_VERSION and GH_AW_INFO_STAGED are only
-  // present during setup, while aw_info.json is the authoritative runtime
-  // source for later github-script steps. Prefer agent_version when available
-  // to match the other OTEL helpers' service/scope version attribution.
+  // Read aw_info.json first: GH_AW_INFO_* env vars are only present during setup,
+  // while aw_info.json is the authoritative runtime source for later
+  // github-script steps. Prefer cli_version for CLI-named version dimensions,
+  // and only fall back to engine version fields when CLI version is unavailable.
   const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
-  const scopeVersion = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
+  const scopeVersion = (typeof awInfo.cli_version === "string" ? awInfo.cli_version : "") || process.env.GH_AW_INFO_CLI_VERSION || awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
   const traceId = (process.env.GITHUB_AW_OTEL_TRACE_ID || "").trim().toLowerCase() || generateTraceId();
   const parentSpanId = (process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID || "").trim().toLowerCase() || "";
   const summarySpanId = generateSpanId();

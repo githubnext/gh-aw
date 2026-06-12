@@ -4,7 +4,7 @@ description: Guide for defining inline sub-agents in workflow markdown files —
 
 # Inline Sub-Agents
 
-Inline sub-agents let you define specialised agents directly inside a workflow markdown file. At runtime the sub-agent sections are extracted from the prompt (after `{{#runtime-import}}` macros are resolved) and written to the engine-specific agents directory so the engine CLI can discover and invoke them.
+Define specialised agents directly in a workflow markdown file. At runtime, sub-agent sections are extracted (after `{{#runtime-import}}` macros resolve) and written to the engine-specific agents directory for the engine CLI to discover.
 
 ---
 
@@ -90,11 +90,11 @@ tools:
 
 ## When to Use Sub-Agents
 
-Sub-agents are most useful in two scenarios:
+Two main scenarios:
 
 ### 1 — Parallel specialised tasks with smaller models
 
-Break a large workflow into parallel units of work, each handled by a small, cheap model, and then use the parent (large) model to reason over the aggregated results:
+Break a large workflow into parallel units handled by small/cheap models, then let the parent (large) model reason over the aggregated results:
 
 ```markdown
 # Investigate: Repository Health
@@ -137,24 +137,24 @@ resemble API keys, tokens, or passwords. Report any findings with the
 file name and approximate line number.
 ```
 
-The parent model (e.g. Claude Sonnet or Copilot) orchestrates, while the sub-agents do the heavy lifting with a `small` model at lower cost.
+The parent model orchestrates; sub-agents do the heavy lifting with `small` at lower cost.
 
 ### 2 — Reusable specialised helpers
 
-Extract a repetitive sub-task (file summarisation, commit-message generation, code explanation) into a named sub-agent that the main prompt can call by name, keeping the main prompt concise.
+Extract repetitive sub-tasks (file summarisation, commit-message generation, code explanation) into a named sub-agent the main prompt calls by name.
 
 ---
 
 ## Planner-Worker Pattern
 
-Use a planner-worker split to control cost and keep context quality high:
+Split work to control cost and keep context quality high:
 
-- **Main/frontier agent (planner-orchestrator):** forms hypotheses, decides what evidence is needed, chooses which workers to invoke, and synthesizes final conclusions
-- **Worker sub-agents (usually `model: small`):** execute bounded retrieval, extraction, classification, verification, and one-shot summarization tasks
+- **Main/frontier agent (planner-orchestrator):** forms hypotheses, decides what evidence is needed, picks workers, synthesises conclusions
+- **Worker sub-agents (usually `model: small`):** bounded retrieval, extraction, classification, verification, one-shot summarisation
 
-Prompt workers with narrow, evidence-oriented instructions (for example: “return exact error messages from failing step and line references”), not broad analysis requests.
+Prompt workers narrowly and evidence-first (e.g. "return exact error messages and line references"), not broad analysis.
 
-Worker outputs should be compact and structured (focused excerpts, short JSON, concise findings). Do not return raw logs, full API payloads, or large file dumps to the orchestrator unless explicitly required.
+Worker outputs should be compact and structured. Do not return raw logs or large file dumps to the orchestrator.
 
 ### Bounded delegation rules
 
