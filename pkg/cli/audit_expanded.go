@@ -172,7 +172,7 @@ func inferFallbackLogMetrics(logsPath string) (LogMetrics, string) {
 	}
 
 	if eventsJSONLPath := findEventsJSONLFile(logsPath); eventsJSONLPath != "" {
-		if metrics, err := parseEventsJSONLFile(eventsJSONLPath, false); err == nil && hasUsefulFallbackMetrics(metrics) {
+		if metrics, err := parseEventsJSONLMetrics(eventsJSONLPath, false); err == nil && hasUsefulFallbackMetrics(metrics) {
 			return metrics, "copilot"
 		}
 	}

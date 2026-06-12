@@ -87,14 +87,10 @@ func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineS
 		return "", nil, err
 	}
 
-	mainMarkdown = strings.TrimRight(markdown[:allStarts[0][0]], "\n")
-	h2Positions := collectH2Positions(markdown)
-	for _, m := range allStarts {
-		name, content := extractInlineSection(markdown, m, h2Positions)
+	mainMarkdown, skills = extractInlineSections(markdown, allStarts, func(name, content string) InlineSkill {
 		inlineSkillLog.Printf("Extracted inline skill %q (content length: %d)", name, len(content))
-		skills = append(skills, InlineSkill{Name: name, Content: content})
-	}
-
+		return InlineSkill{Name: name, Content: content}
+	})
 	inlineSkillLog.Printf("Extraction complete: %d skill(s), main markdown length: %d", len(skills), len(mainMarkdown))
 	return mainMarkdown, skills, nil
 }

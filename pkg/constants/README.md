@@ -483,6 +483,14 @@ fmt.Println(constants.GhAwRootDirShell)  // "${RUNNER_TEMP}/gh-aw"
 dir := constants.GetWorkflowDir() // ".github/workflows"
 ```
 
+## Dependencies
+
+**Internal**:
+- None
+
+**External**:
+- None beyond the Go standard library (`io/fs`, `os`, `path/filepath`, `time`).
+
 ## Design Notes
 
 - All semantic types implement `String()` and `IsValid()` to allow consistent validation across the codebase.

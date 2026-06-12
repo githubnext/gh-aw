@@ -1,7 +1,18 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
+const {
+  createEngineLogParser,
+  generateConversationMarkdown,
+  generateInformationSection,
+  formatInitializationSummary,
+  formatToolUse,
+  parseLogEntries,
+  AWF_INFRA_LINE_RE,
+  isCopilotEventLogEntries,
+  convertLegacyLogEntriesToCopilotEvents,
+  convertCopilotEventsToLegacyLogEntries,
+} = require("./log_parser_shared.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 
 const main = createEngineLogParser({
@@ -52,10 +63,12 @@ function extractAwfTokenWarnings(logEntries) {
     if (typeof value.message === "string") addMatches(value.message);
     if (typeof value.content === "string") addMatches(value.content);
     if (typeof value.system === "string") addMatches(value.system);
+    if (typeof value.data?.content === "string") addMatches(value.data.content);
 
     if (Array.isArray(value.content)) visit(value.content);
     if (Array.isArray(value.message?.content)) visit(value.message.content);
     if (Array.isArray(value.system)) visit(value.system);
+    if (value.data && typeof value.data === "object") visit(value.data);
   };
 
   for (const entry of logEntries) visit(entry);
@@ -69,208 +82,7 @@ function extractAwfTokenWarnings(logEntries) {
  * @returns {boolean}
  */
 function isCopilotSdkEventsFormat(logEntries) {
-  if (!Array.isArray(logEntries) || logEntries.length === 0) {
-    return false;
-  }
-
-  const sdkEventTypes = new Set(["user.message", "assistant.message", "tool.execution_start", "tool.execution_complete", "reasoning", "assistant.reasoning"]);
-  let sdkLikeCount = 0;
-
-  for (const entry of logEntries) {
-    if (!entry || typeof entry !== "object") continue;
-    if (entry.type === "assistant" || entry.type === "user" || entry.type === "system" || entry.type === "result") {
-      return false;
-    }
-    if (typeof entry.type === "string" && sdkEventTypes.has(entry.type) && typeof entry.data === "object" && entry.data !== null) {
-      sdkLikeCount++;
-    }
-  }
-
-  return sdkLikeCount > 0;
-}
-
-/**
- * Converts Copilot SDK events.jsonl entries into the normalized trace format
- * expected by generateConversationMarkdown and copilot-style summary renderers.
- * @param {Array<any>} sdkEntries
- * @returns {Array<any>}
- */
-function normalizeCopilotSdkEventsToTrace(sdkEntries) {
-  /** @type {Array<any>} */
-  const normalizedEntries = [];
-  const toolNames = new Set();
-  const pendingByToolCallId = new Map();
-  const pendingIdsByToolName = new Map();
-  let toolCounter = 0;
-  let turnCount = 0;
-  let assistantMessageCount = 0;
-  let firstTimestampMs = null;
-  let lastTimestampMs = null;
-
-  const addPendingId = (toolName, toolId) => {
-    const existing = pendingIdsByToolName.get(toolName);
-    if (existing) {
-      existing.push(toolId);
-      return;
-    }
-    pendingIdsByToolName.set(toolName, [toolId]);
-  };
-
-  const shiftPendingId = toolName => {
-    const existing = pendingIdsByToolName.get(toolName);
-    if (!existing || existing.length === 0) return null;
-    const toolId = existing.shift();
-    if (existing.length === 0) {
-      pendingIdsByToolName.delete(toolName);
-    }
-    return toolId || null;
-  };
-
-  const removePendingId = (toolName, toolId) => {
-    const existing = pendingIdsByToolName.get(toolName);
-    if (!existing || existing.length === 0) return;
-    const idx = existing.indexOf(toolId);
-    if (idx === -1) return;
-    existing.splice(idx, 1);
-    if (existing.length === 0) {
-      pendingIdsByToolName.delete(toolName);
-    }
-  };
-
-  const normalizeToolName = (rawToolName, mcpServerName) => {
-    const toolName = typeof rawToolName === "string" && rawToolName.trim() ? rawToolName.trim() : "unknown";
-    if (toolName.startsWith("mcp__")) {
-      return toolName;
-    }
-    const serverName = typeof mcpServerName === "string" ? mcpServerName.trim() : "";
-    if (!serverName) {
-      return toolName;
-    }
-    return `mcp__${serverName}__${toolName}`;
-  };
-
-  const maybeTrackTimestamp = timestamp => {
-    if (typeof timestamp !== "string") return;
-    const ms = new Date(timestamp).getTime();
-    if (!Number.isFinite(ms)) return;
-    if (firstTimestampMs === null || ms < firstTimestampMs) {
-      firstTimestampMs = ms;
-    }
-    if (lastTimestampMs === null || ms > lastTimestampMs) {
-      lastTimestampMs = ms;
-    }
-  };
-
-  for (const entry of sdkEntries) {
-    if (!entry || typeof entry !== "object") continue;
-    maybeTrackTimestamp(entry.timestamp);
-
-    switch (entry.type) {
-      case "user.message":
-        turnCount++;
-        break;
-
-      case "assistant.message": {
-        assistantMessageCount++;
-        const text = typeof entry.data?.content === "string" ? entry.data.content.trim() : "";
-        if (!text) break;
-        normalizedEntries.push({
-          type: "assistant",
-          message: {
-            content: [{ type: "text", text }],
-          },
-        });
-        break;
-      }
-
-      case "tool.execution_start": {
-        const toolName = normalizeToolName(entry.data?.toolName, entry.data?.mcpServerName);
-        toolNames.add(toolName);
-        const toolCallId = typeof entry.data?.toolCallId === "string" && entry.data.toolCallId.trim() ? entry.data.toolCallId : null;
-        const resolvedToolId = toolCallId || `sdk_tool_${++toolCounter}`;
-        if (toolCallId) {
-          pendingByToolCallId.set(toolCallId, resolvedToolId);
-        }
-        addPendingId(toolName, resolvedToolId);
-        normalizedEntries.push({
-          type: "assistant",
-          message: {
-            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
-          },
-        });
-        break;
-      }
-
-      case "tool.execution_complete": {
-        const toolName = normalizeToolName(entry.data?.toolName, entry.data?.mcpServerName);
-        toolNames.add(toolName);
-        const toolCallId = typeof entry.data?.toolCallId === "string" && entry.data.toolCallId.trim() ? entry.data.toolCallId : null;
-        let resolvedToolId = null;
-
-        if (toolCallId && pendingByToolCallId.has(toolCallId)) {
-          resolvedToolId = pendingByToolCallId.get(toolCallId);
-          pendingByToolCallId.delete(toolCallId);
-          if (resolvedToolId) {
-            removePendingId(toolName, resolvedToolId);
-          }
-        }
-        if (!resolvedToolId) {
-          resolvedToolId = shiftPendingId(toolName);
-        }
-        if (!resolvedToolId) {
-          resolvedToolId = `sdk_tool_${++toolCounter}`;
-          normalizedEntries.push({
-            type: "assistant",
-            message: {
-              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
-            },
-          });
-        }
-
-        const success = typeof entry.data?.success === "boolean" ? entry.data.success : !entry.data?.error;
-        normalizedEntries.push({
-          type: "user",
-          message: {
-            content: [
-              {
-                type: "tool_result",
-                tool_use_id: resolvedToolId,
-                content: success ? "success" : "Tool execution failed",
-                is_error: !success,
-              },
-            ],
-          },
-        });
-        break;
-      }
-
-      default:
-        break;
-    }
-  }
-
-  if (normalizedEntries.length === 0) {
-    return [];
-  }
-
-  normalizedEntries.unshift({
-    type: "system",
-    subtype: "init",
-    model: "copilot-sdk",
-    session_id: null,
-    tools: Array.from(toolNames),
-  });
-
-  const resultEntry = {
-    type: "result",
-    num_turns: turnCount > 0 ? turnCount : assistantMessageCount,
-  };
-  if (firstTimestampMs !== null && lastTimestampMs !== null && lastTimestampMs >= firstTimestampMs) {
-    resultEntry.duration_ms = lastTimestampMs - firstTimestampMs;
-  }
-  normalizedEntries.push(resultEntry);
-
-  return normalizedEntries;
+  return isCopilotEventLogEntries(logEntries);
 }
 
 /**
@@ -310,15 +122,26 @@ function parseCopilotLog(logContent) {
     return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
   }
 
-  if (isCopilotSdkEventsFormat(logEntries)) {
-    const normalized = normalizeCopilotSdkEventsToTrace(logEntries);
-    if (normalized.length > 0) {
-      logEntries = normalized;
-    }
+  const isEventFormat = isCopilotSdkEventsFormat(logEntries);
+  let canonicalLogEntries = isEventFormat ? logEntries : convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "copilot" });
+  const legacyRenderEntries = isEventFormat ? convertCopilotEventsToLegacyLogEntries(canonicalLogEntries) : logEntries;
+  if (isEventFormat && !canonicalLogEntries.some(entry => entry?.type === "session.result")) {
+    const legacyResult = legacyRenderEntries.find(entry => entry?.type === "result");
+    canonicalLogEntries.push({
+      type: "session.result",
+      data: {
+        numTurns: legacyResult?.num_turns,
+        durationMs: legacyResult?.duration_ms,
+        totalCostUsd: legacyResult?.total_cost_usd,
+        usage: legacyResult?.usage,
+        errors: legacyResult?.errors,
+        permissionDenials: legacyResult?.permission_denials,
+      },
+    });
   }
 
   // Generate conversation markdown using shared function
-  const conversationResult = generateConversationMarkdown(logEntries, {
+  const conversationResult = generateConversationMarkdown(canonicalLogEntries, {
     formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
     formatInitCallback: initEntry =>
       formatInitializationSummary(initEntry, {
@@ -364,7 +187,7 @@ function parseCopilotLog(logContent) {
   });
 
   let markdown = conversationResult.markdown;
-  const awfTokenWarnings = extractAwfTokenWarnings(logEntries);
+  const awfTokenWarnings = extractAwfTokenWarnings(canonicalLogEntries);
 
   if (awfTokenWarnings.length > 0) {
     markdown += "## ⚠️ Firewall Steering\n\n";
@@ -375,14 +198,13 @@ function parseCopilotLog(logContent) {
   }
 
   // Add Information section
-  const lastEntry = logEntries[logEntries.length - 1];
-  const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+  const lastEntry = legacyRenderEntries[legacyRenderEntries.length - 1];
 
   markdown += generateInformationSection(lastEntry, {
     additionalInfoCallback: () => "",
   });
 
-  return { markdown, logEntries };
+  return { markdown, logEntries: canonicalLogEntries };
 }
 
 /**

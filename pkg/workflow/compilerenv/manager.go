@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var managerLog = logger.New("compilerenv:manager")
@@ -45,30 +44,6 @@ const (
 	// DefaultModelCodex is the enterprise override for Codex fallback model selection.
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
 )
-
-// ResolveDefaultMaxAICredits returns the resolved max AI credits default, checking
-// the enterprise env var GH_AW_DEFAULT_MAX_AI_CREDITS.
-// Falls back to fallback (built-in default) when the env var is unset or invalid.
-//
-// A value of -1 is preserved and signals that budget enforcement and token
-// steering should be disabled when no per-workflow value is configured.
-func ResolveDefaultMaxAICredits(fallback int64) int64 {
-	if raw := strings.TrimSpace(os.Getenv(DefaultMaxAICredits)); raw != "" {
-		if raw == "-1" {
-			managerLog.Printf("Applying enterprise override %s=%q (fallback was %d)", DefaultMaxAICredits, raw, fallback)
-			return -1
-		}
-		if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
-			parsed, err := strconv.ParseInt(normalized, 10, 64)
-			if err == nil && parsed > 0 {
-				managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxAICredits, parsed, fallback)
-				return parsed
-			}
-		}
-		managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxAICredits, raw, fallback)
-	}
-	return fallback
-}
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,
 // otherwise returns the parsed override as a string.

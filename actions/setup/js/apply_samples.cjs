@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-005: target repo is used only for read-only PR head-ref lookups during deterministic sample replay; never derived from agent safe-output content and never used for a cross-repo write.
 
 // apply_samples.cjs
 //

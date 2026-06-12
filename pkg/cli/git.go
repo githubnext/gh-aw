@@ -53,8 +53,9 @@ func findGitRootForPath(path string) (string, error) {
 }
 
 // parseGitHubRepoSlugFromURL extracts owner/repo from a GitHub URL
-// Supports both HTTPS (https://github.com/owner/repo) and SSH (git@github.com:owner/repo) formats
-// Also supports GitHub Enterprise URLs
+// Supports HTTPS (https://github.com/owner/repo), SCP-style SSH (git@github.com:owner/repo),
+// and SSH URL scheme (ssh://git@github.com/owner/repo) formats.
+// Also supports GitHub Enterprise URLs.
 func parseGitHubRepoSlugFromURL(url string) string {
 	gitLog.Printf("Parsing GitHub repo slug from URL: %s", url)
 
@@ -71,12 +72,24 @@ func parseGitHubRepoSlugFromURL(url string) string {
 		return slug
 	}
 
-	// Handle SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
+	// Handle SCP-style SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
 	sshPrefix := "git@" + githubHostWithoutScheme + ":"
 	if after, ok := strings.CutPrefix(url, sshPrefix); ok {
 		slug := after
 		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
 		return slug
+	}
+
+	// Handle SSH URL scheme: ssh://git@github.com/owner/repo or ssh://github.com/owner/repo
+	if after, ok := strings.CutPrefix(url, "ssh://"); ok {
+		// Strip optional user info (e.g. "git@")
+		if _, userStripped, hasAt := strings.Cut(after, "@"); hasAt {
+			after = userStripped
+		}
+		if slug, ok := strings.CutPrefix(after, githubHostWithoutScheme+"/"); ok {
+			gitLog.Printf("Extracted slug from SSH URL scheme: %s", slug)
+			return slug
+		}
 	}
 
 	gitLog.Print("Could not extract slug from URL")

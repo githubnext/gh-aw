@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var logsCompactLog = logger.New("cli:logs_format_compact")
@@ -117,10 +118,7 @@ func renderLogsCompact(data LogsData) {
 		if dur == "" {
 			dur = "-"
 		}
-		branch := r.Branch
-		if len(branch) > 30 {
-			branch = branch[:27] + "..."
-		}
+		branch := stringutil.Truncate(r.Branch, 30)
 		actor := r.Actor
 		if actor == "" {
 			actor = "-"
@@ -138,10 +136,7 @@ func renderLogsCompact(data LogsData) {
 	if len(data.ErrorsAndWarnings) > 0 {
 		fmt.Fprintln(os.Stdout, "[errors]")
 		for _, ew := range data.ErrorsAndWarnings {
-			msg := ew.Message
-			if len(msg) > 120 {
-				msg = msg[:117] + "..."
-			}
+			msg := stringutil.Truncate(ew.Message, 120)
 			fmt.Fprintf(os.Stdout, "%s run=%d count=%d: %s\n", ew.Type, ew.RunID, ew.Count, msg)
 		}
 	}

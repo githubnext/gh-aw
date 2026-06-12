@@ -5,7 +5,9 @@ description: Analyzes recently modified code and creates pull requests with simp
 on:
   schedule: daily
 
-max-daily-ai-credits: 10000
+max-turns: 50
+max-ai-credits: 1000
+max-daily-ai-credits: 5000
 permissions:
   contents: read
   issues: read
@@ -36,12 +38,12 @@ tools:
     mode: gh-proxy
     toolsets: [default]
   bash:
-    - "cat /tmp/gh-aw/code-simplifier/recent-context.json"
-    - "cat /tmp/gh-aw/code-simplifier/source-files.json"
-    - "cat /tmp/gh-aw/code-simplifier/recent-prs.json"
-    - "cat /tmp/gh-aw/code-simplifier/recent-commits.jsonl"
-    - "cat /tmp/gh-aw/code-simplifier/history-summary.json"
-    - "ls /tmp/gh-aw/code-simplifier"
+    - "cat /tmp/gh-aw/agent/code-simplifier/recent-context.json"
+    - "cat /tmp/gh-aw/agent/code-simplifier/source-files.json"
+    - "cat /tmp/gh-aw/agent/code-simplifier/recent-prs.json"
+    - "cat /tmp/gh-aw/agent/code-simplifier/recent-commits.jsonl"
+    - "cat /tmp/gh-aw/agent/code-simplifier/history-summary.json"
+    - "ls /tmp/gh-aw/agent/code-simplifier"
     - "jq *"
     - "make test-unit"
     - "make lint"
@@ -57,19 +59,19 @@ steps:
     run: |
       set -euo pipefail
       : "${GH_TOKEN:?GH_TOKEN is required for gh CLI queries}"
-      mkdir -p /tmp/gh-aw/code-simplifier
+      mkdir -p /tmp/gh-aw/agent/code-simplifier
 
       YESTERDAY=$(date -d '1 day ago' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d')
-      echo "$YESTERDAY" > /tmp/gh-aw/code-simplifier/yesterday.txt
+      echo "$YESTERDAY" > /tmp/gh-aw/agent/code-simplifier/yesterday.txt
 
       git log --since='24 hours ago' --no-merges --pretty=format:'%H%x09%s' \
         | jq -R 'select(length > 0) | split("\t") | {sha: .[0], subject: (.[1] // "")}' \
-        > /tmp/gh-aw/code-simplifier/recent-commits.jsonl || true
+        > /tmp/gh-aw/agent/code-simplifier/recent-commits.jsonl || true
 
       git log --since='24 hours ago' --name-only --pretty=format:'' --no-merges \
         | sed '/^$/d' \
         | sort -u \
-        > /tmp/gh-aw/code-simplifier/recent-files.txt
+        > /tmp/gh-aw/agent/code-simplifier/recent-files.txt
 
       gh pr list \
         --repo "$EXPR_GITHUB_REPOSITORY" \
@@ -77,22 +79,23 @@ steps:
         --search "merged:>=$YESTERDAY" \
         --limit 100 \
         --json number,title,mergedAt,url \
-        > /tmp/gh-aw/code-simplifier/recent-prs.json || echo '[]' > /tmp/gh-aw/code-simplifier/recent-prs.json
+        > /tmp/gh-aw/agent/code-simplifier/recent-prs.json || echo '[]' > /tmp/gh-aw/agent/code-simplifier/recent-prs.json
 
       jq -R -s '
         split("\n")
         | map(select(length > 0))
         | map(select(test("\\.(go|js|cjs|mjs|ts|tsx|py|cs|java|rb|php|kt|swift)$")))
         | map(select(test("(_test\\.|\\.test\\.|\\.spec\\.|package-lock\\.json$|pnpm-lock\\.yaml$|yarn\\.lock$|go\\.sum$|Cargo\\.lock$|\\.generated\\.|/generated/|/dist/|/build/)"; "i") | not))
-      ' /tmp/gh-aw/code-simplifier/recent-files.txt > /tmp/gh-aw/code-simplifier/source-files.json
+        | .[0:20]
+      ' /tmp/gh-aw/agent/code-simplifier/recent-files.txt > /tmp/gh-aw/agent/code-simplifier/source-files.json
 
       jq -n \
         --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --arg yesterday "$YESTERDAY" \
-        --slurpfile prs /tmp/gh-aw/code-simplifier/recent-prs.json \
-        --slurpfile files /tmp/gh-aw/code-simplifier/source-files.json \
-        '{generated_at:$date, window_start:$yesterday, merged_prs:($prs[0] // []), candidate_files:($files[0] // [])}' \
-        > /tmp/gh-aw/code-simplifier/recent-context.json
+        --slurpfile prs /tmp/gh-aw/agent/code-simplifier/recent-prs.json \
+        --slurpfile files /tmp/gh-aw/agent/code-simplifier/source-files.json \
+        '{generated_at:$date, window_start:$yesterday, candidate_file_cap:20, merged_prs:($prs[0] // []), candidate_files:($files[0] // [])}' \
+        > /tmp/gh-aw/agent/code-simplifier/recent-context.json
 
   - name: Prepare workflow history summary (deterministic)
     env:
@@ -101,10 +104,10 @@ steps:
     run: |
       set -euo pipefail
       : "${GH_TOKEN:?GH_TOKEN is required for gh CLI queries}"
-      mkdir -p /tmp/gh-aw/code-simplifier
+      mkdir -p /tmp/gh-aw/agent/code-simplifier
 
       gh api "repos/$EXPR_GITHUB_REPOSITORY/actions/workflows/code-simplifier.lock.yml/runs?per_page=30" \
-        > /tmp/gh-aw/code-simplifier/workflow-runs.json || echo '{"workflow_runs":[]}' > /tmp/gh-aw/code-simplifier/workflow-runs.json
+        > /tmp/gh-aw/agent/code-simplifier/workflow-runs.json || echo '{"workflow_runs":[]}' > /tmp/gh-aw/agent/code-simplifier/workflow-runs.json
 
       jq '
         .workflow_runs // []
@@ -132,7 +135,7 @@ steps:
               }
             ]
           }
-      ' /tmp/gh-aw/code-simplifier/workflow-runs.json > /tmp/gh-aw/code-simplifier/history-summary.json
+      ' /tmp/gh-aw/agent/code-simplifier/workflow-runs.json > /tmp/gh-aw/agent/code-simplifier/history-summary.json
 
 timeout-minutes: 30
 strict: true
@@ -147,11 +150,11 @@ Preserve behavior exactly while simplifying recently changed production code for
 
 Use these deterministic files first:
 
-- `/tmp/gh-aw/code-simplifier/recent-context.json`
-- `/tmp/gh-aw/code-simplifier/source-files.json`
-- `/tmp/gh-aw/code-simplifier/recent-commits.jsonl`
-- `/tmp/gh-aw/code-simplifier/recent-prs.json`
-- `/tmp/gh-aw/code-simplifier/history-summary.json`
+- `/tmp/gh-aw/agent/code-simplifier/recent-context.json`
+- `/tmp/gh-aw/agent/code-simplifier/source-files.json`
+- `/tmp/gh-aw/agent/code-simplifier/recent-commits.jsonl`
+- `/tmp/gh-aw/agent/code-simplifier/recent-prs.json`
+- `/tmp/gh-aw/agent/code-simplifier/history-summary.json`
 
 Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, or fails JSON parsing.
 
@@ -179,6 +182,7 @@ Do **not** re-fetch these datasets with GitHub tools unless a required file is m
 ✅ No code changes detected in the last 24 hours.
 Code simplifier has nothing to process today.
 ```
+3. If candidate files hit the deterministic cap (`candidate_file_cap`), process only the provided list and do not discover additional files in this run.
 
 ## Phase 2 — Historical Optimization Gate
 
@@ -230,6 +234,13 @@ If no useful change remains, call `noop` with this exact message:
 No simplifications needed - code already meets quality standards.
 ```
 
+If you are close to the run ceiling (turn budget, time budget, or AI-credit budget) before finishing, stop and call `noop` with this exact message:
+
+```
+⚠️ Code simplifier run stopped at configured per-run budget.
+Processed available deterministic inputs only; no safe write action produced.
+```
+
 ## PR Body Requirements
 
 Include:
@@ -246,8 +257,10 @@ You MUST finish by calling exactly one safe-output tool:
 
 1. `noop` with the no-recent-code-changes message above
 2. `noop` with the no-beneficial-simplifications message above
-3. `create_pull_request` when meaningful validated simplifications are ready
-4. `report_incomplete` when blocked by infrastructure/tooling failures
+3. `noop` with the run-budget-ceiling message above
+4. `create_pull_request` when meaningful validated simplifications are ready
+5. `missing_tool` when blocked by unavailable tooling
+6. `missing_data` when blocked by missing required data
 
 Do not finish with plain text only. The safe-output tool call is required.
 

@@ -18,6 +18,7 @@ This package focuses on security-conscious file handling: path validation, bound
 | `DirExists` | `func(path string) bool` | Returns `true` if `path` exists and is a directory |
 | `IsDirEmpty` | `func(path string) bool` | Returns `true` if the directory at `path` contains no entries; also returns `true` if the directory cannot be read |
 | `CopyFile` | `func(src, dst string) error` | Copies the file at `src` to `dst` using buffered I/O; calls `Sync` on the destination before closing |
+| `EnsureParentDir` | `func(path string, perm os.FileMode) error` | Ensures the parent directory of `path` exists, creating it recursively with the given permissions; returns an error for empty paths |
 | `ExtractFileFromTar` | `func(data []byte, path string) ([]byte, error)` | Extracts a single file by `path` from a tar archive; rejects unsafe entry names (absolute or `..`-containing paths) |
 
 ## Usage Examples

@@ -47,25 +47,12 @@ func getCurrentRepoSlugUncached() (string, error) {
 	remoteURL := strings.TrimSpace(string(gitOutput))
 	repoLog.Printf("Parsing git remote URL: %s", remoteURL)
 
-	// Parse GitHub repository from remote URL
-	// Handle both SSH and HTTPS formats
-	var repoPath string
-
-	// SSH format: git@github.com:owner/repo.git
-	if after, ok := strings.CutPrefix(remoteURL, "git@github.com:"); ok {
-		repoPath = after
-	} else if strings.Contains(remoteURL, "github.com/") {
-		// HTTPS format: https://github.com/owner/repo.git
-		parts := strings.Split(remoteURL, "github.com/")
-		if len(parts) >= 2 {
-			repoPath = parts[1]
-		}
-	} else {
+	// Delegate to the shared helper which supports both HTTPS and SSH formats,
+	// including GitHub Enterprise hosts configured via getGitHubHost().
+	repoPath := parseGitHubRepoSlugFromURL(remoteURL)
+	if repoPath == "" {
 		return "", fmt.Errorf("remote URL does not appear to be a GitHub repository: %s", remoteURL)
 	}
-
-	// Remove .git suffix if present
-	repoPath = strings.TrimSuffix(repoPath, ".git")
 
 	// Validate format (should be owner/repo)
 	parts := strings.Split(repoPath, "/")

@@ -111,6 +111,20 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	return nil
 }
 
+// validateCapabilitySupport is a shared helper that checks whether an engine supports a
+// required capability. It returns an error with a standard "not supported" message when
+// the feature is requested but the engine capability is missing.
+// Returns nil when featureSet is false (feature not requested) or when the engine supports it.
+func validateCapabilitySupport(featureName string, featureSet bool, capabilitySupported bool, engineID string) error {
+	if !featureSet {
+		return nil
+	}
+	if !capabilitySupported {
+		return fmt.Errorf("%s not supported: engine '%s' does not support the %s feature", featureName, engineID, featureName)
+	}
+	return nil
+}
+
 // validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
 func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
 	// Check if max-turns is specified in the engine config
@@ -118,23 +132,10 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""
 
-	if !hasMaxTurns {
-		// No max-turns specified, no validation needed
-		return nil
+	if hasMaxTurns {
+		agentValidationLog.Printf("Validating max-turns support: engine=%s", engine.GetID())
 	}
-
-	agentValidationLog.Printf("Validating max-turns support: engine=%s, maxTurns=%s", engine.GetID(), engineConfig.MaxTurns)
-
-	// max-turns is specified, check if the engine supports it
-	if !engine.GetCapabilities().MaxTurns {
-		agentValidationLog.Printf("Engine %s does not support max-turns feature", engine.GetID())
-		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
-	}
-
-	// Engine supports max-turns - additional validation could be added here if needed
-	// For now, we rely on JSON schema validation for format checking
-
-	return nil
+	return validateCapabilitySupport("max-turns", hasMaxTurns, engine.GetCapabilities().MaxTurns, engine.GetID())
 }
 
 // validateMaxContinuationsSupport validates that max-continuations is only used with engines that support this feature
@@ -142,20 +143,12 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 	// Check if max-continuations is specified in the engine config
 	_, engineConfig := c.ExtractEngineConfig(frontmatter)
 
-	if engineConfig == nil || engineConfig.MaxContinuations == 0 {
-		// No max-continuations specified, no validation needed
-		return nil
+	hasMaxContinuations := engineConfig != nil && engineConfig.MaxContinuations != 0
+
+	if hasMaxContinuations {
+		agentValidationLog.Printf("Validating max-continuations support: engine=%s", engine.GetID())
 	}
-
-	agentValidationLog.Printf("Validating max-continuations support: engine=%s, maxContinuations=%d", engine.GetID(), engineConfig.MaxContinuations)
-
-	// max-continuations is specified, check if the engine supports it
-	if !engine.GetCapabilities().MaxContinuations {
-		agentValidationLog.Printf("Engine %s does not support max-continuations feature", engine.GetID())
-		return fmt.Errorf("max-continuations not supported: engine '%s' does not support the max-continuations feature", engine.GetID())
-	}
-
-	return nil
+	return validateCapabilitySupport("max-continuations", hasMaxContinuations, engine.GetCapabilities().MaxContinuations, engine.GetID())
 }
 
 // validateMaxToolDenialsSupport validates that max-tool-denials is only used with

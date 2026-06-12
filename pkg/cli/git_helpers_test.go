@@ -33,6 +33,21 @@ func TestParseGitHubRepoSlugFromURL(t *testing.T) {
 			expected: "github/gh-aw",
 		},
 		{
+			name:     "SSH URL scheme with .git",
+			url:      "ssh://git@github.com/github/gh-aw.git",
+			expected: "github/gh-aw",
+		},
+		{
+			name:     "SSH URL scheme without .git",
+			url:      "ssh://git@github.com/github/gh-aw",
+			expected: "github/gh-aw",
+		},
+		{
+			name:     "SSH URL scheme without user info",
+			url:      "ssh://github.com/github/gh-aw.git",
+			expected: "github/gh-aw",
+		},
+		{
 			name:     "Invalid URL",
 			url:      "not-a-github-url",
 			expected: "",

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Gemini",
@@ -61,7 +61,8 @@ function parseGeminiLog(logContent) {
   const resultEntry = rawEntries.find(e => e.type === "result");
 
   // Generate conversation markdown using shared function
-  const conversationResult = generateConversationMarkdown(logEntries, {
+  const canonicalLogEntries = convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "gemini" });
+  const conversationResult = generateConversationMarkdown(canonicalLogEntries, {
     formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
     formatInitCallback: initEntry => formatInitializationSummary(initEntry, { includeSlashCommands: false }),
   });
@@ -87,7 +88,7 @@ function parseGeminiLog(logContent) {
 
   return {
     markdown,
-    logEntries,
+    logEntries: canonicalLogEntries,
     mcpFailures: [],
     maxTurnsHit: false,
   };

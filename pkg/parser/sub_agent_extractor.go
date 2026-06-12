@@ -232,14 +232,10 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 		return "", nil, err
 	}
 
-	mainMarkdown = strings.TrimRight(markdown[:allStarts[0][0]], "\n")
-	h2Positions := collectH2Positions(markdown)
-	for _, m := range allStarts {
-		name, content := extractInlineSection(markdown, m, h2Positions)
+	mainMarkdown, agents = extractInlineSections(markdown, allStarts, func(name, content string) InlineSubAgent {
 		subAgentLog.Printf("Extracted sub-agent %q (content length: %d)", name, len(content))
-		agents = append(agents, InlineSubAgent{Name: name, Content: content})
-	}
-
+		return InlineSubAgent{Name: name, Content: content}
+	})
 	subAgentLog.Printf("Extraction complete: %d sub-agent(s), main markdown length: %d", len(agents), len(mainMarkdown))
 	return mainMarkdown, agents, nil
 }

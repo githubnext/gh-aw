@@ -142,6 +142,24 @@ max-daily-effective-tokens: -1 # disabled
 	assert.NotContains(t, result, "max-daily-effective-tokens:")
 }
 
+func TestEffectiveTokensToAICreditsCodemod_MigratesRunNegativeOne(t *testing.T) {
+	codemod := getEffectiveTokensToAICreditsCodemod()
+
+	content := `---
+max-effective-tokens: -1 # disabled
+---`
+
+	frontmatter := map[string]any{
+		"max-effective-tokens": -1,
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "max-ai-credits: -1 # disabled")
+	assert.NotContains(t, result, "max-effective-tokens:")
+}
+
 func TestEffectiveTokensToAICreditsCodemod_SkipsValuesBelowOneCredit(t *testing.T) {
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
