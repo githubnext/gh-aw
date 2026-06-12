@@ -163,7 +163,7 @@ func ResolveGhAwRef(ctx context.Context, ref string) (string, error) {
 		return ref, nil
 	}
 	resolverLog.Printf("Resolving --gh-aw-ref %q to commit SHA via GitHub API", ref)
-	apiPath := fmt.Sprintf("/repos/github/gh-aw/commits/%s", ref)
+	apiPath := "/repos/github/gh-aw/commits/" + ref
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cmd := ExecGHContext(callCtx, "api", apiPath, "--jq", ".sha")
