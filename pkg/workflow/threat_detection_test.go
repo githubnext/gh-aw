@@ -1985,3 +1985,106 @@ func TestBuildDetectionEngineExecutionStepOmitsPiCooldownEnv(t *testing.T) {
 		t.Fatalf("expected detection steps to omit npm cooldown env for Pi installs")
 	}
 }
+
+// TestDetectionJobEnvironmentInheritance verifies that the detection job correctly
+// handles all three environment wiring scenarios:
+//  1. No environment configured → detection job has no environment field.
+//  2. Top-level data.Environment is set → detection job inherits it unconditionally.
+//  3. ThreatDetectionConfig.Environment override is set → raw name is normalised to
+//     "environment: <name>" and takes precedence over data.Environment.
+//
+// Also verifies that multi-line environment blocks (environment:\n  name: …\n  url: …)
+// are indented correctly so the compiled YAML remains valid.
+func TestDetectionJobEnvironmentInheritance(t *testing.T) {
+	tests := []struct {
+		name            string
+		topLevelEnv     string
+		detectionEnv    string
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "no environment configured",
+			topLevelEnv:     "",
+			detectionEnv:    "",
+			wantNotContains: []string{"environment:"},
+		},
+		{
+			name:            "inherits top-level simple environment",
+			topLevelEnv:     "environment: production",
+			detectionEnv:    "",
+			wantContains:    []string{"    environment: production"},
+			wantNotContains: []string{},
+		},
+		{
+			name:         "inherits top-level multi-line environment and indents correctly",
+			topLevelEnv:  "environment:\n  name: production\n  url: https://example.com",
+			detectionEnv: "",
+			// After indentYAMLLines("    "), lines 2+ gain 4 extra spaces.
+			wantContains: []string{
+				"    environment:",
+				"      name: production",
+				"      url: https://example.com",
+			},
+			wantNotContains: []string{},
+		},
+		{
+			name:            "threat-detection environment override normalises raw name",
+			topLevelEnv:     "",
+			detectionEnv:    "aoai-model",
+			wantContains:    []string{"    environment: aoai-model"},
+			wantNotContains: []string{},
+		},
+		{
+			name:            "threat-detection environment override takes precedence over top-level",
+			topLevelEnv:     "environment: production",
+			detectionEnv:    "aoai-model",
+			wantContains:    []string{"    environment: aoai-model"},
+			wantNotContains: []string{"environment: production"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			data := &WorkflowData{
+				Name:        "test-workflow",
+				AI:          "copilot",
+				Environment: tt.topLevelEnv,
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						Environment: tt.detectionEnv,
+					},
+				},
+			}
+
+			job, err := compiler.buildDetectionJob(data)
+			if err != nil {
+				t.Fatalf("buildDetectionJob() error: %v", err)
+			}
+			if job == nil {
+				t.Fatal("buildDetectionJob() returned nil job")
+			}
+
+			if err := compiler.jobManager.AddJob(job); err != nil {
+				t.Fatalf("AddJob() error: %v", err)
+			}
+
+			var yamlBuf strings.Builder
+			compiler.jobManager.WriteJobsYAML(&yamlBuf)
+			yamlOutput := yamlBuf.String()
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(yamlOutput, want) {
+					t.Errorf("YAML output should contain %q\ngot:\n%s", want, yamlOutput)
+				}
+			}
+			for _, notWant := range tt.wantNotContains {
+				if strings.Contains(yamlOutput, notWant) {
+					t.Errorf("YAML output should NOT contain %q\ngot:\n%s", notWant, yamlOutput)
+				}
+			}
+		})
+	}
+}
