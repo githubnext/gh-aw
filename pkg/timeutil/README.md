@@ -84,6 +84,14 @@ timeutil.FormatDurationNs(2_000_000_000)  // "2s"
 timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
 ```
 
+## Dependencies
+
+**Internal**:
+- None
+
+**External**:
+- None beyond the Go standard library (`fmt`, `math`, `time`).
+
 ## Design Decisions
 
 - `FormatDuration` is used by the `logger` package to display time-diff between consecutive log calls (the `+500ms` suffix in debug output).

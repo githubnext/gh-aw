@@ -35,6 +35,14 @@ if tty.IsStderrTerminal() {
 }
 ```
 
+## Dependencies
+
+**Internal**:
+- None
+
+**External**:
+- `golang.org/x/term` — TTY detection via `term.IsTerminal`
+
 ## Design Notes
 
 - Terminal detection is evaluated at call time, not cached. This is intentional: the streams could be redirected between calls in some testing scenarios.
