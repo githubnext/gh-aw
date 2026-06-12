@@ -875,7 +875,7 @@ Compiler generates tool schemas:
         "properties": {
           "title": {"type": "string"},
           "body": {"type": "string"},
-          "labels": {"type": "array", "items": {"type": "string"}}
+          "labels": {"type": ["array", "string"], "items": {"type": "string"}}
         }
       }
     }
@@ -1993,14 +1993,14 @@ Schema-only updates without matching agent/runtime sync updates **MUST NOT** be 
 ```json
 {
   "name": "create_issue",
-  "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks.",
+  "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Compatibility: labels may be passed as an array or comma-separated string.",
   "inputSchema": {
     "type": "object",
     "required": ["title", "body"],
     "properties": {
       "title": {"type": "string", "description": "Issue title"},
       "body": {"type": "string", "description": "Issue description in Markdown"},
-      "labels": {"type": "array", "items": {"type": "string"}},
+      "labels": {"type": ["array", "string"], "items": {"type": "string"}},
       "fields": {
         "type": "array",
         "items": {

@@ -1,7 +1,7 @@
 [
   {
     "name": "create_issue",
-    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 required fields (title, body) are listed in this schema; if you are not ready to open the real issue, call `noop` instead. Creates a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
+    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 required fields (title, body) are listed in this schema; if you are not ready to open the real issue, call `noop` instead. Creates a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. Compatibility: labels may be passed as either an array of strings or a comma-separated string; string input is split, trimmed, and normalized to an array.",
     "inputSchema": {
       "type": "object",
       "required": ["title", "body"],
@@ -16,11 +16,11 @@
           "description": "Detailed issue description in Markdown. Must be the final intended body \u2014 not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
         },
         "labels": {
-          "type": "array",
+          "type": ["array", "string"],
           "items": {
             "type": "string"
           },
-          "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository."
+          "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository. Accepts either an array of strings or a comma-separated string; string input is split on commas, trimmed, and normalized to an array."
         },
         "fields": {
           "type": "array",

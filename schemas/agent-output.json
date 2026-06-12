@@ -77,7 +77,7 @@
           "minLength": 1
         },
         "labels": {
-          "type": "array",
+          "type": ["array", "string"],
           "description": "Optional labels to add to the issue",
           "items": {
             "type": "string"
