@@ -213,16 +213,16 @@ func TestConclusionJob(t *testing.T) {
 				}
 
 				// Check permissions based on what safe-outputs are configured
-				// When add-comment is configured, it requires issues and discussions permissions
+				// When add-comment is configured by default, it requires issues permission
 				// (PR comments are issue comments, so only issues: write is needed, not pull-requests: write)
 				// When only missing_tool/noop is configured, minimal permissions are needed
 				if tt.addCommentConfig {
-					// add-comment requires issues and discussions write permissions
+					// add-comment requires issues write permission by default
 					if !strings.Contains(job.Permissions, "issues: write") {
 						t.Error("Expected 'issues: write' permission when add-comment is configured")
 					}
-					if !strings.Contains(job.Permissions, "discussions: write") {
-						t.Error("Expected 'discussions: write' permission when add-comment is configured")
+					if strings.Contains(job.Permissions, "discussions: write") {
+						t.Error("Did not expect 'discussions: write' permission when add-comment is configured by default")
 					}
 				}
 				// No need to check for specific permissions when only noop/missing_tool is configured

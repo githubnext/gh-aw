@@ -72,7 +72,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "add-comment default - includes pull-requests and discussions",
+			name: "add-comment default - includes pull-requests, excludes discussions",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
@@ -82,7 +82,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
-				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{
@@ -115,7 +114,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "add-comment with pull-requests:false - no pull-requests permission",
+			name: "add-comment with pull-requests:false - no pull-requests permission and no discussions by default",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
@@ -123,13 +122,12 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:    PermissionRead,
-				PermissionIssues:      PermissionWrite,
-				PermissionDiscussions: PermissionWrite,
+				PermissionContents: PermissionRead,
+				PermissionIssues:   PermissionWrite,
 			},
 		},
 		{
-			name: "add-comment with issues:false - no issues permission",
+			name: "add-comment with issues:false - no issues permission and no discussions by default",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
@@ -139,7 +137,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionRead,
 				PermissionPullRequests: PermissionWrite,
-				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{
