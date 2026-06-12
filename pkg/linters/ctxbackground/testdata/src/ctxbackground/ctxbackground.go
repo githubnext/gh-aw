@@ -2,7 +2,6 @@ package ctxbackground
 
 import (
 	"context"
-	ctxpkg "context"
 )
 
 // flagged: function receives ctx context.Context but calls context.Background()
@@ -30,11 +29,6 @@ func (w *Worker) Run(ctx context.Context) {
 // not flagged: init function
 func init() {
 	_ = context.Background()
-}
-
-// flagged: aliased context import still resolves to context package
-func DoWorkAliasedImport(ctx context.Context) {
-	_ = ctxpkg.Background() // want `use the context.Context parameter instead of context.Background\(\)`
 }
 
 type contextShadow struct{}

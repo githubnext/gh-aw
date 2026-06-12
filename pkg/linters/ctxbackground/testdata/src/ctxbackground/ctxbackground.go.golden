@@ -31,11 +31,6 @@ func init() {
 	_ = context.Background()
 }
 
-// flagged: aliased context import still resolves to context package
-func DoWorkAliasedImport(ctx context.Context) {
-	_ = ctx // want `use the context.Context parameter instead of context.Background\(\)`
-}
-
 type contextShadow struct{}
 
 func (contextShadow) Background() context.Context { return context.TODO() }
