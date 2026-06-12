@@ -38,6 +38,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfDockerHostVarName        = "GH_AW_DOCKER_HOST"
 	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
 	awfMaxAICreditsVarName      = "GH_AW_MAX_AI_CREDITS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
@@ -202,6 +203,15 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
 	arcDindPrefixProbe := ""
 	arcDindPrefixArgsRef := ""
+	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
+if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
+  %s="${DOCKER_HOST}"
+fi`,
+		awfDockerHostVarName,
+		awfArcDindDockerHostRegex,
+		awfDockerHostVarName,
+	)
+	arcDindDockerHostRef := fmt.Sprintf("${%s:+--docker-host \"$%s\"}", awfDockerHostVarName, awfDockerHostVarName)
 	if awfSupportsDockerHostPathPrefix(firewallConfig) {
 		arcDindPrefixProbe = fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
@@ -360,19 +370,22 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -386,18 +399,21 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -410,18 +426,21 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -433,17 +452,20 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
