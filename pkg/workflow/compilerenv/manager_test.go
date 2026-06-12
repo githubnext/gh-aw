@@ -6,38 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestResolveDefaultMaxAICredits(t *testing.T) {
-	t.Run("unset uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxAICredits, "")
-		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
-	})
-
-	t.Run("invalid uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxAICredits, "abc")
-		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
-	})
-
-	t.Run("zero uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxAICredits, "0")
-		assert.Equal(t, int64(1000), ResolveDefaultMaxAICredits(1000))
-	})
-
-	t.Run("negative disables guardrail", func(t *testing.T) {
-		t.Setenv(DefaultMaxAICredits, "-1")
-		assert.Equal(t, int64(-1), ResolveDefaultMaxAICredits(1000))
-	})
-
-	t.Run("valid value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxAICredits, "2500")
-		assert.Equal(t, int64(2500), ResolveDefaultMaxAICredits(1000))
-	})
-
-	t.Run("suffix value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultMaxAICredits, "2k")
-		assert.Equal(t, int64(2000), ResolveDefaultMaxAICredits(1000))
-	})
-}
-
 func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}",

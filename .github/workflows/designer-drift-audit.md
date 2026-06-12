@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   issues: read
+  pull-requests: read # required by pull_requests
 tools:
   github:
     mode: gh-proxy
