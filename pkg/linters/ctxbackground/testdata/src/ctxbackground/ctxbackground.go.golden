@@ -30,3 +30,14 @@ func (w *Worker) Run(ctx context.Context) {
 func init() {
 	_ = context.Background()
 }
+
+type contextShadow struct{}
+
+func (contextShadow) Background() context.Context { return context.TODO() }
+
+// not flagged: local non-package identifier named context
+func DoWorkShadowedContext(ctx context.Context) {
+	context := contextShadow{}
+	_ = context.Background()
+	_ = ctx
+}
