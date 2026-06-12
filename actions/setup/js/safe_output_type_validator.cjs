@@ -409,9 +409,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   }
 
   if (validation.type === "array") {
-    // Backward compatibility: agents sometimes provide comma-separated labels as a string.
+    // Backward compatibility: create_issue agents sometimes provide comma-separated labels as a string.
     // Normalize this into a string array before strict array validation.
-    if (fieldName === "labels" && typeof value === "string") {
+    if (itemType === "create_issue" && fieldName === "labels" && typeof value === "string") {
       value = value
         .split(",")
         .map(item => item.trim())
