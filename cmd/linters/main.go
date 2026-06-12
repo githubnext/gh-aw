@@ -26,6 +26,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
+	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
@@ -56,6 +57,7 @@ func main() {
 		fileclosenotdeferred.Analyzer,
 		fmterrorfnoverbs.Analyzer,
 		hardcodedfilepath.Analyzer,
+		httpnoctx.Analyzer,
 		largefunc.Analyzer,
 		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
