@@ -1282,7 +1282,8 @@ async function sendJobSetupSpan(options = {}) {
   const runnerArch = process.env.RUNNER_ARCH || "";
   const runnerName = process.env.RUNNER_NAME || "";
   const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
-  const scopeVersion = (typeof awInfo.cli_version === "string" ? awInfo.cli_version : "") || process.env.GH_AW_INFO_CLI_VERSION || process.env.GH_AW_INFO_VERSION || process.env.GITHUB_SHA || "unknown";
+  const scopeVersion =
+    (typeof awInfo.cli_version === "string" ? awInfo.cli_version : "") || process.env.GH_AW_INFO_CLI_VERSION || awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || process.env.GITHUB_SHA || "unknown";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
