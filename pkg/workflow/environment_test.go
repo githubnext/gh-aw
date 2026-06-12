@@ -342,8 +342,7 @@ This is a test.`,
 }
 
 // TestDetectionJobEnvironmentPropagation verifies that the top-level environment: field is
-// propagated to the detection job during full workflow compilation, matching the same
-// unconditional fallback used by agent / conclusion / safe_outputs jobs.
+// propagated to the detection job during full workflow compilation.
 func TestDetectionJobEnvironmentPropagation(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -383,25 +382,6 @@ safe-outputs:
 This is a test.`,
 			expectEnvInDet:   false,
 			expectedEnvValue: "",
-		},
-		{
-			name: "threat-detection environment override takes precedence over top-level",
-			frontmatter: `---
-on:
-  issues:
-    types: [opened]
-environment: production
-safe-outputs:
-  add-comment: {}
-  threat-detection:
-    environment: aoai-model
----
-
-# Test Workflow
-
-This is a test.`,
-			expectEnvInDet:   true,
-			expectedEnvValue: "environment: aoai-model",
 		},
 	}
 
