@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var renderLog = logger.New("console:render")
@@ -477,12 +478,8 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 	}
 
 	// Apply maxlen truncation if specified
-	if tag.maxLen > 0 && len(baseValue) > tag.maxLen {
-		if tag.maxLen > 3 {
-			baseValue = baseValue[:tag.maxLen-3] + "..."
-		} else {
-			baseValue = baseValue[:tag.maxLen]
-		}
+	if tag.maxLen > 0 {
+		baseValue = stringutil.Truncate(baseValue, tag.maxLen)
 	}
 
 	return baseValue
@@ -628,6 +625,30 @@ func FormatNumber(n int) string {
 			return fmt.Sprintf("%.2fB", b)
 		}
 	}
+}
+
+// FormatTokens formats a token count as a compact human-readable string.
+// Zero is rendered as "-"; values below 1000 are rendered as plain integers;
+// values in the thousands are rendered with one decimal place and a "K" suffix;
+// values in the millions are rendered with one decimal place and an "M" suffix.
+//
+// Examples:
+//
+//	FormatTokens(0)        // "-"
+//	FormatTokens(500)      // "500"
+//	FormatTokens(1500)     // "1.5K"
+//	FormatTokens(1200000)  // "1.2M"
+func FormatTokens(tokens int) string {
+	if tokens == 0 {
+		return "-"
+	}
+	if tokens < 1000 {
+		return strconv.Itoa(tokens)
+	}
+	if tokens < 1_000_000 {
+		return fmt.Sprintf("%.1fK", float64(tokens)/1000)
+	}
+	return fmt.Sprintf("%.1fM", float64(tokens)/1_000_000)
 }
 
 // ToRelativePath converts an absolute path to a relative path from the current working directory

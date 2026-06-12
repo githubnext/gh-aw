@@ -159,7 +159,7 @@ func findFileInDir(dir, name string) string {
 	return found
 }
 
-// parseEventsJSONLFile parses a Copilot events.jsonl file and extracts log metrics.
+// parseEventsJSONLMetrics parses a Copilot events.jsonl file and extracts log metrics.
 //
 // events.jsonl provides precise, structured data about a Copilot CLI session:
 //   - "session.start":          session metadata (sessionId, copilotVersion)
@@ -170,7 +170,7 @@ func findFileInDir(dir, name string) string {
 //
 // Returns the extracted metrics and nil on success, or empty metrics and an
 // error if the file cannot be read or contains no recognizable events.
-func parseEventsJSONLFile(path string, verbose bool) (workflow.LogMetrics, error) {
+func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, error) {
 	copilotEventsJSONLLog.Printf("Parsing events.jsonl from: %s", path)
 
 	var metrics workflow.LogMetrics

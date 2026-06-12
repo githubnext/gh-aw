@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stats"
 	"github.com/github/gh-aw/pkg/timeutil"
@@ -107,7 +107,7 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 	// Format display values
 	displayRate := fmt.Sprintf("%.0f%%  (%d/%d)", successRate, successCount, totalRuns)
 	displayDur := timeutil.FormatDuration(avgDuration)
-	displayTokens := formatTokens(avgTokens)
+	displayTokens := console.FormatTokens(avgTokens)
 
 	belowThreshold := successRate < threshold
 
@@ -214,18 +214,4 @@ func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun {
 		grouped[run.WorkflowName] = append(grouped[run.WorkflowName], run)
 	}
 	return grouped
-}
-
-// formatTokens formats token count in a human-readable format
-func formatTokens(tokens int) string {
-	if tokens == 0 {
-		return "-"
-	}
-	if tokens < 1000 {
-		return strconv.Itoa(tokens)
-	}
-	if tokens < 1000000 {
-		return fmt.Sprintf("%.1fK", float64(tokens)/1000)
-	}
-	return fmt.Sprintf("%.1fM", float64(tokens)/1000000)
 }
