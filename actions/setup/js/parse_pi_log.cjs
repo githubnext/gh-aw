@@ -1,14 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const {
-  createEngineLogParser,
-  generateConversationMarkdown,
-  generateInformationSection,
-  formatInitializationSummary,
-  formatToolUse,
-  convertLegacyLogEntriesToCopilotEvents,
-} = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Pi",

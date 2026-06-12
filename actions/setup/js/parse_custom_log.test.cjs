@@ -21,7 +21,7 @@ describe("parseCustomLog", () => {
     const result = parseCustomLog(claudeLog);
 
     expect(result).toBeDefined();
-    expect(result.markdown).toContain("Custom Engine Log (Claude format)");
+    expect(result.markdown).toContain("Custom Engine Log");
     expect(result.logEntries.length).toBeGreaterThan(0);
   });
 

@@ -675,6 +675,25 @@ function convertLegacyLogEntriesToCopilotEvents(logEntries, options = {}) {
       continue;
     }
 
+    if (entry.type === "system" && entry.subtype && entry.subtype !== "init") {
+      if (entry.message?.content && Array.isArray(entry.message.content)) {
+        for (const content of entry.message.content) {
+          if (content?.type === "text" && typeof content.text === "string" && content.text.trim()) {
+            events.push({
+              type: "assistant.message",
+              data: { content: content.text },
+            });
+          }
+        }
+      } else if (typeof entry.message === "string" && entry.message.trim()) {
+        events.push({
+          type: "assistant.message",
+          data: { content: entry.message },
+        });
+      }
+      continue;
+    }
+
     if (entry.type === "assistant" && entry.message?.content && Array.isArray(entry.message.content)) {
       for (const content of entry.message.content) {
         if (!content || typeof content !== "object") continue;
@@ -897,16 +916,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         }
 
         const success = typeof data.success === "boolean" ? data.success : !data.error;
-        const output =
-          typeof data.output === "string"
-            ? data.output
-            : typeof data.result === "string"
-              ? data.result
-              : data.error
-                ? String(data.error)
-                : success
-                  ? "success"
-                  : "Tool execution failed";
+        const output = typeof data.output === "string" ? data.output : typeof data.result === "string" ? data.result : data.error ? String(data.error) : success ? "success" : "Tool execution failed";
 
         normalizedEntries.push({
           type: "user",

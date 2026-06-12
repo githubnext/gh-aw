@@ -63,10 +63,12 @@ function extractAwfTokenWarnings(logEntries) {
     if (typeof value.message === "string") addMatches(value.message);
     if (typeof value.content === "string") addMatches(value.content);
     if (typeof value.system === "string") addMatches(value.system);
+    if (typeof value.data?.content === "string") addMatches(value.data.content);
 
     if (Array.isArray(value.content)) visit(value.content);
     if (Array.isArray(value.message?.content)) visit(value.message.content);
     if (Array.isArray(value.system)) visit(value.system);
+    if (value.data && typeof value.data === "object") visit(value.data);
   };
 
   for (const entry of logEntries) visit(entry);
@@ -121,8 +123,25 @@ function parseCopilotLog(logContent) {
   }
 
   const isEventFormat = isCopilotSdkEventsFormat(logEntries);
-  const canonicalLogEntries = isEventFormat ? logEntries : convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "copilot" });
+  let canonicalLogEntries = isEventFormat ? logEntries : convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "copilot" });
   const legacyRenderEntries = isEventFormat ? convertCopilotEventsToLegacyLogEntries(canonicalLogEntries) : logEntries;
+  if (isEventFormat && !canonicalLogEntries.some(entry => entry?.type === "session.result")) {
+    const legacyResult = legacyRenderEntries.find(entry => entry?.type === "result");
+    canonicalLogEntries = [
+      ...canonicalLogEntries,
+      {
+        type: "session.result",
+        data: {
+          numTurns: legacyResult?.num_turns,
+          durationMs: legacyResult?.duration_ms,
+          totalCostUsd: legacyResult?.total_cost_usd,
+          usage: legacyResult?.usage,
+          errors: legacyResult?.errors,
+          permissionDenials: legacyResult?.permission_denials,
+        },
+      },
+    ];
+  }
 
   // Generate conversation markdown using shared function
   const conversationResult = generateConversationMarkdown(canonicalLogEntries, {
