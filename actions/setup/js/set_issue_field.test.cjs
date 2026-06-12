@@ -335,6 +335,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
                 { __typename: "IssueFieldText", id: textFieldId, name: "Customer Impact" },
                 { __typename: "IssueFieldUnknown" }, // missing id and name
                 { __typename: "IssueFieldUnknown", id: "IF_x" }, // missing name
+                { __typename: "IssueFieldUnknown", name: "Orphan" }, // missing id
               ],
             },
             owner: { __typename: "Organization", issueFields: { nodes: [] } },
