@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -1416,8 +1417,8 @@ func TestAWFSupportsChrootConfig(t *testing.T) {
 // runs the script with a controlled DOCKER_HOST, and verifies that the chroot
 // section is added with the expected static paths and runtime identity values.
 func TestArcDindChrootConfigInjection(t *testing.T) {
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 not available")
+	if _, err := exec.LookPath("python"); err != nil {
+		t.Skip("python not available")
 	}
 	if _, err := exec.LookPath("id"); err != nil {
 		t.Skip("id command not available")
@@ -1459,6 +1460,16 @@ func TestArcDindChrootConfigInjection(t *testing.T) {
 
 			script := buildArcDindChrootConfigInjectScript()
 
+			// The Python patch also writes to awfArcDindChrootBinariesSourcePath/awf-config.json
+			// (/tmp/gh-aw/awf-config.json). Pre-create that directory so the write succeeds,
+			// and schedule cleanup of the file after the test.
+			if tt.wantChroot {
+				if err := os.MkdirAll(awfArcDindChrootBinariesSourcePath, 0o755); err != nil {
+					t.Skipf("cannot create %s: %v", awfArcDindChrootBinariesSourcePath, err)
+				}
+				t.Cleanup(func() { os.Remove(awfArcDindChrootBinariesSourcePath + "/awf-config.json") })
+			}
+
 			fullScript := fmt.Sprintf(`#!/bin/bash
 export RUNNER_TEMP=%q
 export DOCKER_HOST=%q
@@ -1487,6 +1498,12 @@ cat %s
 
 			require.Contains(t, string(out), `"chroot"`,
 				"chroot section should be injected for DOCKER_HOST=%s", tt.dockerHost)
+
+			// Verify /tmp/gh-aw/awf-config.json was also written (matches the runner_temp copy).
+			tmpConfigBytes, readErr := os.ReadFile(awfArcDindChrootBinariesSourcePath + "/awf-config.json")
+			require.NoError(t, readErr, "%s/awf-config.json should have been written by inject script", awfArcDindChrootBinariesSourcePath)
+			assert.Equal(t, string(out), string(tmpConfigBytes),
+				"%s/awf-config.json should match %s/gh-aw/awf-config.json", awfArcDindChrootBinariesSourcePath, tmpDir)
 
 			chrootRaw, ok := result["chroot"].(map[string]any)
 			require.True(t, ok, "chroot must be an object")

@@ -900,17 +900,24 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 // embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
 // (see buildArcDindChrootConfigInjectScript for standalone use and tests).
 //
-// The Python is intentionally written as a dense single line to minimise script size
-// and stay within GitHub Actions' 21 KB per-step expression limit.
+// The Python is intentionally kept compact to minimise script size and stay within
+// GitHub Actions' 21 KB per-step expression limit.
+// Both config paths are updated: ${RUNNER_TEMP}/gh-aw/awf-config.json (read by AWF) and
+// /tmp/gh-aw/awf-config.json (used by the unified agent artifact upload).
 func buildArcDindChrootConfigPatchBody() string {
 	return fmt.Sprintf(`  python - <<'PY'
 import json,os,subprocess as sp
 from pathlib import Path
-p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
-c=json.loads(p.read_text())
-c["chroot"]={"binariesSourcePath":"%s","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"%s"}}
-p.write_text(json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n")
-PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome)
+try:
+ p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
+ c=json.loads(p.read_text())
+ c["chroot"]={"binariesSourcePath":"%s","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"%s"}}
+ out=json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n"
+ p.write_text(out)
+ Path("%s/awf-config.json").write_text(out)
+except Exception as e:
+ raise SystemExit(f"chroot config patch failed: {e}") from e
+PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome, awfArcDindChrootBinariesSourcePath)
 }
 
 // buildArcDindChrootConfigInjectScript returns a standalone bash+Python script that
