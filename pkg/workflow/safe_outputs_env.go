@@ -12,10 +12,6 @@ import (
 var safeOutputsEnvLog = logger.New("workflow:safe_outputs_env")
 
 // ========================================
-// Safe Output Environment Variables
-// ========================================
-
-// ========================================
 // Trace Context Environment Variables
 // ========================================
 
