@@ -21,15 +21,18 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 
 	// Check for GitHub tool (uses Docker image)
 	if rawGithubTool, hasGitHub := tools["github"]; hasGitHub {
-		githubTool, _ := rawGithubTool.(map[string]any)
-		githubType := getGitHubType(githubTool)
-		// Only add if using local (Docker) mode
-		if githubType == GitHubMCPModeLocal {
-			githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-			image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
-			if !imageSet[image] {
-				images = append(images, image)
-				imageSet[image] = true
+		// Only proceed when the value is an actual config map; a boolean false
+		// means the tool is explicitly disabled.
+		if githubTool, ok := rawGithubTool.(map[string]any); ok {
+			githubType := getGitHubType(githubTool)
+			// Only add if using local (Docker) mode
+			if githubType == GitHubMCPModeLocal {
+				githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+				image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
+				if !imageSet[image] {
+					images = append(images, image)
+					imageSet[image] = true
+				}
 			}
 		}
 	}
