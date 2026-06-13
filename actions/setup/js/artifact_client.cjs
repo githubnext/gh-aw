@@ -345,15 +345,15 @@ class DefaultArtifactClient {
 
     const { workflowRunBackendId, workflowJobRunBackendId } = getBackendIdsFromRuntimeToken();
     const createRequest = {
-      workflow_run_backend_id: workflowRunBackendId,
-      workflow_job_run_backend_id: workflowJobRunBackendId,
+      workflowRunBackendId,
+      workflowJobRunBackendId,
       name: artifactName,
       version: 7,
-      mime_type: { value: contentType },
+      mimeType: contentType,
     };
     const expiresAt = formatRetentionTimestamp(options.retentionDays);
     if (expiresAt) {
-      createRequest.expires_at = expiresAt;
+      createRequest.expiresAt = expiresAt;
     }
 
     /** @type {any} */
@@ -366,11 +366,11 @@ class DefaultArtifactClient {
     const sha256 = await hashFile(uploadPath);
 
     const finalizeRequest = {
-      workflow_run_backend_id: workflowRunBackendId,
-      workflow_job_run_backend_id: workflowJobRunBackendId,
+      workflowRunBackendId,
+      workflowJobRunBackendId,
       name: artifactName,
       size: String(uploadSize),
-      hash: { value: `sha256:${sha256}` },
+      hash: `sha256:${sha256}`,
     };
     /** @type {any} */
     const finalizeResponse = await twirpRequest("FinalizeArtifact", finalizeRequest);
