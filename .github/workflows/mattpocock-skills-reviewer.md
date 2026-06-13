@@ -88,6 +88,7 @@ safe-outputs:
     run-started: "🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills..."
     run-success: "🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅"
     run-failure: "🧠 [{workflow_name}]({run_url}) {status} during the skills-based review."
+max-daily-ai-credits: 10000
 timeout-minutes: 15
 
 
