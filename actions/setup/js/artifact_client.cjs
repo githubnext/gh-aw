@@ -380,7 +380,7 @@ class DefaultArtifactClient {
     }
 
     return {
-      id: Number(finalizeResponse.artifactId || finalizeResponse.artifact_id || 0) || undefined,
+      id: Number(finalizeResponse.artifactId ?? finalizeResponse.artifact_id ?? 0) || undefined,
       size: uploadSize,
       digest: sha256,
     };

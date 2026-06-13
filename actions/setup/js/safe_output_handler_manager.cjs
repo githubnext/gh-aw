@@ -556,7 +556,7 @@ const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]
  * @returns {boolean}
  */
 function isReportOnlyFailureResult(result) {
-  return isFailedProcessingResult(result) && REPORT_ONLY_FAILURE_TYPES.has(result?.type);
+  return isFailedProcessingResult(result) && !!(result?.type && REPORT_ONLY_FAILURE_TYPES.has(result.type));
 }
 
 /**
