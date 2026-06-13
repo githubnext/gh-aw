@@ -45,10 +45,8 @@ Shows health metrics for workflows including:
 When called without a workflow name, displays summary for all workflows.
 When called with a specific workflow name, displays detailed metrics for that workflow.
 
-` + WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` health                       # Summary of all workflows (last 7 days)
+` + WorkflowIDExplanation,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` health                       # Summary of all workflows (last 7 days)
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster         # Detailed metrics for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` health --days 30             # Summary for last 30 days
   ` + string(constants.CLIExtensionPrefix) + ` health --threshold 90        # Warn if below 90% success rate

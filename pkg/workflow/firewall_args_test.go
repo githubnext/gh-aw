@@ -45,14 +45,31 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		}
 
 		initSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`
+		dockerHostInitSnippet := `GH_AW_DOCKER_HOST=""`
+		dockerHostConditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`
+		dockerHostAssignmentSnippet := `GH_AW_DOCKER_HOST="${DOCKER_HOST}"`
+		dockerHostArgsRefSnippet := `${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"}`
 		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`
 		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`
 		argsRefSnippet := `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`
 
+		dockerHostInitIdx := strings.Index(stepContent, dockerHostInitSnippet)
+		dockerHostConditionIdx := strings.Index(stepContent, dockerHostConditionSnippet)
+		dockerHostAssignmentIdx := strings.Index(stepContent, dockerHostAssignmentSnippet)
+		dockerHostArgsRefIdx := strings.Index(stepContent, dockerHostArgsRefSnippet)
 		initIdx := strings.Index(stepContent, initSnippet)
-		conditionIdx := strings.Index(stepContent, conditionSnippet)
+		conditionIdx := -1
+		if initIdx != -1 {
+			conditionOffset := strings.Index(stepContent[initIdx:], conditionSnippet)
+			if conditionOffset != -1 {
+				conditionIdx = initIdx + conditionOffset
+			}
+		}
 		flagIdx := strings.Index(stepContent, flagAssignmentSnippet)
 		argsRefIdx := strings.Index(stepContent, argsRefSnippet)
+		if dockerHostInitIdx == -1 || dockerHostConditionIdx == -1 || dockerHostAssignmentIdx == -1 || dockerHostArgsRefIdx == -1 || dockerHostInitIdx >= dockerHostConditionIdx || dockerHostConditionIdx >= dockerHostAssignmentIdx || dockerHostAssignmentIdx >= dockerHostArgsRefIdx {
+			t.Error("Expected command to initialize docker-host variable, evaluate DOCKER_HOST condition, set --docker-host source variable, then expand --docker-host args in AWF invocation")
+		}
 		if initIdx == -1 || conditionIdx == -1 || flagIdx == -1 || argsRefIdx == -1 || initIdx >= conditionIdx || conditionIdx >= flagIdx || flagIdx >= argsRefIdx {
 			t.Error("Expected command to initialize probe variable, evaluate DOCKER_HOST condition, assign docker-host-path-prefix flag, then expand args variable in AWF invocation")
 		}
@@ -244,9 +261,6 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 
 		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`) {
 			t.Error("Expected command to skip docker-host-path-prefix probe variable initialization for unsupported AWF versions")
-		}
-		if strings.Contains(stepContent, `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`) {
-			t.Error("Expected command to skip docker-host-path-prefix DOCKER_HOST probe for unsupported AWF versions")
 		}
 		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`) {
 			t.Error("Expected command to skip docker-host-path-prefix assignment for unsupported AWF versions")

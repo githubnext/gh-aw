@@ -46,10 +46,8 @@ Downloaded artifacts include:
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
 
-` + WorkflowIDExplanation + `
-
-Examples:
-  # Basic usage
+` + WorkflowIDExplanation,
+		Example: `  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research.md        # Download logs (alternative format)

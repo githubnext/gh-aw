@@ -61,10 +61,8 @@ After running this command, you can:
 - Use GitHub Copilot Chat or coding agent tools with the agentic-workflows skill to get started with workflow tasks
 - The dispatcher skill will route your request to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
-- Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
+- Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
   ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Skip Copilot-specific artifacts
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration

@@ -24,10 +24,8 @@ func newSecretsBootstrapSubcommand() *cobra.Command {
 are required, check which ones are already configured, and interactively
 prompt for any missing required secrets.
 
-Only required secrets are prompted for. Optional secrets are not shown.
-
-Examples:
-  gh aw secrets bootstrap                        # Check and set up all required secrets
+Only required secrets are prompted for. Optional secrets are not shown.`,
+		Example: `  gh aw secrets bootstrap                        # Check and set up all required secrets
   gh aw secrets bootstrap --non-interactive      # Display missing secrets without prompting
   gh aw secrets bootstrap --engine copilot       # Check secrets for a specific engine`,
 		RunE: func(cmd *cobra.Command, args []string) error {

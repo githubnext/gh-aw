@@ -19,10 +19,8 @@ generating lock files. This is equivalent to:
 
 If no workflows are specified, all Markdown files in .github/workflows will be validated.
 
-` + WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` validate                         # Validate all workflows
+` + WorkflowIDExplanation,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` validate                         # Validate all workflows
   ` + string(constants.CLIExtensionPrefix) + ` validate ci-doctor               # Validate a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` validate ci-doctor daily         # Validate multiple workflows
   ` + string(constants.CLIExtensionPrefix) + ` validate workflow.md             # Validate by file path

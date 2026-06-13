@@ -619,6 +619,9 @@ touch %s
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
+	applyTraceContextEnvToMap(env)
+
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	// Supports both literal integers and GitHub Actions expressions (e.g. "${{ inputs.startup-timeout }}")
 	if workflowData.ToolsStartupTimeout != "" {

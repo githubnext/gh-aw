@@ -82,10 +82,8 @@ func NewOutcomesHistorySubcommand() *cobra.Command {
 		Long: `Score recent issues and merged pull requests against the objective mapping.
 
 This gives a quick local historical view of what kinds of work the repository
-has been closing or merging under the current objective mapping.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` outcomes history
+has been closing or merging under the current objective mapping.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` outcomes history
   ` + string(constants.CLIExtensionPrefix) + ` outcomes history --source issues --limit 100
   ` + string(constants.CLIExtensionPrefix) + ` outcomes history --repo owner/repo --json`,
 		Args: cobra.NoArgs,

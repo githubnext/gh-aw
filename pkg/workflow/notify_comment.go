@@ -76,6 +76,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Package a compact usage artifact so forecasting/analytics commands can fetch
 	// token usage and aw_info without downloading full agent artifacts.
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Write this run's AIC to the per-workflow usage cache and save it via actions/cache
+	// so the next activation can skip artifact downloads for known runs.
+	if hasMaxDailyAICGuardrail(data) && data.WorkflowID != "" {
+		steps = append(steps, buildDailyAICUsageCacheSteps(data, c.getActionPin)...)
+	}
 
 	// Add noop processing step if noop is configured.
 	// This single step replaces the former two-step "Process No-Op Messages" + "Handle No-Op Message"
@@ -689,6 +694,50 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"            /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
 		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildDailyAICUsageCacheSteps creates steps that compute AIC for the current run and persist
+// it to a per-workflow JSONL cache via actions/cache/save.  The cache is restored by the
+// activation job so that subsequent guardrail checks can skip artifact downloads for known runs.
+//
+// The sequence is: restore latest snapshot → append current run entry → save updated snapshot.
+// The restore step uses a prefix restore-key so it picks up the most recent snapshot even when
+// the exact key (which includes the current run ID) does not exist yet.
+func buildDailyAICUsageCacheSteps(data *WorkflowData, pinAction func(string) string) []string {
+	sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	cacheKeyPrefix := fmt.Sprintf("agentic-workflow-usage-%s-", sanitized)
+	cacheKey := cacheKeyPrefix + "${{ github.run_id }}"
+	return []string{
+		"      - name: Restore daily AIC usage cache\n",
+		"        id: restore-daily-aic-cache-conclusion\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/cache/restore")),
+		"        with:\n",
+		fmt.Sprintf("          key: %s\n", cacheKey),
+		fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix),
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+		"      - name: Write daily AIC usage cache entry\n",
+		"        id: write-daily-aic-cache\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
+		"        with:\n",
+		"          github-token: ${{ github.token }}\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context);\n",
+		"            const { main } = require('" + SetupActionDestination + "/write_daily_aic_usage_cache.cjs');\n",
+		"            await main();\n",
+		"      - name: Save daily AIC usage cache\n",
+		"        id: save-daily-aic-cache\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/cache/save")),
+		"        with:\n",
+		fmt.Sprintf("          key: %s\n", cacheKey),
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
 	}
 }
 

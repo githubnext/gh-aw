@@ -23,7 +23,7 @@ func TestAuditCommandDescriptionsAreConsistent(t *testing.T) {
 func TestTrialCommandUsesStandardExamplesHeading(t *testing.T) {
 	cmd := NewTrialCommand(func(string) error { return nil })
 
-	assert.Contains(t, cmd.Long, "Examples:", "trial long help should use the standard examples heading")
+	assert.NotEmpty(t, cmd.Example, "trial command should use cobra's Example field for examples")
 	assert.NotContains(t, cmd.Long, "Single workflow:", "trial long help should avoid custom example section headings")
 	assert.NotContains(t, cmd.Long, "Multiple workflows (for comparison):", "trial long help should avoid custom example section headings")
 	assert.NotContains(t, cmd.Long, "Workflows from different repositories:", "trial long help should avoid custom example section headings")

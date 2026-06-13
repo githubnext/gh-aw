@@ -24,10 +24,8 @@ Tab completion provides:
 - Directory path completion for --dir flag
 - Helpful descriptions for workflows when available
 
-Supported shells: bash, zsh, fish, PowerShell
-
-Examples:
-  # Install completions automatically (detects your shell)
+Supported shells: bash, zsh, fish, PowerShell`,
+		Example: `  # Install completions automatically (detects your shell)
   gh aw completion install
 
   # Generate completion script for bash
@@ -81,10 +79,8 @@ Supported shells:
   - Bash:       Installs to ~/.bash_completion.d/ or /etc/bash_completion.d/
   - Zsh:        Installs to ~/.zsh/completions/
   - Fish:       Installs to ~/.config/fish/completions/
-  - PowerShell: Provides instructions to add to PowerShell profile
-
-Examples:
-  gh aw completion install           # Auto-detect and install
+  - PowerShell: Provides instructions to add to PowerShell profile`,
+		Example: `  gh aw completion install           # Auto-detect and install
   gh aw completion install --verbose # Show detailed installation steps`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -107,10 +103,8 @@ Supported shells:
   - Bash:       Removes from ~/.bash_completion.d/ or /etc/bash_completion.d/
   - Zsh:        Removes from ~/.zsh/completions/
   - Fish:       Removes from ~/.config/fish/completions/
-  - PowerShell: Provides instructions to remove from PowerShell profile
-
-Examples:
-  gh aw completion uninstall           # Auto-detect and uninstall
+  - PowerShell: Provides instructions to remove from PowerShell profile`,
+		Example: `  gh aw completion uninstall           # Auto-detect and uninstall
   gh aw completion uninstall --verbose # Show detailed uninstallation steps`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")

@@ -19,6 +19,9 @@ const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
 const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 
+/** Path where the per-workflow usage cache is restored by the activation job's cache-restore step. */
+const AIC_USAGE_CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
+
 /**
  * @returns {Promise<DefaultArtifactClient>}
  */
@@ -87,6 +90,54 @@ function shouldSkipDailyAICGuardrail() {
     }
   }
   return true;
+}
+
+/**
+ * Loads the per-workflow usage cache from the JSONL file restored by the activation job's
+ * cache-restore step.  Each line is a JSON object `{ run_id: number, aic: number }`.
+ *
+ * Returns a `Map<runId, aic>` so that callers can check whether a prior run's AIC is already
+ * known without downloading the run's artifact from the GitHub API.
+ *
+ * @param {string} [filePath]
+ * @returns {Map<number, number>}
+ */
+function loadAICUsageCache(filePath) {
+  const cachePath = filePath || AIC_USAGE_CACHE_FILE_PATH;
+  /** @type {Map<number, number>} */
+  const cache = new Map();
+  try {
+    if (!fs.existsSync(cachePath)) {
+      logDailyGuardrail("No usage cache file found; all runs will be resolved via API", { path: cachePath });
+      return cache;
+    }
+    const content = fs.readFileSync(cachePath, "utf8");
+    let loaded = 0;
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (!line || !line.startsWith("{")) {
+        continue;
+      }
+      try {
+        const entry = JSON.parse(line);
+        const runId = Number(entry?.run_id);
+        const aic = Number(entry?.aic);
+        if (Number.isFinite(runId) && runId > 0 && Number.isFinite(aic) && aic > 0) {
+          cache.set(runId, aic);
+          loaded++;
+        }
+      } catch {
+        // Ignore malformed lines.
+      }
+    }
+    logDailyGuardrail("Loaded usage cache", { path: cachePath, entriesLoaded: loaded });
+  } catch (err) {
+    logDailyGuardrail("Failed to load usage cache; proceeding without it", {
+      path: cachePath,
+      error: typeof err === "object" && err !== null && "message" in err ? String(err.message) : String(err),
+    });
+  }
+  return cache;
 }
 
 /**
@@ -441,13 +492,28 @@ async function main() {
       truncatedByRateLimit,
     });
 
+    // Load the per-workflow usage cache restored by the activation job's cache-restore step.
+    // Entries that are already cached skip the artifact download entirely, reducing API usage.
+    const usageCache = module.exports.loadAICUsageCache();
+
     const artifactClient = await module.exports.getArtifactClient();
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
     for (const run of candidateRuns) {
       try {
-        const runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
+        let runAIC;
+        if (usageCache.has(run.id)) {
+          // Cache hit: use the previously recorded AIC without downloading the artifact.
+          runAIC = usageCache.get(run.id) ?? 0;
+          logDailyGuardrail("Cache hit: using cached AIC for run", {
+            runId: run.id,
+            cachedAIC: runAIC,
+          });
+        } else {
+          // Cache miss: fetch AIC from the run's usage artifact.
+          runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
+        }
         if (runAIC <= 0) {
           logDailyGuardrail("Skipping run without AIC usage artifact data", {
             runId: run.id,
@@ -536,6 +602,7 @@ module.exports = {
   main,
   getArtifactClient,
   getRunAIC,
+  loadAICUsageCache,
   shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,

@@ -251,15 +251,6 @@ The workflow-id-or-file can be:
 When no workflow is provided, this command lists workflows that have MCP server configurations
 (equivalent to 'gh aw mcp list'). To inspect tools/resources/roots, pass a specific workflow.
 
-Examples:
-  gh aw mcp inspect                    # List workflows with MCP servers
-  gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md
-  gh aw mcp inspect daily-news --server tavily  # Inspect only the tavily server
-  gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
-  gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
-  gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
-  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
-
 The command will:
 - Parse the workflow file to extract MCP server configurations
 - Start each MCP server (stdio, docker, http)
@@ -267,6 +258,14 @@ The command will:
 - Query available tools, resources, and roots
 - Validate required secrets are available
 - Display results in formatted tables with error details`,
+		Example: `  gh aw mcp inspect                    # List workflows with MCP servers
+  gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md
+  gh aw mcp inspect daily-news --server tavily  # Inspect only the tavily server
+  gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
+  gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
+  gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
+`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string
