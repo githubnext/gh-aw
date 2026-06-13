@@ -26,15 +26,14 @@ var defaultGHHost struct {
 // is not set in the process environment.
 func SetDefaultGHHost(host string) {
 	defaultGHHost.mu.Lock()
+	defer defaultGHHost.mu.Unlock()
 	defaultGHHost.host = host
-	defaultGHHost.mu.Unlock()
 }
 
 func getDefaultGHHost() string {
 	defaultGHHost.mu.RLock()
-	host := defaultGHHost.host
-	defaultGHHost.mu.RUnlock()
-	return host
+	defer defaultGHHost.mu.RUnlock()
+	return defaultGHHost.host
 }
 
 // setupGHCommand creates an exec.Cmd for gh CLI with proper token configuration.

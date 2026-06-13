@@ -479,7 +479,15 @@ func TestSetupGHCommandUsesDefaultGHHost(t *testing.T) {
 	defer SetDefaultGHHost(originalDefaultHost)
 
 	t.Run("applies default host when GH_HOST is not set", func(t *testing.T) {
-		t.Setenv("GH_HOST", "")
+		originalHost, hadOriginalHost := os.LookupEnv("GH_HOST")
+		require.NoError(t, os.Unsetenv("GH_HOST"))
+		t.Cleanup(func() {
+			if hadOriginalHost {
+				require.NoError(t, os.Setenv("GH_HOST", originalHost))
+				return
+			}
+			require.NoError(t, os.Unsetenv("GH_HOST"))
+		})
 		SetDefaultGHHost("myorg.ghe.com")
 
 		cmd := setupGHCommand(context.Background(), "auth", "status")
