@@ -23,7 +23,7 @@ type AddCommentsConfig struct {
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"`           // List of allowed reasons for hiding older comments (default: all reasons allowed)
 	Issues                 *bool    `yaml:"issues,omitempty"`                    // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
 	PullRequests           *bool    `yaml:"pull-requests,omitempty"`             // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
-	Discussions            *bool    `yaml:"discussions,omitempty"`               // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write.
+	Discussions            *bool    `yaml:"discussions,omitempty"`               // When true, includes discussions:write permission. Default (nil or false) excludes discussions:write.
 	Footer                 *string  `yaml:"footer,omitempty"`                    // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
@@ -122,7 +122,7 @@ func preprocessHideOlderCommentsConfig(configData map[string]any, debugLog *logg
 // buildAddCommentPermissions computes the permissions for the add_comment job based on config.
 // Issues: nil or true → issues:write (default: true)
 // PullRequests: nil or true → pull-requests:write (default: true)
-// Discussions: nil or true → discussions:write (default: true)
+// Discussions: true → discussions:write (default: false)
 func buildAddCommentPermissions(config *AddCommentsConfig) *Permissions {
 	permMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
@@ -133,7 +133,7 @@ func buildAddCommentPermissions(config *AddCommentsConfig) *Permissions {
 	if config == nil || config.PullRequests == nil || *config.PullRequests {
 		permMap[PermissionPullRequests] = PermissionWrite
 	}
-	if config == nil || config.Discussions == nil || *config.Discussions {
+	if config != nil && config.Discussions != nil && *config.Discussions {
 		permMap[PermissionDiscussions] = PermissionWrite
 	}
 	return NewPermissionsFromMap(permMap)

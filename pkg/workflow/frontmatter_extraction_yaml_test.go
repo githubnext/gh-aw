@@ -220,3 +220,121 @@ func TestExtractWorkflowRunConclusionConditionHelper(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractOnTriggerMap(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		trigger     string
+		want        map[string]any
+	}{
+		{
+			name:        "missing on section",
+			frontmatter: map[string]any{},
+			trigger:     "workflow_run",
+			want:        nil,
+		},
+		{
+			name: "non map on section",
+			frontmatter: map[string]any{
+				"on": "workflow_run",
+			},
+			trigger: "workflow_run",
+			want:    nil,
+		},
+		{
+			name: "non map trigger value",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": "completed",
+				},
+			},
+			trigger: "workflow_run",
+			want:    nil,
+		},
+		{
+			name: "trigger map found",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": map[string]any{
+						"conclusion": "failure",
+					},
+				},
+			},
+			trigger: "workflow_run",
+			want: map[string]any{
+				"conclusion": "failure",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := extractOnTriggerMap(tt.frontmatter, tt.trigger)
+			if tt.want == nil {
+				assert.False(t, ok)
+				assert.Nil(t, got)
+				return
+			}
+
+			assert.True(t, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNormalizeStringOrStringSlice(t *testing.T) {
+	tests := []struct {
+		name  string
+		input any
+		want  []string
+	}{
+		{
+			name:  "single string",
+			input: "deploy",
+			want:  []string{"deploy"},
+		},
+		{
+			name:  "string array",
+			input: []any{"deploy", "review"},
+			want:  []string{"deploy", "review"},
+		},
+		{
+			name:  "mixed array keeps only strings",
+			input: []any{"deploy", 1, true, "review"},
+			want:  []string{"deploy", "review"},
+		},
+		{
+			name:  "unexpected type returns nil",
+			input: 42,
+			want:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, normalizeStringOrStringSlice(tt.input))
+		})
+	}
+}
+
+func TestExtractLabelCommandConfig(t *testing.T) {
+	c := &Compiler{}
+
+	names, events, decentralized, removeLabel := c.extractLabelCommandConfig(map[string]any{
+		"on": map[string]any{
+			"label_command": map[string]any{
+				"name":         []any{"deploy", 1},
+				"names":        []any{"review", true},
+				"events":       []any{"issues", "pull_request"},
+				"strategy":     "decentralized",
+				"remove_label": false,
+			},
+		},
+	})
+
+	assert.Equal(t, []string{"deploy", "review"}, names)
+	assert.Equal(t, []string{"issues", "pull_request"}, events)
+	assert.True(t, decentralized)
+	assert.False(t, removeLabel)
+}

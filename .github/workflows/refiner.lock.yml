@@ -1177,7 +1177,6 @@ jobs:
     permissions:
       checks: write
       contents: write
-      discussions: write
       issues: write
       pull-requests: write
     concurrency:
@@ -1710,7 +1709,6 @@ jobs:
     permissions:
       checks: write
       contents: write
-      discussions: write
       issues: write
       pull-requests: write
     timeout-minutes: 45

@@ -601,11 +601,13 @@ describe("check_daily_aic_workflow_guardrail", () => {
       expect(cache.get(505)).toBe(9.9);
     });
 
-    it("skips entries with non-positive or non-finite aic values", () => {
+    it("loads entries with aic = 0 and skips entries with negative or non-finite aic values", () => {
       fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 601, aic: 0 }), JSON.stringify({ run_id: 602, aic: -1.5 }), JSON.stringify({ run_id: 603, aic: null }), JSON.stringify({ run_id: 604, aic: 4.2 })].join("\n") + "\n", "utf8");
       const cache = exports.loadAICUsageCache(cacheFile);
-      // Only the entry with a finite positive aic should be loaded
-      expect(cache.has(601)).toBe(false);
+      // aic = 0 is loaded (agent was blocked, legitimately used 0 credits)
+      expect(cache.has(601)).toBe(true);
+      expect(cache.get(601)).toBe(0);
+      // negative and non-finite aic values are skipped
       expect(cache.has(602)).toBe(false);
       expect(cache.has(603)).toBe(false);
       expect(cache.get(604)).toBe(4.2);

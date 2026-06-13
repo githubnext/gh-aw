@@ -1123,7 +1123,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/smoke-workflow-call.lock.yml

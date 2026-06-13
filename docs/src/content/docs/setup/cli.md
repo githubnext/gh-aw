@@ -265,7 +265,9 @@ gh aw fix my-workflow --write          # Fix specific workflow
 gh aw fix --list-codemods              # List available codemods
 ```
 
-**Options:** `--dir/-d`, `--list-codemods`, `--write`
+**Options:** `--dir/-d`, `--disable-codemod`, `--list-codemods`, `--write`
+
+Use `--disable-codemod` (repeatable) to skip specific codemod IDs by name.
 
 Available codemods include:
 
@@ -625,11 +627,11 @@ gh aw disable ci-doctor --repo owner/repo   # Disable in specific repository
 
 #### `remove`
 
-Remove workflows (both `.md` and `.lock.yml`). Accepts a workflow ID (basename without `.md`) or prefix pattern. By default, also removes orphaned include files no longer referenced by any workflow.
+Remove workflows (both `.md` and `.lock.yml`). Accepts a workflow ID (basename without `.md`) or a substring pattern matching multiple workflows. By default, also removes orphaned include files no longer referenced by any workflow.
 
 ```bash wrap
 gh aw remove my-workflow                 # Remove specific workflow
-gh aw remove test-                       # Remove all workflows starting with 'test-'
+gh aw remove test-                       # Remove all workflows containing 'test-' in their name
 gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include files
 ```
 
@@ -685,7 +687,9 @@ gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+
+Use `--disable-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
 
 #### `env`
 
@@ -814,7 +818,7 @@ gh aw project new "Project Q1" --owner myorg --with-project-setup # Create with 
 
 **Options:**
 - `--owner` (required): Project owner - use `@me` for current user or specify organization name
-- `--link`: Repository to link project to (format: `owner/repo`)
+- `--link/-l`: Repository to link project to (format: `owner/repo`)
 - `--with-project-setup`: Create standard project views and custom fields
 
 **Token Requirements:**

@@ -1980,7 +1980,6 @@ jobs:
     permissions:
       checks: write
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
       security-events: write
@@ -2552,7 +2551,6 @@ jobs:
     permissions:
       checks: write
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
       security-events: write
