@@ -3042,10 +3042,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
 
-      const result = buildToolDenialsExceededContext(
-        [{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["read(...)", "bash(git status)"] }],
-        "daily-spdd-spec-planner"
-      );
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["read(...)", "bash(git status)"] }], "daily-spdd-spec-planner");
       expect(result).toContain("Excessive Tool Denials");
       expect(result).toContain("5/5");
       expect(result).toContain("guard.tool_denials_exceeded");

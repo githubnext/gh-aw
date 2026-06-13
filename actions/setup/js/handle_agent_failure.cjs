@@ -1307,9 +1307,13 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // Normalize the reason for display: multi-line programs (e.g. Python 3 heredocs) are
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
-  const recentToolCallsList = Array.isArray(latestEvent.recentToolCalls) && latestEvent.recentToolCalls.length > 0
-    ? latestEvent.recentToolCalls.slice(-5).map(toolCall => `- \`${toolCall}\``).join("\n")
-    : "- _No tool calls captured_";
+  const recentToolCallsList =
+    Array.isArray(latestEvent.recentToolCalls) && latestEvent.recentToolCalls.length > 0
+      ? latestEvent.recentToolCalls
+          .slice(-5)
+          .map(toolCall => `- \`${toolCall}\``)
+          .join("\n")
+      : "- _No tool calls captured_";
 
   const templatePath = getPromptPath("tool_denials_exceeded_context.md");
   const template = fs.readFileSync(templatePath, "utf8");
