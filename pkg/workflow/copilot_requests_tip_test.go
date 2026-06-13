@@ -3,8 +3,6 @@
 package workflow
 
 import (
-	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,22 +81,15 @@ permissions:
 				t.Fatal(err)
 			}
 
-			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
-			os.Stderr = w
+			var compileErr error
+			stderrOutput := testutil.CaptureStderr(t, func() {
+				compiler := NewCompiler()
+				compiler.SetStrictMode(false)
+				compileErr = compiler.CompileWorkflow(testFile)
+			})
 
-			compiler := NewCompiler()
-			compiler.SetStrictMode(false)
-			err := compiler.CompileWorkflow(testFile)
-
-			w.Close()
-			os.Stderr = oldStderr
-			var buf bytes.Buffer
-			io.Copy(&buf, r)
-			stderrOutput := buf.String()
-
-			if err != nil {
-				t.Fatalf("Expected compilation to succeed but it failed: %v", err)
+			if compileErr != nil {
+				t.Fatalf("Expected compilation to succeed but it failed: %v", compileErr)
 			}
 
 			const tipText = "Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference"
