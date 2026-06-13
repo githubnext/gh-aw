@@ -1435,8 +1435,8 @@ func TestAWFSupportsChrootConfig(t *testing.T) {
 // runs the script with a controlled DOCKER_HOST, and verifies that the chroot
 // section is added with the expected static paths and runtime identity values.
 func TestArcDindChrootConfigInjection(t *testing.T) {
-	if _, err := exec.LookPath("python"); err != nil {
-		t.Skip("python not available")
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not available")
 	}
 	if _, err := exec.LookPath("id"); err != nil {
 		t.Skip("id command not available")
@@ -1548,6 +1548,11 @@ cat %s
 
 			gid, ok := identityRaw["gid"].(float64)
 			assert.True(t, ok && gid > 0, "identity.gid should be a positive number, got %v", identityRaw["gid"])
+
+			// Verify original config fields survived the patch (round-trip correctness).
+			apiProxy, ok := result["apiProxy"].(map[string]any)
+			require.True(t, ok, "apiProxy section must be preserved after chroot injection")
+			assert.Equal(t, true, apiProxy["enabled"], "apiProxy.enabled should be unchanged after chroot injection")
 		})
 	}
 }
@@ -1580,6 +1585,12 @@ func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
 			"command should include the expected identity.home constant")
 		assert.Contains(t, command, awfArcDindDockerHostRegex,
 			"chroot inject script should reuse the DinD Docker host regex")
+		// Structural: the chroot injection must appear *after* the DOCKER_HOST guard,
+		// confirming it is nested inside the if-block and not emitted at top level.
+		dockerhostIdx := strings.Index(command, awfArcDindDockerHostRegex)
+		binariesIdx := strings.Index(command, "binariesSourcePath")
+		assert.Greater(t, binariesIdx, dockerhostIdx,
+			"chroot injection must appear after the DOCKER_HOST guard in the generated script")
 	})
 
 	t.Run("chroot inject script absent when AWF version too old", func(t *testing.T) {

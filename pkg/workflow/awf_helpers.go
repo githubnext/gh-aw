@@ -147,7 +147,7 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
 	}
 
-	return fmt.Sprintf(`python - <<'PY'
+	return fmt.Sprintf(`python3 - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -928,7 +928,7 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 // Both config paths are updated: ${RUNNER_TEMP}/gh-aw/awf-config.json (read by AWF) and
 // /tmp/gh-aw/awf-config.json (used by the unified agent artifact upload).
 func buildArcDindChrootConfigPatchBody() string {
-	return fmt.Sprintf(`  python - <<'PY'
+	return fmt.Sprintf(`  python3 - <<'PY'
 import json,os,subprocess as sp
 from pathlib import Path
 try:
