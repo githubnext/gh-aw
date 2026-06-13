@@ -66,11 +66,12 @@ async function main() {
     const aic = sumAICFromUsageJSONLFiles(usageFiles);
     logCache("Computed AIC for current run", { runId, aic });
 
-    // Skip writing a zero or non-finite AIC: it most likely means the usage files were missing
-    // or empty.  Writing {aic: 0} would make the cache entry sticky and prevent the guardrail
-    // from falling back to getRunAIC() on the next activation.
-    if (!Number.isFinite(aic) || aic <= 0) {
-      core.warning(`[daily-aic-cache] Computed AIC is ${aic} (non-positive or non-finite); skipping cache write so the guardrail can retry via artifact download.`);
+    // Skip writing a non-finite or negative AIC: those values indicate an unexpected computation
+    // error.  A zero AIC is written intentionally — it records runs where the agent was blocked
+    // (e.g. daily-AIC guardrail exceeded) so that subsequent activations do not waste an
+    // artifact-download round-trip trying to re-fetch usage data that does not exist.
+    if (!Number.isFinite(aic) || aic < 0) {
+      core.warning(`[daily-aic-cache] Computed AIC is ${aic} (negative or non-finite); skipping cache write.`);
       return;
     }
 
