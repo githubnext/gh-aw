@@ -33,6 +33,7 @@ strict: true
 timeout-minutes: 20
 tools:
   bash:
+  - "*"
   - find .github -name "*.md"
   - find .github -type f -exec cat {} +
   - find pkg -name "copilot*.go"
