@@ -3034,7 +3034,7 @@ describe("handle_agent_failure", () => {
       );
 
       const events = loadToolDenialsExceededEvents();
-      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["mcp__safeoutputs.read"] }]);
+      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["mcp__safeoutputs.read"], timestamp: "2026-06-06T00:00:01Z" }]);
     });
 
     it("renders dedicated context for tool denial threshold events", () => {
@@ -3099,6 +3099,7 @@ describe("handle_agent_failure", () => {
           threshold: 5,
           reason: "permission denied: read",
           recentToolCalls: ["edit", "bash", "grep", "glob", "write"],
+          timestamp: "2026-06-06T00:00:07Z",
         },
       ]);
     });
