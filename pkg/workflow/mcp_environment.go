@@ -126,15 +126,6 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		maps.Copy(envVars, mcpScriptsSecrets)
 	}
 
-	// Add safe-outputs server connection env vars (port and API key for MCP tools)
-	// Only add if safe-outputs is actually enabled — avoids referencing step outputs
-	// that don't exist when safe-outputs isn't used.
-	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		// Add server configuration env vars from step outputs
-		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-start.outputs.port }}"
-		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
-	}
-
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
