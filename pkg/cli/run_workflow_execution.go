@@ -571,7 +571,14 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 
 			// Add a small delay between workflows to avoid overwhelming GitHub API
 			if i < len(workflowNames)-1 {
-				time.Sleep(betweenWorkflowsDelay)
+				timer := time.NewTimer(betweenWorkflowsDelay)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+					return ctx.Err()
+				case <-timer.C:
+				}
 			}
 		}
 

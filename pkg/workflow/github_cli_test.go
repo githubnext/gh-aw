@@ -473,3 +473,28 @@ func TestSetGHHostEnv(t *testing.T) {
 		})
 	}
 }
+
+func TestSetupGHCommandUsesDefaultGHHost(t *testing.T) {
+	originalDefaultHost := getDefaultGHHost()
+	defer SetDefaultGHHost(originalDefaultHost)
+
+	t.Run("applies default host when GH_HOST is not set", func(t *testing.T) {
+		t.Setenv("GH_HOST", "")
+		SetDefaultGHHost("myorg.ghe.com")
+
+		cmd := setupGHCommand(context.Background(), "auth", "status")
+		require.NotNil(t, cmd.Env)
+		assert.Contains(t, cmd.Env, "GH_HOST=myorg.ghe.com")
+	})
+
+	t.Run("does not apply default host when GH_HOST is already set", func(t *testing.T) {
+		t.Setenv("GH_HOST", "explicit.ghe.com")
+		SetDefaultGHHost("myorg.ghe.com")
+
+		cmd := setupGHCommand(context.Background(), "auth", "status")
+		if cmd.Env == nil {
+			return
+		}
+		assert.NotContains(t, cmd.Env, "GH_HOST=myorg.ghe.com")
+	})
+}

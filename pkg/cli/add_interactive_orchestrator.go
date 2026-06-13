@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var addInteractiveLog = logger.New("cli:add_interactive")
@@ -76,7 +77,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
 			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
-			os.Setenv("GH_HOST", detectedHost)
+			workflow.SetDefaultGHHost(detectedHost)
 			if config.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
 			}
