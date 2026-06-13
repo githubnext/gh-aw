@@ -50,7 +50,7 @@ function updateAddCommentDescription(description, addCommentConfig) {
   let addCommentConfigMap = {};
   if (addCommentConfig !== null && addCommentConfig !== undefined) {
     if (typeof addCommentConfig === "object") {
-      addCommentConfigMap = /** @type {Record<string, unknown>} */ addCommentConfig;
+      addCommentConfigMap = /** @type {Record<string, unknown>} */ (addCommentConfig);
     } else {
       console.warn(`Unexpected add_comment config type: ${typeof addCommentConfig}`);
     }
