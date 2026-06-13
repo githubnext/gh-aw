@@ -160,6 +160,18 @@ Guardrail test workflow`
 	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
 		t.Fatal("expected frontmatter-configured guardrail to gate artifact client installation dynamically")
 	}
+	if !strings.Contains(activationSection, "restore_aic_usage_cache_fallback.cjs") {
+		t.Fatal("expected activation job to call restore_aic_usage_cache_fallback.cjs for cross-branch cache fallback")
+	}
+	if !strings.Contains(activationSection, "id: restore-daily-aic-cache-fallback") {
+		t.Fatal("expected activation job to include the artifact-based AIC cache fallback step")
+	}
+	if !strings.Contains(lockStr, "id: upload-daily-aic-cache") {
+		t.Fatal("expected conclusion job to include the AIC usage cache artifact upload step")
+	}
+	if !strings.Contains(lockStr, "name: aic-usage-cache") {
+		t.Fatal("expected conclusion job to upload artifact named aic-usage-cache")
+	}
 }
 
 func TestDailyETGuardrailDynamicGate(t *testing.T) {
