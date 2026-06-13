@@ -1143,6 +1143,17 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			expected:   true,
 		},
 		{
+			name: "add comment discussions opt-in",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					Discussions: boolPtr(true),
+				},
+			},
+			checkField: "add_comment",
+			checkKey:   "discussions",
+			expected:   true,
+		},
+		{
 			name: "close older discussions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
