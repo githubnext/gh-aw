@@ -25,6 +25,7 @@ const {
   validateCodexOpenAIBaseURLFromReflect,
   hasNoopInSafeOutputs,
 } = require("./codex_harness.cjs");
+const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
 
@@ -409,11 +410,10 @@ env_key = "OPENAI_API_KEY"
       if (result.exitCode === 0) return false;
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
-      const GOAL_ALREADY_ACTIVE_PATTERN = /cannot create a new goal because this thread already has a goal|this thread already has a goal|use update_goal only when the existing goal is complete/i;
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
-      if (GOAL_ALREADY_ACTIVE_PATTERN.test(result.output)) return false;
+      if (detectNonRetryableHarnessGuard(result.output).goalAlreadyActive) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }
