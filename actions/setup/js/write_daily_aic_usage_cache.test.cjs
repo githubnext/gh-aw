@@ -95,7 +95,7 @@ describe("write_daily_aic_usage_cache", () => {
     await runMain();
 
     const lines = fs.readFileSync(cacheFile, "utf8").trim().split("\n");
-    const runIds = lines.map(l => JSON.parse(l).run_id);
+    const runIds = lines.map(line => JSON.parse(line).run_id);
     // Stale entry 1001 must be pruned; recent 1002 and new 12345 kept.
     expect(runIds).not.toContain(1001);
     expect(runIds).toContain(1002);
@@ -109,7 +109,7 @@ describe("write_daily_aic_usage_cache", () => {
     await runMain();
 
     const lines = fs.readFileSync(cacheFile, "utf8").trim().split("\n");
-    const runIds = lines.map(l => JSON.parse(l).run_id);
+    const runIds = lines.map(line => JSON.parse(line).run_id);
     expect(runIds).toContain(2001);
     expect(runIds).toContain(12345);
   });
