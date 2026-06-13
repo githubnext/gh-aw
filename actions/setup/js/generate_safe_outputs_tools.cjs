@@ -46,16 +46,7 @@ const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion 
  * @returns {string}
  */
 function updateAddCommentDescription(description, addCommentConfig) {
-  /** @type {Record<string, unknown>} */
-  let addCommentConfigMap = {};
-  if (addCommentConfig !== null && addCommentConfig !== undefined) {
-    if (typeof addCommentConfig === "object") {
-      addCommentConfigMap = /** @type {Record<string, unknown>} */ (addCommentConfig);
-    } else {
-      console.warn(`Unexpected add_comment config type: ${typeof addCommentConfig}`);
-    }
-  }
-  const discussionCommentsEnabled = addCommentConfigMap.discussions === true;
+  const discussionCommentsEnabled = typeof addCommentConfig === "object" && addCommentConfig !== null && "discussions" in addCommentConfig && addCommentConfig.discussions === true;
 
   let updated = description || "";
   const note = discussionCommentsEnabled ? ADD_COMMENT_DISCUSSIONS_ENABLED_NOTE : ADD_COMMENT_DISCUSSIONS_DISABLED_NOTE;
