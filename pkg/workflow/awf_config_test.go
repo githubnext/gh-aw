@@ -1126,6 +1126,49 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	assert.Contains(t, command, `\"enabled\":true`, "config JSON should have apiProxy enabled")
 }
 
+func TestBuildAWFCommand_ResolvesMaxAICreditsFromEnv(t *testing.T) {
+	tests := []struct {
+		name          string
+		isDetection   bool
+		defaultBudget int64
+	}{
+		{
+			name:          "agent run uses agent fallback",
+			isDetection:   false,
+			defaultBudget: constants.DefaultMaxAICredits,
+		},
+		{
+			name:          "detection run uses detection fallback",
+			isDetection:   true,
+			defaultBudget: constants.DefaultDetectionMaxAICredits,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := AWFCommandConfig{
+				EngineName:                 "copilot",
+				EngineCommand:              "copilot --prompt-file /tmp/prompt.txt",
+				LogFile:                    "/tmp/gh-aw/agent-stdio.log",
+				AllowedDomains:             "github.com,api.github.com",
+				ResolveMaxAICreditsFromEnv: true,
+				WorkflowData: &WorkflowData{
+					IsDetectionRun: tt.isDetection,
+					EngineConfig:   &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			}
+
+			command := BuildAWFCommand(config)
+			assert.Contains(t, command, fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="${GH_AW_MAX_AI_CREDITS:-%d}"`, tt.defaultBudget))
+			assert.NotContains(t, command, "vars.GH_AW_DEFAULT_MAX_AI_CREDITS")
+			assert.NotContains(t, command, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS")
+		})
+	}
+}
+
 func TestBuildAWFCommand_ModelMultipliersInlineInConfigJSON(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:    "copilot",

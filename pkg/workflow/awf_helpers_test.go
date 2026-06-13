@@ -5,10 +5,12 @@ package workflow
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -269,6 +271,37 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 		assert.NotContains(t, argsStr, "--openai-api-target", "Should not emit --openai-api-target as CLI flag")
 		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag")
+	})
+}
+
+func TestApplyDefaultMaxAICreditsEnvToMap(t *testing.T) {
+	t.Run("sets default agent expression when max-ai-credits is unset", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+		})
+		assert.Equal(t, compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10)), env[awfMaxAICreditsVarName])
+	})
+
+	t.Run("sets default detection expression for detection runs", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			IsDetectionRun: true,
+			EngineConfig:   &EngineConfig{ID: "copilot"},
+		})
+		assert.Equal(t, compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)), env[awfMaxAICreditsVarName])
+	})
+
+	t.Run("does not set expression when max-ai-credits is configured", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID:           "copilot",
+				MaxAICredits: 777,
+			},
+		})
+		_, exists := env[awfMaxAICreditsVarName]
+		assert.False(t, exists)
 	})
 }
 

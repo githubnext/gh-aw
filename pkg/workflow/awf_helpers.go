@@ -84,6 +84,13 @@ type AWFCommandConfig struct {
 	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
 	// Requires AWF v0.25.3+ for --exclude-env support.
 	ExcludeEnvVarNames []string
+
+	// ResolveMaxAICreditsFromEnv switches maxAiCredits runtime resolution from an inline
+	// GitHub Actions expression in run: to the GH_AW_MAX_AI_CREDITS step env variable.
+	// When true and max-ai-credits is unset, BuildAWFCommand emits:
+	//   GH_AW_MAX_AI_CREDITS="${GH_AW_MAX_AI_CREDITS:-<default>}"
+	// instead of embedding ${{ vars.* }} directly in run:.
+	ResolveMaxAICreditsFromEnv bool
 }
 
 func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
@@ -95,6 +102,26 @@ func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
 
 func buildModelsJSONPathExportScript() string {
 	return fmt.Sprintf(`export GH_AW_MODELS_JSON_PATH="%s"`, awfModelsJSONPathExpr)
+}
+
+// applyDefaultMaxAICreditsEnvToMap adds the runtime max-ai-credits GitHub Actions expression
+// to env when no compile-time max-ai-credits is configured.
+//
+// This keeps the organization/repository variable override behavior while allowing AWF run:
+// scripts to read GH_AW_MAX_AI_CREDITS from step env instead of embedding ${{ vars.* }}
+// directly in run blocks.
+func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *WorkflowData) {
+	if env == nil {
+		return
+	}
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxAICredits != 0 {
+		return
+	}
+	if workflowData != nil && workflowData.IsDetectionRun {
+		env[awfMaxAICreditsVarName] = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
+		return
+	}
+	env[awfMaxAICreditsVarName] = compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
 }
 
 // injectMaxAICreditsExpression inserts "maxAiCredits":expr into the apiProxy
@@ -278,12 +305,20 @@ fi`,
 		// for standard agent runs, use the main-agent variable/fallback.
 		var maxAICreditsExportLine string
 		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
-			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
+			defaultMaxAICredits := strconv.FormatInt(constants.DefaultMaxAICredits, 10)
 			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
-				expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
+				defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
 			}
 			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
-			maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
+			if config.ResolveMaxAICreditsFromEnv {
+				maxAICreditsExportLine = fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits)
+			} else {
+				expr := compilerenv.BuildDefaultMaxAICreditsExpression(defaultMaxAICredits)
+				if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
+					expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
+				}
+				maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
+			}
 			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
 		}
 		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
