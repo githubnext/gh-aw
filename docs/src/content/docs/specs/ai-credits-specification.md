@@ -418,13 +418,27 @@ A conforming implementation MUST enforce the following at compile time when a fr
 
 ### Appendix A: Worked Example
 
+This example assumes the provider bundles cache-read tokens in the reported input total, so §3.5 applies.
+
 Given:
 
-- Input: 1000 at $0.000003/token
-- Output: 200 at $0.000015/token
-- Cache read: 400 at $0.0000003/token
-- Cache write: 50 at $0.00000375/token
-- Reasoning: 25 at $0.000015/token
+- Input (raw): 1000 tokens at $0.000003/token
+- Output: 200 tokens at $0.000015/token
+- Cache read: 400 tokens at $0.0000003/token
+- Cache write: 50 tokens at $0.00000375/token
+- Reasoning: 25 tokens at $0.000015/token
+
+Step 1 — Apply §3.5: net input = 1000 − 400 = **600 tokens**
+
+Step 2 — Per-class cost:
+
+```text
+input:       600 × 0.000003    = 0.0018000
+output:      200 × 0.000015    = 0.0030000
+cache_read:  400 × 0.0000003   = 0.0001200
+cache_write:  50 × 0.00000375  = 0.0001875
+reasoning:    25 × 0.000015    = 0.0003750
+```
 
 Result:
 
