@@ -102,7 +102,7 @@ describe("create_forecast_issue", () => {
     expect(body).toContain("### How to read this report");
     expect(body).toContain("Monte Carlo P10 / P50 / P90 total-AIC bounds");
     expect(body).toContain("Monte Carlo standard deviation");
-    expect(body).toContain("Monthly values are distribution medians");
+    expect(body).toContain("Monthly values come from the Monte Carlo distribution");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
     expect(body).toContain("Consult the billing dashboards for accurate usage and charges.");
     expect(body).not.toContain("sampled runs but forecast AIC is 0");
