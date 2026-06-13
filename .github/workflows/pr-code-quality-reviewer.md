@@ -23,6 +23,10 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
+    toolsets:
+    - default
 safe-outputs:
   create-pull-request-review-comment:
     max: 10

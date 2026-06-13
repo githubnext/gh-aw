@@ -307,25 +307,25 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF'
+          cat << 'GH_AW_PROMPT_370ba7656cfd048e_EOF'
           <system>
-          GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF
+          GH_AW_PROMPT_370ba7656cfd048e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF'
+          cat << 'GH_AW_PROMPT_370ba7656cfd048e_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, add_labels, remove_labels, unassign_from_user, hide_comment(max:5), set_issue_field, missing_tool, missing_data, noop, add_smoked_label
-          GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF
+          GH_AW_PROMPT_370ba7656cfd048e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF'
+          cat << 'GH_AW_PROMPT_370ba7656cfd048e_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF
+          GH_AW_PROMPT_370ba7656cfd048e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF'
+          cat << 'GH_AW_PROMPT_370ba7656cfd048e_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -367,12 +367,12 @@ jobs:
               stop immediately and report the limitation rather than spending turns trying to work around it.
           </github-context>
           
-          GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF
+          GH_AW_PROMPT_370ba7656cfd048e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF'
+          cat << 'GH_AW_PROMPT_370ba7656cfd048e_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/gh.md}}
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
@@ -382,36 +382,10 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting.md}}
           ## Serena Code Analysis
           
-          The Serena MCP server is configured for **["go"]** analysis in this workspace:
-          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
-          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
-          
-          ### Project Activation
-          
-          Before analyzing code, activate the Serena project:
-          ```
-          Tool: activate_project
-          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
-          ```
-          
-          ### Available Capabilities
-          
-          Serena provides IDE-grade Language Server Protocol (LSP) tools including:
-          - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
-          - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
-          - **Type info**: `get_symbol_documentation` — hover-level type and doc information
-          - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
-          - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
-          
-          ### Analysis Guidelines
-          
-          1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
-          2. **Activate project first** — always call `activate_project` before other tools
-          3. **Cross-reference findings** — validate with multiple tools for accuracy
-          4. **Focus on the relevant language files** — ignore unrelated file types
+          Serena is enabled for **["go"]** in `__GH_AW_GITHUB_WORKSPACE__`. Start by calling `activate_project` with that workspace path, then prefer Serena semantic tools for symbol lookup, references, docs, diagnostics, and structured edits.
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-codex.md}}
-          GH_AW_PROMPT_1f0b16eeaf0f65ee_EOF
+          GH_AW_PROMPT_370ba7656cfd048e_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
