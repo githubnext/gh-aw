@@ -51,6 +51,19 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			expectedToken: "",
 		},
 		{
+			name: "allowed-repos as GitHub Actions expression",
+			configMap: map[string]any{
+				"dispatch-workflow": map[string]any{
+					"workflows":     []any{"worker"},
+					"target-repo":   "${{ inputs.target_repo }}",
+					"allowed-repos": "${{ inputs['allowed-repos'] }}",
+				},
+			},
+			expectedRepo:  "${{ inputs.target_repo }}",
+			expectedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+			expectedToken: "",
+		},
+		{
 			name: "no cross-repo config",
 			configMap: map[string]any{
 				"dispatch-workflow": map[string]any{
