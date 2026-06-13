@@ -83,6 +83,13 @@ Quick decision matrix:
 
 Use [workflow-patterns.md](workflow-patterns.md) for trigger-selection guidance.
 
+Compact scenario examples:
+
+- **Schema review on PRs**: trigger `pull_request`, read via `github` (`gh-proxy`), publish findings with `add-comment`, call `noop` when schema is unchanged.
+- **Visual regression on UI changes**: trigger `pull_request`, use `playwright` + `cache-memory`, keep writes in `add-comment`.
+- **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`.
+- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, publish digest with `create-issue`.
+
 ### 3. Keep permissions read-only
 
 The main agent job must stay read-only.
