@@ -200,6 +200,36 @@ func TestFindTokenUsageFile(t *testing.T) {
 	})
 }
 
+func TestAnalyzeTokenUsageAICOnly(t *testing.T) {
+	t.Run("sums agent and detection usage artifact jsonl files", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only")
+		usageDir := filepath.Join(tmpDir, "usage")
+		require.NoError(t, os.MkdirAll(filepath.Join(usageDir, "agent"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(usageDir, "detection"), 0o755))
+
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "agent_usage.jsonl"),
+			[]byte(`{"ai_credits":1.25}`+"\n"),
+			0o644,
+		))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "detection_usage.jsonl"),
+			[]byte(`{"usage":{"ai_credits":2.5}}`+"\n"),
+			0o644,
+		))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "aw-info.jsonl"),
+			[]byte(`{"note":"ignored"}`+"\n"),
+			0o644,
+		))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 3.75, summary.TotalAIC, 1e-9)
+	})
+}
+
 func TestTokenUsageSummaryMethods(t *testing.T) {
 	t.Run("TotalTokens", func(t *testing.T) {
 		summary := &TokenUsageSummary{

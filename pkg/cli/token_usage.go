@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -474,10 +476,169 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	return summary, nil
 }
 
+func findUsageJSONLFiles(runDir string) []string {
+	usageDir := filepath.Join(runDir, "usage")
+	if _, err := os.Stat(usageDir); err != nil {
+		return nil
+	}
+
+	var files []string
+	if walkErr := filepath.Walk(usageDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(info.Name()), ".jsonl") {
+			files = append(files, path)
+		}
+		return nil
+	}); walkErr != nil {
+		tokenUsageLog.Printf("usage walk error at %s: %v", usageDir, walkErr)
+	}
+
+	sort.Strings(files)
+	return files
+}
+
+func extractUsageRecord(value any) map[string]any {
+	record, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	return record
+}
+
+func usageNumericValue(parsed map[string]any, usage map[string]any, keys ...string) float64 {
+	for _, key := range keys {
+		for _, candidate := range []any{usage[key], parsed[key]} {
+			switch v := candidate.(type) {
+			case float64:
+				if !isFinite(v) {
+					continue
+				}
+				return v
+			case json.Number:
+				if num, err := v.Float64(); err == nil && isFinite(num) {
+					return num
+				}
+			case int:
+				return float64(v)
+			case int64:
+				return float64(v)
+			case string:
+				if strings.TrimSpace(v) == "" {
+					continue
+				}
+				num := json.Number(v)
+				if parsedNum, err := num.Float64(); err == nil && isFinite(parsedNum) {
+					return parsedNum
+				}
+			}
+		}
+	}
+	return 0
+}
+
+func usageStringValue(parsed map[string]any, usage map[string]any, keys ...string) string {
+	for _, key := range keys {
+		for _, candidate := range []any{usage[key], parsed[key]} {
+			if value, ok := candidate.(string); ok && strings.TrimSpace(value) != "" {
+				return value
+			}
+		}
+	}
+	return ""
+}
+
+func isFinite(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func sumAICFromUsageJSONLFiles(filePaths []string) (float64, error) {
+	var totalAIC float64
+	found := false
+
+	for _, filePath := range filePaths {
+		file, err := os.Open(filepath.Clean(filePath))
+		if err != nil {
+			return 0, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
+		}
+
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || !strings.HasPrefix(line, "{") {
+				continue
+			}
+
+			var parsed map[string]any
+			if err := json.Unmarshal([]byte(line), &parsed); err != nil {
+				continue
+			}
+
+			usage := extractUsageRecord(parsed["usage"])
+			explicitAICredits := usageNumericValue(parsed, usage, "ai_credits", "aiCredits")
+			if explicitAICredits > 0 {
+				totalAIC += explicitAICredits
+				found = true
+				continue
+			}
+			explicitAIC := usageNumericValue(parsed, usage, "aic")
+			if explicitAIC > 0 {
+				totalAIC += explicitAIC
+				found = true
+				continue
+			}
+
+			computedAIC := computeModelInferenceAIC(
+				usageStringValue(parsed, usage, "provider"),
+				usageStringValue(parsed, usage, "model"),
+				int(usageNumericValue(parsed, usage, "input_tokens", "inputTokens")),
+				int(usageNumericValue(parsed, usage, "output_tokens", "outputTokens")),
+				int(usageNumericValue(parsed, usage, "cache_read_tokens", "cacheReadTokens")),
+				int(usageNumericValue(parsed, usage, "cache_write_tokens", "cacheWriteTokens")),
+				int(usageNumericValue(parsed, usage, "reasoning_tokens", "reasoningTokens")),
+			)
+			if computedAIC > 0 {
+				totalAIC += computedAIC
+				found = true
+			}
+		}
+		closeErr := file.Close()
+		if err := scanner.Err(); err != nil {
+			return 0, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, err)
+		}
+		if closeErr != nil {
+			return 0, fmt.Errorf("failed to close usage JSONL file %s: %w", filePath, closeErr)
+		}
+	}
+
+	if !found {
+		return 0, nil
+	}
+	return totalAIC, nil
+}
+
 // analyzeTokenUsageAICOnly parses token usage inputs and computes only TotalAIC.
 // It intentionally skips effective-token computation for callers that only need cost.
 func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage (AIC only) in: %s", runDir)
+
+	usageJSONLFiles := findUsageJSONLFiles(runDir)
+	if len(usageJSONLFiles) > 0 {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "  Found usage JSONL files: %s\n", strings.Join(usageJSONLFiles, ", "))
+		}
+		totalAIC, err := sumAICFromUsageJSONLFiles(usageJSONLFiles)
+		if err != nil {
+			return nil, err
+		}
+		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
+	}
 
 	filePath := findTokenUsageFile(runDir)
 	if filePath != "" {
