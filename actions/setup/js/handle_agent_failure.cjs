@@ -798,6 +798,39 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
     yamlSnippet += "```\n";
     context += "\nTo allow larger patches, increase `max-patch-size` in your workflow's front matter (value in KB):\n";
     context += yamlSnippet;
+
+    // Provide download instructions so the user can inspect what the agent generated
+    let runId = "";
+    if (runUrl) {
+      const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
+      if (runIdMatch) {
+        runId = runIdMatch[1];
+      }
+    }
+
+    context += "\n<details>\n<summary>📥 Download the oversized patch to inspect or apply manually</summary>\n\n";
+    if (runId) {
+      context += `\`\`\`sh
+# Download the patch artifact from the workflow run
+gh run download ${runId} -n agent -D /tmp/agent-${runId}
+
+# List available patches
+ls /tmp/agent-${runId}/*.patch
+
+# Inspect the patch
+cat /tmp/agent-${runId}/YOUR_PATCH_FILE.patch | head -100
+
+# Optionally apply the patch manually on a new branch
+git checkout -b aw/manual-apply
+git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
+git push origin aw/manual-apply
+gh pr create --head aw/manual-apply
+\`\`\`
+${runUrl ? `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n` : ""}`;
+    } else {
+      context += "Download the patch artifact from the workflow run, then inspect or apply it with `git am --3way <patch-file>`.\n";
+    }
+    context += "\n</details>\n";
   }
 
   // Patch apply failure section — shown when the patch could not be applied (e.g. merge conflict)
