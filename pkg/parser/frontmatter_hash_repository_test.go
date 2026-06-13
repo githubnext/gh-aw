@@ -129,9 +129,9 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 
 		// Compare hashes with bounded retry for transient one-off mismatches in CI.
 		currentHash := computedHash
-		maxAttempts := 3
+		maxTotalAttempts := 3 // initial computation + up to 2 retries
 		matched := currentHash == lockHash
-		for retryAttempt := 1; retryAttempt < maxAttempts && !matched; retryAttempt++ {
+		for retryAttempt := 1; retryAttempt < maxTotalAttempts && !matched; retryAttempt++ {
 			recomputedHash, recomputeErr := ComputeFrontmatterHashFromFile(mdFile, cache)
 			require.NoError(t, recomputeErr, "Should recompute hash for %s", filepath.Base(mdFile))
 			currentHash = recomputedHash
