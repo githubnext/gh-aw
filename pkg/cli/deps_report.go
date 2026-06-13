@@ -68,7 +68,7 @@ func GenerateDependencyReport(ctx context.Context, verbose bool) (*DependencyRep
 	}
 
 	// Check for outdated dependencies (only direct)
-	outdated, err := CheckOutdatedDependencies(verbose)
+	outdated, err := CheckOutdatedDependencies(ctx, verbose)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: could not check outdated dependencies: %v", err)))

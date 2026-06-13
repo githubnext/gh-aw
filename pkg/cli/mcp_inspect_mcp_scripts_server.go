@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -43,7 +44,7 @@ func findAvailablePort(startPort int, verbose bool) int {
 }
 
 // waitForServerReady waits for the HTTP server to be ready by polling the endpoint
-func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
+func waitForServerReady(ctx context.Context, port int, timeout time.Duration, verbose bool) bool {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{
 		Timeout: 1 * time.Second,
@@ -51,7 +52,17 @@ func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
 	url := fmt.Sprintf("http://localhost:%d/", port)
 
 	for time.Now().Before(deadline) {
-		resp, err := client.Get(url)
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			mcpInspectLog.Printf("Failed to create request: %v", err)
+			return false
+		}
+		resp, err := client.Do(req)
 		if err == nil {
 			if closeErr := resp.Body.Close(); closeErr != nil {
 				mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
@@ -61,7 +72,11 @@ func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
 			}
 			return true
 		}
-		time.Sleep(mcpScriptsServerStartupDelay)
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(mcpScriptsServerStartupDelay):
+		}
 	}
 
 	mcpInspectLog.Printf("Server did not become ready within timeout")
@@ -100,7 +115,7 @@ func startMCPScriptsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 }
 
 // startMCPScriptsServer starts the mcp-scripts HTTP server and returns the MCP config
-func startMCPScriptsServer(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) (*parser.RegistryMCPServerConfig, *exec.Cmd, string, error) {
+func startMCPScriptsServer(ctx context.Context, mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) (*parser.RegistryMCPServerConfig, *exec.Cmd, string, error) {
 	mcpInspectLog.Printf("Starting mcp-scripts server with %d tools", len(mcpScriptsConfig.Tools))
 
 	// Check if node is available
@@ -165,7 +180,7 @@ func startMCPScriptsServer(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose 
 	}
 
 	// Wait for the server to start up
-	if !waitForServerReady(port, 5*time.Second, verbose) {
+	if !waitForServerReady(ctx, port, 5*time.Second, verbose) {
 		if serverCmd.Process != nil {
 			// Kill the process and log warning if it fails
 			if err := serverCmd.Process.Kill(); err != nil && verbose {

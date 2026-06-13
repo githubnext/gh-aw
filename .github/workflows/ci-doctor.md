@@ -203,8 +203,7 @@ steps:
       echo ""
       echo "✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
-source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
-
+source: githubnext/agentics/workflows/ci-doctor.md@e15e57b40918dbca11b350c55d02ab61934afa75
 ---
 
 # CI Failure Doctor
@@ -320,6 +319,7 @@ Logs and artifacts have been pre-downloaded before this session started:
 **ONLY proceed if the workflow conclusion is 'failure' or 'cancelled'**. If the workflow was successful, **call the `noop` tool** immediately and exit.
 
 ### Phase 1: Initial Triage
+
 1. **Verify Failure**: Check that `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`
    - **If the workflow was successful**: Call the `noop` tool with message "CI workflow completed successfully - no investigation needed" and **stop immediately**. Do not proceed with any further analysis.
    - **If the workflow failed or was cancelled**: Proceed with the investigation steps below.
@@ -349,6 +349,7 @@ Logs and artifacts have been pre-downloaded before this session started:
    - Timing patterns
 
 ### Phase 3: Historical Context Analysis
+
 1. **Search Investigation History**: Use file-based storage to search for similar failures:
    - Read from cached investigation files in `/tmp/gh-aw/agent/memory/investigations/`
    - Parse previous failure patterns and solutions
@@ -358,6 +359,7 @@ Logs and artifacts have been pre-downloaded before this session started:
 4. **PR Context**: If triggered by a PR, analyze the changed files
 
 ### Phase 4: Root Cause Investigation
+
 1. **Categorize Failure Type**:
    - **Code Issues**: Syntax errors, logic bugs, test failures
    - **Infrastructure**: Runner issues, network problems, resource constraints
@@ -373,6 +375,7 @@ Logs and artifacts have been pre-downloaded before this session started:
    - For timeout issues: Identify slow operations and bottlenecks
 
 ### Phase 5: Pattern Storage and Knowledge Building
+
 1. **Store Investigation**: Save structured investigation data to files:
    - Write investigation report to `/tmp/gh-aw/agent/memory/investigations/<timestamp>-<run-id>.json`
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
