@@ -21,7 +21,7 @@ import (
 // Analyzer is the time-after-leak analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "timeafterleak",
-	Doc:      "reports time.After calls in select cases inside loops that leak a timer goroutine on each iteration when another case fires first",
+	Doc:      "reports time.After calls used as the channel-receive expression in a select CommClause that is enclosed by a for or range loop; does not flag receives inside case bodies, single-case selects without a default, or selects enclosed only by a function literal boundary",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/timeafterleak",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -86,6 +86,8 @@ func isTimeAfterCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 // isInsideLoopSelectComm reports whether cur is a time.After call used as the
 // channel receive expression in the Comm field of a select CommClause that is
 // enclosed by a for or range loop, without crossing a function literal boundary.
+// Single-case selects without a default are not flagged because the timer must
+// fire before the loop can continue — no timer accumulation is possible.
 func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 	// The immediate parent of time.After(...) must be a channel-receive UnaryExpr.
 	recvCur := cur.Parent()
@@ -115,18 +117,36 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 		return false
 	}
 
+	// If the enclosing SelectStmt has no other CommClause (no other channel case
+	// and no default), the timer must fire — it cannot be preempted, so there is
+	// no accumulation. A default clause (CommClause with nil Comm) can preempt
+	// the timer and is still flagged.
+	for selCur := range clauseCur.Enclosing((*ast.SelectStmt)(nil)) {
+		sel := selCur.Node().(*ast.SelectStmt)
+		hasOther := false
+		for _, stmt := range sel.Body.List {
+			if other, isComm := stmt.(*ast.CommClause); isComm && other != cc {
+				hasOther = true
+				break
+			}
+		}
+		if !hasOther {
+			return false
+		}
+		break
+	}
+
 	// Walk up from the CommClause to find an enclosing for or range loop,
-	// stopping at any function literal or declaration boundary.
+	// stopping at any function literal boundary.
 	for encl := range clauseCur.Enclosing(
 		(*ast.ForStmt)(nil),
 		(*ast.RangeStmt)(nil),
 		(*ast.FuncLit)(nil),
-		(*ast.FuncDecl)(nil),
 	) {
 		switch encl.Node().(type) {
 		case *ast.ForStmt, *ast.RangeStmt:
 			return true
-		case *ast.FuncLit, *ast.FuncDecl:
+		case *ast.FuncLit:
 			return false
 		}
 	}

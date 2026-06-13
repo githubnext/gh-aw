@@ -9,7 +9,7 @@ import (
 func BadForLoop(ctx context.Context) {
 	for {
 		select {
-		case <-time.After(time.Second): // want `time\.After creates a new timer on each loop iteration`
+		case <-time.After(time.Second): // want `time\.After creates a new timer on each loop iteration that is not garbage collected until it fires; use time\.NewTimer with Reset and Stop instead`
 			doWork()
 		case <-ctx.Done():
 			return
@@ -21,7 +21,7 @@ func BadForLoop(ctx context.Context) {
 func BadForLoopAssign(ctx context.Context) {
 	for {
 		select {
-		case t := <-time.After(time.Second): // want `time\.After creates a new timer on each loop iteration`
+		case t := <-time.After(time.Second): // want `time\.After creates a new timer on each loop iteration that is not garbage collected until it fires; use time\.NewTimer with Reset and Stop instead`
 			_ = t
 		case <-ctx.Done():
 			return
@@ -33,9 +33,32 @@ func BadForLoopAssign(ctx context.Context) {
 func BadRangeLoop(items []string, ctx context.Context) {
 	for range items {
 		select {
-		case <-time.After(time.Millisecond): // want `time\.After creates a new timer on each loop iteration`
+		case <-time.After(time.Millisecond): // want `time\.After creates a new timer on each loop iteration that is not garbage collected until it fires; use time\.NewTimer with Reset and Stop instead`
 		case <-ctx.Done():
 			return
+		}
+	}
+}
+
+// BadNestedLoop: the inner select is still inside a loop regardless of nesting depth.
+func BadNestedLoop(ctx context.Context) {
+	for {
+		for {
+			select {
+			case <-time.After(time.Second): // want `time\.After creates a new timer on each loop iteration that is not garbage collected until it fires; use time\.NewTimer with Reset and Stop instead`
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+}
+
+// BadSingleCaseWithDefault: a default clause can preempt the timer — still flagged.
+func BadSingleCaseWithDefault(ctx context.Context) {
+	for {
+		select {
+		case <-time.After(time.Second): // want `time\.After creates a new timer on each loop iteration that is not garbage collected until it fires; use time\.NewTimer with Reset and Stop instead`
+		default:
 		}
 	}
 }
@@ -72,7 +95,8 @@ func GoodNewTimer(ctx context.Context) {
 }
 
 // GoodTimeAfterInBody calls time.After inside the case body, not as the Comm.
-// The timer fires exactly once here, so there is no accumulation leak.
+// Because <-time.After(...) is a blocking receive, the timer is always drained
+// before the loop continues — no timers accumulate across iterations.
 func GoodTimeAfterInBody(ctx context.Context, ch <-chan struct{}) {
 	for {
 		select {
@@ -96,6 +120,42 @@ func GoodFuncLitInsideLoop(ctx context.Context) {
 		}()
 		<-ctx.Done()
 		return
+	}
+}
+
+// GoodSingleCaseSelect: the select has only one case and no default, so the
+// timer must fire before the loop continues — no timer accumulation is possible.
+func GoodSingleCaseSelect() {
+	for {
+		select {
+		case <-time.After(time.Second): // single case, no default — not flagged
+			doWork()
+		}
+	}
+}
+
+// GoodNolintPreviousLine: suppressed with a nolint directive on the previous line.
+func GoodNolintPreviousLine(ctx context.Context) {
+	for {
+		select {
+		//nolint:timeafterleak
+		case <-time.After(time.Second):
+			doWork()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// GoodNolintSameLine: suppressed with a nolint directive on the same line.
+func GoodNolintSameLine(ctx context.Context) {
+	for {
+		select {
+		case <-time.After(time.Second): //nolint:timeafterleak
+			doWork()
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

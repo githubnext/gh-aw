@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// The actual analyzers are implemented in subpackages. All 24 active analyzers:
+// The actual analyzers are implemented in subpackages. All 25 active analyzers:
 //
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
@@ -24,6 +24,7 @@
 //   - sortslice — flags sort.Slice / sort.SliceStable calls that should use slices.SortFunc / slices.SortStableFunc
 //   - ssljson — validates ssl.json skill artifacts in .github/skills/ against the SSL spec
 //   - strconvparseignorederror — flags strconv parsing calls where the error is discarded with _
+//   - timeafterleak — flags time.After in select cases inside loops that leak timer channels
 //   - tolowerequalfold — flags case-insensitive comparisons via ToLower/ToUpper that should use EqualFold
 //   - uncheckedtypeassertion — flags unchecked single-value type assertions
 //
