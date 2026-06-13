@@ -20,6 +20,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /** Path where the restored (and updated) usage cache lives on the runner. */
 const CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
 
+/** Entries older than this threshold (in ms) are pruned when rewriting the cache. */
+const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
+
 /**
  * Directory prepared by the "Collect usage artifact files" step in the conclusion job.
  * Contains agent_usage.jsonl and agent/token_usage.jsonl which mirror the contents of
@@ -47,12 +50,18 @@ function logCache(message, details) {
 }
 
 /**
- * Appends a `{run_id, aic}` JSONL entry to the cache file, preserving any existing entries
- * that were restored from the previous cache snapshot.
+ * Appends a `{run_id, aic, timestamp}` JSONL entry to the cache file, preserving any existing
+ * entries that were restored from the previous cache snapshot and are within the 48-hour
+ * retention window.  Entries older than {@link CACHE_RETENTION_MS} are pruned to keep the
+ * cache file bounded.
  *
+ * @param {string} [cacheFilePath] Override the cache file path (defaults to {@link CACHE_FILE_PATH}; useful in tests).
+ * @param {string} [usageDir] Override the usage directory (defaults to {@link USAGE_DIR}; useful in tests).
  * @returns {Promise<void>}
  */
-async function main() {
+async function mainWithPaths(cacheFilePath, usageDir) {
+  const cachePath = cacheFilePath || CACHE_FILE_PATH;
+  const usageDirPath = usageDir || USAGE_DIR;
   try {
     const runId = Number(process.env.GITHUB_RUN_ID || 0);
     if (!runId) {
@@ -61,8 +70,8 @@ async function main() {
     }
 
     // Compute AIC from the usage JSONL files prepared by buildUsageArtifactUploadSteps.
-    const usageFiles = findJSONLFiles(USAGE_DIR);
-    logCache("Scanning usage JSONL files", { dir: USAGE_DIR, count: usageFiles.length, files: usageFiles });
+    const usageFiles = findJSONLFiles(usageDirPath);
+    logCache("Scanning usage JSONL files", { dir: usageDirPath, count: usageFiles.length, files: usageFiles });
     const aic = sumAICFromUsageJSONLFiles(usageFiles);
     logCache("Computed AIC for current run", { runId, aic });
 
@@ -76,32 +85,67 @@ async function main() {
     }
 
     // Read existing cache content (restored from the previous run's cache snapshot, if any).
-    let existingLines = "";
+    // Entries with a `timestamp` older than CACHE_RETENTION_MS are pruned to keep the file
+    // bounded.  Entries without a `timestamp` (written by an older version of this script)
+    // are preserved for backward compatibility.
+    /** @type {string[]} */
+    let keptLines = [];
     try {
-      if (fs.existsSync(CACHE_FILE_PATH)) {
-        existingLines = fs.readFileSync(CACHE_FILE_PATH, "utf8").trimEnd();
-        const lineCount = existingLines ? existingLines.split("\n").length : 0;
-        logCache("Loaded existing cache entries", { path: CACHE_FILE_PATH, lineCount });
+      if (fs.existsSync(cachePath)) {
+        const raw = fs.readFileSync(cachePath, "utf8").trimEnd();
+        const now = Date.now();
+        const cutoff = now - CACHE_RETENTION_MS;
+        let total = 0;
+        let pruned = 0;
+        for (const rawLine of raw.split("\n")) {
+          const line = rawLine.trim();
+          if (!line) continue;
+          total++;
+          try {
+            const entry = JSON.parse(line);
+            if (typeof entry?.timestamp === "string") {
+              const ts = Date.parse(entry.timestamp);
+              if (Number.isFinite(ts) && ts < cutoff) {
+                pruned++;
+                continue;
+              }
+            }
+            keptLines.push(line);
+          } catch {
+            // Preserve lines that cannot be parsed (defensive: avoids data loss).
+            keptLines.push(line);
+          }
+        }
+        logCache("Loaded existing cache entries", { path: cachePath, total, kept: keptLines.length, pruned });
       } else {
-        logCache("No existing cache file found; starting fresh", { path: CACHE_FILE_PATH });
+        logCache("No existing cache file found; starting fresh", { path: cachePath });
       }
     } catch (readErr) {
       core.warning(`[daily-aic-cache] Could not read existing cache file: ${getErrorMessage(readErr)}`);
     }
 
     // Build the updated JSONL content.
-    const newEntry = JSON.stringify({ run_id: runId, aic });
-    const updatedContent = existingLines ? `${existingLines}\n${newEntry}\n` : `${newEntry}\n`;
+    const newEntry = JSON.stringify({ run_id: runId, aic, timestamp: new Date().toISOString() });
+    const updatedContent = keptLines.length > 0 ? `${keptLines.join("\n")}\n${newEntry}\n` : `${newEntry}\n`;
 
     // Ensure the directory exists and write the updated file.
-    const dir = path.dirname(CACHE_FILE_PATH);
+    const dir = path.dirname(cachePath);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(CACHE_FILE_PATH, updatedContent, "utf8");
-    logCache("Wrote cache entry", { runId, aic, path: CACHE_FILE_PATH });
+    fs.writeFileSync(cachePath, updatedContent, "utf8");
+    logCache("Wrote cache entry", { runId, aic, path: cachePath });
   } catch (error) {
     // Non-fatal: a cache write failure should never block the conclusion job.
     core.warning(`[daily-aic-cache] Failed to write usage cache: ${getErrorMessage(error)}`);
   }
 }
 
-module.exports = { main };
+/**
+ * Entry point called from the GitHub Actions step.
+ *
+ * @returns {Promise<void>}
+ */
+async function main() {
+  return mainWithPaths();
+}
+
+module.exports = { main, mainWithPaths };

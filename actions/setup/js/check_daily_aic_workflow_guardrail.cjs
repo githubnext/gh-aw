@@ -13,6 +13,8 @@ const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_r
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Cache entries older than this threshold (in ms) are skipped when loading. */
+const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
@@ -94,7 +96,11 @@ function shouldSkipDailyAICGuardrail() {
 
 /**
  * Loads the per-workflow usage cache from the JSONL file restored by the activation job's
- * cache-restore step.  Each line is a JSON object `{ run_id: number, aic: number }`.
+ * cache-restore step.  Each line is a JSON object `{ run_id: number, aic: number, timestamp?: string }`.
+ *
+ * Entries with a `timestamp` older than {@link CACHE_RETENTION_MS} (48 h) are skipped so that
+ * stale data cannot inflate the daily-AIC total.  Entries without a `timestamp` (written by an
+ * older version of the write script) are kept for backward compatibility.
  *
  * Returns a `Map<runId, aic>` so that callers can check whether a prior run's AIC is already
  * known without downloading the run's artifact from the GitHub API.
@@ -112,7 +118,10 @@ function loadAICUsageCache(filePath) {
       return cache;
     }
     const content = fs.readFileSync(cachePath, "utf8");
+    const now = Date.now();
+    const cutoff = now - CACHE_RETENTION_MS;
     let loaded = 0;
+    let skippedStale = 0;
     for (const rawLine of content.split("\n")) {
       const line = rawLine.trim();
       if (!line || !line.startsWith("{")) {
@@ -120,6 +129,14 @@ function loadAICUsageCache(filePath) {
       }
       try {
         const entry = JSON.parse(line);
+        // Skip entries that have a timestamp and are older than the retention window.
+        if (typeof entry?.timestamp === "string") {
+          const ts = Date.parse(entry.timestamp);
+          if (Number.isFinite(ts) && ts < cutoff) {
+            skippedStale++;
+            continue;
+          }
+        }
         const runId = Number(entry?.run_id);
         const rawAic = entry?.aic;
         const aic = typeof rawAic === "number" ? rawAic : NaN;
@@ -131,7 +148,7 @@ function loadAICUsageCache(filePath) {
         // Ignore malformed lines.
       }
     }
-    logDailyGuardrail("Loaded usage cache", { path: cachePath, entriesLoaded: loaded });
+    logDailyGuardrail("Loaded usage cache", { path: cachePath, entriesLoaded: loaded, skippedStale });
   } catch (err) {
     logDailyGuardrail("Failed to load usage cache; proceeding without it", {
       path: cachePath,

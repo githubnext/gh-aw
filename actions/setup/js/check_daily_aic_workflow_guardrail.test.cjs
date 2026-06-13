@@ -612,5 +612,30 @@ describe("check_daily_aic_workflow_guardrail", () => {
       expect(cache.has(603)).toBe(false);
       expect(cache.get(604)).toBe(4.2);
     });
+
+    it("loads entries that have a recent timestamp (within 48 h)", () => {
+      const recentTimestamp = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+      fs.writeFileSync(cacheFile, JSON.stringify({ run_id: 701, aic: 8.0, timestamp: recentTimestamp }) + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(701)).toBe(true);
+      expect(cache.get(701)).toBe(8.0);
+    });
+
+    it("skips entries whose timestamp is older than 48 h", () => {
+      const staleTimestamp = new Date(Date.now() - 49 * 60 * 60 * 1000).toISOString(); // 49 hours ago
+      const recentTimestamp = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 minutes ago
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 801, aic: 3.0, timestamp: staleTimestamp }), JSON.stringify({ run_id: 802, aic: 5.0, timestamp: recentTimestamp })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(801)).toBe(false);
+      expect(cache.has(802)).toBe(true);
+      expect(cache.get(802)).toBe(5.0);
+    });
+
+    it("keeps entries without a timestamp (backward compatibility)", () => {
+      fs.writeFileSync(cacheFile, JSON.stringify({ run_id: 901, aic: 2.5 }) + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(901)).toBe(true);
+      expect(cache.get(901)).toBe(2.5);
+    });
   });
 });
