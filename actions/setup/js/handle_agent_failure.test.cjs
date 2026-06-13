@@ -3023,6 +3023,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(
         path.join(sessionDir, "events.jsonl"),
         [
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:00Z", data: { toolName: "read", mcpServerName: "mcp__safeoutputs" } }),
           JSON.stringify({ type: "assistant.message", timestamp: "2026-06-06T00:00:00Z", data: { content: "" } }),
           JSON.stringify({
             type: "guard.tool_denials_exceeded",
@@ -3033,7 +3034,7 @@ describe("handle_agent_failure", () => {
       );
 
       const events = loadToolDenialsExceededEvents();
-      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }]);
+      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["mcp__safeoutputs.read"] }]);
     });
 
     it("renders dedicated context for tool denial threshold events", () => {
@@ -3041,7 +3042,10 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
 
-      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }], "daily-spdd-spec-planner");
+      const result = buildToolDenialsExceededContext(
+        [{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["read(...)", "bash(git status)"] }],
+        "daily-spdd-spec-planner"
+      );
       expect(result).toContain("Excessive Tool Denials");
       expect(result).toContain("5/5");
       expect(result).toContain("guard.tool_denials_exceeded");
@@ -3049,8 +3053,11 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("<details>");
       expect(result).toContain("<summary><strong>Last denied request</strong></summary>");
+      expect(result).toContain("<summary><strong>Last 5 tool calls</strong></summary>");
       expect(result).toContain("```text");
       expect(result).toContain("\nread\n");
+      expect(result).toContain("- `read(...)`");
+      expect(result).toContain("- `bash(git status)`");
     });
 
     it("normalizes Python 3 heredoc reason to a single-line summary", () => {
@@ -3065,6 +3072,38 @@ describe("handle_agent_failure", () => {
       // The full multi-line program body should not appear in the output
       expect(result).not.toContain("import re");
       expect(result).not.toContain("for f, p in files");
+    });
+
+    it("captures only the last 5 tool calls before guard event", () => {
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:00Z", data: { toolName: "list" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:01Z", data: { toolName: "read" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:02Z", data: { toolName: "edit" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:03Z", data: { toolName: "bash" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:04Z", data: { toolName: "grep" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:05Z", data: { toolName: "glob" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:06Z", data: { toolName: "write" } }),
+          JSON.stringify({
+            type: "guard.tool_denials_exceeded",
+            timestamp: "2026-06-06T00:00:07Z",
+            data: { denialCount: 5, threshold: 5, reason: "permission denied: read" },
+          }),
+        ].join("\n") + "\n"
+      );
+
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toEqual([
+        {
+          denialCount: 5,
+          threshold: 5,
+          reason: "permission denied: read",
+          recentToolCalls: ["read", "edit", "bash", "grep", "glob", "write"].slice(-5),
+        },
+      ]);
     });
   });
 

@@ -11,6 +11,13 @@
 
 </details>
 
+<details>
+<summary><strong>Last 5 tool calls</strong></summary>
+
+{recent_tool_calls_list}
+
+</details>
+
 This is a structured guardrail event (`guard.tool_denials_exceeded`) captured in `events.jsonl`.
 
 <details>
