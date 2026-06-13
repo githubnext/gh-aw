@@ -50,11 +50,11 @@ describe("DefaultArtifactClient live API integration", () => {
 
   it("uploads then downloads an artifact end-to-end using live APIs", async () => {
     if (!HAVE_ACTIONS_RUNTIME) {
-      console.log("Skipping live artifact test — ACTIONS_RUNTIME_TOKEN / ACTIONS_RESULTS_URL not set.\n" + "This test only runs inside a GitHub Actions job.");
+      console.log(`Skipping live artifact test — ACTIONS_RUNTIME_TOKEN / ACTIONS_RESULTS_URL not set.\nThis test only runs inside a GitHub Actions job.`);
       return;
     }
     if (!HAVE_GITHUB_TOKEN) {
-      console.log("Skipping live artifact test — GITHUB_TOKEN not set.\n" + "Pass it via env: GITHUB_TOKEN in the workflow step.");
+      console.log(`Skipping live artifact test — GITHUB_TOKEN not set.\nPass it via env: GITHUB_TOKEN in the workflow step.`);
       return;
     }
 
