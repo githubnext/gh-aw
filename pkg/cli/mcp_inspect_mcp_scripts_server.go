@@ -59,9 +59,6 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			if ctx.Err() != nil {
-				return false
-			}
 			mcpInspectLog.Printf("Failed to create request: %v", err)
 			return false
 		}
