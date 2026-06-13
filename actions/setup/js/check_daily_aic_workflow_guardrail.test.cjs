@@ -10,6 +10,8 @@ describe("check_daily_aic_workflow_guardrail", () => {
     vi.resetModules();
     process.env.GITHUB_EVENT_NAME = "";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
+    process.env.GH_AW_HAS_SLASH_COMMAND = "false";
+    process.env.GH_AW_HAS_LABEL_COMMAND = "false";
     const mod = await import("./check_daily_aic_workflow_guardrail.cjs");
     exports = mod.default || mod;
   });
@@ -17,9 +19,11 @@ describe("check_daily_aic_workflow_guardrail", () => {
   afterEach(() => {
     delete process.env.GITHUB_EVENT_NAME;
     delete process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT;
+    delete process.env.GH_AW_HAS_SLASH_COMMAND;
+    delete process.env.GH_AW_HAS_LABEL_COMMAND;
   });
 
-  it("skips workflow_call, repository_dispatch, and workflow_dispatch with aw_context", () => {
+  it("skips workflow_call, repository_dispatch, and workflow_dispatch (manual and aw_context)", () => {
     process.env.GITHUB_EVENT_NAME = "workflow_call";
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
@@ -27,44 +31,64 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"schedule"}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"workflow_dispatch"}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
   });
 
-  it("does not skip for label command triggers in aw_context", () => {
+  it("skips for label command triggers in aw_context", () => {
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request","trigger_label":"smoke"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issues","trigger_label":"ci-doctor"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-  });
-
-  it("does not skip for slash command triggers in aw_context", () => {
-    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issue_comment","trigger_label":""}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request_review_comment"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"discussion_comment"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-  });
-
-  it("skips for workflow_dispatch with aw_context that has no trigger_label and non-slash event_type", () => {
-    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"push","trigger_label":""}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
-    // Malformed JSON should still skip (safe fallback)
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issues","trigger_label":"ci-doctor"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for slash command triggers in aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issue_comment","trigger_label":""}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request_review_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"discussion_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for workflow_dispatch with malformed aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "not-json";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for non-centralized slash command events only when slash command is enabled", () => {
+    process.env.GITHUB_EVENT_NAME = "issue_comment";
+    process.env.GH_AW_HAS_SLASH_COMMAND = "false";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_HAS_SLASH_COMMAND = "true";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GITHUB_EVENT_NAME = "pull_request_review_comment";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for non-centralized label command events only when label command is enabled", () => {
+    process.env.GITHUB_EVENT_NAME = "issues";
+    process.env.GH_AW_HAS_LABEL_COMMAND = "false";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_HAS_LABEL_COMMAND = "true";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GITHUB_EVENT_NAME = "pull_request";
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
   });
 

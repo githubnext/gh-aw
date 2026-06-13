@@ -66,6 +66,20 @@ function logDailyGuardrail(message, details) {
  * typing a slash command in a comment, and the daily guardrail should not be skipped.
  */
 const SLASH_COMMAND_EVENT_TYPES = ["issue_comment", "pull_request_review_comment", "discussion_comment"];
+const SLASH_COMMAND_TRIGGERING_EVENTS = ["issues", "issue_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"];
+const LABEL_COMMAND_TRIGGERING_EVENTS = ["issues", "pull_request", "discussion"];
+
+/**
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function envFlagEnabled(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
 
 /**
  * @returns {boolean}
@@ -74,24 +88,39 @@ function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const isWorkflowCall = eventName === "workflow_call";
   const isRepositoryDispatch = eventName === "repository_dispatch";
+  const hasSlashCommand = envFlagEnabled(process.env.GH_AW_HAS_SLASH_COMMAND);
+  const hasLabelCommand = envFlagEnabled(process.env.GH_AW_HAS_LABEL_COMMAND);
   const rawContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim();
   const hasDispatchContext = rawContext !== "";
-  if (!(isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext))) {
-    return false;
+  if (isWorkflowCall || isRepositoryDispatch) {
+    return true;
   }
-  if (eventName === "workflow_dispatch" && hasDispatchContext) {
+  if (eventName === "workflow_dispatch") {
+    // Manual user-triggered runs intentionally bypass the daily guardrail.
+    if (!hasDispatchContext) {
+      return true;
+    }
+    // Dispatch-routed slash/label commands intentionally bypass the daily guardrail.
     try {
       const awContext = JSON.parse(rawContext);
       const isLabelCommand = typeof awContext.trigger_label === "string" && awContext.trigger_label.trim() !== "";
       const isSlashCommand = SLASH_COMMAND_EVENT_TYPES.includes(awContext.event_type);
       if (isLabelCommand || isSlashCommand) {
-        return false;
+        return true;
       }
     } catch {
-      // Malformed aw_context: fall through and skip as before.
+      // Malformed aw_context: skip guardrail as a safe fallback for manual dispatch.
     }
+    // Existing behavior: dispatch-routed runs with aw_context bypass the guardrail.
+    return true;
   }
-  return true;
+  if (hasSlashCommand && SLASH_COMMAND_TRIGGERING_EVENTS.includes(eventName)) {
+    return true;
+  }
+  if (hasLabelCommand && LABEL_COMMAND_TRIGGERING_EVENTS.includes(eventName)) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -391,7 +420,7 @@ async function main() {
     return;
   }
   if (shouldSkipDailyAICGuardrail()) {
-    core.info("Skipping daily workflow AI Credits guardrail for workflow_call, repository_dispatch, or workflow_dispatch with aw_context.");
+    core.info("Skipping daily workflow AI Credits guardrail for manual or command-driven runs.");
     return;
   }
 
