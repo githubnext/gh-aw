@@ -16,7 +16,9 @@ func TestAWFailureInvestigatorPrefetchUsesRunLevelFailures(t *testing.T) {
 	text := string(content)
 	for _, fragment := range []string{
 		`FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure", "cancelled"}`,
+		`MAX_DISCOVERY_PAGES = 20`,
 		`Path(".github/workflows").glob("*.lock.yml")`,
+		`falling back to workflow path suffix matching`,
 		`repos/{REPO}/actions/runs`,
 		`"failed_job_names": sorted(set(failed_job_names))`,
 		`"agent_job_conclusion": agent_job_conclusion`,

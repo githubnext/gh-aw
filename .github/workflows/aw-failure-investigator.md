@@ -81,6 +81,7 @@ steps:
       TRACKER_ID = "aw-failure-investigator"
       LOOKBACK_HOURS = 6
       FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure", "cancelled"}
+      MAX_DISCOVERY_PAGES = 20
       # Most dominant signatures appear in the final 30-60 lines.
       MAX_LOG_TAIL_LINES = 80
       AGENTIC_WORKFLOW_PATHS = {
@@ -127,6 +128,13 @@ steps:
       def normalize_workflow_path(path):
           return (path or "").split("@", 1)[0]
       
+      def is_agentic_workflow_path(path):
+          workflow_path = normalize_workflow_path(path)
+          if AGENTIC_WORKFLOW_PATHS:
+              return workflow_path in AGENTIC_WORKFLOW_PATHS
+          print("Warning: no local .lock.yml workflows found; falling back to workflow path suffix matching")
+          return workflow_path.endswith(".lock.yml")
+      
       def isoformat_z(dt):
           return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
       
@@ -152,7 +160,7 @@ steps:
       
               for run in workflow_runs:
                   workflow_path = normalize_workflow_path(run.get("path"))
-                  if workflow_path not in AGENTIC_WORKFLOW_PATHS:
+                  if not is_agentic_workflow_path(workflow_path):
                       continue
                   if not is_failure_conclusion(run.get("conclusion")):
                       continue
@@ -170,6 +178,9 @@ steps:
                   )
       
               if len(workflow_runs) < 100:
+                  break
+              if page >= MAX_DISCOVERY_PAGES:
+                  print(f"Warning: reached pagination cap ({MAX_DISCOVERY_PAGES} pages) while listing workflow runs")
                   break
               page += 1
       
