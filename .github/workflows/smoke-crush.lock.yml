@@ -953,6 +953,7 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
           NO_PROXY: localhost,127.0.0.1
           RUNNER_TEMP: ${{ runner.temp }}
+          TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1540,6 +1541,7 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
           NO_PROXY: localhost,127.0.0.1
           RUNNER_TEMP: ${{ runner.temp }}
+          TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
         if: always()
