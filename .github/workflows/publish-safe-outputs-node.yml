@@ -17,7 +17,7 @@ env:
   IMAGE_NAME: ghcr.io/github/gh-aw-node
   NODE_IMAGE_TAG: node:lts-alpine
   NODE_IMAGE_METADATA_URL: https://hub.docker.com/v2/repositories/library/node/tags/lts-alpine
-  NODE_IMAGE_COOLDOWN_DAYS: '7'
+  NODE_IMAGE_COOLDOWN_DAYS: '1'
 
 jobs:
   publish:
