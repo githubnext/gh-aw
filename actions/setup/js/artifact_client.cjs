@@ -358,11 +358,12 @@ class DefaultArtifactClient {
 
     /** @type {any} */
     const createResponse = await twirpRequest("CreateArtifact", createRequest);
-    if (!createResponse?.ok || !createResponse?.signed_upload_url) {
+    const signedUploadUrl = createResponse?.signedUploadUrl || createResponse?.signed_upload_url;
+    if (!createResponse?.ok || !signedUploadUrl) {
       throw new Error("CreateArtifact returned an invalid response");
     }
 
-    const uploadSize = await uploadFileToSignedURL(uploadPath, createResponse.signed_upload_url, contentType);
+    const uploadSize = await uploadFileToSignedURL(uploadPath, signedUploadUrl, contentType);
     const sha256 = await hashFile(uploadPath);
 
     const finalizeRequest = {
@@ -379,7 +380,7 @@ class DefaultArtifactClient {
     }
 
     return {
-      id: Number(finalizeResponse.artifact_id || 0) || undefined,
+      id: Number(finalizeResponse.artifactId || finalizeResponse.artifact_id || 0) || undefined,
       size: uploadSize,
       digest: sha256,
     };

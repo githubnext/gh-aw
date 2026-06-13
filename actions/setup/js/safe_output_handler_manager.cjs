@@ -542,6 +542,9 @@ function isFailedProcessingResult(result) {
   return Boolean(result?.success === false && !result?.deferred && !result?.skipped && !result?.cancelled);
 }
 
+/** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
+const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
+
 /**
  * Determine whether a failed result should be reported without failing the safe_outputs job.
  * Agent assignment can fail after other safe outputs already succeeded, so those failures
@@ -553,11 +556,8 @@ function isFailedProcessingResult(result) {
  * @returns {boolean}
  */
 function isReportOnlyFailureResult(result) {
-  return isFailedProcessingResult(result) && (result?.type === "assign_to_agent" || result?.type === "upload_artifact");
+  return isFailedProcessingResult(result) && REPORT_ONLY_FAILURE_TYPES.has(result?.type);
 }
-
-/** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
-const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
 
 /**
  * Partition processing results into fatal and report-only failures.
@@ -1511,7 +1511,7 @@ async function main() {
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
     }
     if (reportOnlyFailureCount > 0) {
-      const reportOnlyTypes = reportOnlyFailures.map(r => r.type || "unknown");
+      const reportOnlyTypes = [...new Set(reportOnlyFailures.map(r => r.type || "unknown"))];
       core.warning(`${reportOnlyFailureCount} non-fatal safe output(s) failed but were reported without failing safe_outputs: ${reportOnlyTypes.join(", ")}`);
     }
     if (cancelledCount > 0) {

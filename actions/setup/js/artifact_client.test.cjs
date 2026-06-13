@@ -225,11 +225,11 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
       const u = String(url);
       if (u.includes("CreateArtifact")) {
         capturedCreateBody = JSON.parse(opts?.body || "{}");
-        return makeFetchResponse(200, { ok: true, signed_upload_url: "https://storage.example.com/upload" });
+        return makeFetchResponse(200, { ok: true, signedUploadUrl: "https://storage.example.com/upload" });
       }
       if (u.includes("FinalizeArtifact")) {
         capturedFinalizeBody = JSON.parse(opts?.body || "{}");
-        return makeFetchResponse(200, { ok: true, artifact_id: "42" });
+        return makeFetchResponse(200, { ok: true, artifactId: "42" });
       }
       return makeFetchResponse(200, "");
     });
@@ -272,8 +272,8 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     const filePath = path.join(tmpDir, "output.bin");
     fs.writeFileSync(filePath, "hello artifact");
 
-    const createResp = { ok: true, signed_upload_url: "https://storage.example.com/upload" };
-    const finalizeResp = { ok: true, artifact_id: "99" };
+    const createResp = { ok: true, signedUploadUrl: "https://storage.example.com/upload" };
+    const finalizeResp = { ok: true, artifactId: "99" };
 
     let uploadedArtifactName;
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
@@ -308,10 +308,10 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
       if (String(url).includes("CreateArtifact")) {
         capturedName = JSON.parse(opts?.body || "{}").name;
-        return makeFetchResponse(200, { ok: true, signed_upload_url: "https://example.com/upload" });
+        return makeFetchResponse(200, { ok: true, signedUploadUrl: "https://example.com/upload" });
       }
       if (String(url).includes("FinalizeArtifact")) {
-        return makeFetchResponse(200, { ok: true, artifact_id: "1" });
+        return makeFetchResponse(200, { ok: true, artifactId: "1" });
       }
       return makeFetchResponse(200, "");
     });
@@ -348,10 +348,10 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
       if (String(url).includes("CreateArtifact")) {
         capturedName = JSON.parse(opts?.body || "{}").name;
-        return makeFetchResponse(200, { ok: true, signed_upload_url: "https://example.com/upload" });
+        return makeFetchResponse(200, { ok: true, signedUploadUrl: "https://example.com/upload" });
       }
       if (String(url).includes("FinalizeArtifact")) {
-        return makeFetchResponse(200, { ok: true, artifact_id: "1" });
+        return makeFetchResponse(200, { ok: true, artifactId: "1" });
       }
       return makeFetchResponse(200, "");
     });
