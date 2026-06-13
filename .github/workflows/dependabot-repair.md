@@ -32,14 +32,7 @@ safe-outputs:
     max: 1
   noop:
     max: 1
-<<<<<<< current (local changes)
-source: githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@ff91842c074b23270d3a0e26a7206a251232a374
-
-||||||| base (original)
-source: githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@ff91842c074b23270d3a0e26a7206a251232a374
-=======
 source: githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@7ddda653c8dd0b5217e197b350e0a4d00244b816
->>>>>>> new (upstream)
 ---
 
 # Dependabot Local Repair
