@@ -1468,6 +1468,28 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("https://github.com/owner/repo/pull/99");
     });
 
+    it("includes download instructions with run ID when runUrl is provided for patch size exceeded", () => {
+      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (4096 KB)";
+      const runUrl = "https://github.com/owner/repo/actions/runs/12345678";
+      const result = buildCodePushFailureContext(errors, null, runUrl);
+      expect(result).toContain("📥 Download the oversized patch");
+      expect(result).toContain("gh run download 12345678");
+      expect(result).toContain("View run and download artifacts");
+      expect(result).toContain(runUrl);
+      expect(result).toContain("<details>");
+      expect(result).toContain("Download the oversized patch to inspect or apply manually");
+    });
+
+    it("includes generic download instructions when no runUrl is provided for patch size exceeded", () => {
+      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (4096 KB)";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("📥 Download the oversized patch");
+      expect(result).toContain("git am --3way");
+      expect(result).not.toContain("gh run download");
+      expect(result).toContain("<details>");
+      expect(result).toContain("Download the oversized patch to inspect or apply manually");
+    });
+
     it("does not show patch size section for generic errors", () => {
       const errors = "push_to_pull_request_branch:Branch not found";
       const result = buildCodePushFailureContext(errors);
@@ -3023,6 +3045,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(
         path.join(sessionDir, "events.jsonl"),
         [
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:00Z", data: { toolName: "read", mcpServerName: "mcp__safeoutputs" } }),
           JSON.stringify({ type: "assistant.message", timestamp: "2026-06-06T00:00:00Z", data: { content: "" } }),
           JSON.stringify({
             type: "guard.tool_denials_exceeded",
@@ -3033,7 +3056,7 @@ describe("handle_agent_failure", () => {
       );
 
       const events = loadToolDenialsExceededEvents();
-      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }]);
+      expect(events).toEqual([{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["mcp__safeoutputs.read"], timestamp: "2026-06-06T00:00:01Z" }]);
     });
 
     it("renders dedicated context for tool denial threshold events", () => {
@@ -3041,7 +3064,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
 
-      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "permission denied: read" }], "daily-spdd-spec-planner");
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "permission denied: read", recentToolCalls: ["read(...)", "bash(git status)"] }], "daily-spdd-spec-planner");
       expect(result).toContain("Excessive Tool Denials");
       expect(result).toContain("5/5");
       expect(result).toContain("guard.tool_denials_exceeded");
@@ -3049,8 +3072,11 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("<details>");
       expect(result).toContain("<summary><strong>Last denied request</strong></summary>");
+      expect(result).toContain("<summary><strong>Last 5 tool calls</strong></summary>");
       expect(result).toContain("```text");
       expect(result).toContain("\nread\n");
+      expect(result).toContain("- `read(...)`");
+      expect(result).toContain("- `bash(git status)`");
     });
 
     it("normalizes Python 3 heredoc reason to a single-line summary", () => {
@@ -3065,6 +3091,39 @@ describe("handle_agent_failure", () => {
       // The full multi-line program body should not appear in the output
       expect(result).not.toContain("import re");
       expect(result).not.toContain("for f, p in files");
+    });
+
+    it("captures only the last 5 tool calls before guard event", () => {
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:00Z", data: { toolName: "list" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:01Z", data: { toolName: "read" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:02Z", data: { toolName: "edit" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:03Z", data: { toolName: "bash" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:04Z", data: { toolName: "grep" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:05Z", data: { toolName: "glob" } }),
+          JSON.stringify({ type: "tool.execution_start", timestamp: "2026-06-06T00:00:06Z", data: { toolName: "write" } }),
+          JSON.stringify({
+            type: "guard.tool_denials_exceeded",
+            timestamp: "2026-06-06T00:00:07Z",
+            data: { denialCount: 5, threshold: 5, reason: "permission denied: read" },
+          }),
+        ].join("\n") + "\n"
+      );
+
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toEqual([
+        {
+          denialCount: 5,
+          threshold: 5,
+          reason: "permission denied: read",
+          recentToolCalls: ["edit", "bash", "grep", "glob", "write"],
+          timestamp: "2026-06-06T00:00:07Z",
+        },
+      ]);
     });
   });
 

@@ -699,7 +699,7 @@ type SafeOutputsConfig struct {
 	Staged                          bool                                   `yaml:"staged,omitempty"`                       // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`                          // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`                 // GitHub token for safe output jobs
-	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 1024)
+	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 4096)
 	MaximumPatchFiles               int                                    `yaml:"max-patch-files,omitempty"`              // Maximum allowed unique files per create-pull-request patch (defaults to 100)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`                      // Runner configuration for safe-outputs jobs
 	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                     // Custom message templates for footer and notifications

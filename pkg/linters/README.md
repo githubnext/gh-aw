@@ -29,6 +29,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `sortslice` — reports `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc`.
 - `ssljson` — validates `ssl.json` skill artifacts found in `.github/skills/` against the SSL spec (enum membership, graph integrity, transition targets, entry pointer validity).
 - `strconvparseignorederror` — reports `strconv` parsing calls (`Atoi`, `ParseInt`, etc.) where the error return is discarded with `_`.
+- `timeafterleak` — reports `time.After` calls used as the channel-receive expression in a `select` case inside a `for` or `range` loop that leak a timer channel on each iteration when another case fires first.
 - `tolowerequalfold` — reports case-insensitive string comparisons using `strings.ToLower`/`ToUpper` that should use `strings.EqualFold`.
 - `uncheckedtypeassertion` — reports single-value type assertions where unchecked panics are possible.
 - `internal` — shared helper packages for analyzers (file checks and `nolint` handling).
@@ -62,6 +63,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `sortslice` | Custom `go/analysis` analyzer that flags `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc` |
 | `ssljson` | Custom `go/analysis` analyzer that validates SSL JSON skill artifacts in `.github/skills/` |
 | `strconvparseignorederror` | Custom `go/analysis` analyzer that flags `strconv` parsing calls where the error return is discarded with `_` |
+| `timeafterleak` | Custom `go/analysis` analyzer that flags `time.After` in `select` cases inside loops that leak a timer channel on each iteration when another case fires first |
 | `tolowerequalfold` | Custom `go/analysis` analyzer that flags case-insensitive comparisons via `strings.ToLower`/`ToUpper` that should use `strings.EqualFold` |
 | `uncheckedtypeassertion` | Custom `go/analysis` analyzer that flags unchecked single-value type assertions |
 | `internal` | Shared helper subpackages used by analyzers (`internal/filecheck`, `internal/nolint`) |
@@ -139,6 +141,7 @@ _ = ssljson.Analyzer
 - `github.com/github/gh-aw/pkg/linters/sortslice` — sort-slice analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ssljson` — ssl-json analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/strconvparseignorederror` — strconv-parse-ignored-error analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/timeafterleak` — time-after-leak analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/tolowerequalfold` — to-lower-equal-fold analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion` — unchecked-type-assertion analyzer subpackage
 

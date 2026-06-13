@@ -1666,7 +1666,7 @@ Most boolean configuration fields also accept expression strings. Fields that in
 
 ### Maximum Patch Size (`max-patch-size:`)
 
-Limits git patch size for PR operations (1-10,240 KB, default: 1024 KB):
+Limits git patch size for PR operations (1-10,240 KB, default: 4096 KB):
 
 ```yaml wrap
 safe-outputs:

@@ -56,3 +56,10 @@ Otherwise compare each screenshot to its baseline. Post a comment summarizing: p
 - **`retention-days: 30`** — keeps baselines beyond the default 7-day cache expiry
 - **Filesystem-safe timestamps** — `YYYY-MM-DD-HH-MM-SS` format; colons are invalid in artifact filenames
 - **Minimal permissions** — all PR writes go through `safe-outputs`, not GitHub tools
+
+## Network-Minimization Reminders
+
+- Prefer local preview serving (`localhost`/`127.0.0.1`) over external preview environments when possible.
+- If external previews are required, allowlist only exact preview domains needed for the check (avoid broad wildcards).
+- Enable `network.node` only when the workflow actually installs/builds Node dependencies; scope domains to package registries and required preview hosts.
+- Keep Playwright navigation limited to app-under-test URLs and avoid loading unrelated third-party domains.
