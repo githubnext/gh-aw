@@ -356,8 +356,6 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
-		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveActivationToken(data)))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
 		steps = append(steps, "          script: |\n")
