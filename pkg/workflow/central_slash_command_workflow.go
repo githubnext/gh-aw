@@ -517,6 +517,9 @@ func formatRunsOnSnippetForInlineValue(runsOn string) string {
 	value = strings.TrimPrefix(value, "\n")
 	lines := strings.Split(value, "\n")
 	for i, line := range lines {
+		// The 2-space strip matches DefaultMarshalOptions map indentation.
+		// The 6-space re-indent aligns with the central slash command template,
+		// where runs-on: lives at 4-space job-level indent (4 + 2 = 6).
 		line = strings.TrimPrefix(line, "  ")
 		lines[i] = "      " + line
 	}

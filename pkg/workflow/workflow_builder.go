@@ -277,7 +277,7 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(frontmatter, "timeout-minutes")
 
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(frontmatter, "runs-on")
-	if v, ok := frontmatter["runs-on-slim"]; ok {
+	if v, ok := frontmatter["runs-on-slim"]; ok && !isEmptyRunsOnValue(v) {
 		workflowData.RunsOnSlim = c.extractTopLevelYAMLSection(map[string]any{"runs-on": v}, "runs-on")
 	}
 	workflowData.Environment = c.extractTopLevelYAMLSection(frontmatter, "environment")

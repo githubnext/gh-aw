@@ -386,7 +386,7 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 		{
-			name: "runs-on-slim array snippet returned as-is",
+			name: "runs-on-slim array snippet indents continuation lines by 4 spaces",
 			data: &WorkflowData{
 				RunsOnSlim: "runs-on:\n- self-hosted\n- ubuntu2404",
 			},

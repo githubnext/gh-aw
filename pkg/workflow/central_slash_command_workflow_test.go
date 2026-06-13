@@ -299,7 +299,7 @@ func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *
 			Command:            []string{"one"},
 			CommandEvents:      []string{"issue_comment"},
 			CommandCentralized: true,
-			RunsOnSlim:         "ubuntu-latest",
+			RunsOnSlim:         "runs-on: ubuntu-latest",
 		},
 		{
 			WorkflowID:         "two",
