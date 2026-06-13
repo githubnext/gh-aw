@@ -28,6 +28,21 @@ const os = require("os");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+/**
+ * Retrieve the bearer token from the builtin `github` Octokit instance.
+ * Returns an empty string if the auth plugin does not support the "token" type.
+ *
+ * @returns {Promise<string>}
+ */
+async function getTokenFromGithub() {
+  try {
+    const auth = await github.auth({ type: "token" });
+    return (auth && typeof auth.token === "string" && auth.token) || "";
+  } catch {
+    return "";
+  }
+}
+
 /** Path where the activation job expects the usage cache to be restored. */
 const CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
 
@@ -76,12 +91,6 @@ async function mainWithPaths(cacheFilePath, options = {}) {
     return;
   }
 
-  const token = process.env.GH_AW_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
-  if (!token) {
-    logFallback("No token available; skipping artifact fallback");
-    return;
-  }
-
   const { owner, repo } = context.repo;
 
   try {
@@ -111,25 +120,20 @@ async function mainWithPaths(cacheFilePath, options = {}) {
       per_page: MAX_RUNS_TO_SEARCH,
     });
 
-    const artifactClient = createArtifactClient();
-
     for (const run of runsData.workflow_runs) {
       // Skip the current run — its conclusion job hasn't written the artifact yet.
       if (run.id === context.runId) {
         continue;
       }
       try {
-        const { artifacts } = await artifactClient.listArtifacts({
-          latest: true,
-          findBy: {
-            token,
-            workflowRunId: run.id,
-            repositoryOwner: owner,
-            repositoryName: repo,
-          },
+        // Use the builtin github instance (already authenticated) to list artifacts.
+        const { data: artifactsData } = await github.rest.actions.listWorkflowRunArtifacts({
+          owner,
+          repo,
+          run_id: run.id,
         });
 
-        const cacheArtifact = artifacts.find(a => a.name === AIC_USAGE_CACHE_ARTIFACT_NAME && !a.expired);
+        const cacheArtifact = artifactsData.artifacts.find(a => a.name === AIC_USAGE_CACHE_ARTIFACT_NAME && !a.expired);
         if (!cacheArtifact) {
           logFallback("No aic-usage-cache artifact in run", { runId: run.id });
           continue;
@@ -140,7 +144,11 @@ async function mainWithPaths(cacheFilePath, options = {}) {
           artifactId: cacheArtifact.id,
         });
 
+        // Get the token from the builtin github instance for the download step.
+        const token = await getTokenFromGithub();
+
         const downloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-aic-cache-fallback-"));
+        const artifactClient = createArtifactClient();
         const download = await artifactClient.downloadArtifact(cacheArtifact.id, {
           path: downloadRoot,
           findBy: {
