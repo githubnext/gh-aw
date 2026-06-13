@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,6 +198,86 @@ func TestFindTokenUsageFile(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "find-token-usage")
 		result := findTokenUsageFile(tmpDir)
 		assert.Empty(t, result, "should return empty string when file not found")
+	})
+}
+
+func TestAnalyzeTokenUsageAICOnly(t *testing.T) {
+	t.Run("sums agent and detection usage artifact jsonl files", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only")
+		usageDir := filepath.Join(tmpDir, "usage")
+		require.NoError(t, os.MkdirAll(filepath.Join(usageDir, "agent"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(usageDir, "detection"), 0o755))
+
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "agent_usage.jsonl"),
+			[]byte(`{"ai_credits":1.25}`+"\n"),
+			0o644,
+		))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "detection_usage.jsonl"),
+			[]byte(`{"usage":{"ai_credits":2.5}}`+"\n"),
+			0o644,
+		))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "aw-info.jsonl"),
+			[]byte(`{"note":"ignored"}`+"\n"),
+			0o644,
+		))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 3.75, summary.TotalAIC, 1e-9)
+	})
+}
+
+func TestExtractUsageRecord(t *testing.T) {
+	t.Run("returns nested usage record", func(t *testing.T) {
+		record := extractUsageRecord(map[string]any{"ai_credits": 1.5})
+		require.NotNil(t, record)
+		assert.InDelta(t, 1.5, record["ai_credits"].(float64), 1e-9)
+	})
+
+	t.Run("returns nil for non-map input", func(t *testing.T) {
+		assert.Nil(t, extractUsageRecord("not-a-map"))
+		assert.Nil(t, extractUsageRecord(nil))
+	})
+}
+
+func TestIsFinite(t *testing.T) {
+	assert.True(t, isFinite(1.25))
+	assert.True(t, isFinite(0))
+	assert.False(t, isFinite(math.NaN()))
+	assert.False(t, isFinite(math.Inf(1)))
+	assert.False(t, isFinite(math.Inf(-1)))
+}
+
+func TestSumAICFromUsageJSONLFiles(t *testing.T) {
+	t.Run("returns error for missing file", func(t *testing.T) {
+		_, err := sumAICFromUsageJSONLFiles([]string{filepath.Join(t.TempDir(), "missing.jsonl")})
+		require.Error(t, err)
+	})
+
+	t.Run("ignores malformed and non-aic records", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-empty")
+		filePath := filepath.Join(tmpDir, "usage.jsonl")
+		require.NoError(t, os.WriteFile(filePath, []byte("not-json\n{}\n"), 0o644))
+
+		total, err := sumAICFromUsageJSONLFiles([]string{filePath})
+		require.NoError(t, err)
+		assert.Zero(t, total)
+	})
+
+	t.Run("sums explicit and computed aic across multiple files", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-mixed")
+		fileOne := filepath.Join(tmpDir, "agent_usage.jsonl")
+		fileTwo := filepath.Join(tmpDir, "detection_usage.jsonl")
+		require.NoError(t, os.WriteFile(fileOne, []byte(`{"ai_credits":1.25}`+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(fileTwo, []byte(`{"provider":"anthropic","model":"claude-sonnet-4-6","input_tokens":1000,"output_tokens":0,"cache_read_tokens":0,"cache_write_tokens":0,"reasoning_tokens":0}`+"\n"), 0o644))
+
+		total, err := sumAICFromUsageJSONLFiles([]string{fileOne, fileTwo})
+		require.NoError(t, err)
+		assert.Greater(t, total, 1.25)
 	})
 }
 

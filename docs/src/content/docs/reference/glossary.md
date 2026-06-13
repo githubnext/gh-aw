@@ -526,7 +526,7 @@ A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to 
 A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxAiCredits` in the compiled lock file. Defaults to `1000` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
-max-ai-credits: 5M
+max-ai-credits: 500
 ```
 
 ### Max Daily AI Credits (`max-daily-ai-credits`)

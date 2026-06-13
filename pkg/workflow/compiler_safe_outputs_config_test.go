@@ -1532,7 +1532,7 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 		{
 			name:         "default patch size",
 			maxPatchSize: 0,
-			expectedSize: 1024,
+			expectedSize: 4096,
 		},
 		{
 			name:         "custom patch size",

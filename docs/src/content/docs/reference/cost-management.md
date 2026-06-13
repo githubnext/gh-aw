@@ -262,7 +262,7 @@ cost guardrail across all supported engines. The field accepts
 plain integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
-max-ai-credits: 5M
+max-ai-credits: 500
 ```
 
 When the budget is approached, gh-aw emits steering warnings before

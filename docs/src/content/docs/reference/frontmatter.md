@@ -234,12 +234,7 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 Sets the AWF AI Credits budget used for cost enforcement. It is enabled by default and defaults to `1000` (`1k`) when omitted. Steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and steering.
 
 ```yaml wrap
-max-ai-credits: 5M
-```
-
-```yaml wrap
-# Equivalent shorthand
-max-ai-credits: 100M
+max-ai-credits: 500
 ```
 
 ```yaml wrap

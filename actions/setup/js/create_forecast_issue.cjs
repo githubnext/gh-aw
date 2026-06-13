@@ -72,6 +72,21 @@ function monthlyCost(workflow) {
 
 /**
  * @param {Record<string, any>} workflow
+ * @returns {{low:number,p50:number,high:number,stddev:number}}
+ */
+function getMonthlyForecastStats(workflow) {
+  const monthlyMonteCarlo = workflow?.monthly_monte_carlo;
+  const monthlyProjected = workflow?.monthly_projected_aic ?? 0;
+  return {
+    low: toFiniteNumber(monthlyMonteCarlo?.p10_projected_aic ?? monthlyProjected),
+    p50: toFiniteNumber(monthlyMonteCarlo?.p50_projected_aic ?? monthlyProjected),
+    high: toFiniteNumber(monthlyMonteCarlo?.p90_projected_aic ?? monthlyProjected),
+    stddev: toFiniteNumber(monthlyMonteCarlo?.std_dev_aic ?? 0),
+  };
+}
+
+/**
+ * @param {Record<string, any>} workflow
  * @returns {number}
  */
 function getLegacyP50(workflow) {
@@ -89,11 +104,11 @@ function buildForecastIssueBody(report, options) {
 
   const categorized = workflows.map(workflow => {
     const p50PerRun = toFiniteNumber(workflow?.p50_aic_per_run);
-    const monthlyP50 = toFiniteNumber(workflow?.monthly_monte_carlo?.p50_projected_aic ?? workflow?.monthly_projected_aic);
-    const hasForecastData = [p50PerRun, monthlyP50].some(hasPositiveAIC);
+    const monthly = getMonthlyForecastStats(workflow);
+    const hasForecastData = [p50PerRun, monthly.p50, monthly.high, monthly.low].some(hasPositiveAIC);
     return {
       workflow,
-      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), p50PerRun, monthlyP50],
+      row: [renderWorkflowLink(workflow, options), toFiniteNumber(workflow.sampled_runs), p50PerRun, monthly.low, monthly.p50, monthly.high, monthly.stddev],
       hasForecastData,
     };
   });
@@ -117,7 +132,7 @@ function buildForecastIssueBody(report, options) {
         return !hasPositiveAIC(p50);
       });
 
-  const allMonthlyZero = tableRows.length > 0 && tableRows.every(([, , , monthly]) => Number(monthly) === 0);
+  const allMonthlyZero = tableRows.length > 0 && tableRows.every(([, , , , monthlyP50]) => Number(monthlyP50) === 0);
   const allProjectedZero = legacyRows ? legacyRows.length > 0 && legacyRows.every(([, , p50]) => Number(p50) === 0) : allMonthlyZero;
 
   let reportTable;
@@ -130,12 +145,15 @@ function buildForecastIssueBody(report, options) {
     if (tableRows.length === 0) {
       reportTable = "_No forecast rows were produced._";
     } else {
-      const totalMonthly = tableRows.reduce((s, [, , , m]) => s + Number(m), 0);
-      const dataRows = tableRows.map(([workflowID, sampledRuns, p50Run, monthly]) => `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(monthly)} |`);
+      const totalMonthly = tableRows.reduce((s, [, , , , monthly]) => s + Number(monthly), 0);
+      const dataRows = tableRows.map(
+        ([workflowID, sampledRuns, p50Run, monthlyLow, monthlyP50, monthlyHigh, monthlyStdDev]) =>
+          `| ${workflowID} | ${sampledRuns} | ${formatAIC(p50Run)} | ${formatAIC(monthlyLow)} | ${formatAIC(monthlyP50)} | ${formatAIC(monthlyHigh)} | ${formatAIC(monthlyStdDev)} |`
+      );
       if (tableRows.length > 1) {
-        dataRows.push(`| **TOTAL** | | | **${formatAIC(totalMonthly)}** |`);
+        dataRows.push(`| **TOTAL** | | | | **${formatAIC(totalMonthly)}** | | |`);
       }
-      reportTable = ["| Workflow | Runs | P50/Run | Monthly (P50) |", "| --- | ---: | ---: | ---: |", ...dataRows].join("\n");
+      reportTable = ["| Workflow | Runs | P50/Run | Monthly (Low) | Monthly (P50) | Monthly (High) | Monthly (Stdev) |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: |", ...dataRows].join("\n");
     }
   }
   const withoutDataWorkflows = legacyRows ? legacyNoDataWorkflows : workflowsWithoutData;
@@ -166,8 +184,9 @@ function buildForecastIssueBody(report, options) {
           "### How to read this report",
           "",
           "- **P50/Run** is the median per-run AIC from sampled historical runs.",
-          "- **Monthly (P50)** is the Monte Carlo median of total AIC over 30 days.",
-          "- Monthly values are distribution medians, not a direct `P50/Run × runs` multiplication.",
+          "- **Monthly (Low/P50/High)** are the Monte Carlo P10 / P50 / P90 total-AIC bounds over 30 days.",
+          "- **Monthly (Stdev)** is the Monte Carlo standard deviation of the 30-day total-AIC distribution.",
+          "- Monthly values come from the Monte Carlo distribution and are not a direct `P50/Run × runs` multiplication.",
           "",
         ].join("\n");
 

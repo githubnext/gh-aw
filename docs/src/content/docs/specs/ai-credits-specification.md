@@ -7,7 +7,7 @@ sidebar:
 
 # AI Credits Specification
 
-**Version**: 1.3.0  
+**Version**: 1.4.0  
 **Status**: Draft  
 **Publication Date**: 2026-06-09  
 **Editor**: GitHub Agentic Workflows Team  
@@ -349,6 +349,43 @@ A conforming implementation MUST enforce the following at compile time:
 | T-AIC-DG-005 | Values below `-1` rejected at compile time | §9.6 |
 | T-AIC-DG-006 | Runtime variable resolved by GitHub Actions runner, not compiler process | §9.3 (3) |
 | T-AIC-DG-007 | Imported workflow `max-daily-ai-credits` used when no frontmatter value; frontmatter takes precedence over imports | §9.3 (2) |
+| T-AIC-DG-008 | `workflow_call` event → guardrail skipped | §9.8 (1) |
+| T-AIC-DG-009 | `repository_dispatch` event → guardrail skipped | §9.8 (1) |
+| T-AIC-DG-010 | `workflow_dispatch` + absent/empty `GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT` → guardrail skipped | §9.8 (2) |
+| T-AIC-DG-011 | `workflow_dispatch` + `aw_context.event_type` in slash-command types → guardrail skipped | §9.8 (3) |
+| T-AIC-DG-012 | `workflow_dispatch` + non-empty `aw_context.trigger_label` → guardrail skipped | §9.8 (3) |
+| T-AIC-DG-013 | `GH_AW_HAS_SLASH_COMMAND=true` + matching event → guardrail skipped | §9.8 (4) |
+| T-AIC-DG-014 | `GH_AW_HAS_SLASH_COMMAND=true` + non-matching event → guardrail enforced | §9.8 (4) |
+| T-AIC-DG-015 | `GH_AW_HAS_LABEL_COMMAND=true` + matching event → guardrail skipped | §9.8 (5) |
+| T-AIC-DG-016 | `GH_AW_HAS_LABEL_COMMAND=true` + non-matching event → guardrail enforced | §9.8 (5) |
+
+### 9.8 Guardrail Bypass Conditions
+
+The runtime MUST skip the daily AI Credits guardrail check under the conditions specified in this section. These conditions represent user-initiated or command-driven invocations where throttling would block intentional user actions rather than automated background activity.
+
+The following environment variables govern bypass evaluation at runtime:
+
+| Variable | Source | Purpose |
+|----------|--------|---------|
+| `GITHUB_EVENT_NAME` | GitHub Actions runner | The GitHub event that triggered the current workflow run |
+| `GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT` | Centralized dispatch router | JSON payload present when the workflow was routed via `workflow_dispatch`; absent for direct manual triggers |
+| `GH_AW_HAS_SLASH_COMMAND` | gh-aw compiler | Set to `"true"` when the compiled workflow includes a non-centralized slash command trigger |
+| `GH_AW_HAS_LABEL_COMMAND` | gh-aw compiler | Set to `"true"` when the compiled workflow includes a non-centralized label command trigger |
+
+**Condition 1 — Centralized or routed invocations.** When `GITHUB_EVENT_NAME` is `workflow_call` or `repository_dispatch`, the runtime SHALL skip the guardrail. These events indicate the workflow was invoked as a reusable sub-workflow or via programmatic repository dispatch; the initiating workflow is responsible for its own daily budget enforcement.
+
+**Condition 2 — Manual `workflow_dispatch` without routing context.** When `GITHUB_EVENT_NAME` is `workflow_dispatch` and `GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT` is absent or empty, the runtime SHALL skip the guardrail. This condition identifies a human who explicitly triggered the workflow from the GitHub UI or GitHub CLI; blocking such a run would defeat the purpose of a manual invocation.
+
+**Condition 3 — Dispatch-routed command invocations.** When `GITHUB_EVENT_NAME` is `workflow_dispatch` and `GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT` contains a valid JSON payload that identifies a command-driven run — specifically, when `aw_context.event_type` is one of `issue_comment`, `pull_request_review_comment`, or `discussion_comment`, or when `aw_context.trigger_label` is a non-empty string — the runtime SHALL skip the guardrail. These are slash or label command runs routed through the centralized dispatch mechanism.
+
+> [!NOTE]
+> When `GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT` is present but contains malformed JSON, the runtime MUST skip the guardrail as a safe fallback, treating the run as a manual dispatch (Condition 2 semantics).
+
+**Condition 4 — Non-centralized slash-command events.** When `GH_AW_HAS_SLASH_COMMAND` is `"true"` and `GITHUB_EVENT_NAME` is one of `issue_comment`, `pull_request_review_comment`, `discussion_comment`, `issues`, `pull_request`, or `discussion`, the runtime SHALL skip the guardrail. This condition covers slash-command triggers compiled directly into the workflow rather than routed through the centralized dispatcher.
+
+**Condition 5 — Non-centralized label-command events.** When `GH_AW_HAS_LABEL_COMMAND` is `"true"` and `GITHUB_EVENT_NAME` is one of `issues`, `pull_request`, or `discussion`, the runtime SHALL skip the guardrail. This condition covers label-command triggers compiled directly into the workflow.
+
+A conforming implementation MUST evaluate bypass conditions before checking the daily AIC total. When any bypass condition is satisfied, the implementation MUST NOT read or compare the daily AIC usage data for the current run.
 
 ---
 
@@ -483,6 +520,12 @@ Pricing catalogs are configuration inputs. Implementations SHOULD:
 ---
 
 ## Change Log
+
+### Version 1.4.0 (2026-06-09)
+
+- **Added**: §9.8 — Guardrail Bypass Conditions. Specifies the five normative runtime conditions under which a conforming implementation MUST skip the daily AI Credits guardrail: (1) `workflow_call` or `repository_dispatch` events; (2) manual `workflow_dispatch` without routing context; (3) dispatch-routed slash or label command invocations; (4) non-centralized slash-command events with `GH_AW_HAS_SLASH_COMMAND=true`; (5) non-centralized label-command events with `GH_AW_HAS_LABEL_COMMAND=true`.
+- **Updated**: §9.7 — Added compliance tests T-AIC-DG-008 through T-AIC-DG-016 covering each bypass condition and its negative case.
+- **Updated**: Version and publication metadata to 1.4.0.
 
 ### Version 1.3.0 (2026-06-09)
 

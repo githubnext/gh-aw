@@ -263,7 +263,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
-      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 4096 KB, max: 10240)
   ```
 
   Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.

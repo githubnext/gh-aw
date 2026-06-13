@@ -43,6 +43,17 @@ Reusable incident-triage pattern:
 
 - monitoring an external deployment service that reports status back to GitHub
 
+Quick rule of thumb:
+
+- `workflow_run` → GitHub Actions workflow/job outcomes in this repository
+- `deployment_status` → external platform deployment outcomes reported through the Deployments API
+
+Single-job limits still apply in both patterns:
+
+- keep triage, evidence collection, and summary generation in one agent job
+- do not design multi-job fan-out/fan-in orchestration
+- do not rely on cross-workflow waits or external workflow chaining
+
 See also: [deployment-status.md](deployment-status.md)
 
 ## High-Volume Triage and Escalation Pattern

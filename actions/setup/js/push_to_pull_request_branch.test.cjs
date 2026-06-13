@@ -347,11 +347,11 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Required labels: fallback-label");
     });
 
-    it("should default max_patch_size to 1024 KB", async () => {
+    it("should default max_patch_size to 4096 KB", async () => {
       const module = await loadModule();
       const handler = await module.main({});
 
-      expect(mockCore.info).toHaveBeenCalledWith("Max patch size: 1024 KB");
+      expect(mockCore.info).toHaveBeenCalledWith("Max patch size: 4096 KB");
     });
   });
 
