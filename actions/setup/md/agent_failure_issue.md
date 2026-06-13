@@ -10,7 +10,7 @@
 
 **Assign this issue to an agent** to debug and fix the issue.
 
-<details>
+{optimize_token_consumption_context}<details>
 <summary>Debug with any coding agent</summary>
 
 Use this prompt with any coding agent (GitHub Copilot, Claude, Gemini, etc.):

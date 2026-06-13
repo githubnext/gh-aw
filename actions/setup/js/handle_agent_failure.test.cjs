@@ -123,6 +123,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
       fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
       fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
+      fs.writeFileSync(path.join(promptsDir, "optimize_token_consumption_context.md"), "OPTIMIZE CONTEXT guardrail={guardrail_name} run={run_url}");
 
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
@@ -405,6 +406,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
       fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
       fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
+      fs.writeFileSync(path.join(promptsDir, "optimize_token_consumption_context.md"), "OPTIMIZE CONTEXT guardrail={guardrail_name} run={run_url}");
 
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
@@ -1151,6 +1153,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
       fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
       fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
+      fs.writeFileSync(path.join(promptsDir, "optimize_token_consumption_context.md"), "OPTIMIZE CONTEXT guardrail={guardrail_name} run={run_url}");
 
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
@@ -1798,6 +1801,105 @@ describe("handle_agent_failure", () => {
       const result = buildTimeoutContext(true, "45");
       expect(result).toContain("45");
       expect(result).toContain("55");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // buildOptimizeTokenConsumptionContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildOptimizeTokenConsumptionContext", () => {
+    let buildOptimizeTokenConsumptionContext;
+    const fs = require("fs");
+    const path = require("path");
+    const templateContent = fs.readFileSync(path.join(__dirname, "../md/optimize_token_consumption_context.md"), "utf8");
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+
+    beforeEach(() => {
+      vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
+      // Stub readFileSync so the runtime path resolves to the source-tree template
+      fs.readFileSync = (filePath, encoding) => {
+        if (typeof filePath === "string" && filePath.includes("optimize_token_consumption_context.md")) {
+          return templateContent;
+        }
+        return originalReadFileSync(filePath, encoding);
+      };
+      ({ buildOptimizeTokenConsumptionContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
+    });
+
+    it("returns empty string when no guardrail was triggered", () => {
+      const result = buildOptimizeTokenConsumptionContext({
+        maxAICreditsExceeded: false,
+        hasDailyAICExceeded: false,
+        hasToolDenialsExceeded: false,
+        isTimedOut: false,
+        runUrl: "https://github.com/owner/repo/actions/runs/123",
+      });
+      expect(result).toBe("");
+    });
+
+    it("returns optimize context when maxAICreditsExceeded is true", () => {
+      const result = buildOptimizeTokenConsumptionContext({
+        maxAICreditsExceeded: true,
+        hasDailyAICExceeded: false,
+        hasToolDenialsExceeded: false,
+        isTimedOut: false,
+        runUrl: "https://github.com/owner/repo/actions/runs/123",
+      });
+      expect(result).toContain("Optimize token consumption");
+      expect(result).toContain("max-ai-credits");
+      expect(result).toContain("https://github.com/owner/repo/actions/runs/123");
+      expect(result).toContain("optimize.md");
+    });
+
+    it("returns optimize context when hasDailyAICExceeded is true", () => {
+      const result = buildOptimizeTokenConsumptionContext({
+        maxAICreditsExceeded: false,
+        hasDailyAICExceeded: true,
+        hasToolDenialsExceeded: false,
+        isTimedOut: false,
+        runUrl: "https://github.com/owner/repo/actions/runs/456",
+      });
+      expect(result).toContain("max-daily-ai-credits");
+    });
+
+    it("returns optimize context when hasToolDenialsExceeded is true", () => {
+      const result = buildOptimizeTokenConsumptionContext({
+        maxAICreditsExceeded: false,
+        hasDailyAICExceeded: false,
+        hasToolDenialsExceeded: true,
+        isTimedOut: false,
+        runUrl: "https://github.com/owner/repo/actions/runs/456",
+      });
+      expect(result).toContain("max-tool-denials");
+    });
+
+    it("returns optimize context when isTimedOut is true", () => {
+      const result = buildOptimizeTokenConsumptionContext({
+        maxAICreditsExceeded: false,
+        hasDailyAICExceeded: false,
+        hasToolDenialsExceeded: false,
+        isTimedOut: true,
+        runUrl: "https://github.com/owner/repo/actions/runs/789",
+      });
+      expect(result).toContain("max-turns / timeout");
+    });
+
+    it("prefers maxAICreditsExceeded label when multiple guardrails are true", () => {
+      const result = buildOptimizeTokenConsumptionContext({
+        maxAICreditsExceeded: true,
+        hasDailyAICExceeded: true,
+        hasToolDenialsExceeded: false,
+        isTimedOut: false,
+        runUrl: "https://github.com/owner/repo/actions/runs/789",
+      });
+      expect(result).toContain("max-ai-credits");
     });
   });
 

@@ -1665,6 +1665,40 @@ function buildDailyAICExceededContext(hasDailyAICExceeded, totalAIC, threshold) 
   );
 }
 
+/**
+ * Build the "Optimize token consumption" details section for the failure issue when a guardrail
+ * limit was the root cause of the failure.
+ *
+ * Guardrails that trigger this section:
+ *   - max-ai-credits:       per-run AI Credits budget exceeded
+ *   - max-daily-ai-credits: 24-hour per-workflow AI Credits quota exhausted
+ *   - max-tool-denials:     Copilot SDK tool-denial threshold hit
+ *   - max-turns / timeout:  agent ran out of turns or wall-clock time
+ *
+ * @param {object} options
+ * @param {boolean} options.maxAICreditsExceeded       - max-ai-credits guardrail triggered
+ * @param {boolean} options.hasDailyAICExceeded        - max-daily-ai-credits guardrail triggered
+ * @param {boolean} options.hasToolDenialsExceeded     - max-tool-denials guardrail triggered
+ * @param {boolean} options.isTimedOut                 - timeout / max-turns guardrail triggered
+ * @param {string}  options.runUrl                     - URL to the failed workflow run
+ * @returns {string} Rendered section or empty string when no guardrail was triggered
+ */
+function buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl }) {
+  const guardrailTriggered = maxAICreditsExceeded || hasDailyAICExceeded || hasToolDenialsExceeded || isTimedOut;
+  if (!guardrailTriggered) {
+    return "";
+  }
+
+  let guardrailName = "guardrail limit";
+  if (maxAICreditsExceeded) guardrailName = "max-ai-credits";
+  else if (hasDailyAICExceeded) guardrailName = "max-daily-ai-credits";
+  else if (hasToolDenialsExceeded) guardrailName = "max-tool-denials";
+  else if (isTimedOut) guardrailName = "max-turns / timeout";
+
+  const templatePath = getPromptPath("optimize_token_consumption_context.md");
+  return renderTemplateFromFile(templatePath, { guardrail_name: guardrailName, run_url: runUrl });
+}
+
 // Maps engine ID (GH_AW_ENGINE_ID) to credential name for use with GH_AW_ENGINE_API_HOSTS.
 const ENGINE_ID_TO_CREDENTIAL = /** @type {Record<string, string>} */ {
   copilot: "`COPILOT_GITHUB_TOKEN`",
@@ -3116,6 +3150,9 @@ async function main() {
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
 
+        // Build optimize token consumption context (shown when a guardrail was the failure root cause)
+        const optimizeTokenConsumptionContext = buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl });
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -3151,6 +3188,7 @@ async function main() {
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
           daily_ai_credits_exceeded_context: dailyAICExceededContext,
+          optimize_token_consumption_context: optimizeTokenConsumptionContext,
         };
 
         // Render the issue template
@@ -3234,6 +3272,7 @@ module.exports = {
   buildLockdownCheckFailedContext,
   buildStaleLockFileFailedContext,
   buildDailyAICExceededContext,
+  buildOptimizeTokenConsumptionContext,
   buildTimeoutContext,
   shouldBuildEngineFailureContext,
   isIssueWritePermissionError,
