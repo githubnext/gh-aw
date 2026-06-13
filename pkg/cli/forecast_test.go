@@ -350,7 +350,7 @@ func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	assert.InEpsilon(t, 0.5, result.SuccessRate, 1e-9)
 }
 
-func TestForecastWorkflow_RequestsSuccessfulRuns(t *testing.T) {
+func TestForecastWorkflow_RequestsCompletedRuns(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
 	originalLoadAIC := forecastLoadCachedRunAIC
 	t.Cleanup(func() {
@@ -380,7 +380,7 @@ func TestForecastWorkflow_RequestsSuccessfulRuns(t *testing.T) {
 		SampleSize: 100,
 	}, 30)
 	require.NoError(t, err)
-	assert.Equal(t, "success", capturedOpts.Status)
+	assert.Equal(t, "completed", capturedOpts.Status)
 }
 
 func TestForecastWorkflow_ExcludesZeroAICRunsFromComputation(t *testing.T) {
