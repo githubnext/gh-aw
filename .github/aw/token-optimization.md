@@ -409,6 +409,8 @@ max-ai-credits: 100M        # per-run cap (short-form string)
 max-daily-ai-credits: 500M  # per-user 24h cap; -1 disables
 ```
 
+For custom or private models, the top-level **`models:`** frontmatter field supplies pricing in the same structure as `models.json` (keyed `providers.<provider>.models.<model>.cost` with `input`/`output`/`cache_read`/`cache_write` per-token costs). Entries are merged with the built-in `models.json` at runtime — they override matching models and fill gaps for unknown ones — so AI Credit accounting stays accurate for models gh-aw does not price by default.
+
 ---
 
 ## Additional Resources
