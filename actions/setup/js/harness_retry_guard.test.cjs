@@ -65,5 +65,13 @@ describe("harness_retry_guard.cjs", () => {
     const result = detectNonRetryableHarnessGuard("transient network timeout");
     expect(result.aiCreditsExceeded).toBe(false);
     expect(result.awfAPIProxyBlockingRequests).toBe(false);
+    expect(result.goalAlreadyActive).toBe(false);
+  });
+
+  it("detects goal already active markers", () => {
+    const result = detectNonRetryableHarnessGuard("cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete");
+    expect(result.aiCreditsExceeded).toBe(false);
+    expect(result.awfAPIProxyBlockingRequests).toBe(false);
+    expect(result.goalAlreadyActive).toBe(true);
   });
 });
