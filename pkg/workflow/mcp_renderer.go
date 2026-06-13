@@ -148,7 +148,7 @@ func RenderJSONMCPConfig(
 
 		switch toolName {
 		case "github":
-			githubTool := tools["github"]
+			githubTool, _ := tools["github"].(map[string]any)
 			options.Renderers.RenderGitHub(&configBuilder, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]

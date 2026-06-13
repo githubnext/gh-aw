@@ -64,10 +64,10 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	// Check for GitHub MCP server token
 	hasGitHub := slices.Contains(mcpTools, "github")
 	if hasGitHub {
-		githubTool := tools["github"]
+		toolConfig, _ := tools["github"].(map[string]any)
 
 		// Check if GitHub App is configured for token minting
-		appConfigured := hasGitHubApp(githubTool)
+		appConfigured := hasGitHubApp(toolConfig)
 
 		// If GitHub App is configured, use the app token minted directly in the agent job.
 		// The token cannot be passed via job outputs from the activation job because
@@ -76,18 +76,16 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		if appConfigured {
 			mcpEnvironmentLog.Print("Using GitHub App token from agent job step for GitHub MCP server (overrides custom and default tokens)")
 			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
-			if toolConfig, ok := githubTool.(map[string]any); ok {
-				if appMap, ok := toolConfig["github-app"].(map[string]any); ok {
-					if appConfig := parseAppConfig(appMap); appConfig.shouldIgnoreMissingKey() {
-						customGitHubToken := getGitHubToken(githubTool)
-						tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
-					}
+			if appMap, ok := toolConfig["github-app"].(map[string]any); ok {
+				if appConfig := parseAppConfig(appMap); appConfig.shouldIgnoreMissingKey() {
+					customGitHubToken := getGitHubToken(toolConfig)
+					tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
 				}
 			}
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
 			// Otherwise, use custom token or default fallback
-			customGitHubToken := getGitHubToken(githubTool)
+			customGitHubToken := getGitHubToken(toolConfig)
 			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 		}
@@ -96,7 +94,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// Skip only when guard policy is already explicitly set — in that case, the
 		// determine-automatic-lockdown step is not generated.
 		// Security: Pass step outputs through environment variables to prevent template injection.
-		guardPoliciesExplicit := len(getGitHubGuardPolicies(githubTool)) > 0
+		guardPoliciesExplicit := len(getGitHubGuardPolicies(toolConfig)) > 0
 		if !guardPoliciesExplicit {
 			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
 			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"

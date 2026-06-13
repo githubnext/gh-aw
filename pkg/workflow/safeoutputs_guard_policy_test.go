@@ -13,7 +13,7 @@ import (
 func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 	tests := []struct {
 		name             string
-		githubTool       any
+		githubTool       map[string]any
 		expectedPolicies map[string]any
 		expectNil        bool
 		description      string
@@ -234,10 +234,10 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			description: "nil input should return nil",
 		},
 		{
-			name:        "non-map github tool",
-			githubTool:  "invalid",
+			name:        "empty github tool map",
+			githubTool:  map[string]any{},
 			expectNil:   true,
-			description: "non-map input should return nil",
+			description: "empty map input should return nil",
 		},
 	}
 

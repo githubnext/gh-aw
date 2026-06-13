@@ -64,8 +64,8 @@ experiments:
     variants: [concise, detailed, step_by_step]
     weight: [2, 1, 1]           # 50% concise, 25% detailed, 25% step_by_step
     description: "Verbosity A/B test"
-    metric: "effective_tokens"
-    hypothesis: "H0: no change in effective_tokens. H1: concise reduces by >=15%"
+    metric: "ai_credits"
+    hypothesis: "H0: no change in ai_credits. H1: concise reduces by >=15%"
     guardrail_metrics:
       - name: success_rate
         threshold: ">=0.95"

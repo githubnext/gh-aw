@@ -210,7 +210,7 @@ func TestHasPreAgentStepsWithGHToken(t *testing.T) {
 func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 	tests := []struct {
 		name             string
-		githubTool       any
+		githubTool       map[string]any
 		expectedContains []string
 		expectedAbsent   []string
 		expectEmpty      bool
@@ -221,8 +221,8 @@ func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 			expectEmpty: true,
 		},
 		{
-			name:        "non-map tool",
-			githubTool:  false,
+			name:        "empty map tool",
+			githubTool:  map[string]any{},
 			expectEmpty: true,
 		},
 		{
