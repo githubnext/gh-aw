@@ -413,7 +413,8 @@ env_key = "OPENAI_API_KEY"
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
-      if (detectNonRetryableHarnessGuard(result.output).goalAlreadyActive) return false;
+      const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
+      if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }

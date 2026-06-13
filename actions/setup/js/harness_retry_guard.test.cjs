@@ -53,12 +53,14 @@ describe("harness_retry_guard.cjs", () => {
     const result = detectNonRetryableHarnessGuard(null);
     expect(result.aiCreditsExceeded).toBe(false);
     expect(result.awfAPIProxyBlockingRequests).toBe(false);
+    expect(result.goalAlreadyActive).toBe(false);
   });
 
   it("detects both flags when output contains both signals", () => {
     const result = detectNonRetryableHarnessGuard("max_ai_credits_exceeded=true DIFC_FILTERED");
     expect(result.aiCreditsExceeded).toBe(true);
     expect(result.awfAPIProxyBlockingRequests).toBe(true);
+    expect(result.goalAlreadyActive).toBe(false);
   });
 
   it("returns false when output has no guard markers", () => {
@@ -77,6 +79,16 @@ describe("harness_retry_guard.cjs", () => {
 
   it("detects goal already active markers across newlines", () => {
     const result = detectNonRetryableHarnessGuard("this thread already has a goal\nuse update_goal to update it");
+    expect(result.goalAlreadyActive).toBe(true);
+  });
+
+  it("does not detect goal active from first phrase alone", () => {
+    const result = detectNonRetryableHarnessGuard("this thread already has a goal");
+    expect(result.goalAlreadyActive).toBe(false);
+  });
+
+  it("detects goal already active when embedded in longer output", () => {
+    const result = detectNonRetryableHarnessGuard("[codex] cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete\nExit code: 1");
     expect(result.goalAlreadyActive).toBe(true);
   });
 });
