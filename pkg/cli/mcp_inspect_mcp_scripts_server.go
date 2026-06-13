@@ -52,8 +52,16 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 	url := fmt.Sprintf("http://localhost:%d/", port)
 
 	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
+			if ctx.Err() != nil {
+				return false
+			}
 			mcpInspectLog.Printf("Failed to create request: %v", err)
 			return false
 		}
@@ -67,7 +75,11 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 			}
 			return true
 		}
-		time.Sleep(mcpScriptsServerStartupDelay)
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(mcpScriptsServerStartupDelay):
+		}
 	}
 
 	mcpInspectLog.Printf("Server did not become ready within timeout")
