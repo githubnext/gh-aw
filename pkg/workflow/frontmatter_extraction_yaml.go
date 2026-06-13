@@ -868,6 +868,8 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) (string, error
 
 // extractDeploymentStatusStateCondition reads on.deployment_status.state and converts it
 // into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
+// extractOnTriggerValue returns the raw value for on.<trigger> when the frontmatter
+// contains an "on" map with that trigger configured.
 func extractOnTriggerValue(frontmatter map[string]any, trigger string) (any, bool) {
 	onMap, ok := frontmatter["on"].(map[string]any)
 	if !ok {
@@ -877,6 +879,8 @@ func extractOnTriggerValue(frontmatter map[string]any, trigger string) (any, boo
 	return value, ok
 }
 
+// extractOnTriggerMap returns the on.<trigger> value as a map when the configured
+// trigger uses object syntax.
 func extractOnTriggerMap(frontmatter map[string]any, trigger string) (map[string]any, bool) {
 	value, ok := extractOnTriggerValue(frontmatter, trigger)
 	if !ok {
@@ -886,6 +890,8 @@ func extractOnTriggerMap(frontmatter map[string]any, trigger string) (map[string
 	return triggerMap, ok
 }
 
+// normalizeStringOrStringSlice converts a string or string-like array value into a
+// []string, ignoring non-string array elements.
 func normalizeStringOrStringSlice(raw any) []string {
 	if s, ok := raw.(string); ok {
 		return []string{s}
