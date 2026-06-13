@@ -122,7 +122,10 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 	// no accumulation. A default clause (CommClause with nil Comm) can preempt
 	// the timer and is still flagged.
 	for selCur := range clauseCur.Enclosing((*ast.SelectStmt)(nil)) {
-		sel := selCur.Node().(*ast.SelectStmt)
+		sel, ok := selCur.Node().(*ast.SelectStmt)
+		if !ok {
+			break
+		}
 		hasOther := false
 		for _, stmt := range sel.Body.List {
 			if other, isComm := stmt.(*ast.CommClause); isComm && other != cc {
