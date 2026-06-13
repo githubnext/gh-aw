@@ -74,4 +74,9 @@ describe("harness_retry_guard.cjs", () => {
     expect(result.awfAPIProxyBlockingRequests).toBe(false);
     expect(result.goalAlreadyActive).toBe(true);
   });
+
+  it("detects goal already active markers across newlines", () => {
+    const result = detectNonRetryableHarnessGuard("this thread already has a goal\nuse update_goal to update it");
+    expect(result.goalAlreadyActive).toBe(true);
+  });
 });
