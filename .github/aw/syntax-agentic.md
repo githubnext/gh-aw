@@ -449,7 +449,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - `runs-on:` — runner for safe-output jobs (default: `ubuntu-slim`)
   - `messages:` — custom footer/notification message templates
   - `env:` — environment variables for safe-output jobs
-  - `max-patch-size:` — maximum git patch size in KB (default: 1024)
+  - `max-patch-size:` — maximum git patch size in KB (default: 4096)
 
 
 - **`mcp-scripts:`** - Define custom lightweight MCP tools as JavaScript, shell, Python, or Go scripts (object)

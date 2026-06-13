@@ -793,7 +793,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
     let yamlSnippet = "```yaml\nsafe-outputs:\n";
     for (const type of affectedTypes) {
       const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
-      yamlSnippet += `  ${yamlKey}:\n    max-patch-size: 2048  # Example: double the default limit (in KB, default: 1024)\n`;
+      yamlSnippet += `  ${yamlKey}:\n    max-patch-size: 8192  # Example: double the default limit (in KB, default: 4096)\n`;
     }
     yamlSnippet += "```\n";
     context += "\nTo allow larger patches, increase `max-patch-size` in your workflow's front matter (value in KB):\n";

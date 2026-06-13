@@ -432,7 +432,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		if c.ManifestFilesPolicy != nil {
 			protectedFilesPolicy = *c.ManifestFilesPolicy
 		}
-		maxPatchSize := 1024 // default 1024 KB
+		maxPatchSize := 4096 // default 4096 KB
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}
@@ -494,7 +494,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.PushToPullRequestBranch
-		maxPatchSize := 1024 // default 1024 KB
+		maxPatchSize := 4096 // default 4096 KB
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}

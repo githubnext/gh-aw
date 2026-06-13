@@ -195,7 +195,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
         - "release/*"
         - "main"
-      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 4096 KB, max: 10240)
       max-patch-files: 50             # Optional: per-output cap on unique files in the patch (overrides global; default: 100)
   ```
 
