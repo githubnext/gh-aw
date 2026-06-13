@@ -409,6 +409,19 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
 const MAX_FILES = 100;
 
 /**
+ * Parses a value as a positive integer, returning null for invalid/non-positive input.
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+function parsePositiveInteger(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
  * Parses one `diff --git` header line and returns the preferred file path key.
  *
  * @param {string} headerLine
@@ -626,9 +639,8 @@ async function main(config = {}) {
   const signedCommits = config.signed_commits !== false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
-  const _maxSizeRaw = Number.parseInt(String(config.max_patch_size ?? ""), 10);
-  const maxSizeKb = Number.isInteger(_maxSizeRaw) && _maxSizeRaw > 0 ? _maxSizeRaw : 4096;
-  const maxFiles = config.max_patch_files ? parseInt(String(config.max_patch_files), 10) : MAX_FILES;
+  const maxSizeKb = parsePositiveInteger(config.max_patch_size) ?? 4096;
+  const maxFiles = parsePositiveInteger(config.max_patch_files) ?? MAX_FILES;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
