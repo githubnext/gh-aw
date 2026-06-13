@@ -55,7 +55,7 @@ async function main(config = {}) {
   // repo_helpers.cjs for consistent slug validation and glob-pattern matching (e.g. "org/*").
   if (isCrossRepoDispatch) {
     if (allowedRepos.size === 0) {
-      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. No allowlist is configured. Define 'allowed_repos' to enable cross-repository dispatch.`);
+      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. No allowlist is configured. Define 'allowed-repos' under 'safe-outputs.dispatch-workflow' to enable cross-repository dispatch.`);
     }
     const repoValidation = validateTargetRepo(resolvedRepoSlug, contextRepoSlug, allowedRepos);
     if (!repoValidation.valid) {

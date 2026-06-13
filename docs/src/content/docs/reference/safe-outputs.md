@@ -1218,6 +1218,9 @@ safe-outputs:
 
 - **`workflows`** (required) - List of workflow names (without `.md` extension) that the agent is allowed to dispatch. For same-repo dispatch, each workflow must exist locally and support the `workflow_dispatch` trigger.
 - **`max`** (optional) - Maximum number of workflow dispatches allowed (default: 1, maximum: 50). This prevents excessive workflow triggering.
+- **`target-repo`** (optional) - Target repository in `owner/repo` format for cross-repository dispatch.
+- **`allowed-repos`** (optional) - Allowlist of cross-repository dispatch targets. Required when `target-repo` points to a different repository. Supports repository slugs and wildcards such as `org/*`.
+- **`target-ref`** (optional) - Git ref to dispatch on. In `workflow_call` relay scenarios, the compiler injects this automatically so the dispatch uses the target repository's branch or tag instead of the caller's `GITHUB_REF`.
 
 #### Validation Rules
 

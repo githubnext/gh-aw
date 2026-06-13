@@ -598,7 +598,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("workflows", c.Workflows).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug)
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos)
 
 		// Add workflow_files map if it has entries
 		if len(c.WorkflowFiles) > 0 {

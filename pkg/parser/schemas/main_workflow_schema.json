@@ -9059,6 +9059,22 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository workflow dispatch. When specified, the workflow will be dispatched to the target repository instead of the current one."
                 },
+                "allowed-repos": {
+                  "description": "List of repositories in format 'owner/repo' that cross-repository workflow dispatch may target. Supports arrays and GitHub Actions expressions resolving to a comma-separated list (e.g. '${{ inputs['allowed-repos'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs['allowed-repos'] }}')"
+                    }
+                  ]
+                },
                 "target-ref": {
                   "type": "string",
                   "description": "Git ref (branch, tag, or SHA) to use when dispatching the workflow. For workflow_call relay scenarios this is auto-injected by the compiler from needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF."
