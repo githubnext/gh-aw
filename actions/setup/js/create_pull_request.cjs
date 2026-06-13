@@ -626,7 +626,8 @@ async function main(config = {}) {
   const signedCommits = config.signed_commits !== false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
-  const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 4096;
+  const _maxSizeRaw = Number.parseInt(String(config.max_patch_size ?? ""), 10);
+  const maxSizeKb = Number.isInteger(_maxSizeRaw) && _maxSizeRaw > 0 ? _maxSizeRaw : 4096;
   const maxFiles = config.max_patch_files ? parseInt(String(config.max_patch_files), 10) : MAX_FILES;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);

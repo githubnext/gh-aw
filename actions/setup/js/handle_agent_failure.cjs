@@ -51,6 +51,17 @@ function getActionFailureIssueExpiresHours() {
 }
 
 /**
+ * Extracts the numeric run ID from a GitHub Actions run URL.
+ * @param {string} runUrl  e.g. "https://github.com/owner/repo/actions/runs/12345678"
+ * @returns {string} run ID, or empty string if not found
+ */
+function extractRunId(runUrl) {
+  if (!runUrl) return "";
+  const m = runUrl.match(/\/actions\/runs\/(\d+)/);
+  return m ? m[1] : "";
+}
+
+/**
  * Build a GitHub markdown warning alert line.
  * @param {string} title
  * @param {string} message
@@ -790,23 +801,21 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       push_to_pull_request_branch: "push-to-pull-request-branch",
     };
     const affectedTypes = [...new Set(patchSizeErrors.map(e => e.type))];
+    // Derive the suggested value from the actual limit in the first error message
+    const maxAllowedMatch = patchSizeErrors[0]?.error.match(/maximum allowed size \((\d+) KB\)/);
+    const maxAllowedKb = maxAllowedMatch ? Number.parseInt(maxAllowedMatch[1], 10) : 4096;
+    const suggestedKb = maxAllowedKb * 2;
     let yamlSnippet = "```yaml\nsafe-outputs:\n";
     for (const type of affectedTypes) {
       const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
-      yamlSnippet += `  ${yamlKey}:\n    max-patch-size: 8192  # Example: double the default limit (in KB, default: 4096)\n`;
+      yamlSnippet += `  ${yamlKey}:\n    max-patch-size: ${suggestedKb}  # Example: double the default limit (in KB, default: ${maxAllowedKb})\n`;
     }
     yamlSnippet += "```\n";
     context += "\nTo allow larger patches, increase `max-patch-size` in your workflow's front matter (value in KB):\n";
     context += yamlSnippet;
 
     // Provide download instructions so the user can inspect what the agent generated
-    let runId = "";
-    if (runUrl) {
-      const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
-      if (runIdMatch) {
-        runId = runIdMatch[1];
-      }
-    }
+    const runId = extractRunId(runUrl);
 
     context += "\n<details>\n<summary>📥 Download the oversized patch to inspect or apply manually</summary>\n\n";
     if (runId) {
@@ -826,7 +835,7 @@ git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
 git push origin aw/manual-apply
 gh pr create --head aw/manual-apply
 \`\`\`
-${runUrl ? `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n` : ""}`;
+\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n`;
     } else {
       context += "Download the patch artifact from the workflow run, then inspect or apply it with `git am --3way <patch-file>`.\n";
     }
@@ -845,13 +854,7 @@ ${runUrl ? `\nThe patch artifact is available at: [View run and download artifac
     }
 
     // Extract run ID from runUrl for use in the download command
-    let runId = "";
-    if (runUrl) {
-      const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
-      if (runIdMatch) {
-        runId = runIdMatch[1];
-      }
-    }
+    const runId = extractRunId(runUrl);
 
     context += "\n<details>\n<summary>📋 Apply the patch manually</summary>\n\n";
     if (runId) {
@@ -876,7 +879,7 @@ git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
 git push origin aw/manual-apply
 gh pr create --head aw/manual-apply
 \`\`\`
-${runUrl ? `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n` : ""}`;
+\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n`;
     } else {
       context += "Download the patch artifact from the workflow run, then apply it with `git am --3way <patch-file>`.\n";
     }
@@ -2845,11 +2848,7 @@ async function main() {
         const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
 
         // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
-        let runId = "";
-        const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
-        if (runIdMatch) {
-          runId = runIdMatch[1];
-        }
+        const runId = extractRunId(runUrl);
 
         // Build assignment errors context
         let assignmentErrorsContext = "";

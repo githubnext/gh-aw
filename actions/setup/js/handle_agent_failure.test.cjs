@@ -1469,21 +1469,25 @@ describe("handle_agent_failure", () => {
     });
 
     it("includes download instructions with run ID when runUrl is provided for patch size exceeded", () => {
-      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (1024 KB)";
+      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (4096 KB)";
       const runUrl = "https://github.com/owner/repo/actions/runs/12345678";
       const result = buildCodePushFailureContext(errors, null, runUrl);
       expect(result).toContain("📥 Download the oversized patch");
       expect(result).toContain("gh run download 12345678");
       expect(result).toContain("View run and download artifacts");
       expect(result).toContain(runUrl);
+      expect(result).toContain("<details>");
+      expect(result).toContain("Download the oversized patch to inspect or apply manually");
     });
 
     it("includes generic download instructions when no runUrl is provided for patch size exceeded", () => {
-      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (1024 KB)";
+      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (4096 KB)";
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("📥 Download the oversized patch");
       expect(result).toContain("git am --3way");
       expect(result).not.toContain("gh run download");
+      expect(result).toContain("<details>");
+      expect(result).toContain("Download the oversized patch to inspect or apply manually");
     });
 
     it("does not show patch size section for generic errors", () => {
