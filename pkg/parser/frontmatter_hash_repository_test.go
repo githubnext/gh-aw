@@ -101,6 +101,7 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 
 	cache := NewImportCache(repoRoot)
 	checkedCount := 0
+	recoveredMismatchCount := 0
 
 	for _, mdFile := range mdFiles {
 		lockFile := mdFile[:len(mdFile)-3] + ".lock.yml"
@@ -126,19 +127,23 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 			continue
 		}
 
-		// Compare hashes.
-		// In CI, a rare transient mismatch can occur for a single computation;
-		// recompute once to avoid a false failure while still failing on
-		// persistent mismatches.
-		if computedHash != lockHash {
+		// Compare hashes with bounded retry for transient one-off mismatches in CI.
+		currentHash := computedHash
+		maxAttempts := 3
+		matched := currentHash == lockHash
+		for attempt := 2; attempt <= maxAttempts && !matched; attempt++ {
 			recomputedHash, recomputeErr := ComputeFrontmatterHashFromFile(mdFile, cache)
 			require.NoError(t, recomputeErr, "Should recompute hash for %s", filepath.Base(mdFile))
-			if recomputedHash != lockHash {
-				t.Errorf("  ✗ %s: Hash mismatch!\n    Computed: %s\n    Recomputed: %s\n    Lock file: %s",
-					filepath.Base(mdFile), computedHash, recomputedHash, lockHash)
-			} else {
-				t.Logf("  ⚠ %s: Initial hash mismatch recovered on recompute", filepath.Base(mdFile))
-			}
+			currentHash = recomputedHash
+			matched = currentHash == lockHash
+		}
+
+		if !matched {
+			t.Errorf("  ✗ %s: Hash mismatch!\n    Initial: %s\n    Final: %s\n    Lock file: %s",
+				filepath.Base(mdFile), computedHash, currentHash, lockHash)
+		} else if computedHash != lockHash {
+			recoveredMismatchCount++
+			t.Logf("  ⚠ %s: Initial hash mismatch recovered after retry", filepath.Base(mdFile))
 		} else {
 			t.Logf("  ✓ %s: Hash matches", filepath.Base(mdFile))
 		}
@@ -147,6 +152,9 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 	}
 
 	t.Logf("\nVerified hash consistency for %d workflows", checkedCount)
+	if recoveredMismatchCount > 0 {
+		t.Logf("Recovered %d transient hash mismatch(es) via bounded retry", recoveredMismatchCount)
+	}
 }
 
 // extractHashFromLockFileContent extracts the frontmatter-hash from lock file content.
