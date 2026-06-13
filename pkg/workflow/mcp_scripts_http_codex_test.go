@@ -117,8 +117,8 @@ func extractCodexConfigSection(yamlContent string) string {
 	}
 
 	// Find the end (next heredoc marker or EOF)
-	if end := strings.Index(rest, "EOF"); end != -1 {
-		return rest[:end]
+	if before, _, found := strings.Cut(rest, "EOF"); found {
+		return before
 	}
 
 	return rest
