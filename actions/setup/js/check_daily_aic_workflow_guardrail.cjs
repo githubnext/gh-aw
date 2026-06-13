@@ -121,7 +121,8 @@ function loadAICUsageCache(filePath) {
       try {
         const entry = JSON.parse(line);
         const runId = Number(entry?.run_id);
-        const aic = Number(entry?.aic);
+        const rawAic = entry?.aic;
+        const aic = typeof rawAic === "number" ? rawAic : NaN;
         if (Number.isFinite(runId) && runId > 0 && Number.isFinite(aic) && aic >= 0) {
           cache.set(runId, aic);
           loaded++;
