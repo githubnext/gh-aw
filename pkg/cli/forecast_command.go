@@ -63,10 +63,8 @@ Backtesting (--eval):
   P10–P90 confidence interval. Use this to validate the model before relying on
   forward projections.
 
-` + WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` forecast                        # Forecast all workflows (monthly)
+` + WorkflowIDExplanation,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` forecast                        # Forecast all workflows (monthly)
   ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor              # Forecast a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor daily-planner # Compare two workflows
   ` + string(constants.CLIExtensionPrefix) + ` forecast --period week           # Weekly projections

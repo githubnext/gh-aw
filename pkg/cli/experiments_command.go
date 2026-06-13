@@ -96,10 +96,8 @@ workflow's pick_experiment step, containing variant counts and run history.
 
 Available subcommands:
   - list    - List all experiment workflow branches (default)
-  - analyze - Analyze a specific experiment workflow in detail
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` experiments                        # List all experiments (default)
+  - analyze - Analyze a specific experiment workflow in detail`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` experiments                        # List all experiments (default)
   ` + string(constants.CLIExtensionPrefix) + ` experiments list                   # List all experiments
   ` + string(constants.CLIExtensionPrefix) + ` experiments list --json            # Output in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow    # Analyze experiments/my-workflow
@@ -132,10 +130,8 @@ func NewExperimentsListSubcommand() *cobra.Command {
 
 Reads the state.json file from each experiments/* branch and shows a summary
 of each workflow's A/B experiments: number of experiments defined, total runs,
-and timestamp of the most recent run.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` experiments list                             # List all experiments
+and timestamp of the most recent run.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` experiments list                             # List all experiments
   ` + string(constants.CLIExtensionPrefix) + ` experiments list --json                      # Output in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` experiments list --repo owner/repo           # List from a specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -165,10 +161,8 @@ The experiment argument is the workflow ID (branch name without the "experiments
 prefix, e.g., "my-workflow" for the "experiments/my-workflow" branch).
 
 Reads the state.json file from the branch and shows per-variant counts, total
-runs, and the most recent run assignments.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow              # Analyze experiments/my-workflow
+runs, and the most recent run assignments.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow              # Analyze experiments/my-workflow
   ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --json       # Output in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --repo owner/repo  # Analyze in a specific repository`,
 		Args: cobra.ExactArgs(1),

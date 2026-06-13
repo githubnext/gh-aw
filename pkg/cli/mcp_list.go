@@ -334,18 +334,17 @@ The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
-Examples:
-  gh aw mcp list                     # List all workflows with MCP servers
-  gh aw mcp list weekly-research     # List MCP servers in weekly-research.md
-  gh aw mcp list weekly-research -v  # List with detailed information
-  gh aw mcp list --verbose           # List all workflows with detailed MCP server info
-
 The command displays:
 - Server Name: MCP server identifier
 - Status: Configuration status (✓ Ready or ⚠ Incomplete)
 - Tools Count: Number of allowed tools or "All tools"
 - Network Access: Whether network permissions are configured (✓ Enabled or ✗ Disabled)
 - In verbose mode: Also shows Type and Command/URL`,
+		Example: `  gh aw mcp list                     # List all workflows with MCP servers
+  gh aw mcp list weekly-research     # List MCP servers in weekly-research.md
+  gh aw mcp list weekly-research -v  # List with detailed information
+  gh aw mcp list --verbose           # List all workflows with detailed MCP server info
+`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string

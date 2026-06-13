@@ -92,10 +92,8 @@ JSON output includes two state fields:
                    branch-protection or account-gate statuses fail
 
 Use required_state as the authoritative CI verdict in repos that have optional
-deployment integrations posting commit statuses alongside required CI checks.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` checks 42                    # Classify checks for PR #42
+deployment integrations posting commit statuses alongside required CI checks.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` checks 42                    # Classify checks for PR #42
   ` + string(constants.CLIExtensionPrefix) + ` checks 42 --repo owner/repo  # Specify repository
   ` + string(constants.CLIExtensionPrefix) + ` checks 42 --json             # Output in JSON format`,
 		Args: cobra.ExactArgs(1),

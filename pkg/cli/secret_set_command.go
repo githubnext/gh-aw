@@ -48,10 +48,8 @@ func newSecretsSetSubcommand() *cobra.Command {
 The secret value can be provided in three ways:
   1. Via the --value flag
   2. Via the --value-from-env flag (reads from environment variable)
-  3. From stdin (if neither flag is provided)
-
-Examples:
-  # From stdin (uses current repository)
+  3. From stdin (if neither flag is provided)`,
+		Example: `  # From stdin (uses current repository)
   gh aw secrets set MY_SECRET
 
   # Specify target repository

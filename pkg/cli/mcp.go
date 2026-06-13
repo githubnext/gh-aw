@@ -25,10 +25,8 @@ Available subcommands:
   - list       - List MCP servers defined in agentic workflows
   - list-tools - List tools for a specific MCP server, or find workflows using it
   - inspect    - Inspect MCP servers and list available tools, resources, and roots
-  - add        - Add an MCP server to an agentic workflow
-
-Examples:
-  gh aw mcp list                              # List all workflows with MCP servers
+  - add        - Add an MCP server to an agentic workflow`,
+		Example: `  gh aw mcp list                              # List all workflows with MCP servers
   gh aw mcp inspect weekly-research           # Inspect MCP servers in workflow
   gh aw mcp add my-workflow tavily            # Add Tavily MCP server to workflow
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Inspect specific tool`,

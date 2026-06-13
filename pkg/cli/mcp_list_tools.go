@@ -183,16 +183,15 @@ The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
-Examples:
-  gh aw mcp list-tools --server github                    # Search for workflows containing the 'github' MCP server
-  gh aw mcp list-tools weekly-research --server github    # List tools for 'github' server in weekly-research.md
-  gh aw mcp list-tools issue-triage --server safe-outputs # List tools for 'safe-outputs' server in issue-triage.md
-  gh aw mcp list-tools test-workflow --server playwright -v  # Verbose output with tool descriptions
-
 The command will:
 - Parse the workflow to find the specified MCP server configuration
 - Connect to the MCP server using the same logic as 'mcp inspect'
 - Display available tools with their descriptions and allowance status`,
+		Example: `  gh aw mcp list-tools --server github                    # Search for workflows containing the 'github' MCP server
+  gh aw mcp list-tools weekly-research --server github    # List tools for 'github' server in weekly-research.md
+  gh aw mcp list-tools issue-triage --server safe-outputs # List tools for 'safe-outputs' server in issue-triage.md
+  gh aw mcp list-tools test-workflow --server playwright -v  # Verbose output with tool descriptions
+`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if serverFilter == "" {

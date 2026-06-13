@@ -254,12 +254,7 @@ Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent ru
 This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 
 ```yaml wrap
-max-daily-ai-credits: 15M
-```
-
-```yaml wrap
-# Equivalent shorthand
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 ```
 
 ```yaml wrap
