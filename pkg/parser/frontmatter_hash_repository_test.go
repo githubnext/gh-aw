@@ -131,7 +131,7 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 		currentHash := computedHash
 		maxAttempts := 3
 		matched := currentHash == lockHash
-		for attempt := 2; attempt <= maxAttempts && !matched; attempt++ {
+		for retryAttempt := 1; retryAttempt < maxAttempts && !matched; retryAttempt++ {
 			recomputedHash, recomputeErr := ComputeFrontmatterHashFromFile(mdFile, cache)
 			require.NoError(t, recomputeErr, "Should recompute hash for %s", filepath.Base(mdFile))
 			currentHash = recomputedHash
