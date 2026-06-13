@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -26,7 +27,7 @@ var mcpInspectLog = logger.New("cli:mcp_inspect")
 const mcpScriptsServerShutdownDelay = 500 * time.Millisecond
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
-func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error {
+func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	mcpInspectLog.Printf("Inspecting workflow MCP: workflow=%s, serverFilter=%s, toolFilter=%s",
 		workflowFile, serverFilter, toolFilter)
 
@@ -110,7 +111,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	var mcpScriptsTmpDir string
 	if workflowData != nil && workflowData.MCPScripts != nil && len(workflowData.MCPScripts.Tools) > 0 {
 		// Start mcp-scripts server and add it to the list of MCP configs
-		config, serverCmd, tmpDir, err := startMCPScriptsServer(workflowData.MCPScripts, verbose)
+		config, serverCmd, tmpDir, err := startMCPScriptsServer(ctx, workflowData.MCPScripts, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start mcp-scripts server: %v", err)))
@@ -296,7 +297,7 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
+			return InspectWorkflowMCP(cmd.Context(), workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
 		},
 	}
 
