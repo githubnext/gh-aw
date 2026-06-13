@@ -95,8 +95,9 @@ func GoodNewTimer(ctx context.Context) {
 }
 
 // GoodTimeAfterInBody calls time.After inside the case body, not as the Comm.
-// Because <-time.After(...) is a blocking receive, the timer is always drained
-// before the loop continues — no timers accumulate across iterations.
+// When time.After is used in the case body rather than as the Comm expression,
+// the goroutine blocks on the receive until the timer fires — each timer is
+// fully consumed before the loop can continue, so no timers accumulate.
 func GoodTimeAfterInBody(ctx context.Context, ch <-chan struct{}) {
 	for {
 		select {
