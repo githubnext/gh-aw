@@ -186,7 +186,6 @@ function buildForecastIssueBody(report, options) {
           "- **P50/Run** is the median per-run AIC from sampled historical runs.",
           "- **Monthly (Low/P50/High)** are the Monte Carlo P10 / P50 / P90 total-AIC bounds over 30 days.",
           "- **Monthly (Stdev)** is the Monte Carlo standard deviation of the 30-day total-AIC distribution.",
-          "- **Monthly (P50)** is the Monte Carlo median of total AIC over 30 days.",
           "- Monthly values are distribution medians, not a direct `P50/Run × runs` multiplication.",
           "",
         ].join("\n");
