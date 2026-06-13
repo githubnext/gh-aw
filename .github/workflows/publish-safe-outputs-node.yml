@@ -37,9 +37,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "Fetching metadata for ${NODE_IMAGE_TAG} from ${METADATA_URL}"
           metadata=$(curl -fsSL "$METADATA_URL")
+          echo "Metadata fetched successfully"
+
           digest=$(printf '%s' "$metadata" | jq -r '.images[] | select(.os == "linux" and .architecture == "amd64") | .digest' | head -n 1)
           last_updated=$(printf '%s' "$metadata" | jq -r '.last_updated')
+
+          echo "Resolved linux/amd64 digest: ${digest}"
+          echo "Upstream last_updated: ${last_updated}"
 
           if [ -z "$digest" ] || [ "$digest" = "null" ] || [ -z "$last_updated" ] || [ "$last_updated" = "null" ]; then
             echo "Failed to resolve node:lts-alpine metadata"
@@ -61,6 +67,10 @@ jobs:
 
           short_digest=$(printf '%s' "$digest" | sed 's/^sha256://' | cut -c1-12)
 
+          echo "Upstream image age: $((age_seconds / 86400)) day(s) (cooldown window: ${COOLDOWN_DAYS} day(s))"
+          echo "In cooldown: ${in_cooldown}"
+          echo "Short digest: ${short_digest}"
+
           echo "base_image=${NODE_IMAGE_TAG}@${digest}" >> "$GITHUB_OUTPUT"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "short_digest=$short_digest" >> "$GITHUB_OUTPUT"
@@ -73,7 +83,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          hash=$(sha256sum actions/setup/js/Dockerfile.safe-outputs-mcp | cut -d' ' -f1)
+          dockerfile="actions/setup/js/Dockerfile.safe-outputs-mcp"
+          echo "Computing SHA-256 hash of ${dockerfile}"
+          hash=$(sha256sum "$dockerfile" | cut -d' ' -f1)
+          echo "Dockerfile hash: ${hash}"
 
           echo "hash=$hash" >> "$GITHUB_OUTPUT"
 
@@ -96,11 +109,15 @@ jobs:
           existing_revision=""
           existing_dockerfile_hash=""
 
+          echo "Attempting to pull ${IMAGE_NAME}:latest"
           if docker pull "$IMAGE_NAME:latest" >/dev/null 2>&1; then
             image_exists=true
+            echo "Image pulled successfully; extracting labels"
             existing_digest=$(docker inspect "$IMAGE_NAME:latest" --format '{{ index .Config.Labels "org.opencontainers.image.base.digest" }}' 2>/dev/null || true)
             existing_revision=$(docker inspect "$IMAGE_NAME:latest" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || true)
             existing_dockerfile_hash=$(docker inspect "$IMAGE_NAME:latest" --format '{{ index .Config.Labels "io.github.gh-aw.safe-outputs.dockerfile-hash" }}' 2>/dev/null || true)
+          else
+            echo "Image ${IMAGE_NAME}:latest not found in registry"
           fi
 
           if [ "$existing_digest" = "<no value>" ]; then
@@ -112,6 +129,11 @@ jobs:
           if [ "$existing_dockerfile_hash" = "<no value>" ]; then
             existing_dockerfile_hash=""
           fi
+
+          echo "Image exists: ${image_exists}"
+          echo "Published base digest: ${existing_digest:-none}"
+          echo "Published revision: ${existing_revision:-none}"
+          echo "Published Dockerfile hash: ${existing_dockerfile_hash:-none}"
 
           echo "image_exists=$image_exists" >> "$GITHUB_OUTPUT"
           echo "base_digest=$existing_digest" >> "$GITHUB_OUTPUT"
@@ -131,6 +153,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "--- Decision inputs ---"
+          echo "Image exists: ${IMAGE_EXISTS}"
+          echo "In cooldown: ${IN_COOLDOWN} (window: ${COOLDOWN_DAYS} day(s))"
+          echo "Current upstream digest:    ${CURRENT_BASE_DIGEST}"
+          echo "Published base digest:      ${EXISTING_BASE_DIGEST:-none}"
+          echo "Current Dockerfile hash:    ${CURRENT_DOCKERFILE_HASH}"
+          echo "Published Dockerfile hash:  ${EXISTING_DOCKERFILE_HASH:-none}"
+          echo "--- Evaluating conditions ---"
+
           should_push=false
           reason="No changes detected"
 
@@ -146,6 +177,9 @@ jobs:
             should_push=true
             reason="Container Dockerfile changed"
           fi
+
+          echo "Decision: should_push=${should_push}"
+          echo "Reason: ${reason}"
 
           echo "should_push=$should_push" >> "$GITHUB_OUTPUT"
           echo "reason=$reason" >> "$GITHUB_OUTPUT"
