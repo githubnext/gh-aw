@@ -37,6 +37,7 @@ const ADD_COMMENT_DISCUSSIONS_ENABLED_NOTE = "NOTE: Discussion comments are enab
 const ADD_COMMENT_DISCUSSIONS_DISABLED_NOTE =
   "NOTE: Discussion comments are disabled for this workflow because discussions:write permission is not available. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
 const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion threading.";
+const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
 
 /**
  * Update add_comment description to match runtime-safe-output permissions.
@@ -45,7 +46,15 @@ const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion 
  * @returns {string}
  */
 function updateAddCommentDescription(description, addCommentConfig) {
-  const addCommentConfigMap = addCommentConfig !== null && typeof addCommentConfig === "object" ? /** @type {Record<string, unknown>} */ addCommentConfig : /** @type {Record<string, unknown>} */ {};
+  /** @type {Record<string, unknown>} */
+  let addCommentConfigMap = {};
+  if (addCommentConfig !== null && addCommentConfig !== undefined) {
+    if (typeof addCommentConfig === "object") {
+      addCommentConfigMap = /** @type {Record<string, unknown>} */ addCommentConfig;
+    } else {
+      console.warn(`Unexpected add_comment config type: ${typeof addCommentConfig}`);
+    }
+  }
   const discussionCommentsEnabled = addCommentConfigMap.discussions === true;
 
   let updated = description || "";
@@ -62,7 +71,7 @@ function updateAddCommentDescription(description, addCommentConfig) {
     }
   } else {
     updated = updated
-      .replace(new RegExp(`\\s*${ADD_COMMENT_REPLY_SUPPORT_SENTENCE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g"), "")
+      .replace(ADD_COMMENT_REPLY_SUPPORT_REGEX, "")
       .replace(/\s{2,}/g, " ")
       .trim();
   }
