@@ -567,8 +567,8 @@ function isReportOnlyFailureResult(result) {
  */
 function partitionFailureResults(results) {
   const failedResults = results.filter(isFailedProcessingResult);
-  const reportOnlyFailures = failedResults.filter(r => REPORT_ONLY_FAILURE_TYPES.has(r?.type));
-  const fatalFailures = failedResults.filter(r => !REPORT_ONLY_FAILURE_TYPES.has(r?.type));
+  const reportOnlyFailures = failedResults.filter(r => REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
+  const fatalFailures = failedResults.filter(r => !REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
   return { fatalFailures, reportOnlyFailures };
 }
 
