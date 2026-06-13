@@ -1,7 +1,18 @@
 ---
+<<<<<<< current (local changes)
 emoji: "🏥"
 description: Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information; also reviews PR check failures when the ci-doctor label is applied
+||||||| base (original)
+=======
+description: |
+  This workflow is an automated CI failure investigator that triggers when monitored workflows fail.
+  Performs deep analysis of GitHub Actions workflow failures to identify root causes,
+  patterns, and provide actionable remediation steps. Analyzes logs, error messages,
+  and workflow configuration to help diagnose and resolve CI issues efficiently.
+
+>>>>>>> new (upstream)
 on:
+<<<<<<< current (local changes)
   label_command:
     name: ci-doctor
     events: [pull_request]
@@ -14,6 +25,34 @@ permissions:
   issues: read          # To search and analyze issues (label removal handled by activation job)
   pull-requests: read   # To read PR context (comments posted via safe-outputs)
   checks: read          # To read check run results
+||||||| base (original)
+  workflow_run:
+    workflows: ["Daily Perf Improver", "Daily Test Coverage Improver"]  # Monitor the CI workflow specifically
+    types:
+      - completed
+    branches:
+      - main
+    # This will trigger only when the CI workflow completes with failure
+    # The condition is handled in the workflow body
+  stop-after: +1mo
+
+# Only trigger for failures - check in the workflow body
+if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+permissions: read-all
+=======
+  workflow_run:
+    workflows: ["Daily Perf Improver", "Daily Test Coverage Improver"]  # Monitor the CI workflow specifically
+    types:
+      - completed
+    branches:
+      - main
+
+# Only trigger for failures - check in the workflow body
+if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+permissions: read-all
+>>>>>>> new (upstream)
 
 network: defaults
 
@@ -21,10 +60,17 @@ engine: claude
 
 safe-outputs:
   create-issue:
+<<<<<<< current (local changes)
     expires: 1d
     title-prefix: "[CI Failure Doctor] "
     labels: [cookie]
     close-older-issues: true
+||||||| base (original)
+    title-prefix: "${{ github.workflow }}"
+=======
+    title-prefix: "[ci-doctor] "
+    labels: [automation, ci]
+>>>>>>> new (upstream)
   add-comment:
     max: 1
     hide-older-comments: true
@@ -42,6 +88,7 @@ tools:
   cli-proxy: true
   cache-memory: true
   web-fetch:
+<<<<<<< current (local changes)
   web-search:
   github:
     mode: gh-proxy
@@ -202,13 +249,28 @@ steps:
 
       echo ""
       echo "✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE"
+||||||| base (original)
+  web-search:
 
+timeout-minutes: 10
+=======
+
+timeout-minutes: 10
+>>>>>>> new (upstream)
+
+<<<<<<< current (local changes)
 source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 
+||||||| base (original)
+source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
+=======
+source: githubnext/agentics/workflows/ci-doctor.md@e15e57b40918dbca11b350c55d02ab61934afa75
+>>>>>>> new (upstream)
 ---
 
 # CI Failure Doctor
 
+<<<<<<< current (local changes)
 You are the CI Failure Doctor, an expert investigative agent that analyzes failed GitHub Actions checks to identify root causes and patterns. You operate in one of two modes depending on the trigger:
 
 - **PR Check Review Mode** — triggered when someone applies the `ci-doctor` label to a pull request; reviews the PR's failing CI checks and posts a diagnostic comment.
@@ -294,6 +356,11 @@ Check run data was fetched before this session:
 {{/if}}
 {{#if github.event.workflow_run.id}}
 ## CI Failure Investigation Mode
+||||||| base (original)
+You are the CI Failure Doctor, an expert investigative agent that analyzes failed GitHub Actions workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when the CI workflow fails.
+=======
+You are the CI Failure Doctor, an expert investigative agent that analyzes failed GitHub Actions workflows to identify root causes and patterns. Your goal is to conduct a deep investigation when the CI workflow fails.
+>>>>>>> new (upstream)
 
 ## Current Context
 
@@ -320,14 +387,27 @@ Logs and artifacts have been pre-downloaded before this session started:
 **ONLY proceed if the workflow conclusion is 'failure' or 'cancelled'**. If the workflow was successful, **call the `noop` tool** immediately and exit.
 
 ### Phase 1: Initial Triage
+
 1. **Verify Failure**: Check that `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`
+<<<<<<< current (local changes)
    - **If the workflow was successful**: Call the `noop` tool with message "CI workflow completed successfully - no investigation needed" and **stop immediately**. Do not proceed with any further analysis.
    - **If the workflow failed or was cancelled**: Proceed with the investigation steps below.
 2. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
 3. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
 4. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
+||||||| base (original)
+2. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
+3. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
+4. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
+=======
+2. **Deduplication Check**: Read `/tmp/memory/investigations/analyzed-runs.json` from the cache. If the current run ID (`${{ github.event.workflow_run.id }}`) is already listed, **stop immediately** — this run has already been investigated. After completing a new investigation, append the run ID to this index to prevent re-analysis.
+3. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
+4. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
+5. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
+>>>>>>> new (upstream)
 
 ### Phase 2: Deep Log Analysis
+<<<<<<< current (local changes)
 1. **Use Pre-Downloaded Logs and Artifacts**: Use the files in `/tmp/gh-aw/agent/ci-doctor/`:
    - Read the summary and hint files first (minimal context load)
    - Read ±10 lines around each hinted line number in the full log or artifact file
@@ -335,6 +415,14 @@ Logs and artifacts have been pre-downloaded before this session started:
    - Only load the full log content if the hints are insufficient
 2. **Fallback Log Retrieval**: If pre-downloaded files are unavailable, use `get_job_logs` with `failed_only=true`, `return_content=true`, and `tail_lines=100` to get the most relevant portion of logs directly (avoids downloading large blob files). Do NOT use `web-fetch` on blob storage log URLs.
 3. **Pattern Recognition**: Analyze logs for:
+||||||| base (original)
+1. **Retrieve Logs**: Use `get_job_logs` with `failed_only=true` to get logs from all failed jobs
+2. **Pattern Recognition**: Analyze logs for:
+=======
+
+1. **Retrieve Logs**: Use `get_job_logs` with `failed_only=true` to get logs from all failed jobs
+2. **Pattern Recognition**: Analyze logs for:
+>>>>>>> new (upstream)
    - Error messages and stack traces
    - Dependency installation failures
    - Test failures with specific patterns
@@ -349,6 +437,7 @@ Logs and artifacts have been pre-downloaded before this session started:
    - Timing patterns
 
 ### Phase 3: Historical Context Analysis
+
 1. **Search Investigation History**: Use file-based storage to search for similar failures:
    - Read from cached investigation files in `/tmp/gh-aw/agent/memory/investigations/`
    - Parse previous failure patterns and solutions
@@ -358,6 +447,7 @@ Logs and artifacts have been pre-downloaded before this session started:
 4. **PR Context**: If triggered by a PR, analyze the changed files
 
 ### Phase 4: Root Cause Investigation
+
 1. **Categorize Failure Type**:
    - **Code Issues**: Syntax errors, logic bugs, test failures
    - **Infrastructure**: Runner issues, network problems, resource constraints
@@ -373,6 +463,7 @@ Logs and artifacts have been pre-downloaded before this session started:
    - For timeout issues: Identify slow operations and bottlenecks
 
 ### Phase 5: Pattern Storage and Knowledge Building
+
 1. **Store Investigation**: Save structured investigation data to files:
    - Write investigation report to `/tmp/gh-aw/agent/memory/investigations/<timestamp>-<run-id>.json`
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
@@ -382,6 +473,7 @@ Logs and artifacts have been pre-downloaded before this session started:
 2. **Update Pattern Database**: Enhance knowledge with new findings by updating pattern files
 3. **Save Artifacts**: Store detailed logs and analysis in the cached directories
 
+<<<<<<< current (local changes)
 ### Phase 6: Looking for existing issues and closing older ones
 
 1. **Search for existing CI failure doctor issues**
@@ -407,6 +499,35 @@ Logs and artifacts have been pre-downloaded before this session started:
     - Otherwise, continue to create a new issue with fresh investigation data
 
 ### Phase 7: Reporting and Recommendations
+||||||| base (original)
+### Phase 6: Looking for existing issues
+
+1. **Convert the report to a search query**
+    - Use any advanced search features in GitHub Issues to find related issues
+    - Look for keywords, error messages, and patterns in existing issues
+2. **Judge each match issues for relevance**
+    - Analyze the content of the issues found by the search and judge if they are similar to this issue.
+3. **Add issue comment to duplicate issue and finish**
+    - If you find a duplicate issue, add a comment with your findings and close the investigation.
+    - Do NOT open a new issue since you found a duplicate already (skip next phases).
+
+### Phase 6: Reporting and Recommendations
+=======
+### Phase 6: Looking for existing issues
+
+1. **Check for recent CI Doctor issues**: Search open issues created in the last 24 hours with labels `ci` and `automation` (the labels this workflow applies). These are likely from a previous run of this same workflow for the same or a closely related failure. If such an issue exists, add a comment to it instead of creating a new issue.
+2. **Convert the report to a search query**
+    - Use any advanced search features in GitHub Issues to find related issues
+    - Look for keywords, error messages, and patterns in existing issues
+3. **Judge each match for relevance**
+    - Analyze the content of the issues found by the search and judge if they are similar to this issue.
+4. **Add issue comment to duplicate issue and finish**
+    - If you find a duplicate issue, add a comment with your findings and close the investigation.
+    - Do NOT open a new issue since you found a duplicate already (skip next phases).
+
+### Phase 7: Reporting and Recommendations
+
+>>>>>>> new (upstream)
 1. **Create Investigation Report**: Generate a comprehensive analysis including:
    - **Executive Summary**: Quick overview of the failure
    - **Root Cause**: Detailed explanation of what went wrong
