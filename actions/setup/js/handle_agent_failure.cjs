@@ -1257,9 +1257,6 @@ function loadToolDenialsExceededEvents() {
             if (toolName) {
               const mcpServerName = typeof parsed.data.mcpServerName === "string" ? parsed.data.mcpServerName.trim() : "";
               recentToolCalls.push(mcpServerName ? `${mcpServerName}.${toolName}` : toolName);
-              if (recentToolCalls.length > 5) {
-                recentToolCalls.shift();
-              }
             }
             continue;
           }
@@ -1275,7 +1272,7 @@ function loadToolDenialsExceededEvents() {
             denialCount,
             threshold,
             reason: typeof parsed.data.reason === "string" ? parsed.data.reason.trim() : "",
-            recentToolCalls: [...recentToolCalls],
+            recentToolCalls: recentToolCalls.slice(-5),
           });
         } catch {
           // Skip malformed lines

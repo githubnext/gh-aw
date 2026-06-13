@@ -3098,7 +3098,7 @@ describe("handle_agent_failure", () => {
           denialCount: 5,
           threshold: 5,
           reason: "permission denied: read",
-          recentToolCalls: ["read", "edit", "bash", "grep", "glob", "write"].slice(-5),
+          recentToolCalls: ["edit", "bash", "grep", "glob", "write"],
         },
       ]);
     });
