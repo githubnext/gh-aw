@@ -111,6 +111,15 @@ describe("Safe Output Handler Manager", () => {
       ).toBe(true);
     });
 
+    it("treats failed upload_artifact results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "upload_artifact",
+          success: false,
+        })
+      ).toBe(true);
+    });
+
     it("does not treat skipped or cancelled assign_to_agent results as report-only", () => {
       expect(
         isReportOnlyFailureResult({
@@ -135,6 +144,23 @@ describe("Safe Output Handler Manager", () => {
       ).toBe(false);
     });
 
+    it("does not treat skipped or cancelled upload_artifact results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "upload_artifact",
+          success: false,
+          skipped: true,
+        })
+      ).toBe(false);
+      expect(
+        isReportOnlyFailureResult({
+          type: "upload_artifact",
+          success: false,
+          cancelled: true,
+        })
+      ).toBe(false);
+    });
+
     it("partitions fatal failures away from assign_to_agent report-only failures", () => {
       const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
         { type: "assign_to_agent", success: false, error: "Insufficient permissions" },
@@ -144,6 +170,17 @@ describe("Safe Output Handler Manager", () => {
       ]);
 
       expect(reportOnlyFailures).toEqual([{ type: "assign_to_agent", success: false, error: "Insufficient permissions" }]);
+      expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
+
+    it("partitions upload_artifact failures as report-only, not fatal", () => {
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
+        { type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" },
+        { type: "create_discussion", success: true },
+        { type: "create_issue", success: false, error: "Validation failed" },
+      ]);
+
+      expect(reportOnlyFailures).toEqual([{ type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
     });
   });

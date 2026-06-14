@@ -29,7 +29,7 @@ func (c *Compiler) formatFrameworkJobRunsOn(data *WorkflowData) string {
 	}
 	if data != nil && data.RunsOnSlim != "" {
 		safeOutputsRuntimeLog.Printf("Framework job runs-on from runs-on-slim: %s", data.RunsOnSlim)
-		return "runs-on: " + data.RunsOnSlim
+		return c.indentYAMLLines(data.RunsOnSlim, "    ")
 	}
 	safeOutputsRuntimeLog.Printf("Framework job runs-on using default: %s", constants.DefaultActivationJobRunnerImage)
 	return "runs-on: " + constants.DefaultActivationJobRunnerImage

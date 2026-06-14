@@ -468,6 +468,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Copilot doesn't require TTY
 			AllowedDomains: allowedDomains,
+			// Keep max-ai-credits runtime expression in step env (not run:) to reduce
+			// template-injection findings on generated Execute GitHub Copilot CLI steps.
+			ResolveMaxAICreditsFromEnv: true,
 			// Create the agent step summary file before AWF starts so it is accessible
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
@@ -591,6 +594,7 @@ touch %s
 	} else {
 		env["GH_AW_VERSION"] = "dev"
 	}
+	applyDefaultMaxAICreditsEnvToMap(env, workflowData)
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers.
 	// The value is exported from the run script (see buildCopilotMCPConfigExport) so
@@ -604,12 +608,14 @@ touch %s
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
 			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
 			if workflowData.ParsedTools.GitHub.GitHubApp.shouldIgnoreMissingKey() {
-				customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+				githubToolConfig, _ := workflowData.Tools["github"].(map[string]any)
+				customGitHubToken := getGitHubToken(githubToolConfig)
 				tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
 			}
 			env["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
-			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+			githubToolConfig, _ := workflowData.Tools["github"].(map[string]any)
+			customGitHubToken := getGitHubToken(githubToolConfig)
 			// Use effective token with precedence: custom > default
 			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 			env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken

@@ -68,9 +68,12 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
     dispatch-workflow:
       workflows: [workflow-name]          # Required: list of workflow names to allow
       max: 3                              # Optional: max dispatches (default: 1, max: 3)
+      target-repo: org/other-repo         # Optional: cross-repo dispatch target (owner/repo or expression)
+      allowed-repos: [org/*]              # Optional: allowlist for cross-repo dispatch targets
+      target-ref: main                    # Optional: ref to dispatch against (overrides caller's GITHUB_REF)
   ```
 
-  Triggers other agentic workflows in the same repository using workflow_dispatch. Agent output includes `workflow_name` (without .md extension) and optional `inputs` (key-value pairs). Not supported for cross-repository operations.
+  Triggers other agentic workflows using workflow_dispatch. Agent output includes `workflow_name` (without .md extension) and optional `inputs` (key-value pairs). Cross-repo dispatch is supported via `target-repo` plus an `allowed-repos` allowlist; cross-repo targets require a token with `actions: write` on the target repository.
 - `dispatch_repository:` - Dispatch `repository_dispatch` events to external repositories (experimental)
 
   ```yaml

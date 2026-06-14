@@ -31,6 +31,9 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if err := validateRunsOnValue(config.RunsOn); err != nil {
 		return nil, err
 	}
+	if err := validateRunsOnValue(config.RunsOnSlim); err != nil {
+		return nil, err
+	}
 
 	// Parse typed Runtimes field if runtimes exist
 	if len(config.Runtimes) > 0 {

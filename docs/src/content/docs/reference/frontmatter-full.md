@@ -3100,9 +3100,10 @@ tools:
     # (optional)
     restore-only: true
 
-    # Cache restore key scope: 'workflow' (default, only restores from same workflow)
-    # or 'repo' (restores from any workflow in the repository). Use 'repo' with
-    # caution as it allows cross-workflow cache sharing.
+    # Cache restore key scope: 'workflow' (default, restores from same workflow key
+    # lineage) or 'repo' (adds repository-wide restore keys). Scope broadens
+    # cross-workflow matching but cache visibility remains branch-scoped (with
+    # GitHub's default-branch restore fallback behavior).
     # (optional)
     scope: "workflow"
 
@@ -4592,7 +4593,7 @@ safe-outputs:
 
     # Maximum allowed size for git patches in kilobytes (KB) for create-pull-request
     # only. Overrides safe-outputs max-patch-size for this output type. Defaults to
-    # 1024 KB (1 MB) when unset.
+    # 4096 KB (4 MB) when unset.
     # (optional)
     max-patch-size: 1
 
@@ -6221,7 +6222,7 @@ safe-outputs:
 
     # Maximum allowed size for git patches in kilobytes (KB) for
     # push-to-pull-request-branch only. Overrides safe-outputs max-patch-size for this
-    # output type. Defaults to 1024 KB (1 MB) when unset.
+    # output type. Defaults to 4096 KB (4 MB) when unset.
     # (optional)
     max-patch-size: 1
 
@@ -7188,7 +7189,7 @@ safe-outputs:
       # (optional)
       workflows: "read"
 
-  # Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1
+  # Maximum allowed size for git patches in kilobytes (KB). Defaults to 4096 KB (4
   # MB). If patch exceeds this size, the job will fail.
   # (optional)
   max-patch-size: 1

@@ -36,7 +36,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests default patch size configuration.`,
-			expectedConfigValue:  `\"max_patch_size\":1024`, // Now in handler config JSON (escaped in YAML)
+			expectedConfigValue:  `\"max_patch_size\":4096`, // Now in handler config JSON (escaped in YAML)
 			shouldContainPushJob: true,
 			shouldContainPRJob:   true,
 		},

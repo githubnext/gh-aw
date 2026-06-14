@@ -20,7 +20,7 @@ func TestAddCommentDiscussionsFieldIntegration(t *testing.T) {
 		shouldCompile          bool
 	}{
 		{
-			name: "discussions defaults to true - includes discussions:write",
+			name: "discussions defaults to false - excludes discussions:write",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",
 				"engine": "copilot",
@@ -28,7 +28,7 @@ func TestAddCommentDiscussionsFieldIntegration(t *testing.T) {
 					"add-comment": map[string]any{},
 				},
 			},
-			expectDiscussionsWrite: true,
+			expectDiscussionsWrite: false,
 			shouldCompile:          true,
 		},
 		{

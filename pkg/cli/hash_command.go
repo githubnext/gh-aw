@@ -25,10 +25,8 @@ The hash includes:
 - Template expressions containing env. or vars. from the markdown body
 - Version information (gh-aw, awf, agents)
 
-The hash can be used to detect configuration changes between compilation and execution.
-
-Examples:
-  gh aw hash-frontmatter my-workflow.md
+The hash can be used to detect configuration changes between compilation and execution.`,
+		Example: `  gh aw hash-frontmatter my-workflow.md
   gh aw hash-frontmatter .github/workflows/audit-workflows.md`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

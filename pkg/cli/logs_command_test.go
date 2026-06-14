@@ -18,7 +18,7 @@ func TestNewLogsCommand(t *testing.T) {
 	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
 	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
-	assert.Contains(t, cmd.Long, "logs --cache-before -1w", "Cache maintenance examples should use the cache-before flag name")
+	assert.Contains(t, cmd.Example, "logs --cache-before -1w", "Cache maintenance examples should use the cache-before flag name")
 
 	// Verify flags are registered
 	flags := cmd.Flags()
@@ -260,17 +260,24 @@ func TestLogsCommandHelpText(t *testing.T) {
 	cmd := NewLogsCommand()
 
 	// Verify long description contains expected sections
-	expectedSections := []string{
+	expectedLongSections := []string{
 		"Download and analyze agentic workflow logs",
 		"Downloaded artifacts include:",
-		"Examples:",
+	}
+
+	for _, section := range expectedLongSections {
+		assert.Contains(t, cmd.Long, section, "Long description should contain: %s", section)
+	}
+
+	// Verify example field contains example commands
+	expectedExampleSections := []string{
 		"gh aw logs",
 		"--safe-output noop",
 		"--safe-output report-incomplete",
 	}
 
-	for _, section := range expectedSections {
-		assert.Contains(t, cmd.Long, section, "Long description should contain: %s", section)
+	for _, section := range expectedExampleSections {
+		assert.Contains(t, cmd.Example, section, "Example field should contain: %s", section)
 	}
 
 	safeOutputFlag := cmd.Flags().Lookup("safe-output")

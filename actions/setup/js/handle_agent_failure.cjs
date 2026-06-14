@@ -51,6 +51,17 @@ function getActionFailureIssueExpiresHours() {
 }
 
 /**
+ * Extracts the numeric run ID from a GitHub Actions run URL.
+ * @param {string} runUrl  e.g. "https://github.com/owner/repo/actions/runs/12345678"
+ * @returns {string} run ID, or empty string if not found
+ */
+function extractRunId(runUrl) {
+  if (!runUrl) return "";
+  const m = runUrl.match(/\/actions\/runs\/(\d+)/);
+  return m ? m[1] : "";
+}
+
+/**
  * Build a GitHub markdown warning alert line.
  * @param {string} title
  * @param {string} message
@@ -790,14 +801,45 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       push_to_pull_request_branch: "push-to-pull-request-branch",
     };
     const affectedTypes = [...new Set(patchSizeErrors.map(e => e.type))];
+    // Derive the suggested value from the actual limit in the first error message
+    const maxAllowedMatch = patchSizeErrors[0]?.error.match(/maximum allowed size \((\d+) KB\)/);
+    const maxAllowedKb = maxAllowedMatch ? Number.parseInt(maxAllowedMatch[1], 10) : 4096;
+    const suggestedKb = maxAllowedKb * 2;
     let yamlSnippet = "```yaml\nsafe-outputs:\n";
     for (const type of affectedTypes) {
       const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
-      yamlSnippet += `  ${yamlKey}:\n    max-patch-size: 2048  # Example: double the default limit (in KB, default: 1024)\n`;
+      yamlSnippet += `  ${yamlKey}:\n    max-patch-size: ${suggestedKb}  # Example: double the default limit (in KB, default: ${maxAllowedKb})\n`;
     }
     yamlSnippet += "```\n";
     context += "\nTo allow larger patches, increase `max-patch-size` in your workflow's front matter (value in KB):\n";
     context += yamlSnippet;
+
+    // Provide download instructions so the user can inspect what the agent generated
+    const runId = extractRunId(runUrl);
+
+    context += "\n<details>\n<summary>📥 Download the oversized patch to inspect or apply manually</summary>\n\n";
+    if (runId) {
+      context += `\`\`\`sh
+# Download the patch artifact from the workflow run
+gh run download ${runId} -n agent -D /tmp/agent-${runId}
+
+# List available patches
+ls /tmp/agent-${runId}/*.patch
+
+# Inspect the patch
+cat /tmp/agent-${runId}/YOUR_PATCH_FILE.patch | head -100
+
+# Optionally apply the patch manually on a new branch
+git checkout -b aw/manual-apply
+git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
+git push origin aw/manual-apply
+gh pr create --head aw/manual-apply
+\`\`\`
+\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n`;
+    } else {
+      context += "Download the patch artifact from the workflow run, then inspect or apply it with `git am --3way <patch-file>`.\n";
+    }
+    context += "\n</details>\n";
   }
 
   // Patch apply failure section — shown when the patch could not be applied (e.g. merge conflict)
@@ -812,13 +854,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
     }
 
     // Extract run ID from runUrl for use in the download command
-    let runId = "";
-    if (runUrl) {
-      const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
-      if (runIdMatch) {
-        runId = runIdMatch[1];
-      }
-    }
+    const runId = extractRunId(runUrl);
 
     context += "\n<details>\n<summary>📋 Apply the patch manually</summary>\n\n";
     if (runId) {
@@ -843,7 +879,7 @@ git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
 git push origin aw/manual-apply
 gh pr create --head aw/manual-apply
 \`\`\`
-${runUrl ? `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n` : ""}`;
+\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n`;
     } else {
       context += "Download the patch artifact from the workflow run, then apply it with `git am --3way <patch-file>`.\n";
     }
@@ -1229,7 +1265,7 @@ function buildPermissionDeniedContext(items, workflowId) {
 
 /**
  * Load max-tool-denials guard events from Copilot SDK session events.jsonl files.
- * @returns {Array<{denialCount: number, threshold: number, reason: string}>}
+ * @returns {Array<{denialCount: number, threshold: number, reason: string, recentToolCalls: Array<string>, timestamp: string}>}
  */
 function loadToolDenialsExceededEvents() {
   try {
@@ -1245,11 +1281,22 @@ function loadToolDenialsExceededEvents() {
       if (!fs.existsSync(eventsPath)) continue;
       const content = fs.readFileSync(eventsPath, "utf8");
       const lines = content.split("\n");
+      /** @type {Array<string>} */
+      const recentToolCalls = [];
       for (const rawLine of lines) {
         const line = rawLine.trim();
         if (!line) continue;
         try {
           const parsed = JSON.parse(line);
+          if (parsed.type === "tool.execution_start" && parsed.data && typeof parsed.data === "object") {
+            const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
+            if (toolName) {
+              const mcpServerName = typeof parsed.data.mcpServerName === "string" ? parsed.data.mcpServerName.trim() : "";
+              recentToolCalls.push(mcpServerName ? `${mcpServerName}.${toolName}` : toolName);
+              if (recentToolCalls.length > 5) recentToolCalls.shift();
+            }
+            continue;
+          }
           if (parsed.type !== "guard.tool_denials_exceeded" || !parsed.data || typeof parsed.data !== "object") {
             continue;
           }
@@ -1262,6 +1309,8 @@ function loadToolDenialsExceededEvents() {
             denialCount,
             threshold,
             reason: typeof parsed.data.reason === "string" ? parsed.data.reason.trim() : "",
+            recentToolCalls: recentToolCalls.slice(),
+            timestamp: typeof parsed.timestamp === "string" ? parsed.timestamp : "",
           });
         } catch {
           // Skip malformed lines
@@ -1277,7 +1326,7 @@ function loadToolDenialsExceededEvents() {
 
 /**
  * Build context for max-tool-denials guardrail failures from Copilot SDK events.
- * @param {Array<{denialCount: number, threshold: number, reason: string}>} events
+ * @param {Array<{denialCount: number, threshold: number, reason: string, recentToolCalls?: Array<string>, timestamp?: string}>} events
  * @param {string} [workflowId]
  * @returns {string}
  */
@@ -1285,7 +1334,13 @@ function buildToolDenialsExceededContext(events, workflowId) {
   if (!Array.isArray(events) || events.length === 0) {
     return "";
   }
-  const latestEvent = events[events.length - 1];
+  // Select the event with the newest ISO timestamp so the correct lead-up context is
+  // shown when guard events arrive from multiple session directories in arbitrary order.
+  const latestEvent = events.reduce((best, ev) => {
+    const evTs = typeof ev.timestamp === "string" ? ev.timestamp : "";
+    const bestTs = typeof best.timestamp === "string" ? best.timestamp : "";
+    return evTs > bestTs ? ev : best;
+  });
   const denialCount = String(latestEvent.denialCount);
   const threshold = String(latestEvent.threshold);
   const reason = latestEvent.reason || "permission denied by workflow tool permissions";
@@ -1293,6 +1348,7 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // Normalize the reason for display: multi-line programs (e.g. Python 3 heredocs) are
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
+  const recentToolCallsList = Array.isArray(latestEvent.recentToolCalls) && latestEvent.recentToolCalls.length > 0 ? latestEvent.recentToolCalls.map(toolCall => `- \`${toolCall}\``).join("\n") : "- _No tool calls captured_";
 
   const templatePath = getPromptPath("tool_denials_exceeded_context.md");
   const template = fs.readFileSync(templatePath, "utf8");
@@ -1302,6 +1358,7 @@ function buildToolDenialsExceededContext(events, workflowId) {
       denial_count: denialCount,
       threshold,
       reason: normalizedReason,
+      recent_tool_calls_list: recentToolCallsList,
       workflow_id: workflowId || "the workflow",
     })
   );
@@ -1663,6 +1720,40 @@ function buildDailyAICExceededContext(hasDailyAICExceeded, totalAIC, threshold) 
       threshold: formattedThreshold || "unknown",
     })
   );
+}
+
+/**
+ * Build the "Optimize token consumption" details section for the failure issue when a guardrail
+ * limit was the root cause of the failure.
+ *
+ * Guardrails that trigger this section:
+ *   - max-ai-credits:       per-run AI Credits budget exceeded
+ *   - max-daily-ai-credits: 24-hour per-workflow AI Credits quota exhausted
+ *   - max-tool-denials:     Copilot SDK tool-denial threshold hit
+ *   - max-turns / timeout:  agent ran out of turns or wall-clock time
+ *
+ * @param {object} options
+ * @param {boolean} options.maxAICreditsExceeded       - max-ai-credits guardrail triggered
+ * @param {boolean} options.hasDailyAICExceeded        - max-daily-ai-credits guardrail triggered
+ * @param {boolean} options.hasToolDenialsExceeded     - max-tool-denials guardrail triggered
+ * @param {boolean} options.isTimedOut                 - timeout / max-turns guardrail triggered
+ * @param {string}  options.runUrl                     - URL to the failed workflow run
+ * @returns {string} Rendered section or empty string when no guardrail was triggered
+ */
+function buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl }) {
+  const guardrailTriggered = maxAICreditsExceeded || hasDailyAICExceeded || hasToolDenialsExceeded || isTimedOut;
+  if (!guardrailTriggered) {
+    return "";
+  }
+
+  let guardrailName = "guardrail limit";
+  if (maxAICreditsExceeded) guardrailName = "max-ai-credits";
+  else if (hasDailyAICExceeded) guardrailName = "max-daily-ai-credits";
+  else if (hasToolDenialsExceeded) guardrailName = "max-tool-denials";
+  else if (isTimedOut) guardrailName = "max-turns / timeout";
+
+  const templatePath = getPromptPath("optimize_token_consumption_context.md");
+  return renderTemplateFromFile(templatePath, { guardrail_name: guardrailName, run_url: runUrl });
 }
 
 // Maps engine ID (GH_AW_ENGINE_ID) to credential name for use with GH_AW_ENGINE_API_HOSTS.
@@ -2778,11 +2869,7 @@ async function main() {
         const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
 
         // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
-        let runId = "";
-        const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
-        if (runIdMatch) {
-          runId = runIdMatch[1];
-        }
+        const runId = extractRunId(runUrl);
 
         // Build assignment errors context
         let assignmentErrorsContext = "";
@@ -3116,6 +3203,9 @@ async function main() {
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
 
+        // Build optimize token consumption context (shown when a guardrail was the failure root cause)
+        const optimizeTokenConsumptionContext = buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl });
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -3151,6 +3241,7 @@ async function main() {
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
           daily_ai_credits_exceeded_context: dailyAICExceededContext,
+          optimize_token_consumption_context: optimizeTokenConsumptionContext,
         };
 
         // Render the issue template
@@ -3234,6 +3325,7 @@ module.exports = {
   buildLockdownCheckFailedContext,
   buildStaleLockFileFailedContext,
   buildDailyAICExceededContext,
+  buildOptimizeTokenConsumptionContext,
   buildTimeoutContext,
   shouldBuildEngineFailureContext,
   isIssueWritePermissionError,

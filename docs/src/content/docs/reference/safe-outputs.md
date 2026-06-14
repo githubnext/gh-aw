@@ -294,7 +294,7 @@ safe-outputs:
   add-comment:
     max: 3                       # max comments (default: 1)
     target: "*"                  # "triggering" (default), "*", or number
-    discussions: false           # exclude discussions:write permission (default: true)
+    discussions: true            # request discussions:write permission (default: false)
     target-repo: "owner/repo"    # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     hide-older-comments: true    # hide previous comments from same workflow
@@ -1218,6 +1218,9 @@ safe-outputs:
 
 - **`workflows`** (required) - List of workflow names (without `.md` extension) that the agent is allowed to dispatch. For same-repo dispatch, each workflow must exist locally and support the `workflow_dispatch` trigger.
 - **`max`** (optional) - Maximum number of workflow dispatches allowed (default: 1, maximum: 50). This prevents excessive workflow triggering.
+- **`target-repo`** (optional) - Target repository in `owner/repo` format for cross-repository dispatch.
+- **`allowed-repos`** (optional) - Allowlist of cross-repository dispatch targets. Required when `target-repo` points to a different repository. Supports repository slugs and wildcards such as `org/*`, or a GitHub Actions expression string (e.g. `"${{ inputs['allowed-repos'] }}"`) for dynamic allowlists.
+- **`target-ref`** (optional) - Git ref to dispatch on. In `workflow_call` relay scenarios, the compiler injects this automatically so the dispatch uses the target repository's branch or tag instead of the caller's `GITHUB_REF`.
 
 #### Validation Rules
 
@@ -1663,7 +1666,7 @@ Most boolean configuration fields also accept expression strings. Fields that in
 
 ### Maximum Patch Size (`max-patch-size:`)
 
-Limits git patch size for PR operations (1-10,240 KB, default: 1024 KB):
+Limits git patch size for PR operations (1-10,240 KB, default: 4096 KB):
 
 ```yaml wrap
 safe-outputs:

@@ -526,7 +526,7 @@ A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to 
 A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxAiCredits` in the compiled lock file. Defaults to `1000` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
-max-ai-credits: 5M
+max-ai-credits: 500
 ```
 
 ### Max Daily AI Credits (`max-daily-ai-credits`)
@@ -833,7 +833,7 @@ A cross-repository event forwarding architecture for side repository workflows. 
 
 ### Cache Memory
 
-Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Cache Memory](/gh-aw/reference/cache-memory/).
+Persistent storage for workflows preserving data between runs using GitHub Actions cache. Cache memory is branch-scoped: runs restore from the current branch and may restore from the default branch (`main` in most repositories). After a non-default branch restores from default, later saves remain branch-local. Configured via `cache-memory:` in the tools section with 7-day retention. See [Cache Memory](/gh-aw/reference/cache-memory/).
 
 ### Comment Memory (`tools.comment-memory`)
 

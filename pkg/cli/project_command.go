@@ -44,10 +44,8 @@ This command allows you to create new projects owned by users or organizations
 and optionally link them to specific repositories.
 
 Available subcommands:
-  - new - Create a new GitHub Project V2 board
-
-Examples:
-  gh aw project new "My Project" --owner @me                      # Create user project
+  - new - Create a new GitHub Project V2 board`,
+		Example: `  gh aw project new "My Project" --owner @me                      # Create user project
   gh aw project new "Team Board" --owner myorg                    # Create org project
   gh aw project new "Bugs" --owner myorg --link myorg/myrepo     # Create and link to repo`,
 	}
@@ -75,10 +73,8 @@ Project Setup:
   Use --with-project-setup to automatically create:
   - Standard views (Progress Board, Task Tracker, Roadmap)
   - Custom fields (Tracker Id, Worker Workflow, Target Repo, Priority, Size, dates)
-  - Enhanced Status field with "Review Required" option
-
-Examples:
-  gh aw project new "My Project" --owner @me                           # Create user project
+  - Enhanced Status field with "Review Required" option`,
+		Example: `  gh aw project new "My Project" --owner @me                           # Create user project
   gh aw project new "Team Board" --owner myorg                         # Create org project  
   gh aw project new "Bugs" --owner myorg --link myorg/myrepo           # Create and link to repo
   gh aw project new "Project Q1" --owner myorg --with-project-setup     # With project setup`,

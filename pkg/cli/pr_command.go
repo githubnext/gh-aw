@@ -49,10 +49,8 @@ to another, including the code changes, title, and body. Useful for
 migrating work from trial repositories to production repositories.
 
 Available subcommands:
-  - transfer - Transfer a pull request to another repository
-
-Examples:
-  gh aw pr transfer https://github.com/trial/repo/pull/234
+  - transfer - Transfer a pull request to another repository`,
+		Example: `  gh aw pr transfer https://github.com/trial/repo/pull/234
   gh aw pr transfer https://github.com/source/repo/pull/123 --repo owner/target
   gh aw pr transfer https://github.com/gh-aw-trial/repo/pull/5 --repo owner/prod-repo`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,15 +76,13 @@ and creates a new pull request in the target repository with the same title and 
 
 The target repository defaults to the current repository unless --repo is specified.
 
-Examples:
-  gh aw pr transfer https://github.com/owner/repo/pull/234
-  gh aw pr transfer https://github.com/owner/repo/pull/234 --repo owner/target-repo
-
 The command will:
 1. Fetch the PR details (title, body, changes)
 2. Apply changes as a single squashed commit
 3. Create a new PR in the target repository
 4. Copy the original title and body`,
+		Example: `  gh aw pr transfer https://github.com/owner/repo/pull/234
+  gh aw pr transfer https://github.com/owner/repo/pull/234 --repo owner/target-repo`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prURL := args[0]

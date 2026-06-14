@@ -55,10 +55,8 @@ domains for that workflow, including domains expanded from ecosystem identifiers
 
 The workflow argument can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
-- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` domains                      # List all workflows with domain counts
+- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` domains                      # List all workflows with domain counts
   ` + string(constants.CLIExtensionPrefix) + ` domains weekly-research       # List domains for weekly-research workflow
   ` + string(constants.CLIExtensionPrefix) + ` domains --json                # Output summary in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` domains weekly-research --json # Output workflow domains in JSON format`,

@@ -178,6 +178,18 @@ jobs:
           key: agentic-workflow-usage-smokeagentallmerged-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-smokeagentallmerged-
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+      - name: Restore daily AIC usage cache (artifact fallback)
+        id: restore-daily-aic-cache-fallback
+        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/restore_aic_usage_cache_fallback.cjs');
+            await main();
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
@@ -187,6 +199,8 @@ jobs:
           GH_AW_WORKFLOW_ID: "smoke-agent-all-merged"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
+          GH_AW_HAS_SLASH_COMMAND: "true"
+          GH_AW_HAS_LABEL_COMMAND: "false"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
         with:
@@ -1161,7 +1175,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
     concurrency:
@@ -1272,6 +1285,16 @@ jobs:
         with:
           key: agentic-workflow-usage-smokeagentallmerged-${{ github.run_id }}
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+      - name: Upload daily AIC usage cache artifact
+        id: upload-daily-aic-cache
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aic-usage-cache
+          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Process no-op messages
         id: noop
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1740,7 +1763,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
     timeout-minutes: 45

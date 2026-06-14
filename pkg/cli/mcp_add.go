@@ -321,18 +321,17 @@ The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
-Examples:
-  gh aw mcp add                                          # List available MCP servers
-  gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion  # Use custom tool ID
-
 The command will:
 - Search the MCP registry for the specified server
 - Check that the server doesn't already exist in the workflow
 - Add the MCP server configuration to the workflow's frontmatter
 - Automatically compile the workflow to generate the .lock.yml file`,
+		Example: `  gh aw mcp add                                          # List available MCP servers
+  gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion  # Use custom tool ID
+`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")

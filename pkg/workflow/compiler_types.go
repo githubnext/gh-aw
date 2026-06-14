@@ -488,7 +488,7 @@ type WorkflowData struct {
 	PreAgentSteps                  string // steps to run immediately before the agent execution step
 	PostSteps                      string // steps to run after AI execution
 	RunsOn                         string
-	RunsOnSlim                     string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
+	RunsOnSlim                     string // rendered runs-on snippet for framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	Environment                    string // environment setting for the main job
 	Container                      string // container setting for the main job
 	Services                       string // services setting for the main job
@@ -699,7 +699,7 @@ type SafeOutputsConfig struct {
 	Staged                          bool                                   `yaml:"staged,omitempty"`                       // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`                          // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`                 // GitHub token for safe output jobs
-	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 1024)
+	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 4096)
 	MaximumPatchFiles               int                                    `yaml:"max-patch-files,omitempty"`              // Maximum allowed unique files per create-pull-request patch (defaults to 100)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`                      // Runner configuration for safe-outputs jobs
 	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                     // Custom message templates for footer and notifications

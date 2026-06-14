@@ -125,6 +125,27 @@ The pre-activation job checks recent runs and cancels the current run if the lim
 
 **Role exemptions**: By default, users with `admin`, `maintain`, or `write` roles are exempt from rate limiting. To apply rate limiting to all users including admins, set `ignored-roles: []`.
 
+## Daily AI Credits Guardrail
+
+The `max-daily-ai-credits` frontmatter field caps the total AI Credits a workflow can consume across all runs in a rolling 24-hour window:
+
+```yaml wrap
+max-daily-ai-credits: 5000  # Block new runs once this workflow
+                            # exceeds 5000 AIC in the last 24 hours
+```
+
+When a run starts and the workflow has already consumed more than the threshold in the last 24 hours, the run fails before the agent executes. The default threshold is **5000 AIC** (approximately $50 USD). Set the value to `-1` to disable the guardrail for a specific workflow.
+
+> [!NOTE]
+> You can raise or lower the default threshold organization-wide by setting the `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` organization variable. The per-workflow `max-daily-ai-credits` field always takes precedence.
+
+**Bypass exceptions**: The daily guardrail is automatically skipped for user-initiated and command-driven runs. This ensures the guardrail never blocks intentional user actions:
+
+- **Manual triggers**: A human-initiated `workflow_dispatch` from the GitHub UI or CLI always bypasses the guardrail.
+- **Slash commands**: Runs triggered by slash commands — whether routed through the centralized dispatcher or compiled directly into the workflow — bypass the guardrail.
+- **Label commands**: Runs triggered by label commands bypass the guardrail in the same way.
+- **Centralized invocations**: `workflow_call` and `repository_dispatch` events always bypass the guardrail; the calling workflow manages its own budget.
+
 ## Example: Multiple Protection Layers
 
 ```yaml wrap

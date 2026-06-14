@@ -339,11 +339,41 @@ jobs:
           }
 
           # Update Defender signatures before scanning.
-          Write-Host "Updating Microsoft Defender signatures..."
-          & $mpCmdRun -SignatureUpdate
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Defender signature update failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
+          $signatureUpdateAttempts = 3
+          $signatureUpdateDelaySeconds = 15
+          $signatureUpdateSucceeded = $false
+          $signatureUpdateExitCode = 1
+          $mpCmdRunLogPaths = @(
+            (Join-Path $env:TEMP "MpCmdRun.log"),
+            (Join-Path $env:LOCALAPPDATA "Temp\MpCmdRun.log")
+          ) | Select-Object -Unique
+          for ($attemptNumber = 1; $attemptNumber -le $signatureUpdateAttempts; $attemptNumber++) {
+            Write-Host "Updating Microsoft Defender signatures (attempt $attemptNumber/$signatureUpdateAttempts)..."
+            & $mpCmdRun -SignatureUpdate
+            $signatureUpdateExitCode = $LASTEXITCODE
+            if ($signatureUpdateExitCode -eq 0) {
+              $signatureUpdateSucceeded = $true
+              break
+            }
+
+            Write-Warning "Defender signature update attempt $attemptNumber failed with exit code $signatureUpdateExitCode"
+            foreach ($mpCmdRunLogPath in $mpCmdRunLogPaths) {
+              if (Test-Path $mpCmdRunLogPath) {
+                Write-Host "=== Tail of $mpCmdRunLogPath after attempt $attemptNumber ==="
+                Get-Content -Path $mpCmdRunLogPath -Tail 200
+              } else {
+                Write-Host "MpCmdRun log file not found at $mpCmdRunLogPath"
+              }
+            }
+
+            if ($attemptNumber -lt $signatureUpdateAttempts) {
+              Write-Host "Retrying Defender signature update in $signatureUpdateDelaySeconds seconds..."
+              Start-Sleep -Seconds $signatureUpdateDelaySeconds
+            }
+          }
+          if (-not $signatureUpdateSucceeded) {
+            Write-Error "Defender signature update failed after $signatureUpdateAttempts attempts (last exit code: $signatureUpdateExitCode)"
+            exit $signatureUpdateExitCode
           }
 
           # Log Defender status, preference, and execution details for diagnostics.

@@ -32,7 +32,7 @@ type RenderCustomMCPToolConfigHandler func(yaml *strings.Builder, toolName strin
 
 // MCPToolRenderers holds engine-specific rendering functions for each MCP tool type
 type MCPToolRenderers struct {
-	RenderGitHub           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData)
+	RenderGitHub           func(yaml *strings.Builder, githubTool map[string]any, isLast bool, workflowData *WorkflowData)
 	RenderPlaywright       func(yaml *strings.Builder, playwrightTool any, isLast bool)
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)

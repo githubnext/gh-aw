@@ -14,7 +14,7 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | Engine | `engine:` value | Required Secret |
 |--------|-----------------|-----------------|
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (recommended) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) |
-| [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) |
+| [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) (standard) or [`engine.auth` Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) (keyless) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
 | [Crush](https://github.com/charmbracelet/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |

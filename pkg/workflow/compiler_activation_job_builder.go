@@ -345,6 +345,24 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		steps = append(steps, fmt.Sprintf("          key: %s${{ github.run_id }}\n", cacheKeyPrefix))
 		steps = append(steps, fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix))
 		steps = append(steps, "          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n")
+		// Artifact-based fallback for cross-branch cache misses.
+		// GitHub Actions actions/cache is branch-scoped: caches written by the conclusion job
+		// on one PR branch are invisible to the activation job running on a different PR branch.
+		// This step downloads the most recent aic-usage-cache artifact uploaded by a prior
+		// conclusion job so that the guardrail script can skip per-run artifact downloads.
+		// The fallback script is a no-op when the cache file already exists.
+		steps = append(steps, "      - name: Restore daily AIC usage cache (artifact fallback)\n")
+		steps = append(steps, "        id: restore-daily-aic-cache-fallback\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+		steps = append(steps, "        continue-on-error: true\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/restore_aic_usage_cache_fallback.cjs');\n")
+		steps = append(steps, "            await main();\n")
 	}
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
@@ -355,6 +373,8 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 	steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	steps = append(steps, "          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n")
+	steps = append(steps, fmt.Sprintf("          GH_AW_HAS_SLASH_COMMAND: %q\n", strconv.FormatBool(len(data.Command) > 0)))
+	steps = append(steps, fmt.Sprintf("          GH_AW_HAS_LABEL_COMMAND: %q\n", strconv.FormatBool(len(data.LabelCommand) > 0)))
 	steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveActivationToken(data)))
 	steps = append(steps, buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyAICredits)...)
 	steps = append(steps, "        with:\n")

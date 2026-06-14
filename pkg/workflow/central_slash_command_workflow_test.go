@@ -299,7 +299,7 @@ func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *
 			Command:            []string{"one"},
 			CommandEvents:      []string{"issue_comment"},
 			CommandCentralized: true,
-			RunsOnSlim:         "ubuntu-latest",
+			RunsOnSlim:         "runs-on: ubuntu-latest",
 		},
 		{
 			WorkflowID:         "two",
@@ -325,6 +325,41 @@ func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	require.Contains(t, string(content), "runs-on: self-hosted")
+}
+
+func TestFormatRunsOnSnippetForInlineValue(t *testing.T) {
+	tests := []struct {
+		name   string
+		runsOn string
+		want   string
+	}{
+		{
+			name:   "plain label",
+			runsOn: "ubuntu-latest",
+			want:   "ubuntu-latest",
+		},
+		{
+			name:   "rendered string snippet",
+			runsOn: "runs-on: self-hosted",
+			want:   "self-hosted",
+		},
+		{
+			name:   "rendered array snippet",
+			runsOn: "runs-on:\n- self-hosted\n- linux",
+			want:   "\n      - self-hosted\n      - linux",
+		},
+		{
+			name:   "rendered object snippet",
+			runsOn: "runs-on:\n  group: runner-group\n  labels:\n  - linux",
+			want:   "\n      group: runner-group\n      labels:\n      - linux",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, formatRunsOnSnippetForInlineValue(tt.runsOn))
+		})
+	}
 }
 
 func TestBuildCommandsHeaderMetadata_UsesReleaseVersionOnlyForReleaseBuilds(t *testing.T) {

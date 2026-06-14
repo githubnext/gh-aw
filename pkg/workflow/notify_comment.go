@@ -738,6 +738,19 @@ func buildDailyAICUsageCacheSteps(data *WorkflowData, pinAction func(string) str
 		"        with:\n",
 		fmt.Sprintf("          key: %s\n", cacheKey),
 		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+		// Upload the cache file as an artifact so the activation job's artifact-based
+		// fallback can retrieve it on a different PR branch where actions/cache is
+		// branch-scoped and would otherwise always miss.
+		"      - name: Upload daily AIC usage cache artifact\n",
+		"        id: upload-daily-aic-cache\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/upload-artifact")),
+		"        with:\n",
+		"          name: aic-usage-cache\n",
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+		"          if-no-files-found: ignore\n",
+		"          retention-days: 7\n",
 	}
 }
 

@@ -191,7 +191,7 @@ Fields that influence permission computation (`add-comment.discussions`, `create
 
 - `timeout-minutes:` - Timeout for the safe-outputs job in minutes (integer, default: `45`)
   - Increase for workflows with many sequential safe-output operations (e.g. `push-to-pull-request-branch` against large repositories)
-- `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
+- `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 4096 KB = 4 MB)
   - Patches exceeding this size are rejected to prevent accidental large changes
 - `max-patch-files:` - Maximum allowed number of unique files in a create-pull-request patch (integer, default: 100)
   - Counts unique file paths deduplicated across multi-commit patches; reflects how many distinct files the agent is pushing per iteration

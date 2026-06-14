@@ -269,6 +269,20 @@ func (g GitHubToolsets) ToStringSlice() []string {
 	return result
 }
 
+// GitHubMCPMode represents the MCP transport/deployment mode for the GitHub tool.
+type GitHubMCPMode string
+
+const (
+	// GitHubMCPModeLocal runs the GitHub MCP server as a Docker container on the runner.
+	GitHubMCPModeLocal GitHubMCPMode = "local"
+	// GitHubMCPModeRemote connects to the hosted GitHub MCP service.
+	GitHubMCPModeRemote GitHubMCPMode = "remote"
+	// GitHubMCPModeGHProxy routes GitHub operations through the gh CLI proxy.
+	GitHubMCPModeGHProxy GitHubMCPMode = "gh-proxy"
+	// GitHubMCPModeCLI is a legacy alias for GitHubMCPModeGHProxy.
+	GitHubMCPModeCLI GitHubMCPMode = "cli"
+)
+
 // GitHubIntegrityLevel represents the minimum integrity level required for repository access
 type GitHubIntegrityLevel string
 
@@ -291,7 +305,7 @@ type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
 	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
-	Mode        string             `yaml:"mode,omitempty"`
+	Mode        GitHubMCPMode      `yaml:"mode,omitempty"`
 	Type        string             `yaml:"type,omitempty"`
 	Version     string             `yaml:"version,omitempty"`
 	Args        []string           `yaml:"args,omitempty"`

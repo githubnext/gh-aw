@@ -54,10 +54,8 @@ The run argument accepts the same formats as the "audit" command:
 
 Artifacts are downloaded to the default logs directory and cached; repeated
 invocations for the same run ID will read from the local cache without
-re-downloading.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` view 1234567890
+re-downloading.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` view 1234567890
   ` + string(constants.CLIExtensionPrefix) + ` view https://github.com/owner/repo/actions/runs/1234567890
   ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 -o ./my-logs

@@ -807,4 +807,133 @@ describe("update_handler_factory.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('"body"'));
     });
   });
+
+  describe("handler control flow", () => {
+    it("should return staged result when config.staged is true", async () => {
+      const mockExecuteUpdate = vi.fn();
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "New title" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ staged: true });
+      const result = await handler({ title: "New title" });
+
+      expect(result.success).toBe(true);
+      expect(result.staged).toBe(true);
+      expect(result.previewInfo).toMatchObject({ number: 42 });
+      // executeUpdate must NOT be called in staged mode
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should return skipped result when buildUpdateData returns skipped:true", async () => {
+      const mockExecuteUpdate = vi.fn();
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({
+          success: true,
+          skipped: true,
+          reason: "No supported fields provided",
+        }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe("No supported fields provided");
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should propagate deferred flag from resolveItemNumber", async () => {
+      const mockExecuteUpdate = vi.fn();
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({
+          success: false,
+          deferred: true,
+          error: "Temporary ID not yet resolved: aw_pending",
+        }),
+        buildUpdateData: vi.fn(),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn(),
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ issue_number: "aw_pending" });
+
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
+      expect(result.error).toContain("aw_pending");
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should call itemFilter and skip update when filter returns a result", async () => {
+      const mockExecuteUpdate = vi.fn();
+      const mockItemFilter = vi.fn().mockResolvedValue({
+        success: false,
+        skipped: true,
+        error: "Required label not present",
+      });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+        itemFilter: mockItemFilter,
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ title: "Test" });
+
+      expect(mockItemFilter).toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toBe("Required label not present");
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should call itemFilter and proceed when filter returns null", async () => {
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com", title: "Updated" });
+      const mockItemFilter = vi.fn().mockResolvedValue(null);
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+        itemFilter: mockItemFilter,
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ title: "Test" });
+
+      expect(mockItemFilter).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(mockExecuteUpdate).toHaveBeenCalled();
+    });
+  });
 });

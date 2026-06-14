@@ -1075,6 +1075,16 @@ func TestFrontmatterConfigIntegration(t *testing.T) {
 		assert.Equal(t, true, networkMap["allowed-input"], "allowed-input should be preserved")
 		assert.Equal(t, []string{"defaults"}, networkMap["allowed"], "allowed list should be preserved")
 	})
+
+	t.Run("ToMap omits empty runs-on-slim", func(t *testing.T) {
+		config := &FrontmatterConfig{
+			RunsOnSlim: "",
+		}
+
+		reconstructed := config.ToMap()
+		_, ok := reconstructed["runs-on-slim"]
+		assert.False(t, ok, "empty runs-on-slim should be omitted")
+	})
 }
 
 // TestRuntimesConfigTyping tests the new typed RuntimesConfig field

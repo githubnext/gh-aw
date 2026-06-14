@@ -8,7 +8,7 @@ description: Shared architectural and security constraints for designing or upda
 
 Agentic workflows run as a **single GitHub Actions job** with one agent execution.
 
-## What They Can Do
+## Can Do
 
 - read GitHub data, APIs, web pages, and local repository files
 - run tools inside the single job
@@ -16,7 +16,7 @@ Agentic workflows run as a **single GitHub Actions job** with one agent executio
 - create GitHub resources through `safe-outputs:`
 - persist lightweight state with `cache-memory` or other approved mechanisms
 
-## What They Cannot Do
+## Cannot Do
 
 - pause and resume for external events
 - orchestrate multi-stage pipelines with job dependencies
@@ -24,19 +24,17 @@ Agentic workflows run as a **single GitHub Actions job** with one agent executio
 - implement built-in rollback across external systems
 - wait for another workflow or deployment to finish inside the same agent run
 
-## When to Recommend Traditional GitHub Actions Instead
-
-Use traditional Actions when the request needs:
+## Recommend Traditional GitHub Actions When
 
 - multi-stage deployment pipelines
-- fan-out or fan-in job orchestration
+- fan-out/fan-in job orchestration
 - long waits for approvals or external systems
 - rollback logic across several steps or systems
 - cross-job state transfer
 
-Suggested response pattern:
+Suggested response:
 
-> This requires capabilities that agentic workflows do not support in their single-job model. Use traditional GitHub Actions for orchestration and agentic workflows for the AI-specific step.
+> This requires capabilities the single-job agentic model does not support. Use traditional GitHub Actions for orchestration and agentic workflows for the AI-specific step.
 
 ## Security Posture
 
@@ -52,7 +50,7 @@ Suggested response pattern:
 
 When a requested feature increases risk:
 
-1. explain the risk clearly
+1. explain the risk
 2. propose the safer pattern first
 3. require explicit confirmation before relaxing safeguards
 
@@ -69,7 +67,7 @@ When a requested feature increases risk:
 
 When a workflow targets a self-hosted runner (any `runs-on` value other than GitHub-hosted labels such as `ubuntu-latest`, `ubuntu-slim`, `windows-latest`, or `macos-latest`), keep the generated workflow compatible with self-hosted constraints:
 
-- Set `runs-on` explicitly (it is not inherited from imports) to the runner the user's setup provides; `runs-on` accepts a string, array, or runner-group object. Framework/generated jobs (activation, safe-outputs, unlock, etc.) default to the hosted `ubuntu-slim`, so also set `runs-on-slim` to route them to the self-hosted runner, otherwise they try to run on a hosted runner. `runs-on-slim` takes a single string label, so give it a self-hosted label the runner answers to (it cannot mirror an array or object value).
+- Set `runs-on` explicitly (it is not inherited from imports) to the runner the user's setup provides; `runs-on` accepts a string, array, or runner-group object. Framework/generated jobs (activation, safe-outputs, unlock, etc.) default to the hosted `ubuntu-slim`, so also set `runs-on-slim` to route them to the self-hosted runner, otherwise they try to run on a hosted runner. `runs-on-slim` accepts the same string, array, or runner-group object forms as `runs-on`.
 - Write transient state, tool downloads, and intermediate outputs under `$RUNNER_TEMP`, not `/tmp`, which can persist across jobs on shared runners.
 - The agent job's own steps run as the runner user, not root — don't write steps that assume root (for example, installing to system-wide paths). Separately, the egress firewall needs host-level privileges (sudo) on the runner; if the host cannot provide that, the firewall can be disabled, which removes egress filtering. Surface that trade-off to the user rather than encoding it in the workflow.
 - Declare every outbound domain the workflow contacts in `network.allowed` (keep `defaults` for the core GitHub/Copilot/registry endpoints). When the egress firewall is enabled (the default once network permissions are set), any domain that is not allow-listed is blocked.
@@ -81,4 +79,4 @@ For the full set of requirements (Docker socket, ARC / Docker-in-Docker, network
 
 ## Shared Reminder
 
-Reference this file from creator, updater, and debugger prompts instead of repeating the same architectural explanation.
+Reference this file from creator, updater, and debugger prompts instead of repeating the architectural explanation.

@@ -54,7 +54,7 @@ safe-outputs:
       - "**/*.lock"
       - "dist/**"
     max-patch-files: 300          # max unique files in the patch (default: 100)
-    max-patch-size: 2048          # max patch size in KB (default: 1024)
+    max-patch-size: 2048          # max patch size in KB (default: 4096)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     signed-commits: true          # signed commits via GraphQL API (default: true); set false to use git push directly
@@ -75,7 +75,7 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 
 ### Patch limits
 
-`excluded-files` strips matching files from the patch before the commit is created — they are also exempt from `allowed-files` and `protected-files` checks. `max-patch-files` (default `100`) and `max-patch-size` (default `1024 KB`) guard against unexpectedly large commits; raise them when the workflow intentionally produces many or large generated files.
+`excluded-files` strips matching files from the patch before the commit is created — they are also exempt from `allowed-files` and `protected-files` checks. `max-patch-files` (default `100`) and `max-patch-size` (default `4096 KB`) guard against unexpectedly large commits; raise them when the workflow intentionally produces many or large generated files.
 
 ### Other notes
 

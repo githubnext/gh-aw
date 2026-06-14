@@ -72,17 +72,22 @@ steps:
       import json
       import os
       import subprocess
-      from datetime import datetime, timezone
+      from datetime import datetime, timedelta, timezone
+      from pathlib import Path
+      from urllib.parse import urlencode
       
       REPO = os.environ["GITHUB_REPOSITORY"]
       OUT = "/tmp/gh-aw/agent/failure-investigator/prefetch.json"
       TRACKER_ID = "aw-failure-investigator"
-      LOOKBACK = "-6h"
-      MAX_FAILED_RUNS = 20
-      # 6-hour windows rarely exceed this while still covering bursts.
-      MAX_RUNS_TO_FETCH = 75
+      LOOKBACK_HOURS = 6
+      FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure", "cancelled"}
+      MAX_DISCOVERY_PAGES = 20
       # Most dominant signatures appear in the final 30-60 lines.
       MAX_LOG_TAIL_LINES = 80
+      AGENTIC_WORKFLOW_PATHS = {
+          f".github/workflows/{path.name}"
+          for path in Path(".github/workflows").glob("*.lock.yml")
+      }
       
       def cmd_display(args):
           return " ".join(args)
@@ -113,24 +118,76 @@ steps:
               print(f"Warning: could not execute command: {cmd_display(args)} ({error})")
               return ""
       
-      logs = run_json(["gh", "aw", "logs", "--start-date", LOOKBACK, "--json", "-c", str(MAX_RUNS_TO_FETCH)]) or {"runs": []}
-      failed_runs = []
-      for run in logs.get("runs", []):
-          if (run.get("conclusion") or "").lower() != "failure":
-              continue
-          failed_runs.append(
-              {
-                  "run_id": run.get("run_id"),
-                  "workflow_name": run.get("workflow_name"),
-                  "workflow_path": run.get("workflow_path"),
-                  "created_at": run.get("created_at"),
-                  "status": run.get("status"),
-                  "conclusion": run.get("conclusion"),
-                  "url": run.get("url"),
-              }
-          )
-          if len(failed_runs) >= MAX_FAILED_RUNS:
-              break
+      def run_api_json(endpoint, params):
+          query = urlencode(params)
+          return run_json(["gh", "api", f"{endpoint}?{query}"])
+      
+      def is_failure_conclusion(conclusion):
+          return (conclusion or "").lower() in FAILURE_CONCLUSIONS
+      
+      def normalize_workflow_path(path):
+          return (path or "").split("@", 1)[0]
+      
+      def is_agentic_workflow_path(path):
+          workflow_path = normalize_workflow_path(path)
+          if AGENTIC_WORKFLOW_PATHS:
+              return workflow_path in AGENTIC_WORKFLOW_PATHS
+          print("Warning: no local .lock.yml workflows found; falling back to workflow path suffix matching")
+          return workflow_path.endswith(".lock.yml")
+      
+      def isoformat_z(dt):
+          return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+      
+      def list_failed_agentic_runs():
+          created_since = isoformat_z(datetime.now(timezone.utc) - timedelta(hours=LOOKBACK_HOURS))
+          page = 1
+          failed_runs = []
+      
+          while True:
+              response = run_api_json(
+                  f"repos/{REPO}/actions/runs",
+                  {
+                      "exclude_pull_requests": "true",
+                      "status": "completed",
+                      "created": f">={created_since}",
+                      "per_page": "100",
+                      "page": str(page),
+                  },
+              ) or {}
+              workflow_runs = response.get("workflow_runs") or []
+              if not workflow_runs:
+                  break
+      
+              for run in workflow_runs:
+                  workflow_path = normalize_workflow_path(run.get("path"))
+                  if not is_agentic_workflow_path(workflow_path):
+                      continue
+                  if not is_failure_conclusion(run.get("conclusion")):
+                      continue
+      
+                  failed_runs.append(
+                      {
+                          "run_id": run.get("id"),
+                          "workflow_name": run.get("name"),
+                          "workflow_path": workflow_path,
+                          "created_at": run.get("created_at"),
+                          "status": run.get("status"),
+                          "conclusion": run.get("conclusion"),
+                          "url": run.get("html_url"),
+                      }
+                  )
+      
+              if len(workflow_runs) < 100:
+                  break
+              if page >= MAX_DISCOVERY_PAGES:
+                  print(f"Warning: reached pagination cap ({MAX_DISCOVERY_PAGES} pages) while listing workflow runs")
+                  break
+              page += 1
+      
+          failed_runs.sort(key=lambda run: run.get("created_at") or "", reverse=True)
+          return failed_runs
+      
+      failed_runs = list_failed_agentic_runs()
       
       failure_details = []
       for run in failed_runs:
@@ -153,16 +210,25 @@ steps:
           if not run_view:
               continue
       
+          failed_job_names = []
           failed_steps = []
           truncated_error_logs = []
+          agent_job_conclusion = None
           for job in run_view.get("jobs", []):
-              if (job.get("conclusion") or "").lower() == "failure":
+              job_name = job.get("name")
+              job_conclusion = (job.get("conclusion") or "").lower()
+              if (job_name or "").lower() == "agent":
+                  agent_job_conclusion = job_conclusion or None
+      
+              if is_failure_conclusion(job_conclusion):
+                  if job_name:
+                      failed_job_names.append(job_name)
                   for step in job.get("steps", []):
-                      if (step.get("conclusion") or "").lower() == "failure":
+                      if is_failure_conclusion(step.get("conclusion")):
                           failed_steps.append(
                               {
                                   "job_id": job.get("databaseId"),
-                                  "job_name": job.get("name"),
+                                  "job_name": job_name,
                                   "step_name": step.get("name"),
                               }
                           )
@@ -187,7 +253,7 @@ steps:
                           truncated_error_logs.append(
                               {
                                   "job_id": job_id,
-                                  "job_name": job.get("name"),
+                                  "job_name": job_name,
                                   "line_count": len(tail_lines),
                                   "tail_lines": "\n".join(tail_lines),
                               }
@@ -197,10 +263,13 @@ steps:
               {
                   "run_id": run_id,
                   "workflow_name": run_view.get("workflowName") or run_view.get("name"),
+                  "workflow_path": run.get("workflow_path"),
                   "url": run_view.get("url"),
                   "created_at": run_view.get("createdAt"),
                   "status": run_view.get("status"),
                   "conclusion": run_view.get("conclusion"),
+                  "failed_job_names": sorted(set(failed_job_names)),
+                  "agent_job_conclusion": agent_job_conclusion,
                   "failed_steps": failed_steps,
                   "truncated_error_logs": truncated_error_logs,
               }
@@ -227,7 +296,7 @@ steps:
       payload = {
           "generated_at": datetime.now(timezone.utc).isoformat(),
           "repository": REPO,
-          "lookback_window": "6h",
+          "lookback_window": f"{LOOKBACK_HOURS}h",
           "failed_run_ids": [run.get("run_id") for run in failed_runs if run.get("run_id")],
           "failures": failure_details,
           "existing_tracking_issues": existing_tracking_issues,

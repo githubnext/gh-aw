@@ -7,6 +7,7 @@ on:
 timeout-minutes: 45
 
 permissions: read-all
+if: github.event.pull_request.user.login == 'dependabot[bot]'
 
 imports:
   - shared/otlp.md
@@ -31,17 +32,14 @@ safe-outputs:
     max: 1
   noop:
     max: 1
-source: githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@ff91842c074b23270d3a0e26a7206a251232a374
-
+source: githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@7ddda653c8dd0b5217e197b350e0a4d00244b816
 ---
 
 # Dependabot Local Repair
 
 ## Scope
 
-Only act on PRs authored by `dependabot[bot]`.
-
-If not, use `noop`.
+This workflow runs only for PRs authored by `dependabot[bot]`.
 
 ## Mission
 
@@ -81,11 +79,11 @@ Title:
 
 ## Comment
 
-### Dependabot Repair Review
+### Dependabot Review
 
-Action: repaired | safe-out | no-op  
-Checks reviewed: yes | no  
+Action: repaired | safe-out | no-op
+Checks reviewed: yes | no
 Repair PR: <link>
 
-Summary: <explanation>  
+Summary: <explanation>
 Next Step: <action>

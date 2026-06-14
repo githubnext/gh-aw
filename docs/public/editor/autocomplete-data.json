@@ -484,9 +484,21 @@
       "array": true
     },
     "runs-on-slim": {
-      "type": "string",
+      "type": "string|array|object",
       "desc": "Runner for all framework/generated jobs (activation, pre-activation, safe-outputs, unlock, APM, etc.).",
-      "leaf": true
+      "children": {
+        "group": {
+          "type": "string",
+          "desc": "Runner group name for self-hosted runners or GitHub-hosted runner groups",
+          "leaf": true
+        },
+        "labels": {
+          "type": "array",
+          "desc": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
+          "array": true
+        }
+      },
+      "array": true
     },
     "timeout-minutes": {
       "type": "integer|string",

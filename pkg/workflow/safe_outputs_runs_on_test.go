@@ -259,6 +259,34 @@ This is a test workflow.`,
 			checkJobPatterns: []string{"\n  activation:", "\n  safe_outputs:"},
 		},
 		{
+			name: "runs-on-slim supports array labels",
+			frontmatter: `---
+on: push
+runs-on-slim: [self-hosted, ubuntu2404, x64, host]
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn:   "runs-on:\n    - self-hosted\n    - ubuntu2404\n    - x64\n    - host",
+			checkJobPatterns: []string{"\n  activation:"},
+		},
+		{
+			name: "runs-on-slim supports group and labels object",
+			frontmatter: `---
+on: push
+runs-on-slim:
+  group: runner-group
+  labels: [ubuntu2404, x64]
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn:   "runs-on:\n      group: runner-group\n      labels:\n      - ubuntu2404\n      - x64",
+			checkJobPatterns: []string{"\n  activation:"},
+		},
+		{
 			name: "default used when neither runs-on-slim nor safe-outputs.runs-on is set",
 			frontmatter: `---
 on: push
@@ -330,14 +358,14 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 		{
 			name: "runs-on-slim used when safe-outputs.runs-on is empty",
 			data: &WorkflowData{
-				RunsOnSlim: "self-hosted",
+				RunsOnSlim: "runs-on: self-hosted",
 			},
 			expectedRunsOn: "runs-on: self-hosted",
 		},
 		{
 			name: "safe-outputs.runs-on takes precedence over runs-on-slim",
 			data: &WorkflowData{
-				RunsOnSlim:  "ubuntu-22.04",
+				RunsOnSlim:  "runs-on: ubuntu-22.04",
 				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
 			},
 			expectedRunsOn: "runs-on: self-hosted",
@@ -356,6 +384,13 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+		{
+			name: "runs-on-slim array snippet indents continuation lines by 4 spaces",
+			data: &WorkflowData{
+				RunsOnSlim: "runs-on:\n- self-hosted\n- ubuntu2404",
+			},
+			expectedRunsOn: "runs-on:\n    - self-hosted\n    - ubuntu2404",
 		},
 	}
 

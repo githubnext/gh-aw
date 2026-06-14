@@ -107,6 +107,30 @@ func validateRunsOnValue(value any) error {
 	}
 }
 
+func isEmptyRunsOnValue(value any) bool {
+	switch v := value.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(v) == ""
+	case []any:
+		return len(v) == 0
+	case map[string]any:
+		if len(v) == 0 {
+			return true
+		}
+
+		group, hasGroup := v["group"].(string)
+		labels, hasLabels := v["labels"].([]any)
+		if !hasGroup && !hasLabels {
+			return false
+		}
+		return strings.TrimSpace(group) == "" && len(labels) == 0
+	default:
+		return false
+	}
+}
+
 // extractRunnerLabels extracts individual runner label strings from a runs-on value.
 // Handles all supported GitHub Actions runs-on forms:
 //   - string: "ubuntu-latest"

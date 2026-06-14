@@ -14,9 +14,9 @@ import (
 
 // RenderGitHubMCP generates the GitHub MCP server configuration
 // Supports both local (Docker) and remote (hosted) modes
-func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
+func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool map[string]any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
+	readOnly := getGitHubReadOnly()
 
 	// Get explicit lockdown value (only used when lockdown is explicitly configured)
 	lockdown := getGitHubLockdown(githubTool)
@@ -30,13 +30,11 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// the GitHub MCP server protocol does not expose that information. Warn if the
 	// user configured reactions with the gateway path.
 	if isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, workflowData) {
-		if toolConfig, ok := githubTool.(map[string]any); ok {
-			if hasReactionFieldsInToolConfig(toolConfig) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-					"integrity-reactions: endorsement/disapproval reactions are ignored in MCP gateway mode because "+
-						"reaction authors cannot be identified from the GitHub MCP server. Reactions are only enforced "+
-						"in proxy mode (DIFC proxy / CLI proxy)."))
-			}
+		if hasReactionFieldsInToolConfig(githubTool) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				"integrity-reactions: endorsement/disapproval reactions are ignored in MCP gateway mode because "+
+					"reaction authors cannot be identified from the GitHub MCP server. Reactions are only enforced "+
+					"in proxy mode (DIFC proxy / CLI proxy)."))
 		}
 	}
 	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0 && !hasGitHubApp(githubTool)
@@ -55,7 +53,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	yaml.WriteString("              \"github\": {\n")
 
 	// Check if remote mode is enabled (type: remote)
-	if githubType == "remote" {
+	if githubType == GitHubMCPModeRemote {
 		mcpRendererLog.Printf("GitHub MCP remote mode selected: copilot_fields=%t", r.options.IncludeCopilotFields)
 		// Determine authorization value based on engine requirements
 		// Copilot uses MCP passthrough syntax: "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"
@@ -107,9 +105,9 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 }
 
 // renderGitHubTOML generates GitHub MCP configuration in TOML format (for Codex engine)
-func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
+func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool map[string]any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
+	readOnly := getGitHubReadOnly()
 	lockdown := getGitHubLockdown(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 
@@ -152,7 +150,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 	fmt.Fprintf(yaml, "          tool_timeout_sec = %d\n", toolTimeout)
 
 	// Check if remote mode is enabled
-	if githubType == "remote" {
+	if githubType == GitHubMCPModeRemote {
 		mcpRendererLog.Printf("GitHub MCP TOML remote mode: readonly_endpoint=%t", readOnly)
 		// Remote mode - use hosted GitHub MCP server with streamable HTTP
 		// Use readonly endpoint if read-only mode is enabled

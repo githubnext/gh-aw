@@ -172,6 +172,18 @@ jobs:
           key: agentic-workflow-usage-developerdocsconsolidator-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-developerdocsconsolidator-
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+      - name: Restore daily AIC usage cache (artifact fallback)
+        id: restore-daily-aic-cache-fallback
+        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/restore_aic_usage_cache_fallback.cjs');
+            await main();
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
@@ -181,6 +193,8 @@ jobs:
           GH_AW_WORKFLOW_ID: "developer-docs-consolidator"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
+          GH_AW_HAS_SLASH_COMMAND: "false"
+          GH_AW_HAS_LABEL_COMMAND: "false"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
         with:
@@ -246,25 +260,25 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_018e9300a8c72fae_EOF'
+          cat << 'GH_AW_PROMPT_19d69eedac17a876_EOF'
           <system>
-          GH_AW_PROMPT_018e9300a8c72fae_EOF
+          GH_AW_PROMPT_19d69eedac17a876_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_018e9300a8c72fae_EOF'
+          cat << 'GH_AW_PROMPT_19d69eedac17a876_EOF'
           <safe-output-tools>
           Tools: create_discussion, create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_018e9300a8c72fae_EOF
+          GH_AW_PROMPT_19d69eedac17a876_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_018e9300a8c72fae_EOF'
+          cat << 'GH_AW_PROMPT_19d69eedac17a876_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_018e9300a8c72fae_EOF
+          GH_AW_PROMPT_19d69eedac17a876_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_018e9300a8c72fae_EOF'
+          cat << 'GH_AW_PROMPT_19d69eedac17a876_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -293,45 +307,19 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_018e9300a8c72fae_EOF
+          GH_AW_PROMPT_19d69eedac17a876_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_018e9300a8c72fae_EOF'
+          cat << 'GH_AW_PROMPT_19d69eedac17a876_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           ## Serena Code Analysis
           
-          The Serena MCP server is configured for **["go"]** analysis in this workspace:
-          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
-          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
-          
-          ### Project Activation
-          
-          Before analyzing code, activate the Serena project:
-          ```
-          Tool: activate_project
-          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
-          ```
-          
-          ### Available Capabilities
-          
-          Serena provides IDE-grade Language Server Protocol (LSP) tools including:
-          - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
-          - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
-          - **Type info**: `get_symbol_documentation` — hover-level type and doc information
-          - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
-          - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
-          
-          ### Analysis Guidelines
-          
-          1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
-          2. **Activate project first** — always call `activate_project` before other tools
-          3. **Cross-reference findings** — validate with multiple tools for accuracy
-          4. **Focus on the relevant language files** — ignore unrelated file types
+          Serena is enabled for **["go"]** in `__GH_AW_GITHUB_WORKSPACE__`. Start by calling `activate_project` with that workspace path, then prefer Serena semantic tools for symbol lookup, references, docs, diagnostics, and structured edits.
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/developer-docs-consolidator.md}}
-          GH_AW_PROMPT_018e9300a8c72fae_EOF
+          GH_AW_PROMPT_19d69eedac17a876_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -606,9 +594,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_5cc77d64d5daa2cf_EOF'
-          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[developer-docs] "},"create_pull_request":{"draft":false,"expires":48,"labels":["documentation","automation"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","CLAUDE.md","AGENTS.md"],"protected_files_policy":"request_review","title_prefix":"[docs] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_5cc77d64d5daa2cf_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_5d049beac73d7d33_EOF'
+          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[developer-docs] "},"create_pull_request":{"draft":false,"expires":48,"labels":["documentation","automation"],"max":1,"max_patch_files":100,"max_patch_size":4096,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","CLAUDE.md","AGENTS.md"],"protected_files_policy":"request_review","title_prefix":"[docs] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{}}
+          GH_AW_SAFE_OUTPUTS_CONFIG_5d049beac73d7d33_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1445,6 +1433,16 @@ jobs:
         with:
           key: agentic-workflow-usage-developerdocsconsolidator-${{ github.run_id }}
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+      - name: Upload daily AIC usage cache artifact
+        id: upload-daily-aic-cache
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aic-usage-cache
+          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Process no-op messages
         id: noop
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -2072,7 +2070,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.grafana.net,*.sentry.io,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[developer-docs] \"},\"create_pull_request\":{\"draft\":false,\"expires\":48,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":1024,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request_review\",\"title_prefix\":\"[docs] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[developer-docs] \"},\"create_pull_request\":{\"draft\":false,\"expires\":48,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request_review\",\"title_prefix\":\"[docs] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

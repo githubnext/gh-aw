@@ -212,12 +212,68 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     await expect(client.uploadArtifact("art", ["/a", "/b"], tmpDir, { skipArchive: true })).rejects.toThrow("single file");
   });
 
+  it("sends camelCase field names and mimeType as a plain string in CreateArtifact request", async () => {
+    const filePath = path.join(tmpDir, "test.bin");
+    fs.writeFileSync(filePath, "test content");
+
+    /** @type {Record<string, any>|null} */
+    let capturedCreateBody = null;
+    /** @type {Record<string, any>|null} */
+    let capturedFinalizeBody = null;
+
+    const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
+      const u = String(url);
+      if (u.includes("CreateArtifact")) {
+        capturedCreateBody = JSON.parse(opts?.body || "{}");
+        return makeFetchResponse(200, { ok: true, signedUploadUrl: "https://storage.example.com/upload" });
+      }
+      if (u.includes("FinalizeArtifact")) {
+        capturedFinalizeBody = JSON.parse(opts?.body || "{}");
+        return makeFetchResponse(200, { ok: true, artifactId: "42" });
+      }
+      return makeFetchResponse(200, "");
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    vi.stubEnv("ACTIONS_RUNTIME_TOKEN", buildFakeToken("runId:jobId"));
+    vi.stubEnv("ACTIONS_RESULTS_URL", "https://results.example.com");
+
+    const client = new DefaultArtifactClient();
+    await client.uploadArtifact("my-artifact", [filePath], tmpDir, { skipArchive: true, retentionDays: 30 });
+
+    // CreateArtifact request must use camelCase field names
+    expect(capturedCreateBody).not.toBeNull();
+    expect(capturedCreateBody).toHaveProperty("workflowRunBackendId");
+    expect(capturedCreateBody).toHaveProperty("workflowJobRunBackendId");
+    expect(capturedCreateBody).not.toHaveProperty("workflow_run_backend_id");
+    expect(capturedCreateBody).not.toHaveProperty("workflow_job_run_backend_id");
+
+    // mimeType must be a plain string, not a wrapped object
+    expect(typeof capturedCreateBody?.mimeType).toBe("string");
+    expect(capturedCreateBody?.mimeType).toBe("application/octet-stream");
+    expect(capturedCreateBody).not.toHaveProperty("mime_type");
+
+    // expiresAt must use camelCase
+    expect(capturedCreateBody).toHaveProperty("expiresAt");
+    expect(capturedCreateBody).not.toHaveProperty("expires_at");
+
+    // FinalizeArtifact request must use camelCase field names
+    expect(capturedFinalizeBody).not.toBeNull();
+    expect(capturedFinalizeBody).toHaveProperty("workflowRunBackendId");
+    expect(capturedFinalizeBody).toHaveProperty("workflowJobRunBackendId");
+    expect(capturedFinalizeBody).not.toHaveProperty("workflow_run_backend_id");
+
+    // hash must be a plain string (not a wrapped object)
+    expect(typeof capturedFinalizeBody?.hash).toBe("string");
+    expect(capturedFinalizeBody?.hash).toMatch(/^sha256:/);
+  });
+
   it("preserves caller-provided artifact name when skipArchive is true", async () => {
     const filePath = path.join(tmpDir, "output.bin");
     fs.writeFileSync(filePath, "hello artifact");
 
-    const createResp = { ok: true, signed_upload_url: "https://storage.example.com/upload" };
-    const finalizeResp = { ok: true, artifact_id: "99" };
+    const createResp = { ok: true, signedUploadUrl: "https://storage.example.com/upload" };
+    const finalizeResp = { ok: true, artifactId: "99" };
 
     let uploadedArtifactName;
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
@@ -252,10 +308,10 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
       if (String(url).includes("CreateArtifact")) {
         capturedName = JSON.parse(opts?.body || "{}").name;
-        return makeFetchResponse(200, { ok: true, signed_upload_url: "https://example.com/upload" });
+        return makeFetchResponse(200, { ok: true, signedUploadUrl: "https://example.com/upload" });
       }
       if (String(url).includes("FinalizeArtifact")) {
-        return makeFetchResponse(200, { ok: true, artifact_id: "1" });
+        return makeFetchResponse(200, { ok: true, artifactId: "1" });
       }
       return makeFetchResponse(200, "");
     });
@@ -292,10 +348,10 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
       if (String(url).includes("CreateArtifact")) {
         capturedName = JSON.parse(opts?.body || "{}").name;
-        return makeFetchResponse(200, { ok: true, signed_upload_url: "https://example.com/upload" });
+        return makeFetchResponse(200, { ok: true, signedUploadUrl: "https://example.com/upload" });
       }
       if (String(url).includes("FinalizeArtifact")) {
-        return makeFetchResponse(200, { ok: true, artifact_id: "1" });
+        return makeFetchResponse(200, { ok: true, artifactId: "1" });
       }
       return makeFetchResponse(200, "");
     });

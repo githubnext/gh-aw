@@ -13,6 +13,8 @@ const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_r
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Cache entries older than this threshold (in ms) are skipped when loading. */
+const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
@@ -64,6 +66,20 @@ function logDailyGuardrail(message, details) {
  * typing a slash command in a comment, and the daily guardrail should not be skipped.
  */
 const SLASH_COMMAND_EVENT_TYPES = ["issue_comment", "pull_request_review_comment", "discussion_comment"];
+const SLASH_COMMAND_TRIGGERING_EVENTS = ["issues", "issue_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"];
+const LABEL_COMMAND_TRIGGERING_EVENTS = ["issues", "pull_request", "discussion"];
+
+/**
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function envFlagEnabled(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
 
 /**
  * @returns {boolean}
@@ -72,29 +88,48 @@ function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const isWorkflowCall = eventName === "workflow_call";
   const isRepositoryDispatch = eventName === "repository_dispatch";
+  const hasSlashCommand = envFlagEnabled(process.env.GH_AW_HAS_SLASH_COMMAND);
+  const hasLabelCommand = envFlagEnabled(process.env.GH_AW_HAS_LABEL_COMMAND);
   const rawContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim();
   const hasDispatchContext = rawContext !== "";
-  if (!(isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext))) {
-    return false;
+  if (isWorkflowCall || isRepositoryDispatch) {
+    return true;
   }
-  if (eventName === "workflow_dispatch" && hasDispatchContext) {
+  if (eventName === "workflow_dispatch") {
+    // Manual user-triggered runs intentionally bypass the daily guardrail.
+    if (!hasDispatchContext) {
+      return true;
+    }
+    // Dispatch-routed slash/label commands intentionally bypass the daily guardrail.
     try {
       const awContext = JSON.parse(rawContext);
       const isLabelCommand = typeof awContext.trigger_label === "string" && awContext.trigger_label.trim() !== "";
       const isSlashCommand = SLASH_COMMAND_EVENT_TYPES.includes(awContext.event_type);
       if (isLabelCommand || isSlashCommand) {
-        return false;
+        return true;
       }
     } catch {
-      // Malformed aw_context: fall through and skip as before.
+      // Malformed aw_context: skip guardrail as a safe fallback for manual dispatch.
     }
+    // Existing behavior: dispatch-routed runs with aw_context bypass the guardrail.
+    return true;
   }
-  return true;
+  if (hasSlashCommand && SLASH_COMMAND_TRIGGERING_EVENTS.includes(eventName)) {
+    return true;
+  }
+  if (hasLabelCommand && LABEL_COMMAND_TRIGGERING_EVENTS.includes(eventName)) {
+    return true;
+  }
+  return false;
 }
 
 /**
  * Loads the per-workflow usage cache from the JSONL file restored by the activation job's
- * cache-restore step.  Each line is a JSON object `{ run_id: number, aic: number }`.
+ * cache-restore step.  Each line is a JSON object `{ run_id: number, aic: number, timestamp?: string }`.
+ *
+ * Entries with a `timestamp` older than {@link CACHE_RETENTION_MS} (48 h) are skipped so that
+ * stale data cannot inflate the daily-AIC total.  Entries without a `timestamp` (written by an
+ * older version of the write script) are kept for backward compatibility.
  *
  * Returns a `Map<runId, aic>` so that callers can check whether a prior run's AIC is already
  * known without downloading the run's artifact from the GitHub API.
@@ -112,7 +147,10 @@ function loadAICUsageCache(filePath) {
       return cache;
     }
     const content = fs.readFileSync(cachePath, "utf8");
+    const now = Date.now();
+    const cutoff = now - CACHE_RETENTION_MS;
     let loaded = 0;
+    let skippedStale = 0;
     for (const rawLine of content.split("\n")) {
       const line = rawLine.trim();
       if (!line || !line.startsWith("{")) {
@@ -120,9 +158,18 @@ function loadAICUsageCache(filePath) {
       }
       try {
         const entry = JSON.parse(line);
+        // Skip entries that have a timestamp and are older than the retention window.
+        if (typeof entry?.timestamp === "string") {
+          const ts = Date.parse(entry.timestamp);
+          if (Number.isFinite(ts) && ts < cutoff) {
+            skippedStale++;
+            continue;
+          }
+        }
         const runId = Number(entry?.run_id);
-        const aic = Number(entry?.aic);
-        if (Number.isFinite(runId) && runId > 0 && Number.isFinite(aic) && aic > 0) {
+        const rawAic = entry?.aic;
+        const aic = typeof rawAic === "number" ? rawAic : NaN;
+        if (Number.isFinite(runId) && runId > 0 && Number.isFinite(aic) && aic >= 0) {
           cache.set(runId, aic);
           loaded++;
         }
@@ -130,7 +177,7 @@ function loadAICUsageCache(filePath) {
         // Ignore malformed lines.
       }
     }
-    logDailyGuardrail("Loaded usage cache", { path: cachePath, entriesLoaded: loaded });
+    logDailyGuardrail("Loaded usage cache", { path: cachePath, entriesLoaded: loaded, skippedStale });
   } catch (err) {
     logDailyGuardrail("Failed to load usage cache; proceeding without it", {
       path: cachePath,
@@ -373,7 +420,7 @@ async function main() {
     return;
   }
   if (shouldSkipDailyAICGuardrail()) {
-    core.info("Skipping daily workflow AI Credits guardrail for workflow_call, repository_dispatch, or workflow_dispatch with aw_context.");
+    core.info("Skipping daily workflow AI Credits guardrail for manual or command-driven runs.");
     return;
   }
 

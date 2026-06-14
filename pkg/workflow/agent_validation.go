@@ -199,7 +199,8 @@ func (c *Compiler) validatePiEngineRequirements(tools *ToolsConfig, engine Codin
 		return nil
 	}
 
-	if tools == nil || tools.GitHub == nil || tools.GitHub.Mode != "gh-proxy" {
+	if tools == nil || tools.GitHub == nil ||
+		(tools.GitHub.Mode != GitHubMCPModeGHProxy && tools.GitHub.Mode != GitHubMCPModeCLI) {
 		return errors.New("engine 'pi' requires tools.github.mode: gh-proxy")
 	}
 

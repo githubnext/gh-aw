@@ -221,3 +221,74 @@ func TestSpec_Types_ZeroValueSafety(t *testing.T) {
 	assert.Nil(t, tw.TokenClassWeights, "zero value TokenClassWeights pointer must be nil (no overrides)")
 	assert.Nil(t, tw.Multipliers, "zero value Multipliers must be nil (no overrides)")
 }
+
+// TestSpec_Types_InputDefinition validates the InputDefinition type documented in the README.
+// Spec: "Defines an input parameter for workflows, safe-jobs, and imported workflows. The
+// structure follows the workflow_dispatch input schema from GitHub Actions."
+func TestSpec_Types_InputDefinition(t *testing.T) {
+	// Spec example: a choice input.
+	input := types.InputDefinition{
+		Description: "The environment to deploy to",
+		Required:    true,
+		Default:     "staging",
+		Type:        "choice",
+		Options:     []string{"staging", "production"},
+	}
+
+	assert.Equal(t, "The environment to deploy to", input.Description, "Description field must hold the human-readable description")
+	assert.True(t, input.Required, "Required field must hold whether the input is required")
+	assert.Equal(t, "staging", input.Default, "Default field must hold the default value")
+	assert.Equal(t, "choice", input.Type, "Type field must hold the documented input type")
+	assert.Equal(t, []string{"staging", "production"}, input.Options, "Options field must hold the valid choice options")
+
+	// Spec: "Required ... defaults to false"; zero value must be a usable input.
+	var zero types.InputDefinition
+	assert.False(t, zero.Required, "zero value Required must default to false as documented")
+	assert.Nil(t, zero.Default, "zero value Default must be nil")
+	assert.Nil(t, zero.Options, "zero value Options must be nil")
+
+	// Design Notes: "All struct fields use both json and yaml struct tags." Verify documented
+	// JSON field names round-trip.
+	data, err := json.Marshal(input)
+	require.NoError(t, err, "InputDefinition must serialize to JSON")
+	assert.Contains(t, string(data), `"description"`, "JSON must use documented field name 'description'")
+	assert.Contains(t, string(data), `"type"`, "JSON must use documented field name 'type'")
+	assert.Contains(t, string(data), `"options"`, "JSON must use documented field name 'options'")
+}
+
+// TestSpec_PublicAPI_GetDefaultAsString validates the documented behavior of the
+// InputDefinition.GetDefaultAsString method as described in the types package README.md.
+// Spec: "Returns the Default field as a string, regardless of its underlying type. Handles
+// string, bool, int, int64, and float64 inputs. Integer-valued float64 defaults (e.g. 1.0)
+// are formatted without a decimal point. Returns \"\" when Default is nil."
+func TestSpec_PublicAPI_GetDefaultAsString(t *testing.T) {
+	tests := []struct {
+		name     string
+		def      any
+		expected string
+	}{
+		// Spec: "Returns \"\" when Default is nil."
+		{name: "nil default returns empty string", def: nil, expected: ""},
+		// Spec: handles string inputs.
+		{name: "string default returned as-is", def: "staging", expected: "staging"},
+		// Spec: handles bool inputs.
+		{name: "bool true default", def: true, expected: "true"},
+		{name: "bool false default", def: false, expected: "false"},
+		// Spec: handles int inputs.
+		{name: "int default", def: 42, expected: "42"},
+		// Spec: handles int64 inputs.
+		{name: "int64 default", def: int64(9000000000), expected: "9000000000"},
+		// Spec: "Integer-valued float64 defaults (e.g. 1.0) are formatted without a decimal point."
+		{name: "integer-valued float64 has no decimal point", def: 1.0, expected: "1"},
+		// Spec: non-integer float64 retains its fractional value.
+		{name: "fractional float64 default", def: 2.5, expected: "2.5"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := types.InputDefinition{Default: tt.def}
+			assert.Equal(t, tt.expected, input.GetDefaultAsString(),
+				"GetDefaultAsString() with Default=%v (%T) should return %q as documented in spec", tt.def, tt.def, tt.expected)
+		})
+	}
+}

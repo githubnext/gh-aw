@@ -142,6 +142,75 @@ func TestSpec_PublicAPI_ParseBool(t *testing.T) {
 	}
 }
 
+// TestSpec_KMSuffix_ParseInt64KMSuffix validates the documented behavior of
+// ParseInt64KMSuffix as described in the package README.md.
+//
+// Specification: Parses a positive base-10 integer string with an optional
+// K/k (×1,000) or M/m (×1,000,000) suffix. Returns (value, true) on success and
+// (0, false) for empty input, non-positive values, non-numeric strings, or
+// overflow.
+func TestSpec_KMSuffix_ParseInt64KMSuffix(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantValue int64
+		wantOK    bool
+	}{
+		{name: "K suffix multiplies by 1,000", input: "128K", wantValue: 128000, wantOK: true},
+		{name: "M suffix multiplies by 1,000,000", input: "2M", wantValue: 2000000, wantOK: true},
+		{name: "plain integer parses as-is", input: "512", wantValue: 512, wantOK: true},
+		{name: "lowercase k suffix accepted", input: "3k", wantValue: 3000, wantOK: true},
+		{name: "lowercase m suffix accepted", input: "1m", wantValue: 1000000, wantOK: true},
+		{name: "zero is non-positive returns (0, false)", input: "0", wantValue: 0, wantOK: false},
+		{name: "negative value returns (0, false)", input: "-5", wantValue: 0, wantOK: false},
+		{name: "empty input returns (0, false)", input: "", wantValue: 0, wantOK: false},
+		{name: "non-numeric string returns (0, false)", input: "abc", wantValue: 0, wantOK: false},
+		{name: "overflow returns (0, false)", input: "99999999999999999999M", wantValue: 0, wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotValue, gotOK := ParseInt64KMSuffix(tt.input)
+			assert.Equal(t, tt.wantOK, gotOK,
+				"ParseInt64KMSuffix(%q) ok flag mismatch", tt.input)
+			assert.Equal(t, tt.wantValue, gotValue,
+				"ParseInt64KMSuffix(%q) value mismatch", tt.input)
+		})
+	}
+}
+
+// TestSpec_KMSuffix_NormalizeInt64KMSuffix validates the documented behavior of
+// NormalizeInt64KMSuffix as described in the package README.md.
+//
+// Specification: Returns a canonical base-10 string for a positive integer
+// string with an optional K/k or M/m suffix. Delegates to ParseInt64KMSuffix
+// and formats with strconv.FormatInt.
+func TestSpec_KMSuffix_NormalizeInt64KMSuffix(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantValue string
+		wantOK    bool
+	}{
+		{name: "K suffix normalizes to base-10", input: "128K", wantValue: "128000", wantOK: true},
+		{name: "lowercase m suffix normalizes to base-10", input: "2m", wantValue: "2000000", wantOK: true},
+		{name: "plain integer is returned canonically", input: "512", wantValue: "512", wantOK: true},
+		{name: "non-positive value returns (\"\", false)", input: "0", wantValue: "", wantOK: false},
+		{name: "non-numeric string returns (\"\", false)", input: "abc", wantValue: "", wantOK: false},
+		{name: "empty input returns (\"\", false)", input: "", wantValue: "", wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotValue, gotOK := NormalizeInt64KMSuffix(tt.input)
+			assert.Equal(t, tt.wantOK, gotOK,
+				"NormalizeInt64KMSuffix(%q) ok flag mismatch", tt.input)
+			assert.Equal(t, tt.wantValue, gotValue,
+				"NormalizeInt64KMSuffix(%q) value mismatch", tt.input)
+		})
+	}
+}
+
 // TestSpec_SafeOverflow_SafeUint64ToInt validates the documented behavior of
 // SafeUint64ToInt as described in the package README.md.
 //

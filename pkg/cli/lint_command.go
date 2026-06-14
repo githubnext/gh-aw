@@ -38,10 +38,8 @@ func NewLintCommand() *cobra.Command {
 		Long: `Lint existing .lock.yml workflow files from disk using actionlint only.
 
 This command does not recompile Markdown workflows and does not run zizmor or poutine.
-By default, shellcheck and pyflakes integrations are disabled for generated run scripts.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` lint
+By default, shellcheck and pyflakes integrations are disabled for generated run scripts.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` lint
   ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/foo.lock.yml
   ` + string(constants.CLIExtensionPrefix) + ` lint --dir .github/workflows
   ` + string(constants.CLIExtensionPrefix) + ` lint --shellcheck --pyflakes`,

@@ -150,10 +150,10 @@
       "version": "v4.36.2",
       "sha": "8aad20d150bbac5944a9f9d289da16a4b0d87c1e"
     },
-    "github/gh-aw/actions/setup-cli@v0.78.3": {
+    "github/gh-aw/actions/setup-cli@v0.79.8": {
       "repo": "github/gh-aw/actions/setup-cli",
-      "version": "v0.78.3",
-      "sha": "544dd7355d846f9a7a1a5817a18148442e9ffe35"
+      "version": "v0.79.8",
+      "sha": "8b02ab336d100a5746e9f53b8bc2b22878278a6f"
     },
     "github/stale-repos@v9.0.14": {
       "repo": "github/stale-repos",
@@ -168,17 +168,17 @@
     "microsoft/apm-action@v1.9.1": {
       "repo": "microsoft/apm-action",
       "version": "v1.9.1",
-      "sha": "ce02c22416172beb70072c5910b2163ee3f006f6"
+      "sha": "e5650fb81c4b5965090a17bd1ed1956071e95d17"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
       "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.310.0": {
+    "ruby/setup-ruby@v1.313.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.310.0",
-      "sha": "afeafc3d1ab54a631816aba4c914a0081c12ff2f"
+      "version": "v1.313.0",
+      "sha": "89f90524b88a01fe6e0b732220432cc6142926af"
     },
     "safedep/pmg@v1": {
       "repo": "safedep/pmg",

@@ -1906,7 +1906,7 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 - Specified compilation-time security checks
 - Specified runtime security enforcement
 - Defined compliance testing requirements and test categories
-- Included comprehensive appendices with examples and best practices
+- Included appendices with examples and best practices
 
 **Key Design Decisions**:
 - Defense-in-depth approach with independent, composable layers

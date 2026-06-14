@@ -212,6 +212,45 @@ func TestExtractYAMLSections_MissingSections(t *testing.T) {
 	assert.Empty(t, workflowData.Cache)
 }
 
+func TestExtractYAMLSections_EmptyRunsOnSlimTreatedAsUnset(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{
+			name:  "empty string",
+			value: "",
+		},
+		{
+			name:  "empty array",
+			value: []any{},
+		},
+		{
+			name:  "empty object",
+			value: map[string]any{},
+		},
+		{
+			name:  "object with empty group and labels",
+			value: map[string]any{"group": "", "labels": []any{}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{}
+			frontmatter := map[string]any{
+				"runs-on-slim": tt.value,
+			}
+
+			compiler.extractYAMLSections(frontmatter, workflowData)
+
+			assert.Empty(t, workflowData.RunsOnSlim)
+		})
+	}
+}
+
 func TestValidateWorkflowEngineSettings_PreservesLegacyErrorOrder(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.strictMode = true

@@ -36,10 +36,8 @@ Displays a simplified table with workflow name, AI engine, and compilation statu
 Unlike 'status', this command does not check GitHub workflow state or time remaining.
 
 The optional pattern argument filters workflows by name (case-insensitive substring match).
-It accepts workflow IDs (basename without .md) or full filenames.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` list                              # List all workflows in current repo
+It accepts workflow IDs (basename without .md) or full filenames.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` list                              # List all workflows in current repo
   ` + string(constants.CLIExtensionPrefix) + ` list --repo github/gh-aw          # List workflows from github/gh-aw repo
   ` + string(constants.CLIExtensionPrefix) + ` list --repo org/repo --path workflows  # List from custom path
   ` + string(constants.CLIExtensionPrefix) + ` list --dir custom/workflows        # List from custom local directory

@@ -10,6 +10,7 @@
 
 **Assign this issue to an agent** to debug and fix the issue.
 
+{optimize_token_consumption_context}
 <details>
 <summary>Debug with any coding agent</summary>
 

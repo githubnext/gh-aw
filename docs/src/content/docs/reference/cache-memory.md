@@ -80,15 +80,21 @@ Merge rules: **Single→Single** (local overrides), **Single→Multiple** (local
 
 ## Behavior
 
-GitHub Actions cache: 7-day retention, 10GB per repo, LRU eviction. Add `retention-days` to upload artifacts (1-90 days) for extended access.
+GitHub Actions cache provides 7-day retention, a 10GB per-repository limit, and LRU eviction. Add `retention-days` to upload artifacts (1-90 days) for extended access.
 
-Caches are accessible across branches with unique per-run save keys. The compiler automatically generates a restore-keys prefix by stripping `${{ github.run_id }}` from the save key, so each run can fall back to the previous run's cache. For `scope: repo`, an additional restore key without the workflow ID is added to allow cross-workflow cache sharing.
+Cache memory is branch-scoped. A run can restore from caches created on the same branch, and GitHub Actions also allows restore lookup from the default branch (typically `main`).
+
+For non-default branches, the first successful restore often comes from the default branch. After that restore, subsequent saves on the non-default branch create a branch-local cache lineage (effectively a fork of the default-branch cache state).
+
+The compiler generates restore keys by stripping `${{ github.run_id }}` from the save key so each run can fall back to earlier runs. For `scope: repo`, the additional broader restore key enables cross-workflow sharing within the same branch scope.
 
 Custom user-supplied keys auto-append `-${{ github.run_id }}` if not already present.
 
 ## Best Practices
 
-Use descriptive file/directory names, hierarchical cache keys (`project-${{ github.repository_owner }}-${{ github.workflow }}`), and appropriate scope (workflow-specific default or repository/user-wide). Monitor growth within 10GB limit.
+Use cache-memory for short-lived, branch-local state. For workflows that rely on warmed caches, prefer scheduled runs on the default branch so each scheduled run reuses and updates the same cache lineage instead of fragmenting state across feature branches.
+
+Use descriptive file/directory names, hierarchical cache keys (`project-${{ github.repository_owner }}-${{ github.workflow }}`), and appropriate scope (workflow-specific default or repository-wide within branch scope). Monitor growth within the 10GB repository limit.
 
 ## Comparison with Repo Memory
 

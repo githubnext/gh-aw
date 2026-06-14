@@ -81,4 +81,10 @@ var (
 	Header         = WasmStyle{}
 	TreeEnumerator = WasmStyle{}
 	TreeNode       = WasmStyle{}
+
+	ScheduleCalendarEmpty    = WasmStyle{}
+	ScheduleCalendarLow      = WasmStyle{}
+	ScheduleCalendarMedium   = WasmStyle{}
+	ScheduleCalendarHigh     = WasmStyle{}
+	ScheduleCalendarCritical = WasmStyle{}
 )

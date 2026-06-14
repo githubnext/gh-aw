@@ -345,32 +345,33 @@ class DefaultArtifactClient {
 
     const { workflowRunBackendId, workflowJobRunBackendId } = getBackendIdsFromRuntimeToken();
     const createRequest = {
-      workflow_run_backend_id: workflowRunBackendId,
-      workflow_job_run_backend_id: workflowJobRunBackendId,
+      workflowRunBackendId,
+      workflowJobRunBackendId,
       name: artifactName,
       version: 7,
-      mime_type: { value: contentType },
+      mimeType: contentType,
     };
     const expiresAt = formatRetentionTimestamp(options.retentionDays);
     if (expiresAt) {
-      createRequest.expires_at = expiresAt;
+      createRequest.expiresAt = expiresAt;
     }
 
     /** @type {any} */
     const createResponse = await twirpRequest("CreateArtifact", createRequest);
-    if (!createResponse?.ok || !createResponse?.signed_upload_url) {
+    const signedUploadUrl = createResponse?.signedUploadUrl || createResponse?.signed_upload_url;
+    if (!createResponse?.ok || !signedUploadUrl) {
       throw new Error("CreateArtifact returned an invalid response");
     }
 
-    const uploadSize = await uploadFileToSignedURL(uploadPath, createResponse.signed_upload_url, contentType);
+    const uploadSize = await uploadFileToSignedURL(uploadPath, signedUploadUrl, contentType);
     const sha256 = await hashFile(uploadPath);
 
     const finalizeRequest = {
-      workflow_run_backend_id: workflowRunBackendId,
-      workflow_job_run_backend_id: workflowJobRunBackendId,
+      workflowRunBackendId,
+      workflowJobRunBackendId,
       name: artifactName,
       size: String(uploadSize),
-      hash: { value: `sha256:${sha256}` },
+      hash: `sha256:${sha256}`,
     };
     /** @type {any} */
     const finalizeResponse = await twirpRequest("FinalizeArtifact", finalizeRequest);
@@ -379,7 +380,7 @@ class DefaultArtifactClient {
     }
 
     return {
-      id: Number(finalizeResponse.artifact_id || 0) || undefined,
+      id: Number(finalizeResponse.artifactId ?? finalizeResponse.artifact_id ?? 0) || undefined,
       size: uploadSize,
       digest: sha256,
     };

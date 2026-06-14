@@ -125,7 +125,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       required-title-prefix: "[bot]" # Optional: issue/PR title must start with this prefix
       hide-older-comments: true       # Optional: minimize previous comments from same workflow
       allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
-      discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
+      discussions: true               # Optional: opt-in to discussions:write permission for discussion comments/replies (default: false)
       issues: true                    # Optional: set false to exclude issues:write permission (default: true)
       pull-requests: true             # Optional: set false to exclude pull-requests:write permission (default: true)
       footer: true                    # Optional: when false, omits visible footer but preserves XML markers (default: true)
@@ -195,7 +195,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
         - "release/*"
         - "main"
-      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 4096 KB, max: 10240)
       max-patch-files: 50             # Optional: per-output cap on unique files in the patch (overrides global; default: 100)
   ```
 

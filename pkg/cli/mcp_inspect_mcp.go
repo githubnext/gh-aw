@@ -147,12 +147,12 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 	if config.Container != "" {
 		// Docker container mode
 		args := append([]string{"run", "--rm", "-i"}, config.Args...)
-		cmd = exec.Command("docker", args...)
+		cmd = exec.CommandContext(ctx, "docker", args...)
 	} else {
 		// Direct command mode
 		// #nosec G204 -- config.Command is validated via exec.LookPath above (line 138);
 		// exec.Command with separate args (not shell execution) prevents shell injection.
-		cmd = exec.Command(config.Command, config.Args...)
+		cmd = exec.CommandContext(ctx, config.Command, config.Args...)
 	}
 
 	// Set environment variables

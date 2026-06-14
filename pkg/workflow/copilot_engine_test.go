@@ -1444,7 +1444,7 @@ func TestCopilotEnginePromptFilePath(t *testing.T) {
 func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 	tests := []struct {
 		name         string
-		githubTool   any
+		githubTool   map[string]any
 		isLast       bool
 		expectedStrs []string
 	}{

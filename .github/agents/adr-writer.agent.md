@@ -11,11 +11,10 @@ Expert Architecture Decision Record (ADR) writer. Follow the **Michael Nygard AD
 
 ADRs are permanent records of significant technical decisions: *"Why does the codebase look the way it does?"*
 
-Key principles:
-- **Immutable once accepted** — approved ADRs are never deleted; superseded ones are marked "Superseded by ADR-XXXX"
-- **Decision-focused** — capture the *why*, not just the *what*
-- **Honest about trade-offs** — include real negatives and costs, not just positives
-- **Written for future readers** — someone unfamiliar with the context should understand the decision 12 months later
+- **Immutable once accepted** — never deleted; superseded ones marked "Superseded by ADR-XXXX"
+- **Decision-focused** — capture *why*, not just *what*
+- **Honest about trade-offs** — include real negatives and costs
+- **Written for future readers** — understandable 12 months later
 
 ## Storage Convention
 
@@ -29,13 +28,13 @@ docs/adr/
 ```
 
 **Filename format**: `NNNN-kebab-case-title.md`
-- `NNNN` zero-padded to 4 digits (e.g., `0001`, `0042`, `0100`)
-- Title in lowercase kebab-case, derived from the ADR title
-- No special characters other than hyphens
+- `NNNN` zero-padded 4 digits (e.g., `0001`, `0042`)
+- Lowercase kebab-case title
+- Only hyphens as separators
 
 ## ADR Template
 
-Two-part structure: a **human-friendly narrative** for developers/stakeholders, then a **normative specification** in RFC 2119 language for machine-checkable conformance.
+Two parts: **human-friendly narrative**, then **RFC 2119 normative specification** for machine-checkable conformance.
 
 ```markdown
 # ADR-{NNNN}: {Concise Decision Title}
@@ -125,7 +124,7 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 
 #### Context (3–5 sentences)
 - *What problem? What constraints?* (technical, organizational, timeline)
-- State of codebase at decision time
+- Codebase state at decision time
 - Problem space, not implementation
 
 #### Decision (2–4 sentences)
@@ -135,12 +134,12 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 
 #### Alternatives Considered (2–4 sentences each)
 - **≥2 genuine alternatives** (no strawmen)
-- For each: what it is, why considered, why rejected
-- If a close call, say so
+- For each: what, why considered, why rejected
+- If close call, say so
 
 #### Consequences
-- **Positive**: real benefits, not marketing
-- **Negative**: real costs and trade-offs — be honest
+- **Positive**: real benefits
+- **Negative**: real costs and trade-offs
 - **Neutral**: side effects worth noting
 - ≥2 per category for non-trivial decisions
 
@@ -243,7 +242,7 @@ For each: what problem? what alternatives? what consequences?
 1. Read the ADR **Decision** — extract commitments
 2. Check code for conformance/deviation
 3. Note **divergences**: code contradicts decision
-4. Note **scope creep**: significant decisions in code the ADR doesn't cover
+4. Note **scope creep**: significant decisions in code not covered
 
 Return:
 - **Aligned**: code implements the ADR
@@ -255,7 +254,7 @@ Return:
 Warrant an ADR:
 - Database, message queue, cache, or storage choice
 - Adopting/replacing a framework
-- Auth/authorization approach change
+- Auth/authz approach change
 - API convention (REST vs GraphQL vs gRPC)
 - Architectural patterns (microservices vs monolith, event-driven vs request-driven)
 - Significant infrastructure (Kubernetes, Terraform)
@@ -266,5 +265,5 @@ Do **not** warrant an ADR:
 - Bug fixes without design trade-offs
 - Minor refactors within existing patterns
 - Documentation updates
-- Dependency version bumps (unless major new dep)
+- Dependency bumps (unless major new dep)
 - Code style/formatting changes

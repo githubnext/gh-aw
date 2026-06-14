@@ -119,7 +119,7 @@ async function main(config = {}) {
   const checkBranchProtection = config.check_branch_protection !== false;
   const signedCommits = config.signed_commits !== false;
   const commitTitleSuffix = config.commit_title_suffix || "";
-  const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
+  const maxSizeKb = parsePositiveInteger(config.max_patch_size) ?? 4096;
   const maxCount = config.max || 0; // 0 means no limit
 
   // Cross-repo support: resolve target repository from config

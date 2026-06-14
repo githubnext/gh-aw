@@ -536,7 +536,7 @@ All major security claims are verifiable:
 - Action pinning to immutable SHAs
 - Runtime timestamp validation
 
-The specification provides an accurate and comprehensive formalization of the security architecture that can be confidently used for:
+The specification provides an accurate formalization of the security architecture that can be used for:
 - Security audits and reviews
 - Implementation in other CI/CD platforms
 - Compliance certification

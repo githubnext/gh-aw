@@ -18,6 +18,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
+	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
@@ -40,6 +41,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
@@ -52,6 +54,7 @@ func main() {
 		errormessage.Analyzer,
 		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
+		errorfwrapv.Analyzer,
 		execcommandwithoutcontext.Analyzer,
 		excessivefuncparams.Analyzer,
 		fileclosenotdeferred.Analyzer,
@@ -71,6 +74,7 @@ func main() {
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
+		timeafterleak.Analyzer,
 		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,
 		uncheckedtypeassertion.Analyzer,

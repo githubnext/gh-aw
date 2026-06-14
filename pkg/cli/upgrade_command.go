@@ -56,10 +56,8 @@ Use --audit to check dependency health without performing upgrades. This include
 
 The --audit flag skips the normal upgrade process.
 
-This command always upgrades all Markdown files in .github/workflows.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
+This command always upgrades all Markdown files in .github/workflows.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile      # Skip recompiling workflows (do not modify lock files)

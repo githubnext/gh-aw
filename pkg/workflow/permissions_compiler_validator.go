@@ -161,8 +161,26 @@ Ensure proper audience validation and trust policies are configured.`
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
 		c.IncrementWarningCount()
 	}
+	if shouldEmitCopilotRequestsEnableTip(workflowData, workflowPermissions) {
+		tipMsg := `Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference with the Copilot engine instead of a personal access token (COPILOT_GITHUB_TOKEN).`
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", tipMsg))
+	}
 
 	return workflowPermissions, nil
+}
+
+func shouldEmitCopilotRequestsEnableTip(workflowData *WorkflowData, workflowPermissions *Permissions) bool {
+	if workflowData == nil || workflowPermissions == nil {
+		return false
+	}
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.ID != "copilot" {
+		return false
+	}
+	if level, exists := workflowPermissions.GetExplicit(PermissionCopilotRequests); exists && level == PermissionNone {
+		return false
+	}
+	level, exists := workflowPermissions.Get(PermissionCopilotRequests)
+	return !exists || level != PermissionWrite
 }
 
 func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Permissions) error {

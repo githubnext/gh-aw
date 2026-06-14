@@ -325,8 +325,6 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 		return fmt.Errorf("failed to get Copilot token: %w", err)
 	}
 
-	// Store in environment for later use
-	_ = os.Setenv(req.Name, token)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
 
 	// Upload to repository if we have a repo slug
@@ -373,8 +371,6 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 		return fmt.Errorf("failed to get %s token: %w", req.Name, err)
 	}
 
-	// Store in environment for later use
-	_ = os.Setenv(req.Name, token)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(req.Name+" token received"))
 
 	// Upload to repository if we have a repo slug
@@ -426,8 +422,6 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 		return fmt.Errorf("failed to get %s API key: %w", label, err)
 	}
 
-	// Store in environment for later use
-	_ = os.Setenv(req.Name, apiKey)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(label+" API key received"))
 
 	// Upload to repository if we have a repo slug

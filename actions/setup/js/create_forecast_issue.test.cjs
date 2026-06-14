@@ -66,7 +66,12 @@ describe("create_forecast_issue", () => {
             p50_aic_per_run: 4000,
             p95_aic_per_run: 8000,
             weekly_monte_carlo: { p50_projected_aic: 12345.6 },
-            monthly_monte_carlo: { p50_projected_aic: 52000 },
+            monthly_monte_carlo: {
+              p10_projected_aic: 48000,
+              p50_projected_aic: 52000,
+              p90_projected_aic: 61000,
+              std_dev_aic: 3210,
+            },
           },
           {
             workflow_id: "wf-b",
@@ -89,13 +94,15 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| Workflow | Runs | P50/Run | Monthly (P50) |");
-    expect(body).toContain("| [wf\\|a](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-a.yml) | 3 | 4,000 | 52,000 |");
+    expect(body).toContain("| Workflow | Runs | P50/Run | Monthly (Low) | Monthly (P50) | Monthly (High) | Monthly (Stdev) |");
+    expect(body).toContain("| [wf\\|a](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-a.yml) | 3 | 4,000 | 48,000 | 52,000 | 61,000 | 3,210 |");
     expect(body).toContain("### AW without data");
     expect(body).toContain("| [wf-b](https://github.com/octo/repo/actions/workflows/.github%2Fworkflows%2Fwf-b.yml) | 0 |");
     expect(body).toContain("AIC = 0 is treated as missing data and excluded from forecast computation.");
     expect(body).toContain("### How to read this report");
-    expect(body).toContain("Monthly values are distribution medians");
+    expect(body).toContain("Monte Carlo P10 / P50 / P90 total-AIC bounds");
+    expect(body).toContain("Monte Carlo standard deviation");
+    expect(body).toContain("Monthly values come from the Monte Carlo distribution");
     expect(body).toContain("_Forecast source run: [#123456](https://github.com/octo/repo/actions/runs/123456)._");
     expect(body).toContain("Consult the billing dashboards for accurate usage and charges.");
     expect(body).not.toContain("sampled runs but forecast AIC is 0");
@@ -125,7 +132,7 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| wf-round | 1 | 2 | 5 |");
+    expect(body).toContain("| wf-round | 1 | 2 | 5 | 5 | 5 | 0 |");
   });
 
   it("lists workflows without data when every projected AIC is zero", async () => {
@@ -279,7 +286,7 @@ describe("create_forecast_issue", () => {
       }
     );
 
-    expect(body).toContain("| **TOTAL** | | | **42,000** |");
+    expect(body).toContain("| **TOTAL** | | | | **42,000** | | |");
   });
 
   it("sorts workflows by monthly cost descending", async () => {

@@ -171,6 +171,10 @@ report := detector.Analyze(result, isNew, cluster)
 
 Applies `MaskRule` substitutions to log lines before tokenization.
 
+#### `(*Masker).Mask(line string) string`
+
+Applies all compiled mask rules to `line` in order, returning the normalized string.
+
 ```go
 masker, err := agentdrain.NewMasker(cfg.MaskRules)
 masked := masker.Mask(rawLine)
