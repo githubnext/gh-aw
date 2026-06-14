@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -169,6 +170,11 @@ Guardrail test workflow`
 	if !strings.Contains(activationSection, "id: detect-daily-aic-cache-miss") {
 		t.Fatal("expected activation job to include a cache-miss detection step before fallback")
 	}
+	detectIdx := strings.Index(activationSection, "id: detect-daily-aic-cache-miss")
+	fallbackIdx := strings.Index(activationSection, "id: restore-daily-aic-cache-fallback")
+	if detectIdx == -1 || fallbackIdx == -1 || detectIdx >= fallbackIdx {
+		t.Fatal("expected detect-daily-aic-cache-miss to appear before restore-daily-aic-cache-fallback")
+	}
 	if !strings.Contains(activationSection, "GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}") {
 		t.Fatal("expected cache-miss detection to pass cache-hit output via env for template-injection safety")
 	}
@@ -178,8 +184,9 @@ Guardrail test workflow`
 	if !strings.Contains(activationSection, `if [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" ] || { [ "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" = "false" ] && [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY" ]; }; then`) {
 		t.Fatal("expected cache-miss detection to treat missing matched key as a true miss")
 	}
-	if !strings.Contains(activationSection, "steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true'") {
-		t.Fatal("expected artifact fallback step to run only when cache-miss detection reports a miss")
+	wantFallbackIf := "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true' }}"
+	if !strings.Contains(activationSection, wantFallbackIf) {
+		t.Fatalf("expected artifact fallback step if: to use a single ${{}} expression wrapping both conditions, want %q", wantFallbackIf)
 	}
 	if !strings.Contains(lockStr, "id: upload-daily-aic-cache") {
 		t.Fatal("expected conclusion job to include the AIC usage cache artifact upload step")
@@ -308,5 +315,57 @@ Invalid negative daily guardrail value`
 	// correctly rejects values below -1.
 	if !strings.Contains(err.Error(), "must be -1") && !strings.Contains(err.Error(), "minimum") {
 		t.Fatalf("expected validation error rejecting -2, got: %v", err)
+	}
+}
+
+// TestCacheMissDetectionLogic exercises the four branch cases of the
+// detect-daily-aic-cache-miss shell predicate.
+//
+//	cache-hit  cache-matched-key  expected cache_miss
+//	""         ""                 true   (step skipped / runner error)
+//	"false"    ""                 true   (true miss)
+//	"false"    "some-key"         false  (restore-key hit — original bug)
+//	"true"     "some-key"         false  (exact hit)
+func TestCacheMissDetectionLogic(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+
+	script := `
+		if [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" ] || { [ "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" = "false" ] && [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY" ]; }; then
+			echo "cache_miss=true"
+		else
+			echo "cache_miss=false"
+		fi
+	`
+
+	cases := []struct {
+		name       string
+		cacheHit   string
+		matchedKey string
+		wantMiss   string
+	}{
+		{"step skipped / no outputs", "", "", "cache_miss=true"},
+		{"true miss", "false", "", "cache_miss=true"},
+		{"restore-key hit (original bug)", "false", "agentic-workflow-usage-cache-123", "cache_miss=false"},
+		{"exact hit", "true", "agentic-workflow-usage-cache-123", "cache_miss=false"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", script)
+			cmd.Env = append(os.Environ(),
+				"GH_AW_RESTORE_DAILY_AIC_CACHE_HIT="+tc.cacheHit,
+				"GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY="+tc.matchedKey,
+			)
+			out, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("script failed: %v", err)
+			}
+			got := strings.TrimSpace(string(out))
+			if got != tc.wantMiss {
+				t.Errorf("cache_miss: got %q, want %q", got, tc.wantMiss)
+			}
+		})
 	}
 }
