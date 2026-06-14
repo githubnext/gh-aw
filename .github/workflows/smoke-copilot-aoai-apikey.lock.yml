@@ -203,7 +203,7 @@ jobs:
           fi
       - name: Restore daily AIC usage cache (artifact fallback)
         id: restore-daily-aic-cache-fallback
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }} && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true'
+        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true' }}
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
