@@ -92,7 +92,7 @@ Custom user-supplied keys auto-append `-${{ github.run_id }}` if not already pre
 
 ## Best Practices
 
-Use cache-memory for short-lived, branch-local state. For workflows that rely on warmed caches, prefer scheduled runs on the default branch.
+Use cache-memory for short-lived, branch-local state. For workflows that rely on warmed caches, prefer scheduled runs on the default branch so each scheduled run reuses and updates the same cache lineage instead of fragmenting state across feature branches.
 
 Use descriptive file/directory names, hierarchical cache keys (`project-${{ github.repository_owner }}-${{ github.workflow }}`), and appropriate scope (workflow-specific default or repository-wide within branch scope). Monitor growth within the 10GB repository limit.
 
