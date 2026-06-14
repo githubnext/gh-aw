@@ -52,7 +52,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	if errorIface == nil {
-		return nil, errors.New("resolve built-in error interface from types.Universe")
+		return nil, errors.New("failed to resolve built-in error interface from types.Universe")
 	}
 
 	insp, err := astutil.Inspector(pass)
