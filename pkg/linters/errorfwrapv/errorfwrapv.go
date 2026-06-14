@@ -4,6 +4,7 @@
 package errorfwrapv
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -19,6 +20,8 @@ import (
 
 var errorIface = universeErrorInterface()
 
+// universeErrorInterface returns the built-in error interface type, or nil if
+// it cannot be resolved from types.Universe.
 func universeErrorInterface() *types.Interface {
 	errorObj := types.Universe.Lookup("error")
 	if errorObj == nil {
@@ -49,7 +52,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	if errorIface == nil {
-		return nil, nil
+		return nil, errors.New("resolve built-in error interface from types.Universe")
 	}
 
 	insp, err := astutil.Inspector(pass)
