@@ -219,6 +219,12 @@ slogLogger.Warn("something unusual happened", "count", 42)
 - **Groups and persistent attributes**: `WithAttrs` and `WithGroup` return the handler unchanged — attributes are not persisted across calls. This keeps the adapter lightweight.
 - **Output destination**: All output goes to `stderr` via the underlying `Logger`.
 
+## Thread Safety
+
+`Logger` instances are safe for concurrent use from multiple goroutines. The `Printf` and `Print` methods acquire a `sync.Mutex` before updating the `lastLog` timestamp, so concurrent callers receive accurate time-diff values without data races. The `Enabled` method is read-only and requires no lock.
+
+`SlogHandler` instances are safe for concurrent use when the underlying `Logger` is safe for concurrent use.
+
 ## Dependencies
 
 **Internal**:
