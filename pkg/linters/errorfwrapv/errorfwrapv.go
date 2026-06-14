@@ -17,7 +17,21 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
-var errorIface = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+var errorIface = universeErrorInterface()
+
+func universeErrorInterface() *types.Interface {
+	errorObj := types.Universe.Lookup("error")
+	if errorObj == nil {
+		return nil
+	}
+
+	errorIface, ok := errorObj.Type().Underlying().(*types.Interface)
+	if !ok {
+		return nil
+	}
+
+	return errorIface
+}
 
 type formatVerb struct {
 	argIdx int
@@ -34,6 +48,10 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	if errorIface == nil {
+		return nil, nil
+	}
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
