@@ -1868,7 +1868,7 @@ jobs:
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
-            python - <<'PY'
+            python3 - <<'PY'
           import json,os,subprocess as sp
           from pathlib import Path
           try:
@@ -2586,7 +2586,7 @@ jobs:
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
-            python - <<'PY'
+            python3 - <<'PY'
           import json,os,subprocess as sp
           from pathlib import Path
           try:
