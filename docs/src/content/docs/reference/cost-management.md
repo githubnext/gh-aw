@@ -476,7 +476,15 @@ See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax
 
 ### Use Inline Skills to Reduce Context
 
-Move large instruction blocks out of the main prompt body using inline skills. At runtime, each `## skill:` block is extracted and written to engine-specific skill locations — the agent can invoke the skill on demand instead of receiving the guidance upfront, keeping the ambient context slim:
+Move large instruction blocks out of the main prompt body using inline skills. At runtime, each `## skill:` block is extracted and written to engine-specific skill locations — the agent can invoke the skill on demand instead of receiving the guidance upfront, keeping the ambient context slim.
+
+Treat the main prompt as an execution plan and sub-skills as deferred detail:
+
+- Main prompt: concise plan, sequencing, and decision points.
+- Sub-skills: verbose checklists, report templates/layout rules, and domain rubrics.
+- Invoke sub-skills only when needed (for example, at final report generation), not at startup.
+
+This progressive-disclosure pattern keeps early turns focused and reduces per-run token overhead:
 
 ```aw wrap
 engine:

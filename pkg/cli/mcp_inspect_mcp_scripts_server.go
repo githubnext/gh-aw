@@ -43,8 +43,10 @@ func findAvailablePort(startPort int, verbose bool) int {
 	return 0
 }
 
-// waitForServerReady waits for the HTTP server to be ready by polling the endpoint
-func waitForServerReady(ctx context.Context, port int, timeout time.Duration, verbose bool) bool {
+var errMCPScriptsServerStartupTimeout = errors.New("mcp-scripts HTTP server failed to start within timeout")
+
+// waitForServerReady waits for the HTTP server to be ready by polling the endpoint.
+func waitForServerReady(ctx context.Context, port int, timeout time.Duration, verbose bool) error {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{
 		Timeout: 1 * time.Second,
@@ -54,13 +56,13 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
-			return false
+			return ctx.Err()
 		default:
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			mcpInspectLog.Printf("Failed to create request: %v", err)
-			return false
+			return err
 		}
 		resp, err := client.Do(req)
 		if err == nil {
@@ -70,17 +72,19 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 			if verbose {
 				mcpInspectLog.Printf("Server is ready on port %d", port)
 			}
-			return true
+			return nil
 		}
+		timer := time.NewTimer(mcpScriptsServerStartupDelay)
 		select {
 		case <-ctx.Done():
-			return false
-		case <-time.After(mcpScriptsServerStartupDelay):
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
 		}
 	}
 
 	mcpInspectLog.Printf("Server did not become ready within timeout")
-	return false
+	return errMCPScriptsServerStartupTimeout
 }
 
 // startMCPScriptsHTTPServer starts the mcp-scripts HTTP MCP server
@@ -180,7 +184,7 @@ func startMCPScriptsServer(ctx context.Context, mcpScriptsConfig *workflow.MCPSc
 	}
 
 	// Wait for the server to start up
-	if !waitForServerReady(ctx, port, 5*time.Second, verbose) {
+	if err := waitForServerReady(ctx, port, 5*time.Second, verbose); err != nil {
 		if serverCmd.Process != nil {
 			// Kill the process and log warning if it fails
 			if err := serverCmd.Process.Kill(); err != nil && verbose {
@@ -190,7 +194,7 @@ func startMCPScriptsServer(ctx context.Context, mcpScriptsConfig *workflow.MCPSc
 		if err := os.RemoveAll(tmpDir); err != nil && verbose {
 			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
 		}
-		return nil, nil, "", errors.New("mcp-scripts HTTP server failed to start within timeout")
+		return nil, nil, "", err
 	}
 
 	if verbose {

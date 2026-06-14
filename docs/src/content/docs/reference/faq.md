@@ -411,17 +411,17 @@ Ensure discussions are enabled (**Settings → Features → Discussions**) and t
 
 Use `fallback-to-issue: true` (the default) to automatically create an issue if discussions aren't available. See [Discussion Creation](/gh-aw/reference/safe-outputs/#discussion-creation-create-discussion) for details.
 
-### How do I turn off discussions in add-comment?
+### How do I enable discussions in add-comment?
 
-By default, `add-comment` requests `discussions: write`. If your GitHub App lacks Discussions (causing 422 errors), set `discussions: false` to drop only the permission — discussion targeting itself remains automatic:
+By default, `add-comment` does not request `discussions: write` — the permission is opt-in. To comment on discussions, set `discussions: true`:
 
 ```yaml wrap
 safe-outputs:
   add-comment:
-    discussions: false
+    discussions: true
 ```
 
-Similarly, opt out of `issues: write` or `pull-requests: write` with `issues: false` or `pull-requests: false`.
+`issues: write` and `pull-requests: write` are requested by default; opt out per-permission with `issues: false` or `pull-requests: false`.
 
 ### Why is my create-pull-request workflow failing with "GitHub Actions is not permitted to create or approve pull requests"?
 

@@ -2140,7 +2140,7 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 - `max`: Operation limit (default: 1)
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
 - `hide-older-comments`: Hide previous workflow comments
-- `discussions`: Control `discussions:write` permission (default: true)
+- `discussions`: Control `discussions:write` permission (default: false). Set to `true` to comment on discussions.
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 
@@ -2151,21 +2151,21 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 - `contents: read` - Repository metadata and file access
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
-- `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
+- `discussions: write` - Comment creation on discussions (only when `discussions: true`)
 
 *GitHub App* (if using `safe-outputs.app` configuration):
 
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
-- `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
+- `discussions: write` - Comment creation on discussions (only when `discussions: true`)
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Permission Control via `discussions` Field**:
 
 The optional `discussions` boolean field controls whether `discussions:write` permission is requested:
 
-- **Default behavior** (`discussions: true` or omitted): Includes `discussions:write` permission for maximum compatibility. Use this when the GitHub App has Discussions permission granted.
-- **Opt-out** (`discussions: false`): Excludes `discussions:write` permission. Use this when the GitHub App lacks Discussions permission to prevent 422 errors during token generation.
+- **Default behavior** (`discussions: false` or omitted): Excludes `discussions:write` permission. This is safe for environments where the GitHub App lacks Discussions permission and avoids 422 errors during token generation.
+- **Opt-in** (`discussions: true`): Includes `discussions:write` permission. Use this when the workflow needs to comment on discussions and the GitHub App has Discussions permission granted.
 
 **Example Configuration**:
 
@@ -2179,13 +2179,13 @@ safe-outputs:
   add-comment:
     target: "*"
     max: 1
-    discussions: false  # Exclude discussions:write permission
+    discussions: true   # Opt in to discussions:write permission
 ```
 
 **Notes**:
 
-- By default, requires write permissions for all three entity types (issues, PRs, discussions) since comments can be added to any type
-- When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
+- By default, requires write permissions only for `issues` and `pull-requests`; `discussions:write` is opt-in
+- Set `discussions: true` to add `discussions:write` and enable commenting on discussions
 - Discussion-related safe outputs (`create-discussion`, `close-discussion`, `update-discussion`) independently add `discussions:write` permission when configured
 - Cross-repository commenting requires appropriate permissions in target repository
 - The `contents: read` permission is always included for repository context access
@@ -5150,6 +5150,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.24.0** (2026-06-13):
+
+- **Changed**: Default value of the `discussions` field on `add-comment` inverted from `true` to `false`. The `discussions:write` permission is now opt-in. Set `discussions: true` to comment on discussions; omitting the field no longer requests `discussions:write`. The `hide-comment.discussions` default remains `true`.
+- **Updated**: Section 7.3 `add_comment` permission documentation, configuration examples, and notes to reflect the opt-in default.
+- **Updated**: Publication metadata to 1.24.0.
 
 **Version 1.23.0** (2026-06-10):
 

@@ -294,7 +294,7 @@ safe-outputs:
   add-comment:
     max: 3                       # max comments (default: 1)
     target: "*"                  # "triggering" (default), "*", or number
-    discussions: false           # exclude discussions:write permission (default: true)
+    discussions: true            # request discussions:write permission (default: false)
     target-repo: "owner/repo"    # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     hide-older-comments: true    # hide previous comments from same workflow
