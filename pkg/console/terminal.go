@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
@@ -40,8 +41,8 @@ func ClearLine() {
 func ShowWelcomeBanner(description string) {
 	ClearScreen()
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "🚀 Welcome to GitHub Agentic Workflows!")
+	fmt.Fprintln(os.Stderr, applyStyle(styles.Header, "🚀 Welcome to GitHub Agentic Workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, description)
+	fmt.Fprintln(os.Stderr, FormatInfoMessage(description))
 	fmt.Fprintln(os.Stderr, "")
 }

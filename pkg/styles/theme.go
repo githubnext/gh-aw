@@ -347,3 +347,26 @@ var TreeEnumerator = lipgloss.NewStyle().
 // TreeNode style for tree node content
 var TreeNode = lipgloss.NewStyle().
 	Foreground(ColorForeground)
+
+// Schedule calendar intensity styles for the heatmap renderer
+
+// ScheduleCalendarEmpty style for zero-trigger slots - muted
+var ScheduleCalendarEmpty = lipgloss.NewStyle().
+	Foreground(ColorComment)
+
+// ScheduleCalendarLow style for low-trigger slots (count == 1) - cyan
+var ScheduleCalendarLow = lipgloss.NewStyle().
+	Foreground(ColorInfo)
+
+// ScheduleCalendarMedium style for medium-trigger slots (count 2–3) - green
+var ScheduleCalendarMedium = lipgloss.NewStyle().
+	Foreground(ColorSuccess)
+
+// ScheduleCalendarHigh style for high-trigger slots (count 4–6) - orange
+var ScheduleCalendarHigh = lipgloss.NewStyle().
+	Foreground(ColorWarning)
+
+// ScheduleCalendarCritical style for critical-trigger slots (count 7+) - bold red
+var ScheduleCalendarCritical = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(ColorError)
