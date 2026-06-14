@@ -72,10 +72,12 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 			}
 			return true
 		}
+		timer := time.NewTimer(mcpScriptsServerStartupDelay)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return false
-		case <-time.After(mcpScriptsServerStartupDelay):
+		case <-timer.C:
 		}
 	}
 

@@ -32,13 +32,15 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	var workflowFound bool
 	for i := range 5 {
 		// Wait 2 seconds before each check (including the first)
+		timer := time.NewTimer(2 * time.Second)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			if spinner != nil {
 				spinner.Stop()
 			}
 			return ctx.Err()
-		case <-time.After(2 * time.Second):
+		case <-timer.C:
 			// Continue with check
 		}
 
