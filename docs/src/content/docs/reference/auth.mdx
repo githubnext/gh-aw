@@ -211,8 +211,6 @@ GitHub OIDC tokens instead of a long-lived `ANTHROPIC_API_KEY` secret. When WIF 
 the compiler suppresses the static-key requirement and emits `AWF_AUTH_ANTHROPIC_*` environment
 variables consumed by the AWF firewall api-proxy sidecar.
 
-This is the Claude equivalent of the Copilot Azure WIF path in `engines.md`.
-
 **Prerequisites:**
 - An Anthropic federation rule configured in your Anthropic workspace (obtain the IDs from your [Anthropic Console](https://platform.claude.com/docs/en/manage-claude/wif-providers/github-actions))
 - `permissions: id-token: write` in the workflow job
