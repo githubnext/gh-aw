@@ -96,6 +96,18 @@ jobs:
           key: agentic-workflow-usage-playwrightclimode-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-playwrightclimode-
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
+      - name: Restore daily AIC usage cache (artifact fallback)
+        id: restore-daily-aic-cache-fallback
+        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/restore_aic_usage_cache_fallback.cjs');
+            await main();
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}

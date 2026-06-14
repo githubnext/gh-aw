@@ -195,10 +195,12 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 				dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
 
 				// Use context-aware sleep
+				timer := time.NewTimer(time.Duration(waitTime) * time.Second)
 				select {
-				case <-time.After(time.Duration(waitTime) * time.Second):
+				case <-timer.C:
 					// Continue to next retry
 				case <-ctx.Done():
+					timer.Stop()
 					// Context cancelled during sleep
 					dockerImagesLog.Printf("Download of image %s cancelled during retry wait: %v", image, ctx.Err())
 					return
