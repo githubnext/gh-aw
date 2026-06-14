@@ -814,7 +814,7 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_dece60fc688c5ee0_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_3fe7fc5dcc4d6433_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -857,6 +857,8 @@ jobs:
                 "container": "ghcr.io/github/gh-aw-node",
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"],
                 "args": ["-w", "\${GITHUB_WORKSPACE}"],
+                "entrypoint": "sh",
+                "entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"],
                 "env": {
                   "DEBUG": "*",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}",
@@ -889,7 +891,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_dece60fc688c5ee0_EOF
+          GH_AW_MCP_CONFIG_3fe7fc5dcc4d6433_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

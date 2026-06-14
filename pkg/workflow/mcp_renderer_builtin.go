@@ -86,13 +86,16 @@ func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, w
 }
 
 // renderSafeOutputsTOML generates Safe Outputs MCP configuration in TOML format
-// Now uses HTTP transport instead of stdio, similar to mcp-scripts
+// Uses containerized stdio transport in the gh-aw-node image, overriding the container's
+// default entrypoint to run the stdio MCP server script.
 func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          container = \"" + constants.DefaultGhAwNodeImage + "\"\n")
 	yaml.WriteString("          mounts = [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultSafeOutputsLogMount + "\"]\n")
 	yaml.WriteString("          args = [\"-w\", \"$GITHUB_WORKSPACE\"]\n")
+	yaml.WriteString("          entrypoint = \"sh\"\n")
+	yaml.WriteString("          entrypointArgs = [\"-c\", \"exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs\"]\n")
 	yaml.WriteString("          env_vars = [\"DEBUG\", \"DEFAULT_BRANCH\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_TOKEN\", \"GITHUB_WORKSPACE\", \"RUNNER_TEMP\"]\n")
 
 	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
@@ -239,6 +242,8 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	yaml.WriteString("                \"container\": \"" + constants.DefaultGhAwNodeImage + "\",\n")
 	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultSafeOutputsLogMount + "\"],\n")
 	yaml.WriteString("                \"args\": [\"-w\", \"\\${GITHUB_WORKSPACE}\"],\n")
+	yaml.WriteString("                \"entrypoint\": \"sh\",\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"-c\", \"exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 
 	envVars := []struct {
