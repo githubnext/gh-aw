@@ -345,21 +345,18 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		steps = append(steps, fmt.Sprintf("          key: %s${{ github.run_id }}\n", cacheKeyPrefix))
 		steps = append(steps, fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix))
 		steps = append(steps, "          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n")
-		// actions/cache/restore "cache-hit" semantics:
-		// - "true": exact key hit
-		// - "false": restore-keys hit (cache restored)
-		// - "": cache miss (nothing restored)
-		//
-		// We only want to run the artifact fallback on true misses. Treating
-		// cache-hit != 'true' as a miss would be incorrect because the cache key
-		// includes run_id, so exact hits are not expected across runs/branches.
+		// Detect true cache misses while accounting for branch-scoped action caches.
+		// The primary key includes run_id, so exact hits are not expected across runs.
+		// We treat a restore as a hit when cache-matched-key is present, and as a miss
+		// when no matched key is available.
 		steps = append(steps, "      - name: Detect daily AIC usage cache miss\n")
 		steps = append(steps, "        id: detect-daily-aic-cache-miss\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, "          GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}\n")
+		steps = append(steps, "          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}\n")
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          if [ -z \"$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT\" ]; then\n")
+		steps = append(steps, "          if [ -z \"$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT\" ] || { [ \"$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT\" = \"false\" ] && [ -z \"$GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY\" ]; }; then\n")
 		steps = append(steps, "            echo \"cache_miss=true\" >> \"$GITHUB_OUTPUT\"\n")
 		steps = append(steps, "          else\n")
 		steps = append(steps, "            echo \"cache_miss=false\" >> \"$GITHUB_OUTPUT\"\n")

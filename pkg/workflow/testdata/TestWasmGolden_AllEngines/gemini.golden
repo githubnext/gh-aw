@@ -99,8 +99,9 @@ jobs:
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
           GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}
+          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}
         run: |
-          if [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" ]; then
+          if [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" ] || { [ "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" = "false" ] && [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY" ]; }; then
             echo "cache_miss=true" >> "$GITHUB_OUTPUT"
           else
             echo "cache_miss=false" >> "$GITHUB_OUTPUT"
