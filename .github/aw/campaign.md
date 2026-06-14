@@ -122,7 +122,7 @@ First-class output is a **metric** and an **interpretation**. Make KPI computati
 
 ### Cross-repo coordination
 
-- `safe-outputs.dispatch-workflow` is same-repo only.
+- `safe-outputs.dispatch-workflow` is same-repo by default; cross-repo dispatch needs `target-repo` plus an `allowed-repos` allowlist and a token with `actions: write` on the target.
 - For org-wide/multi-org, use a coordinator sending `repository_dispatch` to each target repo.
   - Requires PAT or GitHub App token with access to every dispatched repo.
   - Prefer fine-grained PAT scoped to specific repos with `Actions: Read & Write`.
