@@ -9,11 +9,22 @@ sidebar:
 A/B Experiments is an experimental feature.
 :::
 
-The `experiments` section of the workflow frontmatter enables statistical A/B testing by defining named experiments, each with a set of variant values. At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection to the workflow prompt.
+Use the `experiments` frontmatter section to compare workflow variants across
+repeated runs. Each experiment declares a name and a set of variants. On every
+run, the activation job picks one variant and exposes it to the prompt.
+
+Experiments work best when you test one workflow choice at a time, such as:
+
+- prompt wording
+- model selection
+- whether to delegate to a sub-agent
+- which subskill (inline skill) to invoke
 
 ## Declaring experiments
 
-Add an `experiments` map to the workflow frontmatter. Each key names an experiment; the value is either a simple array of variants (bare-array form) or a rich object with additional metadata fields.
+Add an `experiments` map to the workflow frontmatter. Each key names an
+experiment. The value is either a simple array of variants (bare-array form) or
+a rich object with additional metadata fields.
 
 ### Bare-array form
 
@@ -34,7 +45,7 @@ Summarize this issue in a **${{ experiments.style }}** way.
 
 ### Rich object form
 
-Use the object form to attach metadata that drives automated reporting, guardrail enforcement, and lifecycle tracking:
+Use the object form when you want built-in reporting and experiment metadata:
 
 ```aw wrap
 ---
@@ -67,13 +78,18 @@ Summarize the findings in a **${{ experiments.prompt_style }}** way.
 ```
 
 > [!NOTE]
-> Experiment names must be valid identifiers: start with a letter or underscore, followed by letters, digits, or underscores (e.g. `style`, `feature_1`). Names that do not match this pattern are ignored.
+> Experiment names must be valid identifiers: start with a letter or
+> underscore, followed by letters, digits, or underscores. For example, use
+> `style` or `feature_1`. Names that do not match this pattern are ignored.
 
 ## Using variants in the prompt
 
-Reference a variant with `${{ experiments.<name> }}`. At runtime this is substituted with the selected variant string (e.g. `concise`).
+Reference a variant with `${{ experiments.<name> }}`. At runtime, gh-aw
+replaces the expression with the selected variant string, such as `concise`.
 
-Use the `{{#if experiments.<name> }}` block syntax for conditional prompt sections. A variant value of `no` is treated as falsy, enabling yes/no flag experiments:
+Use the `{{#if experiments.<name> }}` block syntax for conditional prompt
+sections. A variant value of `no` is treated as falsy, which makes yes/no
+experiments easy to express:
 
 ```aw wrap
 ---
@@ -88,15 +104,113 @@ Talk like a caveman in all your responses. Me test. You run.
 Address the issue described above.
 ```
 
+## Common experiment ideas
+
+Most experiments compare a single decision in the workflow. The examples below
+show common patterns.
+
+### Try different prompt styles
+
+```aw wrap
+---
+experiments:
+  style: [concise, detailed]
+---
+
+Summarize this issue in a **${{ experiments.style }}** way.
+```
+
+### Try different models
+
+Model experiments are useful when you want to compare speed, cost, and output
+quality. gh-aw model aliases such as `small` and `large` are often a good place
+to start. See [Model Aliases](/gh-aw/reference/model-tables/).
+
+```aw wrap
+---
+engine:
+  id: copilot
+  model: ${{ experiments.model }}
+
+experiments:
+  model: [small, large]
+---
+
+Review the issue and recommend the next action.
+```
+
+### Try using a sub-agent
+
+This pattern compares a direct prompt with a delegated sub-agent flow.
+
+```aw wrap
+---
+experiments:
+  use_summarizer: [yes, no]
+---
+
+{{#if experiments.use_summarizer }}
+Use the `file-summarizer` sub-agent to summarize `README.md`, then continue.
+{{/if}}
+
+Write a short project overview for maintainers.
+
+## agent: `file-summarizer`
+---
+model: small
+description: Summarizes a file in a few sentences
+---
+Read the given file and return a concise summary.
+```
+
+See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full
+syntax.
+
+### Try different subskills
+
+This pattern compares two reusable instruction blocks, sometimes called
+subskills, without changing the main workflow prompt.
+
+```aw wrap
+---
+experiments:
+  triage_skill: [triage-fast, triage-deep]
+---
+
+Use the `${{ experiments.triage_skill }}` skill to classify this issue.
+
+## skill: `triage-fast`
+---
+description: Fast issue triage
+---
+Classify the issue and suggest the smallest next step.
+
+## skill: `triage-deep`
+---
+description: Detailed issue triage
+---
+Classify the issue, identify missing context, and recommend a fuller follow-up
+plan.
+```
+
 ## Statistical balancing
 
-The activation job maintains a per-variant invocation counter that is persisted according to the `storage` setting in the `experiments:` block (see [Storage Configuration](#storage-configuration) below). The variant with the lowest cumulative count is selected on each run; when multiple variants share the lowest count (including the very first run when state is empty), one is chosen at random so no variant is systematically favoured. Over N runs every variant is used approximately N/K times (K = variant count), providing basic A/B balance with no configuration.
+The activation job tracks how often each variant has been selected. The counter
+is stored using the `storage` setting in the `experiments:` block. By default,
+gh-aw chooses the least-used variant on each run. If multiple variants are tied,
+including on the first run, one of them is chosen at random. Over time, this
+keeps usage roughly balanced across variants.
 
-When a `weight` array is provided, weighted-random selection is used instead of round-robin. Each variant is chosen with probability proportional to its weight (e.g. `[70, 30]` gives the first variant a 70% probability). When `start_date` or `end_date` is set and today falls outside the window, the control variant (first entry) is returned without incrementing any counter.
+When you provide a `weight` array, gh-aw uses weighted random selection instead
+of least-used selection. For example, `[70, 30]` gives the first variant a 70%
+selection probability. If `start_date` or `end_date` is set and the current
+date falls outside that range, gh-aw returns the control variant (the first
+entry) without incrementing any counter.
 
 ## Storage Configuration
 
-The `storage` key inside the `experiments:` map controls how experiment state is persisted:
+The `storage` key inside the `experiments:` map controls where experiment state
+is persisted:
 
 ```yaml
 experiments:
@@ -109,7 +223,8 @@ experiments:
 | `repo` (**default**) | Commits state to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`). Durable — survives cache evictions. Requires `contents: write` permission (added automatically by the compiler). |
 | `cache` | Uses GitHub Actions cache (legacy). State may be evicted after 7 days of inactivity. |
 
-When `storage: repo`, the compiler adds a `push_experiments_state` job that runs after the activation job and commits the updated `state.json` to the experiments branch.
+When `storage: repo`, the compiler adds a `push_experiments_state` job after the
+activation job and commits the updated `state.json` to the experiments branch.
 
 ## Accessing assignments downstream
 
@@ -152,7 +267,9 @@ gh aw audit <run-id> --experiment prompt_style --variant concise
 
 ### Step summary
 
-Each activation job writes a Markdown step summary that shows variant assignments, cumulative counts, and — when the rich object form is used — progress toward `min_samples`:
+Each activation job writes a Markdown step summary that shows the selected
+variants, cumulative counts, and, when you use the object form, progress toward
+`min_samples`:
 
 ```
 ## 🧪 A/B Experiment Assignments
