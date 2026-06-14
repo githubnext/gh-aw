@@ -14,6 +14,7 @@ Apply these in order — each check can halve costs:
 - [ ] **gh-proxy**: Set `tools.github.mode: gh-proxy` — skips Docker MCP server startup and extra tool definitions
 - [ ] **cli-proxy**: Mount additional MCP servers as CLIs via `cli-proxy: true` — agent pipes output through `jq` before it enters context
 - [ ] **Sub-agents**: Delegate repetitive per-item tasks to `model: small` sub-agents (~10–20× cheaper)
+- [ ] **Sub-skills**: Keep the main prompt as a short execution plan; move detailed playbooks/output layouts into `## skill:` blocks the agent invokes only when needed
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
 - [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt
@@ -263,6 +264,16 @@ Nothing else.
 ```
 
 **Why this saves tokens:** sub-agents run on the cheap `small` model; the main agent only reads compact `{"number":…, "category":…}` JSON; sub-agent dispatches can run in parallel.
+
+### Pair sub-agents with sub-skills (progressive disclosure)
+
+Use sub-skills as progressive disclosure for instruction-heavy tasks:
+
+- Keep the main prompt short and plan-like (what to do, in what order).
+- Put verbose instructions (report layout, rubric details, long formatting constraints) into `## skill:` blocks.
+- Invoke those skills only at the moment they are needed (for example, when producing final output), so early planning/execution turns stay lean.
+
+This pattern lowers ambient context and usually improves both latency and AIC by delaying expensive instruction payloads until the final phase.
 
 **Sub-agent model aliases:**
 
