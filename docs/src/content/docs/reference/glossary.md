@@ -833,7 +833,7 @@ A cross-repository event forwarding architecture for side repository workflows. 
 
 ### Cache Memory
 
-Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Cache Memory](/gh-aw/reference/cache-memory/).
+Persistent storage for workflows preserving data between runs using GitHub Actions cache. Cache memory is branch-scoped: runs restore from the current branch and may restore from the default branch (`main` in most repositories). After a non-default branch restores from default, later saves remain branch-local. Configured via `cache-memory:` in the tools section with 7-day retention. See [Cache Memory](/gh-aw/reference/cache-memory/).
 
 ### Comment Memory (`tools.comment-memory`)
 
