@@ -4,7 +4,7 @@
 /**
  * restore_aic_usage_cache_fallback.cjs
  *
- * Called from the activation job when actions/cache/restore has a cache miss.
+ * Called from the activation job only when actions/cache/restore reports a cache miss.
  * Downloads the most recent `aic-usage-cache` artifact from the same workflow's
  * recent runs to populate the local cache file without requiring the artifact to
  * have been saved on the current branch.

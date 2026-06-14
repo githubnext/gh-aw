@@ -345,6 +345,23 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		steps = append(steps, fmt.Sprintf("          key: %s${{ github.run_id }}\n", cacheKeyPrefix))
 		steps = append(steps, fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix))
 		steps = append(steps, "          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n")
+		// actions/cache/restore "cache-hit" semantics:
+		// - "true": exact key hit
+		// - "false": restore-keys hit (cache restored)
+		// - "": cache miss (nothing restored)
+		//
+		// We only want to run the artifact fallback on true misses. Treating
+		// cache-hit != 'true' as a miss would be incorrect because the cache key
+		// includes run_id, so exact hits are not expected across runs/branches.
+		steps = append(steps, "      - name: Detect daily AIC usage cache miss\n")
+		steps = append(steps, "        id: detect-daily-aic-cache-miss\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          if [ -z \"${{ steps.restore-daily-aic-cache.outputs.cache-hit }}\" ]; then\n")
+		steps = append(steps, "            echo \"cache_miss=true\" >> \"$GITHUB_OUTPUT\"\n")
+		steps = append(steps, "          else\n")
+		steps = append(steps, "            echo \"cache_miss=false\" >> \"$GITHUB_OUTPUT\"\n")
+		steps = append(steps, "          fi\n")
 		// Artifact-based fallback for cross-branch cache misses.
 		// GitHub Actions actions/cache is branch-scoped: caches written by the conclusion job
 		// on one PR branch are invisible to the activation job running on a different PR branch.
@@ -353,7 +370,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		// The fallback script is a no-op when the cache file already exists.
 		steps = append(steps, "      - name: Restore daily AIC usage cache (artifact fallback)\n")
 		steps = append(steps, "        id: restore-daily-aic-cache-fallback\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+		steps = append(steps, fmt.Sprintf("        if: %s && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true'\n", maxDailyAICreditsConfiguredIfExpr))
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        with:\n")
