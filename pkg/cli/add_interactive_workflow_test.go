@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,5 +59,16 @@ func TestGetWorkflowStatuses(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCheckStatusAndOfferRun_ContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	cfg := &AddInteractiveConfig{Verbose: true}
+	err := cfg.checkStatusAndOfferRun(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation error, got %v", err)
 	}
 }

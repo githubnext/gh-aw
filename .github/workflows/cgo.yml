@@ -1118,6 +1118,7 @@ jobs:
 
       # Enforce selected production custom analyzers without blocking on unrelated
       # legacy custom analyzer findings in tests or other analyzer families.
+      # Note: -test=false intentionally scopes this gate to production code only.
     - name: Run custom linters
       run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -test=false"
 
