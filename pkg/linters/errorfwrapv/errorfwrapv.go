@@ -25,12 +25,12 @@ func universeErrorInterface() *types.Interface {
 		return nil
 	}
 
-	errorIface, ok := errorObj.Type().Underlying().(*types.Interface)
+	iface, ok := errorObj.Type().Underlying().(*types.Interface)
 	if !ok {
 		return nil
 	}
 
-	return errorIface
+	return iface
 }
 
 type formatVerb struct {
