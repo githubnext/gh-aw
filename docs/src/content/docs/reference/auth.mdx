@@ -231,16 +231,22 @@ engine:
     organization-id: org_xxxxxxxxxxxx
     service-account-id: svac_xxxxxxxxxxxx
     workspace-id: ws_xxxxxxxxxxxx
+    # Optional: override OIDC audience claim (default: https://api.anthropic.com)
+    # oidc-audience: https://api.anthropic.com
+    # Optional: override token exchange endpoint (default: https://api.anthropic.com/v1/oauth/token)
+    # token-url: https://api.anthropic.com/v1/oauth/token
 ```
 
 **Fields:**
 
-| Field | Description |
-|---|---|
-| `federation-rule-id` | ID of the Anthropic WIF federation rule (prefix `fdrl_`) |
-| `organization-id` | Anthropic organization ID (prefix `org_`) |
-| `service-account-id` | Anthropic service account ID (prefix `svac_`) |
-| `workspace-id` | Anthropic workspace ID (prefix `ws_`) |
+| Field | Required | Description |
+|---|---|---|
+| `federation-rule-id` | ✅ | ID of the Anthropic WIF federation rule (prefix `fdrl_`) |
+| `organization-id` | ✅ | Anthropic organization ID (prefix `org_`) |
+| `service-account-id` | ✅ | Anthropic service account ID (prefix `svac_`) |
+| `workspace-id` | ✅ | Anthropic workspace ID (prefix `ws_`) |
+| `oidc-audience` | Optional | Audience claim for GitHub OIDC token (default: `https://api.anthropic.com`) |
+| `token-url` | Optional | Token exchange endpoint override (default: `https://api.anthropic.com/v1/oauth/token`) |
 
 **Emitted environment variables:**
 
@@ -248,11 +254,19 @@ The compiler maps each field to an env var passed to the AWF api-proxy sidecar:
 
 | Field | Env var |
 |---|---|
+| `type: github-oidc` | `AWF_AUTH_TYPE=github-oidc` |
 | `provider: anthropic` | `AWF_AUTH_PROVIDER=anthropic` |
 | `federation-rule-id` | `AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID` |
 | `organization-id` | `AWF_AUTH_ANTHROPIC_ORGANIZATION_ID` |
 | `service-account-id` | `AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID` |
 | `workspace-id` | `AWF_AUTH_ANTHROPIC_WORKSPACE_ID` |
+
+Optional fields:
+
+| Field | Env var | Default |
+|---|---|---|
+| `oidc-audience` | `AWF_AUTH_OIDC_AUDIENCE` | `https://api.anthropic.com` |
+| `token-url` | `AWF_AUTH_ANTHROPIC_TOKEN_URL` | `https://api.anthropic.com/v1/oauth/token` |
 
 Available since: v0.79.6 (2026-06-11).
 
