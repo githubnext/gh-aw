@@ -40,9 +40,13 @@ func ClearLine() {
 // Use this at the start of interactive commands (add, trial, init) for a consistent experience.
 func ShowWelcomeBanner(description string) {
 	ClearScreen()
+	header := "🚀 Welcome to GitHub Agentic Workflows!"
+	if tty.IsStderrTerminal() {
+		header = styles.Header.Render(header)
+	}
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, applyStyle(styles.Header, "🚀 Welcome to GitHub Agentic Workflows!"))
+	fmt.Fprintln(os.Stderr, header)
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, FormatInfoMessage(description))
+	fmt.Fprintln(os.Stderr, description)
 	fmt.Fprintln(os.Stderr, "")
 }
