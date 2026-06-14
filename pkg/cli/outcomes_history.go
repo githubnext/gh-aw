@@ -313,7 +313,7 @@ func renderHistoricalObjectiveReport(report historicalObjectiveReport) {
 		}
 		fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
 			Title:   "Top objective buckets",
-			Headers: []string{"Label", "Count", "Mapped Value", "Contributed Value"},
+			Headers: []string{"Bucket", "Count", "Mapped Value", "Contributed Value"},
 			Rows:    bucketRows,
 		}))
 	}
