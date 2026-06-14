@@ -141,7 +141,7 @@ func TestRunOutcomesHistory_PrettyOutput(t *testing.T) {
 	}
 
 	require.NoError(t, os.Setenv("OBJECTIVE_MAPPING_JSON", `{"label_to_value":{"automation":40,"testing":65},"multi_label_logic":"max"}`))
-	defer os.Unsetenv("OBJECTIVE_MAPPING_JSON")
+	t.Cleanup(func() { os.Unsetenv("OBJECTIVE_MAPPING_JSON") })
 
 	stderr := testutil.CaptureStderr(t, func() {
 		err := RunOutcomesHistory(OutcomesHistoryConfig{RepoOverride: "owner/repo", JSONOutput: false, Limit: 10, Source: historySourceAll})
