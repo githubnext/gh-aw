@@ -169,7 +169,10 @@ Guardrail test workflow`
 	if !strings.Contains(activationSection, "id: detect-daily-aic-cache-miss") {
 		t.Fatal("expected activation job to include a cache-miss detection step before fallback")
 	}
-	if !strings.Contains(activationSection, `if [ -z "${{ steps.restore-daily-aic-cache.outputs.cache-hit }}" ]; then`) {
+	if !strings.Contains(activationSection, "GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}") {
+		t.Fatal("expected cache-miss detection to pass cache-hit output via env for template-injection safety")
+	}
+	if !strings.Contains(activationSection, `if [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" ]; then`) {
 		t.Fatal("expected cache-miss detection to treat empty cache-hit output as a true miss")
 	}
 	if !strings.Contains(activationSection, "steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true'") {
