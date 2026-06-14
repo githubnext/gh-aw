@@ -369,7 +369,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		// The fallback script is a no-op when the cache file already exists.
 		steps = append(steps, "      - name: Restore daily AIC usage cache (artifact fallback)\n")
 		steps = append(steps, "        id: restore-daily-aic-cache-fallback\n")
-		steps = append(steps, fmt.Sprintf("        if: %s && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true'\n", maxDailyAICreditsConfiguredIfExpr))
+		steps = append(steps, fmt.Sprintf("        if: ${{ %s && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true' }}\n", stripExpressionWrapper(maxDailyAICreditsConfiguredIfExpr)))
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        with:\n")
