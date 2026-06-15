@@ -337,7 +337,7 @@ Follow this order:
 
 - Include up to 5 run references using the latest runs from the highest-spend workflows.
 
-## Guardrails
+## Final Guardrails
 
 - Never invent AIC numbers.
 - If the window has sparse data, say so directly.
