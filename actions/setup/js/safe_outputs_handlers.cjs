@@ -25,7 +25,16 @@ const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-const safeOutputsTools = require("./safe_outputs_tools.json");
+/**
+ * Read and parse a JSON file.
+ * @param {string} filePath
+ * @returns {any}
+ */
+function readJSONFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+const safeOutputsTools = readJSONFile(path.join(__dirname, "safe_outputs_tools.json"));
 
 const safeOutputsToolMap = new Map(safeOutputsTools.map(tool => [tool.name, tool]));
 
