@@ -190,24 +190,14 @@ jobs:
           key: agentic-workflow-usage-smokecopilot-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-smokecopilot-
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
-      - name: Detect daily AIC usage cache miss
-        id: detect-daily-aic-cache-miss
+      - name: Restore daily AIC usage cache (artifact fallback)
+        id: restore-daily-aic-cache-fallback
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}
           GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}
-        run: |
-          if [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" ] || { [ "$GH_AW_RESTORE_DAILY_AIC_CACHE_HIT" = "false" ] && [ -z "$GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY" ]; }; then
-            echo "cache_miss=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "cache_miss=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Restore daily AIC usage cache (artifact fallback)
-        id: restore-daily-aic-cache-fallback
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' && steps.detect-daily-aic-cache-miss.outputs.cache_miss == 'true' }}
-        continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

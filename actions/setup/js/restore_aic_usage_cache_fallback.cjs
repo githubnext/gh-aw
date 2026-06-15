@@ -76,16 +76,27 @@ function logFallback(message, details) {
  * recent runs and writes it to {@link CACHE_FILE_PATH}.
  *
  * @param {string} [cacheFilePath] Override for the target cache file path (used in tests).
- * @param {{ createArtifactClient?: () => import("./artifact_client.cjs").DefaultArtifactClient }} [options]
- *   Optional overrides for testing (e.g. inject a mock artifact client factory).
+ * @param {{ createArtifactClient?: () => import("./artifact_client.cjs").DefaultArtifactClient, cacheHit?: string, cacheMatchedKey?: string }} [options]
+ *   Optional overrides for testing (e.g. inject a mock artifact client factory, override env var values).
  * @returns {Promise<void>}
  */
 async function mainWithPaths(cacheFilePath, options = {}) {
   const cachePath = cacheFilePath || CACHE_FILE_PATH;
   const createArtifactClient = options.createArtifactClient || (() => new DefaultArtifactClient());
 
-  // If the file already exists (e.g., restored via actions/cache restore-keys prefix
-  // match or a prior step), skip the artifact-based fallback entirely.
+  // Detect true cache miss using the restore outputs forwarded via env vars.
+  // A true miss is when cache-hit is absent/empty (step was skipped or errored), or
+  // when cache-hit is "false" and no restore-key match was found (cache-matched-key is empty).
+  // A restore-key match (cache-hit "false" but cache-matched-key present) counts as a hit.
+  const cacheHit = "cacheHit" in options ? options.cacheHit : process.env.GH_AW_RESTORE_DAILY_AIC_CACHE_HIT || "";
+  const cacheMatchedKey = "cacheMatchedKey" in options ? options.cacheMatchedKey : process.env.GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY || "";
+  const isCacheMiss = !cacheHit || (cacheHit === "false" && !cacheMatchedKey);
+  if (!isCacheMiss) {
+    logFallback("Cache was restored; skipping artifact fallback", { cacheHit, cacheMatchedKey });
+    return;
+  }
+
+  // If the file already exists (e.g., restored by a prior step), skip the artifact fallback.
   if (fs.existsSync(cachePath)) {
     logFallback("Cache file already exists; skipping artifact fallback", { path: cachePath });
     return;
