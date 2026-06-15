@@ -48,8 +48,7 @@ steps:
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2026-03-10" \
               "/agents/repos/$REPO/tasks/$task_id" \
-              --jq --arg since "$SINCE" '
-              select((.updated_at // .created_at // "") >= $since)
+              | jq -c --arg since "$SINCE" '
               | def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
                 def artifact_types: ([.artifacts[]?.type | select(.)] | join(","));
                 def first_non_empty_index($sessions):
