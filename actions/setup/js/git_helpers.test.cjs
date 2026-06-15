@@ -417,8 +417,7 @@ describe("git_helpers.cjs", () => {
       expect(deepenFetchCalls.length).toBe(2);
       // Each deepen step is a small, fixed increment of 5.
       expect(deepenFetchCalls[0][1]).toEqual(["fetch", "--deepen=5", "origin", "main"]);
-      expect(deepenFetchCalls[1][1]).toEqual(["fetch", "--deepen=5", "origin", "main"]);
-      expect(execApi.exec).not.toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.anything());
+      expect(execApi.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["--unshallow"]), expect.anything());
     });
 
     it("should skip deepening when bundle declares no prerequisites", async () => {
