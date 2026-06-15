@@ -104,8 +104,8 @@ steps:
   - name: Precompute optimization datasets
     run: |
       set -euo pipefail
+      GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
       mkdir -p /tmp/gh-aw/repo-memory/default
-      jq -s '.' /tmp/gh-aw/data/task-summaries.jsonl > /tmp/gh-aw/data/task-summaries.json
 
       jq '
         def round2: .*100 | round / 100;
