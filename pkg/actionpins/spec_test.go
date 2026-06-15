@@ -348,6 +348,53 @@ func TestSpec_Types_ContainerPin(t *testing.T) {
 	assert.Equal(t, "ghcr.io/some/image@sha256:abc123", pin.PinnedImage, "ContainerPin.PinnedImage field")
 }
 
+// TestSpec_Constants_ResolutionErrorType validates the documented ResolutionErrorType constant values.
+// Spec table: ResolutionErrorTypeDynamicResolutionFailed="dynamic_resolution_failed",
+// ResolutionErrorTypePinNotFound="pin_not_found".
+func TestSpec_Constants_ResolutionErrorType(t *testing.T) {
+	assert.Equal(t, "dynamic_resolution_failed", string(actionpins.ResolutionErrorTypeDynamicResolutionFailed),
+		"ResolutionErrorTypeDynamicResolutionFailed should equal the documented value")
+	assert.Equal(t, "pin_not_found", string(actionpins.ResolutionErrorTypePinNotFound),
+		"ResolutionErrorTypePinNotFound should equal the documented value")
+}
+
+// TestSpec_Types_ResolutionFailure validates the documented ResolutionFailure type structure.
+// Spec: "Captures an unresolved action-ref pinning event (repo, ref, error type)".
+func TestSpec_Types_ResolutionFailure(t *testing.T) {
+	failure := actionpins.ResolutionFailure{
+		Repo:      "unknown/action",
+		Ref:       "v1",
+		ErrorType: actionpins.ResolutionErrorTypePinNotFound,
+	}
+	assert.Equal(t, "unknown/action", failure.Repo, "ResolutionFailure.Repo field")
+	assert.Equal(t, "v1", failure.Ref, "ResolutionFailure.Ref field")
+	assert.Equal(t, actionpins.ResolutionErrorTypePinNotFound, failure.ErrorType, "ResolutionFailure.ErrorType field")
+}
+
+// TestSpec_PublicAPI_RecordResolutionFailure validates the documented auditing behavior:
+// PinContext.RecordResolutionFailure collects ResolutionFailure events for unresolved pins,
+// classified with ResolutionErrorTypePinNotFound when no usable pin is found.
+// Spec section "Auditing Resolution Failures".
+func TestSpec_PublicAPI_RecordResolutionFailure(t *testing.T) {
+	var failures []actionpins.ResolutionFailure
+	ctx := &actionpins.PinContext{
+		Warnings: make(map[string]bool),
+		RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+			failures = append(failures, f)
+		},
+	}
+
+	_, err := actionpins.ResolveActionPin("does-not-exist/unknown-action-xyzzy", "v1", ctx)
+	require.NoError(t, err, "ResolveActionPin should not error even when the pin is unresolved")
+
+	require.Len(t, failures, 1, "RecordResolutionFailure should be invoked once for an unresolved pin")
+	assert.Equal(t, actionpins.ResolutionErrorTypePinNotFound, failures[0].ErrorType,
+		"unresolved pin with no resolver should be classified as pin_not_found")
+	assert.Equal(t, "does-not-exist/unknown-action-xyzzy", failures[0].Repo,
+		"recorded failure should carry the queried repo")
+	assert.Equal(t, "v1", failures[0].Ref, "recorded failure should carry the queried ref")
+}
+
 // TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
 // are safe after initialization (sync.Once guarantee from the spec).
 func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {

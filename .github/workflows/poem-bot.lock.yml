@@ -186,6 +186,9 @@ jobs:
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}
+          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

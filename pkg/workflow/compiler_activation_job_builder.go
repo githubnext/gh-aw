@@ -350,12 +350,16 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		// on one PR branch are invisible to the activation job running on a different PR branch.
 		// This step downloads the most recent aic-usage-cache artifact uploaded by a prior
 		// conclusion job so that the guardrail script can skip per-run artifact downloads.
-		// The fallback script is a no-op when the cache file already exists.
+		// Cache-miss detection is performed inside restore_aic_usage_cache_fallback.cjs using
+		// the cache restore outputs forwarded via env vars.
 		steps = append(steps, "      - name: Restore daily AIC usage cache (artifact fallback)\n")
 		steps = append(steps, "        id: restore-daily-aic-cache-fallback\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, "          GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}\n")
+		steps = append(steps, "          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
 		steps = append(steps, "          script: |\n")

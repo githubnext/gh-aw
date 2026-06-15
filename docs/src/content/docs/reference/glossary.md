@@ -354,6 +354,10 @@ An option on `create-pull-request` safe outputs that omits the random hex salt s
 
 A `create-pull-request` safe-output field that sets the maximum number of unique files allowed in a single PR's patch. Defaults to `100`. Workflows that regenerate large sets of files (e.g., per-package API schemas) can raise this limit. If the limit is exceeded, PR creation fails with an actionable error showing the exact file count and the field to configure. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
+### Max Patch Size (`max-patch-size:`)
+
+A `create-pull-request` and `push-to-pull-request-branch` safe output field that limits the total size of the git patch in kilobytes. Accepts an integer in the range 1–10,240 KB. Defaults to `4096` KB (4 MB). If the patch exceeds the limit, PR creation fails with an actionable error. Useful when workflows generate large diffs and the default limit is too restrictive or too permissive. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
 ### Recreate Ref (`recreate-ref:`)
 
 An option on `create-pull-request` safe outputs that force-deletes and recreates the remote branch when the agent-supplied branch name already exists on the remote. Requires `preserve-branch-name: true`. The handler force-pushes the agent's local HEAD to the stale remote ref, enabling reuse of long-lived reusable branches whose previous PR was merged. Without `recreate-ref: true`, the default behavior is to fall back (for example, open an issue when `fallback-as-issue: true`) rather than overwrite the remote. Defaults to `false`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
@@ -407,6 +411,26 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 ### Engine
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports seven engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+
+### Anthropic Workload Identity Federation (WIF)
+
+A keyless authentication method for the Claude engine that uses short-lived GitHub OIDC tokens instead of a long-lived `ANTHROPIC_API_KEY` secret. Configured via [`engine.auth`](#engine-auth-engineauth) with `type: github-oidc` and `provider: anthropic`, along with Anthropic-specific IDs (`federation-rule-id`, `organization-id`, `service-account-id`, `workspace-id`) obtained from the Anthropic Console. Requires `permissions: id-token: write`. Available since v0.79.6. See [Authentication Reference](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif).
+
+### Engine Auth (`engine.auth`)
+
+An `engine:` configuration field for keyless authentication. When `engine.auth` is configured, the compiler emits authentication environment variables consumed by the AWF api-proxy sidecar and suppresses the static API key requirement. Supports `type: github-oidc` with an optional `provider` for service-specific token exchange — for example, `provider: anthropic` for [Anthropic WIF](#anthropic-workload-identity-federation-wif) or without a provider for Azure Entra ID BYOK mode. Requires `permissions: id-token: write` in the workflow. See [Authentication Reference](/gh-aw/reference/auth/) and [AI Engines Reference](/gh-aw/reference/engines/).
+
+```aw wrap
+engine:
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fdrl_xxxxxxxxxxxx
+    organization-id: org_xxxxxxxxxxxx
+    service-account-id: svac_xxxxxxxxxxxx
+    workspace-id: ws_xxxxxxxxxxxx
+```
 
 ### Engine Permission Mode (`engine.permission-mode`)
 
