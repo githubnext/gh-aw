@@ -512,6 +512,22 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("defaultHandler wildcard target validation", () => {
+    it("should require explicit discussion_number when update_discussion target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        update_discussion: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.defaultHandler("update_discussion")({ body: "Updated discussion body." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires discussion_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should require explicit pull_request_number when close_pull_request target is '*'", () => {
       const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
         close_pull_request: {
@@ -520,6 +536,22 @@ describe("safe_outputs_handlers", () => {
       });
 
       const result = wildcardHandlers.defaultHandler("close_pull_request")({ body: "Closing in favor of a newer PR." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require explicit pull_request_number when create_check_run target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_check_run: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.defaultHandler("create_check_run")({ conclusion: "success", title: "Checks passed", summary: "All checks passed." });
 
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
@@ -1141,6 +1173,22 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("Bundle transport requires branch pinning");
 
       // Should not have appended to safe output since patch generation failed
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          target: "*",
+        },
+      });
+
+      const result = await wildcardHandlers.pushToPullRequestBranchHandler({ message: "Apply requested changes." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 

@@ -154,6 +154,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "discussion_number",
+        "anyOf": ["discussion_number"]
+      }
     }
   },
   {
@@ -1007,6 +1013,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -1691,6 +1703,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number", "pr_number", "pr", "pull_number"]
+      }
     }
   }
 ]
