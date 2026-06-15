@@ -38,9 +38,17 @@ steps:
 
       SINCE="$(date -u -d "-${TASK_LOOKBACK_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
 
-      gh api --paginate "/agents/repos/$REPO/tasks?per_page=100" --jq '.tasks[].id' \
+      gh api --paginate \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2026-03-10" \
+        "/agents/repos/$REPO/tasks?per_page=100" \
+        --jq '.tasks[].id' \
         | while IFS= read -r task_id; do
-            gh api "/agents/repos/$REPO/tasks/$task_id" --jq --arg since "$SINCE" '
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "/agents/repos/$REPO/tasks/$task_id" \
+              --jq --arg since "$SINCE" '
               select((.updated_at // .created_at // "") >= $since)
               | def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
                 def artifact_types: ([.artifacts[]?.type | select(.)] | join(","));
