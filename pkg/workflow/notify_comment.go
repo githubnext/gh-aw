@@ -432,6 +432,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// indicates the prompt is referencing an incorrect file path within the cache directory.
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CACHE_MEMORY_ENABLED: \"true\"\n")
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CACHE_MEMORY_RESTORED: ${{ needs.%s.outputs.cache_memory_restored || 'false' }}\n", mainJobName))
 	}
 
 	// Build the agent failure handling step.

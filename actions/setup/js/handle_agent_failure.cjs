@@ -1018,10 +1018,11 @@ function loadMissingDataMessages(items) {
  * When cache-memory is enabled and a cache_miss is detected, appends a
  * configuration-problem warning to the context.
  * @param {boolean} cacheMemoryEnabled - Whether cache-memory is configured for this workflow
+ * @param {boolean} cacheMemoryRestored - Whether cache restore matched an existing cache key in this run
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted missing data context
  */
-function buildMissingDataContext(cacheMemoryEnabled, items) {
+function buildMissingDataContext(cacheMemoryEnabled, cacheMemoryRestored, items) {
   const missingDataMessages = loadMissingDataMessages(items);
 
   if (missingDataMessages.length === 0) {
@@ -1036,7 +1037,8 @@ function buildMissingDataContext(cacheMemoryEnabled, items) {
 
   // When cache-memory is configured and cache_miss is present, avoid repeating the same
   // signal in the generic "Missing Data" section. Keep the specialised cache warning below.
-  const displayableMissingData = cacheMemoryEnabled && hasCacheMiss ? missingDataMessages.filter(m => m.reason !== "cache_memory_miss") : missingDataMessages;
+  const hasCacheMissMisconfiguration = cacheMemoryEnabled && cacheMemoryRestored && hasCacheMiss;
+  const displayableMissingData = hasCacheMissMisconfiguration ? missingDataMessages.filter(m => m.reason !== "cache_memory_miss") : missingDataMessages;
 
   let context = "";
   if (displayableMissingData.length > 0) {
@@ -1046,8 +1048,8 @@ function buildMissingDataContext(cacheMemoryEnabled, items) {
     context += "\n\n";
   }
 
-  if (cacheMemoryEnabled && hasCacheMiss) {
-    core.info("Cache-miss detected despite cache-memory being available — likely a configuration problem");
+  if (hasCacheMissMisconfiguration) {
+    core.info("Cache-miss detected after a successful cache restore — likely a configuration problem");
     const templatePath = getPromptPath("cache_memory_miss.md");
     context += "\n" + renderTemplateFromFile(templatePath, {}) + "\n";
   }
@@ -2502,6 +2504,7 @@ async function main() {
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
+    const cacheMemoryRestored = process.env.GH_AW_CACHE_MEMORY_RESTORED === "true";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -2549,6 +2552,7 @@ async function main() {
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
     core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
+    core.info(`Cache memory restored: ${cacheMemoryRestored}`);
     core.info(`Missing tool report-as-failure: ${missingToolReportAsFailure}`);
     core.info(`Missing data report-as-failure: ${missingDataReportAsFailure}`);
 
@@ -2678,19 +2682,21 @@ async function main() {
     // Check for items regardless of agentOutputResult.success so that cache-miss signals
     // emitted alongside other output are not missed when the agent job also fails.
     let hasCacheMissMisconfiguration = false;
-    if (cacheMemoryEnabled && agentOutputResult.items) {
+    if (cacheMemoryEnabled && cacheMemoryRestored && agentOutputResult.items) {
       const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_memory_miss");
       if (cacheMissItems.length > 0) {
         hasCacheMissMisconfiguration = true;
-        core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_memory_miss" despite cache-memory being available`);
+        core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_memory_miss" after cache restore matched an existing key`);
       }
+    } else if (cacheMemoryEnabled && !cacheMemoryRestored) {
+      core.info("Cache-memory is configured but no cache restore match was found; cache_memory_miss is treated as expected cache miss (actions/cache branch scoping and first-run behavior)");
     }
 
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
     // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
-    // OR a cache-miss was detected despite cache-memory being available (configuration problem)
+    // OR a cache-miss was detected after cache restore succeeded (configuration problem)
     // OR the agent reported missing tools or missing data (treated as agent failures by default).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
@@ -2913,7 +2919,7 @@ async function main() {
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
         // Build missing_data context (only when report-as-failure is enabled for this signal type)
-        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
+        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, cacheMemoryRestored, agentOutputResult.items) : "";
 
         // Build tool-denials-exceeded guard context from events.jsonl
         const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);
@@ -3136,7 +3142,7 @@ async function main() {
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
         // Build missing_data context (only when report-as-failure is enabled for this signal type)
-        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
+        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, cacheMemoryRestored, agentOutputResult.items) : "";
 
         // Build tool-denials-exceeded guard context from events.jsonl
         const toolDenialsExceededContext = buildToolDenialsExceededContext(toolDenialsExceededEvents, workflowID);

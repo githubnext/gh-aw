@@ -498,9 +498,12 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		githubConfig = data.ParsedTools.GitHub
 	}
 	integrityLevel := cacheIntegrityLevel(githubConfig)
+	restoreStepIDs := make([]string, 0, len(data.CacheMemoryConfig.Caches))
 
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		cacheDir := cacheMemoryDirFor(cache.ID)
+		restoreStepID := strings.ReplaceAll("restore_cache_memory_"+cache.ID, "-", "_")
+		restoreStepIDs = append(restoreStepIDs, restoreStepID)
 
 		// Add step to create cache-memory directory for this cache
 		if useBackwardCompatiblePaths {
@@ -575,6 +578,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			fmt.Fprintf(builder, "      - name: %s (%s)\n", actionName, cache.ID)
 		}
+		fmt.Fprintf(builder, "        id: %s\n", restoreStepID)
 
 		// Use actions/cache/restore@v4 when restore-only or threat detection enabled
 		// Use actions/cache@v4 for normal caches
@@ -599,6 +603,25 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// checks out the current integrity branch, and merges down from higher-integrity branches.
 		generateCacheMemoryGitSetupStep(builder, cache, cacheDir, integrityLevel, useBackwardCompatiblePaths)
 	}
+
+	builder.WriteString("      - name: Detect cache-memory restore availability\n")
+	builder.WriteString("        id: cache_memory_restore_status\n")
+	builder.WriteString("        env:\n")
+	for _, stepID := range restoreStepIDs {
+		envSuffix := strings.ToUpper(stepID)
+		fmt.Fprintf(builder, "          GH_AW_%s_MATCHED_KEY: ${{ steps.%s.outputs.cache-matched-key || '' }}\n", envSuffix, stepID)
+		fmt.Fprintf(builder, "          GH_AW_%s_CACHE_HIT: ${{ steps.%s.outputs.cache-hit || 'false' }}\n", envSuffix, stepID)
+	}
+	builder.WriteString("        shell: bash\n")
+	builder.WriteString("        run: |\n")
+	builder.WriteString("          restored=false\n")
+	for _, stepID := range restoreStepIDs {
+		envSuffix := strings.ToUpper(stepID)
+		fmt.Fprintf(builder, "          if [ -n \"$GH_AW_%s_MATCHED_KEY\" ] || [ \"$GH_AW_%s_CACHE_HIT\" = \"true\" ]; then\n", envSuffix, envSuffix)
+		builder.WriteString("            restored=true\n")
+		builder.WriteString("          fi\n")
+	}
+	builder.WriteString("          echo \"cache_memory_restored=${restored}\" >> \"$GITHUB_OUTPUT\"\n")
 }
 
 // generateCacheMemoryGitSetupStep emits a pre-agent step that sets up the git-backed integrity
