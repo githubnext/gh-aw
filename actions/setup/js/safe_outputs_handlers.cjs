@@ -72,10 +72,19 @@ function getSafeOutputsToolConfig(safeOutputsConfig, toolName) {
   return safeOutputsConfig?.[toolName] || safeOutputsConfig?.[toolName.replace(/_/g, "-")] || {};
 }
 
+/**
+ * @param {Record<string, any>} entry
+ * @param {string[]} fieldNames
+ * @returns {boolean}
+ */
 function hasExplicitTargetParameter(entry, fieldNames) {
   return fieldNames.some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
 }
 
+/**
+ * @param {string} toolName
+ * @returns {{primary?: string, anyOf?: string[]} | null}
+ */
 function getWildcardTargetRequirement(toolName) {
   return safeOutputsToolMap.get(toolName)?.["x-safe-outputs-target-requirements"]?.["*"] || null;
 }
@@ -167,6 +176,11 @@ function resolvePatchWorkspacePath(workspacePath) {
 function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
 
+  /**
+   * Validate schema-declared explicit target parameters for wildcard-target tools.
+   * @param {Record<string, any>} entry
+   * @returns {{content: Array<{type: "text", text: string}>, isError: true} | null}
+   */
   const validateWildcardTargetRequirement = entry => {
     const toolName = entry?.type;
     const requirement = getWildcardTargetRequirement(toolName);
