@@ -42,64 +42,60 @@ steps:
         | while IFS= read -r task_id; do
             gh api "/agents/repos/$REPO/tasks/$task_id" --jq --arg since "$SINCE" '
               select((.updated_at // .created_at // "") >= $since)
+              | def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
+                def artifact_types: ([.artifacts[]?.type | select(.)] | join(","));
+                def first_non_empty_index($sessions):
+                  ([range(0; ($sessions | length))
+                    | select((($sessions[.]?.prompt // "") | length) > 0)] | .[0]);
+
+                sorted_sessions as $sessions
+                | ($sessions | length) as $session_count
+                | (if $session_count == 0 then null else ($sessions[0].prompt // null) end) as $earliest_input
+                | first_non_empty_index($sessions) as $first_non_empty_index
+                | (if $first_non_empty_index == null then null else $sessions[$first_non_empty_index].prompt end) as $first_non_empty_input
+                | (if $session_count == 0 then "none"
+                   elif $first_non_empty_index == null or $first_non_empty_index == 0 then "earliest"
+                   else "first_non_empty"
+                   end) as $input_source
+                | (if $session_count == 0 then null
+                   elif $first_non_empty_index == null then $earliest_input
+                   else $first_non_empty_input
+                   end) as $input
+                | (artifact_types) as $artifact_types
+                | ($earliest_input == "") as $earliest_prompt_empty
+                | {
+                    artifact_types: $artifact_types,
+                    creator_id: (if .creator?.id == null then null else (.creator.id | tostring) end),
+                    creator_login: (.creator?.login // null),
+                    earliest_prompt_empty: $earliest_prompt_empty,
+                    id: .id,
+                    name: .name,
+                    state: .state,
+                    created_at: .created_at,
+                    updated_at: .updated_at,
+                    url: .html_url,
+                    earliest_input: $earliest_input,
+                    first_non_empty_input: $first_non_empty_input,
+                    input: $input,
+                    input_source: $input_source,
+                    input_session_index: (if $session_count == 0 then null elif $first_non_empty_index == null then 0 else $first_non_empty_index end),
+                    non_empty_prompt_count: ([.sessions[]?.prompt // "" | select(length > 0)] | length),
+                    session_count: $session_count,
+                    start_context_confidence: "derived",
+                    start_context_guess: (
+                      if $artifact_types == "pull,branch" and $earliest_prompt_empty then "pull_branch_bootstrap"
+                      elif $artifact_types == "pull,branch,pull" and $earliest_prompt_empty then "pull_branch_review_bootstrap"
+                      elif ($artifact_types | contains("pull")) and $earliest_prompt_empty then "pull_bootstrap"
+                      elif $earliest_prompt_empty then "bootstrap_unknown"
+                      else "direct_prompt"
+                      end
+                    ),
+                    used_fallback_input: ($session_count > 0 and $first_non_empty_index != null and $first_non_empty_index > 0)
+                  }
             ' || true
           done \
-        | jq -r '.id' \
         | head -n "$TASK_LIMIT" \
-        | while IFS= read -r task_id; do
-            gh api "/agents/repos/$REPO/tasks/$task_id" --jq '
-              def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
-              def artifact_types: ([.artifacts[]?.type | select(.)] | join(","));
-              def first_non_empty_index($sessions):
-                ([range(0; ($sessions | length))
-                  | select((($sessions[.]?.prompt // "") | length) > 0)] | .[0]);
-
-              sorted_sessions as $sessions
-              | ($sessions | length) as $session_count
-              | (if $session_count == 0 then null else ($sessions[0].prompt // null) end) as $earliest_input
-              | first_non_empty_index($sessions) as $first_non_empty_index
-              | (if $first_non_empty_index == null then null else $sessions[$first_non_empty_index].prompt end) as $first_non_empty_input
-              | (if $session_count == 0 then "none"
-                 elif $first_non_empty_index == null or $first_non_empty_index == 0 then "earliest"
-                 else "first_non_empty"
-                 end) as $input_source
-              | (if $session_count == 0 then null
-                 elif $first_non_empty_index == null then $earliest_input
-                 else $first_non_empty_input
-                 end) as $input
-              | (artifact_types) as $artifact_types
-              | ($earliest_input == "") as $earliest_prompt_empty
-              | {
-                  artifact_types: $artifact_types,
-                  creator_id: (if .creator?.id == null then null else (.creator.id | tostring) end),
-                  creator_login: (.creator?.login // null),
-                  earliest_prompt_empty: $earliest_prompt_empty,
-                  id: .id,
-                  name: .name,
-                  state: .state,
-                  created_at: .created_at,
-                  updated_at: .updated_at,
-                  url: .html_url,
-                  earliest_input: $earliest_input,
-                  first_non_empty_input: $first_non_empty_input,
-                  input: $input,
-                  input_source: $input_source,
-                  input_session_index: (if $session_count == 0 then null elif $first_non_empty_index == null then 0 else $first_non_empty_index end),
-                  non_empty_prompt_count: ([.sessions[]?.prompt // "" | select(length > 0)] | length),
-                  session_count: $session_count,
-                  start_context_confidence: "derived",
-                  start_context_guess: (
-                    if $artifact_types == "pull,branch" and $earliest_prompt_empty then "pull_branch_bootstrap"
-                    elif $artifact_types == "pull,branch,pull" and $earliest_prompt_empty then "pull_branch_review_bootstrap"
-                    elif ($artifact_types | contains("pull")) and $earliest_prompt_empty then "pull_bootstrap"
-                    elif $earliest_prompt_empty then "bootstrap_unknown"
-                    else "direct_prompt"
-                    end
-                  ),
-                  used_fallback_input: ($session_count > 0 and $first_non_empty_index != null and $first_non_empty_index > 0)
-                }
-            ' >> /tmp/gh-aw/data/task-summaries.jsonl
-          done
+        >> /tmp/gh-aw/data/task-summaries.jsonl
 
   - name: Precompute optimization datasets
     run: |
