@@ -132,18 +132,18 @@ The script must:
    - `prior_7d_aic`
    - `aic_delta_7d`
    - `aic_delta_pct_7d`
-6. Compute daily totals across the full 30-day window:
+9. Compute daily totals across the full 30-day window:
    - `date`
    - `total_aic`
    - `run_count`
    - `failure_runs`
    - `cancelled_runs`
-7. Save the outputs to:
+10. Save the outputs to:
    - `/tmp/gh-aw/python/data/workflow_portfolio.csv`
    - `/tmp/gh-aw/python/data/daily_aic.csv`
    - `/tmp/gh-aw/python/data/outcome_mix.csv`
    - `/tmp/gh-aw/python/data/portfolio_snapshot.json`
-  - `/tmp/gh-aw/python/data/telemetry_coverage.json`
+   - `/tmp/gh-aw/python/data/telemetry_coverage.json`
 
 The JSON snapshot should include:
 
