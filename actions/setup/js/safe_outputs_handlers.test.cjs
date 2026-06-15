@@ -511,6 +511,24 @@ describe("safe_outputs_handlers", () => {
     });
   });
 
+  describe("defaultHandler wildcard target validation", () => {
+    it("should require explicit pull_request_number when close_pull_request target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        close_pull_request: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.defaultHandler("close_pull_request")({ body: "Closing in favor of a newer PR." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+  });
+
   describe("createPullRequestHandler", () => {
     /**
      * Creates a side-repo checkout where:

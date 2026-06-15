@@ -25,6 +25,9 @@ const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+const safeOutputsTools = require("./safe_outputs_tools.json");
+
+const safeOutputsToolMap = new Map(safeOutputsTools.map(tool => [tool.name, tool]));
 
 /**
  * @param {string} error
@@ -69,20 +72,12 @@ function getSafeOutputsToolConfig(safeOutputsConfig, toolName) {
   return safeOutputsConfig?.[toolName] || safeOutputsConfig?.[toolName.replace(/_/g, "-")] || {};
 }
 
-/**
- * @param {Record<string, any>} entry
- * @returns {boolean}
- */
-function hasExplicitAddCommentTargetNumber(entry) {
-  return ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+function hasExplicitTargetParameter(entry, fieldNames) {
+  return fieldNames.some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
 }
 
-/**
- * @param {Record<string, any>} entry
- * @returns {boolean}
- */
-function hasExplicitPullRequestTargetNumber(entry) {
-  return ["pull_request_number", "pr_number", "pr", "pull_number"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+function getWildcardTargetRequirement(toolName) {
+  return safeOutputsToolMap.get(toolName)?.["x-safe-outputs-target-requirements"]?.["*"] || null;
 }
 
 /**
@@ -171,11 +166,29 @@ function resolvePatchWorkspacePath(workspacePath) {
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
-  const addCommentConfig = getSafeOutputsToolConfig(config, "add_comment");
-  const wildcardAddCommentTargetRequiresItemNumber = addCommentConfig.target === "*";
-  const wildcardReviewCommentTargetRequiresPullRequestNumber = getSafeOutputsToolConfig(config, "create_pull_request_review_comment").target === "*";
-  const wildcardSubmitReviewTargetRequiresPullRequestNumber = getSafeOutputsToolConfig(config, "submit_pull_request_review").target === "*";
-  const wildcardUpdatePullRequestTargetRequiresPullRequestNumber = getSafeOutputsToolConfig(config, "update_pull_request").target === "*";
+
+  const validateWildcardTargetRequirement = entry => {
+    const toolName = entry?.type;
+    const requirement = getWildcardTargetRequirement(toolName);
+    if (!requirement) {
+      return null;
+    }
+
+    const toolConfig = getSafeOutputsToolConfig(config, toolName);
+    if (toolConfig.target !== "*") {
+      return null;
+    }
+
+    const anyOf = Array.isArray(requirement.anyOf) ? requirement.anyOf.filter(field => typeof field === "string" && field.trim() !== "") : [];
+    if (anyOf.length === 0 || hasExplicitTargetParameter(entry, anyOf)) {
+      return null;
+    }
+
+    const configKey = requirement.configKey || toolName.replace(/_/g, "-");
+    const primary = requirement.primary || anyOf[0];
+    const guidance = anyOf.length === 1 ? primary : `one of: ${anyOf.join(", ")}`;
+    return buildIntentErrorResponse(`${toolName} requires ${primary} when safe-outputs.${configKey}.target is '*'. Provide ${guidance} and retry.`);
+  };
 
   /**
    * Detect and offload large string fields to files.
@@ -224,14 +237,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const defaultHandler = type => args => {
     const entry = { ...(args || {}), type };
-    if (type === "create_pull_request_review_comment" && wildcardReviewCommentTargetRequiresPullRequestNumber && !hasExplicitPullRequestTargetNumber(entry)) {
-      return buildIntentErrorResponse("create_pull_request_review_comment requires pull_request_number when safe-outputs.create-pull-request-review-comment.target is '*'. Provide pull_request_number and retry.");
-    }
-    if (type === "submit_pull_request_review" && wildcardSubmitReviewTargetRequiresPullRequestNumber && !hasExplicitPullRequestTargetNumber(entry)) {
-      return buildIntentErrorResponse("submit_pull_request_review requires pull_request_number when safe-outputs.submit-pull-request-review.target is '*'. Provide pull_request_number and retry.");
-    }
-    if (type === "update_pull_request" && wildcardUpdatePullRequestTargetRequiresPullRequestNumber && !hasExplicitPullRequestTargetNumber(entry)) {
-      return buildIntentErrorResponse("update_pull_request requires pull_request_number when safe-outputs.update-pull-request.target is '*'. Provide pull_request_number (or pr_number/pr alias) and retry.");
+    const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
+    if (wildcardTargetValidationError) {
+      return wildcardTargetValidationError;
     }
     const largeContentResponse = maybeHandleLargeContent(entry);
     if (largeContentResponse) return largeContentResponse;
@@ -840,6 +848,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Drop it so the agent cannot override the derived source branch.
     const { branch: _agentBranch, ...sanitizedArgs } = args || {};
     const entry = { ...sanitizedArgs, type: "push_to_pull_request_branch" };
+    const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
+    if (wildcardTargetValidationError) {
+      return wildcardTargetValidationError;
+    }
 
     // Resolve target repo configuration and validate the target repo early
     // This is needed before getBaseBranch to ensure we resolve the base branch
@@ -1590,10 +1602,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
-    if (wildcardAddCommentTargetRequiresItemNumber) {
-      if (!hasExplicitAddCommentTargetNumber(entry)) {
-        return buildIntentErrorResponse("add_comment requires item_number when safe-outputs.add-comment.target is '*'. Provide item_number (or pr_number/pr alias).");
-      }
+    const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
+    if (wildcardTargetValidationError) {
+      return wildcardTargetValidationError;
     }
     const intentValidationError = validateAddCommentIntent(entry);
     if (intentValidationError) {
