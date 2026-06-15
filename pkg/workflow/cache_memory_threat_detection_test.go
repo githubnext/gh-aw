@@ -95,8 +95,8 @@ Test workflow with cache-memory but no threat detection.`,
 				"- name: Upload cache-memory data as artifact",
 				// Should NOT have update_cache_memory job
 				"update_cache_memory:",
-				// Should NOT use restore action
-				"uses: actions/cache/restore@",
+				// Should NOT use restore action for cache-memory
+				"- name: Restore cache-memory file share data\n      uses: actions/cache/restore@",
 			},
 		},
 		{

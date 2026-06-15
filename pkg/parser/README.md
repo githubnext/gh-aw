@@ -90,6 +90,9 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `ResolveRefToSHAForHost` | `func(owner, repo, ref, host string) (string, error)` | Resolves a branch/tag ref to a commit SHA |
 | `ListWorkflowFiles` | `func(owner, repo, ref, workflowPath string) ([]string, error)` | Lists workflow files in a remote repository |
 | `ListWorkflowFilesForHost` | `func(owner, repo, ref, workflowPath, host string) ([]string, error)` | Lists workflow files in a remote repository on a specific GitHub host |
+| `ListDirAllFilesForHost` | `func(owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files (any extension) that are direct children of the given directory in a remote repository |
+| `ListDirAllFilesRecursivelyForHost` | `func(owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files under the given directory recursively in a remote repository |
+| `ListDirSubdirsForHost` | `func(owner, repo, ref, dirPath, host string) ([]string, error)` | Lists subdirectory paths that are direct children of the given directory in a remote repository |
 | `IsWorkflowSpec` | `func(path string) bool` | Returns whether a path is a workflow specification markdown file |
 
 #### MCP Configuration
@@ -137,6 +140,8 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `ComputeFrontmatterHashFromParsedContent` | `func(frontmatterText, markdownBody string, parsedFrontmatter map[string]any, baseDir string, cache *ImportCache, fileReader FileReader) (string, error)` | Computes hash from already-extracted frontmatter text and markdown body |
 | `ComputeFrontmatterHashFromFileWithParsedFrontmatter` | `func(filePath string, parsedFrontmatter map[string]any, ...) (string, error)` | Computes hash from already-parsed frontmatter |
 | `ComputeFrontmatterHashFromFileWithReader` | `func(filePath string, cache *ImportCache, fileReader FileReader) (string, error)` | Computes hash with a custom file reader |
+| `ComputeBodyHashFromParsedContent` | `func(markdownBody, frontmatterText, baseDir string, fileReader FileReader) (string, error)` | Computes a stable hash of a workflow's markdown body, including the bodies of all transitively imported files |
+| `ComputeBodyHashFromFile` | `func(filePath string) (string, error)` | Computes the body hash for a workflow file from disk |
 
 #### Error Formatting
 
@@ -145,6 +150,8 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `FormatImportCycleError` | `func(*ImportCycleError) error` | Formats a cycle error with the import chain |
 | `FormatImportError` | `func(*ImportError, yamlContent string) error` | Formats an import error with YAML context |
 | `NewFormattedParserError` | `func(formatted string) *FormattedParserError` | Creates a pre-formatted parser error |
+| `FormatYAMLError` | `func(err error, frontmatterLineOffset int, sourceYAML string) string` | Formats a YAML error with source code context, adjusting line numbers by the frontmatter offset |
+| `TranslateYAMLMessage` | `func(message string) string` | Translates a cryptic YAML parser message to a user-friendly description |
 
 #### JSON Path Location
 
@@ -170,7 +177,6 @@ Inline sub-agents are secondary agent definitions embedded in the same markdown 
 | `ExtractInlineSubAgents` | `func(markdown string) (mainMarkdown string, agents []InlineSubAgent, err error)` | Splits markdown into the main workflow section and any inline sub-agent definitions |
 | `ValidateInlineSubAgentsFrontmatter` | `func(markdown string) []string` | Validates inline sub-agent frontmatter in a full workflow file (strips top-level frontmatter first); returns advisory warning strings |
 | `ValidateInlineSubAgentsInBody` | `func(body string) []string` | Validates inline sub-agent frontmatter in an already-stripped markdown body |
-| `GetEngineSubAgentDir` | `func(engineID string) string` | Returns the relative directory used for sub-agent files for a given engine (`claude` → `.claude/agents`, etc.) |
 | `GetEngineSubAgentExt` | `func(engineID string) string` | Returns the file extension for sub-agent files for a given engine (`.md` for `claude`/`codex`/`gemini`, `.agent.md` otherwise) |
 
 #### Inline Skill Processing

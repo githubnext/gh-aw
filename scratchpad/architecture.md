@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-06-08 · Source: [Workflow run §27130523118](https://github.com/github/gh-aw/actions/runs/27130523118)
+> Last updated: 2026-06-15 · Source: [Workflow run §27540847547](https://github.com/github/gh-aw/actions/runs/27540847547)
 
 ## Overview
 
@@ -49,6 +49,9 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 │  │  resolution &   │  │  & drain helpers│  │  code analyzers        │  │ statistics │    │
 │  │  version mgmt   │  └─────────────────┘  └───────────────────────┘  └────────────┘     │
 │  └─────────────────┘                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐    │
+│  │  github  —  GitHub label ↔ objective-value mapping (configurable audit scoring)  │    │
+│  └──────────────────────────────────────────────────────────────────────────────────┘    │
 ├──────────────────────────────────── UTILITY PACKAGES ────────────────────────────────────┤
 │                                                                                          │
 │  ┌──────────┐ ┌─────────┐ ┌────────────┐ ┌────────┐ ┌─────────┐ ┌──────────┐             │
@@ -77,6 +80,7 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `types` | Core | Shared domain type definitions |
 | `constants` | Core | Semantic type aliases, engine/job names, feature flags |
 | `workflow/compilerenv` | Core | Compiler environment management (used by cli + workflow) |
+| `github` | Domain | GitHub label ↔ objective-value mapping for audit/outcomes scoring |
 | `actionpins` | Domain | GitHub Actions pin resolution and version management |
 | `agentdrain` | Domain | Agent drain/lifecycle utilities |
 | `linters` | Domain | Custom Go analysis linters (vet-style checks) |

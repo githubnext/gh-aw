@@ -30,61 +30,61 @@ See also: [triggers.md](triggers.md)
 ### Use `workflow_run` when
 
 - monitoring another GitHub Actions workflow in the **same repository**
-- reacting to workflow completion or conclusion
+- reacting to workflow completion/conclusion
 
-Reusable incident-triage pattern:
+Incident-triage pattern:
 
-- trigger: `on.workflow_run` for the named deployment or CI workflow
-- permissions: include `actions: read`; keep main job read-only
-- reads: fetch failed job logs/artifacts via GitHub tools
-- output: summarize impact/root cause in `create-issue`; use `noop` when no incident action is needed
+- trigger: `on.workflow_run` for the named deployment/CI workflow
+- permissions: include `actions: read`; main job read-only
+- reads: failed job logs/artifacts via GitHub tools
+- output: `create-issue` with impact/root cause; `noop` when no action needed
 
 ### Use `deployment_status` when
 
-- monitoring an external deployment service that reports status back to GitHub
+- monitoring an external deployment service reporting back to GitHub
 
-Quick rule of thumb:
+Rule of thumb:
 
-- `workflow_run` → GitHub Actions workflow/job outcomes in this repository
-- `deployment_status` → external platform deployment outcomes reported through the Deployments API
+- `workflow_run` → GitHub Actions outcomes in this repo
+- `deployment_status` → external platform outcomes via Deployments API
 
-Single-job limits still apply in both patterns:
+Single-job limits apply:
 
-- keep triage, evidence collection, and summary generation in one agent job
-- do not design multi-job fan-out/fan-in orchestration
-- do not rely on cross-workflow waits or external workflow chaining
+- triage, evidence collection, and summary in one agent job
+- no multi-job fan-out/fan-in
+- no cross-workflow waits or chaining
 
 See also: [deployment-status.md](deployment-status.md)
 
 ## High-Volume Triage and Escalation Pattern
 
-For workflows that receive many similar events (issues, PR comments, CI failures, security alerts, dependency events):
+For workflows receiving many similar events (issues, PR comments, CI failures, security alerts, dependency events):
 
-- start with a narrow, cheap triage/classification pass
-- detect known, duplicate, stale, or low-value cases first
-- emit explicit `noop` or a safe output when triage is confident
-- escalate to the main/frontier agent only when triage is uncertain or the case is genuinely new/high-value
+- start with a cheap triage/classification pass
+- detect known/duplicate/stale/low-value cases first
+- emit `noop` or a safe output when triage is confident
+- escalate to the main agent only when uncertain or genuinely new/high-value
 
 Decision flow:
 
 ```text
-IF cheap triage is confident that the event is known, duplicate, stale, or low-value THEN
-  stop and emit the configured safe output or noop
+IF cheap triage is confident (known/duplicate/stale/low-value) THEN
+  emit safe output or noop
 ELSE
   escalate to the main agent
 END IF
 ```
 
-Use this with pull-context workflows: fetch targeted evidence on demand instead of pushing large raw logs or payloads into the initial prompt.
+Use with pull-context workflows: fetch targeted evidence on demand instead of pushing raw logs into the initial prompt.
 
 ## Large-Repository Improvement Pattern
 
-For recurring maintenance in large repositories:
+For recurring maintenance in large repos:
 
 - use `cache-memory`
-- process one package, module, or directory per run
-- store the last processed item and rotate in round-robin order
-- prefer smaller focused PRs over wide repository sweeps
+- process one package/module/directory per run
+- store last-processed item; round-robin
+- prefer small focused PRs over wide sweeps
 
 See also: [memory.md](memory.md)
 
@@ -95,58 +95,58 @@ Use deterministic `steps:` when the workflow needs large external data before th
 Rules:
 
 - write prepared files to `/tmp/gh-aw/agent/`
-- trim large outputs before handing them to the agent
+- trim large outputs before handing to the agent
 - set `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` on every `gh` step
-- add `permissions: actions: read` when downloading workflow logs or artifacts
-- use `jq` to reduce JSON payload size before writing files
+- add `permissions: actions: read` for downloading workflow logs/artifacts
+- use `jq` to reduce JSON payload size
 
 ## PR Visual Regression Pattern
 
-For pull-request UI validation and screenshot diffs:
+For PR UI validation and screenshot diffs:
 
 - trigger: `pull_request`
 - tools: `playwright` plus `cache-memory` for baseline metadata
-- permissions: read-only repo/PR access in agent job
-- output: `add-comment` with pass/fail summary and links to captured artifacts
-- fallback: use `noop` when no UI-relevant changes are detected
+- permissions: read-only repo/PR access
+- output: `add-comment` with pass/fail summary and artifact links
+- fallback: `noop` when no UI changes detected
 
 ## QA Coverage Report Pattern
 
-For pull-request QA coverage summaries (gaps, risks, and suggested test focus):
+For PR QA coverage summaries (gaps, risks, suggested test focus):
 
-- trigger: `pull_request` (optionally scoped with `paths:` for product areas under test)
-- tools: `github` (`gh-proxy`) for changed files, PR metadata, labels, and linked checks
-- permissions: `contents: read`, `pull-requests: read`; keep agent job read-only
-- output: `add-comment` with a concise coverage matrix and explicit untested/high-risk areas
-- fallback: use `noop` when the change is non-testable (for example docs-only PRs)
+- trigger: `pull_request` (optionally scoped with `paths:`)
+- tools: `github` (`gh-proxy`) for changed files, PR metadata, labels, checks
+- permissions: `contents: read`, `pull-requests: read`; agent job read-only
+- output: `add-comment` with coverage matrix and untested/high-risk areas
+- fallback: `noop` for non-testable changes (e.g. docs-only)
 
 ## PM Stakeholder Digest Pattern
 
-For recurring product/stakeholder digests (status, risks, and notable changes):
+For recurring product/stakeholder digests:
 
-- trigger: fuzzy `schedule` (for example `weekly on mondays`)
+- trigger: fuzzy `schedule` (e.g. `weekly on mondays`)
 - tools: `github` (`gh-proxy`), optional `cache-memory` for period-over-period continuity
-- permissions: read-only in the agent job
-- output: `create-issue` by default; use `create-discussion` only when explicitly requested
-- prompt: require audience-aware language (PM/stakeholder-friendly summary first, details second)
+- permissions: read-only
+- output: `create-issue` by default; `create-discussion` only when requested
+- prompt: audience-aware language (summary first, details second)
 
 ## Database Migration Safety Pattern
 
-For pull requests that add or modify database migration files:
+For PRs adding/modifying migration files:
 
-- trigger: `pull_request` with `paths:` scoped to migration directories (e.g. `db/migrate/**`, `migrations/**`, `*.sql`)
-- permissions: `contents: read`, `pull-requests: read`; keep agent job read-only
-- reads: changed migration file content via GitHub tools
-- output: `add-comment` with a safety summary flagging risky operations; use `noop` when no concerns are detected
-- prompt: suggest migration best practices in the agent prompt
+- trigger: `pull_request` with `paths:` scoped to migration dirs (e.g. `db/migrate/**`, `migrations/**`, `*.sql`)
+- permissions: `contents: read`, `pull-requests: read`; agent job read-only
+- reads: changed migration content via GitHub tools
+- output: `add-comment` flagging risky operations; `noop` when clean
+- prompt: include migration best practices
 
 ## Cross-Repository Pattern
 
-For cross-repository reads and writes:
+For cross-repo reads and writes:
 
-- enable the GitHub toolsets needed for external repos
-- configure PAT or GitHub App auth in `safe-outputs:` when writing to another repo
-- tell the agent to set `target-repo` explicitly for cross-repo outputs
-- document the required token scopes in the workflow prompt or surrounding instructions
+- enable GitHub toolsets needed for external repos
+- configure PAT or GitHub App auth in `safe-outputs:` for cross-repo writes
+- tell the agent to set `target-repo` explicitly
+- document required token scopes in the prompt or instructions
 
-Cross-repository workflows still inherit the single-job constraints in [workflow-constraints.md](workflow-constraints.md).
+Cross-repo workflows inherit single-job constraints from [workflow-constraints.md](workflow-constraints.md).

@@ -3100,9 +3100,10 @@ tools:
     # (optional)
     restore-only: true
 
-    # Cache restore key scope: 'workflow' (default, only restores from same workflow)
-    # or 'repo' (restores from any workflow in the repository). Use 'repo' with
-    # caution as it allows cross-workflow cache sharing.
+    # Cache restore key scope: 'workflow' (default, restores from same workflow key
+    # lineage) or 'repo' (adds repository-wide restore keys). Scope broadens
+    # cross-workflow matching but cache visibility remains branch-scoped (with
+    # GitHub's default-branch restore fallback behavior).
     # (optional)
     scope: "workflow"
 

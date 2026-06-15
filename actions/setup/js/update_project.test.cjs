@@ -3,6 +3,10 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vite
 let updateProject;
 let parseProjectInput;
 let updateProjectHandlerFactory;
+let normalizeUpdateProjectOutput;
+let summarizeProjectsV2;
+let summarizeEmptyProjectsV2List;
+let inferFieldDataType;
 
 const mockCore = {
   debug: vi.fn(),
@@ -53,6 +57,10 @@ beforeAll(async () => {
   updateProject = exports.updateProject;
   parseProjectInput = exports.parseProjectInput;
   updateProjectHandlerFactory = exports.main;
+  normalizeUpdateProjectOutput = exports.normalizeUpdateProjectOutput;
+  summarizeProjectsV2 = exports.summarizeProjectsV2;
+  summarizeEmptyProjectsV2List = exports.summarizeEmptyProjectsV2List;
+  inferFieldDataType = exports.inferFieldDataType;
   // Call main to execute the module
   if (exports.main) {
     await exports.main();
@@ -2188,5 +2196,197 @@ describe("update_project handler: target_repo allowed-repos validation", () => {
     const result = await messageHandler(message, {}, new Map());
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe("normalizeUpdateProjectOutput", () => {
+  it("returns non-object values unchanged", () => {
+    expect(normalizeUpdateProjectOutput(null)).toBeNull();
+    expect(normalizeUpdateProjectOutput(undefined)).toBeUndefined();
+    expect(normalizeUpdateProjectOutput("string")).toBe("string");
+    expect(normalizeUpdateProjectOutput(42)).toBe(42);
+  });
+
+  it("normalizes camelCase contentType to content_type", () => {
+    const result = normalizeUpdateProjectOutput({ contentType: "issue" });
+    expect(result.content_type).toBe("issue");
+  });
+
+  it("normalizes camelCase contentNumber to content_number", () => {
+    const result = normalizeUpdateProjectOutput({ contentNumber: 42 });
+    expect(result.content_number).toBe(42);
+  });
+
+  it("normalizes camelCase targetRepo to target_repo", () => {
+    const result = normalizeUpdateProjectOutput({ targetRepo: "org/repo" });
+    expect(result.target_repo).toBe("org/repo");
+  });
+
+  it("normalizes camelCase draftTitle to draft_title", () => {
+    const result = normalizeUpdateProjectOutput({ draftTitle: "My Draft" });
+    expect(result.draft_title).toBe("My Draft");
+  });
+
+  it("normalizes camelCase draftBody to draft_body", () => {
+    const result = normalizeUpdateProjectOutput({ draftBody: "Body text" });
+    expect(result.draft_body).toBe("Body text");
+  });
+
+  it("normalizes camelCase draftIssueId to draft_issue_id", () => {
+    const result = normalizeUpdateProjectOutput({ draftIssueId: "aw_abc123" });
+    expect(result.draft_issue_id).toBe("aw_abc123");
+  });
+
+  it("normalizes camelCase temporaryId to temporary_id", () => {
+    const result = normalizeUpdateProjectOutput({ temporaryId: "aw_xyz" });
+    expect(result.temporary_id).toBe("aw_xyz");
+  });
+
+  it("normalizes camelCase fieldDefinitions to field_definitions", () => {
+    const defs = [{ name: "Status", data_type: "TEXT" }];
+    const result = normalizeUpdateProjectOutput({ fieldDefinitions: defs });
+    expect(result.field_definitions).toBe(defs);
+  });
+
+  it("does not overwrite existing snake_case keys with camelCase aliases", () => {
+    const result = normalizeUpdateProjectOutput({ content_type: "issue", contentType: "pull_request" });
+    expect(result.content_type).toBe("issue");
+  });
+
+  it("handles a full camelCase payload", () => {
+    const result = normalizeUpdateProjectOutput({
+      contentType: "draft_issue",
+      contentNumber: 7,
+      targetRepo: "org/repo",
+      draftTitle: "T",
+      draftBody: "B",
+      draftIssueId: "aw_id1",
+      temporaryId: "aw_tmp1",
+      fieldDefinitions: [],
+    });
+    expect(result.content_type).toBe("draft_issue");
+    expect(result.content_number).toBe(7);
+    expect(result.target_repo).toBe("org/repo");
+    expect(result.draft_title).toBe("T");
+    expect(result.draft_body).toBe("B");
+    expect(result.draft_issue_id).toBe("aw_id1");
+    expect(result.temporary_id).toBe("aw_tmp1");
+    expect(result.field_definitions).toEqual([]);
+  });
+});
+
+describe("summarizeProjectsV2", () => {
+  it("returns '(none)' for empty array", () => {
+    expect(summarizeProjectsV2([])).toBe("(none)");
+  });
+
+  it("returns '(none)' for null or non-array input", () => {
+    expect(summarizeProjectsV2(null)).toBe("(none)");
+    expect(summarizeProjectsV2(undefined)).toBe("(none)");
+  });
+
+  it("formats a single open project correctly", () => {
+    const projects = [{ number: 42, title: "My Project" }];
+    expect(summarizeProjectsV2(projects)).toBe("#42 My Project");
+  });
+
+  it("formats a closed project with '(closed)' marker", () => {
+    const projects = [{ number: 10, title: "Old Project", closed: true }];
+    expect(summarizeProjectsV2(projects)).toBe("#10 (closed) Old Project");
+  });
+
+  it("joins multiple projects with semicolons", () => {
+    const projects = [
+      { number: 1, title: "Alpha" },
+      { number: 2, title: "Beta" },
+    ];
+    expect(summarizeProjectsV2(projects)).toBe("#1 Alpha; #2 Beta");
+  });
+
+  it("filters out entries missing number or title", () => {
+    const projects = [{ number: 5, title: "Valid" }, { title: "No number" }, { number: 6 }, null];
+    expect(summarizeProjectsV2(projects)).toBe("#5 Valid");
+  });
+
+  it("respects the limit parameter", () => {
+    const projects = Array.from({ length: 5 }, (_, i) => ({ number: i + 1, title: `Project ${i + 1}` }));
+    const result = summarizeProjectsV2(projects, 3);
+    expect(result.split("; ").length).toBe(3);
+  });
+});
+
+describe("summarizeEmptyProjectsV2List", () => {
+  it("returns '(none)' for empty list with no diagnostics", () => {
+    expect(summarizeEmptyProjectsV2List({})).toBe("(none)");
+  });
+
+  it("includes totalCount context when items exist but none readable", () => {
+    const result = summarizeEmptyProjectsV2List({ totalCount: 3 });
+    expect(result).toContain("totalCount=3");
+    expect(result).toContain("0 readable project nodes");
+  });
+
+  it("includes diagnostic counts in output", () => {
+    const result = summarizeEmptyProjectsV2List({
+      totalCount: 0,
+      diagnostics: { rawNodesCount: 2, nullNodesCount: 2, rawEdgesCount: 1, nullEdgeNodesCount: 1 },
+    });
+    expect(result).toContain("nodes=2");
+    expect(result).toContain("null=2");
+    expect(result).toContain("edges=1");
+  });
+
+  it("includes SSO hint in message when totalCount > 0", () => {
+    const result = summarizeEmptyProjectsV2List({ totalCount: 5, diagnostics: { rawNodesCount: 0, nullNodesCount: 0, rawEdgesCount: 0, nullEdgeNodesCount: 0 } });
+    expect(result).toContain("totalCount=5");
+    expect(result).toContain("0 readable project nodes");
+  });
+});
+
+describe("inferFieldDataType", () => {
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  it("returns DATE for a date field name with valid date value", () => {
+    expect(inferFieldDataType("start_date", "2024-01-15", datePattern)).toBe("DATE");
+  });
+
+  it("returns DATE for field containing 'date' in name with valid date value", () => {
+    expect(inferFieldDataType("due_date", "2024-06-30", datePattern)).toBe("DATE");
+  });
+
+  it("returns SINGLE_SELECT for date field name with non-date value", () => {
+    expect(inferFieldDataType("start_date", "Q1", datePattern)).toBe("SINGLE_SELECT");
+  });
+
+  it("returns TEXT for 'classification' field regardless of value", () => {
+    expect(inferFieldDataType("classification", "some-value", datePattern)).toBe("TEXT");
+  });
+
+  it("returns TEXT for 'Classification' (case-insensitive match)", () => {
+    expect(inferFieldDataType("Classification", "A", datePattern)).toBe("TEXT");
+  });
+
+  it("returns TEXT for pipe-delimited value", () => {
+    expect(inferFieldDataType("status", "A|B|C", datePattern)).toBe("TEXT");
+  });
+
+  it("returns SINGLE_SELECT for non-date non-text field", () => {
+    expect(inferFieldDataType("priority", "High", datePattern)).toBe("SINGLE_SELECT");
+  });
+
+  it("returns SINGLE_SELECT for numeric field value", () => {
+    expect(inferFieldDataType("score", 42, datePattern)).toBe("SINGLE_SELECT");
+  });
+
+  it("returns SINGLE_SELECT for boolean field value", () => {
+    expect(inferFieldDataType("active", true, datePattern)).toBe("SINGLE_SELECT");
+  });
+
+  it("returns DATE for 'updated_date' with valid date value", () => {
+    expect(inferFieldDataType("updated_date", "2025-12-31", datePattern)).toBe("DATE");
+  });
+
+  it("returns SINGLE_SELECT for date field name with invalid date format", () => {
+    expect(inferFieldDataType("end_date", "2024/06/30", datePattern)).toBe("SINGLE_SELECT");
   });
 });

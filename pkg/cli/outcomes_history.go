@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	ghmapping "github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -162,7 +163,7 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Objective history for %s (limit %d)\n", repo, config.Limit)
+	fmt.Fprintln(os.Stderr, console.FormatSectionHeader(fmt.Sprintf("Objective history for %s (limit %d)", repo, config.Limit)))
 	if data.Issues != nil {
 		renderHistoricalObjectiveReport(*data.Issues)
 	}
@@ -295,22 +296,41 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 }
 
 func renderHistoricalObjectiveReport(report historicalObjectiveReport) {
-	fmt.Fprintf(os.Stderr, "\n%s\n", strings.ToUpper(report.Source))
-	fmt.Fprintf(os.Stderr, "  Sample size: %d\n", report.SampleSize)
-	fmt.Fprintf(os.Stderr, "  Scored items: %d\n", report.ScoredItems)
-	fmt.Fprintf(os.Stderr, "  Total objective value: %d\n", report.TotalObjectiveValue)
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader(strings.ToUpper(report.Source)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Sample size: %d", report.SampleSize)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Scored items: %d", report.ScoredItems)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Total objective value: %d", report.TotalObjectiveValue)))
 
 	if len(report.ObjectiveBuckets) > 0 {
-		fmt.Fprintln(os.Stderr, "  Top objective buckets:")
+		bucketRows := make([][]string, 0, min(len(report.ObjectiveBuckets), 8))
 		for _, bucket := range report.ObjectiveBuckets[:min(len(report.ObjectiveBuckets), 8)] {
-			fmt.Fprintf(os.Stderr, "    %-22s %3d x %3d = %4d\n", bucket.Label, bucket.Count, bucket.MappedValue, bucket.ContributedValue)
+			bucketRows = append(bucketRows, []string{
+				bucket.Label,
+				strconv.Itoa(bucket.Count),
+				strconv.Itoa(bucket.MappedValue),
+				strconv.Itoa(bucket.ContributedValue),
+			})
 		}
+		fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+			Title:   "Top objective buckets",
+			Headers: []string{"Bucket", "Count", "Mapped Value", "Contributed Value"},
+			Rows:    bucketRows,
+		}))
 	}
 
 	if len(report.RepresentativeItems) > 0 {
-		fmt.Fprintln(os.Stderr, "  Representative items:")
+		itemRows := make([][]string, 0, min(len(report.RepresentativeItems), 5))
 		for _, item := range report.RepresentativeItems[:min(len(report.RepresentativeItems), 5)] {
-			fmt.Fprintf(os.Stderr, "    #%d %-3d %s\n", item.Number, item.ObjectiveValue, item.Title)
+			itemRows = append(itemRows, []string{
+				fmt.Sprintf("#%d", item.Number),
+				strconv.Itoa(item.ObjectiveValue),
+				item.Title,
+			})
 		}
+		fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+			Title:   "Representative items",
+			Headers: []string{"Number", "Value", "Title"},
+			Rows:    itemRows,
+		}))
 	}
 }

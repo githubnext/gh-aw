@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	ghmapping "github.com/github/gh-aw/pkg/github"
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,6 +120,61 @@ func TestRunOutcomesHistory_JSON(t *testing.T) {
 	require.NotNil(t, data.PRs)
 	assert.Equal(t, 40, data.Issues.TotalObjectiveValue)
 	assert.Equal(t, 65, data.PRs.TotalObjectiveValue)
+}
+
+func TestRunOutcomesHistory_PrettyOutput(t *testing.T) {
+	oldRunGH := outcomesHistoryRunGH
+	defer func() { outcomesHistoryRunGH = oldRunGH }()
+
+	outcomesHistoryRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+		if len(args) >= 2 && args[0] == "issue" && args[1] == "list" {
+			return []byte(`[
+				{"number":101,"title":"Automation issue","url":"https://example.com/issues/101","closedAt":"2026-06-08T00:00:00Z","labels":[{"name":"automation"}]}
+			]`), nil
+		}
+		if len(args) >= 2 && args[0] == "pr" && args[1] == "list" {
+			return []byte(`[
+				{"number":202,"title":"Testing PR","url":"https://example.com/pull/202","mergedAt":"2026-06-08T00:00:00Z","labels":[{"name":"testing"}]}
+			]`), nil
+		}
+		return nil, assert.AnError
+	}
+
+	require.NoError(t, os.Setenv("OBJECTIVE_MAPPING_JSON", `{"label_to_value":{"automation":40,"testing":65},"multi_label_logic":"max"}`))
+	t.Cleanup(func() { os.Unsetenv("OBJECTIVE_MAPPING_JSON") })
+
+	stderr := testutil.CaptureStderr(t, func() {
+		err := RunOutcomesHistory(OutcomesHistoryConfig{RepoOverride: "owner/repo", JSONOutput: false, Limit: 10, Source: historySourceAll})
+		require.NoError(t, err)
+	})
+
+	// Top-level section header.
+	assert.Contains(t, stderr, "Objective history for owner/repo (limit 10)")
+
+	// Issues section header.
+	assert.Contains(t, stderr, "ISSUES")
+
+	// Issues stats.
+	assert.Contains(t, stderr, "Sample size: 1")
+	assert.Contains(t, stderr, "Scored items: 1")
+	assert.Contains(t, stderr, "Total objective value: 40")
+
+	// Issues bucket table title and headers.
+	assert.Contains(t, stderr, "Top objective buckets")
+	assert.Contains(t, stderr, "Bucket")
+	assert.Contains(t, stderr, "Mapped Value")
+	assert.Contains(t, stderr, "Contributed Value")
+
+	// Issues representative items table title and headers.
+	assert.Contains(t, stderr, "Representative items")
+	assert.Contains(t, stderr, "Number")
+	assert.Contains(t, stderr, "Title")
+
+	// PRs section header.
+	assert.Contains(t, stderr, "PRS")
+
+	// PRs stats.
+	assert.Contains(t, stderr, "Total objective value: 65")
 }
 
 func TestNewOutcomesHistorySubcommand_InheritsGlobalVerboseFlag(t *testing.T) {
