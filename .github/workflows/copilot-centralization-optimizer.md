@@ -27,7 +27,7 @@ safe-outputs:
 steps:
   - name: Collect agent task data
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       TASK_LOOKBACK_DAYS: 30
       TASK_LIMIT: 300
