@@ -37,16 +37,17 @@ steps:
       : > /tmp/gh-aw/data/task-summaries.jsonl
 
       SINCE="$(date -u -d "-${TASK_LOOKBACK_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
+      API_VERSION="2026-03-10"
 
       gh api --paginate \
         -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2026-03-10" \
+        -H "X-GitHub-Api-Version: ${API_VERSION}" \
         "/agents/repos/$REPO/tasks?per_page=100" \
         --jq '.tasks[].id' \
         | while IFS= read -r task_id; do
             gh api \
               -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2026-03-10" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "/agents/repos/$REPO/tasks/$task_id" \
               | jq -c --arg since "$SINCE" '
               | def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
