@@ -4,7 +4,7 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Version: 1.22.0 (2026-06-06)
+# Version: 1.24.0 (2026-06-13)
 
 set -euo pipefail
 
@@ -1453,6 +1453,120 @@ check_git_hang_safety() {
     fi
 }
 check_git_hang_safety
+
+# TYPE-008: create_check_run Handler Existence and Dual-Permission Profile (Section 7.3, v1.23.0)
+echo "Running TYPE-008: create_check_run Handler and Dual-Permission Profile..."
+check_create_check_run_handler() {
+    local handler="actions/setup/js/create_check_run.cjs"
+    local go_config="pkg/workflow/create_check_run.go"
+    local handler_registry="pkg/workflow/safe_output_handlers.go"
+    local failed=0
+
+    # Per spec Section 7.3 (v1.23.0): create_check_run handler must exist
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-008: create_check_run handler missing: $handler"
+        failed=1
+    fi
+
+    # Per spec Section 7.3: Go config struct must exist with Target field support
+    if [ ! -f "$go_config" ]; then
+        log_high "TYPE-008: create_check_run Go config file missing: $go_config"
+        failed=1
+    elif ! grep -q "Target" "$go_config"; then
+        log_high "TYPE-008: create_check_run Go config missing Target field for PR targeting (Section 7.3 v1.23.0)"
+        failed=1
+    fi
+
+    # Per spec Section 7.3 dual-permission profile: checks:write without target,
+    # adds pull-requests:read when target is configured.
+    if [ -f "$handler_registry" ]; then
+        if ! grep -q "NewPermissionsContentsReadChecksWrite" "$handler_registry"; then
+            log_critical "TYPE-008: create_check_run dual-permission profile missing checks:write base permission (Section 7.3 v1.23.0)"
+            failed=1
+        fi
+        if ! grep -q "NewPermissionsContentsReadChecksWritePRRead" "$handler_registry"; then
+            log_high "TYPE-008: create_check_run dual-permission profile missing pull-requests:read when target configured (Section 7.3 v1.23.0)"
+            failed=1
+        fi
+        # Verify the target-conditional branch exists in the registry
+        if ! grep -A 15 '"create-check-run"' "$handler_registry" | grep -q "Target"; then
+            log_high "TYPE-008: create_check_run permission builder does not branch on Target field (Section 7.3 v1.23.0)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-008: Handler registry file missing: $handler_registry — cannot verify dual-permission profile"
+        failed=1
+    fi
+
+    # Per spec Section 7.3: SHA resolution must fall back to GITHUB_SHA / context.sha
+    if [ -f "$handler" ]; then
+        if ! grep -qE "GITHUB_SHA|context\.sha" "$handler"; then
+            log_high "TYPE-008: create_check_run handler missing GITHUB_SHA / context.sha fallback for SHA resolution (Section 7.3 v1.23.0)"
+            failed=1
+        fi
+    fi
+
+    # Per spec Section 7.3: staged mode must skip the Checks API call
+    if [ -f "$handler" ]; then
+        if ! grep -q "isStaged\|isStagedMode\|staged" "$handler"; then
+            log_high "TYPE-008: create_check_run handler missing staged mode handling (Section 7.3 v1.23.0)"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-008: create_check_run handler exists with dual-permission profile and staged mode support (Section 7.3 v1.23.0)"
+    fi
+}
+check_create_check_run_handler
+
+# TYPE-009: add_comment discussions Permission Opt-In Default (Section 7.1, v1.24.0)
+echo "Running TYPE-009: add_comment discussions Permission Opt-In Default..."
+check_add_comment_discussions_optin() {
+    local go_config="pkg/workflow/add_comment.go"
+    local tools_json="pkg/workflow/js/safe_outputs_tools.json"
+    local handler_registry="pkg/workflow/safe_output_handlers.go"
+    local failed=0
+
+    # Per spec Section 7.1 (v1.24.0): discussions:write permission is opt-in for add_comment.
+    # Default (nil or false) must EXCLUDE discussions:write.
+
+    # Check Go struct comment documents "Default (nil or false) excludes discussions:write"
+    if [ -f "$go_config" ]; then
+        if ! grep -qE "nil.*false.*excludes.*discussions|false.*excludes.*discussions:write|Default.*nil.*false.*excludes" "$go_config"; then
+            log_high "TYPE-009: add_comment Go config does not document that default excludes discussions:write (Section 7.1 v1.24.0)"
+            failed=1
+        fi
+    else
+        log_high "TYPE-009: add_comment Go config missing: $go_config"
+        failed=1
+    fi
+
+    # Check tool description discloses the opt-in requirement to the agent
+    if [ -f "$tools_json" ]; then
+        if ! grep -iE "discussions.*opt.in|opt.in.*discussions|discussions.*false|not.*require.*discussions.*write|default.*not.*discussions" "$tools_json"; then
+            log_medium "TYPE-009: Tool description in $tools_json may not disclose opt-in requirement for discussions:write (Section 7.1 v1.24.0)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-009: Tool definitions file missing: $tools_json"
+        failed=1
+    fi
+
+    # Check permissions test confirms default excludes discussions (verifying behavioural test coverage)
+    local perm_test="pkg/workflow/safe_outputs_permissions_test.go"
+    if [ -f "$perm_test" ]; then
+        if ! grep -qiE "default.*excludes.*discussions|excludes.*discussions.*default|add-comment.*default.*pull-requests.*discussions" "$perm_test"; then
+            log_low "TYPE-009: No test case confirming default exclusion of discussions:write for add_comment (Section 7.1 v1.24.0)"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-009: add_comment discussions:write is opt-in by default as required (Section 7.1 v1.24.0)"
+    fi
+}
+check_add_comment_discussions_optin
 
 # Summary
 echo ""
