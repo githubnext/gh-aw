@@ -996,13 +996,12 @@ Implementations SHOULD use low-cardinality values for `*.kind`, `*.mode`, `*.lev
 
 ### 16.6 Registry and Versioning
 
-The canonical semantic-convention source for this standard lives in [pkg/semconv/cicd_automation.go](../pkg/semconv/cicd_automation.go).
+The canonical semantic-convention source for this standard is not yet implemented in this repository.
 
-The machine-readable registry for this section is generated from the canonical source and currently materialized in:
+When implemented, the canonical source SHOULD live in `pkg/semconv/cicd_automation.go` and the machine-readable registries SHOULD be materialized in:
 
-- [registry/cicd-automation-attributes.yaml](../registry/cicd-automation-attributes.yaml)
-- [registry/cicd-automation-spans.yaml](../registry/cicd-automation-spans.yaml)
-
+- `registry/cicd-automation-attributes.yaml`
+- `registry/cicd-automation-spans.yaml`
 Schema producers MUST treat the canonical source and generated registries as a single normative set. A generated registry that no longer matches the canonical source is non-conforming.
 
 This section defines version 1.0.0 of the `cicd.automation.*` standard.
