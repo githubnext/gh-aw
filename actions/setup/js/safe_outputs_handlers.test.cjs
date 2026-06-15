@@ -2031,6 +2031,22 @@ describe("safe_outputs_handlers", () => {
       expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "comment" })).not.toThrow();
       expect(() => handlers.submitPullRequestReviewHandler({ body: "needs work", event: "request_changes" })).not.toThrow();
     });
+
+    it("should require explicit pull_request_number when submit_pull_request_review target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        submit_pull_request_review: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.submitPullRequestReviewHandler({ body: "LGTM", event: "COMMENT" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
   });
 
   describe("createPullRequestReviewCommentHandler", () => {
@@ -2058,6 +2074,23 @@ describe("safe_outputs_handlers", () => {
       // Counter was NOT incremented, so empty-body submit should still be rejected
       expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
     });
+
+    it("should require explicit pull_request_number when review comment target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request_review_comment: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 5, body: "Consider renaming." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      expect(() => wildcardHandlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
+    });
   });
 
   describe("updatePullRequestHandler", () => {
@@ -2073,6 +2106,22 @@ describe("safe_outputs_handlers", () => {
     it("should throw MCP error when called with null/undefined args", () => {
       expect(() => handlers.updatePullRequestHandler(null)).toThrow(expect.objectContaining({ code: -32602 }));
       expect(() => handlers.updatePullRequestHandler(undefined)).toThrow(expect.objectContaining({ code: -32602 }));
+    });
+
+    it("should require explicit pull_request_number when update_pull_request target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        update_pull_request: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.updatePullRequestHandler({ body: "Update the PR body." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
     it("should throw MCP error when update_branch is explicitly false and no other fields", () => {

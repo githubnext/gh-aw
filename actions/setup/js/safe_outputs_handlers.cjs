@@ -61,11 +61,28 @@ function buildMissingTemporaryIdError(toolName, configKey) {
 }
 
 /**
+ * @param {Record<string, any>} safeOutputsConfig
+ * @param {string} toolName
+ * @returns {Record<string, any>}
+ */
+function getSafeOutputsToolConfig(safeOutputsConfig, toolName) {
+  return safeOutputsConfig?.[toolName] || safeOutputsConfig?.[toolName.replace(/_/g, "-")] || {};
+}
+
+/**
  * @param {Record<string, any>} entry
  * @returns {boolean}
  */
 function hasExplicitAddCommentTargetNumber(entry) {
   return ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+}
+
+/**
+ * @param {Record<string, any>} entry
+ * @returns {boolean}
+ */
+function hasExplicitPullRequestTargetNumber(entry) {
+  return ["pull_request_number", "pr_number", "pr", "pull_number"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
 }
 
 /**
@@ -154,8 +171,11 @@ function resolvePatchWorkspacePath(workspacePath) {
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
-  const addCommentConfig = config.add_comment || config["add-comment"] || {};
+  const addCommentConfig = getSafeOutputsToolConfig(config, "add_comment");
   const wildcardAddCommentTargetRequiresItemNumber = addCommentConfig.target === "*";
+  const wildcardReviewCommentTargetRequiresPullRequestNumber = getSafeOutputsToolConfig(config, "create_pull_request_review_comment").target === "*";
+  const wildcardSubmitReviewTargetRequiresPullRequestNumber = getSafeOutputsToolConfig(config, "submit_pull_request_review").target === "*";
+  const wildcardUpdatePullRequestTargetRequiresPullRequestNumber = getSafeOutputsToolConfig(config, "update_pull_request").target === "*";
 
   /**
    * Detect and offload large string fields to files.
@@ -204,6 +224,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const defaultHandler = type => args => {
     const entry = { ...(args || {}), type };
+    if (type === "create_pull_request_review_comment" && wildcardReviewCommentTargetRequiresPullRequestNumber && !hasExplicitPullRequestTargetNumber(entry)) {
+      return buildIntentErrorResponse("create_pull_request_review_comment requires pull_request_number when safe-outputs.create-pull-request-review-comment.target is '*'. Provide pull_request_number and retry.");
+    }
+    if (type === "submit_pull_request_review" && wildcardSubmitReviewTargetRequiresPullRequestNumber && !hasExplicitPullRequestTargetNumber(entry)) {
+      return buildIntentErrorResponse("submit_pull_request_review requires pull_request_number when safe-outputs.submit-pull-request-review.target is '*'. Provide pull_request_number and retry.");
+    }
+    if (type === "update_pull_request" && wildcardUpdatePullRequestTargetRequiresPullRequestNumber && !hasExplicitPullRequestTargetNumber(entry)) {
+      return buildIntentErrorResponse("update_pull_request requires pull_request_number when safe-outputs.update-pull-request.target is '*'. Provide pull_request_number (or pr_number/pr alias) and retry.");
+    }
     const largeContentResponse = maybeHandleLargeContent(entry);
     if (largeContentResponse) return largeContentResponse;
 
@@ -1619,7 +1648,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Increment only after the default handler returns successfully; if it throws
     // (e.g. due to large-content rejection or an append write error) the counter
     // must not advance so the empty-review guard remains accurate.
-    inlineReviewCommentCount++;
+    if (!result?.isError) {
+      inlineReviewCommentCount++;
+    }
     return result;
   };
 
