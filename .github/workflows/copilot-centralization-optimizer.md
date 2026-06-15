@@ -350,8 +350,8 @@ steps:
         printf '%s\n' '{"type":"noop","message":"Insufficient cross-user repetition signal in the recent Agent Tasks sample; skipping centralization analysis."}' >> "$GH_AW_SAFE_OUTPUTS"
       fi
 
-      cp /tmp/gh-aw/data/current-snapshot.json /tmp/gh-aw/repo-memory/default/centralization-baseline.json
-      jq -c '.' /tmp/gh-aw/data/current-snapshot.json >> /tmp/gh-aw/repo-memory/default/centralization-history.jsonl
+      jq '(.top_exact_repeats |= map(del(.sample_prompt)))' /tmp/gh-aw/data/current-snapshot.json > /tmp/gh-aw/repo-memory/default/centralization-baseline.json
+      jq -c '(.top_exact_repeats |= map(del(.sample_prompt)))' /tmp/gh-aw/data/current-snapshot.json >> /tmp/gh-aw/repo-memory/default/centralization-history.jsonl
 
   - name: Upload centralization analysis dataset
     if: always()
