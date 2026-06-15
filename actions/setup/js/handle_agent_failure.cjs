@@ -1037,8 +1037,8 @@ function buildMissingDataContext(cacheMemoryEnabled, cacheMemoryRestored, items)
 
   // When cache-memory is configured and cache_miss is present, avoid repeating the same
   // signal in the generic "Missing Data" section. Keep the specialised cache warning below.
-  const hasCacheMissMisconfiguration = cacheMemoryEnabled && cacheMemoryRestored && hasCacheMiss;
-  const displayableMissingData = hasCacheMissMisconfiguration ? missingDataMessages.filter(m => m.reason !== "cache_memory_miss") : missingDataMessages;
+  const shouldShowCacheWarning = cacheMemoryEnabled && cacheMemoryRestored && hasCacheMiss;
+  const displayableMissingData = shouldShowCacheWarning ? missingDataMessages.filter(m => m.reason !== "cache_memory_miss") : missingDataMessages;
 
   let context = "";
   if (displayableMissingData.length > 0) {
@@ -1048,7 +1048,7 @@ function buildMissingDataContext(cacheMemoryEnabled, cacheMemoryRestored, items)
     context += "\n\n";
   }
 
-  if (hasCacheMissMisconfiguration) {
+  if (shouldShowCacheWarning) {
     core.info("Cache-miss detected after a successful cache restore — likely a configuration problem");
     const templatePath = getPromptPath("cache_memory_miss.md");
     context += "\n" + renderTemplateFromFile(templatePath, {}) + "\n";

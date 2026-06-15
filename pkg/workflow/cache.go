@@ -500,9 +500,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	integrityLevel := cacheIntegrityLevel(githubConfig)
 	restoreStepIDs := make([]string, 0, len(data.CacheMemoryConfig.Caches))
 
-	for _, cache := range data.CacheMemoryConfig.Caches {
+	for i, cache := range data.CacheMemoryConfig.Caches {
 		cacheDir := cacheMemoryDirFor(cache.ID)
-		restoreStepID := strings.ReplaceAll("restore_cache_memory_"+cache.ID, "-", "_")
+		restoreStepID := fmt.Sprintf("restore_cache_memory_%d", i)
 		restoreStepIDs = append(restoreStepIDs, restoreStepID)
 
 		// Add step to create cache-memory directory for this cache
