@@ -356,7 +356,7 @@ steps:
   - name: Upload centralization analysis dataset
     if: always()
     continue-on-error: true
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v7
     with:
       name: copilot-centralization-analysis
       path: /tmp/gh-aw/data
