@@ -73,7 +73,7 @@ steps:
       evidence_summary="$(jq -r '.evidence_summary // empty' /tmp/gh-aw/data/candidate-raw.json)"
 
       if [ -z "$candidate_title" ]; then
-        jq -n '{noop: "No candidate title was provided for drilldown."}' > "$GH_AW_SAFE_OUTPUTS"
+        printf '%s\n' '{"type":"noop","message":"No candidate title was provided for drilldown."}' >> "$GH_AW_SAFE_OUTPUTS"
         exit 0
       fi
 
