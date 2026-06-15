@@ -935,18 +935,18 @@ An artifact outcome MUST support these attributes:
 
 ### 16.4 Span Model
 
-This section defines the following span set:
+This section defines the following automation span *types*:
 
-- `span.cicd.automation.run`
-- `span.cicd.automation.task`
-- `span.cicd.automation.step`
-- `span.cicd.automation.approval`
-- `span.cicd.automation.mutation`
-- `span.cicd.automation.outcome`
+- `cicd.automation.run`
+- `cicd.automation.task`
+- `cicd.automation.step`
+- `cicd.automation.approval`
+- `cicd.automation.mutation`
+- `cicd.automation.outcome`
 
 All spans defined by this section MUST use OpenTelemetry `INTERNAL` span kind because they describe logical automation operations within a broader CI/CD execution rather than a network, RPC, messaging, or transport boundary.
 
-Implementations SHOULD use low-cardinality names derived from the relevant `*.kind` attribute when those values are stable and bounded. When low-cardinality naming is not available, implementations SHOULD use the fallback names `automation.run`, `automation.task`, `automation.step`, `automation.approval`, `automation.mutation`, and `automation.outcome`.
+Implementations SHOULD use low-cardinality span names derived from the relevant `*.kind` attribute when those values are stable and bounded. When low-cardinality naming is not available, implementations SHOULD use the fallback names `automation.run`, `automation.task`, `automation.step`, `automation.approval`, `automation.mutation`, and `automation.outcome`. Implementations with an existing span naming convention MAY continue to use it while still emitting the `cicd.automation.*` attributes defined by this standard.
 
 ### 16.5 Vocabulary and Requirement Levels
 
