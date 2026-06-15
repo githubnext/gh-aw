@@ -179,12 +179,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return null;
     }
 
-    const anyOf = Array.isArray(requirement.anyOf) ? requirement.anyOf.filter(field => typeof field === "string" && field.trim() !== "") : [];
+    const anyOf = Array.isArray(requirement.anyOf) ? requirement.anyOf : [];
     if (anyOf.length === 0 || hasExplicitTargetParameter(entry, anyOf)) {
       return null;
     }
 
-    const configKey = requirement.configKey || toolName.replace(/_/g, "-");
+    const configKey = toolName.replace(/_/g, "-");
     const primary = requirement.primary || anyOf[0];
     const guidance = anyOf.length === 1 ? primary : `one of: ${anyOf.join(", ")}`;
     return buildIntentErrorResponse(`${toolName} requires ${primary} when safe-outputs.${configKey}.target is '*'. Provide ${guidance} and retry.`);
