@@ -51,15 +51,15 @@ Otherwise compare each screenshot to its baseline. Post a comment summarizing: p
 
 ## Key Design Decisions
 
-- **`cache-memory` key per base branch** — scopes baselines to `main`, `develop`, etc. independently
-- **`allowed_domains: [localhost, 127.0.0.1]`** — prevents SSRF; app must be served locally
-- **`retention-days: 30`** — keeps baselines beyond the default 7-day cache expiry
-- **Filesystem-safe timestamps** — `YYYY-MM-DD-HH-MM-SS` format; colons are invalid in artifact filenames
-- **Minimal permissions** — all PR writes go through `safe-outputs`, not GitHub tools
+- **`cache-memory` key per base branch** — scopes baselines to `main`, `develop`, etc.
+- **`allowed_domains: [localhost, 127.0.0.1]`** — prevents SSRF; serve app locally
+- **`retention-days: 30`** — beyond the default 7-day cache expiry
+- **Filesystem-safe timestamps** — `YYYY-MM-DD-HH-MM-SS`; colons break artifact filenames
+- **Minimal permissions** — all PR writes go through `safe-outputs`
 
 ## Network-Minimization Reminders
 
-- Prefer local preview serving (`localhost`/`127.0.0.1`) over external preview environments when possible.
-- If external previews are required, allowlist only exact preview domains needed for the check (avoid broad wildcards).
-- Enable `network.node` only when the workflow actually installs/builds Node dependencies; scope domains to package registries and required preview hosts.
-- Keep Playwright navigation limited to app-under-test URLs and avoid loading unrelated third-party domains.
+- Prefer local preview (`localhost`/`127.0.0.1`) over external preview environments.
+- If external previews are required, allowlist exact domains (no broad wildcards).
+- Enable `network.node` only when installing/building Node deps; scope to registries and preview hosts.
+- Keep Playwright navigation limited to app-under-test URLs.

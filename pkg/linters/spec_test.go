@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
+	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
@@ -21,6 +22,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
+	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
@@ -34,6 +36,8 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/timeafterleak"
+	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
@@ -51,22 +55,23 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 25 analyzer
+// "Public API > Subpackages" table. The README documents 29 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
 // Spec (README "Public API > Subpackages"):
 //
-//	contextcancelnotdeferred, ctxbackground, excessivefuncparams, errormessage,
+//	contextcancelnotdeferred, ctxbackground, errorfwrapv, excessivefuncparams, errormessage,
 //	errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
-//	hardcodedfilepath, jsonmarshalignoredeerror, largefunc, lenstringzero, manualmutexunlock,
-//	osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
-//	regexpcompileinfunction, seenmapbool, sortslice, ssljson,
-//	strconvparseignorederror, tolowerequalfold, uncheckedtypeassertion
+//	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringzero,
+//	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
+//	regexpcompileinfunction, seenmapbool, sortslice, ssljson, strconvparseignorederror,
+//	timeafterleak, timesleepnocontext, tolowerequalfold, uncheckedtypeassertion
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
 		{"ctxbackground", ctxbackground.Analyzer},
+		{"errorfwrapv", errorfwrapv.Analyzer},
 		{"excessivefuncparams", excessivefuncparams.Analyzer},
 		{"errormessage", errormessage.Analyzer},
 		{"errstringmatch", errstringmatch.Analyzer},
@@ -75,6 +80,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"fmterrorfnoverbs", fmterrorfnoverbs.Analyzer},
 		{"fprintlnsprintf", fprintlnsprintf.Analyzer},
 		{"hardcodedfilepath", hardcodedfilepath.Analyzer},
+		{"httpnoctx", httpnoctx.Analyzer},
 		{"jsonmarshalignoredeerror", jsonmarshalignoredeerror.Analyzer},
 		{"largefunc", largefunc.Analyzer},
 		{"lenstringzero", lenstringzero.Analyzer},
@@ -88,6 +94,8 @@ func documentedAnalyzers() []docAnalyzer {
 		{"sortslice", sortslice.Analyzer},
 		{"ssljson", ssljson.Analyzer},
 		{"strconvparseignorederror", strconvparseignorederror.Analyzer},
+		{"timeafterleak", timeafterleak.Analyzer},
+		{"timesleepnocontext", timesleepnocontext.Analyzer},
 		{"tolowerequalfold", tolowerequalfold.Analyzer},
 		{"uncheckedtypeassertion", uncheckedtypeassertion.Analyzer},
 	}
