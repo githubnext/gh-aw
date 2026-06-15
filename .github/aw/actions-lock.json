@@ -93,6 +93,11 @@
       "version": "v6.2.0",
       "sha": "a309ff8b426b58ec0e2a45f0f869d46889d02405"
     },
+    "actions/upload-artifact@v4": {
+      "repo": "actions/upload-artifact",
+      "version": "v4",
+      "sha": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+    },
     "actions/upload-artifact@v7.0.1": {
       "repo": "actions/upload-artifact",
       "version": "v7.0.1",
@@ -149,6 +154,11 @@
       "repo": "github/codeql-action/upload-sarif",
       "version": "v4.36.2",
       "sha": "8aad20d150bbac5944a9f9d289da16a4b0d87c1e"
+    },
+    "github/gh-aw-actions/setup@v0.79.6": {
+      "repo": "github/gh-aw-actions/setup",
+      "version": "v0.79.6",
+      "sha": "5c2fe865bb4dc46e1450f6ee0d0541d759aea73a"
     },
     "github/gh-aw/actions/setup-cli@v0.79.8": {
       "repo": "github/gh-aw/actions/setup-cli",
