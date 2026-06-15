@@ -92,4 +92,9 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
     const missing = safeOutputsFiles.filter(f => !existsSync(resolve(__dirname, f)));
     expect(missing).toEqual([]);
   });
+
+  it("copies safe_outputs_tools.json to both safe_outputs_tools.json and tools.json", () => {
+    expect(setupShContent).toContain('cp "${JS_SOURCE_DIR}/safe_outputs_tools.json" "${SAFE_OUTPUTS_DEST}/safe_outputs_tools.json"');
+    expect(setupShContent).toContain('cp "${JS_SOURCE_DIR}/safe_outputs_tools.json" "${SAFE_OUTPUTS_DEST}/tools.json"');
+  });
 });
