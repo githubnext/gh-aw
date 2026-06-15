@@ -9,22 +9,31 @@ const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./gene
 // The privileged handler derives patch/bundle paths from `branch` (and `repo`)
 // via resolveTransportPaths, so tests must write transport files at the
 // canonical derived location and let the handler discover them.
+//
+// `/tmp/gh-aw` is a process-global path shared by every test file. Vitest runs
+// test files in parallel processes, so a cleanup that globbed the whole
+// directory would delete another file's in-flight transport files mid-test.
+// Track only the paths this file created and delete just those.
+const createdTransportPaths = new Set();
 function canonicalPatchPath(branch, repo) {
   fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-  return repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch);
+  const p = repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch);
+  createdTransportPaths.add(p);
+  return p;
 }
 function canonicalBundlePath(branch, repo) {
   fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-  return repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+  const p = repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+  createdTransportPaths.add(p);
+  return p;
 }
 function cleanupCanonicalTransports() {
-  try {
-    for (const f of fs.readdirSync("/tmp/gh-aw")) {
-      if (/^aw-.*\.(patch|bundle)$/.test(f)) {
-        fs.rmSync(`/tmp/gh-aw/${f}`, { force: true });
-      }
-    }
-  } catch {}
+  for (const p of createdTransportPaths) {
+    try {
+      fs.rmSync(p, { force: true });
+    } catch {}
+  }
+  createdTransportPaths.clear();
 }
 
 beforeEach(() => {
