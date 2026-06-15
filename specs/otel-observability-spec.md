@@ -50,7 +50,7 @@ Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing
 13. [Implementation Mapping](#13-implementation-mapping)
 14. [Compliance Testing](#14-compliance-testing)
 15. [References](#15-references)
-16. [New `cicd.automation.*` Standard](#16-new-cicdautomations-standard)
+16. [New `cicd.automation.*` Standard](#16-new-cicdautomation-standard)
 17. [Change Log](#17-change-log)
 
 ---
