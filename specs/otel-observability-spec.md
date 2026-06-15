@@ -1033,7 +1033,7 @@ Implementations SHOULD add `cicd.automation.*` alongside existing `gh-aw.*`, `ge
 
 ### Version 0.2.0 (Working Draft)
 
-Contributors SHOULD update the canonical schema first and then regenerate the registry with `make generate-semconv-registry`.
+Contributors SHOULD update the canonical schema first and then regenerate any machine-readable registry artifacts using the repository's available generation tooling.
 
 - Added §9 Trace Model: span naming, hierarchy, kinds, status, exception events
 - Added §10 Span Attribute Contract: required and conditional attributes for setup, conclusion, and agent spans
