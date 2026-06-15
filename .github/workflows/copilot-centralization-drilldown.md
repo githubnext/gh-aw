@@ -49,6 +49,7 @@ steps:
       CANDIDATE_JSON: ${{ inputs.candidate_json }}
     run: |
       set -euo pipefail
+      GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
       mkdir -p /tmp/gh-aw/data
 
       if [ -n "${CANDIDATE_JSON}" ]; then
