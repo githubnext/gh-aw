@@ -101,7 +101,6 @@ steps:
     run: |
       set -euo pipefail
       GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
-      mkdir -p /tmp/gh-aw/repo-memory/default
 
       jq '
         def round2: .*100 | round / 100;
@@ -248,96 +247,14 @@ steps:
         }
       ' > /tmp/gh-aw/data/current-snapshot.json
 
-      if [ -f /tmp/gh-aw/repo-memory/default/centralization-baseline.json ]; then
-        jq -n \
-          --argfile current /tmp/gh-aw/data/current-snapshot.json \
-          --argfile previous /tmp/gh-aw/repo-memory/default/centralization-baseline.json '
-          def bucket_map($doc):
-            reduce (($doc.intent_buckets // [])[]) as $item ({}; .[$item.intent_bucket] = $item);
-          def opportunity_map($doc):
-            reduce (($doc.workflow_opportunities // [])[]) as $item ({}; .[($item.intent_bucket + "|" + $item.artifact_types + "|" + $item.start_context_guess)] = $item);
-
-          (bucket_map($current)) as $curr_buckets
-          | (bucket_map($previous)) as $prev_buckets
-          | (opportunity_map($current)) as $curr_opportunities
-          | (opportunity_map($previous)) as $prev_opportunities
-          | {
-              baseline_available: true,
-              previous_generated_at: ($previous.generated_at // null),
-              current_generated_at: ($current.generated_at // null),
-              overall_delta: {
-                total_tasks: (($current.overall_stats.total_tasks // 0) - ($previous.overall_stats.total_tasks // 0)),
-                tasks_with_prompts: (($current.overall_stats.tasks_with_prompts // 0) - ($previous.overall_stats.tasks_with_prompts // 0)),
-                distinct_creators: (($current.overall_stats.distinct_creators // 0) - ($previous.overall_stats.distinct_creators // 0))
-              },
-              new_cross_user_intents: [
-                ($current.intent_buckets // [])[]
-                | select((.distinct_users // 0) >= 2)
-                | select((($prev_buckets[.intent_bucket].distinct_users) // 0) < 2)
-                | {
-                    intent_bucket,
-                    task_count,
-                    distinct_users
-                  }
-              ],
-              growing_intents: [
-                ($current.intent_buckets // [])[]
-                | (.intent_bucket) as $bucket
-                | ($prev_buckets[$bucket] // {}) as $prev
-                | {
-                    intent_bucket: $bucket,
-                    task_count: (.task_count // 0),
-                    distinct_users: (.distinct_users // 0),
-                    task_delta: ((.task_count // 0) - ($prev.task_count // 0)),
-                    user_delta: ((.distinct_users // 0) - ($prev.distinct_users // 0))
-                  }
-                | select(.task_delta > 0 or .user_delta > 0)
-              ] | sort_by(-.task_delta, -.user_delta) | .[0:10],
-              declining_intents: [
-                ($previous.intent_buckets // [])[]
-                | (.intent_bucket) as $bucket
-                | ($curr_buckets[$bucket] // {}) as $current_bucket
-                | {
-                    intent_bucket: $bucket,
-                    previous_task_count: (.task_count // 0),
-                    current_task_count: ($current_bucket.task_count // 0),
-                    previous_distinct_users: (.distinct_users // 0),
-                    current_distinct_users: ($current_bucket.distinct_users // 0),
-                    task_delta: (($current_bucket.task_count // 0) - (.task_count // 0)),
-                    user_delta: (($current_bucket.distinct_users // 0) - (.distinct_users // 0))
-                  }
-                | select(.task_delta < 0 or .user_delta < 0)
-              ] | sort_by(.task_delta, .user_delta) | .[0:10],
-              stable_priority_candidates: [
-                ($current.workflow_opportunities // [])[]
-                | (.intent_bucket + "|" + .artifact_types + "|" + .start_context_guess) as $key
-                | ($prev_opportunities[$key] // null) as $prev
-                | select($prev != null)
-                | select((.distinct_users // 0) >= 2 and (($prev.distinct_users) // 0) >= 2)
-                | {
-                    intent_bucket,
-                    artifact_types,
-                    start_context_guess,
-                    recommendation_kind,
-                    current_score: (.centralization_score // 0),
-                    previous_score: ($prev.centralization_score // 0),
-                    score_delta: ((.centralization_score // 0) - ($prev.centralization_score // 0)),
-                    task_count: (.task_count // 0),
-                    distinct_users: (.distinct_users // 0)
-                  }
-              ] | sort_by(-.current_score, -.score_delta) | .[0:10]
-            }
-        ' > /tmp/gh-aw/data/trend-analysis.json
-      else
-        jq -n \
-          --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-          {
-            baseline_available: false,
-            current_generated_at: $generated_at,
-            note: "No previous baseline is available yet. This run establishes the initial trend snapshot."
-          }
-        ' > /tmp/gh-aw/data/trend-analysis.json
-      fi
+      jq -n \
+        --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+        {
+          baseline_available: false,
+          current_generated_at: $generated_at,
+          note: "Trend analysis is computed during the agent phase after repo-memory is cloned."
+        }
+      ' > /tmp/gh-aw/data/trend-analysis.json
 
       tasks_with_prompts=$(jq -r '.tasks_with_prompts // 0' /tmp/gh-aw/data/overall-stats.json)
       cross_user_buckets=$(jq '[.[] | select((.distinct_users // 0) >= 2)] | length' /tmp/gh-aw/data/intent-buckets.json)
@@ -345,9 +262,6 @@ steps:
       if [ "$tasks_with_prompts" -lt 8 ] || { [ "$cross_user_buckets" -lt 2 ] && [ "$actionable_candidates" -lt 1 ]; }; then
         printf '%s\n' '{"type":"noop","message":"Insufficient cross-user repetition signal in the recent Agent Tasks sample; skipping centralization analysis."}' >> "$GH_AW_SAFE_OUTPUTS"
       fi
-
-      jq '(.top_exact_repeats |= map(del(.sample_prompt)))' /tmp/gh-aw/data/current-snapshot.json > /tmp/gh-aw/repo-memory/default/centralization-baseline.json
-      jq -c '(.top_exact_repeats |= map(del(.sample_prompt)))' /tmp/gh-aw/data/current-snapshot.json >> /tmp/gh-aw/repo-memory/default/centralization-history.jsonl
 
   - name: Upload centralization analysis dataset
     if: always()
@@ -386,13 +300,22 @@ Read only these prepared files first:
 - `/tmp/gh-aw/data/intent-buckets.json`
 - `/tmp/gh-aw/data/workflow-opportunities.json`
 - `/tmp/gh-aw/data/trend-analysis.json`
+- `/tmp/gh-aw/data/current-snapshot.json`
 - `/tmp/gh-aw/data/run-context.json`
+- optional prior baseline: `/tmp/gh-aw/repo-memory/default/centralization-baseline.json`
 
 These files were precomputed in `steps:` to keep token usage low.
 
 ## Task
 
 Investigate whether repeated cross-user prompting suggests centralizing intelligence.
+
+Before drafting the report:
+- If `/tmp/gh-aw/repo-memory/default/centralization-baseline.json` exists, recompute `/tmp/gh-aw/data/trend-analysis.json` by comparing that baseline to `/tmp/gh-aw/data/current-snapshot.json`.
+- Persist the sanitized current snapshot for the next run:
+  - write `/tmp/gh-aw/repo-memory/default/centralization-baseline.json`
+  - append to `/tmp/gh-aw/repo-memory/default/centralization-history.jsonl`
+  - strip `top_exact_repeats[].sample_prompt` before writing either file.
 
 Focus on:
 
