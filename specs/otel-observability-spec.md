@@ -1,32 +1,36 @@
 ---
-title: OTel Observability Specification
+title: OpenTelemetry Specification
 version: 0.3.0
 status: Working Draft
 date: 2026-05-19
-last_updated: 2026-05-22
+last_updated: 2026-06-15
 editors:
   - GitHub gh-aw Team
 ---
 
-# OTel Observability Specification
+# OpenTelemetry Specification
 
-This specification defines the normative OpenTelemetry and OTLP observability contract for GitHub Agentic Workflows (`gh-aw`). It covers workflow frontmatter configuration, normalization into runtime environment variables, MCP gateway propagation, local telemetry mirrors, and minimum implementation and test obligations.
+**Version**: 0.3.0  
+**Status**: Working Draft  
+**Latest Version**: https://github.com/github/gh-aw/blob/main/specs/otel-observability-spec.md  
+**Editors**: GitHub gh-aw Team
 
-This document is the repository-level source of truth for `observability.otlp` behavior in `gh-aw`. Informative documentation such as the published OpenTelemetry reference page may explain usage patterns, but the normative behavior belongs here.
+This specification defines the normative OpenTelemetry contract for GitHub Agentic Workflows (`gh-aw`). It covers the current OTLP runtime contract and version 1.0.0 of the new `cicd.automation.*` semantic-convention standard for autonomous work inside CI/CD systems.
+
+This document is the repository-level source of truth for both `observability.otlp` behavior in `gh-aw` and the `cicd.automation.*` standard adopted by this repository.
 
 ## Abstract
 
-GitHub Agentic Workflows emits distributed tracing data using OpenTelemetry concepts and OTLP-compatible exporters. That behavior spans compiler-time schema validation, workflow environment injection, JavaScript runtime helpers, MCP gateway trace propagation, and fallback local JSONL mirrors.
-
-Without a single normative contract, these layers drift easily: frontmatter may accept shapes that runtime code does not honor, runtime code may emit variables not described elsewhere, and gateway integration may accidentally expose credentials or lose trace context.
-
-This specification defines the required behavior for the current `gh-aw` OTel observability model so that compiler, runtime, tests, and future changes stay synchronized.
+This specification has two normative parts: the current `gh-aw` OTLP observability contract, and version 1.0.0 of a new `cicd.automation.*` semantic-convention standard for autonomous work in CI/CD. It exists so compiler behavior, runtime telemetry, schema generation, and validation stay synchronized.
 
 ## Status of This Document
 
 This is a Working Draft specification. It may be revised as `gh-aw` observability evolves, especially around multi-endpoint fan-out, helper APIs, and artifact-level telemetry reconciliation.
 
-Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing, or the telemetry mirror contract SHOULD update this specification in the same change set.
+Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing, the telemetry mirror contract, or the `cicd.automation.*` semantic conventions SHOULD update this specification in the same change set.
+
+**Publication Date**: June 15, 2026  
+**Governance**: This specification is maintained by the GitHub gh-aw Team as the normative OpenTelemetry contract for this repository.
 
 ## Table of Contents
 
@@ -46,7 +50,8 @@ Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing
 13. [Implementation Mapping](#13-implementation-mapping)
 14. [Compliance Testing](#14-compliance-testing)
 15. [References](#15-references)
-16. [Change Log](#16-change-log)
+16. [New `cicd.automation.*` Standard](#16-new-cicdautomation-standard)
+17. [Change Log](#17-change-log)
 
 ---
 
@@ -90,19 +95,39 @@ The following documents are informative companions and do not override this spec
 
 ## 2. Conformance
 
-An implementation conforms to this specification if it satisfies all MUST and MUST NOT requirements in Sections 4 through 12.
-
-The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+An implementation conforms to this specification if it satisfies all MUST and MUST NOT requirements applicable to its conformance class in Sections 4 through 16.
 
 ### 2.1 Conformance Classes
 
-This specification defines three conformance levels:
+This specification defines the following conformance classes:
+
+| Class | Description |
+|---|---|
+| Compiler | Parses workflow configuration and emits the runtime observability contract described in Sections 4 and 5. |
+| Runtime Emitter | Emits spans, resource attributes, local mirrors, and trace context as described in Sections 6 through 12. |
+| Schema Producer | Defines or publishes the `cicd.automation.*` semantic-convention surface described in Section 16. |
+| Validator | Verifies compiler output, runtime telemetry, and conformance-test coverage against this specification. |
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+
+### 2.2 Compliance Levels
+
+This specification defines three compliance levels:
 
 | Level | Requirements |
 |---|---|
 | **Level 1 - Config** | Correct parsing and normalization of `observability.otlp` and workflow environment injection as defined in Sections 4 and 5. |
 | **Level 2 - Runtime** | Level 1 plus MCP gateway integration and degraded-mode export behavior from Section 6. |
 | **Level 3 - Complete** | Level 2 plus local mirror, artifact, trace model, span attribute contract, resource attributes, trace ID propagation, implementation-mapping, and compliance obligations in Sections 7 through 12. |
+
+### 2.3 Conformance Statement
+
+A conforming implementation SHOULD document:
+
+- which conformance class or classes it satisfies;
+- its compliance level;
+- any intentionally unsupported OPTIONAL behavior; and
+- any repository-specific extensions emitted outside the contract defined here.
 
 ---
 
@@ -802,9 +827,9 @@ The following agentic workflows provide runtime conformance validation:
 
 ### Normative References
 
-- **[RFC 2119]** Key words for use in RFCs to Indicate Requirement Levels
-- **[OpenTelemetry]** OpenTelemetry specification and semantic conventions
-- **[OTLP]** OpenTelemetry Protocol specification
+- **[RFC 2119]** S. Bradner. Key words for use in RFCs to Indicate Requirement Levels. March 1997. [https://www.ietf.org/rfc/rfc2119.txt](https://www.ietf.org/rfc/rfc2119.txt)
+- **[OpenTelemetry]** OpenTelemetry specification and semantic conventions. [https://opentelemetry.io/docs/specs/](https://opentelemetry.io/docs/specs/)
+- **[OTLP]** OpenTelemetry Protocol specification. [https://opentelemetry.io/docs/specs/otlp/](https://opentelemetry.io/docs/specs/otlp/)
 
 ### Informative References
 
@@ -822,7 +847,181 @@ The following agentic workflows provide runtime conformance validation:
 
 ---
 
-## 16. Change Log
+## 16. New `cicd.automation.*` Standard
+
+This section is normative.
+
+This section defines version 1.0.0 of a new `cicd.automation.*` semantic-convention standard for autonomous work performed inside CI/CD systems. The purpose of the standard is to represent automation runs, tasks, steps, approvals, mutations, and durable outcomes without colliding with adjacent OpenTelemetry domains.
+
+### 16.1 Scope
+
+The `cicd.automation.*` semantic-convention layer exists to make autonomous-work telemetry portable, composable, and testable.
+
+This standard covers:
+
+- logical automation runs inside a CI/CD execution;
+- automation tasks and their execution intent;
+- concrete automation-layer steps;
+- approval gates between autonomy and external control;
+- state-changing mutations; and
+- durable artifacts and terminal outcomes.
+
+This standard does not cover:
+
+- pipeline structure already modeled by `cicd.*`;
+- model, provider, token, or workflow-invocation semantics already modeled by `gen_ai.*`;
+- MCP request, session, transport, or JSON-RPC semantics already modeled by `mcp.*`; and
+- product-specific implementation details that remain specific to `gh-aw.*` or other vendor namespaces.
+
+### 16.2 Namespace and Boundaries
+
+The namespace defined by this section is `cicd.automation.*`.
+
+Implementations MUST use this namespace for schema elements defined by this section. Implementations MUST NOT remap these attributes into a top-level `workflow.*` namespace while claiming conformance to this specification.
+
+The following boundary rules are normative:
+
+1. A `cicd.automation.*` span or attribute MUST NOT replace a `cicd.*` span or attribute when the operation is fundamentally a pipeline run, pipeline task, job, worker, or similar CI/CD execution primitive.
+2. A `cicd.automation.*` span or attribute MUST NOT replace a `gen_ai.*` span or attribute when the operation is fundamentally a model invocation, agent invocation, workflow invocation, tool execution, token accounting, or model result event.
+3. A `cicd.automation.*` span or attribute MUST NOT replace an `mcp.*` span or attribute when the operation is fundamentally an MCP request, session, transport, or protocol boundary.
+4. Product-specific identifiers, feature flags, and implementation metadata SHOULD remain in implementation-specific namespaces such as `gh-aw.*` unless they are shown to be portable across implementations.
+5. When both this section and an adjacent domain apply, telemetry SHOULD compose by sharing the same trace rather than by normalizing one domain into another.
+
+### 16.3 Core Model
+
+This standard defines six core entities:
+
+1. Automation Run
+2. Automation Task
+3. Automation Step
+4. Approval Gate
+5. Mutation
+6. Artifact Outcome
+
+An automation run MUST support these attributes:
+
+- `cicd.automation.run.id`
+- `cicd.automation.run.kind`
+- `cicd.automation.run.mode`
+- `cicd.automation.level`
+- `cicd.automation.outcome`
+
+An automation task MUST support these attributes:
+
+- `cicd.automation.task.id`
+- `cicd.automation.task.kind`
+- `cicd.automation.task.intent`
+
+An automation step MUST support these attributes:
+
+- `cicd.automation.step.id`
+- `cicd.automation.step.kind`
+- `cicd.automation.step.outcome`
+
+An approval gate MUST support these attributes:
+
+- `cicd.automation.approval.required`
+- `cicd.automation.approval.result`
+
+A mutation MUST support these attributes:
+
+- `cicd.automation.mutation.performed`
+- `cicd.automation.mutation.scope`
+
+An artifact outcome MUST support these attributes:
+
+- `cicd.automation.artifact.kind`
+- `cicd.automation.artifact.produced`
+
+### 16.4 Span Model
+
+This section defines the following automation span *types*:
+
+- `cicd.automation.run`
+- `cicd.automation.task`
+- `cicd.automation.step`
+- `cicd.automation.approval`
+- `cicd.automation.mutation`
+- `cicd.automation.outcome`
+
+All spans defined by this section MUST use OpenTelemetry `INTERNAL` span kind because they describe logical automation operations within a broader CI/CD execution rather than a network, RPC, messaging, or transport boundary.
+
+Implementations SHOULD use low-cardinality span names derived from the relevant `*.kind` attribute when those values are stable and bounded. When low-cardinality naming is not available, implementations SHOULD use the fallback names `automation.run`, `automation.task`, `automation.step`, `automation.approval`, `automation.mutation`, and `automation.outcome`. Implementations with an existing span naming convention MAY continue to use it while still emitting the `cicd.automation.*` attributes defined by this standard.
+
+### 16.5 Vocabulary and Requirement Levels
+
+The initial version 1.0.0 attribute vocabulary is:
+
+- `cicd.automation.run.id`
+- `cicd.automation.run.kind`
+- `cicd.automation.run.mode`
+- `cicd.automation.level`
+- `cicd.automation.outcome`
+- `cicd.automation.task.id`
+- `cicd.automation.task.kind`
+- `cicd.automation.task.intent`
+- `cicd.automation.step.id`
+- `cicd.automation.step.kind`
+- `cicd.automation.step.outcome`
+- `cicd.automation.approval.required`
+- `cicd.automation.approval.result`
+- `cicd.automation.mutation.performed`
+- `cicd.automation.mutation.scope`
+- `cicd.automation.artifact.kind`
+- `cicd.automation.artifact.produced`
+
+The normative requirement levels for the current generated registry are:
+
+| Attribute | Requirement level |
+|---|---|
+| `cicd.automation.run.id` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.run` |
+| `cicd.automation.run.kind` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.run` |
+| `cicd.automation.run.mode` | RECOMMENDED |
+| `cicd.automation.level` | RECOMMENDED |
+| `cicd.automation.outcome` | RECOMMENDED |
+| `cicd.automation.task.id` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.task` |
+| `cicd.automation.task.kind` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.task` |
+| `cicd.automation.task.intent` | RECOMMENDED |
+| `cicd.automation.step.id` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.step` |
+| `cicd.automation.step.kind` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.step` |
+| `cicd.automation.step.outcome` | RECOMMENDED |
+| `cicd.automation.approval.required` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.approval` |
+| `cicd.automation.approval.result` | RECOMMENDED globally; conditionally REQUIRED when approval is required |
+| `cicd.automation.mutation.performed` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.mutation` |
+| `cicd.automation.mutation.scope` | RECOMMENDED globally; conditionally REQUIRED when mutation is performed |
+| `cicd.automation.artifact.kind` | RECOMMENDED; conditionally REQUIRED when an artifact is produced |
+| `cicd.automation.artifact.produced` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.outcome` |
+
+Implementations SHOULD use low-cardinality values for `*.kind`, `*.mode`, `*.level`, and `*.outcome` attributes. Implementations MUST NOT use unbounded, free-form prose in attributes intended to act as stable dimensions.
+
+### 16.6 Registry and Versioning
+
+The canonical semantic-convention source for this standard is not yet implemented in this repository.
+
+When implemented, the canonical source SHOULD live in `pkg/semconv/cicd_automation.go` and the machine-readable registries SHOULD be materialized in:
+
+- `registry/cicd-automation-attributes.yaml`
+- `registry/cicd-automation-spans.yaml`
+Schema producers MUST treat the canonical source and generated registries as a single normative set. A generated registry that no longer matches the canonical source is non-conforming.
+
+This section defines version 1.0.0 of the `cicd.automation.*` standard.
+
+The current generated registry marks this schema as `development`. That stability marker MUST be reflected consistently in generated artifacts until explicitly changed.
+
+Breaking semantic changes to existing attribute meaning, requirement levels, or span roles MUST increment the major version. Backward-compatible additions MAY increment the minor version. Editorial clarifications with no schema effect SHOULD increment the patch version.
+
+The presence of `cicd.automation.semconv.version` as a compatibility marker, where implemented, MUST NOT be interpreted as claiming a real OpenTelemetry `schema_url`. This specification does not define or require OpenTelemetry `schema_url` emission.
+
+Implementations SHOULD add `cicd.automation.*` alongside existing `gh-aw.*`, `gen_ai.*`, and `mcp.*` telemetry rather than replacing those namespaces prematurely.
+
+## 17. Change Log
+
+### Version 0.3.0 (Working Draft, revised 2026-06-15)
+
+- Consolidated OpenTelemetry behavior and `cicd.automation.*` semantic conventions into a single normative specification.
+- Removed the separate overview and semantic-conventions specification split in favor of one authoritative document.
+- Added Section 16 as the normative definition of the new `cicd.automation.*` standard.
+- Shortened the document and made the new-standard framing explicit.
 
 ### Version 0.3.0 (Working Draft)
 
@@ -833,6 +1032,8 @@ The following agentic workflows provide runtime conformance validation:
 - Source: [gh-aw-mcpg OTEL Sentry docs](https://github.com/github/gh-aw-mcpg/blob/main/docs/otel-sentry.md)
 
 ### Version 0.2.0 (Working Draft)
+
+Contributors SHOULD update the canonical schema first and then regenerate any machine-readable registry artifacts using the repository's available generation tooling.
 
 - Added §9 Trace Model: span naming, hierarchy, kinds, status, exception events
 - Added §10 Span Attribute Contract: required and conditional attributes for setup, conclusion, and agent spans
