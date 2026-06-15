@@ -107,7 +107,7 @@ The script must:
   - `conclusion` when available
 4. If Sentry and Grafana do not yield enough usable numeric AIC rows, populate missing rows from the local fallback artifact set under `/tmp/gh-aw/portfolio-agent-preview/` using `agent_usage.json` plus `run_summary.json`, and use `otel.jsonl` only for workflow/run attribution when needed.
 5. Keep only completed runs for portfolio calculations when completion state is available.
-3. Create a per-workflow summary with these columns:
+6. Create a per-workflow summary with these columns:
    - `workflow_name`
    - `run_count`
    - `total_aic`
@@ -124,10 +124,10 @@ The script must:
    - `warning_count`
    - `latest_run_url`
    - `latest_run_id`
-4. Compute two comparison windows:
+7. Compute two comparison windows:
    - last 7 days
    - previous 7 days before that
-5. For each workflow compute:
+8. For each workflow compute:
    - `recent_7d_aic`
    - `prior_7d_aic`
    - `aic_delta_7d`
