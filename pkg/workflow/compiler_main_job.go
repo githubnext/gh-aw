@@ -261,11 +261,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		compilerMainJobLog.Print("Skipped checkout_pr_success output (workflow lacks contents read access)")
 	}
 
-	// Expose whether any cache-memory restore step matched an existing cache entry.
-	// This lets downstream failure handling distinguish true prompt misconfiguration from
-	// expected cache misses (for example, branch-scoped misses on first runs).
+	// Expose restore step outputs so downstream failure handling can compute whether
+	// any cache-memory restore matched an existing cache entry.
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
-		outputs["cache_memory_restored"] = "${{ steps.cache_memory_restore_status.outputs.cache_memory_restored || 'false' }}"
+		for i := range data.CacheMemoryConfig.Caches {
+			stepID := fmt.Sprintf("restore_cache_memory_%d", i)
+			outputs[fmt.Sprintf("cache_memory_restore_%d_matched_key", i)] = fmt.Sprintf("${{ steps.%s.outputs.cache-matched-key || '' }}", stepID)
+			outputs[fmt.Sprintf("cache_memory_restore_%d_cache_hit", i)] = fmt.Sprintf("${{ steps.%s.outputs.cache-hit || 'false' }}", stepID)
+		}
 	}
 
 	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout, and

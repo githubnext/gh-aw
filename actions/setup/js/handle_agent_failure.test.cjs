@@ -2547,6 +2547,37 @@ describe("handle_agent_failure", () => {
   });
   // ──────────────────────────────────────────────────────
 
+  describe("resolveCacheMemoryRestored", () => {
+    let resolveCacheMemoryRestored;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ resolveCacheMemoryRestored } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      for (const key of Object.keys(process.env)) {
+        if (key.startsWith("GH_AW_CACHE_MEMORY_RESTORE_")) {
+          delete process.env[key];
+        }
+      }
+    });
+
+    it("returns false when restore signals are absent", () => {
+      expect(resolveCacheMemoryRestored()).toBe(false);
+    });
+
+    it("returns true when matched key exists", () => {
+      process.env.GH_AW_CACHE_MEMORY_RESTORE_0_MATCHED_KEY = "memory-none-default";
+      expect(resolveCacheMemoryRestored()).toBe(true);
+    });
+
+    it("returns true when cache-hit is true", () => {
+      process.env.GH_AW_CACHE_MEMORY_RESTORE_1_CACHE_HIT = "true";
+      expect(resolveCacheMemoryRestored()).toBe(true);
+    });
+  });
+
   describe("buildMissingDataContext", () => {
     let buildMissingDataContext;
     const fs = require("fs");

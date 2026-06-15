@@ -1014,9 +1014,34 @@ function loadMissingDataMessages(items) {
 }
 
 /**
+ * Resolve whether any cache-memory restore step matched a cache entry.
+ * Reads per-cache restore outputs propagated via GH_AW_CACHE_MEMORY_RESTORE_<index>_* env vars.
+ * @returns {boolean}
+ */
+function resolveCacheMemoryRestored() {
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith("GH_AW_CACHE_MEMORY_RESTORE_")) {
+      continue;
+    }
+    if (key.endsWith("_MATCHED_KEY") && String(value || "").trim() !== "") {
+      return true;
+    }
+    if (
+      key.endsWith("_CACHE_HIT") &&
+      String(value || "")
+        .trim()
+        .toLowerCase() === "true"
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Build missing_data context string for display in failure issues/comments.
- * When cache-memory is enabled and a cache_miss is detected, appends a
- * configuration-problem warning to the context.
+ * When cache-memory is enabled, a restore matched, and a cache_miss is detected,
+ * appends a configuration-problem warning to the context.
  * @param {boolean} cacheMemoryEnabled - Whether cache-memory is configured for this workflow
  * @param {boolean} cacheMemoryRestored - Whether cache restore matched an existing cache key in this run
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
@@ -1031,7 +1056,7 @@ function buildMissingDataContext(cacheMemoryEnabled, cacheMemoryRestored, items)
 
   core.info(`Found ${missingDataMessages.length} missing_data message(s)`);
 
-  // Detect cache_miss: if cache-memory is available and the agent reported a cache miss,
+  // Detect cache_miss: if cache-memory restore matched and the agent reported a cache miss,
   // this indicates the prompt is referencing an incorrect file path within the cache directory.
   const hasCacheMiss = missingDataMessages.some(m => m.reason === "cache_memory_miss");
 
@@ -2504,7 +2529,7 @@ async function main() {
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
-    const cacheMemoryRestored = process.env.GH_AW_CACHE_MEMORY_RESTORED === "true";
+    const cacheMemoryRestored = cacheMemoryEnabled ? resolveCacheMemoryRestored() : false;
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -2552,7 +2577,7 @@ async function main() {
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
     core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
-    core.info(`Cache memory restored: ${cacheMemoryRestored}`);
+    core.info(`Cache memory restored (from restore outputs): ${cacheMemoryRestored}`);
     core.info(`Missing tool report-as-failure: ${missingToolReportAsFailure}`);
     core.info(`Missing data report-as-failure: ${missingDataReportAsFailure}`);
 
@@ -2677,8 +2702,8 @@ async function main() {
     }
 
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
-    // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
-    // prompt is referencing an incorrect path inside the cache directory.
+    // "cache_memory_miss" after a cache restore matched. This indicates the prompt
+    // is referencing an incorrect path inside the cache directory.
     // Check for items regardless of agentOutputResult.success so that cache-miss signals
     // emitted alongside other output are not missed when the agent job also fails.
     let hasCacheMissMisconfiguration = false;
@@ -3341,6 +3366,7 @@ module.exports = {
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
   buildMissingDataContext,
+  resolveCacheMemoryRestored,
   buildMissingToolContext,
   buildPermissionDeniedContext,
   normalizeDeniedPermissionCommand,
