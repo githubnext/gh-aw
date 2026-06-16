@@ -21,6 +21,11 @@ run_id="${GITHUB_RUN_ID:-}"
 server_url="${GITHUB_SERVER_URL:-https://github.com}"
 window_start=$(date -u -d '180 days ago' '+%Y-%m-%d' 2>/dev/null || date -u -v-180d '+%Y-%m-%d')
 generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+pr_list_limit="${OBJECTIVE_IMPACT_PR_LIST_LIMIT:-5000}"
+if ! [[ "$pr_list_limit" =~ ^[0-9]+$ ]] || [ "$pr_list_limit" -lt 1 ]; then
+  echo "OBJECTIVE_IMPACT_PR_LIST_LIMIT must be a positive integer; falling back to 5000 (got: $pr_list_limit)" >&2
+  pr_list_limit=5000
+fi
 
 cat > "$DATA_DIR/run-context.json" <<EOF
 {
@@ -128,8 +133,8 @@ else
     --repo "$repo" \
     --state merged \
     --search "merged:>=$window_start" \
-    --limit 500 \
-    --json number,title,url,mergedAt,closedAt,body,labels \
+    --limit "$pr_list_limit" \
+    --json number,title,url,mergedAt,closedAt,body,labels,closingIssuesReferences \
     > "$DATA_DIR/merged-prs.json" || printf '%s\n' '[]' > "$DATA_DIR/merged-prs.json"
 fi
 
@@ -140,21 +145,53 @@ else
     --repo "$repo" \
     --state closed \
     --search "closed:>=$window_start is:unmerged" \
-    --limit 500 \
-    --json number,title,url,mergedAt,closedAt,body,labels \
+    --limit "$pr_list_limit" \
+    --json number,title,url,mergedAt,closedAt,body,labels,closingIssuesReferences \
     > "$DATA_DIR/closed-unmerged-prs.json" || printf '%s\n' '[]' > "$DATA_DIR/closed-unmerged-prs.json"
 fi
 
 jq '
-  def linked_issue_numbers:
+  def linked_issue_numbers_from_body:
     [scan("(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s+#([0-9]+)")[]? | tonumber] | unique;
-  map(. + {linked_issue_numbers: ((.body // "") | linked_issue_numbers)})
+  def linked_issue_numbers_from_graphql:
+    [
+      .closingIssuesReferences.nodes[]?.number?,
+      .closingIssuesReferences[]?.number?
+    ]
+    | map(select(type == "number"))
+    | unique;
+  map(
+    . + {
+      linked_issue_numbers: (
+        (
+          ((.body // "") | linked_issue_numbers_from_body) +
+          (linked_issue_numbers_from_graphql)
+        ) | unique
+      )
+    }
+  )
 ' "$DATA_DIR/merged-prs.json" > "$DATA_DIR/merged-prs-linked.json"
 
 jq '
-  def linked_issue_numbers:
+  def linked_issue_numbers_from_body:
     [scan("(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s+#([0-9]+)")[]? | tonumber] | unique;
-  map(. + {linked_issue_numbers: ((.body // "") | linked_issue_numbers)})
+  def linked_issue_numbers_from_graphql:
+    [
+      .closingIssuesReferences.nodes[]?.number?,
+      .closingIssuesReferences[]?.number?
+    ]
+    | map(select(type == "number"))
+    | unique;
+  map(
+    . + {
+      linked_issue_numbers: (
+        (
+          ((.body // "") | linked_issue_numbers_from_body) +
+          (linked_issue_numbers_from_graphql)
+        ) | unique
+      )
+    }
+  )
 ' "$DATA_DIR/closed-unmerged-prs.json" > "$DATA_DIR/closed-unmerged-prs-linked.json"
 
 jq -n \

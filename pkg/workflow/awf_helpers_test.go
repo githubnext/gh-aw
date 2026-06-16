@@ -909,6 +909,71 @@ func TestGetCopilotAPITarget(t *testing.T) {
 	}
 }
 
+func TestGetCopilotAllowlistTargets(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     []string
+	}{
+		{
+			name: "includes BYOK provider host and api-target when both are configured",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "api.acme.ghe.com",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://llm.corp.example.com/v1",
+					},
+				},
+			},
+			expected: []string{"llm.corp.example.com", "api.acme.ghe.com"},
+		},
+		{
+			name: "includes only BYOK provider host when no copilot api target is configured",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+					},
+				},
+			},
+			expected: []string{"localhost:11434"},
+		},
+		{
+			name: "deduplicates identical provider and api targets",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "llm.corp.example.com",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://llm.corp.example.com/v1",
+					},
+				},
+			},
+			expected: []string{"llm.corp.example.com"},
+		},
+		{
+			name: "skips provider host extraction when BYOK base URL is a GitHub expression",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
+					},
+				},
+			},
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, GetCopilotAllowlistTargets(tt.workflowData), "GetCopilotAllowlistTargets should return expected targets for %s", tt.name)
+		})
+	}
+}
+
 // TestCopilotEngineIncludesCopilotAPITargetFromEnvVar tests that the Copilot engine execution
 // step includes the copilot API target in the JSON config when GITHUB_COPILOT_BASE_URL is
 // configured in engine.env.
