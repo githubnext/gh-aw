@@ -51,14 +51,16 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 func TestWorkflowStatus_JSONMarshaling(t *testing.T) {
 	// Test that WorkflowStatus can be marshaled to JSON
 	status := WorkflowStatus{
-		Workflow:      "test-workflow",
-		EngineID:      "copilot",
-		Compiled:      "Yes",
+		WorkflowListItem: WorkflowListItem{
+			Workflow: "test-workflow",
+			EngineID: "copilot",
+			Compiled: "Yes",
+			On: map[string]any{
+				"workflow_dispatch": nil,
+			},
+		},
 		Status:        "active",
 		TimeRemaining: "N/A",
-		On: map[string]any{
-			"workflow_dispatch": nil,
-		},
 	}
 
 	jsonBytes, err := json.Marshal(status)
@@ -297,16 +299,20 @@ func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
 	// Create test data
 	statuses := []WorkflowStatus{
 		{
-			Workflow:      "test-workflow-1",
-			EngineID:      "copilot",
-			Compiled:      "Yes",
+			WorkflowListItem: WorkflowListItem{
+				Workflow: "test-workflow-1",
+				EngineID: "copilot",
+				Compiled: "Yes",
+			},
 			Status:        "active",
 			TimeRemaining: "N/A",
 		},
 		{
-			Workflow:      "test-workflow-2",
-			EngineID:      "claude",
-			Compiled:      "No",
+			WorkflowListItem: WorkflowListItem{
+				Workflow: "test-workflow-2",
+				EngineID: "claude",
+				Compiled: "No",
+			},
 			Status:        "disabled",
 			TimeRemaining: "2h 30m",
 		},
@@ -344,9 +350,11 @@ func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
 func TestWorkflowStatus_JSONMarshalingWithRunStatus(t *testing.T) {
 	// Test that WorkflowStatus with run status can be marshaled to JSON
 	status := WorkflowStatus{
-		Workflow:      "test-workflow",
-		EngineID:      "copilot",
-		Compiled:      "Yes",
+		WorkflowListItem: WorkflowListItem{
+			Workflow: "test-workflow",
+			EngineID: "copilot",
+			Compiled: "Yes",
+		},
 		Status:        "active",
 		TimeRemaining: "N/A",
 		RunStatus:     "completed",
@@ -376,9 +384,11 @@ func TestWorkflowStatus_JSONMarshalingWithRunStatus(t *testing.T) {
 func TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus(t *testing.T) {
 	// Test that WorkflowStatus without run status omits those fields
 	status := WorkflowStatus{
-		Workflow:      "test-workflow",
-		EngineID:      "copilot",
-		Compiled:      "Yes",
+		WorkflowListItem: WorkflowListItem{
+			Workflow: "test-workflow",
+			EngineID: "copilot",
+			Compiled: "Yes",
+		},
 		Status:        "active",
 		TimeRemaining: "N/A",
 		// RunStatus and RunConclusion are empty
@@ -407,12 +417,14 @@ func TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus(t *testing.T) {
 func TestWorkflowStatus_JSONMarshalingWithLabels(t *testing.T) {
 	// Test that WorkflowStatus with labels can be marshaled to JSON
 	status := WorkflowStatus{
-		Workflow:      "test-workflow",
-		EngineID:      "copilot",
-		Compiled:      "Yes",
+		WorkflowListItem: WorkflowListItem{
+			Workflow: "test-workflow",
+			EngineID: "copilot",
+			Compiled: "Yes",
+			Labels:   []string{"automation", "testing"},
+		},
 		Status:        "active",
 		TimeRemaining: "N/A",
-		Labels:        []string{"automation", "testing"},
 	}
 
 	jsonBytes, err := json.Marshal(status)
@@ -447,12 +459,14 @@ func TestWorkflowStatus_JSONMarshalingWithLabels(t *testing.T) {
 func TestWorkflowStatus_JSONMarshalingWithEmptyLabels(t *testing.T) {
 	// Test that WorkflowStatus without labels omits the field
 	status := WorkflowStatus{
-		Workflow:      "test-workflow",
-		EngineID:      "copilot",
-		Compiled:      "Yes",
+		WorkflowListItem: WorkflowListItem{
+			Workflow: "test-workflow",
+			EngineID: "copilot",
+			Compiled: "Yes",
+			// Labels is empty/nil
+		},
 		Status:        "active",
 		TimeRemaining: "N/A",
-		// Labels is empty/nil
 	}
 
 	jsonBytes, err := json.Marshal(status)
@@ -476,18 +490,22 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 	// Create test data with run status
 	statuses := []WorkflowStatus{
 		{
-			Workflow:      "test-workflow-1",
-			EngineID:      "copilot",
-			Compiled:      "Yes",
+			WorkflowListItem: WorkflowListItem{
+				Workflow: "test-workflow-1",
+				EngineID: "copilot",
+				Compiled: "Yes",
+			},
 			Status:        "active",
 			TimeRemaining: "N/A",
 			RunStatus:     "completed",
 			RunConclusion: "success",
 		},
 		{
-			Workflow:      "test-workflow-2",
-			EngineID:      "claude",
-			Compiled:      "No",
+			WorkflowListItem: WorkflowListItem{
+				Workflow: "test-workflow-2",
+				EngineID: "claude",
+				Compiled: "No",
+			},
 			Status:        "disabled",
 			TimeRemaining: "2h 30m",
 			RunStatus:     "completed",

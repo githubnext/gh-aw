@@ -31,6 +31,7 @@ func TestParseGitHubRateLimitsFileBasic(t *testing.T) {
 
 	// Core resource: 2 calls, consumed = lastUsed(120) - firstUsed(110) = 10
 	assert.Equal(t, 10, usage.CoreConsumed, "core quota consumed should be 10")
+	assert.Equal(t, "response_headers_delta", usage.CoreConsumedSource, "core consumed source should come from response headers")
 	assert.Equal(t, 4880, usage.CoreRemaining, "core remaining should match last entry")
 	assert.Equal(t, 5000, usage.CoreLimit, "core limit should be 5000")
 
@@ -103,6 +104,48 @@ func TestParseGitHubRateLimitsFileOnlyAPISnapshots(t *testing.T) {
 	require.NotNil(t, usage, "usage should not be nil")
 
 	assert.Equal(t, 0, usage.TotalRequestsMade, "should count 0 API calls from response_headers")
+	assert.Equal(t, 10, usage.CoreConsumed, "core consumed should be derived from rate_limit_api snapshot delta")
+	assert.Equal(t, "rate_limit_api_delta", usage.CoreConsumedSource, "core consumed source should come from rate_limit_api snapshots")
+}
+
+// TestParseGitHubRateLimitsFileOnlyAPISnapshotsWindowReset verifies snapshot-only
+// runs still produce a lower-bound consumption value when the window resets.
+func TestParseGitHubRateLimitsFileOnlyAPISnapshotsWindowReset(t *testing.T) {
+	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"startup","resource":"core","limit":5000,"remaining":100,"used":4900,"reset":"2026-04-05T09:00:00.000Z"}
+{"timestamp":"2026-04-05T09:00:10.000Z","source":"rate_limit_api","operation":"shutdown","resource":"core","limit":5000,"remaining":4995,"used":5,"reset":"2026-04-05T10:00:00.000Z"}
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "github_rate_limits.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600), "should write test JSONL file")
+
+	usage, err := parseGitHubRateLimitsFile(path)
+	require.NoError(t, err, "should not return an error")
+	require.NotNil(t, usage, "usage should not be nil")
+
+	assert.Equal(t, 0, usage.TotalRequestsMade, "should count 0 API calls from response_headers")
+	assert.Equal(t, 5, usage.CoreConsumed, "window reset should fall back to last snapshot used value")
+	assert.Equal(t, "rate_limit_api_delta", usage.CoreConsumedSource, "core consumed source should come from rate_limit_api snapshots")
+}
+
+// TestParseGitHubRateLimitsFileOnlyAPISnapshotSingle verifies that a file containing
+// exactly one rate_limit_api snapshot (no response_headers) produces CoreConsumed==0
+// with provenance tagged as rate_limit_api_single_snapshot.
+func TestParseGitHubRateLimitsFileOnlyAPISnapshotSingle(t *testing.T) {
+	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"startup","resource":"core","limit":5000,"remaining":4850,"used":150,"reset":"2026-04-05T09:00:00.000Z"}
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "github_rate_limits.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600), "should write test JSONL file")
+
+	usage, err := parseGitHubRateLimitsFile(path)
+	require.NoError(t, err, "should not return an error")
+	require.NotNil(t, usage, "usage should not be nil")
+
+	assert.Equal(t, 0, usage.TotalRequestsMade, "should count 0 API calls from response_headers")
+	assert.Equal(t, 0, usage.CoreConsumed, "single snapshot cannot compute a delta; consumed should be 0")
+	assert.Equal(t, "rate_limit_api_single_snapshot", usage.CoreConsumedSource, "provenance should be rate_limit_api_single_snapshot")
+	assert.Equal(t, 4850, usage.CoreRemaining, "core remaining should match snapshot value")
+	assert.Equal(t, 5000, usage.CoreLimit, "core limit should match snapshot value")
 }
 
 // TestFindGitHubRateLimitsFileAbsent verifies that findGitHubRateLimitsFile returns

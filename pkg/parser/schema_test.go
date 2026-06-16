@@ -1170,6 +1170,30 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppImpli
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPResourceAttributes(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP resource attributes config",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"resource-attributes": map[string]any{
+					"my.target-repo": "${{ github.repository }}",
+					"my.event":       "${{ github.event_name }}",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-resource-attributes-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected observability.otlp.resource-attributes to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceRejected(t *testing.T) {
 	frontmatter := map[string]any{
 		"name": "OTLP github-app audience rejection",

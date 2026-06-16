@@ -9,6 +9,7 @@ import (
 )
 
 var templateLog = logger.New("workflow:template")
+var inlineSubAgentPattern = regexp.MustCompile("(?m)^##[ \t]+agent:[ \t]+`[a-z][a-z0-9_-]*`[ \t]*$")
 
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
 // expressions in ${{ }}. For example:
@@ -99,7 +100,8 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 	// Check if we need template rendering
 	hasTemplatePattern := strings.Contains(data.MarkdownContent, "{{#if ")
 	hasGitHubContext := hasGitHubTool(data.ParsedTools)
-	hasTemplates := hasTemplatePattern || hasGitHubContext
+	hasInlineSubAgents := inlineSubAgentPattern.MatchString(data.MarkdownContent)
+	hasTemplates := hasTemplatePattern || hasGitHubContext || hasInlineSubAgents
 
 	// Skip if neither interpolation nor template rendering is needed
 	if !hasExpressions && !hasTemplates {
@@ -107,8 +109,8 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 		return
 	}
 
-	templateLog.Printf("Generating interpolation and template step: expressions=%d, hasPattern=%v, hasGitHubContext=%v",
-		len(expressionMappings), hasTemplatePattern, hasGitHubContext)
+	templateLog.Printf("Generating interpolation and template step: expressions=%d, hasPattern=%v, hasGitHubContext=%v, hasInlineSubAgents=%v",
+		len(expressionMappings), hasTemplatePattern, hasGitHubContext, hasInlineSubAgents)
 
 	yaml.WriteString("      - name: Interpolate variables and render templates\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))

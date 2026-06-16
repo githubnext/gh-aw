@@ -1,6 +1,10 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+)
 
 // extractAPITargetHost extracts the hostname from a custom API base URL in engine.env.
 // This supports custom OpenAI-compatible or Anthropic-compatible endpoints (e.g., internal
@@ -151,6 +155,52 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
 	awfHelpersLog.Print("No explicit api-target, deriving Copilot API target from GITHUB_COPILOT_BASE_URL")
 	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
+}
+
+func extractLiteralEngineEnvHost(workflowData *WorkflowData, envVar string) string {
+	env := getEngineEnvOverrides(workflowData)
+	if env == nil {
+		return ""
+	}
+	rawValue, ok := env[envVar]
+	if !ok || rawValue == "" {
+		return ""
+	}
+	if strings.Contains(rawValue, "${{") {
+		awfHelpersLog.Printf("Skipping %s host extraction from GitHub expression value", envVar)
+		return ""
+	}
+	return extractAPITargetHost(workflowData, envVar)
+}
+
+// GetCopilotAllowlistTargets returns the Copilot-specific hosts that must be present in the
+// firewall allow-list for execution to succeed.
+//
+// This includes:
+//  1. The BYOK provider host from COPILOT_PROVIDER_BASE_URL in engine.env, when configured.
+//  2. The Copilot API target from engine.api-target or GITHUB_COPILOT_BASE_URL.
+//
+// The BYOK provider host is added first because it is the actual outbound destination for
+// Copilot CLI requests in BYOK mode. Duplicate hosts are removed.
+func GetCopilotAllowlistTargets(workflowData *WorkflowData) []string {
+	var targets []string
+	seen := make(map[string]struct{})
+
+	addTarget := func(target string) {
+		if target == "" {
+			return
+		}
+		if _, exists := seen[target]; exists {
+			return
+		}
+		seen[target] = struct{}{}
+		targets = append(targets, target)
+	}
+
+	addTarget(extractLiteralEngineEnvHost(workflowData, constants.CopilotProviderBaseURL))
+	addTarget(GetCopilotAPITarget(workflowData))
+
+	return targets
 }
 
 // DefaultAntigravityAPITarget is the default Antigravity API endpoint hostname.
