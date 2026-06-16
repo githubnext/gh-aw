@@ -399,10 +399,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		} else {
 			allowedDomains = GetAllowedDomainsForEngine(constants.CopilotEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}
-		// Add Copilot API target domains to the firewall allow-list.
-		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
-		if copilotAPITarget := GetCopilotAPITarget(workflowData); copilotAPITarget != "" {
-			allowedDomains = mergeAPITargetDomains(allowedDomains, copilotAPITarget)
+		// Add Copilot BYOK/API target domains to the firewall allow-list.
+		// This keeps normal and detection runs in sync while preserving detection's
+		// otherwise-minimal network footprint.
+		for _, copilotTarget := range GetCopilotAllowlistTargets(workflowData) {
+			allowedDomains = mergeAPITargetDomains(allowedDomains, copilotTarget)
 		}
 
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries

@@ -23,16 +23,14 @@ import (
 
 var statusLog = logger.New("cli:status_command")
 
-// WorkflowStatus represents the status of a single workflow for JSON output
+// WorkflowStatus represents the status of a single workflow for JSON output.
+// It embeds WorkflowListItem so that both list and status commands share the
+// same source of truth for the common workflow metadata fields.
 type WorkflowStatus struct {
-	Workflow      string   `json:"workflow" console:"header:Workflow"`
-	EngineID      string   `json:"engine_id" console:"header:Engine"`
-	Compiled      string   `json:"compiled" console:"header:Compiled"`
+	WorkflowListItem
 	Status        string   `json:"status" console:"header:Status"`
 	TimeRemaining string   `json:"time_remaining" console:"header:Time Remaining"`
-	Labels        []string `json:"labels,omitempty" console:"header:Labels,omitempty"`
 	Dependencies  []string `json:"dependencies,omitempty" console:"-"`
-	On            any      `json:"on,omitempty" console:"-"`
 	RunStatus     string   `json:"run_status,omitempty" console:"header:Run Status,omitempty"`
 	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
 }
@@ -178,14 +176,16 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 
 		// Build status object
 		statuses = append(statuses, WorkflowStatus{
-			Workflow:      name,
-			EngineID:      agent,
-			Compiled:      compiled,
+			WorkflowListItem: WorkflowListItem{
+				Workflow: name,
+				EngineID: agent,
+				Compiled: compiled,
+				Labels:   labels,
+				On:       onField,
+			},
 			Status:        status,
 			TimeRemaining: timeRemaining,
-			Labels:        labels,
 			Dependencies:  dependencies,
-			On:            onField,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
 		})
@@ -219,7 +219,11 @@ func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*Git
 		}
 
 		statuses = append(statuses, WorkflowStatus{
-			Workflow:      name,
+			// Remote workflow status only includes the workflow name here; the
+			// GitHub Actions API response does not provide list metadata fields.
+			WorkflowListItem: WorkflowListItem{
+				Workflow: name,
+			},
 			Status:        status,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
