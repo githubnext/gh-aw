@@ -15,6 +15,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -69,7 +70,8 @@ const main = createCountGatedHandler({
       // Accept common aliases: issue_number, pr_number, and pull_number are normalised to item_number
       const targetResult = resolveSafeOutputIssueTarget({ message, resolvedTemporaryIds, repoParts, handlerType: HANDLER_TYPE });
       if (!targetResult.success) return targetResult;
-      const itemNumber = targetResult.number ?? context.payload?.issue?.number ?? context.payload?.pull_request?.number;
+      const effectiveContext = resolveInvocationContext(context);
+      const itemNumber = targetResult.number ?? effectiveContext.eventPayload?.issue?.number ?? effectiveContext.eventPayload?.pull_request?.number;
 
       if (!itemNumber || Number.isNaN(Number(itemNumber))) {
         const error = "No issue/PR number available";
@@ -77,7 +79,7 @@ const main = createCountGatedHandler({
         return { success: false, error };
       }
 
-      const contextType = context.payload?.pull_request ? "pull request" : "issue";
+      const contextType = effectiveContext.eventPayload?.pull_request ? "pull request" : "issue";
       const requestedLabels = message.labels ?? [];
       core.info(`Requested labels to remove: ${JSON.stringify(requestedLabels)}`);
 

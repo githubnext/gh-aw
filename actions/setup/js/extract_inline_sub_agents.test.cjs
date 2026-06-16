@@ -14,7 +14,7 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSubAgents, writeInlineSubAgents, filterSubAgentFrontmatter } = require("./extract_inline_sub_agents.cjs");
+const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter } = require("./extract_inline_sub_agents.cjs");
 
 // Helper: returns a ## agent: `name` start marker line.
 const agentMarker = name => `## agent: \`${name}\``;
@@ -199,77 +199,78 @@ describe("writeInlineSubAgents", () => {
     expect(written).not.toContain("Footer content");
   });
 
-  it("strips unsupported frontmatter fields when writing agent file", () => {
+  it("preserves sub-agent frontmatter exactly when writing agent file", () => {
     const content = ["Main.", "", agentMarker("a"), "---", "engine: copilot", "model: claude-haiku-4.5", "tools:", "  github:", "    toolsets: [issues]", "---", "Agent prompt."].join("\n");
 
     writeInlineSubAgents(content, tmpDir);
 
     const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.agent.md"), "utf8");
+    expect(written).toContain("engine: copilot");
     expect(written).toContain("model: claude-haiku-4.5");
-    expect(written).not.toContain("engine:");
-    expect(written).not.toContain("tools:");
+    expect(written).toContain("tools:");
     expect(written).toContain("Agent prompt.");
   });
 
-  it("writes only description and model when both present", () => {
+  it("preserves the authored frontmatter field order", () => {
     const content = ["Main.", "", agentMarker("a"), "---", "description: A helpful agent", "model: gpt-4", "engine: openai", "---", "Prompt."].join("\n");
 
     writeInlineSubAgents(content, tmpDir);
 
     const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.agent.md"), "utf8");
-    expect(written).toContain("description: A helpful agent");
-    expect(written).toContain("model: gpt-4");
-    expect(written).not.toContain("engine:");
+    expect(written).toBe(["---", "description: A helpful agent", "model: gpt-4", "engine: openai", "---", "Prompt.", ""].join("\n"));
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// filterSubAgentFrontmatter — unit tests
+// preserveSubAgentFrontmatter — unit tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("filterSubAgentFrontmatter", () => {
+describe("preserveSubAgentFrontmatter", () => {
   it("returns content unchanged when no frontmatter present", () => {
     const content = "Just a plain prompt.";
-    expect(filterSubAgentFrontmatter(content, "agent")).toBe(content);
+    expect(preserveSubAgentFrontmatter(content)).toBe(content);
   });
 
   it("keeps description and model fields", () => {
     const content = "---\ndescription: A planner\nmodel: claude-haiku-4.5\n---\nPrompt.";
-    const result = filterSubAgentFrontmatter(content, "agent");
+    const result = preserveSubAgentFrontmatter(content);
     expect(result).toContain("description: A planner");
     expect(result).toContain("model: claude-haiku-4.5");
     expect(result).toContain("Prompt.");
   });
 
-  it("strips unsupported fields and keeps supported ones", () => {
+  it("preserves unsupported fields too", () => {
     const content = "---\nengine: copilot\nmodel: claude-haiku-4.5\ndescription: Helper\n---\nPrompt.";
-    const result = filterSubAgentFrontmatter(content, "agent");
-    expect(result).toContain("model: claude-haiku-4.5");
-    expect(result).toContain("description: Helper");
-    expect(result).not.toContain("engine:");
+    const result = preserveSubAgentFrontmatter(content);
+    expect(result).toBe(content);
   });
 
-  it("omits frontmatter entirely when no supported fields remain", () => {
+  it("preserves the entire frontmatter when nested fields appear between supported fields", () => {
+    const content = ["---", "description: Helper", "tools:", "  github:", "    toolsets: [issues]", "model: claude-haiku-4.5", "engine: copilot", "---", "Prompt."].join("\n");
+
+    expect(preserveSubAgentFrontmatter(content)).toBe(content);
+  });
+
+  it("preserves frontmatter even when it only contains previously unsupported fields", () => {
     const content = "---\nengine: copilot\ntools:\n  github:\n    toolsets: [issues]\n---\nPrompt.";
-    const result = filterSubAgentFrontmatter(content, "agent");
-    expect(result).not.toContain("---");
-    expect(result).toContain("Prompt.");
+    const result = preserveSubAgentFrontmatter(content);
+    expect(result).toBe(content);
   });
 
   it("returns content unchanged when no closing delimiter found", () => {
     const content = "---\nengine: copilot\nPrompt without closing delimiter.";
-    expect(filterSubAgentFrontmatter(content, "agent")).toBe(content);
+    expect(preserveSubAgentFrontmatter(content)).toBe(content);
   });
 
   it("handles content with only model field", () => {
     const content = "---\nmodel: gpt-4o\n---\nYou are a summarizer.";
-    const result = filterSubAgentFrontmatter(content, "agent");
-    expect(result).toBe("---\nmodel: gpt-4o\n---\nYou are a summarizer.");
+    const result = preserveSubAgentFrontmatter(content);
+    expect(result).toBe(content);
   });
 
   it("handles content with only description field", () => {
     const content = "---\ndescription: Summarizes files\n---\nYou are a summarizer.";
-    const result = filterSubAgentFrontmatter(content, "agent");
-    expect(result).toBe("---\ndescription: Summarizes files\n---\nYou are a summarizer.");
+    const result = preserveSubAgentFrontmatter(content);
+    expect(result).toBe(content);
   });
 });
