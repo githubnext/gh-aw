@@ -574,6 +574,13 @@ func TestExtractEngineConfigFromJSON(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "codex engine with non-string scalar env vars",
+			engineJSON:  `{"id": "codex", "env": {"STRING_VAR": "value1", "INT_VAR": 1, "FLOAT_VAR": 1000, "LARGE_FLOAT_VAR": 1000000, "BOOL_VAR": true}}`,
+			expectedID:  "codex",
+			expectedEnv: map[string]string{"STRING_VAR": "value1", "INT_VAR": "1", "FLOAT_VAR": "1000", "LARGE_FLOAT_VAR": "1000000", "BOOL_VAR": "true"},
+			expectError: false,
+		},
+		{
 			name:        "invalid JSON",
 			engineJSON:  `{invalid}`,
 			expectError: true,
