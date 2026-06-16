@@ -24,7 +24,7 @@ function isHtmlContent(str) {
  * @returns {string} The error message as a string
  */
 function getErrorMessage(error) {
-  const errorAsAny = /** @type {any} */ error;
+  const errorAsAny = /** @type {any} */ (error);
   let message;
   if (error instanceof Error) {
     message = error.message;
