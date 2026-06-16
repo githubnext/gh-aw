@@ -763,29 +763,17 @@ func otelServiceName(workflowData *WorkflowData) string {
 	return defaultServiceName + "." + sanitizedWorkflowName
 }
 
-func escapeOTELResourceAttributeValue(value string) string {
-	const hexDigits = "0123456789ABCDEF"
-	var builder strings.Builder
-	builder.Grow(len(value))
-	for i := range len(value) {
-		c := value[i]
-		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
-			c == '-' || c == '.' || c == '_' || c == '~' {
-			builder.WriteByte(c)
-			continue
-		}
-		builder.WriteByte('%')
-		builder.WriteByte(hexDigits[c>>4])
-		builder.WriteByte(hexDigits[c&0x0F])
-	}
-	return builder.String()
+// encodeOTELResourceAttributeValue applies RFC 3986 percent-encoding to the
+// UTF-8 bytes used in OTEL_RESOURCE_ATTRIBUTES keys/values.
+func encodeOTELResourceAttributeValue(value string) string {
+	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20")
 }
 
 func otelResourceAttributes(workflowData *WorkflowData) string {
 	workflowNameAttrValue := "unknown"
 	if workflowData != nil {
 		if workflowName := strings.TrimSpace(workflowData.Name); workflowName != "" {
-			workflowNameAttrValue = escapeOTELResourceAttributeValue(workflowName)
+			workflowNameAttrValue = encodeOTELResourceAttributeValue(workflowName)
 		}
 	}
 
@@ -796,7 +784,7 @@ func otelResourceAttributes(workflowData *WorkflowData) string {
 		"github.run_id=${{ github.run_id }}",
 	}
 	if engineID := ResolveEngineID(workflowData); engineID != "" {
-		attrs = append(attrs, "gh-aw.engine.id="+escapeOTELResourceAttributeValue(engineID))
+		attrs = append(attrs, "gh-aw.engine.id="+encodeOTELResourceAttributeValue(engineID))
 	}
 	return strings.Join(attrs, ",")
 }
