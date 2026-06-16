@@ -778,6 +778,40 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
     expect(capturedRepo).toBe("other-repo");
   });
 
+  it("should resolve triggering issue from workflow_dispatch aw_context", async () => {
+    const savedEventName = mockContext.eventName;
+    const savedPayload = mockContext.payload;
+    mockContext.eventName = "workflow_dispatch";
+    mockContext.payload = {
+      inputs: {
+        aw_context: JSON.stringify({
+          event_type: "issue_comment",
+          item_type: "issue",
+          item_number: 123,
+          repo: "testowner/testrepo",
+        }),
+      },
+    };
+    let capturedIssueNumber;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: { number: 123, title: "Test", body: "Original", html_url: "https://github.com/testowner/testrepo/issues/123" },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ issue_number, body }) => {
+      capturedIssueNumber = issue_number;
+      return { data: { number: issue_number, title: "Test", body, html_url: `https://github.com/testowner/testrepo/issues/${issue_number}` } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main();
+    const result = await handler({ body: "Updated from centralized dispatch" }, {});
+
+    expect(result.success).toBe(true);
+    expect(capturedIssueNumber).toBe(123);
+    mockContext.eventName = savedEventName;
+    mockContext.payload = savedPayload;
+  });
+
   it("should use current workflow repo in attribution URL for cross-repo updates", async () => {
     let capturedBody;
 

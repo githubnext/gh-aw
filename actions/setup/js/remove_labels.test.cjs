@@ -195,6 +195,40 @@ describe("remove_labels", () => {
       expect(result.contextType).toBe("issue");
     });
 
+    it("should remove labels from workflow_dispatch aw_context when issue payload is absent", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            event_type: "issue_comment",
+            item_type: "issue",
+            item_number: 456,
+            repo: "test-owner/test-repo",
+          }),
+        },
+      };
+
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          labels: ["documentation"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(result.contextType).toBe("issue");
+      expect(removeLabelCalls[0].issue_number).toBe(456);
+    });
+
     it("should remove labels from a pull request from context", async () => {
       mockContext.payload = {
         pull_request: {

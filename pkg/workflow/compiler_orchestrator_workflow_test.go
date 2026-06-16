@@ -251,6 +251,58 @@ func TestExtractYAMLSections_EmptyRunsOnSlimTreatedAsUnset(t *testing.T) {
 	}
 }
 
+// TestExtractYAMLSections_NonEmptyRunsOnSlimRenderedSnippet pins the rendered
+// snippet format that extractYAMLSections stores in WorkflowData.RunsOnSlim for
+// non-empty values. Downstream helpers (indentYAMLLines, formatRunsOnSnippetForInlineValue)
+// depend on these exact forms, so changes to the rendering path are intentional.
+func TestExtractYAMLSections_NonEmptyRunsOnSlimRenderedSnippet(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name            string
+		value           any
+		expectedSnippet string
+	}{
+		{
+			name:            "string value produces plain string snippet",
+			value:           "self-hosted",
+			expectedSnippet: "runs-on: self-hosted",
+		},
+		{
+			// Array branch uses standard yaml.Marshal (no DefaultMarshalOptions),
+			// which produces zero-indented list items.
+			name:            "array value produces zero-indented list snippet",
+			value:           []any{"self-hosted", "ubuntu2404"},
+			expectedSnippet: "runs-on:\n- self-hosted\n- ubuntu2404",
+		},
+		{
+			// Object branch uses DefaultMarshalOptions (yaml.Indent(2)), so
+			// map continuation lines carry exactly 2-space indentation.
+			// formatRunsOnSnippetForInlineValue's TrimPrefix("  ") and
+			// indentYAMLLines rely on this exact form.
+			name: "group+labels object produces 2-space-indented map snippet",
+			value: map[string]any{
+				"group":  "runner-group",
+				"labels": []any{"ubuntu2404", "x64"},
+			},
+			expectedSnippet: "runs-on:\n  group: runner-group\n  labels:\n  - ubuntu2404\n  - x64",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{}
+			frontmatter := map[string]any{
+				"runs-on-slim": tt.value,
+			}
+
+			compiler.extractYAMLSections(frontmatter, workflowData)
+
+			assert.Equal(t, tt.expectedSnippet, workflowData.RunsOnSlim)
+		})
+	}
+}
+
 func TestValidateWorkflowEngineSettings_PreservesLegacyErrorOrder(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.strictMode = true

@@ -37,7 +37,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[copilot-centralization-draft] "
     labels: [report, ai-optimization, workflow-design]
-    expires: 30
+    expires: 30d
 steps:
   - name: Normalize candidate input
     env:

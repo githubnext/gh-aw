@@ -1195,6 +1195,22 @@ describe("buildGitHubActionsResourceAttributes", () => {
     expect(attrs["gh=aw.workflow.name"]).toBe("Daily\\ Token, Report");
     expect(attrs["service.version"]).toBe("1.2.3");
   });
+
+  it("parses percent-encoded OTEL_RESOURCE_ATTRIBUTES values", () => {
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily%20Token%2C%20Report,gh-aw.engine.id=claude%3Dsonnet%5C4,service.version=1.2.3";
+
+    const attrs = Object.fromEntries(
+      buildGitHubActionsResourceAttributes({
+        repository: "owner/repo",
+        runId: "987654321",
+        staged: false,
+      }).map(attr => [attr.key, attr.value.stringValue])
+    );
+
+    expect(attrs["gh-aw.workflow.name"]).toBe("Daily Token, Report");
+    expect(attrs["gh-aw.engine.id"]).toBe("claude=sonnet\\4");
+    expect(attrs["service.version"]).toBe("1.2.3");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1561,13 +1577,13 @@ describe("sendJobSetupSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_REPOSITORY = "owner/repo";
     process.env.GITHUB_RUN_ID = "987654321";
-    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily\\, Token\\= Report,gh-aw.run.id=987654321,gh-aw.engine.id=claude,service.version=1.2.3";
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily%20Token%2C%20Report,gh-aw.run.id=987654321,gh-aw.engine.id=claude,service.version=1.2.3";
 
     await sendJobSetupSpan();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
-    expect(resourceAttrs).toContainEqual({ key: "gh-aw.workflow.name", value: { stringValue: "Daily, Token= Report" } });
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.workflow.name", value: { stringValue: "Daily Token, Report" } });
     expect(resourceAttrs).toContainEqual({ key: "gh-aw.run.id", value: { stringValue: "987654321" } });
     expect(resourceAttrs).toContainEqual({ key: "gh-aw.engine.id", value: { stringValue: "claude" } });
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "1.2.3" } });

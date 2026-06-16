@@ -263,13 +263,16 @@ This is a test workflow.`,
 			frontmatter: `---
 on: push
 runs-on-slim: [self-hosted, ubuntu2404, x64, host]
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
 ---
 
 # Test Workflow
 
 This is a test workflow.`,
 			expectedRunsOn:   "runs-on:\n    - self-hosted\n    - ubuntu2404\n    - x64\n    - host",
-			checkJobPatterns: []string{"\n  activation:"},
+			checkJobPatterns: []string{"\n  activation:", "\n  safe_outputs:"},
 		},
 		{
 			name: "runs-on-slim supports group and labels object",
@@ -278,13 +281,16 @@ on: push
 runs-on-slim:
   group: runner-group
   labels: [ubuntu2404, x64]
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
 ---
 
 # Test Workflow
 
 This is a test workflow.`,
 			expectedRunsOn:   "runs-on:\n      group: runner-group\n      labels:\n      - ubuntu2404\n      - x64",
-			checkJobPatterns: []string{"\n  activation:"},
+			checkJobPatterns: []string{"\n  activation:", "\n  safe_outputs:"},
 		},
 		{
 			name: "default used when neither runs-on-slim nor safe-outputs.runs-on is set",
@@ -391,6 +397,15 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 				RunsOnSlim: "runs-on:\n- self-hosted\n- ubuntu2404",
 			},
 			expectedRunsOn: "runs-on:\n    - self-hosted\n    - ubuntu2404",
+		},
+		{
+			// Object continuation lines start at 2-space (DefaultMarshalOptions) so
+			// indentYAMLLines("    ") produces 2+4=6 spaces for each continuation line.
+			name: "runs-on-slim group+labels object snippet indents continuation lines by 4 spaces",
+			data: &WorkflowData{
+				RunsOnSlim: "runs-on:\n  group: runner-group\n  labels:\n  - ubuntu2404",
+			},
+			expectedRunsOn: "runs-on:\n      group: runner-group\n      labels:\n      - ubuntu2404",
 		},
 	}
 

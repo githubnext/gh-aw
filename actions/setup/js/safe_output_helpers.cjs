@@ -9,6 +9,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
  * Parse a comma-separated list of allowed items from environment variable
@@ -70,12 +71,24 @@ function parseMaxCount(envValue, defaultValue = 3) {
  */
 function resolveTarget(params) {
   const { targetConfig, item, context, itemType, supportsPR = false, supportsIssue = false } = params;
+  let invocationContext;
+  try {
+    invocationContext = resolveInvocationContext(context);
+  } catch (err) {
+    return {
+      success: false,
+      error: `Failed to resolve invocation context for ${itemType}: ${getErrorMessage(err)}`,
+      shouldFail: true,
+    };
+  }
+  const effectiveEventName = invocationContext?.eventName || context.eventName;
+  const effectivePayload = invocationContext?.eventPayload || context.payload;
 
   // Check context type
   const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
-  const isIssueCommentOnPR = context.eventName === "issue_comment" && Boolean(context.payload?.issue?.pull_request);
-  const isIssueContext = context.eventName === "issues" || (context.eventName === "issue_comment" && !isIssueCommentOnPR);
-  const isPRContext = prEventNames.has(context.eventName) || isIssueCommentOnPR;
+  const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+  const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+  const isPRContext = prEventNames.has(effectiveEventName) || isIssueCommentOnPR;
 
   // Default target is "triggering"
   const target = targetConfig || "triggering";
@@ -202,8 +215,8 @@ function resolveTarget(params) {
   } else {
     // Use triggering context
     if (isIssueContext) {
-      if (context.payload.issue) {
-        itemNumber = context.payload.issue.number;
+      if (effectivePayload.issue) {
+        itemNumber = effectivePayload.issue.number;
         contextType = "issue";
       } else {
         return {
@@ -213,11 +226,11 @@ function resolveTarget(params) {
         };
       }
     } else if (isPRContext) {
-      if (context.payload.pull_request) {
-        itemNumber = context.payload.pull_request.number;
+      if (effectivePayload.pull_request) {
+        itemNumber = effectivePayload.pull_request.number;
         contextType = "pull request";
       } else if (isIssueCommentOnPR) {
-        itemNumber = context.payload.issue.number;
+        itemNumber = effectivePayload.issue.number;
         contextType = "pull request";
       } else {
         return {
