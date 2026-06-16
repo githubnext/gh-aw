@@ -16,6 +16,7 @@ import (
 var otlpLog = logger.New("workflow:observability_otlp")
 
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
+var otlpResourceAttributeSecretRefPattern = regexp.MustCompile(`\$\{\{\s*(secrets|vars)\.`)
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
 	if raw == nil {
@@ -324,6 +325,32 @@ func isOTLPAttributesPresent(data *WorkflowData) bool {
 	return strings.Contains(data.Env, "GH_AW_OTLP_ATTRIBUTES")
 }
 
+func getOTLPResourceAttributes(workflowData *WorkflowData) map[string]string {
+	if workflowData == nil {
+		return nil
+	}
+	resourceAttrs := collectOTLPResourceAttributes(workflowData.RawFrontmatter)
+	if len(resourceAttrs) == 0 &&
+		workflowData.ParsedFrontmatter != nil &&
+		workflowData.ParsedFrontmatter.Observability != nil &&
+		workflowData.ParsedFrontmatter.Observability.OTLP != nil {
+		resourceAttrs = workflowData.ParsedFrontmatter.Observability.OTLP.ResourceAttributes
+	}
+	return resourceAttrs
+}
+
+func validateOTLPResourceAttributes(workflowData *WorkflowData) error {
+	for key, value := range getOTLPResourceAttributes(workflowData) {
+		if otlpResourceAttributeSecretRefPattern.MatchString(value) {
+			return fmt.Errorf(
+				"observability.otlp.resource-attributes.%s must not reference secrets.* or vars.*; OTEL resource attributes are exported to tracing backends and are not treated as secret values",
+				key,
+			)
+		}
+	}
+	return nil
+}
+
 // generateOTLPAttributesMaskStep returns a GitHub Actions step that runs
 // mask_otlp_attributes.sh to issue the ::add-mask:: workflow command for every
 // value in the GH_AW_OTLP_ATTRIBUTES JSON object.  Masking the values prevents
@@ -345,8 +372,8 @@ type otlpEndpointEntry struct {
 }
 
 // collectOTLPCustomAttributes reads the `observability.otlp.attributes` map from
-// a raw frontmatter map and returns it as a map[string]string.  Only string values
-// are accepted; non-string values are silently ignored.  Returns nil when the
+// a raw frontmatter map and returns it as a map[string]string. Only string values
+// are accepted; non-string values are silently ignored. Returns nil when the
 // field is absent or empty.
 func collectOTLPCustomAttributes(frontmatter map[string]any) map[string]string {
 	if frontmatter == nil {
@@ -360,15 +387,34 @@ func collectOTLPCustomAttributes(frontmatter map[string]any) map[string]string {
 	if !ok {
 		return nil
 	}
-	return extractOTLPCustomAttributesFromObsMap(obsMap)
+	return extractOTLPStringMapFromObsMap(obsMap, "attributes")
 }
 
-// extractOTLPCustomAttributesFromObsMap reads the `otlp.attributes` map from
-// a raw observability section map (i.e. the value of the "observability" key in
-// the frontmatter) and returns it as a map[string]string.  Only string values are
-// accepted; non-string values are silently ignored.  Returns nil when the field is
+// collectOTLPResourceAttributes reads the
+// `observability.otlp.resource-attributes` map from a raw frontmatter map and
+// returns it as a map[string]string. Only string values are accepted; non-string
+// values are silently ignored. Returns nil when the field is absent or empty.
+func collectOTLPResourceAttributes(frontmatter map[string]any) map[string]string {
+	if frontmatter == nil {
+		return nil
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return nil
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	return extractOTLPStringMapFromObsMap(obsMap, "resource-attributes")
+}
+
+// extractOTLPStringMapFromObsMap reads an `otlp.<fieldName>` string map from a
+// raw observability section map (i.e. the value of the "observability" key in
+// the frontmatter) and returns it as a map[string]string. Only string values are
+// accepted; non-string values are silently ignored. Returns nil when the field is
 // absent or empty.
-func extractOTLPCustomAttributesFromObsMap(obsMap map[string]any) map[string]string {
+func extractOTLPStringMapFromObsMap(obsMap map[string]any, fieldName string) map[string]string {
 	if obsMap == nil {
 		return nil
 	}
@@ -380,7 +426,7 @@ func extractOTLPCustomAttributesFromObsMap(obsMap map[string]any) map[string]str
 	if !ok {
 		return nil
 	}
-	attrsAny, ok := otlpMap["attributes"]
+	attrsAny, ok := otlpMap[fieldName]
 	if !ok {
 		return nil
 	}
@@ -400,6 +446,19 @@ func extractOTLPCustomAttributesFromObsMap(obsMap map[string]any) map[string]str
 	return result
 }
 
+// extractOTLPCustomAttributesFromObsMap reads the `otlp.attributes` map from a
+// raw observability section map and returns it as a map[string]string.
+func extractOTLPCustomAttributesFromObsMap(obsMap map[string]any) map[string]string {
+	return extractOTLPStringMapFromObsMap(obsMap, "attributes")
+}
+
+// extractOTLPResourceAttributesFromObsMap reads the
+// `otlp.resource-attributes` map from a raw observability section map and
+// returns it as a map[string]string.
+func extractOTLPResourceAttributesFromObsMap(obsMap map[string]any) map[string]string {
+	return extractOTLPStringMapFromObsMap(obsMap, "resource-attributes")
+}
+
 // encodeOTLPCustomAttributes serialises a map[string]string of custom OTLP span
 // attributes to a compact JSON string suitable for use as the GH_AW_OTLP_ATTRIBUTES
 // environment variable.  Returns an empty string when the map is nil/empty or
@@ -416,10 +475,10 @@ func encodeOTLPCustomAttributes(attrs map[string]string) string {
 	return string(b)
 }
 
-// mergeOTLPCustomAttributes merges two custom-attribute maps; values in base
-// take precedence over values in override when the same key is present in both.
-// Returns nil when both inputs are empty.
-func mergeOTLPCustomAttributes(base, override map[string]string) map[string]string {
+// mergeOTLPStringMaps merges two string maps; values in base take precedence over
+// values in override when the same key is present in both. Returns nil when both
+// inputs are empty.
+func mergeOTLPStringMaps(base, override map[string]string) map[string]string {
 	if len(base) == 0 && len(override) == 0 {
 		return nil
 	}
@@ -769,22 +828,42 @@ func encodeOTELResourceAttributeValue(value string) string {
 	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20")
 }
 
+func formatOTELResourceAttribute(key, value string) string {
+	trimmedKey := strings.TrimSpace(key)
+	trimmedValue := strings.TrimSpace(value)
+	if strings.Contains(trimmedValue, "${{") {
+		return encodeOTELResourceAttributeValue(trimmedKey) + "=" + trimmedValue
+	}
+	return encodeOTELResourceAttributeValue(trimmedKey) + "=" + encodeOTELResourceAttributeValue(trimmedValue)
+}
+
 func otelResourceAttributes(workflowData *WorkflowData) string {
 	workflowNameAttrValue := "unknown"
 	if workflowData != nil {
 		if workflowName := strings.TrimSpace(workflowData.Name); workflowName != "" {
-			workflowNameAttrValue = encodeOTELResourceAttributeValue(workflowName)
+			workflowNameAttrValue = workflowName
 		}
 	}
 
 	attrs := []string{
-		"gh-aw.workflow.name=" + workflowNameAttrValue,
-		"gh-aw.repository=${{ github.repository }}",
-		"gh-aw.run.id=${{ github.run_id }}",
-		"github.run_id=${{ github.run_id }}",
+		formatOTELResourceAttribute("gh-aw.workflow.name", workflowNameAttrValue),
+		formatOTELResourceAttribute("gh-aw.repository", "${{ github.repository }}"),
+		formatOTELResourceAttribute("gh-aw.run.id", "${{ github.run_id }}"),
+		formatOTELResourceAttribute("github.run_id", "${{ github.run_id }}"),
 	}
 	if engineID := ResolveEngineID(workflowData); engineID != "" {
-		attrs = append(attrs, "gh-aw.engine.id="+encodeOTELResourceAttributeValue(engineID))
+		attrs = append(attrs, formatOTELResourceAttribute("gh-aw.engine.id", engineID))
+	}
+	resourceAttrs := getOTLPResourceAttributes(workflowData)
+	if len(resourceAttrs) > 0 {
+		keys := make([]string, 0, len(resourceAttrs))
+		for key := range resourceAttrs {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			attrs = append(attrs, formatOTELResourceAttribute(key, resourceAttrs[key]))
+		}
 	}
 	return strings.Join(attrs, ",")
 }

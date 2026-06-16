@@ -5074,6 +5074,11 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "normalize-closing-keywords": {
+                  "type": "boolean",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5689,6 +5694,10 @@
                   "minLength": 1,
                   "pattern": "\\S"
                 },
+                "required-category": {
+                  "type": "string",
+                  "description": "Required category for matching when close-older-discussions is enabled. Only discussions in this category will be considered when searching for older discussions to close."
+                },
                 "fallback-to-issue": {
                   "type": "boolean",
                   "description": "When true (default), fallback to creating an issue if discussion creation fails due to permissions. The fallback issue will include a note indicating it was intended to be a discussion. If close-older-discussions is enabled, the close-older-issues logic will be applied to the fallback issue.",
@@ -5762,7 +5771,8 @@
                 {
                   "title-prefix": "[weekly-report] ",
                   "category": "reports",
-                  "close-older-discussions": true
+                  "close-older-discussions": true,
+                  "required-category": "reports"
                 },
                 {
                   "labels": ["weekly-report", "automation"],
@@ -6400,6 +6410,11 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "normalize-closing-keywords": {
+                  "type": "boolean",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -6795,6 +6810,11 @@
                   "type": "boolean",
                   "description": "When true, adds workflows: write to the GitHub App token permissions. Required when allowed-files targets .github/workflows/ paths. Requires safe-outputs.github-app to be configured because the workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.",
                   "default": false,
+                  "examples": [true, false]
+                },
+                "normalize-closing-keywords": {
+                  "type": "boolean",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
                   "examples": [true, false]
                 }
               },
@@ -9848,8 +9868,16 @@
                   "description": "Per-run AI Credits budget for threat-detection engine execution. Accepts numeric values only (expressions are not supported). When unset, gh-aw emits a runtime default expression `${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}`."
                 },
                 "runs-on": {
-                  "type": "string",
-                  "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
+                  "$ref": "#/$defs/github_actions_runs_on",
+                  "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Supports string, array, or runner-group object forms. Defaults to agent.runs-on.",
+                  "examples": [
+                    "ubuntu-latest",
+                    ["self-hosted", "linux", "x64"],
+                    {
+                      "group": "larger-runners",
+                      "labels": ["ubuntu-latest-8-cores"]
+                    }
+                  ]
                 },
                 "continue-on-error": {
                   "$ref": "#/$defs/templatable_boolean",
@@ -10322,8 +10350,16 @@
           ]
         },
         "runs-on": {
-          "type": "string",
-          "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"
+          "$ref": "#/$defs/github_actions_runs_on",
+          "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Supports string, array, or runner-group object forms. Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/",
+          "examples": [
+            "ubuntu-slim",
+            ["self-hosted", "linux", "x64"],
+            {
+              "group": "larger-runners",
+              "labels": ["ubuntu-latest-8-cores"]
+            }
+          ]
         },
         "steps": {
           "type": "array",
@@ -10600,6 +10636,13 @@
               "enum": ["error", "warn", "ignore"],
               "default": "error",
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
+            },
+            "resource-attributes": {
+              "type": "object",
+              "description": "Additional OTEL_RESOURCE_ATTRIBUTES entries to append to the standard gh-aw/GitHub resource attributes. Values may be static strings or GitHub Actions expressions such as '${{ github.repository }}'. Do not use secrets.* or vars.* expressions here: resource attributes are exported to external tracing backends and are not treated as secret values.",
+              "additionalProperties": {
+                "type": "string"
+              }
             },
             "github-app": {
               "description": "Optional runtime authentication for OTLP export. Supports GitHub App credentials (client-id/app-id + private-key) for token minting, or implicit GitHub OIDC mode when the github-app object is present without credentials.",

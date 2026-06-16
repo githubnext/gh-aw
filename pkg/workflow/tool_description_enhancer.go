@@ -71,6 +71,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.RequireTemporaryID {
 				constraints = append(constraints, "temporary_id is required.")
 			}
+			if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
+				constraints = append(constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
+			}
 		}
 
 	case "set_issue_field":
@@ -217,6 +220,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Comments will be added in repository %q.", config.TargetRepoSlug))
 			}
+			if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
+				constraints = append(constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
+			}
 		}
 		constraints = append(constraints, "Supports reply_to_id for discussion threading.")
 
@@ -246,6 +252,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.RequireTemporaryID {
 				constraints = append(constraints, "temporary_id is required.")
+			}
+			if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
+				constraints = append(constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
 			}
 		}
 

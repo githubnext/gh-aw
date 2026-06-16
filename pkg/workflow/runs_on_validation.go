@@ -39,25 +39,36 @@ const macOSRunnerFAQURL = "https://github.github.com/gh-aw/reference/faq/#why-ar
 //
 // Returns an error with a FAQ link if a macOS runner is detected, nil otherwise.
 func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
-	runsOn, exists := frontmatter["runs-on"]
-	if !exists {
-		return nil
-	}
-
 	runsOnValidationLog.Printf("Validating runs-on configuration")
 
-	labels := extractRunnerLabels(runsOn)
-	for _, label := range labels {
-		lower := strings.ToLower(label)
-		if strings.HasPrefix(lower, "macos-") || strings.EqualFold(lower, "macos") {
-			return formatCompilerError(markdownPath, "error",
-				fmt.Sprintf("runner '%s' is not supported in agentic workflows.\n\n"+
-					"macOS runners are not supported because agentic workflows rely on containers "+
-					"for the secure Agent Workflow Firewall sandbox, and GitHub-hosted macOS runners "+
-					"do not support container jobs.\n\n"+
-					"Use 'ubuntu-latest' (default) or another Linux-based runner instead.\n\n"+
-					"See %s for details.",
-					label, macOSRunnerFAQURL), nil)
+	type runnerField struct {
+		name  string
+		value any
+	}
+
+	runsOnFields := []runnerField{
+		{name: "runs-on", value: frontmatter["runs-on"]},
+		{name: "runs-on-slim", value: frontmatter["runs-on-slim"]},
+	}
+	if safeOutputs, ok := frontmatter["safe-outputs"].(map[string]any); ok {
+		runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.runs-on", value: safeOutputs["runs-on"]})
+		if threatDetection, ok := safeOutputs["threat-detection"].(map[string]any); ok {
+			runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.threat-detection.runs-on", value: threatDetection["runs-on"]})
+		}
+	}
+
+	for _, field := range runsOnFields {
+		labels := extractRunnerLabels(field.value)
+		for _, label := range labels {
+			lower := strings.ToLower(label)
+			if strings.HasPrefix(lower, "macos-") || strings.EqualFold(lower, "macos") {
+				return formatCompilerError(markdownPath, "error",
+					fmt.Sprintf("%s includes unsupported runner '%s'.\n\n"+
+						"Agentic workflows require Linux containers and container jobs. Use a Linux runner label or runner-group configuration instead.\n\n"+
+						"Example: runs-on: [self-hosted, linux, x64]\n\n"+
+						"See %s for details.",
+						field.name, label, macOSRunnerFAQURL), nil)
+			}
 		}
 	}
 

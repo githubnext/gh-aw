@@ -260,6 +260,15 @@ type OTLPConfig struct {
 	//     user.id:             "{{ github.actor }}"
 	Attributes map[string]string `json:"attributes,omitempty"`
 
+	// ResourceAttributes defines additional OTEL_RESOURCE_ATTRIBUTES entries to
+	// append to the standard gh-aw/GitHub resource attributes.
+	//
+	// Values may be static strings or GitHub Actions expressions such as
+	// ${{ github.repository }}. Do not use secrets.* or vars.* expressions here:
+	// resource attributes are exported to external tracing backends and are not
+	// treated as secret values.
+	ResourceAttributes map[string]string `json:"resource-attributes,omitempty"`
+
 	// GitHubApp configures runtime OTLP authentication via the `github-app` key.
 	// Supported values:
 	//   github-app:

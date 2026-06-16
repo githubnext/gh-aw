@@ -249,6 +249,21 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 			statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 		},
 	)
+	if hasWorkflowCallTrigger(ctx.data.On) && (ctx.hasReaction || ctx.hasStatusComment) {
+		addActivationInteractionPermissions(
+			appPerms,
+			activationInteractionPermissionsOptions{
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			},
+		)
+	}
 	// Keep this aligned with addActivationLabelPermissions: app-token scopes are
 	// computed separately from GITHUB_TOKEN scopes because app-token permissions
 	// only apply to steps using the minted app token, while label permissions in
@@ -726,6 +741,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (string, error) {
 	permsMap := c.buildActivationBasePermissions(ctx)
 	c.addCentralizedCommandActivationPermissions(permsMap, ctx)
+	c.addWorkflowCallActivationPermissions(permsMap, ctx)
 	c.addActivationLabelPermissions(permsMap, ctx)
 	if err := c.addActivationScriptPermissions(permsMap, ctx); err != nil {
 		return "", err
@@ -775,6 +791,37 @@ func (c *Compiler) addCentralizedCommandActivationPermissions(permsMap map[Permi
 			})
 		}
 	}
+}
+
+// addWorkflowCallActivationPermissions supplements the activation job's permission map when the
+// workflow is triggered via workflow_call (i.e. it is used as a reusable workflow).
+//
+// At compile time it is impossible to know which GitHub event will fire in the *calling* workflow,
+// so the compiler cannot restrict permissions to a specific event type (e.g. "issues" or
+// "pull_request"). Instead it falls back to the broad permission set: all permission scopes that
+// the configured reactions / status-comments could ever need are granted, respecting the per-type
+// opt-out flags (reaction.issues, reaction.pull-requests, etc.).
+//
+// Because the caller event type is unknown at compile time, this path always uses the broad
+// fallback (addBroadActivationInteractionPermissions) instead of event-aware trigger parsing.
+func (c *Compiler) addWorkflowCallActivationPermissions(permsMap map[PermissionScope]PermissionLevel, ctx *activationJobBuildContext) {
+	if !hasWorkflowCallTrigger(ctx.data.On) {
+		return
+	}
+	if !ctx.hasReaction && !ctx.hasStatusComment {
+		return
+	}
+	compilerActivationJobLog.Print("workflow_call trigger detected; applying broad interaction permissions for reactions/status-comments")
+	addBroadActivationInteractionPermissions(permsMap, activationInteractionPermissionsOptions{
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+	})
 }
 
 func (c *Compiler) addActivationLabelPermissions(permsMap map[PermissionScope]PermissionLevel, ctx *activationJobBuildContext) {
