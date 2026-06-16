@@ -24,6 +24,7 @@ function isHtmlContent(str) {
  * @returns {string} The error message as a string
  */
 function getErrorMessage(error) {
+  // prettier-ignore
   const errorAsAny = /** @type {any} */ (error);
   let message;
   if (error instanceof Error) {
