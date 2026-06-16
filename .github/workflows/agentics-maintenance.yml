@@ -223,13 +223,7 @@ jobs:
         id: record
         env:
           GH_AW_OPERATION: ${{ inputs.operation }}
-        run: |
-          delimiter="gh-aw-$(date +%s%N)"
-          {
-            echo "operation<<$delimiter"
-            echo "$GH_AW_OPERATION"
-            echo "$delimiter"
-          } >> "$GITHUB_OUTPUT"
+        run: echo "operation=$GH_AW_OPERATION" >> "$GITHUB_OUTPUT"
 
   update_pull_request_branches:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches' && (!(github.event.repository.fork)) }}
