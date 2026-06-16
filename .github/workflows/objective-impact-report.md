@@ -209,8 +209,9 @@ Write 2–4 sentences that directly answer: *What did the agent work on, what wa
 | Metric | Value |
 |---|---:|
 
-Include:
+When a metric includes sub-counts, format the Value as `merged: X, closed: Y, open excluded: Z`.
 
+Include:
 - PRs analyzed with linked issue (merged / closed / excluded open)
 - PRs excluded (no linked closing issue)
 - Safe output outcomes analyzed
