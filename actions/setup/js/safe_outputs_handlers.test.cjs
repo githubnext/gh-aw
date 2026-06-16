@@ -511,6 +511,56 @@ describe("safe_outputs_handlers", () => {
     });
   });
 
+  describe("defaultHandler wildcard target validation", () => {
+    it("should require explicit discussion_number when update_discussion target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        update_discussion: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.defaultHandler("update_discussion")({ body: "Updated discussion body." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires discussion_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require explicit pull_request_number when close_pull_request target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        close_pull_request: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.defaultHandler("close_pull_request")({ body: "Closing in favor of a newer PR." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require explicit pull_request_number when create_check_run target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_check_run: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.defaultHandler("create_check_run")({ conclusion: "success", title: "Checks passed", summary: "All checks passed." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+  });
+
   describe("createPullRequestHandler", () => {
     /**
      * Creates a side-repo checkout where:
@@ -1123,6 +1173,22 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("Bundle transport requires branch pinning");
 
       // Should not have appended to safe output since patch generation failed
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          target: "*",
+        },
+      });
+
+      const result = await wildcardHandlers.pushToPullRequestBranchHandler({ message: "Apply requested changes." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
@@ -2031,6 +2097,22 @@ describe("safe_outputs_handlers", () => {
       expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "comment" })).not.toThrow();
       expect(() => handlers.submitPullRequestReviewHandler({ body: "needs work", event: "request_changes" })).not.toThrow();
     });
+
+    it("should require explicit pull_request_number when submit_pull_request_review target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        submit_pull_request_review: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.submitPullRequestReviewHandler({ body: "LGTM", event: "COMMENT" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
   });
 
   describe("createPullRequestReviewCommentHandler", () => {
@@ -2058,6 +2140,23 @@ describe("safe_outputs_handlers", () => {
       // Counter was NOT incremented, so empty-body submit should still be rejected
       expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
     });
+
+    it("should require explicit pull_request_number when review comment target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request_review_comment: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 5, body: "Consider renaming." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      expect(() => wildcardHandlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
+    });
   });
 
   describe("updatePullRequestHandler", () => {
@@ -2073,6 +2172,22 @@ describe("safe_outputs_handlers", () => {
     it("should throw MCP error when called with null/undefined args", () => {
       expect(() => handlers.updatePullRequestHandler(null)).toThrow(expect.objectContaining({ code: -32602 }));
       expect(() => handlers.updatePullRequestHandler(undefined)).toThrow(expect.objectContaining({ code: -32602 }));
+    });
+
+    it("should require explicit pull_request_number when update_pull_request target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        update_pull_request: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.updatePullRequestHandler({ body: "Update the PR body." });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires pull_request_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
     it("should throw MCP error when update_branch is explicitly false and no other fields", () => {

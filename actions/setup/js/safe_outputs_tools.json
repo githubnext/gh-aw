@@ -154,6 +154,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "discussion_number",
+        "anyOf": ["discussion_number"]
+      }
     }
   },
   {
@@ -230,7 +236,7 @@
         },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to close. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger).",
+          "description": "Pull request number to close. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger). Required when the workflow target is '*' (any PR).",
           "x-synonyms": ["pullRequestNumber"]
         },
         "secrecy": {
@@ -243,6 +249,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -302,6 +314,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "item_number",
+        "anyOf": ["item_number", "pr_number", "pr"]
+      }
     }
   },
   {
@@ -408,6 +426,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -444,6 +468,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -905,6 +935,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number", "pr_number", "pr"]
+      }
     }
   },
   {
@@ -977,6 +1013,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -1661,6 +1703,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number", "pr_number", "pr", "pull_number"]
+      }
     }
   }
 ]

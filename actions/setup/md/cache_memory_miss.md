@@ -1,8 +1,10 @@
 > [!WARNING]
 > <details>
-> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>
+> <summary>Cache Configuration Problem: cache miss detected after cache restore succeeded.</summary>
 > 
-> The agent reported a cache miss (`missing_data` with `reason: cache_memory_miss`) even though cache-memory is configured and was available. This likely indicates the prompt is misconfigured and the agent cannot locate the correct file path within the cache directory.
+> The agent reported a cache miss (`missing_data` with `reason: cache_memory_miss`) after the workflow successfully restored cache-memory for this run. This likely indicates the prompt is misconfigured and the agent cannot locate the correct file path within the cache directory.
+> 
+> This warning is shown only when a cache restore matched an existing key. Cache misses can be expected on first runs and on branches where `actions/cache` has no visible entries due to branch scoping.
 > 
 > Review the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.
 > 

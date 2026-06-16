@@ -8,9 +8,9 @@
 // (Claude, Gemini, Copilot, Codex).
 //
 // URL rewriting:
-// When MCP servers run on the host machine (like safe-outputs HTTP server
-// on port 3001) but need to be accessed from within a Docker container
-// (like the firewall container running the AI agent), localhost URLs must
+// When HTTP MCP servers run on the host machine but need to be accessed from
+// within a Docker container (like the firewall container running the AI agent),
+// localhost URLs must
 // be rewritten to use host.docker.internal.
 //
 // Supported URL patterns:

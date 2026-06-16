@@ -374,8 +374,12 @@ else
   echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
 fi
 
-# Copy safe_outputs_tools.json to tools.json (required by safe-outputs server)
+# Copy safe_outputs_tools.json to both canonical and runtime names
 if [ -f "${JS_SOURCE_DIR}/safe_outputs_tools.json" ]; then
+  cp "${JS_SOURCE_DIR}/safe_outputs_tools.json" "${SAFE_OUTPUTS_DEST}/safe_outputs_tools.json"
+  debug_log "Copied safe-outputs tools definition: safe_outputs_tools.json"
+  SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+
   cp "${JS_SOURCE_DIR}/safe_outputs_tools.json" "${SAFE_OUTPUTS_DEST}/tools.json"
   debug_log "Copied safe-outputs tools definition: tools.json"
   SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))

@@ -20,6 +20,12 @@ describe("handle_noop_message", () => {
     // Create temp directory for test files
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "handle-noop-test-"));
 
+    // getPromptPath() throws unless GH_AW_PROMPTS_DIR or RUNNER_TEMP is set.
+    // On CI RUNNER_TEMP is ambient, but it is not set in local dev, so set the
+    // prompts dir explicitly to make the suite environment-independent. The
+    // actual path is irrelevant because fs.readFileSync is mocked below.
+    process.env.GH_AW_PROMPTS_DIR = tempDir;
+
     // Mock fs.readFileSync to return template content
     originalReadFileSync = fs.readFileSync;
     fs.readFileSync = vi.fn((filePath, encoding) => {

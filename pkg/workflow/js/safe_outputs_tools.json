@@ -4,10 +4,7 @@
     "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 required fields (title, body) are listed in this schema; if you are not ready to open the real issue, call `noop` instead. Creates a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. Compatibility: labels may be passed as either an array of strings or a comma-separated string; string input is split, trimmed, and normalized to an array.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
@@ -19,10 +16,7 @@
           "description": "Detailed issue description in Markdown. Must be the final intended body \u2014 not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
         },
         "labels": {
-          "type": [
-            "array",
-            "string"
-          ],
+          "type": ["array", "string"],
           "items": {
             "type": "string"
           },
@@ -33,20 +27,14 @@
           "description": "Optional issue fields to set after creating the issue (e.g., Priority, Iteration, Start Date).",
           "items": {
             "type": "object",
-            "required": [
-              "name",
-              "value"
-            ],
+            "required": ["name", "value"],
             "properties": {
               "name": {
                 "type": "string",
                 "description": "Issue field name exactly as configured in the repository (e.g., \"Priority\", \"Iteration\")."
               },
               "value": {
-                "type": [
-                  "string",
-                  "number"
-                ],
+                "type": ["string", "number"],
                 "description": "Field value. Use string for text, single-select, iteration, and date (YYYY-MM-DD) fields; use number for numeric fields."
               }
             },
@@ -54,19 +42,14 @@
           }
         },
         "parent": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'."
         },
         "temporary_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Unique temporary identifier for this issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Use this same '#aw_ID' form in body text to cross-reference the issue; these references are replaced with the real issue number after creation.",
-          "x-synonyms": [
-            "temporaryId"
-          ]
+          "x-synonyms": ["temporaryId"]
         },
         "secrecy": {
           "type": "string",
@@ -85,9 +68,7 @@
     "description": "Create a GitHub Copilot coding agent session to delegate coding work. Use this when you need another Copilot coding agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
@@ -110,10 +91,7 @@
     "description": "Create a GitHub discussion for announcements, Q&A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. Arguments must be flat tool arguments (title, body), not nested under create_discussion.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
@@ -126,10 +104,7 @@
         "category": {
           "type": "string",
           "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository. NOTE: the field is named category (not categoryId or category_id as in the GitHub GraphQL API).",
-          "x-synonyms": [
-            "categoryId",
-            "category_id"
-          ]
+          "x-synonyms": ["categoryId", "category_id"]
         },
         "secrecy": {
           "type": "string",
@@ -165,14 +140,9 @@
           "description": "Replace the discussion labels with this list (e.g., ['bug', 'help wanted']). Labels must exist in the repository. This replaces all existing labels on the discussion."
         },
         "discussion_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Discussion number to update. This is the numeric ID from the GitHub URL (e.g., 345 in github.com/owner/repo/discussions/345). Required when the workflow target is '*' (any discussion).",
-          "x-synonyms": [
-            "discussionNumber"
-          ]
+          "x-synonyms": ["discussionNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -184,6 +154,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "discussion_number",
+        "anyOf": ["discussion_number"]
+      }
     }
   },
   {
@@ -191,9 +167,7 @@
     "description": "Close a GitHub discussion with a resolution comment and optional reason. You can and should always add a comment when closing a discussion to explain the action or provide context. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. If the discussion is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
@@ -201,23 +175,13 @@
         },
         "reason": {
           "type": "string",
-          "enum": [
-            "RESOLVED",
-            "DUPLICATE",
-            "OUTDATED",
-            "ANSWERED"
-          ],
+          "enum": ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"],
           "description": "Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered)."
         },
         "discussion_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
-          "x-synonyms": [
-            "discussionNumber"
-          ]
+          "x-synonyms": ["discussionNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -236,23 +200,16 @@
     "description": "Close a GitHub issue with a closing comment. You can and should always add a comment when closing an issue to explain the action or provide context. This tool is ONLY for closing issues - use update_issue if you need to change the title, body, labels, or other metadata without closing. Use close_issue when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing. If the issue is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
           "description": "Closing comment explaining why the issue is being closed and summarizing any resolution, workaround, or conclusion."
         },
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger).",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -271,23 +228,16 @@
     "description": "Close a pull request WITHOUT merging, adding a closing comment. You can and should always add a comment when closing a PR to explain the action or provide context. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes. If the PR is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
           "description": "Closing comment explaining why the PR is being closed without merging (e.g., superseded by another PR, no longer needed, approach rejected)."
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
-          "description": "Pull request number to close. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger).",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "type": ["number", "string"],
+          "description": "Pull request number to close. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger). Required when the workflow target is '*' (any PR).",
+          "x-synonyms": ["pullRequestNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -299,6 +249,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -306,9 +262,7 @@
     "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 the required `body` field is listed in this schema; if you are not ready to post a real comment, call `noop` instead. Adds a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
@@ -316,63 +270,38 @@
           "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
         },
         "item_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error. Required when safe-outputs.add-comment.target is '*' (any item): calls without item_number (or pr_number/pr alias) are rejected. NOTE: this field is named item_number, NOT issue_number.",
-          "x-synonyms": [
-            "issue_number",
-            "itemNumber"
-          ]
+          "x-synonyms": ["issue_number", "itemNumber"]
         },
         "pr_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls.",
-          "x-synonyms": [
-            "prNumber"
-          ]
+          "x-synonyms": ["prNumber"]
         },
         "pr": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
         },
         "temporary_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Unique temporary identifier for this comment. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later.",
-          "x-synonyms": [
-            "temporaryId"
-          ]
+          "x-synonyms": ["temporaryId"]
         },
         "reply_to_id": {
           "type": "string",
           "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments \u2014 ignored for issue and pull request comments.",
-          "x-synonyms": [
-            "replyToId"
-          ]
+          "x-synonyms": ["replyToId"]
         },
         "comment_id": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Existing issue or pull request comment ID to update instead of creating a new comment.",
-          "x-synonyms": [
-            "commentId"
-          ]
+          "x-synonyms": ["commentId"]
         },
         "target": {
           "type": "string",
-          "enum": [
-            "status"
-          ],
+          "enum": ["status"],
           "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
         "secrecy": {
@@ -385,6 +314,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "item_number",
+        "anyOf": ["item_number", "pr_number", "pr"]
+      }
     }
   },
   {
@@ -392,10 +327,7 @@
     "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. This is a write-once declaration for a real intended PR, not a sandbox or probe: do not call it with placeholder content, test titles/bodies, or auth experiments. If you are not ready to open the real PR, use noop or report_incomplete instead. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
@@ -432,9 +364,7 @@
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Unique temporary identifier for this pull request. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_pr1', '#aw_fix_123'. The bare 'aw_pr1' form is also accepted and normalised to '#aw_pr1'. Use this same '#aw_ID' form in body text to cross-reference this PR; these references are replaced with the real pull request number after creation.",
-          "x-synonyms": [
-            "temporaryId"
-          ]
+          "x-synonyms": ["temporaryId"]
         },
         "secrecy": {
           "type": "string",
@@ -453,21 +383,14 @@
     "description": "Create a review comment on a specific line of code in a pull request. Use this for inline code review feedback, suggestions, or questions about specific code changes. For general PR comments not tied to specific lines, use add_comment instead. When the workflow is configured with `target: \"*\"`, you must specify `pull_request_number` to indicate which PR to target.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "path",
-        "line",
-        "body"
-      ],
+      "required": ["path", "line", "body"],
       "properties": {
         "path": {
           "type": "string",
           "description": "File path relative to the repository root (e.g., 'src/auth/login.js'). Must be a file that was changed in the PR."
         },
         "line": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Line number for the comment. For single-line comments, this is the target line. For multi-line comments, this is the ending line."
         },
         "body": {
@@ -475,31 +398,18 @@
           "description": "Review comment content in Markdown. Provide specific, actionable feedback about the code at this location."
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) \u2014 omitting it will cause the comment to fail.",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "start_line": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Starting line number for multi-line comments. When set, the comment spans from start_line to line. Omit for single-line comments.",
-          "x-synonyms": [
-            "startLine"
-          ]
+          "x-synonyms": ["startLine"]
         },
         "side": {
           "type": "string",
-          "enum": [
-            "LEFT",
-            "RIGHT"
-          ],
+          "enum": ["LEFT", "RIGHT"],
           "description": "Side of the diff to comment on: RIGHT for the new version (additions), LEFT for the old version (deletions). Defaults to RIGHT."
         },
         "repo": {
@@ -516,6 +426,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -530,22 +446,13 @@
         },
         "event": {
           "type": "string",
-          "enum": [
-            "APPROVE",
-            "REQUEST_CHANGES",
-            "COMMENT"
-          ],
+          "enum": ["APPROVE", "REQUEST_CHANGES", "COMMENT"],
           "description": "Review decision: APPROVE to approve the pull request, REQUEST_CHANGES to formally request changes before merging, or COMMENT for general feedback without a formal decision. Defaults to COMMENT when omitted."
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to submit the review on. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, submits the review on the PR that triggered this workflow. Required when the workflow target is '*' (any PR) \u2014 omitting it will cause the review to fail.",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "repo": {
           "type": "string",
@@ -561,6 +468,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -568,34 +481,21 @@
     "description": "Reply to an existing review comment on a pull request. Use this to respond to feedback, answer questions, or acknowledge review comments. The comment_id must be the numeric ID of an existing review comment.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "comment_id",
-        "body"
-      ],
+      "required": ["comment_id", "body"],
       "properties": {
         "comment_id": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "The numeric ID of the review comment to reply to (e.g., 42853901 from the comment URL or API response).",
-          "x-synonyms": [
-            "commentId"
-          ]
+          "x-synonyms": ["commentId"]
         },
         "body": {
           "type": "string",
           "description": "The reply text in Markdown format. Provide a clear response to the review comment."
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to reply on. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, replies on the PR that triggered this workflow.",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -614,16 +514,12 @@
     "description": "Resolve a review thread on a pull request. Use this to mark a review conversation as resolved after addressing the feedback. The thread_id must be the node ID of the review thread (e.g., PRRT_kwDO...).",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "thread_id"
-      ],
+      "required": ["thread_id"],
       "properties": {
         "thread_id": {
           "type": "string",
           "description": "The node ID of the review thread to resolve (e.g., 'PRRT_kwDOABCD...'). This is the GraphQL node ID, not a numeric ID.",
-          "x-synonyms": [
-            "threadId"
-          ]
+          "x-synonyms": ["threadId"]
         },
         "secrecy": {
           "type": "string",
@@ -642,46 +538,28 @@
     "description": "Create a code scanning alert for security vulnerabilities, code quality issues, or other findings. Alerts appear in the repository's Security tab and integrate with GitHub's security features. Use this for automated security analysis results.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "file",
-        "line",
-        "severity",
-        "message"
-      ],
+      "required": ["file", "line", "severity", "message"],
       "properties": {
         "file": {
           "type": "string",
           "description": "File path relative to the repository root where the issue was found (e.g., 'src/auth/password.js')."
         },
         "line": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Line number where the issue was found in the file."
         },
         "severity": {
           "type": "string",
-          "enum": [
-            "error",
-            "warning",
-            "info",
-            "note"
-          ],
+          "enum": ["error", "warning", "info", "note"],
           "description": "Alert severity level: 'error' (critical security issues), 'warning' (potential problems), 'info' (informational), or 'note' (minor observations). This field is named severity, NOT level.",
-          "x-synonyms": [
-            "level"
-          ]
+          "x-synonyms": ["level"]
         },
         "message": {
           "type": "string",
           "description": "Clear description of the security issue or finding. Include what's wrong and ideally how to fix it."
         },
         "column": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Column number for more precise location of the issue within the line."
         },
         "ruleIdSuffix": {
@@ -714,15 +592,10 @@
           "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
         },
         "item_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
           "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation.",
-          "x-synonyms": [
-            "itemNumber"
-          ]
+          "x-synonyms": ["itemNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -733,9 +606,7 @@
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
-      "required": [
-        "labels"
-      ],
+      "required": ["labels"],
       "additionalProperties": false
     }
   },
@@ -753,15 +624,10 @@
           "description": "Label names to remove (e.g., ['smoke', 'needs-triage']). Non-existent labels are silently skipped."
         },
         "item_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
           "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, removes labels from the item that triggered this workflow.",
-          "x-synonyms": [
-            "itemNumber"
-          ]
+          "x-synonyms": ["itemNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -772,9 +638,7 @@
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
-      "required": [
-        "labels"
-      ],
+      "required": ["labels"],
       "additionalProperties": false
     }
   },
@@ -797,19 +661,12 @@
             "type": "string"
           },
           "description": "GitHub team slugs to add as team reviewers (e.g., ['platform-team', 'security-reviewers']). Teams must have access to the repository.",
-          "x-synonyms": [
-            "teamReviewers"
-          ]
+          "x-synonyms": ["teamReviewers"]
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required \u2014 omitting it will silently skip the reviewer assignment.",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -828,36 +685,22 @@
     "description": "Assign an issue to a milestone for release planning and progress tracking. Milestones can be specified by number or title. When auto_create is configured, missing milestones are created automatically.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "issue_number"
-      ],
+      "required": ["issue_number"],
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "milestone_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Milestone number to assign the issue to. This is the numeric ID from the milestone URL (e.g., 12 in github.com/owner/repo/milestone/12). Either milestone_number or milestone_title must be provided.",
-          "x-synonyms": [
-            "milestoneNumber"
-          ]
+          "x-synonyms": ["milestoneNumber"]
         },
         "milestone_title": {
           "type": "string",
           "description": "Milestone title to assign the issue to (e.g., \"v1.0\"). Used as an alternative to milestone_number \u2014 the handler looks up the milestone by title. Either milestone_number or milestone_title must be provided.",
-          "x-synonyms": [
-            "milestoneTitle"
-          ]
+          "x-synonyms": ["milestoneTitle"]
         },
         "secrecy": {
           "type": "string",
@@ -878,24 +721,14 @@
       "type": "object",
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id from an issue created earlier in the same workflow run \u2014 use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "pull_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
-          "x-synonyms": [
-            "pullNumber"
-          ]
+          "x-synonyms": ["pullNumber"]
         },
         "agent": {
           "type": "string",
@@ -904,9 +737,7 @@
         "pull_request_repo": {
           "type": "string",
           "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos.",
-          "x-synonyms": [
-            "pullRequestRepo"
-          ]
+          "x-synonyms": ["pullRequestRepo"]
         },
         "secrecy": {
           "type": "string",
@@ -925,19 +756,12 @@
     "description": "Assign one or more GitHub users to an issue. Use this to delegate work to specific team members. Users must have access to the repository.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "issue_number"
-      ],
+      "required": ["issue_number"],
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to assign users to. This is the numeric ID from the GitHub URL (e.g., 543 in github.com/owner/repo/issues/543). If omitted, assigns to the issue that triggered this workflow.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "assignees": {
           "type": "array",
@@ -969,14 +793,9 @@
       "type": "object",
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to unassign users from. This is the numeric ID from the GitHub URL (e.g., 543 in github.com/owner/repo/issues/543). If omitted, uses the issue that triggered this workflow.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "assignees": {
           "type": "array",
@@ -1013,10 +832,7 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": [
-            "open",
-            "closed"
-          ],
+          "enum": ["open", "closed"],
           "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue."
         },
         "title": {
@@ -1029,12 +845,7 @@
         },
         "operation": {
           "type": "string",
-          "enum": [
-            "replace",
-            "append",
-            "prepend",
-            "replace-island"
-          ],
+          "enum": ["replace", "append", "prepend", "replace-island"],
           "description": "How to update the issue body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), 'replace' (overwrite entire body), or 'replace-island' (update a run-specific section)."
         },
         "labels": {
@@ -1052,21 +863,13 @@
           "description": "Replace the issue assignees with this list of GitHub usernames (e.g., ['octocat', 'mona'])."
         },
         "milestone": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Milestone number to assign (e.g., 1). Use null to clear."
         },
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). ONLY effective when the workflow is configured with `update-issue: target: '*'` in the frontmatter. When the workflow uses `target: triggering` (the default), this field is ignored and the tool updates the issue that triggered the workflow instead. If you need to update a specific issue in a scheduled or workflow_dispatch workflow, the workflow frontmatter must include `update-issue: target: '*'`.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -1096,45 +899,26 @@
         },
         "operation": {
           "type": "string",
-          "enum": [
-            "replace",
-            "append",
-            "prepend"
-          ],
+          "enum": ["replace", "append", "prepend"],
           "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced."
         },
         "update_branch": {
           "type": "boolean",
           "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false. Note: only true counts as a meaningful update; passing false is the same as omitting this field.",
-          "x-synonyms": [
-            "updateBranch"
-          ]
+          "x-synonyms": ["updateBranch"]
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to update. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR).",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "pr_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
-          "x-synonyms": [
-            "prNumber"
-          ]
+          "x-synonyms": ["prNumber"]
         },
         "pr": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
         },
         "draft": {
@@ -1151,6 +935,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number", "pr_number", "pr"]
+      }
     }
   },
   {
@@ -1160,40 +950,25 @@
       "type": "object",
       "properties": {
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to merge. This is the numeric ID from the GitHub URL (e.g., 321 in github.com/owner/repo/pull/321). If omitted, uses the triggering pull request context.",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "merge_method": {
           "type": "string",
-          "enum": [
-            "merge",
-            "squash",
-            "rebase"
-          ],
+          "enum": ["merge", "squash", "rebase"],
           "description": "Merge strategy to use: 'merge', 'squash', or 'rebase'. Defaults to 'merge'.",
-          "x-synonyms": [
-            "mergeMethod"
-          ]
+          "x-synonyms": ["mergeMethod"]
         },
         "commit_title": {
           "type": "string",
           "description": "Optional custom commit title to use for the merge commit/squash commit.",
-          "x-synonyms": [
-            "commitTitle"
-          ]
+          "x-synonyms": ["commitTitle"]
         },
         "commit_message": {
           "type": "string",
           "description": "Optional custom commit message body for the merge.",
-          "x-synonyms": [
-            "commitMessage"
-          ]
+          "x-synonyms": ["commitMessage"]
         },
         "repo": {
           "type": "string",
@@ -1216,26 +991,17 @@
     "description": "Push committed changes to a pull request's branch. APPEND-ONLY: this tool adds new commits on top of the existing PR branch \u2014 force-push is NOT supported and will be rejected. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool. The destination branch is always derived from the pull request's head ref \u2014 you do not specify it. IMPORTANT: do NOT use 'git merge' to update the branch against another branch \u2014 merge commits cannot be signed; the action will attempt to squash them into a single linear commit before pushing, but this rewrites history. Use 'git rebase' instead to avoid the rewrite.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "message"
-      ],
+      "required": ["message"],
       "properties": {
         "message": {
           "type": "string",
           "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits). This field is named message, NOT commit_message.",
-          "x-synonyms": [
-            "commit_message"
-          ]
+          "x-synonyms": ["commit_message"]
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to push changes to. This is the numeric ID from the GitHub URL (e.g., 654 in github.com/owner/repo/pull/654). Required when the workflow target is '*' (any PR).",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -1247,6 +1013,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -1254,9 +1026,7 @@
     "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "path"
-      ],
+      "required": ["path"],
       "properties": {
         "path": {
           "type": "string",
@@ -1309,9 +1079,7 @@
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Optional temporary identifier for this artifact upload. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_chart1', '#aw_img_out'. The bare 'aw_chart1' form is also accepted. Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' \u2014 for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images.",
-          "x-synonyms": [
-            "temporaryId"
-          ]
+          "x-synonyms": ["temporaryId"]
         },
         "secrecy": {
           "type": "string",
@@ -1330,11 +1098,7 @@
     "description": "Update a GitHub release description by replacing, appending to, or prepending to the existing content. Use this to add release notes, changelogs, or additional information to an existing release.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "tag",
-        "operation",
-        "body"
-      ],
+      "required": ["tag", "operation", "body"],
       "properties": {
         "tag": {
           "type": "string",
@@ -1342,11 +1106,7 @@
         },
         "operation": {
           "type": "string",
-          "enum": [
-            "replace",
-            "append",
-            "prepend"
-          ],
+          "enum": ["replace", "append", "prepend"],
           "description": "How to update the release body: 'replace' (completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator)."
         },
         "body": {
@@ -1370,9 +1130,7 @@
     "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "reason"
-      ],
+      "required": ["reason"],
       "properties": {
         "tool": {
           "type": "string",
@@ -1403,9 +1161,7 @@
     "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "message"
-      ],
+      "required": ["message"],
       "properties": {
         "message": {
           "type": "string",
@@ -1428,30 +1184,17 @@
     "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "parent_issue_number",
-        "sub_issue_number"
-      ],
+      "required": ["parent_issue_number", "sub_issue_number"],
       "properties": {
         "parent_issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "The parent issue number to link the sub-issue to. This is the numeric ID from the GitHub URL (e.g., 100 in github.com/owner/repo/issues/100).",
-          "x-synonyms": [
-            "parentIssueNumber"
-          ]
+          "x-synonyms": ["parentIssueNumber"]
         },
         "sub_issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "The issue number to link as a sub-issue of the parent. This is the numeric ID from the GitHub URL (e.g., 101 in github.com/owner/repo/issues/101).",
-          "x-synonyms": [
-            "subIssueNumber"
-          ]
+          "x-synonyms": ["subIssueNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -1470,27 +1213,16 @@
     "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, resolved, or low-quality. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.hide-comment configuration to exclude this permission.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "comment_id"
-      ],
+      "required": ["comment_id"],
       "properties": {
         "comment_id": {
           "type": "string",
           "description": "GraphQL node ID of the comment to hide (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses.",
-          "x-synonyms": [
-            "commentId"
-          ]
+          "x-synonyms": ["commentId"]
         },
         "reason": {
           "type": "string",
-          "enum": [
-            "SPAM",
-            "ABUSE",
-            "OFF_TOPIC",
-            "OUTDATED",
-            "RESOLVED",
-            "LOW_QUALITY"
-          ],
+          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED", "LOW_QUALITY"],
           "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved), LOW_QUALITY (low-quality content)."
         },
         "secrecy": {
@@ -1510,26 +1242,17 @@
     "description": "Set the type of a GitHub issue. Pass an empty string \"\" to clear the issue type. Issue types must be configured in the repository or organization settings before they can be assigned.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "issue_type"
-      ],
+      "required": ["issue_type"],
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to set the type for. If omitted, sets the type on the issue that triggered this workflow.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "issue_type": {
           "type": "string",
           "description": "Issue type name to set (e.g., \"Bug\", \"Feature\", \"Task\"). Use an empty string \"\" to clear the current issue type.",
-          "x-synonyms": [
-            "issueType"
-          ]
+          "x-synonyms": ["issueType"]
         },
         "secrecy": {
           "type": "string",
@@ -1548,33 +1271,22 @@
     "description": "Set a single GitHub issue field by name and value. Use field_name for discovery by field label (for example, \"Priority\"), or provide field_node_id to skip discovery. Supports text, number, date (YYYY-MM-DD), and single-select fields (value must match an option name).",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "value"
-      ],
+      "required": ["value"],
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to set the field on. If omitted, targets the issue that triggered this workflow.",
-          "x-synonyms": [
-            "issueNumber"
-          ]
+          "x-synonyms": ["issueNumber"]
         },
         "field_name": {
           "type": "string",
           "description": "Issue field name to set (e.g., \"Priority\", \"Severity\", \"Customer Impact\").",
-          "x-synonyms": [
-            "fieldName"
-          ]
+          "x-synonyms": ["fieldName"]
         },
         "field_node_id": {
           "type": "string",
           "description": "Optional GraphQL node ID of the issue field. Provide this to skip field-name discovery and set a field directly.",
-          "x-synonyms": [
-            "fieldNodeId"
-          ]
+          "x-synonyms": ["fieldNodeId"]
         },
         "value": {
           "type": "string",
@@ -1597,9 +1309,7 @@
     "description": "Manage GitHub Projects: add issues/pull requests/draft issues, update item fields (status, priority, effort, dates), manage custom fields, and create project views. Use this to organize work by adding items to projects, updating field values, creating custom fields up-front, and setting up project views (table, board, roadmap).\n\nThree modes: (1) Add or update project items with custom field values; (2) Create project fields; (3) Create project views. This is the primary tool for ProjectOps automation - add items to projects, set custom fields for tracking, and organize project boards.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project"
-      ],
+      "required": ["project"],
       "properties": {
         "project": {
           "type": "string",
@@ -1608,71 +1318,47 @@
         },
         "operation": {
           "type": "string",
-          "enum": [
-            "create_fields",
-            "create_view"
-          ],
+          "enum": ["create_fields", "create_view"],
           "description": "Optional operation mode. Use create_fields to create required fields up-front, or create_view to add a project view. When omitted, the tool adds/updates project items."
         },
         "content_type": {
           "type": "string",
-          "enum": [
-            "issue",
-            "pull_request",
-            "draft_issue"
-          ],
+          "enum": ["issue", "pull_request", "draft_issue"],
           "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project. Required when operation is not specified.",
-          "x-synonyms": [
-            "contentType"
-          ]
+          "x-synonyms": ["contentType"]
         },
         "content_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call \u2014 use '#aw_abc123' (canonical); bare 'aw_abc123' is also accepted. Required when content_type is 'issue' or 'pull_request'.",
-          "x-synonyms": [
-            "contentNumber"
-          ]
+          "x-synonyms": ["contentNumber"]
         },
         "target_repo": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
           "description": "Repository containing the issue or pull request, in \"owner/repo\" format (e.g., \"github/docs\"). Use this when the issue or PR belongs to a different repository than the one running the workflow. The repository must be permitted by either safe-outputs.update-project.target-repo (including the default host repository) or safe-outputs.update-project.allowed-repos.",
-          "x-synonyms": [
-            "targetRepo"
-          ]
+          "x-synonyms": ["targetRepo"]
         },
         "draft_title": {
           "type": "string",
           "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
-          "x-synonyms": [
-            "draftTitle"
-          ]
+          "x-synonyms": ["draftTitle"]
         },
         "draft_body": {
           "type": "string",
           "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
-          "x-synonyms": [
-            "draftBody"
-          ]
+          "x-synonyms": ["draftBody"]
         },
         "draft_issue_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Temporary ID of an existing draft issue to update \u2014 use '#aw_abc1' (canonical); bare 'aw_abc1' is also accepted. Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates.",
-          "x-synonyms": [
-            "draftIssueId"
-          ]
+          "x-synonyms": ["draftIssueId"]
         },
         "temporary_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Unique temporary identifier for this draft issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted. Provide this when creating a new draft to enable future updates via draft_issue_id.",
-          "x-synonyms": [
-            "temporaryId"
-          ]
+          "x-synonyms": ["temporaryId"]
         },
         "fields": {
           "type": "object",
@@ -1683,10 +1369,7 @@
           "description": "Field definitions to create when operation is create_fields. Required when operation='create_fields'.",
           "items": {
             "type": "object",
-            "required": [
-              "name",
-              "data_type"
-            ],
+            "required": ["name", "data_type"],
             "properties": {
               "name": {
                 "type": "string",
@@ -1694,13 +1377,7 @@
               },
               "data_type": {
                 "type": "string",
-                "enum": [
-                  "TEXT",
-                  "NUMBER",
-                  "DATE",
-                  "SINGLE_SELECT",
-                  "ITERATION"
-                ],
+                "enum": ["TEXT", "NUMBER", "DATE", "SINGLE_SELECT", "ITERATION"],
                 "description": "Field type. Use SINGLE_SELECT with options for enumerated values."
               },
               "options": {
@@ -1713,28 +1390,19 @@
             },
             "additionalProperties": false
           },
-          "x-synonyms": [
-            "fieldDefinitions"
-          ]
+          "x-synonyms": ["fieldDefinitions"]
         },
         "view": {
           "type": "object",
           "description": "View definition to create when operation is create_view. Required when operation='create_view'.",
-          "required": [
-            "name",
-            "layout"
-          ],
+          "required": ["name", "layout"],
           "properties": {
             "name": {
               "type": "string"
             },
             "layout": {
               "type": "string",
-              "enum": [
-                "table",
-                "board",
-                "roadmap"
-              ]
+              "enum": ["table", "board", "roadmap"]
             },
             "filter": {
               "type": "string"
@@ -1752,9 +1420,7 @@
         "create_if_missing": {
           "type": "boolean",
           "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
-          "x-synonyms": [
-            "createIfMissing"
-          ]
+          "x-synonyms": ["createIfMissing"]
         },
         "secrecy": {
           "type": "string",
@@ -1778,9 +1444,7 @@
         "data_type": {
           "type": "string",
           "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
-          "x-synonyms": [
-            "dataType"
-          ]
+          "x-synonyms": ["dataType"]
         },
         "reason": {
           "type": "string",
@@ -1811,9 +1475,7 @@
     "description": "Signal that the task could not be completed due to an infrastructure or tool failure (e.g., MCP server crash, missing authentication, inaccessible repository). Use this when required tools or data are unavailable and the task cannot be meaningfully performed. This is distinct from noop (no action needed) \u2014 it indicates an active failure that prevented the task from running. The workflow framework will treat this as a failure signal even when the agent exits successfully.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "reason"
-      ],
+      "required": ["reason"],
       "properties": {
         "reason": {
           "type": "string",
@@ -1844,30 +1506,21 @@
         },
         "owner_type": {
           "type": "string",
-          "enum": [
-            "org",
-            "user"
-          ],
+          "enum": ["org", "user"],
           "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
-          "x-synonyms": [
-            "ownerType"
-          ]
+          "x-synonyms": ["ownerType"]
         },
         "item_url": {
           "type": "string",
           "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9_]{3,12})|#?aw_[A-Za-z0-9_]{3,12})$",
           "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/#aw_abc1'), or a plain temporary ID \u2014 use '#aw_abc1' (canonical); bare 'aw_abc1' is also accepted.",
-          "x-synonyms": [
-            "itemUrl"
-          ]
+          "x-synonyms": ["itemUrl"]
         },
         "temporary_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Optional temporary identifier for this project. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted. If not provided, one will be auto-generated and returned in the response. Use this same '#aw_ID' form in add_project_item to reference this project.",
-          "x-synonyms": [
-            "temporaryId"
-          ]
+          "x-synonyms": ["temporaryId"]
         },
         "secrecy": {
           "type": "string",
@@ -1886,10 +1539,7 @@
     "description": "Post a status update to a GitHub Project to communicate progress and health. Use this to provide stakeholders with regular updates on project status (on-track, at-risk, off-track, complete, inactive), timeline information, and progress summaries. Status updates create a historical record of project progress, enabling tracking over time and informed decision-making.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "body"
-      ],
+      "required": ["project", "body"],
       "properties": {
         "project": {
           "type": "string",
@@ -1898,30 +1548,20 @@
         },
         "status": {
           "type": "string",
-          "enum": [
-            "ON_TRACK",
-            "AT_RISK",
-            "OFF_TRACK",
-            "COMPLETE",
-            "INACTIVE"
-          ],
+          "enum": ["ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE", "INACTIVE"],
           "description": "Status indicator for the project. Defaults to ON_TRACK. Values: ON_TRACK (progressing well), AT_RISK (has issues/blockers), OFF_TRACK (significantly behind), COMPLETE (finished), INACTIVE (paused/cancelled)."
         },
         "start_date": {
           "type": "string",
           "pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$",
           "description": "Optional project start date in YYYY-MM-DD format (e.g., '2026-01-06').",
-          "x-synonyms": [
-            "startDate"
-          ]
+          "x-synonyms": ["startDate"]
         },
         "target_date": {
           "type": "string",
           "pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$",
           "description": "Optional project target/end date in YYYY-MM-DD format (e.g., '2026-12-31').",
-          "x-synonyms": [
-            "targetDate"
-          ]
+          "x-synonyms": ["targetDate"]
         },
         "body": {
           "type": "string",
@@ -1944,35 +1584,22 @@
     "description": "Create an autofix for a code scanning alert. Use this to provide automated fixes for security vulnerabilities detected by code scanning tools. The fix should contain the corrected code that resolves the security issue.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "alert_number",
-        "fix_description",
-        "fix_code"
-      ],
+      "required": ["alert_number", "fix_description", "fix_code"],
       "properties": {
         "alert_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "The security alert number to create an autofix for. This is the numeric ID from the code scanning alert (e.g., 42 in github.com/owner/repo/security/code-scanning/42).",
-          "x-synonyms": [
-            "alertNumber"
-          ]
+          "x-synonyms": ["alertNumber"]
         },
         "fix_description": {
           "type": "string",
           "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it. Example: 'Sanitize user input to prevent SQL injection by using parameterized queries instead of string concatenation.'",
-          "x-synonyms": [
-            "fixDescription"
-          ]
+          "x-synonyms": ["fixDescription"]
         },
         "fix_code": {
           "type": "string",
           "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability. Example for SQL injection fix: 'query = db.prepare(\"SELECT * FROM users WHERE id = ?\").bind(userId)'",
-          "x-synonyms": [
-            "fixCode"
-          ]
+          "x-synonyms": ["fixCode"]
         },
         "secrecy": {
           "type": "string",
@@ -1991,23 +1618,16 @@
     "description": "Mark a draft pull request as ready for review by setting draft=false and adding a comment. Use this when a draft PR has reached a state where it's ready for team review. The comment should explain what was completed and why the PR is now ready.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "reason"
-      ],
+      "required": ["reason"],
       "properties": {
         "reason": {
           "type": "string",
           "description": "Comment explaining why the PR is ready for review (e.g., 'All tests passing and documentation updated', 'Feature implementation complete and ready for feedback')."
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to mark as ready. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, marks the PR that triggered this workflow (requires a pull_request event trigger).",
-          "x-synonyms": [
-            "pullRequestNumber"
-          ]
+          "x-synonyms": ["pullRequestNumber"]
         },
         "secrecy": {
           "type": "string",
@@ -2031,9 +1651,7 @@
         "memory_id": {
           "type": "string",
           "description": "Memory identifier to validate. Defaults to 'default' if not specified.",
-          "x-synonyms": [
-            "memoryId"
-          ]
+          "x-synonyms": ["memoryId"]
         }
       },
       "additionalProperties": false
@@ -2044,23 +1662,11 @@
     "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name. When `safe-outputs.create-check-run.target` is configured, pull request targeting follows standard PR target rules. With `target: \"*\"`, include `pull_request_number` (or `pr_number`/`pr`/`pull_number`) in each call.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "conclusion",
-        "title",
-        "summary"
-      ],
+      "required": ["conclusion", "title", "summary"],
       "properties": {
         "conclusion": {
           "type": "string",
-          "enum": [
-            "success",
-            "failure",
-            "neutral",
-            "cancelled",
-            "skipped",
-            "timed_out",
-            "action_required"
-          ],
+          "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"],
           "description": "The final conclusion of the check run. Use \"success\" when the check passes, \"failure\" when issues are found that must be fixed, \"neutral\" for informational results with no required action."
         },
         "title": {
@@ -2076,50 +1682,33 @@
           "description": "Optional detailed Markdown content shown in the check run details. Use this for longer output such as full analysis reports, line-by-line findings, or remediation steps. Maximum 65535 characters."
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number to attach the check run to when the workflow uses `create-check-run: target: \"*\"` (or equivalent explicit PR targeting). This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876).",
-          "x-synonyms": [
-            "pr_number",
-            "pr",
-            "pull_number"
-          ]
+          "x-synonyms": ["pr_number", "pr", "pull_number"]
         },
         "pr_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
-          "x-synonyms": [
-            "prNumber"
-          ]
+          "x-synonyms": ["prNumber"]
         },
         "pr": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
-          "x-synonyms": [
-            "pullRequest",
-            "pull"
-          ]
+          "x-synonyms": ["pullRequest", "pull"]
         },
         "pull_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls.",
-          "x-synonyms": [
-            "pullNumber"
-          ]
+          "x-synonyms": ["pullNumber"]
         }
       },
       "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number", "pr_number", "pr", "pull_number"]
+      }
     }
   }
 ]

@@ -86,22 +86,17 @@ func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, w
 }
 
 // renderSafeOutputsTOML generates Safe Outputs MCP configuration in TOML format
-// Now uses HTTP transport instead of stdio, similar to mcp-scripts
+// Uses containerized stdio transport in the gh-aw-node image, overriding the container's
+// default entrypoint to run the stdio MCP server script.
 func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
-	// Determine host based on whether agent is disabled
-	host := "host.docker.internal"
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
-		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
-		host = "localhost"
-	}
-
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
-	yaml.WriteString("          type = \"http\"\n")
-	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\"\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
-	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+	yaml.WriteString("          container = \"" + constants.DefaultGhAwNodeImage + "\"\n")
+	yaml.WriteString("          mounts = [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultSafeOutputsLogMount + "\"]\n")
+	yaml.WriteString("          args = [\"-w\", \"$GITHUB_WORKSPACE\"]\n")
+	yaml.WriteString("          entrypoint = \"sh\"\n")
+	yaml.WriteString("          entrypointArgs = [\"-c\", \"exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs\"]\n")
+	yaml.WriteString("          env_vars = [\"DEBUG\", \"DEFAULT_BRANCH\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_TOKEN\", \"GITHUB_WORKSPACE\", \"RUNNER_TEMP\"]\n")
 
 	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
 	// If so, generate a linked write-sink guard-policy for safeoutputs
@@ -235,39 +230,57 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
 }
 
-// renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
-// Now uses HTTP transport instead of stdio, similar to mcp-scripts
-// The server is started in a separate step before the agent job
+// renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options.
+// The server runs as a containerized stdio MCP server in the published gh-aw node image.
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	mcpRendererBuiltinLog.Printf("Rendering Safe Outputs MCP config with options: isLast=%v, includeCopilotFields=%v", isLast, includeCopilotFields)
 	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID.String() + "\": {\n")
 
-	// HTTP transport configuration - server started in separate step
-	// Add type field for HTTP (required by MCP specification for HTTP transport)
-	yaml.WriteString("                \"type\": \"http\",\n")
-
-	// Determine host based on whether agent is disabled
-	host := "host.docker.internal"
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
-		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
-		host = "localhost"
-		mcpRendererBuiltinLog.Print("Agent firewall disabled, using localhost instead of host.docker.internal")
-	}
-	mcpRendererBuiltinLog.Printf("Using host: %s", host)
-
-	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
-	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
-	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
-	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\",\n")
-
-	// Add Authorization header with API key
-	yaml.WriteString("                \"headers\": {\n")
 	if includeCopilotFields {
-		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_SAFE_OUTPUTS_API_KEY}\"\n")
-	} else {
-		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+	yaml.WriteString("                \"container\": \"" + constants.DefaultGhAwNodeImage + "\",\n")
+	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultSafeOutputsLogMount + "\"],\n")
+	yaml.WriteString("                \"args\": [\"-w\", \"\\${GITHUB_WORKSPACE}\"],\n")
+	yaml.WriteString("                \"entrypoint\": \"sh\",\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"-c\", \"exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+
+	envVars := []struct {
+		name      string
+		value     string
+		isLiteral bool
+	}{
+		{"DEBUG", "*", true},
+		{"DEFAULT_BRANCH", "DEFAULT_BRANCH", false},
+		{"GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_ALLOWED_EXTS", false},
+		{"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_BRANCH", false},
+		{"GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_MAX_SIZE_KB", false},
+		{"GH_AW_MCP_LOG_DIR", "GH_AW_MCP_LOG_DIR", false},
+		{"GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS", false},
+		{"GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", false},
+		{"GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", false},
+		{"GITHUB_REPOSITORY", "GITHUB_REPOSITORY", false},
+		{"GITHUB_SERVER_URL", "GITHUB_SERVER_URL", false},
+		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},
+		{"GITHUB_WORKSPACE", "GITHUB_WORKSPACE", false},
+		{"RUNNER_TEMP", "RUNNER_TEMP", false},
+	}
+
+	for i, envVar := range envVars {
+		comma := ","
+		if i == len(envVars)-1 {
+			comma = ""
+		}
+		var valueStr string
+		if envVar.isLiteral {
+			valueStr = envVar.value
+		} else if includeCopilotFields {
+			valueStr = "\\${" + envVar.value + "}"
+		} else {
+			valueStr = "$" + envVar.value
+		}
+		yaml.WriteString("                  \"" + envVar.name + "\": \"" + valueStr + "\"" + comma + "\n")
 	}
 	yaml.WriteString("                }")
 

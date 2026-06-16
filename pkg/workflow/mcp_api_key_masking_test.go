@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSafeOutputsAPIKeyImmediateMasking verifies that the Safe Outputs API key
-// is masked immediately after generation, before any other operations.
+// TestSafeOutputsNoLongerGeneratesHTTPAPIKey verifies that safe-outputs no longer
+// creates an HTTP server API key now that it runs as a stdio MCP container.
 func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -29,45 +29,12 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 	output := yaml.String()
 
-	// Find the Safe Outputs config generation section
-	configStart := strings.Index(output, "Generate Safe Outputs MCP Server Config")
-	require.Greater(t, configStart, -1, "Should find Safe Outputs config generation step")
-
-	// Extract just the run script for this step
-	runStart := strings.Index(output[configStart:], "run: |")
-	require.Greater(t, runStart, -1, "Should find run script")
-	runSection := output[configStart+runStart:]
-
-	// Find the next step or end of this step's run block
-	nextStepIdx := strings.Index(runSection, "\n      - name:")
-	if nextStepIdx > 0 {
-		runSection = runSection[:nextStepIdx]
-	}
-
-	// Find the API key generation line
-	keyGenIdx := strings.Index(runSection, "API_KEY=$(openssl rand -base64 45")
-	require.Greater(t, keyGenIdx, -1, "Should find API key generation")
-
-	// Find the masking line
-	maskIdx := strings.Index(runSection, "echo \"::add-mask::${API_KEY}\"")
-	require.Greater(t, maskIdx, -1, "Should find API key masking")
-
-	// Verify masking comes immediately after generation (no PORT or other operations in between)
-	betweenGenAndMask := runSection[keyGenIdx:maskIdx]
-
-	// Should only contain the key generation line and whitespace - no PORT assignment or other operations
-	lines := strings.Split(betweenGenAndMask, "\n")
-	require.LessOrEqual(t, len(lines), 2, "Should have at most 2 lines between generation and masking (generation line + empty line)")
-
-	// Verify no PORT assignment or other operations before masking
-	assert.NotContains(t, betweenGenAndMask, "PORT=", "PORT assignment should come after masking")
-	assert.NotContains(t, betweenGenAndMask, "Set outputs", "Output setting comment should come after masking")
-
-	// Verify masking comes before PORT assignment
-	portIdx := strings.Index(runSection, "PORT=")
-	if portIdx > 0 {
-		assert.Less(t, maskIdx, portIdx, "API key masking should come before PORT assignment")
-	}
+	assert.NotContains(t, output, "Generate Safe Outputs MCP Server Config",
+		"Safe outputs should not have a dedicated HTTP server config step")
+	assert.NotContains(t, output, "Start Safe Outputs MCP HTTP Server",
+		"Safe outputs should not launch a dedicated HTTP server")
+	assert.Contains(t, output, `"container": "ghcr.io/github/gh-aw-node"`,
+		"Safe outputs should run in the gh-aw node container")
 }
 
 // TestMCPScriptsAPIKeyImmediateMasking verifies that the MCP Scripts API key

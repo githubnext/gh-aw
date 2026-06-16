@@ -1,6 +1,8 @@
 ---
 title: Self-Hosted Runners
 description: How to configure and run agentic workflows on self-hosted runners, ARC/Kubernetes, and GHES environments.
+sidebar:
+  order: 810
 ---
 
 Use the `runs-on` frontmatter field to target a self-hosted runner instead of the default `ubuntu-latest`.

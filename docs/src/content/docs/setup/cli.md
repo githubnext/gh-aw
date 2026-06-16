@@ -141,7 +141,7 @@ gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --no-skill                   # Skip dispatcher skill creation
 gh aw init --no-agent                   # Skip custom agent creation
 gh aw init --codespaces ""              # Configure Codespaces for current repo only
-gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
+gh aw init --codespaces repo1,repo2     # Configure Codespaces with additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
 ```
@@ -581,7 +581,7 @@ Maps PR check rollups to one of the following normalized states: `success`, `fai
 
 #### `forecast` `[EXPERIMENTAL]`
 
-Forecast token usage and costs for agentic workflows using recent run history and Monte Carlo simulation.
+Forecast AI Credit (AIC) usage and costs for agentic workflows using recent run history and Monte Carlo simulation.
 
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
