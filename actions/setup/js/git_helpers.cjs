@@ -233,11 +233,22 @@ function hasMergeCommitsInRange(baseRef, headRef, options = {}) {
 }
 
 /**
- * Deepen sequence (per call to `git fetch --deepen=N`). Each value adds N
- * commits to the existing shallow history. Total reachable depth after the
- * final step is the sum of these values (~7850 commits).
+ * Fallback deepen step size (commits added per `git fetch --deepen=N` call).
+ *
+ * The primary path fetches the exact prerequisite commit SHAs directly from
+ * origin (see `ensureFullHistoryForBundle`), so this iterative deepen only runs
+ * when fetch-by-SHA is unavailable or insufficient. We deepen in small
+ * increments so a single fetch never tries to pull a huge slice of history,
+ * which can time out on large monorepos with long, complex branch histories.
  */
-const BUNDLE_DEEPEN_STEPS = [50, 100, 200, 500, 1000, 2000, 4000];
+const BUNDLE_DEEPEN_STEP = 5;
+
+/**
+ * Maximum number of fallback deepen iterations before giving up and attempting
+ * `--unshallow`. With a step of 5 this caps the fallback at ~1000 commits of
+ * deepening (200 * 5) before the last-resort unshallow.
+ */
+const BUNDLE_DEEPEN_MAX_ITERATIONS = 200;
 
 /**
  * Extract prerequisite commit SHAs declared in a git bundle file.
@@ -291,18 +302,25 @@ async function getBundlePrerequisites(execApi, bundleFilePath, options = {}) {
 }
 
 /**
- * Check which of the given SHAs are NOT yet ancestors of `targetRef`.
+ * Check which of the given commit SHAs are NOT present in the local object
+ * store. Uses `git cat-file -e <sha>^{commit}`, which exits non-zero when the
+ * object is missing.
+ *
+ * This is the correct gate for bundle application: `git fetch <bundle>` only
+ * needs the prerequisite *objects* to exist locally — it does not require them
+ * to be reachable from any particular branch. (A prerequisite commit can live
+ * on the pull request branch and never be an ancestor of the base branch, so an
+ * ancestry-based check would loop forever trying to deepen the base.)
  *
  * @param {{ getExecOutput: Function }} execApi
  * @param {string[]} shas
- * @param {string} targetRef
  * @param {Object} [options]
- * @returns {Promise<string[]>} SHAs still missing (not ancestors / not present).
+ * @returns {Promise<string[]>} SHAs whose commit object is not present locally.
  */
-async function findMissingAncestors(execApi, shas, targetRef, options = {}) {
+async function findMissingObjects(execApi, shas, options = {}) {
   const missing = [];
   for (const sha of shas) {
-    const { exitCode } = await execApi.getExecOutput("git", ["merge-base", "--is-ancestor", sha, targetRef], { ...options, ignoreReturnCode: true, silent: true });
+    const { exitCode } = await execApi.getExecOutput("git", ["cat-file", "-e", `${sha}^{commit}`], { ...options, ignoreReturnCode: true, silent: true });
     if (exitCode !== 0) {
       missing.push(sha);
     }
@@ -311,21 +329,31 @@ async function findMissingAncestors(execApi, shas, targetRef, options = {}) {
 }
 
 /**
- * Probe shallow-repository status before fetching a git bundle, and deepen
- * the local clone as needed so the bundle's prerequisite commits become
- * reachable from `origin/<baseRef>`.
+ * Ensure a shallow checkout contains the prerequisite commits a git bundle
+ * needs before `git fetch <bundle>` is attempted.
  *
- * Bundles generated from a commit range can declare prerequisite commits. A
- * shallow checkout (e.g. `fetch-depth: 20`) may not contain those prerequisites,
- * and `git fetch <bundle>` will reject the bundle before the caller can update
- * refs. On a high-churn monorepo, `git fetch --unshallow` is catastrophic — it
- * downloads the entire history. Instead we iterate `git fetch origin <baseRef>
- * --deepen=<N>` with progressively larger N until every declared prerequisite
- * satisfies `git merge-base --is-ancestor <prereq> origin/<baseRef>`.
+ * Bundles generated from a commit range declare prerequisite commits. A shallow
+ * checkout (e.g. `fetch-depth: 20`) may not contain them, and `git fetch
+ * <bundle>` rejects the bundle before the caller can update refs.
+ *
+ * Strategy (best → worst):
+ *   1. **Direct SHA fetch (primary).** The bundle declares *exactly* which
+ *      commits it requires (`git bundle verify`). We fetch those SHAs directly
+ *      from origin (`git fetch origin <sha>...`). GitHub honors fetch-by-SHA, so
+ *      this brings precisely the needed objects and is deterministic — it works
+ *      even when a prerequisite lives on the PR branch and is not an ancestor of
+ *      the base branch. This avoids walking back the base history entirely.
+ *   2. **Iterative deepen (fallback).** Only when fetch-by-SHA is unavailable or
+ *      insufficient, deepen `origin/<baseRef>` in small `BUNDLE_DEEPEN_STEP`
+ *      increments (re-checking object presence each step) up to
+ *      `BUNDLE_DEEPEN_MAX_ITERATIONS`. Small steps keep any single fetch cheap so
+ *      it cannot time out by pulling a huge slice of a large monorepo's history.
+ *   3. **`--unshallow` (last resort).** On a high-churn monorepo this downloads
+ *      the entire history, so it is only attempted after the bounded deepen.
  *
  * When `deepenOptions.baseRef` or `deepenOptions.bundleFilePath` is missing
- * (legacy callers), the function falls back to the previous behavior of a
- * single `git fetch --unshallow origin`.
+ * (legacy callers), the function falls back to a single
+ * `git fetch --unshallow origin`.
  *
  * @param {{ getExecOutput: Function, exec: Function }} execApi - Exec API to run git commands.
  * @param {Object} [options] - Options passed through to exec calls.
@@ -351,7 +379,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
 
   // Legacy path: no base ref / bundle info known — fall back to a single
   // unshallow. Callers in monorepos should always supply baseRef + bundleFilePath
-  // to get incremental deepening instead.
+  // to get targeted prerequisite fetching instead.
   if (!baseRef || !bundleFilePath) {
     core.info("Repository is shallow; fetching full history before bundle processing (no baseRef/bundle info; using --unshallow)");
     await execApi.exec("git", ["fetch", "--unshallow", "origin"], options);
@@ -364,31 +392,52 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
     return;
   }
 
-  const targetRef = `origin/${baseRef}`;
-  const alreadyMissing = await findMissingAncestors(execApi, prereqs, targetRef, options);
-  if (alreadyMissing.length === 0) {
-    core.info(`Bundle prerequisites already reachable from ${targetRef}; no deepen required`);
+  let missing = await findMissingObjects(execApi, prereqs, options);
+  if (missing.length === 0) {
+    core.info("Bundle prerequisite commits already present locally; no fetch required");
     return;
   }
 
-  core.info(`Repository is shallow; iteratively deepening ${targetRef} to satisfy ${alreadyMissing.length} bundle prerequisite commit(s)`);
-  let missing = alreadyMissing;
-  for (const depth of BUNDLE_DEEPEN_STEPS) {
-    core.info(`Fetching origin ${baseRef} with --deepen=${depth} (${missing.length} prerequisite(s) still missing)`);
+  // PRIMARY: fetch the exact prerequisite commit SHAs directly from origin.
+  // The bundle tells us precisely which commits it needs, so a targeted fetch by
+  // SHA brings exactly those objects without deepening the base branch history.
+  core.info(`Repository is shallow; fetching ${missing.length} bundle prerequisite commit(s) directly from origin by SHA`);
+  const useBlobFilter = await isShallowOrSparseCheckout(execApi, options);
+  const directFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...missing] : ["fetch", "origin", ...missing];
+  if (useBlobFilter) {
+    core.info("Using --filter=blob:none for prerequisite SHA fetch (shallow or sparse checkout detected)");
+  }
+  try {
+    await execApi.exec("git", directFetchArgs, options);
+    missing = await findMissingObjects(execApi, prereqs, options);
+    if (missing.length === 0) {
+      core.info("Bundle prerequisite commits fetched directly from origin; no deepen required");
+      return;
+    }
+    core.warning(`${missing.length} prerequisite commit(s) still missing after direct SHA fetch; falling back to iterative deepen`);
+  } catch (directFetchError) {
+    core.warning(`Direct prerequisite SHA fetch failed: ${getErrorMessage(directFetchError)}; falling back to iterative deepen`);
+  }
+
+  // FALLBACK: deepen origin/<base> in small increments, re-checking object
+  // presence after each step, until the prerequisites are present or the
+  // iteration cap is reached.
+  core.info(`Iteratively deepening origin/${baseRef} by ${BUNDLE_DEEPEN_STEP} commit(s) at a time to satisfy ${missing.length} prerequisite commit(s)`);
+  for (let iteration = 1; iteration <= BUNDLE_DEEPEN_MAX_ITERATIONS; iteration++) {
     try {
-      await execApi.exec("git", ["fetch", `--deepen=${depth}`, "origin", baseRef], options);
+      await execApi.exec("git", ["fetch", `--deepen=${BUNDLE_DEEPEN_STEP}`, "origin", baseRef], options);
     } catch (fetchError) {
-      core.warning(`git fetch --deepen=${depth} origin ${baseRef} failed: ${getErrorMessage(fetchError)}; aborting iterative deepen`);
+      core.warning(`git fetch --deepen=${BUNDLE_DEEPEN_STEP} origin ${baseRef} failed: ${getErrorMessage(fetchError)}; aborting iterative deepen`);
       break;
     }
-    missing = await findMissingAncestors(execApi, prereqs, targetRef, options);
+    missing = await findMissingObjects(execApi, prereqs, options);
     if (missing.length === 0) {
-      core.info(`Bundle prerequisites reachable after --deepen=${depth}`);
+      core.info(`Bundle prerequisite commits present after deepening ${iteration * BUNDLE_DEEPEN_STEP} commit(s)`);
       return;
     }
   }
 
-  core.warning(`Bundle prerequisites still not reachable after iterative deepen (${missing.length} remaining); attempting --unshallow as a last resort`);
+  core.warning(`Bundle prerequisites still not present after iterative deepen (${missing.length} remaining); attempting --unshallow as a last resort`);
   try {
     await execApi.exec("git", ["fetch", "--unshallow", "origin", baseRef], options);
   } catch (unshallowError) {

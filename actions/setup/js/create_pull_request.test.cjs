@@ -14,22 +14,31 @@ const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./gene
 // The privileged handler derives patch/bundle paths from `branch` (and `repo`)
 // via resolveTransportPaths, so tests must write transport files at the
 // canonical derived location and let the handler discover them.
+//
+// `/tmp/gh-aw` is a process-global path shared by every test file. Vitest runs
+// test files in parallel processes, so a cleanup that globbed the whole
+// directory would delete another file's in-flight transport files mid-test.
+// Track only the paths this file created and delete just those.
+const createdTransportPaths = new Set();
 function canonicalPatchPath(branch, repo) {
   fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-  return repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch);
+  const p = repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch);
+  createdTransportPaths.add(p);
+  return p;
 }
 function canonicalBundlePath(branch, repo) {
   fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-  return repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+  const p = repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+  createdTransportPaths.add(p);
+  return p;
 }
 function cleanupCanonicalTransports() {
-  try {
-    for (const f of fs.readdirSync("/tmp/gh-aw")) {
-      if (/^aw-.*\.(patch|bundle)$/.test(f)) {
-        fs.rmSync(`/tmp/gh-aw/${f}`, { force: true });
-      }
-    }
-  } catch {}
+  for (const p of createdTransportPaths) {
+    try {
+      fs.rmSync(p, { force: true });
+    } catch {}
+  }
+  createdTransportPaths.clear();
 }
 
 beforeEach(() => {
@@ -219,15 +228,14 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
           return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
         }
         if (cmd === "git" && args[0] === "bundle" && args[1] === "verify") {
-          // Declare a fake prerequisite so ensureFullHistoryForBundle proceeds to deepen.
+          // Declare a fake prerequisite so ensureFullHistoryForBundle proceeds.
           return Promise.resolve({ exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${"a".repeat(40)}\n` });
         }
-        if (cmd === "git" && args[0] === "merge-base" && args[1] === "--is-ancestor") {
-          // Report prereq missing initially → iterative deepen kicks in; after the
-          // first deepen fetch we still report missing so the fallback --unshallow
-          // path is exercised. The default mock for exec() resolves successfully,
-          // so all 7 deepen steps complete instantly before the fallback fires.
-          return Promise.resolve({ exitCode: 1, stdout: "", stderr: "" });
+        if (cmd === "git" && args[0] === "cat-file" && args[1] === "-e") {
+          // Report the prerequisite object as already present by default so
+          // ensureFullHistoryForBundle returns early (no fetch). Tests that need
+          // to exercise the fetch/deepen path override this within the test.
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
         }
         if (cmd === "git" && args[0] === "rev-list") {
           return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
@@ -267,7 +275,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
     vi.clearAllMocks();
   });
 
-  it("should deepen origin/<base> before fetching bundle in shallow repositories", async () => {
+  it("should fetch bundle prerequisite commits directly from origin in shallow repositories", async () => {
     const patchPath = canonicalPatchPath("feature/test");
     fs.writeFileSync(
       patchPath,
@@ -290,6 +298,35 @@ index 0000000..abc1234
     const bundlePath = canonicalBundlePath("feature/test");
     fs.writeFileSync(bundlePath, "bundle content");
 
+    // Force the prerequisite-missing path so the direct SHA fetch runs.
+    const prereq = "a".repeat(40);
+    let prereqFetched = false;
+    global.exec.getExecOutput = vi.fn().mockImplementation((cmd, args) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "verify") {
+        return Promise.resolve({ exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${prereq}\n` });
+      }
+      if (cmd === "git" && args[0] === "config") {
+        return Promise.resolve({ exitCode: 1, stdout: "", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "cat-file" && args[1] === "-e") {
+        // Missing until the direct SHA fetch brings it in.
+        return Promise.resolve({ exitCode: prereqFetched ? 0 : 1, stdout: "", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
+    global.exec.exec = vi.fn().mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args.includes("origin") && args.includes(prereq)) {
+        prereqFetched = true;
+      }
+      return Promise.resolve(0);
+    });
+
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
     const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
@@ -305,11 +342,14 @@ index 0000000..abc1234
     const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
-    const bundleFetchCallIndex = global.exec.getExecOutput.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
-    // Iterative deepen replaces a single --unshallow: assert the first --deepen step ran.
-    const deepenCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && typeof args[1] === "string" && args[1].startsWith("--deepen="));
-    expect(deepenCallIndex).toBeGreaterThanOrEqual(0);
-    expect(bundleFetchCallIndex).toBeGreaterThanOrEqual(0);
+    // Primary path: the exact prerequisite SHA is fetched directly from origin,
+    // with no broad iterative deepen and no --unshallow.
+    const directFetch = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args.includes("origin") && args.includes(prereq));
+    expect(directFetch).toBeTruthy();
+    const deepenCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && typeof args[1] === "string" && args[1].startsWith("--deepen="));
+    expect(deepenCall).toBeUndefined();
+    const unshallowCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args.includes("--unshallow"));
+    expect(unshallowCall).toBeUndefined();
   });
 
   it("should pass signed_commits false to bundle pushes", async () => {

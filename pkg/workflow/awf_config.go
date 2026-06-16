@@ -34,6 +34,15 @@
 //	  },
 //	  "container": {
 //	    "imageTag": "0.25.29,squid=sha256:..."
+//	  },
+//	  "chroot": {
+//	    "binariesSourcePath": "/tmp/gh-aw",
+//	    "identity": {
+//	      "user": "runner",
+//	      "uid": 1001,
+//	      "gid": 1001,
+//	      "home": "/tmp/gh-aw/home"
+//	    }
 //	  }
 //	}
 //
@@ -156,6 +165,11 @@ type AWFConfigFile struct {
 
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
+
+	// Chroot contains chroot execution overrides for split-filesystem ARC/DinD runners.
+	// This field is not populated at compile time; it is injected at runtime by
+	// buildArcDindChrootConfigInjectScript when DinD topology is detected.
+	Chroot *AWFChrootConfig `json:"chroot,omitempty"`
 }
 
 // AWFNetworkConfig is the "network" section of the AWF config file.
@@ -240,6 +254,39 @@ type AWFContainerConfig struct {
 	// Format: "<tag>" or "<tag>,squid=sha256:...,agent=sha256:..."
 	// Maps to: --image-tag <value>
 	ImageTag string `json:"imageTag,omitempty"`
+}
+
+// AWFChrootConfig is the "chroot" section of the AWF config file.
+// It configures chroot execution overrides for split-filesystem ARC/DinD runners.
+// These fields let AWF handle binary staging and identity resolution natively,
+// eliminating the need for bootstrap actions on ARC/DinD topologies.
+type AWFChrootConfig struct {
+	// BinariesSourcePath is the runner-side directory to overlay at /usr/local/bin
+	// inside chroot mode for split-filesystem ARC/DinD runners.
+	BinariesSourcePath string `json:"binariesSourcePath,omitempty"`
+
+	// Identity configures identity values applied after chroot pivot to override
+	// HOME/USER/LOGNAME defaults inside chroot mode.
+	Identity *AWFChrootIdentityConfig `json:"identity,omitempty"`
+}
+
+// AWFChrootIdentityConfig is the "chroot.identity" section of the AWF config file.
+// It provides identity values applied after chroot pivot to override HOME/USER
+// defaults inside chroot mode.
+type AWFChrootIdentityConfig struct {
+	// User is the USER/LOGNAME string to export inside chroot mode.
+	User string `json:"user,omitempty"`
+
+	// UID is the UID hint used for chroot identity synthesis and user switching.
+	// Must be >= 1 (root is not supported).
+	UID int `json:"uid,omitempty"`
+
+	// GID is the GID hint used for chroot identity synthesis and user switching.
+	// Must be >= 1.
+	GID int `json:"gid,omitempty"`
+
+	// Home is the home directory path to export inside chroot mode.
+	Home string `json:"home,omitempty"`
 }
 
 // buildAWFConfigSchemaURL returns the release-pinned JSON schema URL for the AWF config file.

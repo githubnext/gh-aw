@@ -98,6 +98,13 @@ const AWFDockerHostPathPrefixMinVersion Version = "v0.25.43"
 // apiProxy.enableTokenSteering (mapped from frontmatter firewall.effective-token-steering).
 const AWFTokenSteeringMinVersion Version = "v0.25.44"
 
+// AWFChrootConfigMinVersion is the minimum AWF version that supports
+// chroot.binariesSourcePath and chroot.identity.* in the config file.
+// These fields let AWF handle binary staging and identity resolution natively
+// for ARC/DinD split runner/daemon filesystem topologies, removing the need
+// for bootstrap actions that manually copy binaries and pre-seed /etc/passwd.
+const AWFChrootConfigMinVersion Version = "v0.27.1"
+
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 // Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.

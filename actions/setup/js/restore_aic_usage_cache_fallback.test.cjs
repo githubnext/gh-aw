@@ -37,17 +37,62 @@ describe("restore_aic_usage_cache_fallback", () => {
     delete global.github;
   });
 
-  it("is a no-op when cache file already exists", async () => {
+  it("is a no-op when cache file already exists (no env vars set)", async () => {
     const content = JSON.stringify({ run_id: 1, aic: 5.0, timestamp: new Date().toISOString() }) + "\n";
     fs.writeFileSync(cacheFile, content, "utf8");
 
     global.github = { rest: { actions: { getWorkflowRun: vi.fn() } } };
 
-    await exports.mainWithPaths(cacheFile);
+    // No cacheHit/cacheMatchedKey → isCacheMiss=true, falls through to file-existence check
+    await exports.mainWithPaths(cacheFile, { cacheHit: "", cacheMatchedKey: "" });
 
     expect(global.github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
     // File should be unchanged
     expect(fs.readFileSync(cacheFile, "utf8")).toBe(content);
+  });
+
+  it("skips artifact fallback when cache was an exact hit", async () => {
+    global.github = { rest: { actions: { getWorkflowRun: vi.fn() } } };
+
+    await exports.mainWithPaths(cacheFile, { cacheHit: "true", cacheMatchedKey: "agentic-workflow-usage-abc-123" });
+
+    expect(global.github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("skips artifact fallback when cache was a restore-key hit", async () => {
+    global.github = { rest: { actions: { getWorkflowRun: vi.fn() } } };
+
+    // cache-hit=false but cache-matched-key is present → restore-key match, treat as hit
+    await exports.mainWithPaths(cacheFile, { cacheHit: "false", cacheMatchedKey: "agentic-workflow-usage-abc-" });
+
+    expect(global.github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("proceeds with artifact fallback on true cache miss", async () => {
+    // cache-hit=false, cache-matched-key empty → true miss → should attempt download
+    global.github = {
+      rest: {
+        actions: {
+          getWorkflowRun: vi.fn().mockRejectedValue(new Error("API error")),
+        },
+      },
+    };
+
+    // Should resolve without throwing even when GitHub API fails
+    await expect(exports.mainWithPaths(cacheFile, { cacheHit: "false", cacheMatchedKey: "" })).resolves.toBeUndefined();
+  });
+
+  it("proceeds with artifact fallback when cache restore step was skipped (empty outputs)", async () => {
+    // cache-hit="" (step skipped / runner error) → treat as miss → should attempt download
+    global.github = {
+      rest: {
+        actions: {
+          getWorkflowRun: vi.fn().mockRejectedValue(new Error("API error")),
+        },
+      },
+    };
+
+    await expect(exports.mainWithPaths(cacheFile, { cacheHit: "", cacheMatchedKey: "" })).resolves.toBeUndefined();
   });
 
   it("skips gracefully when getWorkflowRun fails", async () => {
