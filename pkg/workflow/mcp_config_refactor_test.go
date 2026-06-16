@@ -5,11 +5,15 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestRenderSafeOutputsMCPConfigWithOptions verifies the shared Safe Outputs config helper
 // works correctly with both Copilot and non-Copilot engines
 func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+
 	tests := []struct {
 		name                 string
 		isLast               bool
@@ -24,7 +28,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"type": "stdio"`,
-				`"container": "ghcr.io/github/gh-aw-node"`,
+				`"container": "` + pinnedGhAwNodeImage + `"`,
 				`"${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`,
 				`"/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"`,
 				`"entrypoint": "sh"`,
@@ -44,7 +48,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"container": "ghcr.io/github/gh-aw-node"`,
+				`"container": "` + pinnedGhAwNodeImage + `"`,
 				`"args": ["-w", "\${GITHUB_WORKSPACE}"]`,
 				`"entrypoint": "sh"`,
 				`"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
@@ -223,7 +227,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 
 	expectedContent := []string{
 		`[mcp_servers.safeoutputs]`,
-		`container = "ghcr.io/github/gh-aw-node"`,
+		`container = "` + resolveContainerImage(constants.DefaultGhAwNodeImage, nil) + `"`,
 		`mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`,
 		`args = ["-w", "$GITHUB_WORKSPACE"]`,
 		`entrypoint = "sh"`,
@@ -291,7 +295,7 @@ func TestRenderSafeOutputsMCPConfigTOMLStableAcrossSandboxModes(t *testing.T) {
 			})
 			renderer.RenderSafeOutputsMCP(&output, tt.workflowData)
 			result := output.String()
-			if !strings.Contains(result, `container = "ghcr.io/github/gh-aw-node"`) {
+			if !strings.Contains(result, `container = "`+resolveContainerImage(constants.DefaultGhAwNodeImage, tt.workflowData)+`"`) {
 				t.Errorf("Expected gh-aw node container not found in output:\n%s", result)
 			}
 			if !strings.Contains(result, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {

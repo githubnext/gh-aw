@@ -134,6 +134,19 @@ func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
 	return ContainerPin{}, false
 }
 
+// resolveContainerImage returns the digest-pinned image reference when a cache or
+// embedded container pin exists for image; otherwise it returns the original image.
+func resolveContainerImage(image string, data *WorkflowData) string {
+	var cache *ActionCache
+	if data != nil {
+		cache = data.ActionCache
+	}
+	if pin, ok := lookupContainerPin(image, cache); ok && pin.PinnedImage != "" {
+		return pin.PinnedImage
+	}
+	return image
+}
+
 // getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
 func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {

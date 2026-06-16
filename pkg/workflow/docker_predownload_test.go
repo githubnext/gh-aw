@@ -15,6 +15,8 @@ import (
 )
 
 func TestDockerImagePredownload(t *testing.T) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+
 	// Representative sample - tests key docker image predownload scenarios
 	tests := []struct {
 		name           string
@@ -92,7 +94,7 @@ network:
 # Test
 Test workflow - safe outputs MCP server without GitHub tool.`,
 			expectedImages: []string{
-				constants.DefaultGhAwNodeImage,
+				pinnedGhAwNodeImage,
 				"ghcr.io/github/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
 			},
 			manifestImages: []string{

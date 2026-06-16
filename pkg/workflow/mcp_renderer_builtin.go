@@ -89,9 +89,10 @@ func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, w
 // Uses containerized stdio transport in the gh-aw-node image, overriding the container's
 // default entrypoint to run the stdio MCP server script.
 func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
+	containerImage := resolveContainerImage(constants.DefaultGhAwNodeImage, workflowData)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
-	yaml.WriteString("          container = \"" + constants.DefaultGhAwNodeImage + "\"\n")
+	yaml.WriteString("          container = \"" + containerImage + "\"\n")
 	yaml.WriteString("          mounts = [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultSafeOutputsLogMount + "\"]\n")
 	yaml.WriteString("          args = [\"-w\", \"$GITHUB_WORKSPACE\"]\n")
 	yaml.WriteString("          entrypoint = \"sh\"\n")
@@ -234,12 +235,13 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 // The server runs as a containerized stdio MCP server in the published gh-aw node image.
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	mcpRendererBuiltinLog.Printf("Rendering Safe Outputs MCP config with options: isLast=%v, includeCopilotFields=%v", isLast, includeCopilotFields)
+	containerImage := resolveContainerImage(constants.DefaultGhAwNodeImage, workflowData)
 	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID.String() + "\": {\n")
 
 	if includeCopilotFields {
 		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
-	yaml.WriteString("                \"container\": \"" + constants.DefaultGhAwNodeImage + "\",\n")
+	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")
 	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultSafeOutputsLogMount + "\"],\n")
 	yaml.WriteString("                \"args\": [\"-w\", \"\\${GITHUB_WORKSPACE}\"],\n")
 	yaml.WriteString("                \"entrypoint\": \"sh\",\n")

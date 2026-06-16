@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -63,7 +64,8 @@ Test safe outputs workflow with MCP server integration.
 	}
 
 	// Check that the MCP server is configured as a containerized stdio MCP server
-	if !strings.Contains(yamlStr, `"container": "ghcr.io/github/gh-aw-node"`) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	if !strings.Contains(yamlStr, `"container": "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container")
 	}
 	if !strings.Contains(yamlStr, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
@@ -208,7 +210,8 @@ Test safe outputs workflow with Codex engine.
 	}
 
 	// Check that the MCP server is configured as a containerized stdio MCP server in TOML
-	if !strings.Contains(yamlStr, `container = "ghcr.io/github/gh-aw-node"`) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	if !strings.Contains(yamlStr, `container = "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container in TOML")
 	}
 	if !strings.Contains(yamlStr, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {

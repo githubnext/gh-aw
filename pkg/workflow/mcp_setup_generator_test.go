@@ -652,10 +652,11 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
 
 	assert.Contains(t, yamlStr, `"safeoutputs": {`,
 		"Should configure safeoutputs as an MCP server")
-	assert.Contains(t, yamlStr, `"container": "ghcr.io/github/gh-aw-node"`,
+	assert.Contains(t, yamlStr, `"container": "`+pinnedGhAwNodeImage+`"`,
 		"Safe outputs should run in the gh-aw node container")
 	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
 		"Safe outputs MCP server should receive the runtime output path")

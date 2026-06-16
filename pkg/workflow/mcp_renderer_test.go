@@ -67,6 +67,7 @@ func TestNewMCPConfigRenderer(t *testing.T) {
 }
 
 func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		IncludeCopilotFields: true,
 		InlineArgs:           true,
@@ -86,7 +87,7 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"safeoutputs": {`) {
 		t.Error("Expected safeoutputs server ID")
 	}
-	if !strings.Contains(output, `"container": "`+constants.DefaultGhAwNodeImage+`"`) {
+	if !strings.Contains(output, `"container": "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected gh-aw node container image")
 	}
 	if !strings.Contains(output, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
@@ -113,6 +114,7 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 }
 
 func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		IncludeCopilotFields: false,
 		InlineArgs:           false,
@@ -128,7 +130,7 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 	if !strings.Contains(output, `"safeoutputs": {`) {
 		t.Error("Expected safeoutputs server ID")
 	}
-	if !strings.Contains(output, `"container": "`+constants.DefaultGhAwNodeImage+`"`) {
+	if !strings.Contains(output, `"container": "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected gh-aw node container image")
 	}
 	if !strings.Contains(output, `"entrypoint": "sh"`) {
@@ -155,6 +157,7 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 }
 
 func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		IncludeCopilotFields: false,
 		InlineArgs:           false,
@@ -171,7 +174,7 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 	if !strings.Contains(output, "[mcp_servers.safeoutputs]") {
 		t.Error("Expected TOML section header")
 	}
-	if !strings.Contains(output, `container = "`+constants.DefaultGhAwNodeImage+`"`) {
+	if !strings.Contains(output, `container = "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected gh-aw node container image")
 	}
 	if !strings.Contains(output, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
