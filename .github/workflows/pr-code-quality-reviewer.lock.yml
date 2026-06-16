@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"661ab4bd42bd83eff79d7d460f50a12e3cee567ac434b2d37a2480d9a0e20965","body_hash":"4d3260d49c3010a13ea7c49bba10f51f2b9f1c1473ceca69008cfe766a9b273c","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60","copilot-sdk":"1.0.0"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.4","digest":"sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4","digest":"sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4","digest":"sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4@sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.4","digest":"sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.26","digest":"sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"661ab4bd42bd83eff79d7d460f50a12e3cee567ac434b2d37a2480d9a0e20965","body_hash":"4d3260d49c3010a13ea7c49bba10f51f2b9f1c1473ceca69008cfe766a9b273c","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.63","copilot-sdk":"1.0.1"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.4","digest":"sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4","digest":"sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4","digest":"sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4@sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.4","digest":"sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.26","digest":"sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490"},{"image":"ghcr.io/github/github-mcp-server:v1.3.0","digest":"sha256:5c83359327a0bacc3d34db730bea6557d39d341cee0bf6c58c9a896e33150e80","pinned_image":"ghcr.io/github/github-mcp-server:v1.3.0@sha256:5c83359327a0bacc3d34db730bea6557d39d341cee0bf6c58c9a896e33150e80"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _      
@@ -56,7 +56,7 @@
 #   - ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4@sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545
 #   - ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8
 #   - ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490
-#   - ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c
+#   - ghcr.io/github/github-mcp-server:v1.3.0@sha256:5c83359327a0bacc3d34db730bea6557d39d341cee0bf6c58c9a896e33150e80
 
 name: "PR Code Quality Reviewer"
 on:
@@ -137,7 +137,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
           GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
@@ -148,8 +148,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
-          GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AGENT_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
+          GH_AW_INFO_AGENT_VERSION: "1.0.63"
           GH_AW_INFO_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -451,6 +451,7 @@ jobs:
     permissions:
       contents: read
       copilot-requests: write
+      issues: read
       pull-requests: read
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -497,7 +498,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
           GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
@@ -548,13 +549,13 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.60
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.63
         env:
           GH_HOST: github.com
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.4
       - name: Install GitHub Copilot SDK (Node.js)
-        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.0
+        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.1
       - name: Parse integrity filter lists
         id: parse-guard-vars
         env:
@@ -584,7 +585,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4@sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545 ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8 ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490 ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.4@sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545 ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8 ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490 ghcr.io/github/github-mcp-server:v1.3.0@sha256:5c83359327a0bacc3d34db730bea6557d39d341cee0bf6c58c9a896e33150e80
       - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
@@ -1170,7 +1171,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
           GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1428,7 +1429,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
           GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1519,7 +1520,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.60
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.63
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1687,7 +1688,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
           GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Check team membership for command workflow
@@ -1737,7 +1738,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_ENGINE_VERSION: "1.0.60"
+      GH_AW_ENGINE_VERSION: "1.0.63"
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔎 *Code quality review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed the code quality review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during code quality review.\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
@@ -1771,7 +1772,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.60"
+          GH_AW_INFO_VERSION: "1.0.63"
           GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
