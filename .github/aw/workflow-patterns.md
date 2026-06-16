@@ -39,6 +39,11 @@ Incident-triage pattern:
 - reads: failed job logs/artifacts via GitHub tools
 - output: `create-issue` with impact/root cause; `noop` when no action needed
 
+Compact `workflow_run` examples:
+
+- **Deploy workflow failure triage**: trigger on `workflow_run` for `Deploy`, read failed jobs/logs/artifacts, create one incident issue, `noop` when rerun succeeds.
+- **CI regression watcher**: trigger on `workflow_run` for `CI`, compare current failure against recent runs, create issue only for new regressions, `noop` for known flakes.
+
 ### Use `deployment_status` when
 
 - monitoring an external deployment service reporting back to GitHub

@@ -111,13 +111,17 @@ func extractCodexConfigSection(yamlContent string) string {
 		return ""
 	}
 
-	// Find the end (next section or EOF)
-	end := strings.Index(yamlContent[start:], "EOF")
-	if end == -1 {
-		return yamlContent[start:]
+	rest := yamlContent[start:]
+	if nextSection := strings.Index(rest[len("[mcp_servers.mcpscripts]"):], "\n          ["); nextSection != -1 {
+		return rest[:len("[mcp_servers.mcpscripts]")+nextSection]
 	}
 
-	return yamlContent[start : start+end]
+	// Find the end (next heredoc marker or EOF)
+	if before, _, found := strings.Cut(rest, "EOF"); found {
+		return before
+	}
+
+	return rest
 }
 
 // TestCodexMCPScriptsWithSecretsHTTPTransport verifies that environment variables

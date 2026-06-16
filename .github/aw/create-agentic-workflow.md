@@ -86,9 +86,9 @@ Use [workflow-patterns.md](workflow-patterns.md) for trigger-selection guidance.
 Compact scenario examples:
 
 - **Schema review on PRs**: trigger `pull_request`, read via `github` (`gh-proxy`), publish findings with `add-comment`, call `noop` when schema is unchanged.
-- **Visual regression on UI changes**: trigger `pull_request`, use `playwright` + `cache-memory`, keep writes in `add-comment`.
-- **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`.
-- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, publish digest with `create-issue`.
+- **Visual regression on UI changes**: trigger `pull_request`, use `playwright` + `cache-memory`, keep writes in `add-comment`, call `noop` when UI paths are unchanged.
+- **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, call `noop` when a failure self-recovers or is duplicate noise.
+- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, publish digest with `create-issue`, call `noop` when there are no updates in the date window.
 
 ### 3. Keep permissions read-only
 
@@ -264,6 +264,16 @@ Before finalizing any newly generated workflow, verify:
 - [ ] **Permissions**: agent job remains read-only; no direct write scopes granted
 - [ ] **Network**: access is inferred from repository ecosystem and avoids `network: defaults` alone for install/build/test workflows
 - [ ] **Prompt clarity**: prompt is concise, context-aware, and clearly states expected outputs and stop/no-op behavior
+
+## Generated Workflow Scoping Checklist
+
+Before finalizing any newly generated workflow, verify:
+
+- [ ] **Paths scope**: include `paths:`/`paths-ignore:` when the automation should ignore unrelated files
+- [ ] **Labels scope**: define required labels (for example `label_command` names or PR/issue label filters) when label-based routing is expected
+- [ ] **Workflow-name scope**: for `workflow_run`, explicitly name target workflows and conclusions to avoid accidental matches
+- [ ] **Date-window scope**: for reporting/triage, state the exact window (for example `last 24h`, `since previous run`, `current week`)
+- [ ] **Safe-output write contract**: name which safe output is used for each outcome and when `noop` is required instead of a write
 
 ## Multi-Repository Requests
 

@@ -482,14 +482,15 @@ This workflow tests that agentic-workflows uses the correct container in dev mod
 					t.Error("Expected 'chmod +x ./gh-aw' in dev mode build step")
 				}
 
-				// Verify NO entrypoint field (uses container's default ENTRYPOINT)
-				if strings.Contains(string(lockContent), `"entrypoint"`) {
-					t.Error("Did not expect entrypoint field in dev mode (uses container's ENTRYPOINT)")
+				// Verify NO release-mode agenticworkflows entrypoint (uses container's default ENTRYPOINT in dev mode)
+				// Note: safeoutputs section always has entrypoint = "sh" — only agenticworkflows omits it in dev mode
+				if strings.Contains(string(lockContent), `"entrypoint": "${RUNNER_TEMP}/gh-aw/gh-aw"`) {
+					t.Error("Did not expect release-mode agenticworkflows entrypoint in dev mode")
 				}
 
-				// Verify NO entrypointArgs field (uses container's default CMD)
-				if strings.Contains(string(lockContent), `"entrypointArgs"`) {
-					t.Error("Did not expect entrypointArgs field in dev mode (uses container's CMD)")
+				// Verify NO release-mode agenticworkflows entrypointArgs (uses container's default CMD in dev mode)
+				if strings.Contains(string(lockContent), `"entrypointArgs": ["mcp-server", "--validate-actor"]`) {
+					t.Error("Did not expect release-mode agenticworkflows entrypointArgs in dev mode")
 				}
 
 				// Verify no --cmd argument
