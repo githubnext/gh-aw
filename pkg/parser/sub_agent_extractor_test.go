@@ -109,7 +109,7 @@ func TestExtractInlineSubAgents_AgentWithoutFrontmatter(t *testing.T) {
 	assert.Equal(t, "Just a prompt, no frontmatter.", agents[0].Content, "agent content should be the prompt")
 }
 
-func TestExtractInlineSubAgents_PreservesModelFrontmatter(t *testing.T) {
+func TestExtractInlineSubAgents_PreservesFrontmatterExactly(t *testing.T) {
 	markdown := strings.Join([]string{
 		"# Main workflow",
 		"",
@@ -117,25 +117,33 @@ func TestExtractInlineSubAgents_PreservesModelFrontmatter(t *testing.T) {
 		"",
 		agentLine("helper"),
 		"---",
-		"model: claude-haiku-4.5",
 		"description: Returns a short answer",
+		"tools:",
+		"  github:",
+		"    toolsets: [issues]",
+		"model: claude-haiku-4.5",
+		"engine: copilot",
 		"---",
 		`Output "Hello from the sub-agent!".`,
 	}, "\n")
 
 	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
 
-	require.NoError(t, err, "sub-agent model frontmatter should parse without error")
+	require.NoError(t, err, "sub-agent frontmatter should parse without error")
 	assert.Equal(t, "# Main workflow\n\nDelegate to the helper.", mainMarkdown, "main markdown should exclude agent section")
 	require.Len(t, agents, 1, "should extract one sub-agent")
 	assert.Equal(t, "helper", agents[0].Name, "agent name should be 'helper'")
 	assert.Equal(t, strings.Join([]string{
 		"---",
-		"model: claude-haiku-4.5",
 		"description: Returns a short answer",
+		"tools:",
+		"  github:",
+		"    toolsets: [issues]",
+		"model: claude-haiku-4.5",
+		"engine: copilot",
 		"---",
 		`Output "Hello from the sub-agent!".`,
-	}, "\n"), agents[0].Content, "agent content should preserve the model frontmatter exactly")
+	}, "\n"), agents[0].Content, "agent content should preserve the frontmatter exactly")
 }
 
 func TestExtractInlineSubAgents_SeparatorWithTrailingWhitespace(t *testing.T) {

@@ -18,14 +18,9 @@
 // Both the agent marker and any subsequent H2 section heading render as visible
 // section headings in any Markdown preview (GitHub, VS Code, etc.).
 //
-// # Supported Frontmatter Fields
+// # Sub-Agent Frontmatter
 //
-// Only the following fields are valid in a sub-agent frontmatter block.
-// Any other field is stripped at runtime with a warning.
-//
-//   - description: Human-readable description of the sub-agent's role.
-//   - model: AI model to use.  Default is "inherited" (uses the parent
-//     workflow's model when not set).
+// Sub-agent frontmatter is preserved exactly as authored.
 //
 // # Example
 //
@@ -69,21 +64,12 @@ package parser
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var subAgentLog = logger.New("parser:sub_agent_extractor")
-
-// validSubAgentFrontmatterFields is the set of permitted keys in a sub-agent
-// frontmatter block. Any key not in this set will produce a warning when
-// ValidateInlineSubAgentsFrontmatter is called.
-var validSubAgentFrontmatterFields = map[string]bool{
-	"description": true,
-	"model":       true,
-}
 
 // ValidateInlineSubAgentsFrontmatter performs best-effort frontmatter validation
 // on every inline sub-agent section found in markdown.
@@ -93,9 +79,8 @@ var validSubAgentFrontmatterFields = map[string]bool{
 // before scanning for ## agent: `name` markers so that the file-level
 // frontmatter is not mistaken for sub-agent content.
 //
-// For each detected sub-agent the function:
-//  1. Attempts to parse its embedded frontmatter block (--- … ---).
-//  2. Reports unknown fields (anything other than "description" or "model").
+// For each detected sub-agent the function attempts to parse its embedded
+// frontmatter block (--- … ---).
 //
 // All issues are returned as human-readable warning strings. Callers must not
 // fail compilation based on these messages — they are advisory only (best effort).
@@ -133,37 +118,20 @@ func ValidateInlineSubAgentsInBody(body string) []string {
 
 	var warnings []string
 	for _, agent := range subAgents {
-		warnings = append(warnings, validateSubAgentFrontmatterFields(agent)...)
+		warnings = append(warnings, validateSubAgentFrontmatter(agent)...)
 	}
 	return warnings
 }
 
-// validateSubAgentFrontmatterFields parses the frontmatter block embedded in a
-// single InlineSubAgent.Content and returns warning messages for any unknown fields.
-func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
+// validateSubAgentFrontmatter parses the frontmatter block embedded in a single
+// InlineSubAgent.Content and returns warning messages for parse errors only.
+func validateSubAgentFrontmatter(agent InlineSubAgent) []string {
 	parsed, err := ExtractFrontmatterFromContent(agent.Content)
 	if err != nil {
 		return []string{fmt.Sprintf("sub-agent %q: could not parse frontmatter: %v", agent.Name, err)}
 	}
-	if len(parsed.Frontmatter) == 0 {
-		return nil
-	}
-
-	var unknown []string
-	for key := range parsed.Frontmatter {
-		if !validSubAgentFrontmatterFields[key] {
-			unknown = append(unknown, key)
-		}
-	}
-	if len(unknown) == 0 {
-		return nil
-	}
-
-	sort.Strings(unknown) // deterministic order
-	return []string{fmt.Sprintf(
-		"sub-agent %q: unknown frontmatter field(s): %s (valid fields: description, model)",
-		agent.Name, strings.Join(unknown, ", "),
-	)}
+	_ = parsed
+	return nil
 }
 
 // GetEngineSubAgentExt returns the file extension used for inline sub-agent files
