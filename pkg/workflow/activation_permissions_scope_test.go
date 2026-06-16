@@ -543,3 +543,101 @@ engine: copilot
 	assert.Contains(t, activationJobSection, "pull-requests: write", "activation job should include pull-requests:write for slash_command PR comment reactions")
 	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions:write for slash_command PR comment reactions")
 }
+
+// Tests for workflow_call trigger + reaction/status-comment permissions (issue #39372).
+// When a workflow declares workflow_call as its trigger it acts as a reusable workflow and can
+// be called from ANY caller event.  The compiler cannot know the caller's event type at compile
+// time, so it must grant the full set of permissions that the configured reactions / status-comments
+// could require.
+
+func TestActivationPermissionsWorkflowCallReaction(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-workflow-call-reaction")
+	testFile := filepath.Join(tmpDir, "workflow-call-reaction.md")
+	testContent := `---
+on:
+  workflow_call:
+  reaction: eyes
+engine: copilot
+---
+
+# Reusable workflow with reaction
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "issues: write", "activation job should include issues: write when workflow_call + reaction are configured")
+	assert.Contains(t, activationJobSection, "pull-requests: write", "activation job should include pull-requests: write when workflow_call + reaction are configured")
+	assert.Contains(t, activationJobSection, "discussions: write", "activation job should include discussions: write when workflow_call + reaction are configured")
+}
+
+func TestActivationPermissionsWorkflowCallStatusComment(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-workflow-call-status-comment")
+	testFile := filepath.Join(tmpDir, "workflow-call-status-comment.md")
+	testContent := `---
+on:
+  workflow_call:
+  reaction: none
+  status-comment: true
+engine: copilot
+---
+
+# Reusable workflow with status-comment only
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "issues: write", "activation job should include issues: write when workflow_call + status-comment are configured")
+	// pull-requests:write is only needed for PR reactions, not status-comments (which use the issues API)
+	assert.NotContains(t, activationJobSection, "pull-requests: write", "activation job should not include pull-requests: write for status-comment-only (status-comments use issues API)")
+	// discussions:write is included because status-comment includes discussions by default
+	assert.Contains(t, activationJobSection, "discussions: write", "activation job should include discussions: write when workflow_call + status-comment with default discussion target are configured")
+}
+
+func TestActivationPermissionsWorkflowCallAndIssuesTriggerReaction(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-workflow-call-and-issues-reaction")
+	testFile := filepath.Join(tmpDir, "workflow-call-and-issues-reaction.md")
+	testContent := `---
+on:
+  workflow_call:
+  issues:
+    types: [labeled]
+  reaction: eyes
+engine: copilot
+---
+
+# Reusable workflow with workflow_call and issues trigger
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "issues: write", "activation job should include issues: write when workflow_call+issues triggers + reaction are configured")
+	assert.Contains(t, activationJobSection, "pull-requests: write", "activation job should include pull-requests: write when workflow_call is present (broad permissions)")
+	assert.Contains(t, activationJobSection, "discussions: write", "activation job should include discussions: write when workflow_call is present (broad permissions)")
+}
