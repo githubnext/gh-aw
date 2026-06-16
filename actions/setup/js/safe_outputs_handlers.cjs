@@ -25,6 +25,18 @@ const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+/**
+ * Read and parse a JSON file.
+ * @param {string} filePath
+ * @returns {any}
+ */
+function readJSONFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+const safeOutputsTools = readJSONFile(path.join(__dirname, "safe_outputs_tools.json"));
+
+const safeOutputsToolMap = new Map(safeOutputsTools.map(tool => [tool.name, tool]));
 
 /**
  * @param {string} error
@@ -61,11 +73,29 @@ function buildMissingTemporaryIdError(toolName, configKey) {
 }
 
 /**
+ * @param {Record<string, any>} safeOutputsConfig
+ * @param {string} toolName
+ * @returns {Record<string, any>}
+ */
+function getSafeOutputsToolConfig(safeOutputsConfig, toolName) {
+  return safeOutputsConfig?.[toolName] || safeOutputsConfig?.[toolName.replace(/_/g, "-")] || {};
+}
+
+/**
  * @param {Record<string, any>} entry
+ * @param {string[]} fieldNames
  * @returns {boolean}
  */
-function hasExplicitAddCommentTargetNumber(entry) {
-  return ["item_number", "pr_number", "pr"].some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+function hasExplicitTargetParameter(entry, fieldNames) {
+  return fieldNames.some(field => entry[field] !== undefined && entry[field] !== null && String(entry[field]).trim() !== "");
+}
+
+/**
+ * @param {string} toolName
+ * @returns {{primary?: string, anyOf?: string[]} | null}
+ */
+function getWildcardTargetRequirement(toolName) {
+  return safeOutputsToolMap.get(toolName)?.["x-safe-outputs-target-requirements"]?.["*"] || null;
 }
 
 /**
@@ -154,8 +184,34 @@ function resolvePatchWorkspacePath(workspacePath) {
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
-  const addCommentConfig = config.add_comment || config["add-comment"] || {};
-  const wildcardAddCommentTargetRequiresItemNumber = addCommentConfig.target === "*";
+
+  /**
+   * Validate schema-declared explicit target parameters for wildcard-target tools.
+   * @param {Record<string, any>} entry
+   * @returns {{content: Array<{type: "text", text: string}>, isError: true} | null}
+   */
+  const validateWildcardTargetRequirement = entry => {
+    const toolName = entry?.type;
+    const requirement = getWildcardTargetRequirement(toolName);
+    if (!requirement) {
+      return null;
+    }
+
+    const toolConfig = getSafeOutputsToolConfig(config, toolName);
+    if (toolConfig.target !== "*") {
+      return null;
+    }
+
+    const anyOf = Array.isArray(requirement.anyOf) ? requirement.anyOf : [];
+    if (anyOf.length === 0 || hasExplicitTargetParameter(entry, anyOf)) {
+      return null;
+    }
+
+    const configKey = toolName.replace(/_/g, "-");
+    const primary = requirement.primary || anyOf[0];
+    const guidance = anyOf.length === 1 ? primary : `one of: ${anyOf.join(", ")}`;
+    return buildIntentErrorResponse(`${toolName} requires ${primary} when safe-outputs.${configKey}.target is '*'. Provide ${guidance} and retry.`);
+  };
 
   /**
    * Detect and offload large string fields to files.
@@ -204,6 +260,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const defaultHandler = type => args => {
     const entry = { ...(args || {}), type };
+    const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
+    if (wildcardTargetValidationError) {
+      return wildcardTargetValidationError;
+    }
     const largeContentResponse = maybeHandleLargeContent(entry);
     if (largeContentResponse) return largeContentResponse;
 
@@ -811,6 +871,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Drop it so the agent cannot override the derived source branch.
     const { branch: _agentBranch, ...sanitizedArgs } = args || {};
     const entry = { ...sanitizedArgs, type: "push_to_pull_request_branch" };
+    const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
+    if (wildcardTargetValidationError) {
+      return wildcardTargetValidationError;
+    }
 
     // Resolve target repo configuration and validate the target repo early
     // This is needed before getBaseBranch to ensure we resolve the base branch
@@ -1561,10 +1625,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
-    if (wildcardAddCommentTargetRequiresItemNumber) {
-      if (!hasExplicitAddCommentTargetNumber(entry)) {
-        return buildIntentErrorResponse("add_comment requires item_number when safe-outputs.add-comment.target is '*'. Provide item_number (or pr_number/pr alias).");
-      }
+    const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
+    if (wildcardTargetValidationError) {
+      return wildcardTargetValidationError;
     }
     const intentValidationError = validateAddCommentIntent(entry);
     if (intentValidationError) {
@@ -1619,7 +1682,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Increment only after the default handler returns successfully; if it throws
     // (e.g. due to large-content rejection or an append write error) the counter
     // must not advance so the empty-review guard remains accurate.
-    inlineReviewCommentCount++;
+    if (!result?.isError) {
+      inlineReviewCommentCount++;
+    }
     return result;
   };
 

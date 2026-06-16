@@ -198,6 +198,9 @@ Inline skills are secondary skill definitions embedded in the same markdown file
 | `GetBuiltinFrontmatterCache` | `func(path string) (*FrontmatterResult, bool)` | Gets cached frontmatter parse results for built-in virtual files |
 | `SetBuiltinFrontmatterCache` | `func(path string, result *FrontmatterResult) *FrontmatterResult` | Stores a frontmatter parse result in the built-in cache |
 | `ReadFile` | `func(path string) ([]byte, error)` | Reads file content through parser virtual/builtin-aware file resolution |
+| `SetVirtualFiles` | `func(files map[string][]byte)` | *(WASM only — `//go:build js \|\| wasm`)* Populates the in-memory virtual filesystem used by the WASM runtime; keys are workspace-relative file paths |
+| `ClearVirtualFiles` | `func()` | *(WASM only)* Removes all entries from the in-memory virtual filesystem |
+| `VirtualFileExists` | `func(path string) bool` | *(WASM only)* Returns whether a path is present in the in-memory virtual filesystem |
 | `MergeTools` | `func(base, additional map[string]any) (map[string]any, error)` | Merges two tool configuration maps with MCP-aware conflict handling |
 | `UpdateWorkflowFrontmatter` | `func(workflowPath string, updateFunc func(frontmatter map[string]any) error, verbose bool) error` | Reads, updates, and rewrites workflow frontmatter with a callback |
 | `ReconstructWorkflowFile` | `func(frontmatterYAML, markdownContent string) (string, error)` | Reconstructs a complete workflow file string from frontmatter YAML and markdown content |

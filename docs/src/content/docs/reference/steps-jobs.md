@@ -1,6 +1,8 @@
 ---
 title: Custom Steps and Jobs
 description: "Add deterministic pre-processing steps and custom GitHub Actions jobs to agentic workflows using steps:, pre-agent-steps:, post-steps:, and jobs:"
+sidebar:
+  order: 820
 ---
 
 Custom steps and jobs let you mix deterministic computation with agentic execution. All custom steps and jobs run **outside the firewall sandbox** with standard GitHub Actions security.

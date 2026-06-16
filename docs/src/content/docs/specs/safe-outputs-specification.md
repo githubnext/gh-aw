@@ -1978,6 +1978,19 @@ When a safe-output MCP tool schema changes (new required field, removed field, r
 
 Schema-only updates without matching agent/runtime sync updates **MUST NOT** be considered conformant.
 
+### 7.0.1 Wildcard Target Requirements Metadata
+
+Safe-outputs MCP tool schemas MAY declare `x-safe-outputs-target-requirements` in the tool JSON schema definition to define required runtime identifiers when workflow configuration uses wildcard targeting.
+
+When a safe-output type is configured with `target: "*"`, the MCP gateway MUST validate requests against `x-safe-outputs-target-requirements["*"]` before recording or executing intent.
+
+For `x-safe-outputs-target-requirements["*"]`:
+
+- `primary` SHALL identify the canonical target identifier field used in diagnostics and documentation; validation still requires at least one non-empty field listed in `anyOf`.
+- `anyOf` SHALL enumerate accepted input field names; at least one listed field MUST be present with a non-empty value.
+- If no listed `anyOf` field is present, the request MUST be rejected with an MCP validation error.
+- When `target` is not `"*"`, implementations MUST follow each type's normal **Operational Semantics** context resolution behavior; this metadata MUST NOT add additional required runtime identifier fields.
+
 ### 7.1 Core Issue Operations
 
 #### Type: create_issue
@@ -2189,6 +2202,7 @@ safe-outputs:
 - Discussion-related safe outputs (`create-discussion`, `close-discussion`, `update-discussion`) independently add `discussions:write` permission when configured
 - Cross-repository commenting requires appropriate permissions in target repository
 - The `contents: read` permission is always included for repository context access
+- When `safe-outputs.add-comment.target` is `"*"`, requests MUST include at least one of `item_number`, `pr_number`, or `pr`; `item_number` is the canonical field.
 
 ---
 
@@ -2756,6 +2770,7 @@ This section provides complete definitions for all remaining safe output types. 
 2. **Context Resolution**: When `discussion_number` is omitted, resolves from the workflow trigger context.
 3. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 4. **GraphQL-Based**: Uses GitHub GraphQL API for discussion updates as the REST API does not support discussion modification.
+5. **Wildcard Target Requirement**: When `safe-outputs.update-discussion.target` is `"*"`, requests MUST include `discussion_number`.
 
 **Configuration Parameters**:
 
@@ -2884,6 +2899,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Only specified fields are updated; unspecified fields remain unchanged
 - Base branch changes are validated for safety
+- When `safe-outputs.update-pull-request.target` is `"*"`, requests MUST include at least one of `pull_request_number`, `pr_number`, or `pr`; `pull_request_number` is the canonical field.
 
 ---
 
@@ -2911,6 +2927,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Higher default max (10) enables bulk PR cleanup operations
 - Does NOT merge changes - use GitHub's merge functionality for that
+- When `safe-outputs.close-pull-request.target` is `"*"`, requests MUST include `pull_request_number`.
 
 ---
 
@@ -3049,6 +3066,7 @@ This section provides complete definitions for all remaining safe output types. 
 - Enforces maximum patch size limit (default: 10 KB, range: 1–100 KB)
 - Validates changes don't exceed size limits before pushing
 - Base-branch resolution MUST NOT depend on interactive credential prompts; git operations issued by the handler MUST run with `GIT_TERMINAL_PROMPT=0` and an enforced timeout so credential-less environments fail fast rather than hanging
+- When `safe-outputs.push-to-pull-request-branch.target` is `"*"`, requests MUST include `pull_request_number`.
 
 ---
 
@@ -3076,6 +3094,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Comments buffered via PR review buffer for batch submission
 - Higher default max (10) enables comprehensive code review
+- When `safe-outputs.create-pull-request-review-comment.target` is `"*"`, requests MUST include `pull_request_number`.
 
 ---
 
@@ -3103,7 +3122,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Submits all buffered review comments from `create_pull_request_review_comment`
 - Review status affects PR merge requirements
-- **Target**: `target` accepts `"triggering"` (default), `"*"` (use `pull_request_number` from message), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
+- **Target**: `target` accepts `"triggering"` (default), `"*"` (request MUST include `pull_request_number`), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
 - **Cross-Repository**: `target-repo` specifies a repository in `owner/repo` format to submit reviews on PRs in another repo. Use `allowed-repos` to permit additional repositories.
 - Footer control: `footer` accepts `"always"` (default), `"none"`, or `"if-body"` (only when review body has text); boolean `true`/`false` maps to `"always"`/`"none"`
 
@@ -3765,7 +3784,7 @@ safe-outputs:
 - The check run `name` is configured in workflow frontmatter, NOT accepted as an agent-provided parameter. Agents MUST NOT pass `name` in the tool call.
 - `conclusion` is required and MUST be one of: `success`, `failure`, `neutral`, `cancelled`, `skipped`, `timed_out`, `action_required`.
 - `title` and `summary` are required. Both may be supplied as static fallbacks in frontmatter (`output.title`, `output.summary`) when the agent does not produce them.
-- `pull_request_number` (aliases: `pr_number`, `pr`, `pull_number`) is only meaningful when `target: "*"` is configured.
+- When `target: "*"` is configured, requests MUST include at least one of `pull_request_number`, `pr_number`, `pr`, or `pull_number`; `pull_request_number` is the canonical field.
 - The `pull-requests: read` permission is automatically added to the compiled workflow only when `target` is configured; workflows without a `target` are not affected.
 
 **Example Frontmatter**:
