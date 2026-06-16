@@ -34,7 +34,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **`window:`** - Time window in minutes (integer 1-180, default: 60)
   - **`events:`** - Event types to apply rate limiting to (array; if omitted, applies to all programmatic events)
     - Available: `workflow_dispatch`, `issue_comment`, `pull_request_review`, `pull_request_review_comment`, `issues`, `pull_request`, `discussion_comment`, `discussion`
-  - **`ignored-roles:`** - Roles exempt from rate limiting (array, default: `[admin, maintain, write]`). Set to `[]` to apply to all users.
+  - **`ignored-roles:`** - Roles exempt from rate limiting (array of `admin`, `maintain`, `write`, `triage`, `read`; default: `[admin, maintain, write]`). Set to `[]` to apply to all users.
   - Example:
 
     ```yaml
@@ -268,12 +268,12 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - `setup-steps`/`pre-steps` also apply to built-in jobs (e.g. `activation`): use `setup-steps` for OIDC/secret bootstrap that must run before framework token minting, then verify the result in `pre-steps`.
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or `"opencode"` (experimental)
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"opencode"`, `"crush"`, `"pi"`
   - Object format for extended configuration:
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini, or opencode)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: opencode, crush, pi)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
