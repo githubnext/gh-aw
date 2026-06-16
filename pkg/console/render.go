@@ -285,7 +285,9 @@ func collectTableFields(t reflect.Type, prefix []int) []tableField {
 	fields := make([]tableField, 0, t.NumField())
 	for i := range t.NumField() {
 		field := t.Field(i)
-		fieldPath := append(append([]int(nil), prefix...), i)
+		fieldPath := make([]int, len(prefix)+1)
+		copy(fieldPath, prefix)
+		fieldPath[len(prefix)] = i
 
 		if field.Anonymous {
 			if embeddedType, ok := embeddedStructType(field.Type); ok {

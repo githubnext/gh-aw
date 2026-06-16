@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test types for struct rendering
@@ -541,7 +542,16 @@ func TestRenderSlice_EmbeddedStruct(t *testing.T) {
 	assert.Contains(t, output, "Name", "output should contain Name column header")
 	assert.Contains(t, output, "Engine", "output should contain Engine column header")
 	assert.Contains(t, output, "Status", "output should contain Status column header")
-	assert.Less(t, strings.Index(output, "Name"), strings.Index(output, "Status"), "embedded Name column must appear before outer Status column")
+	lines := strings.Split(output, "\n")
+	headerLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "Name") && strings.Contains(line, "Status") {
+			headerLine = line
+			break
+		}
+	}
+	require.NotEmpty(t, headerLine, "table output should include a header row")
+	assert.Less(t, strings.Index(headerLine, "Name"), strings.Index(headerLine, "Status"), "embedded Name column must appear before outer Status column in the header row")
 
 	// All values should be present in the table rows.
 	assert.Contains(t, output, "wf-1", "output should contain first workflow name")
