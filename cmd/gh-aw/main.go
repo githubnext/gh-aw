@@ -264,7 +264,7 @@ Three flags govern this and only one should be used at a time:
   --action-tag <sha-or-tag>
     Pin to a specific SHA or version tag (e.g. v1, v1.2.3, abc123...).
     Implies --action-mode release unless --action-mode action is also specified.
-    The value is used as-is; branch names are NOT resolved. Use --gh-aw-ref to
+    The value is used as-is; branch names are not resolved. Use --gh-aw-ref to
     pin to a branch by resolving it to its current commit SHA first.
 
   --gh-aw-ref <branch-tag-or-sha>
