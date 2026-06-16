@@ -24,7 +24,7 @@ function isHtmlContent(str) {
  * @returns {string} The error message as a string
  */
 function getErrorMessage(error) {
-  const errorWithStatus = /** @type {{ status?: unknown } | null | undefined} */ error;
+  const errorAsAny = /** @type {any} */ error;
   let message;
   if (error instanceof Error) {
     message = error.message;
@@ -35,7 +35,7 @@ function getErrorMessage(error) {
   }
 
   if (isHtmlContent(message)) {
-    const status = errorWithStatus != null && typeof errorWithStatus.status === "number" ? errorWithStatus.status : null;
+    const status = errorAsAny != null && typeof errorAsAny.status === "number" ? errorAsAny.status : null;
     return status != null ? `GitHub returned an unexpected HTML response (HTTP ${status})` : "GitHub returned an unexpected HTML response";
   }
 
