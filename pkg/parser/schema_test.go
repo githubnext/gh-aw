@@ -1025,6 +1025,25 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchema_CreateDiscussionRequiredCategoryAllowed(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"create-discussion": map[string]any{
+				"category":                "Ideas",
+				"close-older-discussions": true,
+				"required-category":       "Ideas",
+			},
+		},
+	}
+
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("expected create-discussion.required-category to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchemaPushToPullRequestBranchHasMaxPatchSize(t *testing.T) {
 	schemaPath := "schemas/main_workflow_schema.json"
 	schemaContent, err := os.ReadFile(schemaPath)

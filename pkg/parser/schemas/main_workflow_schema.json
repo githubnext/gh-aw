@@ -5766,7 +5766,8 @@
                 {
                   "title-prefix": "[weekly-report] ",
                   "category": "reports",
-                  "close-older-discussions": true
+                  "close-older-discussions": true,
+                  "required-category": "reports"
                 },
                 {
                   "labels": ["weekly-report", "automation"],
