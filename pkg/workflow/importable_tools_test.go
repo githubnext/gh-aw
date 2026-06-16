@@ -142,9 +142,10 @@ Uses imported agentic-workflows tool.
 	workflowData := string(lockFileContent)
 
 	// Verify containerized agenticworkflows server is present (per MCP Gateway Specification v1.0.0)
-	// In dev mode, no entrypoint or entrypointArgs (uses container's defaults)
-	if strings.Contains(workflowData, `"entrypointArgs"`) {
-		t.Error("Did not expect entrypointArgs field in dev mode (uses container's CMD)")
+	// In dev mode, agenticworkflows has no entrypoint or entrypointArgs (uses container's defaults).
+	// Note: safeoutputs section always includes entrypoint = "sh" — only agenticworkflows omits it in dev mode.
+	if strings.Contains(workflowData, `"entrypointArgs": ["mcp-server", "--validate-actor"]`) {
+		t.Error("Did not expect release-mode agenticworkflows entrypointArgs in dev mode (uses container's CMD)")
 	}
 
 	if strings.Contains(workflowData, `"--cmd"`) {
@@ -157,9 +158,9 @@ Uses imported agentic-workflows tool.
 		t.Error("Expected compiled workflow to contain localhost/gh-aw:dev container for agentic-workflows in dev mode")
 	}
 
-	// Verify NO entrypoint field (uses container's default ENTRYPOINT)
-	if strings.Contains(workflowData, `"entrypoint"`) {
-		t.Error("Did not expect entrypoint field in dev mode (uses container's ENTRYPOINT)")
+	// Verify NO release-mode agenticworkflows entrypoint (uses container's default ENTRYPOINT in dev mode)
+	if strings.Contains(workflowData, `"entrypoint": "${RUNNER_TEMP}/gh-aw/gh-aw"`) {
+		t.Error("Did not expect release-mode agenticworkflows entrypoint in dev mode (uses container's ENTRYPOINT)")
 	}
 
 	// Verify ${RUNNER_TEMP}/gh-aw is always mounted read-only for security
