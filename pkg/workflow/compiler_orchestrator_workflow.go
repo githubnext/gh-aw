@@ -248,7 +248,7 @@ func (c *Compiler) mergeImportedObservability(workflowData *WorkflowData, merged
 	}
 	mainObs := extractRawObservabilityMap(workflowData.RawFrontmatter)
 	mergedEndpoints, mainCount, importAdded := mergeRawOTLPEndpoints(mainObs, importedObs)
-	mergedAttrs := mergeOTLPCustomAttributes(
+	mergedAttrs := mergeOTLPStringMaps(
 		extractOTLPCustomAttributesFromObsMap(mainObs),
 		extractOTLPCustomAttributesFromObsMap(importedObs),
 	)

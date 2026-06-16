@@ -489,12 +489,6 @@ func mergeOTLPStringMaps(base, override map[string]string) map[string]string {
 	return merged
 }
 
-// mergeOTLPCustomAttributes merges two custom-attribute maps; values in base
-// take precedence over values in override when the same key is present in both.
-func mergeOTLPCustomAttributes(base, override map[string]string) map[string]string {
-	return mergeOTLPStringMaps(base, override)
-}
-
 // collectAllOTLPEndpoints reads the `observability.otlp.endpoint` field from the raw
 // frontmatter and returns all configured endpoint entries. The `endpoint` field may be:
 //

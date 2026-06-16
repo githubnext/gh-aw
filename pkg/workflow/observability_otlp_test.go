@@ -2106,29 +2106,29 @@ func TestInjectOTLPConfig_CustomAttributes(t *testing.T) {
 	})
 }
 
-// TestMergeOTLPCustomAttributes verifies that mergeOTLPCustomAttributes correctly
+// TestMergeOTLPStringMaps verifies that mergeOTLPStringMaps correctly
 // merges two attribute maps with base taking precedence.
-func TestMergeOTLPCustomAttributes(t *testing.T) {
+func TestMergeOTLPStringMaps(t *testing.T) {
 	t.Run("nil inputs return nil", func(t *testing.T) {
-		assert.Nil(t, mergeOTLPCustomAttributes(nil, nil))
+		assert.Nil(t, mergeOTLPStringMaps(nil, nil))
 	})
 
 	t.Run("base only is returned as-is", func(t *testing.T) {
 		base := map[string]string{"a": "1"}
-		result := mergeOTLPCustomAttributes(base, nil)
+		result := mergeOTLPStringMaps(base, nil)
 		assert.Equal(t, map[string]string{"a": "1"}, result)
 	})
 
 	t.Run("override only is returned as-is", func(t *testing.T) {
 		override := map[string]string{"b": "2"}
-		result := mergeOTLPCustomAttributes(nil, override)
+		result := mergeOTLPStringMaps(nil, override)
 		assert.Equal(t, map[string]string{"b": "2"}, result)
 	})
 
 	t.Run("base keys override the same key from override", func(t *testing.T) {
 		base := map[string]string{"a": "base-value", "b": "base-b"}
 		override := map[string]string{"a": "override-value", "c": "override-c"}
-		result := mergeOTLPCustomAttributes(base, override)
+		result := mergeOTLPStringMaps(base, override)
 		require.NotNil(t, result)
 		assert.Equal(t, "base-value", result["a"], "base should win for key 'a'")
 		assert.Equal(t, "base-b", result["b"], "base-only key 'b' should be present")
