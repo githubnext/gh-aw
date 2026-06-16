@@ -79,6 +79,8 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
+// Pattern to detect the observed Copilot/CAPI quota exhaustion error.
+const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
@@ -148,6 +150,15 @@ function generateCopilotConnectionToken(options) {
  */
 function isTransientCAPIError(output) {
   return CAPI_ERROR_400_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isCAPIQuotaExceededError(output) {
+  return CAPI_QUOTA_EXCEEDED_PATTERN.test(output);
 }
 
 /**
@@ -706,6 +717,7 @@ async function main() {
         //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
         //     permanently disable --continue so the corrupt state is never reloaded.
         const isCAPIError = isTransientCAPIError(result.output);
+        const isQuotaExceeded = isCAPIQuotaExceededError(result.output);
         const isMCPPolicy = isMCPPolicyError(result.output);
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
@@ -718,6 +730,7 @@ async function main() {
           `attempt ${attempt + 1} failed:` +
             ` exitCode=${result.exitCode}` +
             ` isCAPIError400=${isCAPIError}` +
+            ` isCAPIQuotaExceededError=${isQuotaExceeded}` +
             ` isMCPPolicyError=${isMCPPolicy}` +
             ` isModelNotSupportedError=${isModelNotSupported}` +
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
@@ -832,6 +845,12 @@ async function main() {
           log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
         }
 
+        // The observed quota exhaustion error is not useful to retry with --continue.
+        if (isQuotaExceeded) {
+          log(`attempt ${attempt + 1}: Copilot quota exceeded — not retrying`);
+          break;
+        }
+
         if (attempt < MAX_RETRIES && result.hasOutput) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
@@ -910,6 +929,7 @@ if (typeof module !== "undefined" && module.exports) {
     writeCopilotOutputs,
     resolvePromptFileArgs,
     parseCopilotSDKServerArgsFromEnv,
+    isCAPIQuotaExceededError,
   };
 }
 
