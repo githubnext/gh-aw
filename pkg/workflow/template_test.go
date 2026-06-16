@@ -75,11 +75,13 @@ func TestGenerateInterpolationAndTemplateStep_GeneratePath(t *testing.T) {
 
 // TestGenerateInterpolationAndTemplateStep_WithInlineSubAgent ensures inline sub-agent
 // workflows still run interpolate_prompt.cjs even when github context templates are absent.
+// ParsedTools uses an empty map (no github key) so hasGitHubTool returns false,
+// confirming that the inline sub-agent marker alone is sufficient to trigger the step.
 func TestGenerateInterpolationAndTemplateStep_WithInlineSubAgent(t *testing.T) {
 	compiler := &Compiler{}
 	data := &WorkflowData{
 		MarkdownContent: "Main prompt\n\n## agent: `planner`\nDo planning.",
-		ParsedTools:     NewTools(map[string]any{"github": false}),
+		ParsedTools:     NewTools(map[string]any{}),
 	}
 
 	var yaml strings.Builder

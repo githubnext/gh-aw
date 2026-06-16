@@ -9,7 +9,7 @@ import (
 )
 
 var templateLog = logger.New("workflow:template")
-var inlineSubAgentPattern = regexp.MustCompile(`(?m)^##[ \t]+agent:[ \t]+` + "`" + `[a-z][a-z0-9_-]*` + "`")
+var inlineSubAgentPattern = regexp.MustCompile("(?m)^##[ \t]+agent:[ \t]+`[a-z][a-z0-9_-]*`[ \t]*$")
 
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
 // expressions in ${{ }}. For example:
