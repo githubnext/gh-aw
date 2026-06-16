@@ -38,6 +38,10 @@ const H2_HEADING_RE = /^##[ \t]/gm;
 /**
  * Preserves sub-agent frontmatter exactly as authored.
  *
+ * This helper is kept to preserve the write-path structure used by the inline
+ * skills/sub-agents extractors and to provide a single hook if the runtime ever
+ * needs sub-agent-specific frontmatter normalization again.
+ *
  * @param {string} content - Raw agent block content (frontmatter + prompt).
  * @returns {string} Unchanged content.
  */

@@ -118,14 +118,14 @@ func ValidateInlineSubAgentsInBody(body string) []string {
 
 	var warnings []string
 	for _, agent := range subAgents {
-		warnings = append(warnings, validateSubAgentFrontmatter(agent)...)
+		warnings = append(warnings, validateSubAgentFrontmatterSyntax(agent)...)
 	}
 	return warnings
 }
 
-// validateSubAgentFrontmatter parses the frontmatter block embedded in a single
-// InlineSubAgent.Content and returns warning messages for parse errors only.
-func validateSubAgentFrontmatter(agent InlineSubAgent) []string {
+// validateSubAgentFrontmatterSyntax parses the frontmatter block embedded in a
+// single InlineSubAgent.Content and returns warning messages for parse errors only.
+func validateSubAgentFrontmatterSyntax(agent InlineSubAgent) []string {
 	if _, err := ExtractFrontmatterFromContent(agent.Content); err != nil {
 		return []string{fmt.Sprintf("sub-agent %q: could not parse frontmatter: %v", agent.Name, err)}
 	}
