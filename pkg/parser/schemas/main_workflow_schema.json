@@ -5689,6 +5689,10 @@
                   "minLength": 1,
                   "pattern": "\\S"
                 },
+                "required-category": {
+                  "type": "string",
+                  "description": "Required category for matching when close-older-discussions is enabled. Only discussions in this category will be considered when searching for older discussions to close."
+                },
                 "fallback-to-issue": {
                   "type": "boolean",
                   "description": "When true (default), fallback to creating an issue if discussion creation fails due to permissions. The fallback issue will include a note indicating it was intended to be a discussion. If close-older-discussions is enabled, the close-older-issues logic will be applied to the fallback issue.",
