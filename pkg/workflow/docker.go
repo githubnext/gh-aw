@@ -49,6 +49,18 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		}
 	}
 
+	// Check for safe-outputs MCP server.
+	// Safe outputs run in the published gh-aw node container and must be part of
+	// the default predownload set and lock-file manifest whenever enabled.
+	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		image := constants.DefaultGhAwNodeImage
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+			dockerLog.Printf("Added safe-outputs MCP server container: %s", image)
+		}
+	}
+
 	// Check for agentic-workflows tool
 	// In dev mode, the image is built locally in the workflow, so don't add to pull list
 	// In release/script mode, use alpine:latest which needs to be pulled

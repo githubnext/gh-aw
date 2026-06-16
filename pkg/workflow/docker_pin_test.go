@@ -122,11 +122,10 @@ func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
 	assert.Len(t, workflowData.DockerImagePins, len(workflowData.DockerImages), "pin count should match image count")
 }
 
-// TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine verifies that enabling
-// safe-outputs does not add node:lts-alpine to the Docker pull list. The safe-outputs
-// MCP server runs directly via system Node (not inside a Docker container), so pulling
-// the image is both unnecessary and fails when Docker Hub is unreachable.
-func TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine(t *testing.T) {
+// TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage verifies that enabling
+// safe-outputs adds the published gh-aw-node container to the default Docker pull
+// list and manifest data, while not falling back to node:lts-alpine.
+func TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
@@ -136,6 +135,12 @@ func TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine(t *testing.T) {
 	}
 
 	images := collectDockerImages(map[string]any{}, workflowData, ActionModeRelease)
+
+	assert.Contains(t, images, constants.DefaultGhAwNodeImage,
+		"safe-outputs should add the gh-aw-node container image to the Docker pull list")
+	require.NotEmpty(t, workflowData.DockerImagePins, "DockerImagePins should be populated")
+	assert.Contains(t, workflowData.DockerImagePins, GHAWManifestContainer{Image: constants.DefaultGhAwNodeImage},
+		"safe-outputs should add gh-aw-node to manifest container pins")
 
 	for _, img := range images {
 		assert.NotContains(t, img, constants.DefaultNodeAlpineLTSImage,
