@@ -29,7 +29,7 @@
     "astro-mermaid": "^2.0.2",
     "mermaid": "^11.15.0",
     "pdfjs-dist": "^6.0.227",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.1",
     "starlight-blog": "^0.26.1",
     "starlight-changelogs": "^0.5.0",
     "starlight-links-validator": "^0.24.0",
