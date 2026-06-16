@@ -105,6 +105,16 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	hasSafeOutputs := slices.Contains(mcpTools, "safe-outputs")
 	if hasSafeOutputs {
 		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}"
+		// GH_AW_SAFE_OUTPUTS_CONFIG_PATH and GH_AW_SAFE_OUTPUTS_TOOLS_PATH are referenced as
+		// ${VAR} placeholders in the safeoutputs MCP container env block and must be resolvable
+		// by the gateway from process.env at startup time.
+		envVars["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}"
+		envVars["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}"
+		// GITHUB_TOKEN is needed by the safeoutputs container for GitHub API access.
+		// Only set if not already provided (e.g. by hasAgenticWorkflows below).
+		if _, ok := envVars["GITHUB_TOKEN"]; !ok {
+			envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
+		}
 		// Only add upload-assets env vars if upload-assets is configured
 		if workflowData.SafeOutputs.UploadAssets != nil {
 			envVars["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"
@@ -124,15 +134,6 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// Add tool-specific env vars (secrets passthrough)
 		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
 		maps.Copy(envVars, mcpScriptsSecrets)
-	}
-
-	// Add safe-outputs server connection env vars (port and API key for MCP tools)
-	// Only add if safe-outputs is actually enabled — avoids referencing step outputs
-	// that don't exist when safe-outputs isn't used.
-	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		// Add server configuration env vars from step outputs
-		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-start.outputs.port }}"
-		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 	}
 
 	// Check for agentic-workflows GITHUB_TOKEN
