@@ -679,8 +679,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 
 	// Create minimal WorkflowData for threat detection.
 	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
-	// NetworkPermissions.Allowed is empty so no user-specified domains are added on top of
-	// the engine's minimal detection domain list (see GetThreatDetectionAllowedDomains).
+	// NetworkPermissions.Allowed preserves only literal user-specified domains when Copilot
+	// BYOK is enabled so secret-backed provider URLs can still be paired with an explicit
+	// provider hostname in network.allowed without re-opening whole ecosystem allow-lists.
 	// No MCP servers are configured for detection.
 	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
 	// constraint, so restricting individual bash commands inside the sandbox adds friction
@@ -697,7 +698,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
-			Allowed: []string{}, // no user-specified additional domains; engine provides its own minimal set
+			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
@@ -766,6 +767,30 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	return steps
+}
+
+func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
+	if !engineEnvHasKey(data, constants.CopilotProviderBaseURL) || data == nil || data.NetworkPermissions == nil {
+		return []string{}
+	}
+
+	additional := make([]string, 0, len(data.NetworkPermissions.Allowed))
+	seen := make(map[string]struct{})
+	for _, entry := range data.NetworkPermissions.Allowed {
+		if entry == "" || strings.Contains(entry, "${{") {
+			continue
+		}
+		if len(getEcosystemDomains(entry)) > 0 {
+			continue
+		}
+		if _, exists := seen[entry]; exists {
+			continue
+		}
+		seen[entry] = struct{}{}
+		additional = append(additional, entry)
+	}
+
+	return additional
 }
 
 // getThreatDetectionEngineID returns the effective engine ID for the detection job.

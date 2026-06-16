@@ -532,6 +532,11 @@
       "digest": "sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c",
       "pinned_image": "ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"
     },
+    "ghcr.io/github/github-mcp-server:v1.3.0": {
+      "image": "ghcr.io/github/github-mcp-server:v1.3.0",
+      "digest": "sha256:5c83359327a0bacc3d34db730bea6557d39d341cee0bf6c58c9a896e33150e80",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v1.3.0@sha256:5c83359327a0bacc3d34db730bea6557d39d341cee0bf6c58c9a896e33150e80"
+    },
     "ghcr.io/github/serena-mcp-server:latest": {
       "image": "ghcr.io/github/serena-mcp-server:latest",
       "digest": "sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5",

@@ -865,6 +865,96 @@ Test workflow with GHE data residency api-target and threat detection.
 	}
 }
 
+func TestCopilotProviderBaseURLInThreatDetectionStep(t *testing.T) {
+	workflow := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  env:
+    COPILOT_PROVIDER_BASE_URL: ${{ secrets.PROVIDER_BASE_URL }}
+network:
+  allowed:
+    - defaults
+    - llm.corp.example.com
+strict: false
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test workflow with COPILOT_PROVIDER_BASE_URL in engine.env and provider host in network.allowed.
+`
+
+	tmpDir := testutil.TempDir(t, "copilot-provider-threat-detection-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflow), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	requiredDomain := "llm.corp.example.com"
+	allowDomainsPrefix := `"allowDomains":[`
+	allowDomainsPrefixEscaped := `\"allowDomains\":[`
+	if !strings.Contains(lockStr, allowDomainsPrefix) {
+		allowDomainsPrefix = allowDomainsPrefixEscaped
+	}
+
+	remaining := lockStr
+	occurrenceIdx := 0
+	for {
+		idx := strings.Index(remaining, allowDomainsPrefix)
+		if idx < 0 {
+			break
+		}
+		occurrenceIdx++
+		arrayStart := idx + len(allowDomainsPrefix)
+		arrayEnd := strings.Index(remaining[arrayStart:], "]")
+		if arrayEnd < 0 {
+			arrayEnd = len(remaining) - arrayStart
+		}
+		section := remaining[arrayStart : arrayStart+arrayEnd]
+		if !strings.Contains(section, `"`+requiredDomain+`"`) && !strings.Contains(section, `\"`+requiredDomain+`\"`) {
+			t.Errorf("allowDomains occurrence #%d is missing BYOK provider domain %q.\nSection: %s", occurrenceIdx, requiredDomain, section)
+		}
+		remaining = remaining[arrayStart+arrayEnd:]
+	}
+
+	if occurrenceIdx < 2 {
+		t.Errorf("Expected at least 2 allowDomains occurrences (main agent + threat detection), found %d", occurrenceIdx)
+	}
+
+	lines := strings.Split(lockStr, "\n")
+	var domainsLine string
+	for _, line := range lines {
+		if strings.Contains(line, "GH_AW_ALLOWED_DOMAINS:") {
+			domainsLine = line
+			break
+		}
+	}
+	if domainsLine == "" {
+		t.Fatal("GH_AW_ALLOWED_DOMAINS not found in compiled lock file")
+	}
+	if !strings.Contains(domainsLine, requiredDomain) {
+		t.Errorf("Expected BYOK provider hostname in GH_AW_ALLOWED_DOMAINS.\nLine: %s", domainsLine)
+	}
+}
+
 // TestAllowedDomainsUnionWithNetworkConfig tests that safe-outputs.allowed-domains
 // is unioned with network.allowed and always includes localhost and github.com
 func TestAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
