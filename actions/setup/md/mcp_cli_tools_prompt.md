@@ -20,6 +20,6 @@ printf '{"item_number":42,"body":"### Title\n\nBody."}' | safeoutputs add_commen
 # or write to a file: safeoutputs create_pull_request . < /tmp/payload.json
 ```
 
-Run `<server> --help` to list available tools and their parameters.
+Use `<server> --help` for tool names, parameters, and examples before calling any command.
 </mcp-clis>
 
