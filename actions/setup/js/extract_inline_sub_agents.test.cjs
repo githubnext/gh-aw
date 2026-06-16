@@ -14,7 +14,7 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSubAgents, writeInlineSubAgents, filterSubAgentFrontmatter } = require("./extract_inline_sub_agents.cjs");
+const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter } = require("./extract_inline_sub_agents.cjs");
 
 // Helper: returns a ## agent: `name` start marker line.
 const agentMarker = name => `## agent: \`${name}\``;
@@ -222,18 +222,18 @@ describe("writeInlineSubAgents", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// filterSubAgentFrontmatter — unit tests
+// preserveSubAgentFrontmatter — unit tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("filterSubAgentFrontmatter", () => {
+describe("preserveSubAgentFrontmatter", () => {
   it("returns content unchanged when no frontmatter present", () => {
     const content = "Just a plain prompt.";
-    expect(filterSubAgentFrontmatter(content, "agent")).toBe(content);
+    expect(preserveSubAgentFrontmatter(content)).toBe(content);
   });
 
   it("keeps description and model fields", () => {
     const content = "---\ndescription: A planner\nmodel: claude-haiku-4.5\n---\nPrompt.";
-    const result = filterSubAgentFrontmatter(content, "agent");
+    const result = preserveSubAgentFrontmatter(content);
     expect(result).toContain("description: A planner");
     expect(result).toContain("model: claude-haiku-4.5");
     expect(result).toContain("Prompt.");
@@ -241,36 +241,36 @@ describe("filterSubAgentFrontmatter", () => {
 
   it("preserves unsupported fields too", () => {
     const content = "---\nengine: copilot\nmodel: claude-haiku-4.5\ndescription: Helper\n---\nPrompt.";
-    const result = filterSubAgentFrontmatter(content, "agent");
+    const result = preserveSubAgentFrontmatter(content);
     expect(result).toBe(content);
   });
 
   it("preserves the entire frontmatter when nested fields appear between supported fields", () => {
     const content = ["---", "description: Helper", "tools:", "  github:", "    toolsets: [issues]", "model: claude-haiku-4.5", "engine: copilot", "---", "Prompt."].join("\n");
 
-    expect(filterSubAgentFrontmatter(content, "agent")).toBe(content);
+    expect(preserveSubAgentFrontmatter(content)).toBe(content);
   });
 
   it("preserves frontmatter even when it only contains previously unsupported fields", () => {
     const content = "---\nengine: copilot\ntools:\n  github:\n    toolsets: [issues]\n---\nPrompt.";
-    const result = filterSubAgentFrontmatter(content, "agent");
+    const result = preserveSubAgentFrontmatter(content);
     expect(result).toBe(content);
   });
 
   it("returns content unchanged when no closing delimiter found", () => {
     const content = "---\nengine: copilot\nPrompt without closing delimiter.";
-    expect(filterSubAgentFrontmatter(content, "agent")).toBe(content);
+    expect(preserveSubAgentFrontmatter(content)).toBe(content);
   });
 
   it("handles content with only model field", () => {
     const content = "---\nmodel: gpt-4o\n---\nYou are a summarizer.";
-    const result = filterSubAgentFrontmatter(content, "agent");
+    const result = preserveSubAgentFrontmatter(content);
     expect(result).toBe(content);
   });
 
   it("handles content with only description field", () => {
     const content = "---\ndescription: Summarizes files\n---\nYou are a summarizer.";
-    const result = filterSubAgentFrontmatter(content, "agent");
+    const result = preserveSubAgentFrontmatter(content);
     expect(result).toBe(content);
   });
 });

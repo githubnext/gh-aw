@@ -38,11 +38,10 @@ const H2_HEADING_RE = /^##[ \t]/gm;
 /**
  * Preserves sub-agent frontmatter exactly as authored.
  *
- * @param {string} content   - Raw agent block content (frontmatter + prompt).
- * @param {string} agentName - Agent name.
+ * @param {string} content - Raw agent block content (frontmatter + prompt).
  * @returns {string} Unchanged content.
  */
-function filterSubAgentFrontmatter(content, agentName) {
+function preserveSubAgentFrontmatter(content) {
   return content;
 }
 
@@ -166,7 +165,7 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
-    const filteredContent = filterSubAgentFrontmatter(agent.content, agent.name);
+    const filteredContent = preserveSubAgentFrontmatter(agent.content);
     const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
     fs.writeFileSync(agentPath, agentContent, "utf8");
     core.info(`[extractInlineSubAgents] Written sub-agent: ${agentPath} (${agentContent.length} bytes)`);
@@ -176,4 +175,4 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   return mainContent;
 }
 
-module.exports = { extractInlineSubAgents, writeInlineSubAgents, getEngineSubAgentTarget, filterSubAgentFrontmatter };
+module.exports = { extractInlineSubAgents, writeInlineSubAgents, getEngineSubAgentTarget, preserveSubAgentFrontmatter };

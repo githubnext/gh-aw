@@ -126,11 +126,9 @@ func ValidateInlineSubAgentsInBody(body string) []string {
 // validateSubAgentFrontmatter parses the frontmatter block embedded in a single
 // InlineSubAgent.Content and returns warning messages for parse errors only.
 func validateSubAgentFrontmatter(agent InlineSubAgent) []string {
-	parsed, err := ExtractFrontmatterFromContent(agent.Content)
-	if err != nil {
+	if _, err := ExtractFrontmatterFromContent(agent.Content); err != nil {
 		return []string{fmt.Sprintf("sub-agent %q: could not parse frontmatter: %v", agent.Name, err)}
 	}
-	_ = parsed
 	return nil
 }
 
