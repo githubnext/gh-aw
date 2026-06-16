@@ -249,6 +249,12 @@ describe("filterSubAgentFrontmatter", () => {
     expect(result).not.toContain("engine:");
   });
 
+  it("preserves model when unsupported nested fields appear between supported fields", () => {
+    const content = ["---", "description: Helper", "tools:", "  github:", "    toolsets: [issues]", "model: claude-haiku-4.5", "engine: copilot", "---", "Prompt."].join("\n");
+
+    expect(filterSubAgentFrontmatter(content, "agent")).toBe(["---", "description: Helper", "model: claude-haiku-4.5", "---", "Prompt."].join("\n"));
+  });
+
   it("omits frontmatter entirely when no supported fields remain", () => {
     const content = "---\nengine: copilot\ntools:\n  github:\n    toolsets: [issues]\n---\nPrompt.";
     const result = filterSubAgentFrontmatter(content, "agent");

@@ -80,6 +80,7 @@ function filterSubAgentFrontmatter(content, agentName) {
 
   const kept = [];
   const stripped = [];
+  let keepContinuation = false;
 
   for (const line of fmLines) {
     // Match a simple scalar YAML key at the start of the line.
@@ -89,14 +90,16 @@ function filterSubAgentFrontmatter(content, agentName) {
       const key = keyMatch[1];
       if (SUPPORTED_FRONTMATTER_FIELDS.includes(key)) {
         kept.push(line);
+        keepContinuation = true;
       } else {
         stripped.push(key);
+        keepContinuation = false;
       }
     } else {
-      // Continuation / comment / blank line — keep only when at least one
-      // supported key has already been accepted, so multi-line values (e.g.
-      // `description: |`) are preserved correctly.
-      if (kept.length > 0) {
+      // Continuation / comment / blank line — keep only when continuing the most
+      // recent supported key, so multi-line values (e.g. `description: |`) are
+      // preserved without leaking nested content from stripped keys.
+      if (keepContinuation) {
         kept.push(line);
       }
     }
