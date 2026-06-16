@@ -61,6 +61,7 @@ const {
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -706,6 +707,7 @@ async function main() {
         //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
         //     permanently disable --continue so the corrupt state is never reloaded.
         const isCAPIError = isTransientCAPIError(result.output);
+        const isQuotaExceeded = isCAPIQuotaExceededError(result.output);
         const isMCPPolicy = isMCPPolicyError(result.output);
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
@@ -718,6 +720,7 @@ async function main() {
           `attempt ${attempt + 1} failed:` +
             ` exitCode=${result.exitCode}` +
             ` isCAPIError400=${isCAPIError}` +
+            ` isCAPIQuotaExceededError=${isQuotaExceeded}` +
             ` isMCPPolicyError=${isMCPPolicy}` +
             ` isModelNotSupportedError=${isModelNotSupported}` +
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
@@ -832,6 +835,12 @@ async function main() {
           log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
         }
 
+        // The observed quota exhaustion error is not useful to retry with --continue.
+        if (isQuotaExceeded) {
+          log(`attempt ${attempt + 1}: Copilot quota exceeded — not retrying`);
+          break;
+        }
+
         if (attempt < MAX_RETRIES && result.hasOutput) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
@@ -910,6 +919,7 @@ if (typeof module !== "undefined" && module.exports) {
     writeCopilotOutputs,
     resolvePromptFileArgs,
     parseCopilotSDKServerArgsFromEnv,
+    isCAPIQuotaExceededError,
   };
 }
 

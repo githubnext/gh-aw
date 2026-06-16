@@ -37,6 +37,7 @@ const {
   fetchModelsFromUrl,
   generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
+  isCAPIQuotaExceededError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   writeCopilotOutputs,
@@ -60,6 +61,35 @@ describe("copilot_harness.cjs", () => {
     it("matches the exact error from the failed workflow run", () => {
       const errorOutput = "Execution failed: CAPIError: 400 400 Bad Request\n (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)";
       expect(CAPI_ERROR_400_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    describe("CAPI quota-exceeded detection pattern", () => {
+      it("matches the observed CAPIError 429 quota exceeded error", () => {
+        expect(isCAPIQuotaExceededError("CAPIError: 429 429 quota exceeded")).toBe(true);
+      });
+
+      it("matches the observed error when embedded in Copilot CLI output", () => {
+        const output = "Failed to get response from the AI model; retried 5 times " + "(Request-ID ABC123) Last error: CAPIError: 429 429 quota exceeded";
+        expect(isCAPIQuotaExceededError(output)).toBe(true);
+      });
+
+      it("matches the observed error with extra spacing", () => {
+        expect(isCAPIQuotaExceededError("CAPIError: 429   429   quota exceeded")).toBe(true);
+      });
+
+      it("does not match CAPIError 400", () => {
+        expect(isCAPIQuotaExceededError("CAPIError: 400 Bad Request")).toBe(false);
+      });
+
+      it("does not match generic 429 output without the observed quota-exceeded message", () => {
+        expect(isCAPIQuotaExceededError("CAPIError: 429 Too Many Requests")).toBe(false);
+      });
+
+      it("does not match unrelated errors", () => {
+        expect(isCAPIQuotaExceededError("Error: connection reset by peer")).toBe(false);
+        expect(isCAPIQuotaExceededError("Authentication failed")).toBe(false);
+        expect(isCAPIQuotaExceededError("")).toBe(false);
+      });
     });
 
     it("matches CAPIError: 400 with various spacing", () => {
@@ -114,6 +144,7 @@ describe("copilot_harness.cjs", () => {
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
+      if (isCAPIQuotaExceededError(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -156,6 +187,26 @@ describe("copilot_harness.cjs", () => {
       const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
       expect(hasNumerousPermissionDeniedIssues(result.output)).toBe(true);
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry the observed CAPIError 429 quota exceeded error even when session produced output", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 quota exceeded",
+      };
+
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("still retries generic partial-execution errors with output", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "Error: connection reset by peer",
+      };
+
+      expect(shouldRetry(result, 0)).toBe(true);
     });
   });
 

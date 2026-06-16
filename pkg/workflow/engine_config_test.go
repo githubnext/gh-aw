@@ -290,6 +290,23 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", Env: map[string]string{"CUSTOM_VAR": "value1", "ANOTHER_VAR": "${{ secrets.SECRET_VAR }}"}},
 		},
 		{
+			name: "object format - with non-string scalar env vars",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"env": map[string]any{
+						"STRING_VAR":      "value1",
+						"INT_VAR":         1,
+						"FLOAT_VAR":       float64(1000),
+						"LARGE_FLOAT_VAR": float64(1000000),
+						"BOOL_VAR":        true,
+					},
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", Env: map[string]string{"STRING_VAR": "value1", "INT_VAR": "1", "FLOAT_VAR": "1000", "LARGE_FLOAT_VAR": "1000000", "BOOL_VAR": "true"}},
+		},
+		{
 			name: "object format - complete with env vars",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
