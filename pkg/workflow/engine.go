@@ -29,7 +29,11 @@ func toEngineEnvValueString(value any) (string, bool) {
 	switch v := value.(type) {
 	case string:
 		return v, true
-	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32), true
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), true
+	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return fmt.Sprintf("%v", v), true
 	default:
 		return "", false
