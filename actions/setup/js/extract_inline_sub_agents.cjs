@@ -20,7 +20,8 @@
 // An agent block ends at the next level-2 Markdown heading (## ...) or EOF.
 // There is no explicit end marker — any H2 heading closes the agent block.
 //
-// Sub-agent frontmatter is preserved exactly as authored.
+// Sub-agent frontmatter keys and their order are preserved without filtering;
+// boundary whitespace is trimmed.
 //
 // If no ## agent: markers are present the content is returned unchanged and no
 // files are written.

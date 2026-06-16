@@ -199,6 +199,7 @@ func TestValidateInlineSubAgentsFrontmatter_ParseError(t *testing.T) {
 		"---",
 		`description: "unterminated string`,
 		"model: claude-haiku-4.5",
+		"---",
 		"Do work.",
 	}, "\n")
 

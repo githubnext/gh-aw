@@ -20,7 +20,8 @@
 //
 // # Sub-Agent Frontmatter
 //
-// Sub-agent frontmatter is preserved exactly as authored.
+// Sub-agent frontmatter keys and their order are preserved without filtering;
+// boundary whitespace is trimmed.
 //
 // # Example
 //
