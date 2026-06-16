@@ -134,7 +134,6 @@ describe("copilot_harness.cjs", () => {
     // The driver retries whenever the session produced output (hasOutput), regardless
     // of the specific error type.  CAPIError 400 is just the well-known case.
     const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
-    const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
     const MAX_RETRIES = 3;
 
     /**
@@ -145,7 +144,7 @@ describe("copilot_harness.cjs", () => {
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
-      if (CAPI_QUOTA_EXCEEDED_PATTERN.test(result.output)) return false;
+      if (isCAPIQuotaExceededError(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 

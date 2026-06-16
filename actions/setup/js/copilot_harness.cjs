@@ -61,6 +61,7 @@ const {
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -79,8 +80,6 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
-// Pattern to detect the observed Copilot/CAPI quota exhaustion error.
-const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
@@ -150,15 +149,6 @@ function generateCopilotConnectionToken(options) {
  */
 function isTransientCAPIError(output) {
   return CAPI_ERROR_400_PATTERN.test(output);
-}
-
-/**
- * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
- * @param {string} output - Collected stdout+stderr from the process
- * @returns {boolean}
- */
-function isCAPIQuotaExceededError(output) {
-  return CAPI_QUOTA_EXCEEDED_PATTERN.test(output);
 }
 
 /**
