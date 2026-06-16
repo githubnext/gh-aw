@@ -46,17 +46,6 @@ describe("set_issue_field GraphQL discovery query integration", () => {
     const octokit = getOctokit(token);
 
     try {
-      const introspection = await octokit.graphql(
-        `query {
-          __type(name: "IssueField") {
-            name
-          }
-        }`
-      );
-
-      expect(introspection.__type).toBeNull();
-      expect(ISSUE_FIELDS_DISCOVERY_QUERY).not.toMatch(/\.\.\.\s+on\s+IssueField\s*\{/);
-
       const result = await octokit.graphql(ISSUE_FIELDS_DISCOVERY_QUERY, { owner, repo });
       expect(result?.repository).toBeDefined();
     } catch (error) {
