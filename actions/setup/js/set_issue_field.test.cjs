@@ -274,7 +274,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
   });
 
-  it("fetchIssueFields query uses concrete type fragments (no direct id/name on IssueFields union)", async () => {
+  it("fetchIssueFields query uses only concrete issue field type fragments", async () => {
     let capturedQuery = "";
     mockGraphql.mockImplementation(query => {
       if (query.includes("repository(owner")) {
@@ -295,8 +295,8 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     // Bare "id" or "name" would appear on their own line; inside a fragment they appear as "{ id name }"
     expect(capturedQuery).not.toMatch(/^\s+id\s*$/m);
     expect(capturedQuery).not.toMatch(/^\s+name\s*$/m);
-    // The query must include a base IssueField fragment to cover unknown/future field types
-    expect(capturedQuery).toContain("... on IssueField");
+    // The query must not include the non-existent IssueField type fragment
+    expect(capturedQuery).not.toMatch(/\.\.\.\s+on\s+IssueField\s*\{/);
     // The query must include at least the concrete IssueFieldText fragment
     expect(capturedQuery).toContain("... on IssueFieldText");
     // The query must include the IssueFieldSingleSelect fragment with options
@@ -324,7 +324,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(capturedQuery).not.toContain("... on User");
   });
 
-  it("fetchIssueFields filters out nodes missing id or name (null entries and unknown types without base fragment)", async () => {
+  it("fetchIssueFields filters out nodes missing id or name (null entries and unknown types)", async () => {
     mockGraphql.mockImplementation(query => {
       if (query.includes("issueFields")) {
         return Promise.resolve({
