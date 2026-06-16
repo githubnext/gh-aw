@@ -582,6 +582,7 @@ func TestRenderSlice_EmbeddedPointerStruct(t *testing.T) {
 	assert.Contains(t, output, "Name", "output should contain Name column header from embedded pointer struct")
 	assert.Contains(t, output, "Status", "output should contain Status column header")
 	assert.Contains(t, output, "wf-1", "output should contain first workflow name")
+	assert.Regexp(t, `(?m)^│\s*│missing│$`, output, "output should render an empty Name cell for rows with a nil embedded pointer")
 	assert.Contains(t, output, "missing", "output should contain second status")
 	assert.NotContains(t, output, "Base", "output should not contain the embedded pointer type name as a column")
 }
