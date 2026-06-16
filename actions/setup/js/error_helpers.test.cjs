@@ -64,6 +64,11 @@ describe("error_helpers", () => {
       expect(getErrorMessage(error)).toBe("GitHub returned an unexpected HTML response");
     });
 
+    it("should sanitize raw HTML string throw", () => {
+      const html = "<!DOCTYPE html><html><body>Unicorn</body></html>";
+      expect(getErrorMessage(html)).toBe("GitHub returned an unexpected HTML response");
+    });
+
     it("should not sanitize plain-text error messages that happen to mention html", () => {
       const error = new Error("Validation failed: invalid html content provided");
       expect(getErrorMessage(error)).toBe("Validation failed: invalid html content provided");
@@ -92,7 +97,7 @@ describe("error_helpers", () => {
     });
 
     it("should return false for JSON-like content", () => {
-      expect(isHtmlContent('{"message":"Not Found","documentation_url":"..."}'));
+      expect(isHtmlContent('{"message":"Not Found","documentation_url":"..."}')).toBe(false);
     });
 
     it("should return false for empty string", () => {

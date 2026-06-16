@@ -24,17 +24,18 @@ function isHtmlContent(str) {
  * @returns {string} The error message as a string
  */
 function getErrorMessage(error) {
+  const err = /** @type {any} */ error;
   let message;
   if (error instanceof Error) {
     message = error.message;
   } else if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
     message = error.message;
   } else {
-    return String(error);
+    message = String(error);
   }
 
   if (isHtmlContent(message)) {
-    const status = error && typeof error === "object" && "status" in error && typeof (/** @type {any} */ error.status) === "number" ? /** @type {any} */ error.status : null;
+    const status = err && typeof err === "object" && typeof err.status === "number" ? err.status : null;
     return status != null ? `GitHub returned an unexpected HTML response (HTTP ${status})` : "GitHub returned an unexpected HTML response";
   }
 

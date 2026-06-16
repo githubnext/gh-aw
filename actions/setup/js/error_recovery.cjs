@@ -65,7 +65,7 @@ function isTransientError(error) {
   // GitHub REST APIs may crash and return an HTML error page (e.g. the "Unicorn!"
   // 500 page) instead of JSON. Detect this by checking for an HTML doctype at the
   // start of the error message and treat it as a transient server error.
-  if (errorMsgLower.startsWith("<!doctype html")) {
+  if (errorMsgLower.startsWith("<!doctype html") || errorMsgLower.includes("unexpected html response")) {
     return true;
   }
 
