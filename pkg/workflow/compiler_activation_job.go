@@ -185,14 +185,16 @@ func addBroadActivationInteractionPermissions(
 	}
 
 	needsIssuesWriteForReaction := options.hasReaction && (options.reactionIncludesIssues || options.reactionIncludesPullRequests)
-	needsIssuesWriteForStatusComment := options.statusCommentIncludesIssues || options.statusCommentIncludesPullRequests
+	needsIssuesWriteForStatusComment := options.hasStatusComment &&
+		(options.statusCommentIncludesIssues || options.statusCommentIncludesPullRequests)
 	if needsIssuesWriteForReaction || needsIssuesWriteForStatusComment {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 	if options.hasReaction && options.reactionIncludesPullRequests {
 		permsMap[PermissionPullRequests] = PermissionWrite
 	}
-	if (options.hasReaction && options.reactionIncludesDiscussions) || options.statusCommentIncludesDiscussions {
+	if (options.hasReaction && options.reactionIncludesDiscussions) ||
+		(options.hasStatusComment && options.statusCommentIncludesDiscussions) {
 		permsMap[PermissionDiscussions] = PermissionWrite
 	}
 }
