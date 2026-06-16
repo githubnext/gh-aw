@@ -23,7 +23,7 @@ safe-outputs:
     title-prefix: "[copilot-centralization] "
     labels: [report, ai-optimization]
     close-older-issues: true
-    expires: 30
+    expires: 30d
 steps:
   - name: Collect agent task data
     env:
@@ -106,6 +106,11 @@ steps:
         >> /tmp/gh-aw/data/task-summaries.jsonl
 
   - name: Precompute optimization datasets
+    env:
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+      EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
+      EXPR_GITHUB_SERVER_URL: ${{ github.server_url }}
+      EXPR_GITHUB_EVENT_NAME: ${{ github.event_name }}
     run: |
       set -euo pipefail
       GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
@@ -231,16 +236,16 @@ steps:
 
       cat > /tmp/gh-aw/data/run-context.json <<EOF
       {
-        "repository": "${{ github.repository }}",
-        "run_id": "${{ github.run_id }}",
-        "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-        "trigger": "${{ github.event_name }}"
+        "repository": "$EXPR_GITHUB_REPOSITORY",
+        "run_id": "$EXPR_GITHUB_RUN_ID",
+        "run_url": "$EXPR_GITHUB_SERVER_URL/$EXPR_GITHUB_REPOSITORY/actions/runs/$EXPR_GITHUB_RUN_ID",
+        "trigger": "$EXPR_GITHUB_EVENT_NAME"
       }
       EOF
 
       jq -n \
         --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --arg repository "${{ github.repository }}" \
+        --arg repository "$EXPR_GITHUB_REPOSITORY" \
         --slurpfile stats /tmp/gh-aw/data/overall-stats.json \
         --slurpfile exact /tmp/gh-aw/data/exact-repeats.json \
         --slurpfile intents /tmp/gh-aw/data/intent-buckets.json \
