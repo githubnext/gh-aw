@@ -62,14 +62,27 @@ Test safe outputs workflow with MCP server integration.
 		t.Error("Expected safeoutputs in MCP server configuration")
 	}
 
-	// Check that the MCP server is configured with HTTP transport (per MCP Gateway spec)
-	if !strings.Contains(yamlStr, `"type": "http"`) {
-		t.Error("Expected safeoutputs MCP server to be configured with HTTP transport")
+	// Check that the MCP server is configured as a containerized stdio MCP server
+	if !strings.Contains(yamlStr, `"container": "ghcr.io/github/gh-aw-node"`) {
+		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container")
+	}
+	if !strings.Contains(yamlStr, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
+		t.Error("Expected safeoutputs MCP server mounts for workspace, runtime files, and logs")
+	}
+	if !strings.Contains(yamlStr, `"entrypoint": "sh"`) {
+		t.Error("Expected safeoutputs MCP server to override container entrypoint to sh")
+	}
+	if !strings.Contains(yamlStr, `"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`) {
+		t.Error("Expected safeoutputs MCP server entrypointArgs to run the stdio MCP server script")
 	}
 
 	// Check that safe outputs config is written to file, not as environment variable
 	if strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
 		t.Error("GH_AW_SAFE_OUTPUTS_CONFIG should NOT be in environment variables - config is now in file")
+	}
+
+	if strings.Contains(yamlStr, "Start Safe Outputs MCP HTTP Server") {
+		t.Error("Expected safeoutputs MCP server to be listed in MCP servers, not launched in a dedicated step")
 	}
 
 	// Check that config file is created
@@ -194,9 +207,18 @@ Test safe outputs workflow with Codex engine.
 		t.Error("Expected safeoutputs in Codex MCP server TOML configuration")
 	}
 
-	// Check that the MCP server is configured with HTTP transport (per MCP Gateway spec)
-	if !strings.Contains(yamlStr, `type = "http"`) {
-		t.Error("Expected safeoutputs MCP server to be configured with HTTP transport in TOML")
+	// Check that the MCP server is configured as a containerized stdio MCP server in TOML
+	if !strings.Contains(yamlStr, `container = "ghcr.io/github/gh-aw-node"`) {
+		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container in TOML")
+	}
+	if !strings.Contains(yamlStr, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
+		t.Error("Expected safeoutputs TOML MCP configuration to mount workspace, runtime files, and logs")
+	}
+	if !strings.Contains(yamlStr, `entrypoint = "sh"`) {
+		t.Error("Expected safeoutputs TOML MCP server to override container entrypoint to sh")
+	}
+	if !strings.Contains(yamlStr, `entrypointArgs = ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`) {
+		t.Error("Expected safeoutputs TOML MCP server entrypointArgs to run the stdio MCP server script")
 	}
 
 	t.Log("Safe outputs MCP server Codex integration test passed")

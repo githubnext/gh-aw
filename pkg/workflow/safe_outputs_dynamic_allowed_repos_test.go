@@ -58,10 +58,10 @@ Test workflow
 		"Generate Safe Outputs Config step should map inputs.target_repo to an env var")
 	assert.Contains(t, compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}",
 		"Generate Safe Outputs Config step should map inputs.base_branch to an env var")
-	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_TARGET_REPO: ${{ inputs.target_repo }}"), 2,
-		"Dynamic input env vars should be available anywhere the runtime needs to resolve placeholders in memory")
-	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}"), 2,
-		"Dynamic input env vars should be available anywhere the runtime needs to resolve placeholders in memory")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_TARGET_REPO: ${{ inputs.target_repo }}"), 1,
+		"Dynamic input env vars should be exported anywhere the runtime still resolves placeholders in memory")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}"), 1,
+		"Dynamic input env vars should be exported anywhere the runtime still resolves placeholders in memory")
 	assert.Contains(t, compiled, `"allowed_repos":"${GH_AW_INPUT_TARGET_REPO}"`,
 		"config.json payload should preserve env placeholder for allowed_repos")
 	assert.Contains(t, compiled, `"allowed_base_branches":"${GH_AW_INPUT_BASE_BRANCH}"`,
@@ -108,8 +108,8 @@ Test workflow
 
 	assert.Contains(t, compiled, "GH_AW_SECRET_WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}",
 		"Generate Safe Outputs Config step should map secret expressions to prefixed env vars")
-	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_SECRET_WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"), 2,
-		"Secret env vars should be available anywhere the runtime needs to resolve the placeholder in memory")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_SECRET_WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"), 1,
+		"Secret env vars should be exported anywhere the runtime still resolves the placeholder in memory")
 	assert.Contains(t, compiled, `"github-token":"${GH_AW_SECRET_WRITE_PROJECT_PAT}"`,
 		"config.json payload should preserve the prefixed secret placeholder instead of the secret value")
 
