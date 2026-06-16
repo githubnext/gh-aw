@@ -729,3 +729,39 @@ engine: copilot
 	assert.Contains(t, activationJobSection, "permission-pull-requests: write", "activation app token should include permission-pull-requests: write when workflow_call + reaction are configured")
 	assert.Contains(t, activationJobSection, "permission-discussions: write", "activation app token should include permission-discussions: write when workflow_call + reaction are configured")
 }
+
+func TestActivationPermissionsWorkflowCallReactionDiscussionsOnlyWithGitHubApp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-workflow-call-reaction-discussions-only-app")
+	testFile := filepath.Join(tmpDir, "workflow-call-reaction-discussions-only-app.md")
+	testContent := `---
+on:
+  workflow_call:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_KEY }}
+  reaction:
+    type: eyes
+    issues: false
+    pull-requests: false
+    discussions: true
+engine: copilot
+---
+
+# Reusable workflow with discussions-only reaction and activation GitHub App
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.NotContains(t, activationJobSection, "permission-issues: write", "activation app token should not include permission-issues: write for workflow_call + discussions-only reaction")
+	assert.NotContains(t, activationJobSection, "permission-pull-requests: write", "activation app token should not include permission-pull-requests: write for workflow_call + discussions-only reaction")
+	assert.Contains(t, activationJobSection, "permission-discussions: write", "activation app token should include permission-discussions: write for workflow_call + discussions-only reaction")
+}
