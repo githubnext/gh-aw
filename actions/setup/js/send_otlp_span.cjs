@@ -475,8 +475,8 @@ function buildGitHubActionsResourceAttributes({
 /**
  * Parse an `OTEL_RESOURCE_ATTRIBUTES` value into OTLP resource attributes.
  *
- * Supports the OpenTelemetry escaping rules for commas, equals signs, and
- * backslashes (`\,`, `\=`, `\\`).
+ * Supports OpenTelemetry percent-encoded values and legacy gh-aw backslash
+ * escapes for commas, equals signs, and backslashes (`\,`, `\=`, `\\`).
  *
  * @param {string} raw
  * @returns {Array<{key: string, value: object}>}
@@ -490,11 +490,18 @@ function parseOTELResourceAttributes(raw) {
   let value = "";
   let seenEquals = false;
   let escaped = false;
+  const decodeComponent = component => {
+    try {
+      return decodeURIComponent(component);
+    } catch {
+      return component;
+    }
+  };
 
   const pushCurrent = () => {
     const trimmedKey = key.trim();
     if (trimmedKey) {
-      attributes.push(buildAttr(trimmedKey, value.trim()));
+      attributes.push(buildAttr(decodeComponent(trimmedKey), decodeComponent(value.trim())));
     }
     key = "";
     value = "";

@@ -466,7 +466,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.NotContains(t, wd.Env, "gh-aw.engine.id=")
 	})
 
-	t.Run("escapes OTEL_RESOURCE_ATTRIBUTES engine id value", func(t *testing.T) {
+	t.Run("percent-encodes OTEL_RESOURCE_ATTRIBUTES engine id value", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
 			AI: `copilot,eq=uals\slash`,
@@ -481,14 +481,14 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(
 			t,
 			wd.Env,
-			`gh-aw.engine.id=copilot\,eq\=uals\\slash`,
+			`gh-aw.engine.id=copilot%2Ceq%3Duals%5Cslash`,
 		)
 	})
 
-	t.Run("escapes OTEL_RESOURCE_ATTRIBUTES workflow name value", func(t *testing.T) {
+	t.Run("percent-encodes OTEL_RESOURCE_ATTRIBUTES workflow name value", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
-			Name: "triage,weekly=run\\v2",
+			Name: "triage weekly,run\\v2",
 			ParsedFrontmatter: &FrontmatterConfig{
 				Observability: &ObservabilityConfig{
 					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
@@ -497,10 +497,10 @@ func TestInjectOTLPConfig(t *testing.T) {
 		}
 		c.injectOTLPConfig(wd)
 
-		assert.Contains(t, wd.Env, `gh-aw.workflow.name=triage\,weekly\=run\\v2`)
+		assert.Contains(t, wd.Env, `gh-aw.workflow.name=triage%20weekly%2Crun%5Cv2`)
 	})
 
-	t.Run("escapes single quotes in OTEL_RESOURCE_ATTRIBUTES YAML scalar", func(t *testing.T) {
+	t.Run("percent-encodes apostrophes in OTEL_RESOURCE_ATTRIBUTES values", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
 			Name: "owner's workflow",
@@ -516,8 +516,8 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(
 			t,
 			wd.Env,
-			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=owner''s workflow,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}'",
-			"resource attributes should remain fully single-quoted with embedded single quotes escaped",
+			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=owner%27s%20workflow,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}'",
+			"resource attributes should remain fully single-quoted after percent-encoding",
 		)
 	})
 

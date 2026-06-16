@@ -15,10 +15,6 @@ import (
 
 var otlpLog = logger.New("workflow:observability_otlp")
 
-// OTEL_RESOURCE_ATTRIBUTES values must escape backslash (`\`), comma (`,`), and
-// equals (`=`) per the OpenTelemetry env-var resource attribute grammar.
-var otelResourceValueEscaper = strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`)
-
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
@@ -767,15 +763,17 @@ func otelServiceName(workflowData *WorkflowData) string {
 	return defaultServiceName + "." + sanitizedWorkflowName
 }
 
-func escapeOTELResourceAttributeValue(value string) string {
-	return otelResourceValueEscaper.Replace(value)
+// encodeOTELResourceAttributeValue applies RFC 3986 percent-encoding to the
+// UTF-8 bytes used in OTEL_RESOURCE_ATTRIBUTES keys/values.
+func encodeOTELResourceAttributeValue(value string) string {
+	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20")
 }
 
 func otelResourceAttributes(workflowData *WorkflowData) string {
 	workflowNameAttrValue := "unknown"
 	if workflowData != nil {
 		if workflowName := strings.TrimSpace(workflowData.Name); workflowName != "" {
-			workflowNameAttrValue = escapeOTELResourceAttributeValue(workflowName)
+			workflowNameAttrValue = encodeOTELResourceAttributeValue(workflowName)
 		}
 	}
 
@@ -786,7 +784,7 @@ func otelResourceAttributes(workflowData *WorkflowData) string {
 		"github.run_id=${{ github.run_id }}",
 	}
 	if engineID := ResolveEngineID(workflowData); engineID != "" {
-		attrs = append(attrs, "gh-aw.engine.id="+escapeOTELResourceAttributeValue(engineID))
+		attrs = append(attrs, "gh-aw.engine.id="+encodeOTELResourceAttributeValue(engineID))
 	}
 	return strings.Join(attrs, ",")
 }

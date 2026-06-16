@@ -304,4 +304,80 @@ describe("validate_lockdown_requirements", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not compiled with strict mode"));
     });
   });
+
+  describe("setOutput side effects", () => {
+    it("should not set lockdown_check_failed output on a fully successful run", () => {
+      // All conditions pass: no lockdown, private repo, no special event
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "private";
+      process.env.GITHUB_EVENT_NAME = "push";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should not set lockdown_check_failed when lockdown is enabled with token and repo is private", () => {
+      process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT = "true";
+      process.env.GH_AW_GITHUB_TOKEN = "ghp_test";
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "private";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("multiple tokens", () => {
+    it("should pass when all three tokens are configured simultaneously", () => {
+      process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT = "true";
+      process.env.GH_AW_GITHUB_TOKEN = "ghp_token1";
+      process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN = "ghp_token2";
+      process.env.CUSTOM_GITHUB_TOKEN = "ghp_token3";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_TOKEN configured: true");
+      expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_MCP_SERVER_TOKEN configured: true");
+      expect(mockCore.info).toHaveBeenCalledWith("Custom github-token configured: true");
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Lockdown mode requirements validated: Custom GitHub token is configured");
+    });
+  });
+
+  describe("error messages", () => {
+    it("should include token guidance in lockdown error message", () => {
+      process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT = "true";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("no custom GitHub token is configured");
+
+      const errorMsg = mockCore.setFailed.mock.calls[0][0];
+      expect(errorMsg).toContain("GH_AW_GITHUB_TOKEN (recommended)");
+      expect(errorMsg).toContain("GH_AW_GITHUB_MCP_SERVER_TOKEN (alternative)");
+    });
+
+    it("should include compile guidance in strict mode error message", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("not compiled with strict mode");
+
+      const errorMsg = mockCore.setFailed.mock.calls[0][0];
+      expect(errorMsg).toContain("gh aw compile --strict");
+    });
+
+    it("should include pwn request warning in pull_request_target error message", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "true";
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("pwn request");
+    });
+  });
 });
