@@ -779,6 +779,8 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
   });
 
   it("should resolve triggering issue from workflow_dispatch aw_context", async () => {
+    const savedEventName = mockContext.eventName;
+    const savedPayload = mockContext.payload;
     mockContext.eventName = "workflow_dispatch";
     mockContext.payload = {
       inputs: {
@@ -806,6 +808,8 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
 
     expect(result.success).toBe(true);
     expect(capturedIssueNumber).toBe(123);
+    mockContext.eventName = savedEventName;
+    mockContext.payload = savedPayload;
   });
 
   it("should use current workflow repo in attribution URL for cross-repo updates", async () => {

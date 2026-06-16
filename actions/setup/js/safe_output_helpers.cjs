@@ -71,7 +71,16 @@ function parseMaxCount(envValue, defaultValue = 3) {
  */
 function resolveTarget(params) {
   const { targetConfig, item, context, itemType, supportsPR = false, supportsIssue = false } = params;
-  const invocationContext = resolveInvocationContext(context);
+  let invocationContext;
+  try {
+    invocationContext = resolveInvocationContext(context);
+  } catch (err) {
+    return {
+      success: false,
+      error: `Failed to resolve invocation context for ${itemType}: ${getErrorMessage(err)}`,
+      shouldFail: true,
+    };
+  }
   const effectiveEventName = invocationContext?.eventName || context.eventName;
   const effectivePayload = invocationContext?.eventPayload || context.payload;
 
