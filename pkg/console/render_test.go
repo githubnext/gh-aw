@@ -4,6 +4,7 @@ package console
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -462,6 +463,60 @@ func TestRenderStruct_EmbeddedStruct(t *testing.T) {
 	assert.NotContains(t, output, "Base", "output should not contain the embedded struct type name as a section")
 }
 
+func TestRenderStruct_EmbeddedStructOmitEmptyAndPointer(t *testing.T) {
+	type Base struct {
+		Name   string `console:"header:Name"`
+		Engine string `console:"header:Engine,omitempty"`
+	}
+
+	type Extended struct {
+		*Base
+		Status string `console:"header:Status"`
+	}
+
+	data := Extended{
+		Base:   &Base{Name: "wf"},
+		Status: "active",
+	}
+
+	output := RenderStruct(data)
+
+	assert.Contains(t, output, "wf", "output should contain Name from embedded pointer struct")
+	assert.Contains(t, output, "active", "output should contain Status from outer struct")
+	assert.NotContains(t, output, "Engine", "zero omitempty field in embed should be suppressed")
+	assert.NotContains(t, output, "Base", "output should not contain the embedded pointer type name as a section")
+}
+
+func TestRenderStruct_NestedEmbeddedStruct(t *testing.T) {
+	type Inner struct {
+		Name string `console:"header:Name"`
+	}
+
+	type Middle struct {
+		Inner
+		Engine string `console:"header:Engine"`
+	}
+
+	type Outer struct {
+		Middle
+		Status string `console:"header:Status"`
+	}
+
+	output := RenderStruct(Outer{
+		Middle: Middle{
+			Inner:  Inner{Name: "wf"},
+			Engine: "copilot",
+		},
+		Status: "ok",
+	})
+
+	assert.Contains(t, output, "wf")
+	assert.Contains(t, output, "copilot")
+	assert.Contains(t, output, "ok")
+	assert.NotContains(t, output, "Middle")
+	assert.NotContains(t, output, "Inner")
+}
+
 // TestRenderSlice_EmbeddedStruct tests that a slice of structs with anonymous embedded
 // fields is rendered as a flat table with all promoted fields as columns.
 func TestRenderSlice_EmbeddedStruct(t *testing.T) {
@@ -486,6 +541,7 @@ func TestRenderSlice_EmbeddedStruct(t *testing.T) {
 	assert.Contains(t, output, "Name", "output should contain Name column header")
 	assert.Contains(t, output, "Engine", "output should contain Engine column header")
 	assert.Contains(t, output, "Status", "output should contain Status column header")
+	assert.Less(t, strings.Index(output, "Name"), strings.Index(output, "Status"), "embedded Name column must appear before outer Status column")
 
 	// All values should be present in the table rows.
 	assert.Contains(t, output, "wf-1", "output should contain first workflow name")
@@ -494,4 +550,28 @@ func TestRenderSlice_EmbeddedStruct(t *testing.T) {
 	assert.Contains(t, output, "wf-2", "output should contain second workflow name")
 	assert.Contains(t, output, "claude", "output should contain second engine")
 	assert.Contains(t, output, "disabled", "output should contain second status")
+}
+
+func TestRenderSlice_EmbeddedPointerStruct(t *testing.T) {
+	type Base struct {
+		Name string `console:"header:Name"`
+	}
+
+	type Extended struct {
+		*Base
+		Status string `console:"header:Status"`
+	}
+
+	items := []Extended{
+		{Base: &Base{Name: "wf-1"}, Status: "active"},
+		{Status: "missing"},
+	}
+
+	output := RenderStruct(items)
+
+	assert.Contains(t, output, "Name", "output should contain Name column header from embedded pointer struct")
+	assert.Contains(t, output, "Status", "output should contain Status column header")
+	assert.Contains(t, output, "wf-1", "output should contain first workflow name")
+	assert.Contains(t, output, "missing", "output should contain second status")
+	assert.NotContains(t, output, "Base", "output should not contain the embedded pointer type name as a column")
 }

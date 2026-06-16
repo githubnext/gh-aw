@@ -219,6 +219,8 @@ func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*Git
 		}
 
 		statuses = append(statuses, WorkflowStatus{
+			// Remote workflow status only includes the workflow name here; the
+			// GitHub Actions API response does not provide list metadata fields.
 			WorkflowListItem: WorkflowListItem{
 				Workflow: name,
 			},

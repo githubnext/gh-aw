@@ -394,7 +394,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `WorkflowFailure` | struct | A workflow failure record |
 | `WorkflowFileStatus` | struct | Status of a workflow file (exists, outdated, etc.) |
 | `WorkflowJob` | struct | A GitHub Actions job within a workflow run |
-| `WorkflowListItem` | struct | Shared workflow metadata (name, engine, compiled status, labels, triggers); embedded in `WorkflowStatus` |
+| `WorkflowListItem` | struct | A single item in `gh aw list`; shared workflow metadata fields (name, engine, compiled status, labels, triggers) also embedded in `WorkflowStatus` |
 | `WorkflowMCPMetadata` | struct | MCP server metadata scanned from a workflow file |
 | `WorkflowNode` | struct | A node in the workflow dependency graph |
 | `WorkflowOption` | struct | A selectable workflow option for interactive prompts |
