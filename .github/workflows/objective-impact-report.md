@@ -169,9 +169,11 @@ Group all **accepted, mapped** outcomes by objective category (the highest-value
 - Objective category name and its mapping value
 - Number of accepted outcomes in this category
 - Total outcome value contributed
+- AIC consumed by outcomes in this category
+- Impact Efficiency for this category (total outcome value / AIC consumed)
 - Representative examples (up to 3 linked outcomes)
 
-Sort categories by total outcome value descending. This section is the executive narrative of where effort actually went.
+Sort categories by total outcome value descending. Also call out separately which category consumed the **most AIC** (highest denominator cost), so readers can see where budget was spent regardless of value delivered.
 
 ### Top outcomes by outcome value
 
