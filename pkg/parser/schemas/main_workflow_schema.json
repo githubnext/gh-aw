@@ -5074,6 +5074,11 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "normalize-closing-keywords": {
+                  "type": "boolean",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -6400,6 +6405,11 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "normalize-closing-keywords": {
+                  "type": "boolean",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -6795,6 +6805,11 @@
                   "type": "boolean",
                   "description": "When true, adds workflows: write to the GitHub App token permissions. Required when allowed-files targets .github/workflows/ paths. Requires safe-outputs.github-app to be configured because the workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.",
                   "default": false,
+                  "examples": [true, false]
+                },
+                "normalize-closing-keywords": {
+                  "type": "boolean",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
                   "examples": [true, false]
                 }
               },
