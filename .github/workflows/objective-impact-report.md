@@ -301,9 +301,9 @@ If AI Credits are unavailable, still produce the delivered-value analysis and cl
 
 ### Human Work
 
-This section is independent of AIC and the agentic efficiency analysis above. It captures pull requests merged by humans (not produced by any GitHub Agentic Workflow run in the analysis window).
+This section is independent of AIC and the agentic efficiency analysis above. It captures pull requests merged in the analysis window that could not be attributed to any GitHub Agentic Workflow run in the deterministic logs.
 
-Identify merged PRs from `/tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json` that have **no** matching run in `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` (i.e., PRs whose author or head branch cannot be linked to any workflow run that produced an outcome). Treat these as human-authored contributions.
+Identify merged PRs from `/tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json` that have **no** matching run in `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` (i.e., PRs whose author or head branch cannot be linked to any workflow run that produced an outcome). Treat these as human-authored contributions for reporting, but explicitly note that missing log coverage or attribution gaps can inflate this count.
 
 For each human-authored merged PR that has a linked closing issue, resolve objective labels from that root issue using the same objective mapping. Group results by objective category and report:
 
