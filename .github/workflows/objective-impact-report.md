@@ -19,21 +19,20 @@ safe-outputs:
 
 ## Goal
 
-Test whether Impact Efficiency is a more meaningful signal than accepted outcome counts alone.
+POC: Test whether Impact Efficiency is a more meaningful signal than accepted outcome counts alone.
+
+Focus only on **pull request outcomes** and **safe output outcomes** (issues created or closed via the safe-output mechanism). Other outcome types are excluded from this POC because their acceptance criteria are not yet well-defined and most remain pending.
 
 Use this model:
 
 ```text
-Outcome = recorded work item produced by a GitHub Agentic Workflow run
-Objective = issue/epic/work item linked to the outcome
+Outcome = a PR or safe-output issue produced by a GitHub Agentic Workflow run
 Objective Value = numeric value from the repository objective-mapping configuration applied to traced root labels
 Outcome Indicator = 1 for accepted/delivered outcomes, 0 otherwise
 Outcome Value = Outcome Indicator × Objective Value
 Impact Efficiency = Σ Outcome Value / AI Credits
 ```
 
-Treat an outcome as one recorded result item produced by a GitHub Agentic Workflow run (for example, a PR change, completed fix, or report action), which may later be accepted or not accepted.
-Use workflow run outputs/artifacts and linked GitHub objects (issues, PRs, comments, discussions) as the outcome source of truth.
 Treat AI Credits as total model-credit cost consumed by the workflow runs that produced the analyzed outcomes.
 When available, use deterministic precomputed run data that already includes each run's `aic` field.
 Prefer existing gh-aw outputs that already surface `aic`, such as pre-downloaded `gh aw logs --json` data or audit/log artifacts derived from the same run summaries.
@@ -58,7 +57,12 @@ If a run's `aic` field is missing or null, treat it as `0` and count it as missi
 
 ## Scope
 
-Analyze workflow outcomes and linked objectives from the last 180 days.
+Analyze only the following outcome types from the last 180 days:
+
+- **Pull request outcomes**: PRs created by GitHub Agentic Workflow runs. Accepted = merged. Rejected = closed without merge. Skip open (pending) PRs.
+- **Safe output outcomes**: issues created or closed by workflow runs via the safe-output mechanism. Accepted = issue successfully created/closed. Skip any with unresolved state.
+
+Exclude all other outcome types (direct issue outcomes, comments, discussions, etc.). These are omitted because their acceptance criteria are incomplete and most are left pending, which would distort the metric.
 
 ## Objective value mapping
 
@@ -81,35 +85,28 @@ Objective Labels = mapping.GetObjectiveLabels(root_labels)
 
 Do not invent fallback scoring rules such as milestone bonuses, project bonuses, or priority-to-points heuristics when the mapping file is present.
 
-```text
-Examples of mapped labels in this repository include campaign, security, observability, testing, automation, and other configured objective labels.
-```
-
 If a traced root object has no labels that exist in the mapping, mark the outcome as `unmapped`.
 
 ## Outcome association rules
 
-For each workflow outcome, follow the implemented root-tracing behavior:
+For each in-scope outcome, follow the implemented root-tracing behavior:
 
 1. For pull-request outcomes, trace the PR to its linked closing issue and use that root issue's labels.
-2. If PR root tracing fails, or for direct issue outcomes, use labels on the issue itself.
-3. Record the traced root URL when one is found so the report preserves an audit trail.
-4. If no mapped objective labels can be found, mark the outcome as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
-
-Prefer precomputed outcome evaluation data when available. Do not re-derive a different mapping model inside the report.
+2. If PR root tracing fails, use labels on the PR itself.
+3. For safe-output issue outcomes, use labels on the safe-output issue itself.
+4. Record the traced root URL when one is found so the report preserves an audit trail.
+5. If no mapped objective labels can be found, mark the outcome as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
 
 ## Computation
 
-For each outcome:
+For each in-scope outcome:
 
 ```text
-Outcome Indicator = 1 for accepted/delivered outcome, 0 for rejected, abandoned, or incomplete outcome
+Outcome Indicator:
+  PR outcome:           1 if merged, 0 if closed without merge (open PRs excluded)
+  Safe output outcome:  1 if successfully created/closed, 0 otherwise
 Outcome Value = Outcome Indicator × Objective Value
 ```
-
-Treat pending-review outcomes as `Outcome Indicator = 0` until explicitly accepted.
-
-Accepted/delivered outcome means the intended result was accepted in GitHub state (for example: merged PR, closed issue with completion signal, or explicit accepted status in the workflow outcome record).
 
 Then compute:
 
@@ -146,7 +143,8 @@ The report must include:
 
 ### Summary
 
-- Outcomes analyzed
+- PR outcomes analyzed (merged / closed / excluded open)
+- Safe output outcomes analyzed
 - Objectives mapped
 - Unmapped outcomes
 - Accepted outcome count
@@ -156,18 +154,13 @@ The report must include:
 
 ### Top outcomes by outcome value
 
-| Outcome | Associated objective | Objective value signals | Objective Value | Outcome Value |
+| Outcome | Type | Associated objective | Objective Value | Outcome Value |
 |---|---|---|---:|---:|
-
-### Top objectives by delivered value
-
-| Objective Label | Delivered Outcome Value | Attempted Outcome Value | Delivered Outcomes | Efficiency |
-|---|---:|---:|---:|---:|
 
 ### Unmapped outcomes
 
-| Outcome | Reason objective was not mapped |
-|---|---|
+| Outcome | Type | Reason objective was not mapped |
+|---|---|---|
 
 ### Interpretation
 
@@ -182,9 +175,8 @@ Explain which one better reflects meaningful delivered value relative to cost.
 
 Mention missing or weak links in:
 
-- outcome-to-objective association
-- root tracing and linked-object coverage
-- label mapping coverage in `.github/objective-mapping.json`
+- PR root tracing and linked-closing-issue coverage
+- safe-output issue label mapping coverage in `.github/objective-mapping.json`
 - AI Credits availability
 
 State whether AI Credits came from deterministic precomputed data or from a live fallback path.
