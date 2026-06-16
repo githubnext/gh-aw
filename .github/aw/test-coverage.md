@@ -45,6 +45,19 @@ safe-outputs:
 
 Use **only when** no prior CI artifact exists or CI doesn't upload coverage. Supported commands:
 
+- infer the repository ecosystem from project files before running fallback coverage
+- configure `network.allowed` to include `defaults` plus the inferred ecosystem(s) (for example `node`, `python`, `go`)
+- never run fallback coverage with `network: defaults` alone
+
+Example fallback network config:
+
+```yaml
+network:
+  allowed:
+    - defaults
+    - node
+```
+
 | Language | Command |
 |---|---|
 | Node.js | `npx jest --coverage --coverageReporters=json-summary` |
