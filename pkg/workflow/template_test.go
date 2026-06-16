@@ -72,3 +72,20 @@ func TestGenerateInterpolationAndTemplateStep_GeneratePath(t *testing.T) {
 	assert.Contains(t, result, "interpolate_prompt.cjs", "interpolate_prompt script should be referenced in the step")
 	assert.Contains(t, result, "setupGlobals", "setupGlobals helper should be called to initialise GitHub Actions objects")
 }
+
+// TestGenerateInterpolationAndTemplateStep_WithInlineSubAgent ensures inline sub-agent
+// workflows still run interpolate_prompt.cjs even when github context templates are absent.
+func TestGenerateInterpolationAndTemplateStep_WithInlineSubAgent(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		MarkdownContent: "Main prompt\n\n## agent: `planner`\nDo planning.",
+		ParsedTools:     NewTools(map[string]any{"github": false}),
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+
+	result := yaml.String()
+	assert.Contains(t, result, "Interpolate variables and render templates", "step should be present when inline sub-agents are defined")
+	assert.Contains(t, result, "interpolate_prompt.cjs", "interpolate_prompt script should run to extract inline sub-agents")
+}
