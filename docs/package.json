@@ -32,7 +32,7 @@
     "sharp": "^0.34.5",
     "starlight-blog": "^0.26.1",
     "starlight-changelogs": "^0.5.0",
-    "starlight-links-validator": "^0.24.0",
+    "starlight-links-validator": "^0.24.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
