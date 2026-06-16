@@ -299,7 +299,9 @@ jobs:
 
       - name: Record outputs
         id: record
-        run: echo "operation=${{ inputs.operation }}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_AW_OPERATION: ${{ inputs.operation }}
+        run: echo "operation=$GH_AW_OPERATION" >> "$GITHUB_OUTPUT"
 `)
 
 	// Add update_pull_request_branches job for workflow_dispatch with operation == 'update_pull_request_branches'
@@ -402,7 +404,9 @@ jobs:
 
       - name: Record outputs
         id: record
-        run: echo "run_url=${{ inputs.run_url }}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_AW_RUN_URL: ${{ inputs.run_url }}
+        run: echo "run_url=$GH_AW_RUN_URL" >> "$GITHUB_OUTPUT"
 `)
 
 	// Add create_labels job for workflow_dispatch with operation == 'create_labels'

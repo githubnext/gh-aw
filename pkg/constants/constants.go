@@ -211,6 +211,11 @@ const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 // Using node:lts-alpine provides the latest LTS version with minimal footprint
 const DefaultNodeAlpineLTSImage = "node:lts-alpine"
 
+// DefaultGhAwNodeImage is the published gh-aw Node container image used for
+// JavaScript-based MCP servers that need Node.js and git plus workspace-mounted
+// repository scripts at runtime.
+const DefaultGhAwNodeImage = "ghcr.io/github/gh-aw-node"
+
 // DefaultPythonAlpineLTSImage is the default Python Alpine LTS container image for MCP servers
 // Using python:alpine provides the latest stable version with minimal footprint
 const DefaultPythonAlpineLTSImage = "python:alpine"
@@ -254,6 +259,13 @@ const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
 // Security: Uses GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
 // The GITHUB_WORKSPACE environment variable is automatically set by GitHub Actions and passed to the MCP gateway
 const DefaultWorkspaceMount = "\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw"
+
+// DefaultSafeOutputsMount is the mount path for safe-outputs runtime files
+// (config.json, tools.json, outputs.jsonl, upload-artifacts/) in the runner temp directory.
+const DefaultSafeOutputsMount = GhAwRootDirShell + "/safeoutputs:" + GhAwRootDirShell + "/safeoutputs:rw"
+
+// DefaultSafeOutputsLogMount is the mount path for the safe-outputs MCP server log directory.
+const DefaultSafeOutputsLogMount = "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"
 
 // Timeout constants using time.Duration for type safety and clear units
 

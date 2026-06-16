@@ -18,44 +18,45 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 		unexpectedContent    []string
 	}{
 		{
-			name:                 "Copilot with HTTP transport and escaped API key",
+			name:                 "Copilot with stdio container and escaped env vars",
 			isLast:               true,
 			includeCopilotFields: true,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"type": "http"`,
-				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
-				`"headers": {`,
-				`"Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"`,
+				`"type": "stdio"`,
+				`"container": "ghcr.io/github/gh-aw-node"`,
+				`"${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`,
+				`"/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"`,
+				`"entrypoint": "sh"`,
+				`"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
+				`"env": {`,
+				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
-				`"container"`,
-				`"entrypoint"`,
-				`"entrypointArgs"`,
-				`"env": {`,
-				`"stdio"`,
+				`"url": "http://`,
+				`"Authorization":`,
 			},
 		},
 		{
-			name:                 "Claude/Custom with HTTP transport and shell variable",
+			name:                 "Claude/Custom with stdio container and shell variables",
 			isLast:               false,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"type": "http"`,
-				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
-				`"headers": {`,
-				`"Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"`,
+				`"container": "ghcr.io/github/gh-aw-node"`,
+				`"args": ["-w", "\${GITHUB_WORKSPACE}"]`,
+				`"entrypoint": "sh"`,
+				`"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
+				`"env": {`,
+				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
+				`"RUNNER_TEMP": "$RUNNER_TEMP"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
-				`"container"`,
-				`"entrypoint"`,
-				`"entrypointArgs"`,
-				`"env": {`,
-				`"stdio"`,
-				`\\${`,
+				`"type": "stdio"`,
+				`"url": "http://`,
+				`"Authorization":`,
 			},
 		},
 	}
@@ -222,19 +223,21 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 
 	expectedContent := []string{
 		`[mcp_servers.safeoutputs]`,
-		`type = "http"`,
-		`url = "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
-		`[mcp_servers.safeoutputs.headers]`,
-		`Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"`,
+		`container = "ghcr.io/github/gh-aw-node"`,
+		`mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`,
+		`args = ["-w", "$GITHUB_WORKSPACE"]`,
+		`entrypoint = "sh"`,
+		`entrypointArgs = ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
+		`env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP"]`,
 	}
 
 	unexpectedContent := []string{
 		`container = "node:lts-alpine"`,
 		`entrypoint = "node"`,
 		`entrypointArgs = ["${RUNNER_TEMP}/gh-aw/safeoutputs/mcp-server.cjs"]`,
-		`mounts =`,
-		`env_vars =`,
-		`stdio`,
+		`type = "http"`,
+		`url = "http://`,
+		`Authorization = `,
 	}
 
 	for _, expected := range expectedContent {
@@ -250,36 +253,32 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	}
 }
 
-// TestRenderSafeOutputsMCPConfigTOMLSandboxAware verifies sandbox-aware host selection in the
-// production renderSafeOutputsTOML path
-func TestRenderSafeOutputsMCPConfigTOMLSandboxAware(t *testing.T) {
+// TestRenderSafeOutputsMCPConfigTOMLStableAcrossSandboxModes verifies the stdio container
+// rendering does not vary by sandbox host rewriting modes.
+func TestRenderSafeOutputsMCPConfigTOMLStableAcrossSandboxModes(t *testing.T) {
 	tests := []struct {
 		name         string
 		workflowData *WorkflowData
-		expectedHost string
 	}{
 		{
-			name:         "nil workflowData uses host.docker.internal",
+			name:         "nil workflowData",
 			workflowData: nil,
-			expectedHost: "host.docker.internal",
 		},
 		{
-			name: "agent enabled uses host.docker.internal",
+			name: "agent enabled",
 			workflowData: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{Disabled: false},
 				},
 			},
-			expectedHost: "host.docker.internal",
 		},
 		{
-			name: "agent disabled uses localhost",
+			name: "agent disabled",
 			workflowData: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{Disabled: true},
 				},
 			},
-			expectedHost: "localhost",
 		},
 	}
 
@@ -292,8 +291,14 @@ func TestRenderSafeOutputsMCPConfigTOMLSandboxAware(t *testing.T) {
 			})
 			renderer.RenderSafeOutputsMCP(&output, tt.workflowData)
 			result := output.String()
-			if !strings.Contains(result, tt.expectedHost) {
-				t.Errorf("Expected host %q not found in output:\n%s", tt.expectedHost, result)
+			if !strings.Contains(result, `container = "ghcr.io/github/gh-aw-node"`) {
+				t.Errorf("Expected gh-aw node container not found in output:\n%s", result)
+			}
+			if !strings.Contains(result, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
+				t.Errorf("Expected stable safe-outputs mounts not found in output:\n%s", result)
+			}
+			if strings.Contains(result, "host.docker.internal") || strings.Contains(result, "localhost") {
+				t.Errorf("Did not expect HTTP host rewriting in stdio safe-outputs config:\n%s", result)
 			}
 		})
 	}

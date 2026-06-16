@@ -956,7 +956,6 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 // buildArcDindChrootConfigPatchBody returns the Python heredoc that patches the AWF
 // config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
 // embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
-// (see buildArcDindChrootConfigInjectScript for standalone use and tests).
 //
 // The Python is intentionally kept compact to minimise script size and stay within
 // GitHub Actions' 21 KB per-step expression limit.
@@ -976,17 +975,4 @@ try:
 except Exception as e:
  raise SystemExit(f"chroot config patch failed: {e}") from e
 PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome, awfArcDindChrootBinariesSourcePath)
-}
-
-// buildArcDindChrootConfigInjectScript returns a standalone bash+Python script that
-// patches the AWF config file with chroot.binariesSourcePath and chroot.identity.* when the
-// runner is in an ARC/DinD topology (detected via DOCKER_HOST=tcp://...).
-//
-// This standalone form is used by tests. In production, the patch body is embedded
-// inside the arcDindPrefixProbe if-block (see BuildAWFCommand) so there is only one
-// DOCKER_HOST condition check in the generated script.
-func buildArcDindChrootConfigInjectScript() string {
-	return fmt.Sprintf(`if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
-%s
-fi`, awfArcDindDockerHostRegex, buildArcDindChrootConfigPatchBody())
 }

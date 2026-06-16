@@ -17,4 +17,4 @@ LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
       io.github.gh-aw.safe-outputs.node.updated-at="${NODE_IMAGE_UPDATED_AT}" \
       io.github.gh-aw.safe-outputs.dockerfile-hash="${DOCKERFILE_HASH}"
 
-ENTRYPOINT ["sh", "-lc", "node \"${GITHUB_WORKSPACE:-$PWD}/actions/setup/js/safe-outputs-mcp-server.cjs\""]
+ENTRYPOINT ["sh", "-lc", "node \"${GITHUB_WORKSPACE:-$PWD}/actions/setup/js/safe_outputs_mcp_server.cjs\""]

@@ -167,8 +167,7 @@ type AWFConfigFile struct {
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
 	// Chroot contains chroot execution overrides for split-filesystem ARC/DinD runners.
-	// This field is not populated at compile time; it is injected at runtime by
-	// buildArcDindChrootConfigInjectScript when DinD topology is detected.
+	// This field is not populated at compile time; it is injected at runtime when DinD topology is detected.
 	Chroot *AWFChrootConfig `json:"chroot,omitempty"`
 }
 
