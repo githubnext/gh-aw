@@ -41,23 +41,19 @@ const macOSRunnerFAQURL = "https://github.github.com/gh-aw/reference/faq/#why-ar
 func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 	runsOnValidationLog.Printf("Validating runs-on configuration")
 
-	runsOnFields := []struct {
+	type runnerField struct {
 		name  string
 		value any
-	}{
+	}
+
+	runsOnFields := []runnerField{
 		{name: "runs-on", value: frontmatter["runs-on"]},
 		{name: "runs-on-slim", value: frontmatter["runs-on-slim"]},
 	}
 	if safeOutputs, ok := frontmatter["safe-outputs"].(map[string]any); ok {
-		runsOnFields = append(runsOnFields, struct {
-			name  string
-			value any
-		}{name: "safe-outputs.runs-on", value: safeOutputs["runs-on"]})
+		runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.runs-on", value: safeOutputs["runs-on"]})
 		if threatDetection, ok := safeOutputs["threat-detection"].(map[string]any); ok {
-			runsOnFields = append(runsOnFields, struct {
-				name  string
-				value any
-			}{name: "safe-outputs.threat-detection.runs-on", value: threatDetection["runs-on"]})
+			runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.threat-detection.runs-on", value: threatDetection["runs-on"]})
 		}
 	}
 

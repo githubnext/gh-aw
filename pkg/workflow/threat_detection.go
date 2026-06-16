@@ -966,7 +966,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// not need the same custom runner as safe-outputs.
 	runsOn := "runs-on: ubuntu-latest"
 	if data.SafeOutputs.ThreatDetection.RunsOn != "" {
-		runsOn = data.SafeOutputs.ThreatDetection.RunsOn
+		runsOn = normalizeRunsOnSnippet(data.SafeOutputs.ThreatDetection.RunsOn)
 	}
 
 	// Detection job condition: always run if agent job was not skipped AND produced outputs or a patch.

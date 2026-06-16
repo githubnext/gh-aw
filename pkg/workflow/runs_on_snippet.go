@@ -27,3 +27,14 @@ func renderRunsOnSnippet(value any) string {
 
 	return strings.TrimSuffix(string(yamlBytes), "\n")
 }
+
+func normalizeRunsOnSnippet(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, "runs-on:") {
+		return value
+	}
+	return "runs-on: " + value
+}
