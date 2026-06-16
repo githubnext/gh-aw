@@ -127,6 +127,27 @@ func TestParseGitHubRateLimitsFileOnlyAPISnapshotsWindowReset(t *testing.T) {
 	assert.Equal(t, "rate_limit_api_delta", usage.CoreConsumedSource, "core consumed source should come from rate_limit_api snapshots")
 }
 
+// TestParseGitHubRateLimitsFileOnlyAPISnapshotSingle verifies that a file containing
+// exactly one rate_limit_api snapshot (no response_headers) produces CoreConsumed==0
+// with provenance tagged as rate_limit_api_single_snapshot.
+func TestParseGitHubRateLimitsFileOnlyAPISnapshotSingle(t *testing.T) {
+	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"startup","resource":"core","limit":5000,"remaining":4850,"used":150,"reset":"2026-04-05T09:00:00.000Z"}
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "github_rate_limits.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600), "should write test JSONL file")
+
+	usage, err := parseGitHubRateLimitsFile(path)
+	require.NoError(t, err, "should not return an error")
+	require.NotNil(t, usage, "usage should not be nil")
+
+	assert.Equal(t, 0, usage.TotalRequestsMade, "should count 0 API calls from response_headers")
+	assert.Equal(t, 0, usage.CoreConsumed, "single snapshot cannot compute a delta; consumed should be 0")
+	assert.Equal(t, "rate_limit_api_single_snapshot", usage.CoreConsumedSource, "provenance should be rate_limit_api_single_snapshot")
+	assert.Equal(t, 4850, usage.CoreRemaining, "core remaining should match snapshot value")
+	assert.Equal(t, 5000, usage.CoreLimit, "core limit should match snapshot value")
+}
+
 // TestFindGitHubRateLimitsFileAbsent verifies that findGitHubRateLimitsFile returns
 // an empty string when the file does not exist.
 func TestFindGitHubRateLimitsFileAbsent(t *testing.T) {

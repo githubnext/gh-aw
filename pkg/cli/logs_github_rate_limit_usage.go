@@ -191,8 +191,9 @@ func parseGitHubRateLimitsFile(filePath string) (*GitHubRateLimitUsage, error) {
 				state.limit = entry.Limit
 			}
 		case "rate_limit_api":
-			// Use rate-limit API snapshots to fill in limit and remaining when we
-			// have no response-header entries for this resource yet.
+			// Use rate-limit API snapshots to fill in limit and remaining, and to
+			// derive core_consumed via firstSnapshotUsed/lastSnapshotUsed when no
+			// response-header entries are present for this resource.
 			state, ok := byResource[resource]
 			if !ok {
 				state = &resourceState{}
