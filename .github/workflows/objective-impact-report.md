@@ -202,12 +202,12 @@ The report must include:
 
 ### Executive Summary
 
-Write 2–4 sentences that directly answer: *What did we work on, what was the highest-impact work, which workflows contributed most to that impact, and how efficiently were AIC tokens spent?* Highlight the most impactful objective categories, the workflows contributing the most value, and any significant gaps (e.g., large AIC spend with no mapped objective value).
+Write 2–4 sentences that directly answer: *What did the agent work on, what was the highest-impact agentic work, which workflows contributed most to that impact, and how efficiently were AIC tokens spent?* Highlight the most impactful objective categories, the workflows contributing the most value, and any significant gaps (e.g., large AIC spend with no mapped objective value).
 
 ### Summary
 
-| Metric | PRs | Safe-output Issues | Combined |
-|---|---:|---:|---:|
+| Metric | Value |
+|---|---:|
 
 Include:
 
@@ -221,7 +221,7 @@ Include:
 - AI Credits
 - Impact Efficiency
 
-### What We Worked On
+### Agentic Work by Objective
 
 Group all **accepted, mapped** outcomes by objective category (the highest-value objective label from the mapping). For each category, list:
 
@@ -298,6 +298,27 @@ Mention missing or weak links in:
 State whether AI Credits came from deterministic precomputed data or from a live fallback path.
 
 If AI Credits are unavailable, still produce the delivered-value analysis and clearly state that the cost-normalized Impact Efficiency metric could not be computed.
+
+### Human Work
+
+This section is independent of AIC and the agentic efficiency analysis above. It captures pull requests merged by humans (not produced by any GitHub Agentic Workflow run in the analysis window).
+
+Identify merged PRs from `/tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json` that have **no** matching run in `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` (i.e., PRs whose author or head branch cannot be linked to any workflow run that produced an outcome). Treat these as human-authored contributions.
+
+For each human-authored merged PR that has a linked closing issue, resolve objective labels from that root issue using the same objective mapping. Group results by objective category and report:
+
+- Objective category name and its mapping value
+- Number of human-authored merged PRs in this category
+- Total objective value contributed
+- Representative examples (up to 3 linked PRs)
+
+Also report:
+
+- Total number of human-authored merged PRs identified in the analysis window
+- Number with a linked closing issue vs. without
+- Number mapped to an objective vs. unmapped
+
+Sort categories by total objective value descending. Do **not** compute AIC or Impact Efficiency for this section — human work has no associated AI Credits cost.
 
 ## Safe output
 
