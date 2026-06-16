@@ -281,6 +281,34 @@ func TestSpec_PublicAPI_FormatNumber(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_FormatTokens validates the documented behavior of FormatTokens.
+// Specification: "Formats a token count as a compact human-readable string. Zero values
+// render as `-` to indicate no data; non-zero values use SI suffixes for readability."
+func TestSpec_PublicAPI_FormatTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    int
+		expected string
+	}{
+		// From spec: FormatTokens(0) // "-"
+		{name: "zero renders as dash", input: 0, expected: "-"},
+		// From spec: FormatTokens(500) // "500"
+		{name: "below 1000 renders as plain integer", input: 500, expected: "500"},
+		// From spec: FormatTokens(1500) // "1.5K"
+		{name: "thousands render with K suffix", input: 1500, expected: "1.5K"},
+		// From spec: FormatTokens(1200000) // "1.2M"
+		{name: "millions render with M suffix", input: 1200000, expected: "1.2M"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatTokens(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"FormatTokens(%d) should match documented output", tt.input)
+		})
+	}
+}
+
 // TestSpec_PublicAPI_ToRelativePath validates the documented behavior of ToRelativePath.
 // Specification: "Converts an absolute path to a path relative to the current working directory.
 // If the relative path would require traversing parent directories (..), the original absolute
