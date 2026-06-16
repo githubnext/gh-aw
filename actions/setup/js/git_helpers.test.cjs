@@ -339,14 +339,18 @@ describe("git_helpers.cjs", () => {
       expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping full-history fetch probe: unknown failure");
     });
 
-    it("should iteratively deepen origin/<base> when bundle prereqs are known and shallow", async () => {
+    it("should fetch prerequisite commit SHAs directly from origin when known and shallow", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
       const prereq = "a".repeat(40);
-      let deepenCalls = 0;
+      let prereqFetched = false;
       const execApi = {
         getExecOutput: vi.fn().mockImplementation((cmd, args) => {
           if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
-            return Promise.resolve({ stdout: "true\n" });
+            return Promise.resolve({ stdout: "true\n", exitCode: 0 });
+          }
+          if (args[0] === "config") {
+            // sparse-checkout not set
+            return Promise.resolve({ stdout: "", exitCode: 1 });
           }
           if (args[0] === "bundle" && args[1] === "verify") {
             return Promise.resolve({
@@ -355,8 +359,46 @@ describe("git_helpers.cjs", () => {
               exitCode: 1,
             });
           }
-          if (args[0] === "merge-base" && args[1] === "--is-ancestor") {
-            // Become reachable only after the second deepen fetch.
+          if (args[0] === "cat-file" && args[1] === "-e") {
+            // Object is present only after the direct SHA fetch.
+            return Promise.resolve({ exitCode: prereqFetched ? 0 : 1, stdout: "", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        }),
+        exec: vi.fn().mockImplementation((cmd, args) => {
+          if (args && args[0] === "fetch" && args.includes("origin") && args.includes(prereq)) {
+            prereqFetched = true;
+          }
+          return Promise.resolve(0);
+        }),
+      };
+
+      await ensureFullHistoryForBundle(execApi, {}, { baseRef: "main", bundleFilePath: "/tmp/test.bundle" });
+
+      // Direct SHA fetch satisfies the prerequisite; no deepen, no --unshallow.
+      const fetchCalls = execApi.exec.mock.calls.filter(c => c[1] && c[1][0] === "fetch");
+      expect(fetchCalls.length).toBe(1);
+      expect(fetchCalls[0][1]).toEqual(["fetch", "--filter=blob:none", "origin", prereq]);
+      expect(execApi.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["--unshallow"]), expect.anything());
+    });
+
+    it("should fall back to deepening by 5 commits at a time when direct SHA fetch is insufficient", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const prereq = "c".repeat(40);
+      let deepenCalls = 0;
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n", exitCode: 0 });
+          }
+          if (args[0] === "config") {
+            return Promise.resolve({ stdout: "", exitCode: 1 });
+          }
+          if (args[0] === "bundle" && args[1] === "verify") {
+            return Promise.resolve({ stdout: "", stderr: `The bundle requires this ref:\n${prereq}\n`, exitCode: 1 });
+          }
+          if (args[0] === "cat-file" && args[1] === "-e") {
+            // Present only after the second deepen fetch; direct SHA fetch leaves it missing.
             return Promise.resolve({ exitCode: deepenCalls >= 2 ? 0 : 1, stdout: "", stderr: "" });
           }
           return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
@@ -371,12 +413,11 @@ describe("git_helpers.cjs", () => {
 
       await ensureFullHistoryForBundle(execApi, {}, { baseRef: "main", bundleFilePath: "/tmp/test.bundle" });
 
-      // Two deepen fetches before ancestry succeeds; no --unshallow.
-      const fetchCalls = execApi.exec.mock.calls.filter(c => c[1] && c[1][0] === "fetch");
-      expect(fetchCalls.length).toBe(2);
-      expect(fetchCalls[0][1]).toEqual(["fetch", "--deepen=50", "origin", "main"]);
-      expect(fetchCalls[1][1]).toEqual(["fetch", "--deepen=100", "origin", "main"]);
-      expect(execApi.exec).not.toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.anything());
+      const deepenFetchCalls = execApi.exec.mock.calls.filter(c => c[1] && c[1][0] === "fetch" && c[1][1] && c[1][1].startsWith("--deepen="));
+      expect(deepenFetchCalls.length).toBe(2);
+      // Each deepen step is a small, fixed increment of 5.
+      expect(deepenFetchCalls[0][1]).toEqual(["fetch", "--deepen=5", "origin", "main"]);
+      expect(execApi.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["--unshallow"]), expect.anything());
     });
 
     it("should skip deepening when bundle declares no prerequisites", async () => {
@@ -397,7 +438,7 @@ describe("git_helpers.cjs", () => {
       expect(execApi.exec).not.toHaveBeenCalled();
     });
 
-    it("should skip deepening when prereqs are already reachable from origin/<base>", async () => {
+    it("should skip fetching when prereqs are already present locally", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
       const prereq = "b".repeat(40);
       const execApi = {
@@ -406,7 +447,7 @@ describe("git_helpers.cjs", () => {
           if (args[0] === "bundle" && args[1] === "verify") {
             return Promise.resolve({ stdout: `The bundle requires this ref:\n${prereq}\n`, stderr: "", exitCode: 0 });
           }
-          if (args[0] === "merge-base" && args[1] === "--is-ancestor") {
+          if (args[0] === "cat-file" && args[1] === "-e") {
             return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
           }
           return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });

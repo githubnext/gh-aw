@@ -27,7 +27,7 @@ safe-outputs:
 steps:
   - name: Collect agent task data
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       TASK_LOOKBACK_DAYS: 30
       TASK_LIMIT: 300
@@ -37,11 +37,19 @@ steps:
       : > /tmp/gh-aw/data/task-summaries.jsonl
 
       SINCE="$(date -u -d "-${TASK_LOOKBACK_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
+      API_VERSION="2026-03-10"
 
-      gh api --paginate "/agents/repos/$REPO/tasks?per_page=100" --jq '.tasks[].id' \
+      gh api --paginate \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: ${API_VERSION}" \
+        "/agents/repos/$REPO/tasks?per_page=100" \
+        --jq '.tasks[].id' \
         | while IFS= read -r task_id; do
-            gh api "/agents/repos/$REPO/tasks/$task_id" --jq --arg since "$SINCE" '
-              select((.updated_at // .created_at // "") >= $since)
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "/agents/repos/$REPO/tasks/$task_id" \
+              | jq -c --arg since "$SINCE" '
               | def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
                 def artifact_types: ([.artifacts[]?.type | select(.)] | join(","));
                 def first_non_empty_index($sessions):
