@@ -7,6 +7,8 @@ Safe-output calls are write-once declarations for real downstream side effects. 
 
 **Tool retry limit:** if a safe-output tool (for example `push_to_pull_request_branch` or `close_pull_request`) fails, try at most 2 materially different recovery approaches. If the tool still fails, call `report_incomplete` with the error and the approaches attempted, then continue with other work. Do NOT debug underlying infrastructure after repeated failures.
 
+**Trust tool return codes.** A successful (exit 0) safe-output call means the action was persisted. Do NOT independently verify writes via `gh api` or other read paths — the sandbox may return stale data that does not reflect safe-output writes. Treat a zero exit code as authoritative confirmation.
+
 **Do not inspect infrastructure internals.** When a tool or command fails, do not inspect Docker sockets (`/var/run/docker.sock`), mount tables (`/proc/self/mounts`), container networking (`/proc/net`), `/host` paths, git object storage internals, or container-runtime environment internals. These are outside your control; use `report_incomplete` after the retry limit.
 
 temporary_id: optional cross-reference field. Canonical form: '#aw_' followed by 3–12 alphanumeric or underscore characters — e.g., '#aw_abc1', '#aw_pr_fix'. Pattern: /^#?aw_[A-Za-z0-9_]{3,12}$/i (the '#' prefix is optional; bare 'aw_abc1' is accepted and normalised to '#aw_abc1' automatically). Use this form for all field values (temporary_id, item_number, issue_number, parent, etc.). In body/markdown text, '#aw_abc1' references are replaced with the real issue/PR number after creation. Omit entirely when not needed.
