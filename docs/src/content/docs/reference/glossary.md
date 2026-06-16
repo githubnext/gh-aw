@@ -573,6 +573,19 @@ max-turns: 10
 
 See [Engines Reference](/gh-aw/reference/engines/).
 
+### Max Tool Denials (`max-tool-denials`)
+
+A top-level frontmatter field that stops Copilot SDK inference when tool requests are denied a specified number of times in succession. Only applies when `engine.id: copilot` and `engine.copilot-sdk: true` are set. Defaults to `5`. Useful for preventing runaway inference loops when a tool is unavailable or consistently rejected. Example:
+
+```aw wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+max-tool-denials: 8
+```
+
+See [Engines Reference](/gh-aw/reference/engines/).
+
 ### Max Turns (`max-turns`)
 
 A top-level frontmatter field that caps the number of chat iterations (model responses and tool calls) for a single workflow run. Each additional turn consumes more tokens and Actions compute time, so a turn limit bounds runaway loops and cost. Supported across Claude, Codex, Copilot, and Antigravity engines. Compiles to the `GH_AW_MAX_TURNS` environment variable for the engine runtime. Accepts an integer or a GitHub Actions expression. The deprecated alias `engine.max-turns` continues to compile; use `gh aw fix engine-max-turns-to-top-level` to migrate. Example:
@@ -841,7 +854,7 @@ A GitHub Next project that builds on GitHub Agentic Workflows to enable continuo
 
 ### ARC (Actions Runner Controller)
 
-A Kubernetes operator that manages GitHub Actions self-hosted runners as pods. When combined with the Docker-in-Docker (DinD) sidecar pattern, the runner container and the Docker daemon container have separate `/tmp` filesystems. AWF detects this topology at runtime by inspecting `DOCKER_HOST` and automatically passes `--docker-host-path-prefix` to bridge the split mount paths. No manual configuration is required for `v0.25.43`+ of AWF. See the [AWF sandbox reference](/gh-aw/reference/sandbox/).
+A Kubernetes operator that manages GitHub Actions self-hosted runners as pods. When combined with the Docker-in-Docker (DinD) sidecar pattern, the runner container and the Docker daemon container have separate `/tmp` filesystems. AWF detects this topology at runtime by inspecting `DOCKER_HOST` and automatically passes `--docker-host-path-prefix` to bridge the split mount paths. From AWF `v0.27.1`+, AWF also automatically injects the `chroot.binariesSourcePath` and `chroot.identity.*` config fields at runtime, so workflows no longer need a bootstrap action to copy binaries or pre-seed `/etc/passwd`. No manual configuration is required. See the [AWF sandbox reference](/gh-aw/reference/sandbox/).
 
 ### AWF (Agent Workflow Firewall)
 
