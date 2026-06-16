@@ -9848,8 +9848,16 @@
                   "description": "Per-run AI Credits budget for threat-detection engine execution. Accepts numeric values only (expressions are not supported). When unset, gh-aw emits a runtime default expression `${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}`."
                 },
                 "runs-on": {
-                  "type": "string",
-                  "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
+                  "$ref": "#/$defs/github_actions_runs_on",
+                  "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Supports string, array, or runner-group object forms. Defaults to agent.runs-on.",
+                  "examples": [
+                    "ubuntu-latest",
+                    ["self-hosted", "linux", "x64"],
+                    {
+                      "group": "larger-runners",
+                      "labels": ["ubuntu-latest-8-cores"]
+                    }
+                  ]
                 },
                 "continue-on-error": {
                   "$ref": "#/$defs/templatable_boolean",
@@ -10322,8 +10330,16 @@
           ]
         },
         "runs-on": {
-          "type": "string",
-          "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"
+          "$ref": "#/$defs/github_actions_runs_on",
+          "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Supports string, array, or runner-group object forms. Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/",
+          "examples": [
+            "ubuntu-slim",
+            ["self-hosted", "linux", "x64"],
+            {
+              "group": "larger-runners",
+              "labels": ["ubuntu-latest-8-cores"]
+            }
+          ]
         },
         "steps": {
           "type": "array",

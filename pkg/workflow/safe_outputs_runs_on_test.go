@@ -48,6 +48,38 @@ safe-outputs:
 This is a test workflow.`,
 			expectedRunsOn: "runs-on: windows-latest",
 		},
+		{
+			name: "custom runs-on array",
+			frontmatter: `---
+on: push
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: [self-hosted, linux, x64]
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on:\n    - self-hosted\n    - linux\n    - x64",
+		},
+		{
+			name: "custom runs-on object",
+			frontmatter: `---
+on: push
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on:
+    group: runner-group
+    labels: [linux, x64]
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on:\n      group: runner-group\n      labels:\n      - linux\n      - x64",
+		},
 	}
 
 	for _, tt := range tests {
@@ -372,14 +404,14 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 			name: "safe-outputs.runs-on takes precedence over runs-on-slim",
 			data: &WorkflowData{
 				RunsOnSlim:  "runs-on: ubuntu-22.04",
-				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "runs-on: self-hosted"},
 			},
 			expectedRunsOn: "runs-on: self-hosted",
 		},
 		{
 			name: "safe-outputs.runs-on used when runs-on-slim is empty",
 			data: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{RunsOn: "windows-latest"},
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "runs-on: windows-latest"},
 			},
 			expectedRunsOn: "runs-on: windows-latest",
 		},
@@ -390,6 +422,20 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+		{
+			name: "safe-outputs.runs-on array snippet indents continuation lines by 4 spaces",
+			data: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "runs-on:\n- self-hosted\n- linux"},
+			},
+			expectedRunsOn: "runs-on:\n    - self-hosted\n    - linux",
+		},
+		{
+			name: "safe-outputs.runs-on object snippet indents continuation lines by 4 spaces",
+			data: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "runs-on:\n  group: runner-group\n  labels:\n  - linux"},
+			},
+			expectedRunsOn: "runs-on:\n      group: runner-group\n      labels:\n      - linux",
 		},
 		{
 			name: "runs-on-slim array snippet indents continuation lines by 4 spaces",

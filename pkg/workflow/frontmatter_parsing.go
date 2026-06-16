@@ -34,6 +34,16 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if err := validateRunsOnValue(config.RunsOnSlim); err != nil {
 		return nil, err
 	}
+	if safeOutputsRaw, ok := frontmatter["safe-outputs"].(map[string]any); ok {
+		if err := validateRunsOnValue(safeOutputsRaw["runs-on"]); err != nil {
+			return nil, err
+		}
+		if threatRaw, ok := safeOutputsRaw["threat-detection"].(map[string]any); ok {
+			if err := validateRunsOnValue(threatRaw["runs-on"]); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	// Parse typed Runtimes field if runtimes exist
 	if len(config.Runtimes) > 0 {

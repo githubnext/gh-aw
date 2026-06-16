@@ -199,9 +199,7 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 
 	// Parse runs-on field
 	if runOn, exists := configMap["runs-on"]; exists {
-		if runOnStr, ok := runOn.(string); ok {
-			threatConfig.RunsOn = runOnStr
-		}
+		threatConfig.RunsOn = renderRunsOnSnippet(runOn)
 	}
 
 	// Parse continue-on-error field (default: true).
@@ -968,7 +966,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// not need the same custom runner as safe-outputs.
 	runsOn := "runs-on: ubuntu-latest"
 	if data.SafeOutputs.ThreatDetection.RunsOn != "" {
-		runsOn = "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
+		runsOn = data.SafeOutputs.ThreatDetection.RunsOn
 	}
 
 	// Detection job condition: always run if agent job was not skipped AND produced outputs or a patch.

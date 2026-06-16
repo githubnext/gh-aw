@@ -1944,9 +1944,21 @@
           "leaf": true
         },
         "runs-on": {
-          "type": "string",
+          "type": "string|array|object",
           "desc": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.).",
-          "leaf": true
+          "children": {
+            "group": {
+              "type": "string",
+              "desc": "Runner group name for self-hosted runners or GitHub-hosted runner groups",
+              "leaf": true
+            },
+            "labels": {
+              "type": "array",
+              "desc": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
+              "array": true
+            }
+          },
+          "array": true
         },
         "steps": {
           "type": "array",

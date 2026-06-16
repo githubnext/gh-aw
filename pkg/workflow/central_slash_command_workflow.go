@@ -485,7 +485,7 @@ func resolveCentralSlashRunsOn(workflowDataList []*WorkflowData) string {
 
 		resolved := constants.DefaultActivationJobRunnerImage
 		if wd.SafeOutputs != nil && strings.TrimSpace(wd.SafeOutputs.RunsOn) != "" {
-			resolved = strings.TrimSpace(wd.SafeOutputs.RunsOn)
+			resolved = formatRunsOnSnippetForInlineValue(wd.SafeOutputs.RunsOn)
 		} else if strings.TrimSpace(wd.RunsOnSlim) != "" {
 			resolved = formatRunsOnSnippetForInlineValue(wd.RunsOnSlim)
 		}
