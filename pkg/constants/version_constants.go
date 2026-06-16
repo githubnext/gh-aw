@@ -32,20 +32,20 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.168"
+const DefaultClaudeCodeVersion Version = "2.1.178"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.60"
+const DefaultCopilotVersion Version = "1.0.63"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
-const DefaultCopilotSDKVersion Version = "1.0.0"
+const DefaultCopilotSDKVersion Version = "1.0.1"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.137.0"
+const DefaultCodexVersion Version = "0.140.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -57,13 +57,13 @@ const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 const DefaultCrushVersion Version = "0.59.0"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.75.4"
+const DefaultPiVersion Version = "0.79.4"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.1.2"
+const DefaultGitHubMCPServerVersion Version = "v1.3.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -125,14 +125,14 @@ const DefaultMCPGatewayVersion Version = "v0.3.26"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.75"
+const DefaultPlaywrightMCPVersion Version = "0.0.76"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
-const DefaultPlaywrightCLIVersion Version = "0.1.13"
+const DefaultPlaywrightCLIVersion Version = "0.1.14"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
-const DefaultPlaywrightBrowserVersion Version = "v1.60.0"
+const DefaultPlaywrightBrowserVersion Version = "v1.61.0"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.24.0"
