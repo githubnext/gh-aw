@@ -22,6 +22,10 @@ server_url="${GITHUB_SERVER_URL:-https://github.com}"
 window_start=$(date -u -d '180 days ago' '+%Y-%m-%d' 2>/dev/null || date -u -v-180d '+%Y-%m-%d')
 generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 pr_list_limit="${OBJECTIVE_IMPACT_PR_LIST_LIMIT:-5000}"
+if ! [[ "$pr_list_limit" =~ ^[0-9]+$ ]] || [ "$pr_list_limit" -lt 1 ]; then
+  echo "OBJECTIVE_IMPACT_PR_LIST_LIMIT must be a positive integer; falling back to 5000 (got: $pr_list_limit)" >&2
+  pr_list_limit=5000
+fi
 
 cat > "$DATA_DIR/run-context.json" <<EOF
 {
