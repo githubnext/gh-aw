@@ -1439,7 +1439,7 @@ func TestBuildDetectionEngineExecutionStepPropagatesBYOKProviderHost(t *testing.
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
 					Env: map[string]string{
-						constants.CopilotProviderBaseURL: "https://llm.corp.example.com/v1",
+						constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
 					},
 				},
 				SafeOutputs: &SafeOutputsConfig{
@@ -1447,6 +1447,7 @@ func TestBuildDetectionEngineExecutionStepPropagatesBYOKProviderHost(t *testing.
 				},
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
+					Allowed:  []string{"defaults", "llm.corp.example.com"},
 				},
 			},
 			wantHost: "llm.corp.example.com",

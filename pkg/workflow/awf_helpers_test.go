@@ -953,11 +953,23 @@ func TestGetCopilotAllowlistTargets(t *testing.T) {
 			},
 			expected: []string{"llm.corp.example.com"},
 		},
+		{
+			name: "skips provider host extraction when BYOK base URL is a GitHub expression",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
+					},
+				},
+			},
+			expected: nil,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, GetCopilotAllowlistTargets(tt.workflowData))
+			assert.Equal(t, tt.expected, GetCopilotAllowlistTargets(tt.workflowData), "GetCopilotAllowlistTargets should return expected targets for %s", tt.name)
 		})
 	}
 }

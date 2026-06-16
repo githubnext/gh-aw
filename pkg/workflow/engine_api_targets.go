@@ -157,6 +157,22 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
 }
 
+func extractLiteralEngineEnvHost(workflowData *WorkflowData, envVar string) string {
+	env := getEngineEnvOverrides(workflowData)
+	if env == nil {
+		return ""
+	}
+	rawValue, ok := env[envVar]
+	if !ok || rawValue == "" {
+		return ""
+	}
+	if strings.Contains(rawValue, "${{") {
+		awfHelpersLog.Printf("Skipping %s host extraction from GitHub expression value", envVar)
+		return ""
+	}
+	return extractAPITargetHost(workflowData, envVar)
+}
+
 // GetCopilotAllowlistTargets returns the Copilot-specific hosts that must be present in the
 // firewall allow-list for execution to succeed.
 //
@@ -181,7 +197,7 @@ func GetCopilotAllowlistTargets(workflowData *WorkflowData) []string {
 		targets = append(targets, target)
 	}
 
-	addTarget(extractAPITargetHost(workflowData, constants.CopilotProviderBaseURL))
+	addTarget(extractLiteralEngineEnvHost(workflowData, constants.CopilotProviderBaseURL))
 	addTarget(GetCopilotAPITarget(workflowData))
 
 	return targets

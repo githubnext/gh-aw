@@ -875,7 +875,7 @@ permissions:
 engine:
   id: copilot
   env:
-    COPILOT_PROVIDER_BASE_URL: "https://llm.corp.example.com/v1"
+    COPILOT_PROVIDER_BASE_URL: ${{ secrets.PROVIDER_BASE_URL }}
 network:
   allowed:
     - defaults
@@ -887,7 +887,7 @@ safe-outputs:
 
 # Test Workflow
 
-Test workflow with COPILOT_PROVIDER_BASE_URL in engine.env.
+Test workflow with COPILOT_PROVIDER_BASE_URL in engine.env and provider host in network.allowed.
 `
 
 	tmpDir := testutil.TempDir(t, "copilot-provider-threat-detection-test")
@@ -911,7 +911,7 @@ Test workflow with COPILOT_PROVIDER_BASE_URL in engine.env.
 	requiredDomain := "llm.corp.example.com"
 	allowDomainsPrefix := `"allowDomains":[`
 	allowDomainsPrefixEscaped := `\"allowDomains\":[`
-	if strings.Index(lockStr, allowDomainsPrefix) < 0 {
+	if !strings.Contains(lockStr, allowDomainsPrefix) {
 		allowDomainsPrefix = allowDomainsPrefixEscaped
 	}
 
