@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -348,6 +349,41 @@ func TestMergeRawOTLPEndpoints_DedupesAndCountsSources(t *testing.T) {
 	assert.Equal(t, "https://main.example/otlp", mergedEndpoints[0].(map[string]any)["url"])
 	assert.Equal(t, "https://shared.example/otlp", mergedEndpoints[1].(map[string]any)["url"])
 	assert.Equal(t, "https://import.example/otlp", mergedEndpoints[2].(map[string]any)["url"])
+}
+
+func TestMergeImportedObservability_MergesResourceAttributesWithMainPrecedence(t *testing.T) {
+	importedObsJSON, err := json.Marshal(map[string]any{
+		"otlp": map[string]any{
+			"resource-attributes": map[string]any{
+				"shared.key":      "from-import",
+				"import.only.key": "import-value",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	workflowData := &WorkflowData{
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"resource-attributes": map[string]any{
+						"shared.key":    "from-main",
+						"main.only.key": "main-value",
+					},
+				},
+			},
+		},
+	}
+
+	NewCompiler().mergeImportedObservability(workflowData, string(importedObsJSON))
+
+	obs := workflowData.RawFrontmatter["observability"].(map[string]any)
+	otlp := obs["otlp"].(map[string]any)
+	assert.Equal(t, map[string]string{
+		"shared.key":      "from-main",
+		"main.only.key":   "main-value",
+		"import.only.key": "import-value",
+	}, otlp["resource-attributes"])
 }
 
 func TestBuildMergedEnvSources_MainWorkflowWins(t *testing.T) {

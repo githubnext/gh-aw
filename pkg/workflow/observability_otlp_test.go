@@ -521,6 +521,32 @@ func TestInjectOTLPConfig(t *testing.T) {
 		)
 	})
 
+	t.Run("appends custom OTLP resource attributes", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			AI:   "copilot",
+			Name: "triage weekly",
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com:4317",
+						ResourceAttributes: map[string]string{
+							"my.actor":       "${{ github.actor }}",
+							"my.target repo": "owner/repo,weekly",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(
+			t,
+			wd.Env,
+			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=triage%20weekly,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot,my.actor=${{ github.actor }},my.target%20repo=owner%2Frepo%2Cweekly'",
+		)
+	})
+
 	t.Run("appends domain to existing NetworkPermissions.Allowed", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
@@ -726,6 +752,27 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			assert.Equal(t, tt.expectedHeaders, normalizedHeaders, "Headers should match")
 		})
 	}
+}
+
+func TestObservabilityConfigParsing_OTLPResourceAttributes(t *testing.T) {
+	config, err := ParseFrontmatterConfig(map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"resource-attributes": map[string]any{
+					"my.target-repo": "${{ github.repository }}",
+					"my.event":       "repository_dispatch",
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	require.NotNil(t, config.Observability)
+	require.NotNil(t, config.Observability.OTLP)
+	assert.Equal(t, map[string]string{
+		"my.target-repo": "${{ github.repository }}",
+		"my.event":       "repository_dispatch",
+	}, config.Observability.OTLP.ResourceAttributes)
 }
 
 // TestInjectOTLPConfig_RawFrontmatterFallback verifies that injectOTLPConfig works
@@ -1915,6 +1962,90 @@ func TestCollectOTLPCustomAttributes(t *testing.T) {
 	}
 }
 
+func TestCollectOTLPResourceAttributes(t *testing.T) {
+	frontmatter := map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"resource-attributes": map[string]any{
+					"my.actor":        "${{ github.actor }}",
+					"my.target-repo":  "owner/repo",
+					"ignored.numeric": 42,
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, map[string]string{
+		"my.actor":       "${{ github.actor }}",
+		"my.target-repo": "owner/repo",
+	}, collectOTLPResourceAttributes(frontmatter))
+}
+
+func TestValidateOTLPResourceAttributes(t *testing.T) {
+	tests := []struct {
+		name          string
+		workflowData  *WorkflowData
+		errorContains string
+	}{
+		{
+			name: "allows safe expressions",
+			workflowData: &WorkflowData{
+				ParsedFrontmatter: &FrontmatterConfig{
+					Observability: &ObservabilityConfig{
+						OTLP: &OTLPConfig{
+							ResourceAttributes: map[string]string{
+								"my.actor": "${{ github.actor }}",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rejects secrets expressions",
+			workflowData: &WorkflowData{
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"resource-attributes": map[string]any{
+								"api.key": "${{ secrets.OTLP_KEY }}",
+							},
+						},
+					},
+				},
+			},
+			errorContains: "observability.otlp.resource-attributes.api.key must not reference secrets.* or vars.*",
+		},
+		{
+			name: "rejects vars expressions",
+			workflowData: &WorkflowData{
+				ParsedFrontmatter: &FrontmatterConfig{
+					Observability: &ObservabilityConfig{
+						OTLP: &OTLPConfig{
+							ResourceAttributes: map[string]string{
+								"tenant": "${{ vars.OTLP_TENANT }}",
+							},
+						},
+					},
+				},
+			},
+			errorContains: "observability.otlp.resource-attributes.tenant must not reference secrets.* or vars.*",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateOTLPResourceAttributes(tt.workflowData)
+			if tt.errorContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errorContains)
+		})
+	}
+}
+
 // TestInjectOTLPConfig_CustomAttributes verifies that injectOTLPConfig injects the
 // GH_AW_OTLP_ATTRIBUTES env var when observability.otlp.attributes is configured.
 func TestInjectOTLPConfig_CustomAttributes(t *testing.T) {
@@ -1975,29 +2106,29 @@ func TestInjectOTLPConfig_CustomAttributes(t *testing.T) {
 	})
 }
 
-// TestMergeOTLPCustomAttributes verifies that mergeOTLPCustomAttributes correctly
+// TestMergeOTLPStringMaps verifies that mergeOTLPStringMaps correctly
 // merges two attribute maps with base taking precedence.
-func TestMergeOTLPCustomAttributes(t *testing.T) {
+func TestMergeOTLPStringMaps(t *testing.T) {
 	t.Run("nil inputs return nil", func(t *testing.T) {
-		assert.Nil(t, mergeOTLPCustomAttributes(nil, nil))
+		assert.Nil(t, mergeOTLPStringMaps(nil, nil))
 	})
 
 	t.Run("base only is returned as-is", func(t *testing.T) {
 		base := map[string]string{"a": "1"}
-		result := mergeOTLPCustomAttributes(base, nil)
+		result := mergeOTLPStringMaps(base, nil)
 		assert.Equal(t, map[string]string{"a": "1"}, result)
 	})
 
 	t.Run("override only is returned as-is", func(t *testing.T) {
 		override := map[string]string{"b": "2"}
-		result := mergeOTLPCustomAttributes(nil, override)
+		result := mergeOTLPStringMaps(nil, override)
 		assert.Equal(t, map[string]string{"b": "2"}, result)
 	})
 
 	t.Run("base keys override the same key from override", func(t *testing.T) {
 		base := map[string]string{"a": "base-value", "b": "base-b"}
 		override := map[string]string{"a": "override-value", "c": "override-c"}
-		result := mergeOTLPCustomAttributes(base, override)
+		result := mergeOTLPStringMaps(base, override)
 		require.NotNil(t, result)
 		assert.Equal(t, "base-value", result["a"], "base should win for key 'a'")
 		assert.Equal(t, "base-b", result["b"], "base-only key 'b' should be present")

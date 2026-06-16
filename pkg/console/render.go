@@ -68,46 +68,42 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		}
 	}
 
-	maxFieldLen := computeMaxFieldLen(val, typ)
+	maxFieldLen := computeMaxFieldLen(val)
+	renderInlineEmbeddedFields(val, maxFieldLen, output, depth)
 
-	// Iterate through struct fields
-	for i := range val.NumField() {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
+	output.WriteString("\n")
+}
 
-		// Check if field should be skipped
+// renderInlineEmbeddedFields renders the fields of an anonymous embedded struct
+// directly into the parent struct output, flattening the hierarchy.
+func renderInlineEmbeddedFields(val reflect.Value, maxFieldLen int, output *strings.Builder, depth int) {
+	walkInlineFields(val, func(field reflect.Value, fieldType reflect.StructField) {
 		tag := parseConsoleTag(fieldType.Tag.Get("console"))
 		if tag.skip {
-			continue
+			return
 		}
-
-		// Check omitempty
 		if tag.omitempty && isZeroValue(field) {
-			continue
+			return
 		}
 
-		// Get field name (use tag header if available, otherwise use field name)
 		fieldName := fieldType.Name
 		if tag.header != "" {
 			fieldName = tag.header
 		}
 
 		renderStructField(field, fieldName, tag, maxFieldLen, output, depth)
-	}
-
-	output.WriteString("\n")
+	})
 }
 
-// computeMaxFieldLen computes the longest visible field name for alignment.
-func computeMaxFieldLen(val reflect.Value, typ reflect.Type) int {
+// computeMaxFieldLen computes the longest visible field name for alignment,
+// recursing into anonymous embedded structs to include their fields.
+func computeMaxFieldLen(val reflect.Value) int {
 	maxFieldLen := 0
-	for i := range val.NumField() {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
+	walkInlineFields(val, func(field reflect.Value, fieldType reflect.StructField) {
 		tag := parseConsoleTag(fieldType.Tag.Get("console"))
 
 		if tag.skip || (tag.omitempty && isZeroValue(field)) {
-			continue
+			return
 		}
 
 		fieldName := fieldType.Name
@@ -118,8 +114,36 @@ func computeMaxFieldLen(val reflect.Value, typ reflect.Type) int {
 		if len(fieldName) > maxFieldLen {
 			maxFieldLen = len(fieldName)
 		}
-	}
+	})
 	return maxFieldLen
+}
+
+func walkInlineFields(val reflect.Value, visit func(field reflect.Value, fieldType reflect.StructField)) {
+	typ := val.Type()
+	for i := range val.NumField() {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+
+		if fieldType.Anonymous {
+			if embedded, ok := embeddedStructValue(field); ok {
+				walkInlineFields(embedded, visit)
+				continue
+			}
+		}
+
+		visit(field, fieldType)
+	}
+}
+
+func embeddedStructValue(field reflect.Value) (reflect.Value, bool) {
+	for field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return reflect.Value{}, false
+		}
+		field = field.Elem()
+	}
+
+	return field, field.Kind() == reflect.Struct
 }
 
 // renderStructField renders a single struct field to output, dispatching on its kind.
@@ -231,41 +255,69 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	}
 
 	// Build headers from struct fields
-	headers, fieldIndices, fieldTags := buildTableHeaders(elemType)
+	headers, fieldPaths, fieldTags := buildTableHeaders(elemType)
 	config.Headers = headers
 
 	// Build rows
-	config.Rows = buildTableRows(val, fieldIndices, fieldTags)
+	config.Rows = buildTableRows(val, fieldPaths, fieldTags)
 
 	return config
 }
 
-// buildTableHeaders extracts column headers, field indices, and tags from a struct type.
-func buildTableHeaders(elemType reflect.Type) (headers []string, fieldIndices []int, fieldTags []consoleTag) {
-	for i := range elemType.NumField() {
-		field := elemType.Field(i)
+// buildTableHeaders extracts column headers, field index paths, and tags from a struct type,
+// flattening anonymous embedded struct fields into the top-level column list.
+func buildTableHeaders(elemType reflect.Type) (headers []string, fieldPaths [][]int, fieldTags []consoleTag) {
+	fields := collectTableFields(elemType, nil)
+	headers = make([]string, 0, len(fields))
+	fieldPaths = make([][]int, 0, len(fields))
+	fieldTags = make([]consoleTag, 0, len(fields))
+	for _, field := range fields {
+		headers = append(headers, field.header)
+		fieldPaths = append(fieldPaths, field.path)
+		fieldTags = append(fieldTags, field.tag)
+	}
+	return headers, fieldPaths, fieldTags
+}
+
+// collectTableFields recursively walks a struct type, inlining the fields of any
+// anonymous embedded structs so they appear as top-level table columns.
+func collectTableFields(t reflect.Type, prefix []int) []tableField {
+	fields := make([]tableField, 0, t.NumField())
+	for i := range t.NumField() {
+		field := t.Field(i)
+		fieldPath := make([]int, len(prefix)+1)
+		copy(fieldPath, prefix)
+		fieldPath[len(prefix)] = i
+
+		if field.Anonymous {
+			if embeddedType, ok := embeddedStructType(field.Type); ok {
+				fields = append(fields, collectTableFields(embeddedType, fieldPath)...)
+				continue
+			}
+		}
+
 		tag := parseConsoleTag(field.Tag.Get("console"))
 
-		// Skip fields marked with "-"
 		if tag.skip {
 			continue
 		}
 
-		// Use header tag if available, otherwise use field name
 		headerName := field.Name
 		if tag.header != "" {
 			headerName = tag.header
 		}
 
-		headers = append(headers, headerName)
-		fieldIndices = append(fieldIndices, i)
-		fieldTags = append(fieldTags, tag)
+		fields = append(fields, tableField{
+			header: headerName,
+			path:   fieldPath,
+			tag:    tag,
+		})
 	}
-	return headers, fieldIndices, fieldTags
+	return fields
 }
 
 // buildTableRows builds the row data for a slice of struct elements.
-func buildTableRows(val reflect.Value, fieldIndices []int, fieldTags []consoleTag) [][]string {
+func buildTableRows(val reflect.Value, fieldPaths [][]int, fieldTags []consoleTag) [][]string {
 	var rows [][]string
 	for i := range val.Len() {
 		elem := val.Index(i)
@@ -282,13 +334,47 @@ func buildTableRows(val reflect.Value, fieldIndices []int, fieldTags []consoleTa
 		}
 
 		var row []string
-		for j, fieldIdx := range fieldIndices {
-			field := elem.Field(fieldIdx)
+		for j, fieldPath := range fieldPaths {
+			field, ok := fieldByIndexSafe(elem, fieldPath)
+			if !ok {
+				row = append(row, "")
+				continue
+			}
 			row = append(row, formatFieldValueWithTag(field, fieldTags[j]))
 		}
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func fieldByIndexSafe(val reflect.Value, path []int) (reflect.Value, bool) {
+	current := val
+	for _, idx := range path {
+		for current.Kind() == reflect.Pointer {
+			if current.IsNil() {
+				return reflect.Value{}, false
+			}
+			current = current.Elem()
+		}
+		if current.Kind() != reflect.Struct {
+			return reflect.Value{}, false
+		}
+		current = current.Field(idx)
+	}
+	return current, true
+}
+
+func embeddedStructType(t reflect.Type) (reflect.Type, bool) {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t, t.Kind() == reflect.Struct
+}
+
+type tableField struct {
+	header string
+	path   []int
+	tag    consoleTag
 }
 
 // consoleTag represents parsed console struct tag

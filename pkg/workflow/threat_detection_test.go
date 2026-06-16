@@ -1423,6 +1423,66 @@ func TestBuildDetectionEngineExecutionStepPropagatesAPITarget(t *testing.T) {
 	}
 }
 
+func TestBuildDetectionEngineExecutionStepPropagatesBYOKProviderHost(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name         string
+		data         *WorkflowData
+		wantHost     string
+		unwantedHost string
+	}{
+		{
+			name: "detection allow-domains includes BYOK provider host",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
+					},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+					Allowed:  []string{"defaults", "llm.corp.example.com"},
+				},
+			},
+			wantHost: "llm.corp.example.com",
+		},
+		{
+			name: "detection allow-domains stays minimal without BYOK provider host",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+			unwantedHost: "llm.corp.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			allSteps := strings.Join(compiler.buildDetectionEngineExecutionStep(tt.data), "")
+			if tt.wantHost != "" && !strings.Contains(allSteps, tt.wantHost) {
+				t.Errorf("Expected detection steps to contain BYOK provider host %q.\nGenerated steps:\n%s", tt.wantHost, allSteps)
+			}
+			if tt.unwantedHost != "" && strings.Contains(allSteps, tt.unwantedHost) {
+				t.Errorf("Expected detection steps to exclude BYOK provider host %q.\nGenerated steps:\n%s", tt.unwantedHost, allSteps)
+			}
+		})
+	}
+}
+
 // TestDetectionJobPermissionsIndentation verifies that the detection job's permissions block
 // is correctly indented in the rendered YAML output.
 // Regression test for the indentation bug where c.indentYAMLLines was called on

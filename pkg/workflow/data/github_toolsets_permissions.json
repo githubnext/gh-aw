@@ -20,6 +20,12 @@
       "write_permissions": [],
       "tools": ["get_me", "get_team_members", "get_teams"]
     },
+    "copilot": {
+      "description": "GitHub Copilot assignment and review tools",
+      "read_permissions": [],
+      "write_permissions": ["issues", "pull-requests"],
+      "tools": ["assign_copilot_to_issue", "request_copilot_review"]
+    },
     "copilot_spaces": {
       "description": "GitHub Copilot Spaces (remote-only)",
       "read_permissions": [],
@@ -36,7 +42,7 @@
       "description": "GitHub Discussions",
       "read_permissions": ["discussions"],
       "write_permissions": ["discussions"],
-      "tools": ["get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions"]
+      "tools": ["discussion_comment_write", "get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions"]
     },
     "experiments": {
       "description": "Experimental features (dynamic toolset management)",
@@ -120,6 +126,7 @@
         "delete_file",
         "fork_repository",
         "get_commit",
+        "get_file_blame",
         "get_file_contents",
         "get_latest_release",
         "get_release_by_tag",
