@@ -51,7 +51,7 @@ This specification uses the following terms with precise definitions:
 
 **Safe Output Type**: A category of GitHub operation (e.g., `create_issue`, `add_comment`) with a corresponding MCP tool definition and handler implementation.
 
-**MCP Gateway**: The HTTP server accepting MCP tool invocation requests and recording operations to NDJSON format. Runs in the same context as the agent.
+**MCP Gateway**: The containerized stdio MCP server accepting MCP tool invocation requests and recording operations to NDJSON format. Runs in an isolated container alongside the agent job.
 
 **Safe Output Processor**: The privileged execution context that reads NDJSON artifacts, validates operations, and executes GitHub API calls.
 
@@ -109,7 +109,7 @@ This document normatively defines:
 3. **Protocol exchange patterns** governing operation declaration, validation, and fulfillment
 4. **Content security requirements** specifying sanitization, filtering, and validation transformations
 5. **Operational guarantees** characterizing atomicity, ordering, idempotency, and error handling for each safe output type
-6. **MCP integration** defining tool interface schemas and HTTP transport requirements
+6. **MCP integration** defining tool interface schemas and stdio container transport requirements
 
 **Explicitly Out of Scope**:
 
@@ -158,7 +158,7 @@ This specification uses the following terms with precise meanings:
 
 **Safe Output Type**: A category of GitHub operation (e.g., issue creation, comment posting, label application) with defined semantics, constraints, and operational guarantees. Each type corresponds to one or more MCP tools.
 
-**MCP Gateway**: An HTTP server implementing the Model Context Protocol, accepting tool invocations from agents, validating against JSON schemas, and recording operations to structured files.
+**MCP Gateway**: A containerized stdio MCP server implementing the Model Context Protocol, accepting tool invocations from agents, validating against JSON schemas, and recording operations to structured files.
 
 **Safe Output Job**: A permission-controlled GitHub Actions job that downloads agent-declared operations, validates content, enforces limits, and executes GitHub API calls.
 
@@ -189,7 +189,7 @@ An implementation satisfying ALL normative requirements (MUST, SHALL, REQUIRED s
 - Complete security architecture implementation (privilege separation, threat mitigations)
 - Support for all mandatory safe output types (defined in Section 7)
 - Universal feature implementation (max limits, staged mode, footers, sanitization)
-- Protocol exchange pattern adherence (MCP HTTP transport, NDJSON persistence)
+- Protocol exchange pattern adherence (MCP stdio container transport, NDJSON persistence)
 - Content integrity mechanism enforcement (schema validation, domain filtering)
 - Execution guarantee provision (atomicity, ordering, idempotency)
 
@@ -814,18 +814,18 @@ The Safe Outputs MCP Gateway system comprises three distinct components operatin
 
 **Component C2: MCP Gateway Server** (Runtime agent phase)
 
-*Input*: MCP tool invocation requests over HTTP
+*Input*: MCP tool invocation requests via stdio (JSON-RPC)
 *Output*: NDJSON file recording operation declarations  
 *Key Responsibilities*:
 
-- Start HTTP server on port 3001 (configurable)
-- Load tool schemas from `/opt/gh-aw/safeoutputs/config.json`
+- Run as a containerized stdio MCP server in the `gh-aw-node` image
+- Load tool schemas from `${RUNNER_TEMP}/gh-aw/safeoutputs/config.json`
 - Register MCP tools matching enabled safe output types
 - Validate invocations against JSON schemas
 - Handle large content (>16000 tokens) via file references
 - Append validated operations to `/tmp/gh-aw/safeoutputs/output.ndjson`
 
-*Location*: Agent job container (same context as AI agent process)
+*Location*: Isolated `gh-aw-node` container with workspace, safeoutputs runtime files, and log directory mounted read-write
 
 **Component C3: Safe Output Processor** (Post-execution phase)
 
@@ -906,13 +906,12 @@ for (const [name, schema] of Object.entries(tools)) {
 
 **Phase 4: Operation Declaration** (Agent Execution)
 
-Agent invokes MCP tool:
+Agent invokes MCP tool via stdio JSON-RPC to the containerized safeoutputs MCP server:
 
-```http
-POST http://127.0.0.1:3001/tools/call
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "method": "tools/call",
   "params": {
     "name": "create_issue",
@@ -3972,28 +3971,33 @@ safe-outputs:
 
 ## 8. Protocol Exchange Patterns
 
-### 8.1 HTTP Transport Layer
+### 8.1 Stdio Container Transport Layer
 
-**Protocol**: HTTP/1.1  
-**Bind Address**: 127.0.0.1 (localhost only)  
-**Port**: From `GH_AW_SAFE_OUTPUTS_PORT` (default: 3001)  
+**Transport**: stdio (JSON-RPC 2.0 over stdin/stdout)  
+**Deployment**: Containerized MCP server in `ghcr.io/github/gh-aw-node` image  
+**Entrypoint**: `node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs`  
 **Operation Mode**: Stateless (no session management)
 
-**Endpoints**:
+The safe-outputs MCP server runs as a containerized stdio MCP server managed by the MCP gateway. The gateway communicates with it via the standard stdio JSON-RPC 2.0 protocol. The container has direct read-write access to the workspace, safe-outputs runtime files (`${RUNNER_TEMP}/gh-aw/safeoutputs`), and the MCP log directory (`/tmp/gh-aw/mcp-logs/safeoutputs`).
 
-- `POST /tools/list` - List available tools
-- `POST /tools/call` - Invoke tool
+**Required Mounts**:
+- `${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw` — workspace access for reading configs and writing outputs
+- `${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw` — safeoutputs runtime files (config.json, tools.json, output.ndjson)
+- `/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw` — MCP server log directory
+
+**Methods**:
+
+- `tools/list` - List available tools
+- `tools/call` - Invoke tool
 
 ### 8.2 Tool Invocation Protocol
 
-**Request Format**:
+**Request Format** (JSON-RPC 2.0 over stdio):
 
-```http
-POST /tools/call HTTP/1.1
-Host: 127.0.0.1:3001
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "method": "tools/call",
   "params": {
     "name": "<tool_name>",
@@ -4004,11 +4008,10 @@ Content-Type: application/json
 
 **Success Response**:
 
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "result": {
     "content": [{
       "type": "text",
@@ -4020,11 +4023,10 @@ Content-Type: application/json
 
 **Validation Error**:
 
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "error": {
     "code": -32602,
     "message": "Invalid params: <details>"
@@ -4869,7 +4871,7 @@ Operators SHOULD communicate this expected one-time cache miss to their teams to
   - [ ] Optional types documented if unsupported
 
 - [ ] Protocol
-  - [ ] HTTP transport
+  - [ ] stdio container transport (containerized MCP server in `gh-aw-node` image)
   - [ ] MCP tool invocation
   - [ ] NDJSON persistence
 
@@ -5315,7 +5317,7 @@ This section maps normative specification requirements (§3–§11) to implement
 | §6 Universal Feature Interpretation | Max limit semantics (MR1–MR4), staged mode (SM1–SM4), footer attribution (FA1–FA6) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_mcp_server.cjs` |
 | §7 Safe Output Type Definitions | Handler implementations for each type | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_tools.json` |
 | §7.1 Core Issue Operations | `create_issue`, `add_comment`, `hide_comment`, `close_issue` | `actions/setup/js/add_comment.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
-| §8 Protocol Exchange Patterns | HTTP transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
+| §8 Protocol Exchange Patterns | stdio container transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
 | §9 Content Integrity Mechanisms | Content sanitization pipeline | `actions/setup/js/safe_output_validator.cjs`, `actions/setup/js/safe_output_type_validator.cjs` |
 | §10 Execution Guarantees | Idempotency, staged mode enforcement | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_action_handler.cjs` |
 | §11 Cache Memory Integrity | Cache key format, integrity branches, git-backed branching | `pkg/workflow/compiler_safe_outputs.go`, `actions/setup/js/safe_outputs_bootstrap.cjs` |

@@ -58,6 +58,69 @@ if [ "$logs_source" = "gh-api-fallback" ]; then
     | jq -s '{source:"gh-api-fallback", runs:.}' > "$DATA_DIR/workflow-logs.json"
 fi
 
+# Aggregate per-workflow AIC from daily token-audit memory snapshots.
+# Each daily snapshot in the memory/token-audit branch covers ~24 hours of runs.
+# Summing across all snapshots in the window gives total AIC per workflow.
+aic_snapshot_count=0
+if has_data_file "$DATA_DIR/aic-by-workflow.json"; then
+  echo "Using cached AIC by workflow dataset"
+  aic_snapshot_count=$(jq '.snapshot_count // 0' "$DATA_DIR/aic-by-workflow.json" 2>/dev/null || echo 0)
+else
+  echo "Fetching token-audit memory snapshots for AIC aggregation..."
+  if git fetch origin "memory/token-audit:refs/remotes/origin/memory/token-audit" --no-tags 2>/dev/null; then
+    mapfile -t snapshot_files < <(
+      git ls-tree --name-only origin/memory/token-audit \
+        | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.json$' \
+        | awk -F. '{print $1}' \
+        | awk -v ws="$window_start" '$0 >= ws' \
+        | sed 's/$/.json/'
+    )
+    aic_snapshot_count="${#snapshot_files[@]}"
+    echo "Found $aic_snapshot_count token-audit snapshots in the window"
+
+    if [ "$aic_snapshot_count" -gt 0 ]; then
+      {
+        for f in "${snapshot_files[@]}"; do
+          if content=$(git show "origin/memory/token-audit:$f" 2>/dev/null); then
+            echo "$content"
+          else
+            echo "⚠ Failed to retrieve snapshot: $f" >&2
+            echo 'null'
+          fi
+        done
+      } | jq -s \
+          --arg window_start "$window_start" \
+          --arg generated_at "$generated_at" \
+          --argjson snapshot_count "$aic_snapshot_count" '
+        [.[].workflows[]? | {workflow_name, total_aic: (.total_aic // 0), run_count: (.run_count // 0)}]
+        | sort_by(.workflow_name)
+        | group_by(.workflow_name)
+        | map({
+            workflow_name: .[0].workflow_name,
+            total_aic: (map(.total_aic) | add // 0),
+            run_count: (map(.run_count) | add // 0)
+          })
+        | sort_by(-.total_aic)
+        | {
+            source: "token-audit-memory",
+            window_start: $window_start,
+            generated_at: $generated_at,
+            snapshot_count: $snapshot_count,
+            total_aic: (map(.total_aic) | add // 0),
+            workflows: .
+          }
+      ' > "$DATA_DIR/aic-by-workflow.json"
+    else
+      printf '{"source":"token-audit-memory","window_start":"%s","snapshot_count":0,"total_aic":0,"workflows":[]}\n' \
+        "$window_start" > "$DATA_DIR/aic-by-workflow.json"
+    fi
+  else
+    printf '{"source":"none","window_start":"%s","snapshot_count":0,"total_aic":0,"workflows":[]}\n' \
+      "$window_start" > "$DATA_DIR/aic-by-workflow.json"
+    echo "⚠ Could not fetch memory/token-audit branch (does the branch exist? are credentials configured?); AIC by workflow data unavailable" >&2
+  fi
+fi
+
 if has_data_file "$DATA_DIR/merged-prs.json"; then
   echo "Using cached merged PR dataset"
 else
@@ -99,10 +162,12 @@ jq -n \
   --arg repository "$repo" \
   --arg window_start "$window_start" \
   --arg workflow_logs_source "$logs_source" \
+  --argjson aic_snapshot_count "$aic_snapshot_count" \
   --slurpfile workflow_logs "$DATA_DIR/workflow-logs.json" \
   --slurpfile merged "$DATA_DIR/merged-prs-linked.json" \
   --slurpfile closed "$DATA_DIR/closed-unmerged-prs-linked.json" \
-  --slurpfile mapping "$DATA_DIR/objective-mapping.json" '
+  --slurpfile mapping "$DATA_DIR/objective-mapping.json" \
+  --slurpfile aic_by_workflow "$DATA_DIR/aic-by-workflow.json" '
   {
     generated_at: $generated_at,
     repository: $repository,
@@ -114,11 +179,13 @@ jq -n \
     closed_unmerged_pr_count: (($closed[0] // []) | length),
     closed_unmerged_prs_with_linked_issue: (($closed[0] // []) | map(select((.linked_issue_numbers | length) > 0)) | length),
     objective_mapping_present: ((($mapping[0] // {}) | type) == "object" and ((($mapping[0] // {}) | keys | length) > 0)),
+    aic_by_workflow_source: ($aic_by_workflow[0].source // "none"),
+    aic_by_workflow_snapshot_count: $aic_snapshot_count,
+    aic_by_workflow_total: ($aic_by_workflow[0].total_aic // 0),
     safe_output_precompute_note: "Safe-output issue resolution may still require live lookups unless workflow log data already contains the needed identifiers.",
     required_live_fallbacks: [
       "safe-output issue state or label gaps not present in precomputed files",
-      "root-issue label fetches for traced linked issues",
-      "workflow AIC cost when workflow_logs_source is gh-api-fallback"
+      "root-issue label fetches for traced linked issues"
     ]
   }
 ' > "$DATA_DIR/dataset-manifest.json"

@@ -261,6 +261,16 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		compilerMainJobLog.Print("Skipped checkout_pr_success output (workflow lacks contents read access)")
 	}
 
+	// Expose restore step outputs so downstream failure handling can compute whether
+	// any cache-memory restore matched an existing cache entry.
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		for i := range data.CacheMemoryConfig.Caches {
+			stepID := fmt.Sprintf("restore_cache_memory_%d", i)
+			outputs[fmt.Sprintf("cache_memory_restore_%d_matched_key", i)] = fmt.Sprintf("${{ steps.%s.outputs.cache-matched-key || '' }}", stepID)
+			outputs[fmt.Sprintf("cache_memory_restore_%d_cache_hit", i)] = fmt.Sprintf("${{ steps.%s.outputs.cache-hit || 'false' }}", stepID)
+		}
+	}
+
 	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout, and
 	// model_not_supported_error outputs for engines that provide an error detection step.
 	// These outputs are written by the host-runner detect-agent-errors step (via the

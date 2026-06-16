@@ -11,7 +11,7 @@
 //   - Identifying and collecting MCP tools from workflow configuration
 //   - Generating Docker image download steps
 //   - Installing gh-aw extension for agentic-workflows tool
-//   - Setting up safe-outputs MCP server (config, API key, HTTP server)
+//   - Setting up safe-outputs MCP server runtime files and container config
 //   - Setting up mcp-scripts MCP server (config, tool files, HTTP server)
 //   - Starting the MCP gateway with proper environment variables
 //   - Rendering MCP configuration for the selected AI engine
@@ -21,7 +21,7 @@
 //  2. Install gh-aw extension (if agentic-workflows enabled)
 //  3. Write safe-outputs config.json (may contain template expressions; kept small)
 //  4. Write safe-outputs tools.json and validation.json (large, no template expressions)
-//  5. Generate and start safe-outputs HTTP server
+//  5. Prepare safe-outputs runtime files for containerized MCP execution
 //  6. Setup mcp-scripts config and tool files (JavaScript, Python, Shell, Go)
 //  7. Generate and start mcp-scripts HTTP server
 //  8. Start MCP Gateway with all environment variables
@@ -51,7 +51,7 @@
 // Example workflow setup:
 //   - Download Docker images
 //   - Write safe-outputs config to ${RUNNER_TEMP}/gh-aw/safeoutputs/
-//   - Start safe-outputs HTTP server on port 3001
+//   - Mount safe-outputs runtime files into the gh-aw node MCP container
 //   - Write mcp-scripts config to ${RUNNER_TEMP}/gh-aw/mcp-scripts/
 //   - Start mcp-scripts HTTP server on port 3000
 //   - Start MCP Gateway (default port 8080)
@@ -321,53 +321,6 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString(generateGitHubScriptWithRequire("generate_safe_outputs_tools.cjs"))
-
-	yaml.WriteString("      - name: Generate Safe Outputs MCP Server Config\n")
-	yaml.WriteString("        id: safe-outputs-config\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
-	yaml.WriteString("          # Mask immediately to prevent timing vulnerabilities\n")
-	yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
-	yaml.WriteString("          echo \"::add-mask::${API_KEY}\"\n")
-	yaml.WriteString("          \n")
-	fmt.Fprintf(yaml, "          PORT=%d\n", constants.DefaultMCPInspectorPort)
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Set outputs for next steps\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            echo \"safe_outputs_api_key=${API_KEY}\"\n")
-	yaml.WriteString("            echo \"safe_outputs_port=${PORT}\"\n")
-	yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          echo \"Safe Outputs MCP server will run on port ${PORT}\"\n")
-	yaml.WriteString("          \n")
-
-	yaml.WriteString("      - name: Start Safe Outputs MCP HTTP Server\n")
-	yaml.WriteString("        id: safe-outputs-start\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          DEBUG: '*'\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json\n")
-	yaml.WriteString("          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs\n")
-	safeOutputsConfigEnvKeys, safeOutputsConfigEnvValues := buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig)
-	writeStepEnvVars(yaml, safeOutputsConfigEnvKeys, safeOutputsConfigEnvValues)
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
-	yaml.WriteString("          export DEBUG\n")
-	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS\n")
-	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_PORT\n")
-	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_API_KEY\n")
-	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_TOOLS_PATH\n")
-	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_CONFIG_PATH\n")
-	yaml.WriteString("          export GH_AW_MCP_LOG_DIR\n")
-	for _, varName := range safeOutputsConfigEnvKeys {
-		yaml.WriteString("          export " + varName + "\n")
-	}
-	yaml.WriteString("          \n")
-	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh\"\n")
-	yaml.WriteString("          \n")
 }
 
 // safeOutputsSecretEnvPrefix is prepended to secret names when generating step env var names for
@@ -834,6 +787,7 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GITHUB_REF_TYPE")
 	containerCmd.WriteString(" -e GITHUB_HEAD_REF")
 	containerCmd.WriteString(" -e GITHUB_BASE_REF")
+	containerCmd.WriteString(" -e RUNNER_TEMP")
 }
 
 func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, hasGitHub bool, githubTool map[string]any, tools map[string]any) {
@@ -843,10 +797,6 @@ func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflow
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		containerCmd.WriteString(" -e GH_AW_MCP_SCRIPTS_PORT")
 		containerCmd.WriteString(" -e GH_AW_MCP_SCRIPTS_API_KEY")
-	}
-	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_PORT")
-		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_API_KEY")
 	}
 	if workflowData.OTLPEndpoint != "" {
 		containerCmd.WriteString(" -e GITHUB_AW_OTEL_TRACE_ID")
@@ -898,6 +848,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 		"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS",
 		"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_GUARD_MIN_INTEGRITY", "GITHUB_MCP_GUARD_REPOS",
 		"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
+		"RUNNER_TEMP",
 		"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
 		"GITHUB_JOB", "GITHUB_ACTION", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",
 		"GITHUB_ACTOR", "GITHUB_ACTOR_ID", "GITHUB_TRIGGERING_ACTOR",
@@ -913,10 +864,6 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		addedEnvVars["GH_AW_MCP_SCRIPTS_PORT"] = true
 		addedEnvVars["GH_AW_MCP_SCRIPTS_API_KEY"] = true
-	}
-	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		addedEnvVars["GH_AW_SAFE_OUTPUTS_PORT"] = true
-		addedEnvVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = true
 	}
 	if workflowData.OTLPEndpoint != "" {
 		addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = true
