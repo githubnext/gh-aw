@@ -153,7 +153,32 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				RunsOn: "self-hosted",
+				RunsOn: "runs-on: self-hosted",
+			},
+		},
+		{
+			name: "object with runs-on array override",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"runs-on": []any{"self-hosted", "linux", "x64"},
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				RunsOn: "runs-on:\n  - self-hosted\n  - linux\n  - x64",
+			},
+		},
+		{
+			name: "object with runs-on group+labels override",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"runs-on": map[string]any{
+						"group":  "runner-group",
+						"labels": []any{"linux", "x64"},
+					},
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				RunsOn: "runs-on:\n  group: runner-group\n  labels:\n    - linux\n    - x64",
 			},
 		},
 		{

@@ -527,9 +527,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 			// Handle runs-on configuration
 			if runsOn, exists := outputMap["runs-on"]; exists {
-				if runsOnStr, ok := runsOn.(string); ok {
-					config.RunsOn = runsOnStr
-				}
+				config.RunsOn = renderRunsOnSnippet(runsOn)
 			}
 
 			// Handle timeout-minutes configuration

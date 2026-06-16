@@ -1681,7 +1681,7 @@ Specify a custom runner for safe output jobs (default: `ubuntu-slim`):
 ```aw
 ---
 safe-outputs:
-  runs-on: ubuntu-22.04
+  runs-on: [self-hosted, linux, x64]
   create-issue: {}
 ---
 ```

@@ -24,12 +24,14 @@ var safeOutputsRuntimeLog = logger.New("workflow:safe_outputs_runtime")
 //  3. DefaultActivationJobRunnerImage — compiled-in default
 func (c *Compiler) formatFrameworkJobRunsOn(data *WorkflowData) string {
 	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.RunsOn != "" {
-		safeOutputsRuntimeLog.Printf("Framework job runs-on from safe-outputs: %s", data.SafeOutputs.RunsOn)
-		return "runs-on: " + data.SafeOutputs.RunsOn
+		snippet := normalizeRunsOnSnippet(data.SafeOutputs.RunsOn)
+		safeOutputsRuntimeLog.Printf("Framework job runs-on from safe-outputs: %s", snippet)
+		return c.indentYAMLLines(snippet, "    ")
 	}
 	if data != nil && data.RunsOnSlim != "" {
-		safeOutputsRuntimeLog.Printf("Framework job runs-on from runs-on-slim: %s", data.RunsOnSlim)
-		return c.indentYAMLLines(data.RunsOnSlim, "    ")
+		snippet := normalizeRunsOnSnippet(data.RunsOnSlim)
+		safeOutputsRuntimeLog.Printf("Framework job runs-on from runs-on-slim: %s", snippet)
+		return c.indentYAMLLines(snippet, "    ")
 	}
 	safeOutputsRuntimeLog.Printf("Framework job runs-on using default: %s", constants.DefaultActivationJobRunnerImage)
 	return "runs-on: " + constants.DefaultActivationJobRunnerImage

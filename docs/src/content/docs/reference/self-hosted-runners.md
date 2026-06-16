@@ -93,7 +93,7 @@ runs-on: [self-hosted, linux, x64]
 safe-outputs:
   create-issue: {}
   threat-detection:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
 ---
 ```
 
@@ -107,8 +107,9 @@ Framework jobs — activation, pre-activation, safe-outputs, unlock, APM, update
 ---
 on: issues
 runs-on: [self-hosted, linux, x64]
-runs-on-slim: self-hosted
+runs-on-slim: [self-hosted, linux, x64]
 safe-outputs:
+  runs-on: [self-hosted, linux, x64]
   create-issue: {}
 ---
 ```

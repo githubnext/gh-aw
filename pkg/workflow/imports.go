@@ -435,7 +435,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.MaximumPatchSize == 0 && importedConfig.MaximumPatchSize > 0 {
 		result.MaximumPatchSize = importedConfig.MaximumPatchSize
 	}
-	if result.RunsOn == "" && importedConfig.RunsOn != "" {
+	if isEmptyRunsOnValue(result.RunsOn) && !isEmptyRunsOnValue(importedConfig.RunsOn) {
 		result.RunsOn = importedConfig.RunsOn
 	}
 	if len(importedConfig.Needs) > 0 {
