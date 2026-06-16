@@ -15,10 +15,6 @@ import (
 
 var otlpLog = logger.New("workflow:observability_otlp")
 
-// OTEL_RESOURCE_ATTRIBUTES values must escape backslash (`\`), comma (`,`), and
-// equals (`=`) per the OpenTelemetry env-var resource attribute grammar.
-var otelResourceValueEscaper = strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`)
-
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
@@ -768,7 +764,21 @@ func otelServiceName(workflowData *WorkflowData) string {
 }
 
 func escapeOTELResourceAttributeValue(value string) string {
-	return otelResourceValueEscaper.Replace(value)
+	const hexDigits = "0123456789ABCDEF"
+	var builder strings.Builder
+	builder.Grow(len(value))
+	for i := range len(value) {
+		c := value[i]
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+			c == '-' || c == '.' || c == '_' || c == '~' {
+			builder.WriteByte(c)
+			continue
+		}
+		builder.WriteByte('%')
+		builder.WriteByte(hexDigits[c>>4])
+		builder.WriteByte(hexDigits[c&0x0F])
+	}
+	return builder.String()
 }
 
 func otelResourceAttributes(workflowData *WorkflowData) string {
