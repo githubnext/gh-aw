@@ -605,10 +605,11 @@ engine: copilot
 
 	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
 	assert.Contains(t, activationJobSection, "issues: write", "activation job should include issues: write when workflow_call + status-comment are configured")
-	// pull-requests:write is only needed for PR reactions, not status-comments (which use the issues API)
-	assert.NotContains(t, activationJobSection, "pull-requests: write", "activation job should not include pull-requests: write for status-comment-only (status-comments use issues API)")
-	// discussions:write is included because status-comment includes discussions by default
-	assert.Contains(t, activationJobSection, "discussions: write", "activation job should include discussions: write when workflow_call + status-comment with default discussion target are configured")
+	// pull-requests:write is only needed for PR reactions (addBroadActivationInteractionPermissions only sets it for
+	// hasReaction && reactionIncludesPullRequests); PR status-comments post via the issues API so issues:write suffices.
+	assert.NotContains(t, activationJobSection, "pull-requests: write", "activation job should not include pull-requests: write for status-comment-only (PR status-comments use the issues API scope, not pull-requests)")
+	// discussions:write is included because status-comment defaults include discussions (statusCommentIncludesDiscussions=true by default)
+	assert.Contains(t, activationJobSection, "discussions: write", "activation job should include discussions: write when workflow_call + status-comment are configured (discussions enabled by default)")
 }
 
 func TestActivationPermissionsWorkflowCallAndIssuesTriggerReaction(t *testing.T) {
