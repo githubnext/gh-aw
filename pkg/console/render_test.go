@@ -433,3 +433,65 @@ func TestRenderStruct_NilPointerToStruct(t *testing.T) {
 	// Should not crash and should not contain inner section when nil and omitempty
 	assert.NotContains(t, output, "Inner Section", "output should not contain 'Inner Section' when nil and omitempty")
 }
+
+// TestRenderStruct_EmbeddedStruct tests that anonymous embedded struct fields are
+// inlined into the parent struct output rather than rendered as a nested section.
+func TestRenderStruct_EmbeddedStruct(t *testing.T) {
+	type Base struct {
+		Name   string `console:"header:Name"`
+		Engine string `console:"header:Engine"`
+	}
+
+	type Extended struct {
+		Base
+		Status string `console:"header:Status"`
+	}
+
+	data := Extended{
+		Base:   Base{Name: "my-workflow", Engine: "copilot"},
+		Status: "active",
+	}
+
+	output := RenderStruct(data)
+
+	// Fields from the embedded struct should appear at the top level.
+	assert.Contains(t, output, "my-workflow", "output should contain Name from embedded struct")
+	assert.Contains(t, output, "copilot", "output should contain Engine from embedded struct")
+	assert.Contains(t, output, "active", "output should contain Status from outer struct")
+	// The embedded type name should NOT appear as a section title.
+	assert.NotContains(t, output, "Base", "output should not contain the embedded struct type name as a section")
+}
+
+// TestRenderSlice_EmbeddedStruct tests that a slice of structs with anonymous embedded
+// fields is rendered as a flat table with all promoted fields as columns.
+func TestRenderSlice_EmbeddedStruct(t *testing.T) {
+	type Base struct {
+		Name   string `console:"header:Name"`
+		Engine string `console:"header:Engine"`
+	}
+
+	type Extended struct {
+		Base
+		Status string `console:"header:Status"`
+	}
+
+	items := []Extended{
+		{Base: Base{Name: "wf-1", Engine: "copilot"}, Status: "active"},
+		{Base: Base{Name: "wf-2", Engine: "claude"}, Status: "disabled"},
+	}
+
+	output := RenderStruct(items)
+
+	// All columns (including those from the embedded struct) should appear as headers.
+	assert.Contains(t, output, "Name", "output should contain Name column header")
+	assert.Contains(t, output, "Engine", "output should contain Engine column header")
+	assert.Contains(t, output, "Status", "output should contain Status column header")
+
+	// All values should be present in the table rows.
+	assert.Contains(t, output, "wf-1", "output should contain first workflow name")
+	assert.Contains(t, output, "copilot", "output should contain first engine")
+	assert.Contains(t, output, "active", "output should contain first status")
+	assert.Contains(t, output, "wf-2", "output should contain second workflow name")
+	assert.Contains(t, output, "claude", "output should contain second engine")
+	assert.Contains(t, output, "disabled", "output should contain second status")
+}

@@ -202,7 +202,7 @@ func findWorkflowsByFilenamePattern(pattern, repoOverride string, verbose bool) 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Workflow with filename '%s' found in workflow list\n", pattern)
 		}
-		return []WorkflowStatus{{Workflow: pattern}}, nil
+		return []WorkflowStatus{{WorkflowListItem: WorkflowListItem{Workflow: pattern}}}, nil
 	}
 
 	if verbose {
