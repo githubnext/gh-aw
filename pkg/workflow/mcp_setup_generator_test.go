@@ -652,7 +652,7 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 
 	assert.Contains(t, yamlStr, `"safeoutputs": {`,
 		"Should configure safeoutputs as an MCP server")

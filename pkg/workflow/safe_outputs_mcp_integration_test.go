@@ -64,7 +64,7 @@ Test safe outputs workflow with MCP server integration.
 	}
 
 	// Check that the MCP server is configured as a containerized stdio MCP server
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 	if !strings.Contains(yamlStr, `"container": "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container")
 	}
@@ -210,7 +210,7 @@ Test safe outputs workflow with Codex engine.
 	}
 
 	// Check that the MCP server is configured as a containerized stdio MCP server in TOML
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 	if !strings.Contains(yamlStr, `container = "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container in TOML")
 	}

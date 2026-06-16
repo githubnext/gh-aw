@@ -67,7 +67,7 @@ func TestNewMCPConfigRenderer(t *testing.T) {
 }
 
 func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		IncludeCopilotFields: true,
 		InlineArgs:           true,
@@ -114,7 +114,7 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 }
 
 func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		IncludeCopilotFields: false,
 		InlineArgs:           false,
@@ -157,7 +157,7 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 }
 
 func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		IncludeCopilotFields: false,
 		InlineArgs:           false,

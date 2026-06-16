@@ -34,7 +34,7 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 		"Safe outputs should not have a dedicated HTTP server config step")
 	assert.NotContains(t, output, "Start Safe Outputs MCP HTTP Server",
 		"Safe outputs should not launch a dedicated HTTP server")
-	assert.Contains(t, output, `"container": "`+resolveContainerImage(constants.DefaultGhAwNodeImage, nil)+`"`,
+	assert.Contains(t, output, `"container": "`+resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)+`"`,
 		"Safe outputs should run in the gh-aw node container")
 }
 

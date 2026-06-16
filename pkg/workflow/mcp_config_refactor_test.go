@@ -12,7 +12,7 @@ import (
 // TestRenderSafeOutputsMCPConfigWithOptions verifies the shared Safe Outputs config helper
 // works correctly with both Copilot and non-Copilot engines
 func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
-	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	pinnedGhAwNodeImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil)
 
 	tests := []struct {
 		name                 string
@@ -227,7 +227,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 
 	expectedContent := []string{
 		`[mcp_servers.safeoutputs]`,
-		`container = "` + resolveContainerImage(constants.DefaultGhAwNodeImage, nil) + `"`,
+		`container = "` + resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil) + `"`,
 		`mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`,
 		`args = ["-w", "$GITHUB_WORKSPACE"]`,
 		`entrypoint = "sh"`,
@@ -295,7 +295,7 @@ func TestRenderSafeOutputsMCPConfigTOMLStableAcrossSandboxModes(t *testing.T) {
 			})
 			renderer.RenderSafeOutputsMCP(&output, tt.workflowData)
 			result := output.String()
-			if !strings.Contains(result, `container = "`+resolveContainerImage(constants.DefaultGhAwNodeImage, tt.workflowData)+`"`) {
+			if !strings.Contains(result, `container = "`+resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, tt.workflowData)+`"`) {
 				t.Errorf("Expected gh-aw node container not found in output:\n%s", result)
 			}
 			if !strings.Contains(result, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
