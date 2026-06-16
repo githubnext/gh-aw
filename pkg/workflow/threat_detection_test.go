@@ -164,7 +164,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				RunsOn: "runs-on:\n- self-hosted\n- linux\n- x64",
+				RunsOn: "runs-on:\n  - self-hosted\n  - linux\n  - x64",
 			},
 		},
 		{
@@ -178,7 +178,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				RunsOn: "runs-on:\n  group: runner-group\n  labels:\n  - linux\n  - x64",
+				RunsOn: "runs-on:\n  group: runner-group\n  labels:\n    - linux\n    - x64",
 			},
 		},
 		{

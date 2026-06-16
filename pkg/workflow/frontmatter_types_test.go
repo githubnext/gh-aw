@@ -416,7 +416,7 @@ func TestParseFrontmatterConfig(t *testing.T) {
 						safeOutputs: map[string]any{
 							"runs-on": []any{"self-hosted", "linux"},
 						},
-						expectedRunsOn: "runs-on:\n- self-hosted\n- linux",
+						expectedRunsOn: "runs-on:\n  - self-hosted\n  - linux",
 					},
 				}
 
