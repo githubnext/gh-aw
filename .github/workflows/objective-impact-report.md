@@ -53,6 +53,7 @@ Use these deterministic files first:
 - /tmp/gh-aw/agent/objective-impact-report/run-context.json
 - /tmp/gh-aw/agent/objective-impact-report/objective-mapping.json
 - /tmp/gh-aw/agent/objective-impact-report/workflow-logs.json
+- /tmp/gh-aw/agent/objective-impact-report/aic-by-workflow.json
 - /tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json
 - /tmp/gh-aw/agent/objective-impact-report/closed-unmerged-prs-linked.json
 - /tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl
@@ -76,8 +77,8 @@ Outcome Value = Outcome Indicator × Objective Value
 Impact Efficiency = Σ Outcome Value / AI Credits
 ```
 
-Treat AI Credits as total model-credit cost consumed by the workflow runs that produced the analyzed outcomes.
-Start with `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` and `/tmp/gh-aw/agent/objective-impact-report/dataset-manifest.json` as the source of truth for deterministic run collection.
+Treat AI Credits as total model-credit cost aggregated per workflow across the full analysis window, not just the subset of runs that produced the analyzed outcomes.
+Start with `/tmp/gh-aw/agent/objective-impact-report/aic-by-workflow.json` as the primary AIC source, and `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` and `/tmp/gh-aw/agent/objective-impact-report/dataset-manifest.json` as additional context for run details and source provenance.
 When available, use deterministic precomputed run data that already includes each run's `aic` field.
 Prefer existing gh-aw outputs that already surface `aic`, such as pre-downloaded `gh aw logs --json` data or audit/log artifacts derived from the same run summaries.
 Only fall back to MCP or other live retrieval if deterministic precomputed AIC inputs are unavailable or the manifest says the fallback is still required.
@@ -94,9 +95,14 @@ Do not use an LLM judge.
 
 Resolve AI Credits in this order:
 
-1. Deterministic precomputed `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` data with per-run `aic`
-2. Pre-downloaded audit/log artifacts that already expose run-level `aic`
+1. **Primary: `/tmp/gh-aw/agent/objective-impact-report/aic-by-workflow.json`** — aggregated per-workflow AIC from daily token-audit memory snapshots covering the analysis window. Each entry has `workflow_name`, `total_aic`, and `run_count`. Use this as the denominator for overall and per-workflow Impact Efficiency. Check `dataset-manifest.json` for `aic_by_workflow_source` and `aic_by_workflow_snapshot_count` to understand coverage. The `aic-by-workflow.json` data is pre-aggregated across all available daily snapshots within the window and is the most reliable AIC source.
+2. Deterministic precomputed `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` data with per-run `aic` (use only when `aic-by-workflow.json` is unavailable or has `source: "none"`)
 3. MCP or other live retrieval only as a documented fallback
+
+When computing total AI Credits for the report:
+- Sum `total_aic` across all entries in `aic-by-workflow.json` for the repository-wide total AIC
+- For per-workflow AIC, look up the workflow by name in `aic-by-workflow.json`
+- If a workflow has no entry in `aic-by-workflow.json`, treat its AIC as unknown (not zero) and add a note in the Data Quality section of the report listing which workflows had no AIC data available.
 
 If a run's `aic` field is missing or null, treat it as `0` and count it as missing-cost data in the report.
 

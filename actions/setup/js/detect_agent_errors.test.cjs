@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-const { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_agent_errors.cjs");
+const { detectErrors, isCAPIQuotaExceededError, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN, CAPI_QUOTA_EXCEEDED_PATTERN } = require("./detect_agent_errors.cjs");
 
 describe("detect_agent_errors.cjs", () => {
   describe("INFERENCE_ACCESS_ERROR_PATTERN", () => {
@@ -126,6 +126,41 @@ describe("detect_agent_errors.cjs", () => {
     });
   });
 
+  describe("CAPI_QUOTA_EXCEEDED_PATTERN / isCAPIQuotaExceededError", () => {
+    it("matches the exact observed error message", () => {
+      expect(CAPI_QUOTA_EXCEEDED_PATTERN.test("CAPIError: 429 429 quota exceeded")).toBe(true);
+      expect(isCAPIQuotaExceededError("CAPIError: 429 429 quota exceeded")).toBe(true);
+    });
+
+    it("matches when embedded in larger log output", () => {
+      const log = "Some agent output\nExecution failed: CAPIError: 429 429 quota exceeded\nMore output";
+      expect(isCAPIQuotaExceededError(log)).toBe(true);
+    });
+
+    it("matches with varying whitespace around status codes", () => {
+      expect(isCAPIQuotaExceededError("CAPIError:429 429 quota exceeded")).toBe(true);
+      expect(isCAPIQuotaExceededError("CAPIError:  429  429  quota exceeded")).toBe(true);
+    });
+
+    it("matches case-insensitively", () => {
+      expect(isCAPIQuotaExceededError("CAPIError: 429 429 QUOTA EXCEEDED")).toBe(true);
+    });
+
+    it("does not match other CAPIError 429 messages", () => {
+      expect(isCAPIQuotaExceededError("CAPIError: 429 Too Many Requests")).toBe(false);
+    });
+
+    it("does not match CAPIError 400", () => {
+      expect(isCAPIQuotaExceededError("CAPIError: 400 Bad Request")).toBe(false);
+    });
+
+    it("does not match unrelated errors", () => {
+      expect(isCAPIQuotaExceededError("Access denied by policy settings")).toBe(false);
+      expect(isCAPIQuotaExceededError("MCP servers were blocked by policy: 'github'")).toBe(false);
+      expect(isCAPIQuotaExceededError("")).toBe(false);
+    });
+  });
+
   describe("detectErrors", () => {
     it("returns all false for empty log", () => {
       const result = detectErrors("");
@@ -133,6 +168,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects inference access error only", () => {
@@ -141,6 +177,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects MCP policy error only", () => {
@@ -149,6 +186,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(true);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects engine timeout only", () => {
@@ -157,6 +195,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects model not supported error only", () => {
@@ -165,6 +204,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(true);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects invalid model name errors", () => {
@@ -173,6 +213,16 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(true);
+      expect(result.capiQuotaExceededError).toBe(false);
+    });
+
+    it("detects CAPI quota exceeded error only", () => {
+      const result = detectErrors("Execution failed: CAPIError: 429 429 quota exceeded");
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(true);
     });
 
     it("detects both errors in the same log", () => {
@@ -182,6 +232,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(true);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects timeout alongside other errors", () => {
@@ -191,6 +242,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("returns false for unrelated log content", () => {
@@ -199,6 +251,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
   });
 });
