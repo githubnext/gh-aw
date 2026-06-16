@@ -969,10 +969,10 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 		base = strings.Join(domains, ",")
 	}
 
-	// Add Copilot API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.
-	// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
-	if copilotAPITarget := GetCopilotAPITarget(data); copilotAPITarget != "" {
-		base = mergeAPITargetDomains(base, copilotAPITarget)
+	// Add Copilot BYOK/API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with
+	// the runtime firewall allow-list for both standard and BYOK Copilot runs.
+	for _, copilotTarget := range GetCopilotAllowlistTargets(data) {
+		base = mergeAPITargetDomains(base, copilotTarget)
 	}
 
 	// Add Antigravity API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.

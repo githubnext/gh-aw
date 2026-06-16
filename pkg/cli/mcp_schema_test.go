@@ -489,13 +489,15 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 
 		// Create realistic test data
 		data := WorkflowStatus{
-			Workflow:      "status-workflow",
-			EngineID:      "copilot",
-			Compiled:      "true",
+			WorkflowListItem: WorkflowListItem{
+				Workflow: "status-workflow",
+				EngineID: "copilot",
+				Compiled: "true",
+				Labels:   []string{"production", "automated"},
+				On:       "push",
+			},
 			Status:        "active",
 			TimeRemaining: "5m30s",
-			Labels:        []string{"production", "automated"},
-			On:            "push",
 			RunStatus:     "completed",
 			RunConclusion: "success",
 		}
