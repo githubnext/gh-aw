@@ -180,6 +180,9 @@ jobs:
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}
+          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -441,6 +444,8 @@ jobs:
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
       ambient_context: ${{ steps.parse-mcp-gateway.outputs.ambient_context }}
+      cache_memory_restore_0_cache_hit: ${{ steps.restore_cache_memory_0.outputs.cache-hit || 'false' }}
+      cache_memory_restore_0_matched_key: ${{ steps.restore_cache_memory_0.outputs.cache-matched-key || '' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
@@ -547,6 +552,7 @@ jobs:
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
       - name: Restore cache-memory file share data
+        id: restore_cache_memory_0
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: memory-none-nopolicy-trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
@@ -1051,6 +1057,19 @@ jobs:
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
+            python3 - <<'PY'
+          import json,os,subprocess as sp
+          from pathlib import Path
+          try:
+           p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
+           c=json.loads(p.read_text())
+           c["chroot"]={"binariesSourcePath":"/tmp/gh-aw","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"/tmp/gh-aw/home"}}
+           out=json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n"
+           p.write_text(out)
+           Path("/tmp/gh-aw/awf-config.json").write_text(out)
+          except Exception as e:
+           raise SystemExit(f"chroot config patch failed: {e}") from e
+          PY
           fi
           GH_AW_TOOL_CACHE_MOUNT=""
           GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"
@@ -1552,6 +1571,8 @@ jobs:
           GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "30"
           GH_AW_CACHE_MEMORY_ENABLED: "true"
+          GH_AW_CACHE_MEMORY_RESTORE_0_MATCHED_KEY: ${{ needs.agent.outputs.cache_memory_restore_0_matched_key || '' }}
+          GH_AW_CACHE_MEMORY_RESTORE_0_CACHE_HIT: ${{ needs.agent.outputs.cache_memory_restore_0_cache_hit || 'false' }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1724,6 +1745,19 @@ jobs:
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
+            python3 - <<'PY'
+          import json,os,subprocess as sp
+          from pathlib import Path
+          try:
+           p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
+           c=json.loads(p.read_text())
+           c["chroot"]={"binariesSourcePath":"/tmp/gh-aw","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"/tmp/gh-aw/home"}}
+           out=json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n"
+           p.write_text(out)
+           Path("/tmp/gh-aw/awf-config.json").write_text(out)
+          except Exception as e:
+           raise SystemExit(f"chroot config patch failed: {e}") from e
+          PY
           fi
           GH_AW_TOOL_CACHE_MOUNT=""
           GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"

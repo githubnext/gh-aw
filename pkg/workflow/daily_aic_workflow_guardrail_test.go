@@ -166,6 +166,19 @@ Guardrail test workflow`
 	if !strings.Contains(activationSection, "id: restore-daily-aic-cache-fallback") {
 		t.Fatal("expected activation job to include the artifact-based AIC cache fallback step")
 	}
+	if strings.Contains(activationSection, "id: detect-daily-aic-cache-miss") {
+		t.Fatal("expected activation job to not include a separate bash cache-miss detection step (check is now in JS)")
+	}
+	wantFallbackIf := "if: " + maxDailyAICreditsConfiguredIfExpr
+	if !strings.Contains(activationSection, wantFallbackIf) {
+		t.Fatalf("expected artifact fallback step to use the standard AIC guard if: condition, want %q", wantFallbackIf)
+	}
+	if !strings.Contains(activationSection, "GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}") {
+		t.Fatal("expected fallback step to forward cache-hit output via env for template-injection safety")
+	}
+	if !strings.Contains(activationSection, "GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}") {
+		t.Fatal("expected fallback step to forward cache-matched-key output via env")
+	}
 	if !strings.Contains(lockStr, "id: upload-daily-aic-cache") {
 		t.Fatal("expected conclusion job to include the AIC usage cache artifact upload step")
 	}

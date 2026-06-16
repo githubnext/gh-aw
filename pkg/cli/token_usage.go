@@ -440,11 +440,9 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 
 	filePath := findTokenUsageFile(runDir)
 	if filePath != "" {
-		if verbose {
-			fileInfo, _ := os.Stat(filePath)
-			if fileInfo != nil {
-				fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
-			}
+		fileInfo, _ := os.Stat(filePath)
+		if fileInfo != nil {
+			console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
 		}
 
 		summary, err := parseTokenUsageFile(filePath)
@@ -460,11 +458,9 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	if agentUsagePath == "" {
 		return nil, nil
 	}
-	if verbose {
-		fileInfo, _ := os.Stat(agentUsagePath)
-		if fileInfo != nil {
-			fmt.Fprintf(os.Stderr, "  Found agent usage file: %s (%d bytes)\n", filepath.Base(agentUsagePath), fileInfo.Size())
-		}
+	agentFileInfo, _ := os.Stat(agentUsagePath)
+	if agentFileInfo != nil {
+		console.LogVerbose(verbose, fmt.Sprintf("  Found agent usage file: %s (%d bytes)", filepath.Base(agentUsagePath), agentFileInfo.Size()))
 	}
 
 	summary, err := parseAgentUsageFile(agentUsagePath)
@@ -630,9 +626,7 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 
 	usageJSONLFiles := findUsageJSONLFiles(runDir)
 	if len(usageJSONLFiles) > 0 {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "  Found usage JSONL files: %s\n", strings.Join(usageJSONLFiles, ", "))
-		}
+		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
 		totalAIC, err := sumAICFromUsageJSONLFiles(usageJSONLFiles)
 		if err != nil {
 			return nil, err
@@ -642,11 +636,9 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 
 	filePath := findTokenUsageFile(runDir)
 	if filePath != "" {
-		if verbose {
-			fileInfo, _ := os.Stat(filePath)
-			if fileInfo != nil {
-				fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
-			}
+		fileInfo, _ := os.Stat(filePath)
+		if fileInfo != nil {
+			console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
 		}
 
 		file, err := os.Open(filePath)
@@ -688,11 +680,9 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 	if agentUsagePath == "" {
 		return nil, nil
 	}
-	if verbose {
-		fileInfo, _ := os.Stat(agentUsagePath)
-		if fileInfo != nil {
-			fmt.Fprintf(os.Stderr, "  Found agent usage file: %s (%d bytes)\n", filepath.Base(agentUsagePath), fileInfo.Size())
-		}
+	agentFileInfo, _ := os.Stat(agentUsagePath)
+	if agentFileInfo != nil {
+		console.LogVerbose(verbose, fmt.Sprintf("  Found agent usage file: %s (%d bytes)", filepath.Base(agentUsagePath), agentFileInfo.Size()))
 	}
 
 	data, err := os.ReadFile(filepath.Clean(agentUsagePath))

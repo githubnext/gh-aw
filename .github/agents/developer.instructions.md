@@ -5,17 +5,15 @@ applyTo: "**/*"
 
 # Developer Instructions
 
-Development guidelines, architectural patterns, and implementation standards for GitHub Agentic Workflows.
+Guidelines, patterns, and standards for GitHub Agentic Workflows.
 
 ---
 
 ## Code Organization Patterns
 
-### Recommended Patterns
-
 #### 1. Create Functions Pattern (`create_*.go`)
 
-One file per GitHub entity creation. Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`, `create_code_scanning_alert.go`, `create_agent_task.go`.
+One file per GitHub entity. Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`, `create_code_scanning_alert.go`, `create_agent_task.go`.
 
 #### 2. Engine Separation Pattern
 
@@ -23,7 +21,7 @@ Each AI engine in its own file; shared helpers in `engine_helpers.go`. Examples:
 
 #### 3. Test Organization Pattern
 
-Tests live alongside implementation:
+Tests alongside implementation:
 - Feature: `feature.go` + `feature_test.go`
 - Integration: `feature_integration_test.go`
 - Scenario: `feature_scenario_test.go`
@@ -55,10 +53,7 @@ graph TD
 
 ## Validation Architecture
 
-Validates workflow configs before compilation. Two patterns:
-
-1. **Centralized** — `validation.go`
-2. **Domain-specific** — dedicated files
+Validates workflow configs before compilation. Centralized in `validation.go`, or domain-specific in dedicated files.
 
 ### Validation Flow
 
@@ -93,8 +88,6 @@ graph TD
 ### Domain-Specific Validation
 
 #### Strict Mode: `strict_mode_validation.go`
-
-Security/safety constraints in strict mode:
 
 - `validateStrictMode()` — main orchestrator
 - `validateStrictPermissions()` — refuses write permissions
@@ -164,12 +157,12 @@ graph TD
     H --> K[normalizeLineEndings]
 ```
 
-**Sanitize** — fix characters causing security issues or breaking GitHub API:
-- `sanitizeGitHubLabel()` — GitHub label requirements (no emoji, length limits)
+**Sanitize** — fix chars that break security or GitHub API:
+- `sanitizeGitHubLabel()` — label requirements (no emoji, length limits)
 - `sanitizeGitHubBranch()` — Git ref rules
 - `sanitizeGitHubIssueTitle()` — avoid problematic chars
 
-**Normalize** — standardize format, no security implications:
+**Normalize** — standardize format, no security implication:
 - `normalizeWhitespace()` — spaces, tabs, newlines
 - `normalizeLineEndings()` — CRLF → LF
 - `normalizeMarkdown()` — markdown formatting
@@ -204,7 +197,7 @@ err := yaml.Unmarshal(data, &workflow)
 
 ## Safe Output Messages
 
-Structured communication between agents and GitHub API operations.
+Structured communication between agents and GitHub API.
 
 ### Message Categories
 
@@ -250,7 +243,7 @@ graph LR
 
 ### Build System
 
-Go implementation at `pkg/cli/actions_build_command.go`. No JS build scripts.
+Go: `pkg/cli/actions_build_command.go`. No JS build scripts.
 
 **Commands**:
 - `make actions-build` — build all
@@ -340,7 +333,7 @@ make update-golden  # only when intentionally changing output
 
 ## Repo-Memory System
 
-Persistent, git-backed storage for AI agents across workflow runs. State lives in dedicated git branches with auto-sync.
+Persistent, git-backed storage across workflow runs. State lives in dedicated git branches with auto-sync.
 
 ### Architecture Overview
 
@@ -366,11 +359,11 @@ graph TD
 
 ### Data Flow
 
-1. **Clone**: `memory/{id}` branch to local directory
-2. **Execution**: agent reads/writes files
-3. **Upload**: directory as GitHub Actions artifact
-4. **Download**: artifact and validate constraints
-5. **Push**: commit and push to `memory/{id}`
+1. Clone `memory/{id}` branch
+2. Agent reads/writes files
+3. Upload directory as artifact
+4. Download artifact, validate constraints
+5. Commit and push to `memory/{id}`
 
 ### Key Configuration
 
@@ -391,7 +384,7 @@ repo-memory:
 
 ## Hierarchical Agent Management
 
-Meta-orchestrator workflows manage multiple agents and workflows at scale.
+Meta-orchestrators manage multiple agents and workflows at scale.
 
 ### Meta-Orchestrator Roles
 
@@ -425,14 +418,14 @@ Brief description of the change
 ### End-to-End Feature Testing
 
 1. Use `.github/workflows/dev.md` as test workflow
-2. Add test scenarios as PR comments
+2. Add scenarios as PR comments
 3. Dev Hawk verifies behavior
-4. Do not merge dev.md changes — it remains a reusable test harness
+4. Do not merge dev.md changes — it stays a reusable test harness
 ---
 
 ## Scope Hints for Complex Workflows
 
-Provide concrete constraints upfront. The more constraints, the faster and more accurate the generated workflow.
+More upfront constraints → faster, more accurate generated workflow.
 
 ### Workflow-Type Guidance
 
@@ -491,7 +484,7 @@ Before submitting a complex workflow request:
 
 ## PR Deduplication Protocol
 
-Run before every PR — repeated closed attempts on the same topic waste CI and context.
+Run before every PR — repeated closed attempts waste CI and context.
 
 ### Pre-flight Duplicate PR Check
 
@@ -499,12 +492,12 @@ Search closed PRs via GitHub MCP `search_pull_requests`:
 
 1. Extract 2–4 keywords from the feature/fix title.
 2. Search e.g. `is:pr is:closed head:copilot/ <keywords>` or `is:pr is:closed <keywords>`.
-3. None found → proceed normally.
-4. Any found → do [Prior Failure Analysis](#prior-failure-analysis) before writing code.
+3. None found → proceed.
+4. Any found → do [Prior Failure Analysis](#prior-failure-analysis) first.
 
 ### Prior Failure Analysis
 
-At session start — before any code exploration:
+Before any code exploration:
 
 1. Read the closed PR description, review comments, and timeline.
 2. Identify **root cause of closure**:
@@ -512,8 +505,8 @@ At session start — before any code exploration:
    - CI/test failures → identify failing checks
    - Scope mismatch → clarify what was actually requested
    - Duplicate of another fix → link to that fix
-3. Verify the new implementation will address the root cause.
-4. Add a "## Prior Attempts" section to the new PR description:
+3. Verify the new implementation addresses the root cause.
+4. Add a "## Prior Attempts" section to the new PR:
    - Link(s) to prior closed PR(s)
    - Why each closed
    - What is different this time
@@ -529,17 +522,17 @@ At session start — before any code exploration:
 
 ### Retry Limit Circuit Breaker
 
-If **two or more** closed PRs already exist on the same topic:
+If **two or more** closed PRs exist on the same topic:
 
 1. **Do not open a third PR** without explicit human review.
 2. Comment on the originating issue:
-   - List all prior closed PRs and close reasons
+   - List prior closed PRs and close reasons
    - Explain what changed in the new approach
-   - Request maintainer approval to proceed
+   - Request maintainer approval
 3. Label the issue `copilot-retry-blocked`.
-4. Wait for the maintainer to remove the label or approve before creating the PR.
+4. Wait for the maintainer to remove the label or approve.
 
-**Rationale:** Two failed attempts indicate a systemic problem (unclear requirements, missing context, design issue) that code alone cannot fix.
+**Rationale:** Two failed attempts indicate a systemic problem (unclear requirements, missing context, design issue) code alone cannot fix.
 
 ---
 

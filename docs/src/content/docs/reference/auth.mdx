@@ -22,9 +22,8 @@ Configure one GitHub Actions secret per engine before running your first workflo
 
 ### Claude
 
-- **Required secret:** [`ANTHROPIC_API_KEY`](#anthropic_api_key)
-- **Alternative:** None
-- **Notes:** API key from Anthropic Console
+- **Standard:** [`ANTHROPIC_API_KEY`](#anthropic_api_key) — static API key from Anthropic Console
+- **Keyless alternative:** [`engine.auth` Anthropic WIF](#anthropic-workload-identity-federation-wif) — short-lived OIDC token via federation rule; no long-lived secret on the repo
 
 ### Codex
 
@@ -199,9 +198,77 @@ To route Claude through a custom Anthropic-compatible endpoint (e.g., an interna
 
 **`CLAUDE_CODE_OAUTH_TOKEN`**:
 
-`CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is `ANTHROPIC_API_KEY`. Provider-based OAuth authentication (such as billing through a Claude Teams or Claude Max subscription) is not supported. If you have set `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, it will be ignored — configure `ANTHROPIC_API_KEY` instead.
+`CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. Provider-based OAuth authentication (such as billing through a Claude Teams or Claude Max subscription) is not supported. If you have set `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, it will be ignored — configure `ANTHROPIC_API_KEY` instead. For keyless authentication via Workload Identity Federation, see [Anthropic WIF](#anthropic-workload-identity-federation-wif) below.
 
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Claude with GitHub MCP.
+
+---
+
+### Anthropic Workload Identity Federation (WIF)
+
+Workload Identity Federation lets workflows authenticate with Anthropic using short-lived
+GitHub OIDC tokens instead of a long-lived `ANTHROPIC_API_KEY` secret. When WIF is active,
+the compiler suppresses the static-key requirement and emits `AWF_AUTH_ANTHROPIC_*` environment
+variables consumed by the AWF firewall api-proxy sidecar.
+
+**Prerequisites:**
+- An Anthropic federation rule configured in your Anthropic workspace (obtain the IDs from your [Anthropic Console](https://platform.claude.com/docs/en/manage-claude/wif-providers/github-actions))
+- `permissions: id-token: write` in the workflow job
+
+**Frontmatter:**
+
+```yaml wrap
+permissions:
+  contents: read
+  id-token: write
+
+engine:
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fdrl_xxxxxxxxxxxx
+    organization-id: org_xxxxxxxxxxxx
+    service-account-id: svac_xxxxxxxxxxxx
+    workspace-id: ws_xxxxxxxxxxxx
+    # Optional: override OIDC audience claim (default: https://api.anthropic.com)
+    # oidc-audience: https://api.anthropic.com
+    # Optional: override token exchange endpoint (default: https://api.anthropic.com/v1/oauth/token)
+    # token-url: https://api.anthropic.com/v1/oauth/token
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|---|---|---|
+| `federation-rule-id` | ✅ | ID of the Anthropic WIF federation rule (prefix `fdrl_`) |
+| `organization-id` | ✅ | Anthropic organization ID (prefix `org_`) |
+| `service-account-id` | ✅ | Anthropic service account ID (prefix `svac_`) |
+| `workspace-id` | ✅ | Anthropic workspace ID (prefix `ws_`) |
+| `oidc-audience` | Optional | Audience claim for GitHub OIDC token (default: `https://api.anthropic.com`) |
+| `token-url` | Optional | Token exchange endpoint override (default: `https://api.anthropic.com/v1/oauth/token`) |
+
+**Emitted environment variables:**
+
+The compiler maps each field to an env var passed to the AWF api-proxy sidecar:
+
+| Field | Env var |
+|---|---|
+| `type: github-oidc` | `AWF_AUTH_TYPE=github-oidc` |
+| `provider: anthropic` | `AWF_AUTH_PROVIDER=anthropic` |
+| `federation-rule-id` | `AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID` |
+| `organization-id` | `AWF_AUTH_ANTHROPIC_ORGANIZATION_ID` |
+| `service-account-id` | `AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID` |
+| `workspace-id` | `AWF_AUTH_ANTHROPIC_WORKSPACE_ID` |
+
+Optional fields:
+
+| Field | Env var | Default |
+|---|---|---|
+| `oidc-audience` | `AWF_AUTH_OIDC_AUDIENCE` | `https://api.anthropic.com` |
+| `token-url` | `AWF_AUTH_ANTHROPIC_TOKEN_URL` | `https://api.anthropic.com/v1/oauth/token` |
+
+Available since: v0.79.6 (2026-06-11).
 
 ---
 

@@ -427,11 +427,15 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
 
-	// Pass cache-memory availability flag so the failure handler can detect cache-miss
-	// misconfigurations: a cache_miss reported by the agent despite cache-memory being available
-	// indicates the prompt is referencing an incorrect file path within the cache directory.
+	// Pass cache-memory availability and restore outputs so the failure handler can detect
+	// cache-miss misconfigurations only after a restore match (and avoid first-run/branch-scoped
+	// false positives when no cache entry is restored).
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CACHE_MEMORY_ENABLED: \"true\"\n")
+		for i := range data.CacheMemoryConfig.Caches {
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CACHE_MEMORY_RESTORE_%d_MATCHED_KEY: ${{ needs.%s.outputs.cache_memory_restore_%d_matched_key || '' }}\n", i, mainJobName, i))
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CACHE_MEMORY_RESTORE_%d_CACHE_HIT: ${{ needs.%s.outputs.cache_memory_restore_%d_cache_hit || 'false' }}\n", i, mainJobName, i))
+		}
 	}
 
 	// Build the agent failure handling step.

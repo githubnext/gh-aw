@@ -498,9 +498,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		githubConfig = data.ParsedTools.GitHub
 	}
 	integrityLevel := cacheIntegrityLevel(githubConfig)
-
-	for _, cache := range data.CacheMemoryConfig.Caches {
+	for i, cache := range data.CacheMemoryConfig.Caches {
 		cacheDir := cacheMemoryDirFor(cache.ID)
+		restoreStepID := fmt.Sprintf("restore_cache_memory_%d", i)
 
 		// Add step to create cache-memory directory for this cache
 		if useBackwardCompatiblePaths {
@@ -575,6 +575,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			fmt.Fprintf(builder, "      - name: %s (%s)\n", actionName, cache.ID)
 		}
+		fmt.Fprintf(builder, "        id: %s\n", restoreStepID)
 
 		// Use actions/cache/restore@v4 when restore-only or threat detection enabled
 		// Use actions/cache@v4 for normal caches
@@ -599,6 +600,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// checks out the current integrity branch, and merges down from higher-integrity branches.
 		generateCacheMemoryGitSetupStep(builder, cache, cacheDir, integrityLevel, useBackwardCompatiblePaths)
 	}
+
 }
 
 // generateCacheMemoryGitSetupStep emits a pre-agent step that sets up the git-backed integrity

@@ -294,3 +294,56 @@ func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 		})
 	}
 }
+
+// TestSpec_Engine_GlobalRegistrySingleton validates the documented thread-safety contract that
+// GetGlobalEngineRegistry returns a singleton initialized once at startup.
+// Spec ("Thread Safety"): "The GetGlobalEngineRegistry() singleton is initialized once at startup
+// and is safe for concurrent reads thereafter."
+func TestSpec_Engine_GlobalRegistrySingleton(t *testing.T) {
+	first := workflow.GetGlobalEngineRegistry()
+	second := workflow.GetGlobalEngineRegistry()
+	require.NotNil(t, first, "GetGlobalEngineRegistry() must return a non-nil registry")
+	assert.Same(t, first, second,
+		"GetGlobalEngineRegistry() must return the same singleton instance on repeated calls")
+}
+
+// TestSpec_Sandbox_Constants validates the documented SandboxType constant values.
+// Spec ("Sandbox Constants"): SandboxTypeAWF = "awf", SandboxTypeDefault = "default" (alias for AWF).
+func TestSpec_Sandbox_Constants(t *testing.T) {
+	assert.Equal(t, "awf", string(workflow.SandboxTypeAWF),
+		"SandboxTypeAWF must equal the documented value")
+	assert.Equal(t, "default", string(workflow.SandboxTypeDefault),
+		"SandboxTypeDefault must equal the documented value")
+}
+
+// TestSpec_MCPScripts_Constants validates the documented MCP Scripts constants.
+// Spec ("MCP Scripts Constants"): MCPScriptsModeHTTP = "http" is the only supported transport mode;
+// MCPScriptsDirectory is the runtime directory where MCP scripts files are generated.
+func TestSpec_MCPScripts_Constants(t *testing.T) {
+	assert.Equal(t, "http", workflow.MCPScriptsModeHTTP,
+		"MCPScriptsModeHTTP must be the documented http transport mode")
+	assert.NotEmpty(t, workflow.MCPScriptsDirectory,
+		"MCPScriptsDirectory must be a non-empty runtime directory path")
+}
+
+// TestSpec_ActionPinning_ActionMode validates the documented ActionMode alias and DetectActionMode.
+// Spec ("Action Pinning"): ActionMode is an "Action reference mode" with DetectActionMode detecting it.
+//
+// SPEC_MISMATCH: The README documents ActionMode values as `sha`, `tag`, `local`, but the
+// implementation defines them as `dev`, `release`, `script`, and `action`. The README also
+// describes DetectActionMode as detecting the "action reference mode" from a version string, but
+// the implementation ignores the version parameter and instead detects from build/release context
+// (the GH_AW_ACTION_MODE override, the release build flag, and GitHub Actions ref/event context).
+// This test exercises the actual API and documents the divergence.
+func TestSpec_ActionPinning_ActionMode(t *testing.T) {
+	// SPEC_MISMATCH: documented values (sha/tag/local) do not exist; the real values are these.
+	assert.Equal(t, "dev", string(workflow.ActionModeDev), "ActionModeDev value")
+	assert.Equal(t, "release", string(workflow.ActionModeRelease), "ActionModeRelease value")
+
+	// DetectActionMode honors the GH_AW_ACTION_MODE override deterministically, independent of the
+	// (unused) version argument.
+	t.Setenv("GH_AW_ACTION_MODE", string(workflow.ActionModeRelease))
+	mode := workflow.DetectActionMode("ignored-version")
+	assert.Equal(t, workflow.ActionModeRelease, mode,
+		"DetectActionMode must honor the GH_AW_ACTION_MODE override regardless of the version arg")
+}

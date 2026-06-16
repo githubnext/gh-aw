@@ -1,6 +1,8 @@
 ---
 title: Feature Flags
 description: "Enable experimental or optional compiler and runtime behaviors in GitHub Agentic Workflows using the features: frontmatter field"
+sidebar:
+  order: 670
 ---
 
 The `features:` frontmatter field enables experimental or optional compiler and runtime behaviors as key-value pairs.

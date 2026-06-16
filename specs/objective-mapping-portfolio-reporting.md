@@ -201,6 +201,18 @@ These are assigned by PMs/teams to root issues and epics:
 - **High-priority** (e.g., `p1`) — Important work worth 50 impact
 - **Domains** (e.g., `security`, `performance`) — Strategic focus areas worth 30–80 impact
 
+### Repo-Specific Weighting Guidance For gh-aw
+
+This repository produces a large volume of workflow-generated issues that are useful operationally but should not drown out substantive product and platform work in portfolio reports.
+
+For `gh-aw`, the objective map should therefore:
+
+1. **Promote bug, security, incident, reliability, and genuine feature work** so these dominate impact ranking.
+2. **Demote generated reporting, smoke-testing, automation bookkeeping, and documentation-only issues** to low fallback values.
+3. **Treat process labels as secondary** so a bug labeled `automation` still ranks as a bug, but a report labeled only `automation`, `observability`, `report`, or `testing` does not look like top-tier impact.
+
+This is especially important because many agentic workflows report by opening issues with markdown report bodies. Those issues are operational evidence and test/reliability signals, not equivalent to shipping feature work or fixing security and correctness problems.
+
 ### Multi-Label Logic
 
 When an outcome has multiple objective labels, the system applies one of three strategies:

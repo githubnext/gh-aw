@@ -18,6 +18,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
+	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
@@ -53,6 +54,7 @@ func main() {
 		errormessage.Analyzer,
 		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
+		errorfwrapv.Analyzer,
 		execcommandwithoutcontext.Analyzer,
 		excessivefuncparams.Analyzer,
 		fileclosenotdeferred.Analyzer,
