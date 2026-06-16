@@ -28,7 +28,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`,
 				`"/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"`,
 				`"entrypoint": "sh"`,
-				`"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
+				`"entrypointArgs": ["-c", "exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`,
 				`              }`,
@@ -47,7 +47,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"container": "ghcr.io/github/gh-aw-node"`,
 				`"args": ["-w", "\${GITHUB_WORKSPACE}"]`,
 				`"entrypoint": "sh"`,
-				`"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
+				`"entrypointArgs": ["-c", "exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
 				`"RUNNER_TEMP": "$RUNNER_TEMP"`,
@@ -227,7 +227,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`,
 		`args = ["-w", "$GITHUB_WORKSPACE"]`,
 		`entrypoint = "sh"`,
-		`entrypointArgs = ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`,
+		`entrypointArgs = ["-c", "exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`,
 		`env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP"]`,
 	}
 

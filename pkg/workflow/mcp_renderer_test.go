@@ -98,7 +98,7 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"entrypoint": "sh"`) {
 		t.Error("Expected entrypoint override to sh")
 	}
-	if !strings.Contains(output, `"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`) {
+	if !strings.Contains(output, `"entrypointArgs": ["-c", "exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`) {
 		t.Error("Expected entrypointArgs to run the stdio MCP server script")
 	}
 	if !strings.Contains(output, `"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`) {
@@ -134,7 +134,7 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 	if !strings.Contains(output, `"entrypoint": "sh"`) {
 		t.Error("Expected entrypoint override to sh")
 	}
-	if !strings.Contains(output, `"entrypointArgs": ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`) {
+	if !strings.Contains(output, `"entrypointArgs": ["-c", "exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`) {
 		t.Error("Expected entrypointArgs to run the stdio MCP server script")
 	}
 	if !strings.Contains(output, `"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`) {
@@ -183,7 +183,7 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 	if !strings.Contains(output, `entrypoint = "sh"`) {
 		t.Error("Expected TOML entrypoint override to sh")
 	}
-	if !strings.Contains(output, `entrypointArgs = ["-c", "exec node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs"]`) {
+	if !strings.Contains(output, `entrypointArgs = ["-c", "exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`) {
 		t.Error("Expected TOML entrypointArgs to run the stdio MCP server script")
 	}
 	if !strings.Contains(output, `env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP"]`) {
