@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"b5db9124dcc70c696f5e2168aedb3a57442e7c813b6551cca076aca6ea52eae5","body_hash":"b0275c42aea96f7ac0d7f4819dabe9cb5fdb3829bb179743f5efa6d105871520","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.2","digest":"sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.2@sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.2","digest":"sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.2@sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.2","digest":"sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.2@sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.25","digest":"sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.25@sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"0ce2d3dcb96d482fc938f9026a63bb824823230733c00488d4af7d38e16ce860","body_hash":"b0275c42aea96f7ac0d7f4819dabe9cb5fdb3829bb179743f5efa6d105871520","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.60"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.4","digest":"sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4","digest":"sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.4","digest":"sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.26","digest":"sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _      
@@ -39,14 +39,14 @@
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
 #   - actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-#   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+#   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (source v7)
 #
 # Container images used:
-#   - ghcr.io/github/gh-aw-firewall/agent:0.27.2@sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6
-#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.27.2@sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4
-#   - ghcr.io/github/gh-aw-firewall/squid:0.27.2@sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591
-#   - ghcr.io/github/gh-aw-mcpg:v0.3.25@sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa
+#   - ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a
+#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd
+#   - ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8
+#   - ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490
 #   - ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c
 
 name: "Copilot Centralization Optimizer"
@@ -109,7 +109,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Centralization Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-centralization-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Generate agentic run info
         id: generate_aw_info
@@ -125,7 +125,7 @@ jobs:
           GH_AW_INFO_STAGED: "false"
           GH_AW_INFO_ALLOWED_DOMAINS: '["defaults"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
@@ -431,7 +431,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Centralization Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-centralization-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -457,250 +457,18 @@ jobs:
           TASK_LIMIT: "300"
           TASK_LOOKBACK_DAYS: "30"
         name: Collect agent task data
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/gh-aw/data
-          : > /tmp/gh-aw/data/task-summaries.jsonl
-
-          SINCE="$(date -u -d "-${TASK_LOOKBACK_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
-          API_VERSION="2026-03-10"
-
-          gh api --paginate \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: ${API_VERSION}" \
-            "/agents/repos/$REPO/tasks?per_page=100" \
-            --jq '.tasks[].id' \
-            | while IFS= read -r task_id; do
-                gh api \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: ${API_VERSION}" \
-                  "/agents/repos/$REPO/tasks/$task_id" \
-                  | jq -c --arg since "$SINCE" '
-                  | def sorted_sessions: (.sessions // [] | sort_by(.created_at // ""));
-                    def artifact_types: ([.artifacts[]?.type | select(.)] | join(","));
-                    def first_non_empty_index($sessions):
-                      ([range(0; ($sessions | length))
-                        | select((($sessions[.]?.prompt // "") | length) > 0)] | .[0]);
-
-                    sorted_sessions as $sessions
-                    | ($sessions | length) as $session_count
-                    | (if $session_count == 0 then null else ($sessions[0].prompt // null) end) as $earliest_input
-                    | first_non_empty_index($sessions) as $first_non_empty_index
-                    | (if $first_non_empty_index == null then null else $sessions[$first_non_empty_index].prompt end) as $first_non_empty_input
-                    | (if $session_count == 0 then "none"
-                       elif $first_non_empty_index == null or $first_non_empty_index == 0 then "earliest"
-                       else "first_non_empty"
-                       end) as $input_source
-                    | (if $session_count == 0 then null
-                       elif $first_non_empty_index == null then $earliest_input
-                       else $first_non_empty_input
-                       end) as $input
-                    | (artifact_types) as $artifact_types
-                    | ($earliest_input == "") as $earliest_prompt_empty
-                    | {
-                        artifact_types: $artifact_types,
-                        creator_id: (if .creator?.id == null then null else (.creator.id | tostring) end),
-                        creator_login: (.creator?.login // null),
-                        earliest_prompt_empty: $earliest_prompt_empty,
-                        id: .id,
-                        name: .name,
-                        state: .state,
-                        created_at: .created_at,
-                        updated_at: .updated_at,
-                        url: .html_url,
-                        earliest_input: $earliest_input,
-                        first_non_empty_input: $first_non_empty_input,
-                        input: $input,
-                        input_source: $input_source,
-                        input_session_index: (if $session_count == 0 then null elif $first_non_empty_index == null then 0 else $first_non_empty_index end),
-                        non_empty_prompt_count: ([.sessions[]?.prompt // "" | select(length > 0)] | length),
-                        session_count: $session_count,
-                        start_context_confidence: "derived",
-                        start_context_guess: (
-                          if $artifact_types == "pull,branch" and $earliest_prompt_empty then "pull_branch_bootstrap"
-                          elif $artifact_types == "pull,branch,pull" and $earliest_prompt_empty then "pull_branch_review_bootstrap"
-                          elif ($artifact_types | contains("pull")) and $earliest_prompt_empty then "pull_bootstrap"
-                          elif $earliest_prompt_empty then "bootstrap_unknown"
-                          else "direct_prompt"
-                          end
-                        ),
-                        used_fallback_input: ($session_count > 0 and $first_non_empty_index != null and $first_non_empty_index > 0)
-                      }
-                ' || true
-              done \
-            | head -n "$TASK_LIMIT" \
-            >> /tmp/gh-aw/data/task-summaries.jsonl
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/data\n: > /tmp/gh-aw/data/task-summaries.jsonl\n\nSINCE=\"$(date -u -d \"-${TASK_LOOKBACK_DAYS} days\" +%Y-%m-%dT%H:%M:%SZ)\"\nAPI_VERSION=\"2026-03-10\"\n\ngh api --paginate \\\n  -H \"Accept: application/vnd.github+json\" \\\n  -H \"X-GitHub-Api-Version: ${API_VERSION}\" \\\n  \"/agents/repos/$REPO/tasks?per_page=100\" \\\n  --jq '.tasks[].id' \\\n  | while IFS= read -r task_id; do\n      gh api \\\n        -H \"Accept: application/vnd.github+json\" \\\n        -H \"X-GitHub-Api-Version: ${API_VERSION}\" \\\n        \"/agents/repos/$REPO/tasks/$task_id\" \\\n        | jq -c --arg since \"$SINCE\" '\n        | def sorted_sessions: (.sessions // [] | sort_by(.created_at // \"\"));\n          def artifact_types: ([.artifacts[]?.type | select(.)] | join(\",\"));\n          def first_non_empty_index($sessions):\n            ([range(0; ($sessions | length))\n              | select((($sessions[.]?.prompt // \"\") | length) > 0)] | .[0]);\n\n          sorted_sessions as $sessions\n          | ($sessions | length) as $session_count\n          | (if $session_count == 0 then null else ($sessions[0].prompt // null) end) as $earliest_input\n          | first_non_empty_index($sessions) as $first_non_empty_index\n          | (if $first_non_empty_index == null then null else $sessions[$first_non_empty_index].prompt end) as $first_non_empty_input\n          | (if $session_count == 0 then \"none\"\n             elif $first_non_empty_index == null or $first_non_empty_index == 0 then \"earliest\"\n             else \"first_non_empty\"\n             end) as $input_source\n          | (if $session_count == 0 then null\n             elif $first_non_empty_index == null then $earliest_input\n             else $first_non_empty_input\n             end) as $input\n          | (artifact_types) as $artifact_types\n          | ($earliest_input == \"\") as $earliest_prompt_empty\n          | {\n              artifact_types: $artifact_types,\n              creator_id: (if .creator?.id == null then null else (.creator.id | tostring) end),\n              creator_login: (.creator?.login // null),\n              earliest_prompt_empty: $earliest_prompt_empty,\n              id: .id,\n              name: .name,\n              state: .state,\n              created_at: .created_at,\n              updated_at: .updated_at,\n              url: .html_url,\n              earliest_input: $earliest_input,\n              first_non_empty_input: $first_non_empty_input,\n              input: $input,\n              input_source: $input_source,\n              input_session_index: (if $session_count == 0 then null elif $first_non_empty_index == null then 0 else $first_non_empty_index end),\n              non_empty_prompt_count: ([.sessions[]?.prompt // \"\" | select(length > 0)] | length),\n              session_count: $session_count,\n              start_context_confidence: \"derived\",\n              start_context_guess: (\n                if $artifact_types == \"pull,branch\" and $earliest_prompt_empty then \"pull_branch_bootstrap\"\n                elif $artifact_types == \"pull,branch,pull\" and $earliest_prompt_empty then \"pull_branch_review_bootstrap\"\n                elif ($artifact_types | contains(\"pull\")) and $earliest_prompt_empty then \"pull_bootstrap\"\n                elif $earliest_prompt_empty then \"bootstrap_unknown\"\n                else \"direct_prompt\"\n                end\n              ),\n              used_fallback_input: ($session_count > 0 and $first_non_empty_index != null and $first_non_empty_index > 0)\n            }\n      ' || true\n    done \\\n  | head -n \"$TASK_LIMIT\" \\\n  >> /tmp/gh-aw/data/task-summaries.jsonl\n"
       - env:
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          EXPR_GITHUB_EVENT_NAME: ${{ github.event_name }}
+          EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+          EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
+          EXPR_GITHUB_SERVER_URL: ${{ github.server_url }}
         name: Precompute optimization datasets
-        run: |
-          set -euo pipefail
-          GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
-
-          jq '
-            def round2: .*100 | round / 100;
-            {
-              total_tasks: length,
-              distinct_creators: ([.[].creator_id | select(. != null)] | unique | length),
-              tasks_with_prompts: ([.[] | select(.input != null)] | length),
-              avg_sessions_per_task: (if length == 0 then 0 else ([.[].session_count] | add / length | round2) end),
-              fallback_rate: (if length == 0 then 0 else ([.[].used_fallback_input | if . then 1 else 0 end] | add / length | round2) end)
-            }
-          ' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/overall-stats.json
-
-          jq '
-            def normalize_prompt:
-              ascii_downcase
-              | gsub("\\r|\\n"; " ")
-              | gsub("\\s+"; " ")
-              | gsub("^\\s+|\\s+$"; "");
-            [ .[]
-              | select(.input != null and (.input | gsub("^\\s+|\\s+$"; "") | length) >= 24)
-              | . + {
-                  normalized_prompt: (.input | normalize_prompt),
-                  artifact_signature: (.artifact_types // "none"),
-                  creator_key: (.creator_id // .creator_login // "unknown")
-                }
-            ]
-            | sort_by(.normalized_prompt)
-            | group_by(.normalized_prompt)
-            | map({
-                normalized_prompt: .[0].normalized_prompt,
-                sample_prompt: .[0].input,
-                task_count: length,
-                distinct_users: (map(.creator_key) | unique | length),
-                artifact_signatures: (map(.artifact_signature) | unique | length),
-                sample_creators: (map(.creator_login // .creator_id // "unknown") | unique | .[0:5]),
-                sample_context: .[0].start_context_guess
-              })
-            | map(select(.distinct_users >= 2))
-            | sort_by(-.distinct_users, - .task_count)
-            | .[0:25]
-          ' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/exact-repeats.json
-
-          jq '
-            def round2: .*100 | round / 100;
-            def intent_bucket($prompt):
-              ($prompt // "" | ascii_downcase) as $p
-              | if ($p | test("triage|incident|failing workflow|\\bci\\b")) then "ci_triage"
-                elif ($p | test("review|pull request|\\bpr\\b")) then "pr_review"
-                elif ($p | test("dependency|dependabot|upgrade")) then "dependency_maintenance"
-                elif ($p | test("release|changelog")) then "release_ops"
-                elif ($p | test("issue|label")) then "issue_ops"
-                elif ($p | test("docs|documentation")) then "docs_ops"
-                elif ($p | test("security")) then "security_ops"
-                else "other"
-                end;
-            [ .[]
-              | select(.input != null)
-              | . + {
-                  intent_bucket: intent_bucket(.input),
-                  creator_key: (.creator_id // .creator_login // "unknown")
-                }
-            ]
-            | sort_by(.intent_bucket)
-            | group_by(.intent_bucket)
-            | map({
-                intent_bucket: .[0].intent_bucket,
-                task_count: length,
-                distinct_users: (map(.creator_key) | unique | length),
-                avg_sessions: ((map(.session_count) | add / length) | round2),
-                fallback_rate: ((map(if .used_fallback_input then 1 else 0 end) | add / length) | round2)
-              })
-            | sort_by(-.distinct_users, - .task_count)
-          ' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/intent-buckets.json
-
-          jq '
-            def round2: .*100 | round / 100;
-            def intent_bucket($prompt):
-              ($prompt // "" | ascii_downcase) as $p
-              | if ($p | test("triage|incident|failing workflow|\\bci\\b")) then "ci_triage"
-                elif ($p | test("review|pull request|\\bpr\\b")) then "pr_review"
-                elif ($p | test("dependency|dependabot|upgrade")) then "dependency_maintenance"
-                elif ($p | test("release|changelog")) then "release_ops"
-                elif ($p | test("issue|label")) then "issue_ops"
-                elif ($p | test("docs|documentation")) then "docs_ops"
-                elif ($p | test("security")) then "security_ops"
-                else "other"
-                end;
-            [ .[]
-              | select(.input != null)
-              | . + {
-                  intent_bucket: intent_bucket(.input),
-                  artifact_signature: (if (.artifact_types // "") == "" then "none" else .artifact_types end),
-                  creator_key: (.creator_id // .creator_login // "unknown")
-                }
-            ]
-            | sort_by(.intent_bucket, .artifact_signature, .start_context_guess)
-            | group_by([.intent_bucket, .artifact_signature, .start_context_guess])
-            | map({
-                intent_bucket: .[0].intent_bucket,
-                artifact_types: .[0].artifact_signature,
-                start_context_guess: .[0].start_context_guess,
-                task_count: length,
-                distinct_users: (map(.creator_key) | unique | length),
-                avg_sessions: ((map(.session_count) | add / length) | round2),
-                fallback_rate: ((map(if .used_fallback_input then 1 else 0 end) | add / length) | round2)
-              })
-            | map(select(.distinct_users >= 2))
-            | map(. + {
-                centralization_score: ((.task_count * .distinct_users * (1 + (.avg_sessions / 3) + .fallback_rate)) | round2),
-                recommendation_kind: (
-                  if .distinct_users >= 5 and .task_count >= 10 then "continuous_workflow"
-                  elif .distinct_users >= 3 and .task_count >= 5 then "shared_prompt_or_chatops"
-                  else "monitor_only"
-                  end
-                )
-              })
-            | sort_by(-.centralization_score)
-            | .[0:25]
-          ' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/workflow-opportunities.json
-
-          cat > /tmp/gh-aw/data/run-context.json <<EOF
-          {
-            "repository": "$GH_AW_GITHUB_REPOSITORY",
-            "run_id": "${{ github.run_id }}",
-            "run_url": "${{ github.server_url }}/$GH_AW_GITHUB_REPOSITORY/actions/runs/${{ github.run_id }}",
-            "trigger": "${{ github.event_name }}"
-          }
-          EOF
-
-          jq -n \
-            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg repository "$GH_AW_GITHUB_REPOSITORY" \
-            --slurpfile stats /tmp/gh-aw/data/overall-stats.json \
-            --slurpfile exact /tmp/gh-aw/data/exact-repeats.json \
-            --slurpfile intents /tmp/gh-aw/data/intent-buckets.json \
-            --slurpfile opportunities /tmp/gh-aw/data/workflow-opportunities.json '
-            {
-              generated_at: $generated_at,
-              repository: $repository,
-              overall_stats: ($stats[0] // {}),
-              top_exact_repeats: (($exact[0] // [])[0:10]),
-              intent_buckets: ($intents[0] // []),
-              workflow_opportunities: (($opportunities[0] // [])[0:15])
-            }
-          ' > /tmp/gh-aw/data/current-snapshot.json
-
-          jq -n \
-            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-            {
-              baseline_available: false,
-              current_generated_at: $generated_at,
-              note: "Trend analysis is computed during the agent phase after repo-memory is cloned."
-            }
-          ' > /tmp/gh-aw/data/trend-analysis.json
-
-          tasks_with_prompts=$(jq -r '.tasks_with_prompts // 0' /tmp/gh-aw/data/overall-stats.json)
-          cross_user_buckets=$(jq '[.[] | select((.distinct_users // 0) >= 2)] | length' /tmp/gh-aw/data/intent-buckets.json)
-          actionable_candidates=$(jq '[.[] | select((.recommendation_kind // "") != "monitor_only")] | length' /tmp/gh-aw/data/workflow-opportunities.json)
-          if [ "$tasks_with_prompts" -lt 8 ] || { [ "$cross_user_buckets" -lt 2 ] && [ "$actionable_candidates" -lt 1 ]; }; then
-            printf '%s\n' '{"type":"noop","message":"Insufficient cross-user repetition signal in the recent Agent Tasks sample; skipping centralization analysis."}' >> "$GH_AW_SAFE_OUTPUTS"
-          fi
+        run: "set -euo pipefail\nGH_AW_SAFE_OUTPUTS=\"${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}\"\n\njq '\n  def round2: .*100 | round / 100;\n  {\n    total_tasks: length,\n    distinct_creators: ([.[].creator_id | select(. != null)] | unique | length),\n    tasks_with_prompts: ([.[] | select(.input != null)] | length),\n    avg_sessions_per_task: (if length == 0 then 0 else ([.[].session_count] | add / length | round2) end),\n    fallback_rate: (if length == 0 then 0 else ([.[].used_fallback_input | if . then 1 else 0 end] | add / length | round2) end)\n  }\n' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/overall-stats.json\n\njq '\n  def normalize_prompt:\n    ascii_downcase\n    | gsub(\"\\\\r|\\\\n\"; \" \")\n    | gsub(\"\\\\s+\"; \" \")\n    | gsub(\"^\\\\s+|\\\\s+$\"; \"\");\n  [ .[]\n    | select(.input != null and (.input | gsub(\"^\\\\s+|\\\\s+$\"; \"\") | length) >= 24)\n    | . + {\n        normalized_prompt: (.input | normalize_prompt),\n        artifact_signature: (.artifact_types // \"none\"),\n        creator_key: (.creator_id // .creator_login // \"unknown\")\n      }\n  ]\n  | sort_by(.normalized_prompt)\n  | group_by(.normalized_prompt)\n  | map({\n      normalized_prompt: .[0].normalized_prompt,\n      sample_prompt: .[0].input,\n      task_count: length,\n      distinct_users: (map(.creator_key) | unique | length),\n      artifact_signatures: (map(.artifact_signature) | unique | length),\n      sample_creators: (map(.creator_login // .creator_id // \"unknown\") | unique | .[0:5]),\n      sample_context: .[0].start_context_guess\n    })\n  | map(select(.distinct_users >= 2))\n  | sort_by(-.distinct_users, - .task_count)\n  | .[0:25]\n' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/exact-repeats.json\n\njq '\n  def round2: .*100 | round / 100;\n  def intent_bucket($prompt):\n    ($prompt // \"\" | ascii_downcase) as $p\n    | if ($p | test(\"triage|incident|failing workflow|\\\\bci\\\\b\")) then \"ci_triage\"\n      elif ($p | test(\"review|pull request|\\\\bpr\\\\b\")) then \"pr_review\"\n      elif ($p | test(\"dependency|dependabot|upgrade\")) then \"dependency_maintenance\"\n      elif ($p | test(\"release|changelog\")) then \"release_ops\"\n      elif ($p | test(\"issue|label\")) then \"issue_ops\"\n      elif ($p | test(\"docs|documentation\")) then \"docs_ops\"\n      elif ($p | test(\"security\")) then \"security_ops\"\n      else \"other\"\n      end;\n  [ .[]\n    | select(.input != null)\n    | . + {\n        intent_bucket: intent_bucket(.input),\n        creator_key: (.creator_id // .creator_login // \"unknown\")\n      }\n  ]\n  | sort_by(.intent_bucket)\n  | group_by(.intent_bucket)\n  | map({\n      intent_bucket: .[0].intent_bucket,\n      task_count: length,\n      distinct_users: (map(.creator_key) | unique | length),\n      avg_sessions: ((map(.session_count) | add / length) | round2),\n      fallback_rate: ((map(if .used_fallback_input then 1 else 0 end) | add / length) | round2)\n    })\n  | sort_by(-.distinct_users, - .task_count)\n' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/intent-buckets.json\n\njq '\n  def round2: .*100 | round / 100;\n  def intent_bucket($prompt):\n    ($prompt // \"\" | ascii_downcase) as $p\n    | if ($p | test(\"triage|incident|failing workflow|\\\\bci\\\\b\")) then \"ci_triage\"\n      elif ($p | test(\"review|pull request|\\\\bpr\\\\b\")) then \"pr_review\"\n      elif ($p | test(\"dependency|dependabot|upgrade\")) then \"dependency_maintenance\"\n      elif ($p | test(\"release|changelog\")) then \"release_ops\"\n      elif ($p | test(\"issue|label\")) then \"issue_ops\"\n      elif ($p | test(\"docs|documentation\")) then \"docs_ops\"\n      elif ($p | test(\"security\")) then \"security_ops\"\n      else \"other\"\n      end;\n  [ .[]\n    | select(.input != null)\n    | . + {\n        intent_bucket: intent_bucket(.input),\n        artifact_signature: (if (.artifact_types // \"\") == \"\" then \"none\" else .artifact_types end),\n        creator_key: (.creator_id // .creator_login // \"unknown\")\n      }\n  ]\n  | sort_by(.intent_bucket, .artifact_signature, .start_context_guess)\n  | group_by([.intent_bucket, .artifact_signature, .start_context_guess])\n  | map({\n      intent_bucket: .[0].intent_bucket,\n      artifact_types: .[0].artifact_signature,\n      start_context_guess: .[0].start_context_guess,\n      task_count: length,\n      distinct_users: (map(.creator_key) | unique | length),\n      avg_sessions: ((map(.session_count) | add / length) | round2),\n      fallback_rate: ((map(if .used_fallback_input then 1 else 0 end) | add / length) | round2)\n    })\n  | map(select(.distinct_users >= 2))\n  | map(. + {\n      centralization_score: ((.task_count * .distinct_users * (1 + (.avg_sessions / 3) + .fallback_rate)) | round2),\n      recommendation_kind: (\n        if .distinct_users >= 5 and .task_count >= 10 then \"continuous_workflow\"\n        elif .distinct_users >= 3 and .task_count >= 5 then \"shared_prompt_or_chatops\"\n        else \"monitor_only\"\n        end\n      )\n    })\n  | sort_by(-.centralization_score)\n  | .[0:25]\n' /tmp/gh-aw/data/task-summaries.json > /tmp/gh-aw/data/workflow-opportunities.json\n\ncat > /tmp/gh-aw/data/run-context.json <<EOF\n{\n  \"repository\": \"$EXPR_GITHUB_REPOSITORY\",\n  \"run_id\": \"$EXPR_GITHUB_RUN_ID\",\n  \"run_url\": \"$EXPR_GITHUB_SERVER_URL/$EXPR_GITHUB_REPOSITORY/actions/runs/$EXPR_GITHUB_RUN_ID\",\n  \"trigger\": \"$EXPR_GITHUB_EVENT_NAME\"\n}\nEOF\n\njq -n \\\n  --arg generated_at \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" \\\n  --arg repository \"$EXPR_GITHUB_REPOSITORY\" \\\n  --slurpfile stats /tmp/gh-aw/data/overall-stats.json \\\n  --slurpfile exact /tmp/gh-aw/data/exact-repeats.json \\\n  --slurpfile intents /tmp/gh-aw/data/intent-buckets.json \\\n  --slurpfile opportunities /tmp/gh-aw/data/workflow-opportunities.json '\n  {\n    generated_at: $generated_at,\n    repository: $repository,\n    overall_stats: ($stats[0] // {}),\n    top_exact_repeats: (($exact[0] // [])[0:10]),\n    intent_buckets: ($intents[0] // []),\n    workflow_opportunities: (($opportunities[0] // [])[0:15])\n  }\n' > /tmp/gh-aw/data/current-snapshot.json\n\njq -n \\\n  --arg generated_at \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" '\n  {\n    baseline_available: false,\n    current_generated_at: $generated_at,\n    note: \"Trend analysis is computed during the agent phase after repo-memory is cloned.\"\n  }\n' > /tmp/gh-aw/data/trend-analysis.json\n\ntasks_with_prompts=$(jq -r '.tasks_with_prompts // 0' /tmp/gh-aw/data/overall-stats.json)\ncross_user_buckets=$(jq '[.[] | select((.distinct_users // 0) >= 2)] | length' /tmp/gh-aw/data/intent-buckets.json)\nactionable_candidates=$(jq '[.[] | select((.recommendation_kind // \"\") != \"monitor_only\")] | length' /tmp/gh-aw/data/workflow-opportunities.json)\nif [ \"$tasks_with_prompts\" -lt 8 ] || { [ \"$cross_user_buckets\" -lt 2 ] && [ \"$actionable_candidates\" -lt 1 ]; }; then\n  printf '%s\\n' '{\"type\":\"noop\",\"message\":\"Insufficient cross-user repetition signal in the recent Agent Tasks sample; skipping centralization analysis.\"}' >> \"$GH_AW_SAFE_OUTPUTS\"\nfi\n"
       - continue-on-error: true
         if: always()
         name: Upload centralization analysis dataset
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (source v7)
         with:
           if-no-files-found: ignore
           name: copilot-centralization-analysis
@@ -749,7 +517,7 @@ jobs:
         env:
           GH_HOST: github.com
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.2
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.4
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -781,7 +549,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.2@sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.2@sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4 ghcr.io/github/gh-aw-firewall/squid:0.27.2@sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591 ghcr.io/github/gh-aw-mcpg:v0.3.25@sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8 ghcr.io/github/gh-aw-mcpg:v0.3.26@sha256:d3b03f54eee3a8176818c9a52087623e45b7f644a28814337fcc0838e2534490 ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c
       - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
@@ -958,7 +726,7 @@ jobs:
             * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;
           esac
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.25'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.26'
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
@@ -1059,7 +827,7 @@ jobs:
           export GH_AW_NODE_BIN
           export COPILOT_API_KEY="$COPILOT_DUMMY_BYOK"
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
-          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.27.2/awf-config.schema.json","network":{"allowDomains":["api.business.githubcopilot.com","api.enterprise.githubcopilot.com","api.github.com","api.githubcopilot.com","api.individual.githubcopilot.com","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","github.com","host.docker.internal","json-schema.org","json.schemastore.org","keyserver.ubuntu.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","raw.githubusercontent.com","registry.npmjs.org","s.symcb.com","s.symcd.com","security.ubuntu.com","telemetry.enterprise.githubcopilot.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxAiCredits":250,"models":{"agent":["sonnet-6x","gpt-5.4","gpt-5.3","gemini-pro","any"],"antigravity":["copilot/antigravity*","google/antigravity*","gemini/antigravity*"],"any":["copilot/*","anthropic/*","openai/*","google/*","gemini/*"],"claude":["agent"],"codex":["agent"],"coding":["copilot/gpt-5*codex*","openai/gpt-5*codex*","gpt-5-codex"],"computer-use":["copilot/*computer-use*","google/*computer-use*","gemini/*computer-use*","openai/*computer-use*"],"copilot":["agent"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini":["agent"],"gemini-3-flash":["copilot/gemini-3*flash*","google/gemini-3*flash*","gemini/gemini-3*flash*"],"gemini-3-pro":["copilot/gemini-3*pro*","google/gemini-3*pro*","google/nano-banana*","gemini/gemini-3*pro*"],"gemini-3.1-flash":["copilot/gemini-3.1*flash*","google/gemini-3.1*flash*","gemini/gemini-3.1*flash*"],"gemini-3.1-pro":["copilot/gemini-3.1*pro*","google/gemini-3.1*pro*","gemini/gemini-3.1*pro*"],"gemini-3.5-flash":["copilot/gemini-3.5*flash*","google/gemini-3.5*flash*","gemini/gemini-3.5*flash*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"gpt-5.2":["copilot/gpt-5.2*","openai/gpt-5.2*"],"gpt-5.3":["copilot/gpt-5.3*","openai/gpt-5.3*"],"gpt-5.4":["copilot/gpt-5.4*","openai/gpt-5.4*"],"gpt-5.5":["copilot/gpt-5.5*","openai/gpt-5.5*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mai-code":["copilot/MAI-Code*","copilot/mai-code*","openai/MAI-Code*"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"nano-banana":["copilot/nano-banana*","google/nano-banana*","gemini/nano-banana*"],"opus":["copilot/*opus*","anthropic/*opus*"],"opusplan":["opus?effort=high"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"robotics":["copilot/*robotics*","google/*robotics*","gemini/*robotics*"],"small":["mini"],"small-agent":["haiku","gpt-5-mini","gemini-flash"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"],"sonnet-6x":["copilot/*sonnet-4.5*","copilot/*sonnet-4.6*","copilot/*sonnet-4-5-*","anthropic/*sonnet-4-5-*","copilot/*sonnet-4-6*","anthropic/*sonnet-4-6*"],"summarization":["haiku","gpt-5-mini","gemini-flash-lite","mini"],"vision":["copilot/gemini-*image*","gemini/gemini-*image*","copilot/gemini-*flash*","gemini/gemini-*flash*"]}},"container":{"imageTag":"0.27.2,squid=sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591,agent=sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6,api-proxy=sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4,cli-proxy=sha256:02f3ec08f32dc26c5427920c6a2e2f3036238fce44802f2f11ef49ed8621b5d0"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.27.4/awf-config.schema.json","network":{"allowDomains":["api.business.githubcopilot.com","api.enterprise.githubcopilot.com","api.github.com","api.githubcopilot.com","api.individual.githubcopilot.com","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","github.com","host.docker.internal","json-schema.org","json.schemastore.org","keyserver.ubuntu.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","raw.githubusercontent.com","registry.npmjs.org","s.symcb.com","s.symcd.com","security.ubuntu.com","telemetry.enterprise.githubcopilot.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxAiCredits":250,"models":{"agent":["sonnet-6x","gpt-5.4","gpt-5.3","gemini-pro","any"],"antigravity":["copilot/antigravity*","google/antigravity*","gemini/antigravity*"],"any":["copilot/*","anthropic/*","openai/*","google/*","gemini/*"],"claude":["agent"],"codex":["agent"],"coding":["copilot/gpt-5*codex*","openai/gpt-5*codex*","gpt-5-codex"],"computer-use":["copilot/*computer-use*","google/*computer-use*","gemini/*computer-use*","openai/*computer-use*"],"copilot":["agent"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini":["agent"],"gemini-3-flash":["copilot/gemini-3*flash*","google/gemini-3*flash*","gemini/gemini-3*flash*"],"gemini-3-pro":["copilot/gemini-3*pro*","google/gemini-3*pro*","google/nano-banana*","gemini/gemini-3*pro*"],"gemini-3.1-flash":["copilot/gemini-3.1*flash*","google/gemini-3.1*flash*","gemini/gemini-3.1*flash*"],"gemini-3.1-pro":["copilot/gemini-3.1*pro*","google/gemini-3.1*pro*","gemini/gemini-3.1*pro*"],"gemini-3.5-flash":["copilot/gemini-3.5*flash*","google/gemini-3.5*flash*","gemini/gemini-3.5*flash*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"gpt-5.2":["copilot/gpt-5.2*","openai/gpt-5.2*"],"gpt-5.3":["copilot/gpt-5.3*","openai/gpt-5.3*"],"gpt-5.4":["copilot/gpt-5.4*","openai/gpt-5.4*"],"gpt-5.5":["copilot/gpt-5.5*","openai/gpt-5.5*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mai-code":["copilot/MAI-Code*","copilot/mai-code*","openai/MAI-Code*"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"nano-banana":["copilot/nano-banana*","google/nano-banana*","gemini/nano-banana*"],"opus":["copilot/*opus*","anthropic/*opus*"],"opusplan":["opus?effort=high"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"robotics":["copilot/*robotics*","google/*robotics*","gemini/*robotics*"],"small":["mini"],"small-agent":["haiku","gpt-5-mini","gemini-flash"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"],"sonnet-6x":["copilot/*sonnet-4.5*","copilot/*sonnet-4.6*","copilot/*sonnet-4-5-*","anthropic/*sonnet-4-5-*","copilot/*sonnet-4-6*","anthropic/*sonnet-4-6*"],"summarization":["haiku","gpt-5-mini","gemini-flash-lite","mini"],"vision":["copilot/gemini-*image*","gemini/gemini-*image*","copilot/gemini-*flash*","gemini/gemini-*flash*"]}},"container":{"imageTag":"0.27.4,squid=sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8,agent=sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a,api-proxy=sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd,cli-proxy=sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -1341,7 +1109,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Centralization Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-centralization-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1581,7 +1349,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Centralization Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-centralization-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1608,7 +1376,7 @@ jobs:
           rm -rf /tmp/gh-aw/sandbox/firewall/logs
           rm -rf /tmp/gh-aw/sandbox/firewall/audit
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.2@sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.2@sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4 ghcr.io/github/gh-aw-firewall/squid:0.27.2@sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.4@sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a ghcr.io/github/gh-aw-firewall/api-proxy:0.27.4@sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd ghcr.io/github/gh-aw-firewall/squid:0.27.4@sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8
       - name: Check if detection needed
         id: detection_guard
         if: always()
@@ -1675,7 +1443,7 @@ jobs:
         env:
           GH_HOST: github.com
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.2
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.4
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -1695,7 +1463,7 @@ jobs:
           export COPILOT_API_KEY="$COPILOT_DUMMY_BYOK"
           (umask 177 && touch /tmp/gh-aw/threat-detection/detection.log)
           GH_AW_MAX_AI_CREDITS="${GH_AW_MAX_AI_CREDITS:-400}"
-          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.27.2/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"api.business.githubcopilot.com\",\"api.enterprise.githubcopilot.com\",\"api.github.com\",\"api.githubcopilot.com\",\"api.individual.githubcopilot.com\",\"github.com\",\"host.docker.internal\",\"registry.npmjs.org\",\"telemetry.enterprise.githubcopilot.com\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}},\"container\":{\"imageTag\":\"0.27.2,squid=sha256:2e3a717e5f19a654cd9a2263beb52012b56bcb68562ec5ae2e42f9d156b49591,agent=sha256:f88e5b17b6b7a600117bc121114d6ce2155c88c983c0c939c5df884f730fa1d6,api-proxy=sha256:ee39841d980878ebbb87592903b06d31a1af500c71525c9616f7e8e2a27041a4,cli-proxy=sha256:02f3ec08f32dc26c5427920c6a2e2f3036238fce44802f2f11ef49ed8621b5d0\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.27.4/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"api.business.githubcopilot.com\",\"api.enterprise.githubcopilot.com\",\"api.github.com\",\"api.githubcopilot.com\",\"api.individual.githubcopilot.com\",\"github.com\",\"host.docker.internal\",\"registry.npmjs.org\",\"telemetry.enterprise.githubcopilot.com\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}},\"container\":{\"imageTag\":\"0.27.4,squid=sha256:87979038897e40caed22245b64d1daa796390d2dca289b99d3d1174c85740af8,agent=sha256:b268ebf37df2428b19efcb383f001d65dc6a5ec10af43feb886d1a8477ab0e3a,api-proxy=sha256:3ea0d12a2d124db8ed6e2d18aff040e30ab3568161f258a132fccdeede4198cd,cli-proxy=sha256:72c378c029d2fad4684847ab44c329e526ac6b1a78cdf97656870ea11d201545\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -1849,7 +1617,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Centralization Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-centralization-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -1964,7 +1732,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Centralization Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-centralization-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.60"
-          GH_AW_INFO_AWF_VERSION: "v0.27.2"
+          GH_AW_INFO_AWF_VERSION: "v0.27.4"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
         id: download-agent-output
