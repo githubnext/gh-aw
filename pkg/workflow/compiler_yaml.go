@@ -109,6 +109,9 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		agentInfo.EngineVersions = collectEngineVersionsForMetadata(data)
 		agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)
 		metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
+		if metadata.CompilerVersion == "" && c.GetActionTag() != "" {
+			metadata.CompilerVersion = c.GetVersion()
+		}
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails

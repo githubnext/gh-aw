@@ -1399,18 +1399,28 @@ func TestLockMetadataVersionInReleaseBuilds(t *testing.T) {
 		name          string
 		isRelease     bool
 		version       string
+		actionTag     string
 		expectVersion bool
 	}{
 		{
 			name:          "dev build should not include version",
 			isRelease:     false,
 			version:       "dev",
+			actionTag:     "",
 			expectVersion: false,
 		},
 		{
 			name:          "release build should include version",
 			isRelease:     true,
 			version:       "v0.1.2",
+			actionTag:     "",
+			expectVersion: true,
+		},
+		{
+			name:          "action-tag compile should include current ref",
+			isRelease:     false,
+			version:       "401bd13",
+			actionTag:     "v9.9.9",
 			expectVersion: true,
 		},
 	}
@@ -1437,6 +1447,7 @@ Test prompt.
 
 			// Compile the workflow
 			compiler := NewCompiler()
+			compiler.SetActionTag(tt.actionTag)
 			err := compiler.CompileWorkflow(workflowPath)
 			if err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
