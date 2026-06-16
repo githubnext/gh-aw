@@ -36,7 +36,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.0",
     "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
     "starlight-github-alerts": "^0.2.0"
