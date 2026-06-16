@@ -64,7 +64,6 @@ const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
- * Quota exhaustion is a persistent, non-retryable condition.
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
  */
