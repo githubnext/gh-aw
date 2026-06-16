@@ -221,7 +221,9 @@ jobs:
 
       - name: Record outputs
         id: record
-        run: echo "operation=${{ inputs.operation }}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_AW_OPERATION: ${{ inputs.operation }}
+        run: echo "operation=$GH_AW_OPERATION" >> "$GITHUB_OUTPUT"
 
   update_pull_request_branches:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches' && (!(github.event.repository.fork)) }}
@@ -313,7 +315,9 @@ jobs:
 
       - name: Record outputs
         id: record
-        run: echo "run_url=${{ inputs.run_url }}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_AW_RUN_URL: ${{ inputs.run_url }}
+        run: echo "run_url=$GH_AW_RUN_URL" >> "$GITHUB_OUTPUT"
 
   create_labels:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels' && (!(github.event.repository.fork)) }}
