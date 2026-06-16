@@ -195,7 +195,7 @@ runs-on-slim: ubuntu-slim            # Defaults to ubuntu-slim (framework jobs o
 timeout-minutes: 30                  # Defaults to 20 minutes
 ```
 
-`runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.), accepts the same string, array, or runner-group object forms as `runs-on`, and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
+`runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.), accepts the same string, array, or runner-group object forms as `runs-on`, and defaults to `ubuntu-slim`. `safe-outputs.runs-on` and `safe-outputs.threat-detection.runs-on` also accept the same runner forms and take precedence where applicable.
 
 `timeout-minutes` accepts an integer or a GitHub Actions expression string (e.g. `${{ inputs.timeout }}`), letting a reusable `workflow_call` workflow parameterize its own timeout from caller inputs. It applies to the workflow being compiled, **not** to plain caller jobs that invoke a reusable workflow with job-level `uses:` — GitHub rejects `timeout-minutes` there.
 

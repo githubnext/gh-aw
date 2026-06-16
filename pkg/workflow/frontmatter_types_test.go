@@ -397,6 +397,40 @@ func TestParseFrontmatterConfig(t *testing.T) {
 				reconstructed2 := config2.ToMap()
 				assert.Equal(t, reconstructed, reconstructed2)
 			})
+
+			t.Run("handles safe-outputs runs-on forms", func(t *testing.T) {
+				tests := []struct {
+					name           string
+					safeOutputs    any
+					expectedRunsOn string
+				}{
+					{
+						name: "safe-outputs.runs-on string form",
+						safeOutputs: map[string]any{
+							"runs-on": "ubuntu-latest",
+						},
+						expectedRunsOn: "runs-on: ubuntu-latest",
+					},
+					{
+						name: "safe-outputs.runs-on array form",
+						safeOutputs: map[string]any{
+							"runs-on": []any{"self-hosted", "linux"},
+						},
+						expectedRunsOn: "runs-on:\n  - self-hosted\n  - linux",
+					},
+				}
+
+				for _, tt := range tests {
+					t.Run(tt.name, func(t *testing.T) {
+						config, err := ParseFrontmatterConfig(map[string]any{
+							"safe-outputs": tt.safeOutputs,
+						})
+						require.NoError(t, err)
+						require.NotNil(t, config.SafeOutputs)
+						assert.Equal(t, tt.expectedRunsOn, config.SafeOutputs.RunsOn)
+					})
+				}
+			})
 		}
 	})
 

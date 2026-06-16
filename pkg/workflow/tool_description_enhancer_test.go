@@ -202,3 +202,69 @@ func TestEnhanceToolDescriptionSubmitPullRequestReviewTargetRepo(t *testing.T) {
 		t.Fatalf("expected target repo constraint in description, got: %s", description)
 	}
 }
+
+func TestEnhanceToolDescriptionNormalizeClosingKeywordsCreateIssue(t *testing.T) {
+	description := enhanceToolDescription("create_issue", "Create an issue.", &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{NormalizeClosingKeywords: boolPtr(true)},
+		},
+	})
+	if !strings.Contains(description, "Backtick-wrapped issue-closing keyword references") {
+		t.Fatalf("expected normalize-closing-keywords note in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionNormalizeClosingKeywordsFalseCreateIssue(t *testing.T) {
+	description := enhanceToolDescription("create_issue", "Create an issue.", &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{NormalizeClosingKeywords: boolPtr(false)},
+		},
+	})
+	if strings.Contains(description, "Backtick-wrapped issue-closing keyword references") {
+		t.Fatalf("did not expect normalize-closing-keywords note when disabled, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionNormalizeClosingKeywordsAddComment(t *testing.T) {
+	description := enhanceToolDescription("add_comment", "Add a comment.", &SafeOutputsConfig{
+		AddComments: &AddCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{NormalizeClosingKeywords: boolPtr(true)},
+		},
+	})
+	if !strings.Contains(description, "Backtick-wrapped issue-closing keyword references") {
+		t.Fatalf("expected normalize-closing-keywords note in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionNormalizeClosingKeywordsFalseAddComment(t *testing.T) {
+	description := enhanceToolDescription("add_comment", "Add a comment.", &SafeOutputsConfig{
+		AddComments: &AddCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{NormalizeClosingKeywords: boolPtr(false)},
+		},
+	})
+	if strings.Contains(description, "Backtick-wrapped issue-closing keyword references") {
+		t.Fatalf("did not expect normalize-closing-keywords note when disabled, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionNormalizeClosingKeywordsCreatePullRequest(t *testing.T) {
+	description := enhanceToolDescription("create_pull_request", "Create a pull request.", &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{NormalizeClosingKeywords: boolPtr(true)},
+		},
+	})
+	if !strings.Contains(description, "Backtick-wrapped issue-closing keyword references") {
+		t.Fatalf("expected normalize-closing-keywords note in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionNormalizeClosingKeywordsFalseCreatePullRequest(t *testing.T) {
+	description := enhanceToolDescription("create_pull_request", "Create a pull request.", &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{NormalizeClosingKeywords: boolPtr(false)},
+		},
+	})
+	if strings.Contains(description, "Backtick-wrapped issue-closing keyword references") {
+		t.Fatalf("did not expect normalize-closing-keywords note when disabled, got: %s", description)
+	}
+}
