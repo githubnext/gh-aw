@@ -47,7 +47,6 @@ async function fetchIssueFields(githubClient, owner, repo) {
         issueFields(first: 100) {
           nodes {
             __typename
-            ... on IssueField { id name }
             ... on IssueFieldText { id name }
             ... on IssueFieldNumber { id name }
             ... on IssueFieldDate { id name }
@@ -61,7 +60,6 @@ async function fetchIssueFields(githubClient, owner, repo) {
             issueFields(first: 100) {
               nodes {
                 __typename
-                ... on IssueField { id name }
                 ... on IssueFieldText { id name }
                 ... on IssueFieldNumber { id name }
                 ... on IssueFieldDate { id name }
