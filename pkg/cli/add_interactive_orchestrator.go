@@ -39,7 +39,7 @@ type AddInteractiveConfig struct {
 
 	// copilotCLIBillingStatus is the detected org Copilot CLI billing status.
 	// "enabled" — confirmed available; "disabled" — confirmed unavailable; "" — inconclusive.
-	// Populated by selectCopilotAuthMethod() via detectOrgCopilotCLIBilling().
+	// Populated by selectCopilotAuthMethod() via probeCopilotBillingForOrg().
 	copilotCLIBillingStatus string
 
 	// isPublicRepo tracks whether the target repository is public

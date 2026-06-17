@@ -225,17 +225,12 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	copilotRequestsDisabled := false
 
 	if orgLogin, _, found := strings.Cut(c.RepoOverride, "/"); found && orgLogin != "" {
-		cliStatus, err := detectOrgCopilotCLIBilling(c.Ctx, orgLogin)
-		c.copilotCLIBillingStatus = cliStatus
-		switch {
-		case err != nil || cliStatus == "":
-			// inconclusive — show both as selectable, PAT is default
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Could not confirm org Copilot CLI billing — check with your org admin."))
-		case cliStatus == "enabled":
-			copilotRequestsLabel += " [recommended — org Copilot CLI billing enabled]"
-		default: // "disabled" or any other policy value
-			copilotRequestsLabel += " [not available — org Copilot CLI billing is disabled]"
-			copilotRequestsDisabled = true
+		probe := probeCopilotBillingForOrg(c.Ctx, orgLogin)
+		c.copilotCLIBillingStatus = probe.BillingStatus
+		copilotRequestsLabel += probe.LabelSuffix
+		copilotRequestsDisabled = probe.Disabled
+		if probe.InfoNote != "" {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
 		}
 	}
 

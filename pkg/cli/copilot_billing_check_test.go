@@ -164,3 +164,112 @@ func TestDetectOrgCopilotCLIBillingWithClient_NetworkError(t *testing.T) {
 	assert.Empty(t, status, "network error should return empty status (inconclusive)")
 	assert.Error(t, err, "network error should return an error")
 }
+
+func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
+	const infoNote = "Could not confirm org Copilot CLI billing — check with your org admin."
+	tests := []struct {
+		name      string
+		handler   http.HandlerFunc
+		wantProbe orgCopilotBillingProbeResult
+	}{
+		{
+			name: "200 with cli enabled → recommended label, not disabled",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"cli": "enabled"})
+			},
+			wantProbe: orgCopilotBillingProbeResult{
+				BillingStatus: "enabled",
+				LabelSuffix:   " [recommended — org Copilot CLI billing enabled]",
+			},
+		},
+		{
+			name: "200 with cli disabled → not-available label with status, disabled",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"cli": "disabled"})
+			},
+			wantProbe: orgCopilotBillingProbeResult{
+				BillingStatus: "disabled",
+				LabelSuffix:   " [not available — org Copilot CLI billing: disabled]",
+				Disabled:      true,
+			},
+		},
+		{
+			name: "200 with unknown cli value → not-available label with that value, disabled",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"cli": "unconfigured"})
+			},
+			wantProbe: orgCopilotBillingProbeResult{
+				BillingStatus: "unconfigured",
+				LabelSuffix:   " [not available — org Copilot CLI billing: unconfigured]",
+				Disabled:      true,
+			},
+		},
+		{
+			name: "404 → info note, not disabled",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]any{"message": "Not Found"})
+			},
+			wantProbe: orgCopilotBillingProbeResult{
+				InfoNote: infoNote,
+			},
+		},
+		{
+			name: "403 → info note, not disabled",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(map[string]any{"message": "Forbidden"})
+			},
+			wantProbe: orgCopilotBillingProbeResult{
+				InfoNote: infoNote,
+			},
+		},
+		{
+			name: "200 with missing cli field → info note, not disabled",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"seat_breakdown": map[string]any{"total": 0}})
+			},
+			wantProbe: orgCopilotBillingProbeResult{
+				InfoNote: infoNote,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				tc.handler(w, r)
+			}))
+			t.Cleanup(srv.Close)
+
+			client := newTestBillingClient(t, srv)
+			got := probeCopilotBillingForOrgWithClient(context.Background(), "testorg", client)
+
+			assert.Equal(t, tc.wantProbe, got)
+		})
+	}
+}
+
+func TestProbeCopilotBillingForOrgWithClient_NetworkError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hj, ok := w.(http.Hijacker)
+		if ok {
+			conn, _, _ := hj.Hijack()
+			_ = conn.Close()
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := newTestBillingClient(t, srv)
+	got := probeCopilotBillingForOrgWithClient(context.Background(), "testorg", client)
+
+	assert.Empty(t, got.BillingStatus)
+	assert.False(t, got.Disabled)
+	assert.NotEmpty(t, got.InfoNote)
+}
