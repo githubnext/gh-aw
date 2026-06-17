@@ -7,8 +7,8 @@ func (customRegexp) Compile(_ string) (*customRegexp, error) { return &customReg
 func (customRegexp) MustCompile(_ string) *customRegexp      { return &customRegexp{} }
 
 // not flagged: local variable named "regexp" is not the stdlib regexp package.
-func GoodShadowedRegexpIdentifier(s string) bool {
+func GoodShadowedRegexpIdentifier() bool {
 	regexp := customRegexp{}
-	_ = regexp.MustCompile(s)
+	_ = regexp.MustCompile(`^[a-z]+$`)
 	return true
 }

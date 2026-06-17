@@ -88,7 +88,10 @@ func isRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 		return false
 	}
 	pkgName, ok := obj.(*types.PkgName)
-	return ok && pkgName.Imported().Path() == "regexp"
+	if !ok || pkgName.Imported() == nil {
+		return false
+	}
+	return pkgName.Imported().Path() == "regexp"
 }
 
 // hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string,
