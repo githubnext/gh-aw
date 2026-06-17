@@ -3412,4 +3412,3 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 		})
 	}
 }
-
