@@ -8,7 +8,7 @@ ARG NODE_IMAGE_DIGEST=""
 ARG NODE_IMAGE_UPDATED_AT=""
 ARG DOCKERFILE_HASH=""
 
-RUN apk add --no-cache git
+RUN apk add --no-cache git bash
 
 LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
       org.opencontainers.image.description="Node LTS Alpine with git for the local safe-outputs MCP runtime" \
