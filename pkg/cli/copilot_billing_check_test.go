@@ -167,9 +167,13 @@ func TestDetectOrgCopilotCLIBillingWithClient_NetworkError(t *testing.T) {
 }
 
 func TestDetectOrgCopilotCLIBillingWithClient_ContextCancellation(t *testing.T) {
-	// A handler that blocks indefinitely, simulating a slow server.
+	// A handler that signals it has started, then blocks until the test ends.
+	// Using a buffered channel so the handler send never blocks even if the
+	// goroutine below hasn't reached the receive yet.
+	handlerStarted := make(chan struct{}, 1)
 	unblock := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerStarted <- struct{}{}
 		<-unblock
 	}))
 	t.Cleanup(func() {
@@ -177,24 +181,33 @@ func TestDetectOrgCopilotCLIBillingWithClient_ContextCancellation(t *testing.T) 
 		srv.Close()
 	})
 
-	// Pre-cancel the context before calling so the internal timeout inherits
-	// cancellation immediately, confirming the function honours context deadlines
-	// and returns quickly (well under copilotBillingTimeout).
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	t.Cleanup(cancel)
 
 	client := newTestBillingClient(t, srv)
+
+	// Cancel the context once the handler has started processing the request,
+	// confirming that mid-flight cancellation is handled and the function
+	// returns well within copilotBillingTimeout.
+	go func() {
+		select {
+		case <-handlerStarted:
+			cancel()
+		case <-time.After(5 * time.Second):
+			// Guard against goroutine leak if the handler never starts.
+		}
+	}()
+
 	start := time.Now()
 	status, err := detectOrgCopilotCLIBillingWithClient(ctx, "testorg", client)
 	elapsed := time.Since(start)
 
 	assert.Empty(t, status, "cancelled context should return empty status")
 	require.Error(t, err, "cancelled context should return an error")
-	assert.Less(t, elapsed, time.Second, "should return quickly when context is already cancelled")
+	assert.Less(t, elapsed, time.Second, "should return quickly when context is cancelled mid-flight")
 }
 
 func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
-	const infoNote = "Could not confirm org Copilot CLI billing — check with your org admin."
 	tests := []struct {
 		name      string
 		handler   http.HandlerFunc
@@ -243,7 +256,7 @@ func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"message": "Not Found"})
 			},
 			wantProbe: orgCopilotBillingProbeResult{
-				InfoNote: infoNote,
+				InfoNote: copilotBillingInconclusiveNote,
 			},
 		},
 		{
@@ -254,7 +267,7 @@ func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"message": "Forbidden"})
 			},
 			wantProbe: orgCopilotBillingProbeResult{
-				InfoNote: infoNote,
+				InfoNote: copilotBillingInconclusiveNote,
 			},
 		},
 		{
@@ -264,7 +277,7 @@ func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"seat_breakdown": map[string]any{"total": 0}})
 			},
 			wantProbe: orgCopilotBillingProbeResult{
-				InfoNote: infoNote,
+				InfoNote: copilotBillingInconclusiveNote,
 			},
 		},
 	}

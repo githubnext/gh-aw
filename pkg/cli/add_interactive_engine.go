@@ -230,7 +230,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		probe = probeCopilotBillingForOrg(c.Ctx, orgLogin)
 	} else {
 		probe = orgCopilotBillingProbeResult{
-			InfoNote: "Could not confirm org Copilot CLI billing — check with your org admin.",
+			InfoNote: copilotBillingInconclusiveNote,
 		}
 	}
 	c.copilotCLIBillingStatus = probe.BillingStatus

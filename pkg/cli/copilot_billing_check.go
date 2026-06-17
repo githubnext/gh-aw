@@ -10,6 +10,11 @@ import (
 
 const copilotBillingTimeout = 3 * time.Second
 
+// copilotBillingInconclusiveNote is the user-facing message printed when the
+// org's Copilot CLI billing status cannot be confirmed (non-200 response,
+// network error, missing field, or no org login available).
+const copilotBillingInconclusiveNote = "Could not confirm org Copilot CLI billing — check with your org admin."
+
 // detectOrgCopilotCLIBillingWithClient calls GET /orgs/{org}/copilot/billing with
 // a 3 s timeout and returns the raw "cli" field. Any non-200 response or error
 // results in ("", err).
@@ -48,7 +53,7 @@ func probeCopilotBillingForOrg(ctx context.Context, orgLogin string) orgCopilotB
 	client, err := api.NewRESTClient(api.ClientOptions{})
 	if err != nil {
 		return orgCopilotBillingProbeResult{
-			InfoNote: "Could not confirm org Copilot CLI billing — check with your org admin.",
+			InfoNote: copilotBillingInconclusiveNote,
 		}
 	}
 	return probeCopilotBillingForOrgWithClient(ctx, orgLogin, client)
@@ -62,7 +67,7 @@ func probeCopilotBillingForOrgWithClient(ctx context.Context, orgLogin string, c
 	case err != nil || cliStatus == "":
 		return orgCopilotBillingProbeResult{
 			BillingStatus: cliStatus,
-			InfoNote:      "Could not confirm org Copilot CLI billing — check with your org admin.",
+			InfoNote:      copilotBillingInconclusiveNote,
 		}
 	case cliStatus == "enabled":
 		return orgCopilotBillingProbeResult{
