@@ -98,10 +98,11 @@ type PinContext struct {
 	Warnings map[string]bool
 	// RecordResolutionFailure receives unresolved pinning failures for auditing.
 	RecordResolutionFailure func(f ResolutionFailure)
-	// SkipHardcodedFallback suppresses the non-strict hardcoded-pin fallback that
-	// fires when dynamic resolution fails. Set this when GH_HOST is configured to a
-	// non-github.com host: the dynamic resolver will query the wrong host and fail,
-	// so silently falling back to bundled pins would produce unverified SHA pins.
+	// SkipHardcodedFallback skips the entire hardcoded-pin lookup (both exact/strict
+	// and non-strict matches) when dynamic resolution fails. Set this when GH_HOST is
+	// configured to a non-github.com host: the dynamic resolver will query the wrong
+	// host and fail, so silently falling back to bundled pins would produce unverified
+	// SHA pins and mask the real misconfiguration.
 	SkipHardcodedFallback bool
 }
 
@@ -380,8 +381,6 @@ func logDynamicResolutionSkipped(hasResolver, isAlreadySHA bool) {
 }
 
 func resolveActionPinFromHardcodedPins(actionRepo, version string, isAlreadySHA bool, ctx *PinContext) (string, bool) {
-	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
-
 	// When the caller is targeting a non-github.com host (e.g. GHES/GHEC), the
 	// dynamic resolver already failed because it queried the wrong host.  Silently
 	// falling back to bundled pins in that case produces unverified SHA pins and
@@ -390,6 +389,8 @@ func resolveActionPinFromHardcodedPins(actionRepo, version string, isAlreadySHA 
 		actionPinsLog.Printf("SkipHardcodedFallback set, skipping hardcoded pin lookup for %s@%s", actionRepo, version)
 		return "", false
 	}
+
+	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
 
 	matchingPins := GetActionPinsByRepo(actionRepo)
 	if len(matchingPins) == 0 {
