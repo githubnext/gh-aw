@@ -40,6 +40,8 @@ const ELLIPSIS = "…";
 const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
   ...RATE_LIMIT_RETRY_CONFIG,
   maxRetries: 1,
+  // Use short backoff + small jitter for review submission so retries remain bounded
+  // while still avoiding synchronized thundering-herd retries.
   initialDelayMs: 1000,
   jitterMs: 200,
   maxDelayMs: 60000,
@@ -112,7 +114,7 @@ function createReviewBuffer() {
       return await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
     } catch (error) {
       if (!isTransientError(error)) {
-        throw new Error(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)}`, { cause: error });
+        throw new Error(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)} (non-recoverable metadata capture error)`, { cause: error });
       }
       core.warning(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)}. Continuing without execution-state metadata.`);
       return null;
