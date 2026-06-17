@@ -70,7 +70,10 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 		}
 
 		resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)
-		r.cache.Set(repo, version, pin.SHA)
+			// Note: we intentionally do NOT call r.cache.Set() here. The embedded pins
+			// are always available in memory so there is nothing to persist, and writing
+			// to the on-disk cache would create root-owned files when compiling inside
+			// Docker containers (e.g. the Alpine CI test), preventing cleanup by the host.
 		return pin.SHA, nil
 	}
 
