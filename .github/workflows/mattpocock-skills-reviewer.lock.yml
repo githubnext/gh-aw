@@ -772,7 +772,7 @@ jobs:
                     ]
                   },
                   "pull_request_number": {
-                    "optionalPositiveInteger": true
+                    "issueOrPRNumber": true
                   },
                   "repo": {
                     "type": "string",
