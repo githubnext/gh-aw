@@ -248,15 +248,27 @@ func (c *Compiler) mergeImportedObservability(workflowData *WorkflowData, merged
 	}
 	mainObs := extractRawObservabilityMap(workflowData.RawFrontmatter)
 	mergedEndpoints, mainCount, importAdded := mergeRawOTLPEndpoints(mainObs, importedObs)
-	mergedAttrs := mergeOTLPCustomAttributes(
+	mergedAttrs := mergeOTLPStringMaps(
 		extractOTLPCustomAttributesFromObsMap(mainObs),
 		extractOTLPCustomAttributesFromObsMap(importedObs),
+	)
+	mergedResourceAttrs := mergeOTLPStringMaps(
+		extractOTLPResourceAttributesFromObsMap(mainObs),
+		extractOTLPResourceAttributesFromObsMap(importedObs),
 	)
 	githubApp := extractRawOTLPGitHubAppMap(mainObs)
 	if githubApp == nil {
 		githubApp = extractRawOTLPGitHubAppMap(importedObs)
 	}
-	applyMergedRawObservability(workflowData.RawFrontmatter, mergedEndpoints, mergedAttrs, githubApp, mainCount, importAdded)
+	applyMergedRawObservability(
+		workflowData.RawFrontmatter,
+		mergedEndpoints,
+		mergedAttrs,
+		mergedResourceAttrs,
+		githubApp,
+		mainCount,
+		importAdded,
+	)
 }
 
 func extractRawObservabilityMap(rawFrontmatter map[string]any) map[string]any {
@@ -290,11 +302,12 @@ func applyMergedRawObservability(
 	rawFrontmatter map[string]any,
 	mergedEndpoints []any,
 	mergedAttrs map[string]string,
+	mergedResourceAttrs map[string]string,
 	githubApp map[string]any,
 	mainCount int,
 	importAdded int,
 ) {
-	if len(mergedEndpoints) == 0 && len(mergedAttrs) == 0 && githubApp == nil {
+	if len(mergedEndpoints) == 0 && len(mergedAttrs) == 0 && len(mergedResourceAttrs) == 0 && githubApp == nil {
 		return
 	}
 	newOTLP := map[string]any{}
@@ -304,6 +317,9 @@ func applyMergedRawObservability(
 	if len(mergedAttrs) > 0 {
 		newOTLP["attributes"] = mergedAttrs
 	}
+	if len(mergedResourceAttrs) > 0 {
+		newOTLP["resource-attributes"] = mergedResourceAttrs
+	}
 	if githubApp != nil {
 		newOTLP["github-app"] = githubApp
 	}
@@ -311,6 +327,9 @@ func applyMergedRawObservability(
 	orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
 	if len(mergedAttrs) > 0 {
 		orchestratorWorkflowLog.Printf("Merged %d custom OTLP attributes into RawFrontmatter", len(mergedAttrs))
+	}
+	if len(mergedResourceAttrs) > 0 {
+		orchestratorWorkflowLog.Printf("Merged %d OTLP resource attributes into RawFrontmatter", len(mergedResourceAttrs))
 	}
 }
 

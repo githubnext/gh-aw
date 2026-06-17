@@ -270,6 +270,16 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 			},
 		},
 		{
+			name: "dispatch-workflow with target-repo and allowed-repos",
+			safeOutputs: map[string]any{
+				"dispatch-workflow": map[string]any{
+					"workflows":     []any{"worker"},
+					"target-repo":   "github/github",
+					"allowed-repos": []any{"github/docs"},
+				},
+			},
+		},
+		{
 			name: "push-to-pull-request-branch with target and target-repo",
 			safeOutputs: map[string]any{
 				"push-to-pull-request-branch": map[string]any{

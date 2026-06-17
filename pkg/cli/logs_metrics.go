@@ -150,7 +150,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found events.jsonl, using as primary metrics source"))
 			}
 		}
-		eventsMetrics, eventsErr := parseEventsJSONLFile(eventsJSONLPath, verbose)
+		eventsMetrics, eventsErr := parseEventsJSONLMetrics(eventsJSONLPath, verbose)
 		if eventsErr == nil {
 			metrics = eventsMetrics
 			eventsJSONLParsed = true

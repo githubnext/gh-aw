@@ -365,6 +365,265 @@ async function findExistingDraftByTitle(github, projectId, targetTitle) {
 }
 
 /**
+ * Find an existing project item by content ID (issue or PR)
+ * @param {Object} github - GitHub client (Octokit instance)
+ * @param {string} projectId - Project node ID
+ * @param {string} contentId - Content node ID (issue or PR)
+ * @returns {Promise<{id: string} | null>} Existing project item or null if not found
+ */
+async function findExistingItemByContentId(github, projectId, contentId) {
+  let hasNextPage = true;
+  let endCursor = null;
+
+  while (hasNextPage) {
+    const result = await github.graphql(
+      `query($projectId: ID!, $after: String) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            items(first: 100, after: $after) {
+              nodes {
+                id
+                content {
+                  ... on Issue {
+                    id
+                  }
+                  ... on PullRequest {
+                    id
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }`,
+      { projectId, after: endCursor }
+    );
+
+    if (!result?.node?.items) {
+      core.warning(`Project ${projectId} not found or inaccessible; stopping item search.`);
+      break;
+    }
+
+    const found = result.node.items.nodes.find(item => item.content?.id === contentId);
+    if (found) return found;
+
+    hasNextPage = result.node.items.pageInfo.hasNextPage;
+    endCursor = result.node.items.pageInfo.endCursor;
+  }
+
+  return null;
+}
+
+/**
+ * Infer the expected GraphQL data type for a project field based on its name and value.
+ * @param {string} fieldName - Field name from YAML
+ * @param {unknown} fieldValue - Field value from YAML
+ * @param {RegExp} datePattern - Pattern to validate date values (YYYY-MM-DD)
+ * @returns {"DATE" | "TEXT" | "SINGLE_SELECT"}
+ */
+function inferFieldDataType(fieldName, fieldValue, datePattern) {
+  const isDateField = fieldName.toLowerCase().includes("date");
+  // "classification" is always treated as a free-text field rather than single-select;
+  // pipe-delimited values ("A|B|C") also signal a free-text field storing multi-option strings.
+  const isTextField = fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
+  if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+    return "DATE";
+  }
+  if (isTextField) {
+    return "TEXT";
+  }
+  return "SINGLE_SELECT";
+}
+
+/**
+ * Apply field value updates to a project item, creating fields as needed.
+ * @param {Object} github - GitHub client (Octokit instance)
+ * @param {string} projectId - Project node ID
+ * @param {string} itemId - Project item node ID
+ * @param {Record<string, unknown>} fields - Field name/value pairs to update
+ * @returns {Promise<void>}
+ */
+async function applyFieldUpdates(github, projectId, itemId, fields) {
+  const projectFields = await fetchAllProjectFields(github, projectId);
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  for (const [fieldName, fieldValue] of Object.entries(fields)) {
+    const normalizedFieldName = fieldName
+      .split(/[\s_-]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+    let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+
+    if (isUnsupportedBuiltInFieldType(fieldName, normalizedFieldName)) {
+      continue;
+    }
+
+    const expectedDataType = inferFieldDataType(fieldName, fieldValue, datePattern);
+    const isDateField = fieldName.toLowerCase().includes("date");
+    const isTextField = expectedDataType === "TEXT";
+
+    if (checkFieldTypeMismatch(fieldName, field, expectedDataType)) {
+      continue;
+    }
+
+    if (!field) {
+      if (isDateField) {
+        if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+          try {
+            field = (
+              await github.graphql(
+                `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                  createProjectV2Field(input: {
+                    projectId: $projectId,
+                    name: $name,
+                    dataType: $dataType
+                  }) {
+                    projectV2Field {
+                      ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                      }
+                    }
+                  }
+                }`,
+                { projectId, name: normalizedFieldName, dataType: "DATE" }
+              )
+            ).createProjectV2Field.projectV2Field;
+          } catch (createError) {
+            core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
+            continue;
+          }
+        } else {
+          core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
+          continue;
+        }
+      } else if (isTextField) {
+        try {
+          field = (
+            await github.graphql(
+              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                createProjectV2Field(input: {
+                  projectId: $projectId,
+                  name: $name,
+                  dataType: $dataType
+                }) {
+                  projectV2Field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      options { id name }
+                    }
+                  }
+                }
+              }`,
+              { projectId, name: normalizedFieldName, dataType: "TEXT" }
+            )
+          ).createProjectV2Field.projectV2Field;
+        } catch (createError) {
+          core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
+          continue;
+        }
+      } else {
+        try {
+          field = (
+            await github.graphql(
+              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                createProjectV2Field(input: {
+                  projectId: $projectId,
+                  name: $name,
+                  dataType: $dataType,
+                  singleSelectOptions: $options
+                }) {
+                  projectV2Field {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      options { id name }
+                    }
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+              }`,
+              { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+            )
+          ).createProjectV2Field.projectV2Field;
+        } catch (createError) {
+          core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
+          continue;
+        }
+      }
+    }
+
+    if (!field) {
+      core.warning(`Field "${fieldName}" could not be created or resolved; skipping.`);
+      continue;
+    }
+
+    let valueToSet;
+    if (field.dataType === "DATE") {
+      valueToSet = { date: String(fieldValue) };
+    } else if (field.dataType === "NUMBER") {
+      const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
+      if (isNaN(numValue)) {
+        core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
+        continue;
+      }
+      valueToSet = { number: numValue };
+    } else if (field.dataType === "ITERATION") {
+      if (!field.configuration?.iterations) {
+        core.warning(`Iteration field "${fieldName}" has no configured iterations`);
+        continue;
+      }
+      const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
+      if (!iteration) {
+        const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
+        core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
+        continue;
+      }
+      valueToSet = { iterationId: iteration.id };
+    } else if (field.options) {
+      const option = field.options.find(o => o.name.toLowerCase() === String(fieldValue).toLowerCase());
+      if (!option) {
+        const availableOptions = field.options.map(o => o.name).join(", ");
+        core.warning(`Option "${fieldValue}" not found in field "${fieldName}". Available options: ${availableOptions}. To add this option, please update the field manually in the GitHub Projects UI.`);
+        continue;
+      }
+      valueToSet = { singleSelectOptionId: option.id };
+    } else {
+      valueToSet = { text: String(fieldValue) };
+    }
+
+    await github.graphql(
+      `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+        updateProjectV2ItemFieldValue(input: {
+          projectId: $projectId,
+          itemId: $itemId,
+          fieldId: $fieldId,
+          value: $value
+        }) {
+          projectV2Item {
+            id
+          }
+        }
+      }`,
+      { projectId, itemId, fieldId: field.id, value: valueToSet }
+    );
+  }
+}
+
+/**
  * Fetch all fields for a GitHub Project v2, paginating through all results.
  * @param {Object} github - GitHub client (Octokit instance)
  * @param {string} projectId - Project node ID
@@ -843,126 +1102,8 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         }
       }
 
-      const fieldsToUpdate = output.fields ? { ...output.fields } : {};
-      if (Object.keys(fieldsToUpdate).length > 0) {
-        const projectFields = await fetchAllProjectFields(github, projectId);
-        for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
-          const normalizedFieldName = fieldName
-            .split(/[\s_-]+/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(" ");
-          let valueToSet,
-            field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
-
-          // Check if field name conflicts with unsupported built-in types
-          if (isUnsupportedBuiltInFieldType(fieldName, normalizedFieldName)) {
-            continue;
-          }
-
-          // Detect expected field type based on field name and value heuristics
-          const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-          const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
-          const isTextField = "classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
-          let expectedDataType;
-          if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
-            expectedDataType = "DATE";
-          } else if (isTextField) {
-            expectedDataType = "TEXT";
-          } else {
-            expectedDataType = "SINGLE_SELECT";
-          }
-
-          // Check for type mismatch if field already exists
-          if (checkFieldTypeMismatch(fieldName, field, expectedDataType)) {
-            continue; // Skip fields with unsupported built-in types
-          }
-
-          if (!field)
-            if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
-              // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
-              // Date field values must match ISO 8601 format (YYYY-MM-DD)
-              if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
-                try {
-                  field = (
-                    await github.graphql(
-                      "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                          dataType\n                        }\n                      }\n                    }\n                  }",
-                      { projectId, name: normalizedFieldName, dataType: "DATE" }
-                    )
-                  ).createProjectV2Field.projectV2Field;
-                } catch (createError) {
-                  core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
-                  continue;
-                }
-              } else {
-                core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
-                continue;
-              }
-            } else if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
-              try {
-                field = (
-                  await github.graphql(
-                    "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "TEXT" }
-                  )
-                ).createProjectV2Field.projectV2Field;
-              } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
-                continue;
-              }
-            else
-              try {
-                field = (
-                  await github.graphql(
-                    "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
-                  )
-                ).createProjectV2Field.projectV2Field;
-              } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
-                continue;
-              }
-          if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
-          else if (field.dataType === "NUMBER") {
-            // NUMBER fields use ProjectV2FieldValue input type with number property
-            // The number value must be a valid float or integer
-            // Convert string values to numbers if needed
-            const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
-            if (isNaN(numValue)) {
-              core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
-              continue;
-            }
-            valueToSet = { number: numValue };
-          } else if (field.dataType === "ITERATION") {
-            // ITERATION fields use ProjectV2FieldValue input type with iterationId property
-            // The value should match an iteration title or ID
-            if (!field.configuration || !field.configuration.iterations) {
-              core.warning(`Iteration field "${fieldName}" has no configured iterations`);
-              continue;
-            }
-            // Try to find iteration by title (case-insensitive match)
-            const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
-            if (!iteration) {
-              const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
-              core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
-              continue;
-            }
-            valueToSet = { iterationId: iteration.id };
-          } else if (field.options) {
-            let option = field.options.find(o => o.name === fieldValue);
-            if (!option) {
-              // GitHub's GraphQL API does not support adding new options to existing single-select fields
-              // The updateProjectV2Field mutation does not exist - users must add options manually via UI
-              const availableOptions = field.options.map(o => o.name).join(", ");
-              core.warning(`Option "${fieldValue}" not found in field "${fieldName}". Available options: ${availableOptions}. To add this option, please update the field manually in the GitHub Projects UI.`);
-              continue;
-            }
-            valueToSet = { singleSelectOptionId: option.id };
-          } else valueToSet = { text: String(fieldValue) };
-          await github.graphql(
-            "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",
-            { projectId, itemId, fieldId: field.id, value: valueToSet }
-          );
-        }
+      if (output.fields && Object.keys(output.fields).length > 0) {
+        await applyFieldUpdates(github, projectId, itemId, output.fields);
       }
 
       core.setOutput("item-id", itemId);
@@ -976,13 +1117,13 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         draftItemId: itemId,
       };
     }
+
     let contentNumber = null;
     if (hasContentNumber || hasIssue || hasPullRequest) {
       const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
-      const sanitizedContentNumber = null == rawContentNumber ? "" : "number" == typeof rawContentNumber ? rawContentNumber.toString() : String(rawContentNumber).trim();
+      const sanitizedContentNumber = rawContentNumber == null ? "" : typeof rawContentNumber === "number" ? rawContentNumber.toString() : String(rawContentNumber).trim();
 
       if (sanitizedContentNumber) {
-        // Try to resolve as temporary ID first
         const resolved = resolveIssueNumber(sanitizedContentNumber, temporaryIdMap);
 
         if (resolved.wasTemporaryId) {
@@ -992,7 +1133,6 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
           core.info(`✓ Resolved temporary ID ${sanitizedContentNumber} to issue #${resolved.resolved.number}`);
           contentNumber = resolved.resolved.number;
         } else {
-          // Not a temporary ID - validate as numeric
           if (!/^\d+$/.test(sanitizedContentNumber)) {
             throw new Error(`${ERR_VALIDATION}: Invalid content number "${rawContentNumber}". Provide a positive integer or a valid temporary ID (format: aw_ followed by 3-12 alphanumeric characters).`);
           }
@@ -1002,165 +1142,57 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         core.warning("Content number field provided but empty; skipping project item update.");
       }
     }
-    if (null !== contentNumber) {
-      const contentType = "pull_request" === output.content_type ? "PullRequest" : "issue" === output.content_type || output.issue ? "Issue" : "PullRequest",
-        contentQuery =
-          "Issue" === contentType
-            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
-            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
-        contentResult = await github.graphql(contentQuery, { owner: contentOwner, repo: targetRepo, number: contentNumber }),
-        contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
-        contentId = contentData.id,
-        existingItem = await (async function (projectId, contentId) {
-          let hasNextPage = !0,
-            endCursor = null;
-          for (; hasNextPage; ) {
-            const result = await github.graphql(
-                "query($projectId: ID!, $after: String) {\n              node(id: $projectId) {\n                ... on ProjectV2 {\n                  items(first: 100, after: $after) {\n                    nodes {\n                      id\n                      content {\n                        ... on Issue {\n                          id\n                        }\n                        ... on PullRequest {\n                          id\n                        }\n                      }\n                    }\n                    pageInfo {\n                      hasNextPage\n                      endCursor\n                    }\n                  }\n                }\n              }\n            }",
-                { projectId, after: endCursor }
-              ),
-              found = result.node.items.nodes.find(item => item.content && item.content.id === contentId);
-            if (found) return found;
-            ((hasNextPage = result.node.items.pageInfo.hasNextPage), (endCursor = result.node.items.pageInfo.endCursor));
-          }
-          return null;
-        })(projectId, contentId);
+
+    if (contentNumber !== null) {
+      const contentType = output.content_type === "pull_request" ? "PullRequest" : output.content_type === "issue" || output.issue ? "Issue" : "PullRequest";
+      const contentQuery =
+        contentType === "Issue"
+          ? `query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  id
+                }
+              }
+            }`
+          : `query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  id
+                }
+              }
+            }`;
+      const contentResult = await github.graphql(contentQuery, { owner: contentOwner, repo: targetRepo, number: contentNumber });
+      const contentData = contentType === "Issue" ? contentResult.repository.issue : contentResult.repository.pullRequest;
+      if (!contentData) {
+        throw new Error(`${ERR_VALIDATION}: ${contentType} #${contentNumber} not found in ${contentOwner}/${targetRepo}.`);
+      }
+      const contentId = contentData.id;
+      const existingItem = await findExistingItemByContentId(github, projectId, contentId);
+
       let itemId;
-      if (existingItem) ((itemId = existingItem.id), core.info("✓ Item already on board"));
-      else {
+      if (existingItem) {
+        itemId = existingItem.id;
+        core.info("✓ Item already on board");
+      } else {
         itemId = (
           await github.graphql(
-            "mutation($projectId: ID!, $contentId: ID!) {\n            addProjectV2ItemById(input: {\n              projectId: $projectId,\n              contentId: $contentId\n            }) {\n              item {\n                id\n              }\n            }\n          }",
+            `mutation($projectId: ID!, $contentId: ID!) {
+              addProjectV2ItemById(input: {
+                projectId: $projectId,
+                contentId: $contentId
+              }) {
+                item {
+                  id
+                }
+              }
+            }`,
             { projectId, contentId }
           )
         ).addProjectV2ItemById.item.id;
       }
-      const fieldsToUpdate = output.fields ? { ...output.fields } : {};
-      if (Object.keys(fieldsToUpdate).length > 0) {
-        const projectFields = await fetchAllProjectFields(github, projectId);
-        for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
-          const normalizedFieldName = fieldName
-            .split(/[\s_-]+/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(" ");
-          let valueToSet,
-            field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
 
-          // Check if field name conflicts with unsupported built-in types
-          if (isUnsupportedBuiltInFieldType(fieldName, normalizedFieldName)) {
-            continue;
-          }
-
-          // Detect expected field type based on field name and value heuristics
-          const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-          const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
-          const isTextField = "classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
-          let expectedDataType;
-          if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
-            expectedDataType = "DATE";
-          } else if (isTextField) {
-            expectedDataType = "TEXT";
-          } else {
-            expectedDataType = "SINGLE_SELECT";
-          }
-
-          // Check for type mismatch if field already exists
-          if (checkFieldTypeMismatch(fieldName, field, expectedDataType)) {
-            continue; // Skip fields with unsupported built-in types
-          }
-
-          if (!field)
-            if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
-              // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
-              // Date field values must match ISO 8601 format (YYYY-MM-DD)
-              if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
-                try {
-                  field = (
-                    await github.graphql(
-                      "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                          dataType\n                        }\n                      }\n                    }\n                  }",
-                      { projectId, name: normalizedFieldName, dataType: "DATE" }
-                    )
-                  ).createProjectV2Field.projectV2Field;
-                } catch (createError) {
-                  core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
-                  continue;
-                }
-              } else {
-                core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
-                continue;
-              }
-            } else if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
-              try {
-                field = (
-                  await github.graphql(
-                    "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "TEXT" }
-                  )
-                ).createProjectV2Field.projectV2Field;
-              } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
-                continue;
-              }
-            else
-              try {
-                field = (
-                  await github.graphql(
-                    "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
-                  )
-                ).createProjectV2Field.projectV2Field;
-              } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
-                continue;
-              }
-          // Check dataType first to properly handle DATE fields before checking for options
-          // This prevents date fields from being misidentified as single-select fields
-          if (field.dataType === "DATE") {
-            // Date fields use ProjectV2FieldValue input type with date property
-            // The date value must be in ISO 8601 format (YYYY-MM-DD) with no time component
-            // Unlike other field types that may require IDs, date fields accept the date string directly
-            valueToSet = { date: String(fieldValue) };
-          } else if (field.dataType === "NUMBER") {
-            // NUMBER fields use ProjectV2FieldValue input type with number property
-            // The number value must be a valid float or integer
-            // Convert string values to numbers if needed
-            const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
-            if (isNaN(numValue)) {
-              core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
-              continue;
-            }
-            valueToSet = { number: numValue };
-          } else if (field.dataType === "ITERATION") {
-            // ITERATION fields use ProjectV2FieldValue input type with iterationId property
-            // The value should match an iteration title or ID
-            if (!field.configuration || !field.configuration.iterations) {
-              core.warning(`Iteration field "${fieldName}" has no configured iterations`);
-              continue;
-            }
-            // Try to find iteration by title (case-insensitive match)
-            const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
-            if (!iteration) {
-              const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
-              core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
-              continue;
-            }
-            valueToSet = { iterationId: iteration.id };
-          } else if (field.options) {
-            let option = field.options.find(o => o.name === fieldValue);
-            if (!option) {
-              // GitHub's GraphQL API does not support adding new options to existing single-select fields
-              // The updateProjectV2Field mutation does not exist - users must add options manually via UI
-              const availableOptions = field.options.map(o => o.name).join(", ");
-              core.warning(`Option "${fieldValue}" not found in field "${fieldName}". Available options: ${availableOptions}. To add this option, please update the field manually in the GitHub Projects UI.`);
-              continue;
-            }
-            valueToSet = { singleSelectOptionId: option.id };
-          } else valueToSet = { text: String(fieldValue) };
-          await github.graphql(
-            "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",
-            { projectId, itemId, fieldId: field.id, value: valueToSet }
-          );
-        }
+      if (output.fields && Object.keys(output.fields).length > 0) {
+        await applyFieldUpdates(github, projectId, itemId, output.fields);
       }
 
       core.setOutput("item-id", itemId);
@@ -1395,8 +1427,7 @@ async function main(config = {}, githubClient = null) {
         viewsCreated = true;
         core.info(`Creating ${configuredViews.length} configured view(s) on project: ${firstProjectUrl}`);
 
-        for (let i = 0; i < configuredViews.length; i++) {
-          const viewConfig = configuredViews[i];
+        for (const [i, viewConfig] of configuredViews.entries()) {
           try {
             // Create a synthetic output item for view creation
             const viewOutput = {
@@ -1447,4 +1478,4 @@ async function main(config = {}, githubClient = null) {
   };
 }
 
-module.exports = { updateProject, parseProjectInput, main };
+module.exports = { updateProject, parseProjectInput, main, normalizeUpdateProjectOutput, summarizeProjectsV2, summarizeEmptyProjectsV2List, inferFieldDataType };

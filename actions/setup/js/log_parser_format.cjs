@@ -15,6 +15,8 @@
  * @property {(text: string) => number} estimateTokens
  * @property {(ms: number) => string} formatDuration
  * @property {(text: string) => string} unfenceMarkdown
+ * @property {(entries: Array<any>) => boolean} isCopilotEventLogEntries
+ * @property {(entries: Array<any>) => Array<any>} convertCopilotEventsToLegacyLogEntries
  * @property {number} MAX_AGENT_TEXT_LENGTH
  * @property {string} SIZE_LIMIT_WARNING
  */
@@ -48,11 +50,20 @@ function createLogParserFormatters(deps) {
     estimateTokens,
     formatDuration,
     unfenceMarkdown,
+    isCopilotEventLogEntries,
+    convertCopilotEventsToLegacyLogEntries,
     MAX_AGENT_TEXT_LENGTH,
     SIZE_LIMIT_WARNING,
   } = deps;
 
   const INTERNAL_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"];
+
+  function normalizeEntriesForRendering(logEntries) {
+    if (isCopilotEventLogEntries(logEntries)) {
+      return convertCopilotEventsToLegacyLogEntries(logEntries);
+    }
+    return logEntries;
+  }
 
   /**
    * Generates markdown summary from conversation log entries
@@ -70,8 +81,9 @@ function createLogParserFormatters(deps) {
    */
   function generateConversationMarkdown(logEntries, options) {
     const { formatToolCallback, formatInitCallback, summaryTracker } = options;
+    const renderEntries = normalizeEntriesForRendering(logEntries);
 
-    const toolUsePairs = collectToolUsePairs(logEntries);
+    const toolUsePairs = collectToolUsePairs(renderEntries);
 
     let markdown = "";
     let sizeLimitReached = false;
@@ -85,7 +97,7 @@ function createLogParserFormatters(deps) {
       return true;
     }
 
-    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+    const initEntry = renderEntries.find(entry => entry.type === "system" && entry.subtype === "init");
 
     if (initEntry && formatInitCallback) {
       if (!addContent("## 🚀 Initialization\n\n")) {
@@ -110,7 +122,7 @@ function createLogParserFormatters(deps) {
       return { markdown, commandSummary: [], sizeLimitReached };
     }
 
-    for (const entry of logEntries) {
+    for (const entry of renderEntries) {
       if (sizeLimitReached) break;
 
       if (entry.type === "assistant" && entry.message?.content) {
@@ -158,7 +170,7 @@ function createLogParserFormatters(deps) {
 
     const commandSummary = [];
 
-    for (const entry of logEntries) {
+    for (const entry of renderEntries) {
       if (entry.type === "assistant" && entry.message?.content) {
         for (const content of entry.message.content) {
           if (content.type === "tool_use") {
@@ -522,8 +534,9 @@ function createLogParserFormatters(deps) {
   }
 
   function generateSummaryLines(logEntries) {
+    const renderEntries = normalizeEntriesForRendering(logEntries);
     const lines = [];
-    const toolUsePairs = collectToolUsePairs(logEntries);
+    const toolUsePairs = collectToolUsePairs(renderEntries);
 
     const state = {
       conversationLineCount: 0,
@@ -532,7 +545,7 @@ function createLogParserFormatters(deps) {
       traceEventCount: 0,
     };
 
-    for (const entry of logEntries) {
+    for (const entry of renderEntries) {
       if (state.conversationLineCount >= state.maxConversationLines) {
         state.conversationTruncated = true;
         break;
@@ -569,7 +582,7 @@ function createLogParserFormatters(deps) {
       lines.push("");
     }
 
-    appendStatistics(lines, logEntries, toolUsePairs);
+    appendStatistics(lines, renderEntries, toolUsePairs);
 
     return lines;
   }

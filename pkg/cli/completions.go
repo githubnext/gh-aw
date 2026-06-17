@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -44,21 +45,14 @@ func getWorkflowDescription(filePath string) string {
 	// Look for description field
 	if desc, ok := result.Frontmatter["description"]; ok {
 		if descStr, ok := desc.(string); ok {
-			// Truncate to 60 characters for better display
-			if len(descStr) > 60 {
-				return descStr[:57] + "..."
-			}
-			return descStr
+			return stringutil.Truncate(descStr, 60)
 		}
 	}
 
 	// Fallback to name field if description not found
 	if name, ok := result.Frontmatter["name"]; ok {
 		if nameStr, ok := name.(string); ok {
-			if len(nameStr) > 60 {
-				return nameStr[:57] + "..."
-			}
-			return nameStr
+			return stringutil.Truncate(nameStr, 60)
 		}
 	}
 

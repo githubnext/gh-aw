@@ -119,6 +119,40 @@ func TestValidateRunsOn(t *testing.T) {
 			errorInMsg:  "containers",
 			description: "Error should explain containers requirement",
 		},
+		{
+			name:        "macos in runs-on-slim array",
+			frontmatter: map[string]any{"runs-on-slim": []any{"self-hosted", "macos-14"}},
+			wantErr:     true,
+			errorInMsg:  "runs-on-slim",
+			description: "runs-on-slim array containing macos runner should be rejected",
+		},
+		{
+			name: "macos in safe-outputs.runs-on array",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"runs-on": []any{"self-hosted", "macos-latest"},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.runs-on",
+			description: "safe-outputs.runs-on array containing macos runner should be rejected",
+		},
+		{
+			name: "macos in safe-outputs.threat-detection.runs-on labels",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"runs-on": map[string]any{
+							"group":  "runner-group",
+							"labels": []any{"linux", "macos-latest"},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.threat-detection.runs-on",
+			description: "threat-detection runs-on labels containing macos runner should be rejected",
+		},
 	}
 
 	for _, tt := range tests {

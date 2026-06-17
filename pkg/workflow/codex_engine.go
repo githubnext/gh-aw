@@ -415,6 +415,9 @@ mkdir -p "$CODEX_HOME/logs"
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
+	applyTraceContextEnvToMap(env)
+
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
 	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
 	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.

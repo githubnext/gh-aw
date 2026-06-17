@@ -55,8 +55,9 @@ The following components and functions are exported by the `console` package:
 | `ShowInteractiveList` | func | Interactive single-selection list |
 | `PromptInput` / `PromptSecretInput` | funcs | Text and secret input prompts |
 | `LogVerbose` | func | Conditional verbose logging |
-| `FormatFileSize` / `FormatNumber` | funcs | Human-readable byte and integer formatting |
+| `FormatFileSize` / `FormatNumber` / `FormatTokens` | funcs | Human-readable byte, integer, and token count formatting |
 | `IsAccessibleMode` | func | Detects accessibility mode |
+| `SetTimeLocation` / `ResetTimeLocation` | funcs | Configure `time.Time` rendering timezone |
 | `SpinnerWrapper` | type | Spinner controller with `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` |
 | `CompilerError` / `ErrorPosition` / `TableConfig` / `TreeNode` | types | Supporting data types |
 
@@ -770,6 +771,17 @@ console.FormatNumber(1500)       // "1.50k"
 console.FormatNumber(1_200_000)  // "1.20M"
 ```
 
+### `FormatTokens(tokens int) string`
+
+Formats a token count as a compact human-readable string. Zero values render as `"-"` to indicate no data; non-zero values use SI suffixes for readability.
+
+```go
+console.FormatTokens(0)        // "-"
+console.FormatTokens(500)      // "500"
+console.FormatTokens(1500)     // "1.5K"
+console.FormatTokens(1200000)  // "1.2M"
+```
+
 ### `ToRelativePath(path string) string`
 
 Converts an absolute path to a path relative to the current working directory. If the relative path would require traversing parent directories (`..`), the original absolute path is returned unchanged.
@@ -802,6 +814,22 @@ Returns the `gh aw` ASCII art banner as a styled string.
 ### `PrintBanner()`
 
 Prints the banner to `os.Stderr`.
+
+### `SetTimeLocation(location *time.Location)`
+
+Configures the `time.Location` used when rendering `time.Time` values in `RenderStruct`. When set, rendered timestamps include the UTC offset (e.g. `"2026-01-15 09:30:00 UTC+09:00"`). Pass `nil` to reset to the default (`"2006-01-02 15:04:05"` in the local zone).
+
+### `ResetTimeLocation()`
+
+Clears any configured time location override, restoring the default formatting behaviour.
+
+```go
+// Display times in Japan Standard Time
+loc, _ := time.LoadLocation("Asia/Tokyo")
+console.SetTimeLocation(loc)
+defer console.ResetTimeLocation()
+fmt.Print(console.RenderStruct(myData))
+```
 
 ## Accessibility
 

@@ -22,10 +22,8 @@ AI API keys (Anthropic, OpenAI, GitHub Copilot) and GitHub tokens for workflow e
 
 Available subcommands:
   - set       - Create or update individual secrets
-  - bootstrap - Validate and configure all required secrets for workflows
-
-Examples:
-  gh aw secrets set MY_SECRET --value "secret123"    # Set a secret directly
+  - bootstrap - Validate and configure all required secrets for workflows`,
+		Example: `  gh aw secrets set MY_SECRET --value "secret123"    # Set a secret directly
   gh aw secrets bootstrap                             # Check all required secrets`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {

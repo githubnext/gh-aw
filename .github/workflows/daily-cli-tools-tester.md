@@ -4,6 +4,7 @@ description: Daily exploratory testing of audit, logs, and compile tools in gh-a
 on:
   schedule: daily
   workflow_dispatch:
+max-ai-credits: 1500
 max-daily-ai-credits: 10000
 permissions:
   contents: read

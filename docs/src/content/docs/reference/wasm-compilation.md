@@ -1,6 +1,8 @@
 ---
 title: WebAssembly Compilation
 description: How to compile the gh-aw workflow compiler to WebAssembly and use it in the browser or other JavaScript environments.
+sidebar:
+  order: 1400
 ---
 
 :::caution[Experimental]

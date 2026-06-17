@@ -51,7 +51,7 @@ This specification uses the following terms with precise definitions:
 
 **Safe Output Type**: A category of GitHub operation (e.g., `create_issue`, `add_comment`) with a corresponding MCP tool definition and handler implementation.
 
-**MCP Gateway**: The HTTP server accepting MCP tool invocation requests and recording operations to NDJSON format. Runs in the same context as the agent.
+**MCP Gateway**: The containerized stdio MCP server accepting MCP tool invocation requests and recording operations to NDJSON format. Runs in an isolated container alongside the agent job.
 
 **Safe Output Processor**: The privileged execution context that reads NDJSON artifacts, validates operations, and executes GitHub API calls.
 
@@ -109,7 +109,7 @@ This document normatively defines:
 3. **Protocol exchange patterns** governing operation declaration, validation, and fulfillment
 4. **Content security requirements** specifying sanitization, filtering, and validation transformations
 5. **Operational guarantees** characterizing atomicity, ordering, idempotency, and error handling for each safe output type
-6. **MCP integration** defining tool interface schemas and HTTP transport requirements
+6. **MCP integration** defining tool interface schemas and stdio container transport requirements
 
 **Explicitly Out of Scope**:
 
@@ -158,7 +158,7 @@ This specification uses the following terms with precise meanings:
 
 **Safe Output Type**: A category of GitHub operation (e.g., issue creation, comment posting, label application) with defined semantics, constraints, and operational guarantees. Each type corresponds to one or more MCP tools.
 
-**MCP Gateway**: An HTTP server implementing the Model Context Protocol, accepting tool invocations from agents, validating against JSON schemas, and recording operations to structured files.
+**MCP Gateway**: A containerized stdio MCP server implementing the Model Context Protocol, accepting tool invocations from agents, validating against JSON schemas, and recording operations to structured files.
 
 **Safe Output Job**: A permission-controlled GitHub Actions job that downloads agent-declared operations, validates content, enforces limits, and executes GitHub API calls.
 
@@ -189,7 +189,7 @@ An implementation satisfying ALL normative requirements (MUST, SHALL, REQUIRED s
 - Complete security architecture implementation (privilege separation, threat mitigations)
 - Support for all mandatory safe output types (defined in Section 7)
 - Universal feature implementation (max limits, staged mode, footers, sanitization)
-- Protocol exchange pattern adherence (MCP HTTP transport, NDJSON persistence)
+- Protocol exchange pattern adherence (MCP stdio container transport, NDJSON persistence)
 - Content integrity mechanism enforcement (schema validation, domain filtering)
 - Execution guarantee provision (atomicity, ordering, idempotency)
 
@@ -814,18 +814,18 @@ The Safe Outputs MCP Gateway system comprises three distinct components operatin
 
 **Component C2: MCP Gateway Server** (Runtime agent phase)
 
-*Input*: MCP tool invocation requests over HTTP
+*Input*: MCP tool invocation requests via stdio (JSON-RPC)
 *Output*: NDJSON file recording operation declarations  
 *Key Responsibilities*:
 
-- Start HTTP server on port 3001 (configurable)
-- Load tool schemas from `/opt/gh-aw/safeoutputs/config.json`
+- Run as a containerized stdio MCP server in the `gh-aw-node` image
+- Load tool schemas from `${RUNNER_TEMP}/gh-aw/safeoutputs/config.json`
 - Register MCP tools matching enabled safe output types
 - Validate invocations against JSON schemas
 - Handle large content (>16000 tokens) via file references
 - Append validated operations to `/tmp/gh-aw/safeoutputs/output.ndjson`
 
-*Location*: Agent job container (same context as AI agent process)
+*Location*: Isolated `gh-aw-node` container with workspace, safeoutputs runtime files, and log directory mounted read-write
 
 **Component C3: Safe Output Processor** (Post-execution phase)
 
@@ -906,13 +906,12 @@ for (const [name, schema] of Object.entries(tools)) {
 
 **Phase 4: Operation Declaration** (Agent Execution)
 
-Agent invokes MCP tool:
+Agent invokes MCP tool via stdio JSON-RPC to the containerized safeoutputs MCP server:
 
-```http
-POST http://127.0.0.1:3001/tools/call
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "method": "tools/call",
   "params": {
     "name": "create_issue",
@@ -1978,6 +1977,19 @@ When a safe-output MCP tool schema changes (new required field, removed field, r
 
 Schema-only updates without matching agent/runtime sync updates **MUST NOT** be considered conformant.
 
+### 7.0.1 Wildcard Target Requirements Metadata
+
+Safe-outputs MCP tool schemas MAY declare `x-safe-outputs-target-requirements` in the tool JSON schema definition to define required runtime identifiers when workflow configuration uses wildcard targeting.
+
+When a safe-output type is configured with `target: "*"`, the MCP gateway MUST validate requests against `x-safe-outputs-target-requirements["*"]` before recording or executing intent.
+
+For `x-safe-outputs-target-requirements["*"]`:
+
+- `primary` SHALL identify the canonical target identifier field used in diagnostics and documentation; validation still requires at least one non-empty field listed in `anyOf`.
+- `anyOf` SHALL enumerate accepted input field names; at least one listed field MUST be present with a non-empty value.
+- If no listed `anyOf` field is present, the request MUST be rejected with an MCP validation error.
+- When `target` is not `"*"`, implementations MUST follow each type's normal **Operational Semantics** context resolution behavior; this metadata MUST NOT add additional required runtime identifier fields.
+
 ### 7.1 Core Issue Operations
 
 #### Type: create_issue
@@ -2089,7 +2101,7 @@ Schema-only updates without matching agent/runtime sync updates **MUST NOT** be 
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission.",
+  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.",
   "inputSchema": {
     "type": "object",
     "required": ["body"],
@@ -2140,7 +2152,7 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 - `max`: Operation limit (default: 1)
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
 - `hide-older-comments`: Hide previous workflow comments
-- `discussions`: Control `discussions:write` permission (default: true)
+- `discussions`: Control `discussions:write` permission (default: false). Set to `true` to comment on discussions.
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 
@@ -2151,21 +2163,21 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 - `contents: read` - Repository metadata and file access
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
-- `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
+- `discussions: write` - Comment creation on discussions (only when `discussions: true`)
 
 *GitHub App* (if using `safe-outputs.app` configuration):
 
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
-- `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
+- `discussions: write` - Comment creation on discussions (only when `discussions: true`)
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Permission Control via `discussions` Field**:
 
 The optional `discussions` boolean field controls whether `discussions:write` permission is requested:
 
-- **Default behavior** (`discussions: true` or omitted): Includes `discussions:write` permission for maximum compatibility. Use this when the GitHub App has Discussions permission granted.
-- **Opt-out** (`discussions: false`): Excludes `discussions:write` permission. Use this when the GitHub App lacks Discussions permission to prevent 422 errors during token generation.
+- **Default behavior** (`discussions: false` or omitted): Excludes `discussions:write` permission. This is safe for environments where the GitHub App lacks Discussions permission and avoids 422 errors during token generation.
+- **Opt-in** (`discussions: true`): Includes `discussions:write` permission. Use this when the workflow needs to comment on discussions and the GitHub App has Discussions permission granted.
 
 **Example Configuration**:
 
@@ -2179,16 +2191,17 @@ safe-outputs:
   add-comment:
     target: "*"
     max: 1
-    discussions: false  # Exclude discussions:write permission
+    discussions: true   # Opt in to discussions:write permission
 ```
 
 **Notes**:
 
-- By default, requires write permissions for all three entity types (issues, PRs, discussions) since comments can be added to any type
-- When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
+- By default, requires write permissions only for `issues` and `pull-requests`; `discussions:write` is opt-in
+- Set `discussions: true` to add `discussions:write` and enable commenting on discussions
 - Discussion-related safe outputs (`create-discussion`, `close-discussion`, `update-discussion`) independently add `discussions:write` permission when configured
 - Cross-repository commenting requires appropriate permissions in target repository
 - The `contents: read` permission is always included for repository context access
+- When `safe-outputs.add-comment.target` is `"*"`, requests MUST include at least one of `item_number`, `pr_number`, or `pr`; `item_number` is the canonical field.
 
 ---
 
@@ -2756,6 +2769,7 @@ This section provides complete definitions for all remaining safe output types. 
 2. **Context Resolution**: When `discussion_number` is omitted, resolves from the workflow trigger context.
 3. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 4. **GraphQL-Based**: Uses GitHub GraphQL API for discussion updates as the REST API does not support discussion modification.
+5. **Wildcard Target Requirement**: When `safe-outputs.update-discussion.target` is `"*"`, requests MUST include `discussion_number`.
 
 **Configuration Parameters**:
 
@@ -2884,6 +2898,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Only specified fields are updated; unspecified fields remain unchanged
 - Base branch changes are validated for safety
+- When `safe-outputs.update-pull-request.target` is `"*"`, requests MUST include at least one of `pull_request_number`, `pr_number`, or `pr`; `pull_request_number` is the canonical field.
 
 ---
 
@@ -2911,6 +2926,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Higher default max (10) enables bulk PR cleanup operations
 - Does NOT merge changes - use GitHub's merge functionality for that
+- When `safe-outputs.close-pull-request.target` is `"*"`, requests MUST include `pull_request_number`.
 
 ---
 
@@ -3049,6 +3065,7 @@ This section provides complete definitions for all remaining safe output types. 
 - Enforces maximum patch size limit (default: 10 KB, range: 1–100 KB)
 - Validates changes don't exceed size limits before pushing
 - Base-branch resolution MUST NOT depend on interactive credential prompts; git operations issued by the handler MUST run with `GIT_TERMINAL_PROMPT=0` and an enforced timeout so credential-less environments fail fast rather than hanging
+- When `safe-outputs.push-to-pull-request-branch.target` is `"*"`, requests MUST include `pull_request_number`.
 
 ---
 
@@ -3076,6 +3093,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Comments buffered via PR review buffer for batch submission
 - Higher default max (10) enables comprehensive code review
+- When `safe-outputs.create-pull-request-review-comment.target` is `"*"`, requests MUST include `pull_request_number`.
 
 ---
 
@@ -3103,7 +3121,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Submits all buffered review comments from `create_pull_request_review_comment`
 - Review status affects PR merge requirements
-- **Target**: `target` accepts `"triggering"` (default), `"*"` (use `pull_request_number` from message), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
+- **Target**: `target` accepts `"triggering"` (default), `"*"` (request MUST include `pull_request_number`), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
 - **Cross-Repository**: `target-repo` specifies a repository in `owner/repo` format to submit reviews on PRs in another repo. Use `allowed-repos` to permit additional repositories.
 - Footer control: `footer` accepts `"always"` (default), `"none"`, or `"if-body"` (only when review body has text); boolean `true`/`false` maps to `"always"`/`"none"`
 
@@ -3765,7 +3783,7 @@ safe-outputs:
 - The check run `name` is configured in workflow frontmatter, NOT accepted as an agent-provided parameter. Agents MUST NOT pass `name` in the tool call.
 - `conclusion` is required and MUST be one of: `success`, `failure`, `neutral`, `cancelled`, `skipped`, `timed_out`, `action_required`.
 - `title` and `summary` are required. Both may be supplied as static fallbacks in frontmatter (`output.title`, `output.summary`) when the agent does not produce them.
-- `pull_request_number` (aliases: `pr_number`, `pr`, `pull_number`) is only meaningful when `target: "*"` is configured.
+- When `target: "*"` is configured, requests MUST include at least one of `pull_request_number`, `pr_number`, `pr`, or `pull_number`; `pull_request_number` is the canonical field.
 - The `pull-requests: read` permission is automatically added to the compiled workflow only when `target` is configured; workflows without a `target` are not affected.
 
 **Example Frontmatter**:
@@ -3953,28 +3971,33 @@ safe-outputs:
 
 ## 8. Protocol Exchange Patterns
 
-### 8.1 HTTP Transport Layer
+### 8.1 Stdio Container Transport Layer
 
-**Protocol**: HTTP/1.1  
-**Bind Address**: 127.0.0.1 (localhost only)  
-**Port**: From `GH_AW_SAFE_OUTPUTS_PORT` (default: 3001)  
+**Transport**: stdio (JSON-RPC 2.0 over stdin/stdout)  
+**Deployment**: Containerized MCP server in `ghcr.io/github/gh-aw-node` image  
+**Entrypoint**: `node ${GITHUB_WORKSPACE}/actions/setup/js/safe_outputs_mcp_server.cjs`  
 **Operation Mode**: Stateless (no session management)
 
-**Endpoints**:
+The safe-outputs MCP server runs as a containerized stdio MCP server managed by the MCP gateway. The gateway communicates with it via the standard stdio JSON-RPC 2.0 protocol. The container has direct read-write access to the workspace, safe-outputs runtime files (`${RUNNER_TEMP}/gh-aw/safeoutputs`), and the MCP log directory (`/tmp/gh-aw/mcp-logs/safeoutputs`).
 
-- `POST /tools/list` - List available tools
-- `POST /tools/call` - Invoke tool
+**Required Mounts**:
+- `${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw` — workspace access for reading configs and writing outputs
+- `${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw` — safeoutputs runtime files (config.json, tools.json, output.ndjson)
+- `/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw` — MCP server log directory
+
+**Methods**:
+
+- `tools/list` - List available tools
+- `tools/call` - Invoke tool
 
 ### 8.2 Tool Invocation Protocol
 
-**Request Format**:
+**Request Format** (JSON-RPC 2.0 over stdio):
 
-```http
-POST /tools/call HTTP/1.1
-Host: 127.0.0.1:3001
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "method": "tools/call",
   "params": {
     "name": "<tool_name>",
@@ -3985,11 +4008,10 @@ Content-Type: application/json
 
 **Success Response**:
 
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "result": {
     "content": [{
       "type": "text",
@@ -4001,11 +4023,10 @@ Content-Type: application/json
 
 **Validation Error**:
 
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
+```json
 {
+  "jsonrpc": "2.0",
+  "id": 1,
   "error": {
     "code": -32602,
     "message": "Invalid params: <details>"
@@ -4850,7 +4871,7 @@ Operators SHOULD communicate this expected one-time cache miss to their teams to
   - [ ] Optional types documented if unsupported
 
 - [ ] Protocol
-  - [ ] HTTP transport
+  - [ ] stdio container transport (containerized MCP server in `gh-aw-node` image)
   - [ ] MCP tool invocation
   - [ ] NDJSON persistence
 
@@ -5151,6 +5172,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
 
+**Version 1.24.0** (2026-06-13):
+
+- **Changed**: Default value of the `discussions` field on `add-comment` inverted from `true` to `false`. The `discussions:write` permission is now opt-in. Set `discussions: true` to comment on discussions; omitting the field no longer requests `discussions:write`. The `hide-comment.discussions` default remains `true`.
+- **Updated**: Section 7.3 `add_comment` permission documentation, configuration examples, and notes to reflect the opt-in default.
+- **Updated**: Publication metadata to 1.24.0.
+
 **Version 1.23.0** (2026-06-10):
 
 - **Added**: `create_check_run` safe output type definition in Section 7.3, including full MCP tool schema, operational semantics, configuration parameters, and permission requirements.
@@ -5290,7 +5317,7 @@ This section maps normative specification requirements (§3–§11) to implement
 | §6 Universal Feature Interpretation | Max limit semantics (MR1–MR4), staged mode (SM1–SM4), footer attribution (FA1–FA6) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_mcp_server.cjs` |
 | §7 Safe Output Type Definitions | Handler implementations for each type | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_tools.json` |
 | §7.1 Core Issue Operations | `create_issue`, `add_comment`, `hide_comment`, `close_issue` | `actions/setup/js/add_comment.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
-| §8 Protocol Exchange Patterns | HTTP transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
+| §8 Protocol Exchange Patterns | stdio container transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
 | §9 Content Integrity Mechanisms | Content sanitization pipeline | `actions/setup/js/safe_output_validator.cjs`, `actions/setup/js/safe_output_type_validator.cjs` |
 | §10 Execution Guarantees | Idempotency, staged mode enforcement | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_action_handler.cjs` |
 | §11 Cache Memory Integrity | Cache key format, integrity branches, git-backed branching | `pkg/workflow/compiler_safe_outputs.go`, `actions/setup/js/safe_outputs_bootstrap.cjs` |

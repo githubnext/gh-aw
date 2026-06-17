@@ -141,7 +141,7 @@ gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --no-skill                   # Skip dispatcher skill creation
 gh aw init --no-agent                   # Skip custom agent creation
 gh aw init --codespaces ""              # Configure Codespaces for current repo only
-gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
+gh aw init --codespaces repo1,repo2     # Configure Codespaces with additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
 ```
@@ -265,7 +265,9 @@ gh aw fix my-workflow --write          # Fix specific workflow
 gh aw fix --list-codemods              # List available codemods
 ```
 
-**Options:** `--dir/-d`, `--list-codemods`, `--write`
+**Options:** `--dir/-d`, `--disable-codemod`, `--list-codemods`, `--write`
+
+Use `--disable-codemod` (repeatable) to skip specific codemod IDs by name.
 
 Available codemods include:
 
@@ -293,7 +295,9 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
-**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--ghes`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--show-all`, `--staged`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--gh-aw-ref`, `--ghes`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--show-all`, `--staged`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
+
+**`--gh-aw-ref` flag:** Convenience alias for `--action-mode release --action-tag <ref>`. Accepts a branch name, tag, or commit SHA targeting the `github/gh-aw` repository. Branch and tag names are resolved to their full commit SHA at compile time, so the baked-in reference is immutable and reproducible. Useful for E2E-testing workflows compiled against a specific gh-aw revision.
 
 **`--approve` flag:** When compiling a workflow that already has a lock file, the compiler enforces *safe update mode* — any newly added secrets or custom actions not present in the previous manifest require explicit approval. Pass `--approve` to accept these changes and regenerate the manifest baseline. On first compile (no existing lock file), enforcement is skipped automatically and `--approve` is not needed.
 
@@ -577,7 +581,7 @@ Maps PR check rollups to one of the following normalized states: `success`, `fai
 
 #### `forecast` `[EXPERIMENTAL]`
 
-Forecast token usage and costs for agentic workflows using recent run history and Monte Carlo simulation.
+Forecast AI Credit (AIC) usage and costs for agentic workflows using recent run history and Monte Carlo simulation.
 
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
@@ -623,11 +627,11 @@ gh aw disable ci-doctor --repo owner/repo   # Disable in specific repository
 
 #### `remove`
 
-Remove workflows (both `.md` and `.lock.yml`). Accepts a workflow ID (basename without `.md`) or prefix pattern. By default, also removes orphaned include files no longer referenced by any workflow.
+Remove workflows (both `.md` and `.lock.yml`). Accepts a workflow ID (basename without `.md`) or a substring pattern matching multiple workflows. By default, also removes orphaned include files no longer referenced by any workflow.
 
 ```bash wrap
 gh aw remove my-workflow                 # Remove specific workflow
-gh aw remove test-                       # Remove all workflows starting with 'test-'
+gh aw remove test-                       # Remove all workflows containing 'test-' in their name
 gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include files
 ```
 
@@ -683,7 +687,9 @@ gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+
+Use `--disable-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
 
 #### `env`
 
@@ -725,7 +731,8 @@ gh aw mcp list workflow                    # List servers for workflow
 gh aw mcp list-tools --server github           # List tools for a server (all workflows)
 gh aw mcp list-tools workflow --server github  # List tools for a server in a specific workflow
 gh aw mcp inspect workflow                 # Inspect and test servers
-gh aw mcp add                              # Add MCP tool to workflow
+gh aw mcp add                              # List available MCP servers from the registry
+gh aw mcp add <server>                     # Add an MCP server to a workflow
 ```
 
 See [MCPs Guide](/gh-aw/guides/mcps/).
@@ -811,7 +818,7 @@ gh aw project new "Project Q1" --owner myorg --with-project-setup # Create with 
 
 **Options:**
 - `--owner` (required): Project owner - use `@me` for current user or specify organization name
-- `--link`: Repository to link project to (format: `owner/repo`)
+- `--link/-l`: Repository to link project to (format: `owner/repo`)
 - `--with-project-setup`: Create standard project views and custom fields
 
 **Token Requirements:**

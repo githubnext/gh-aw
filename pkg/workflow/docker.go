@@ -20,15 +20,19 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	imageSet := make(map[string]bool) // Use a set to avoid duplicates
 
 	// Check for GitHub tool (uses Docker image)
-	if githubTool, hasGitHub := tools["github"]; hasGitHub {
-		githubType := getGitHubType(githubTool)
-		// Only add if using local (Docker) mode
-		if githubType == "local" {
-			githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-			image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
-			if !imageSet[image] {
-				images = append(images, image)
-				imageSet[image] = true
+	if rawGithubTool, hasGitHub := tools["github"]; hasGitHub {
+		// Only proceed when the value is an actual config map; a boolean false
+		// means the tool is explicitly disabled.
+		if githubTool, ok := rawGithubTool.(map[string]any); ok {
+			githubType := getGitHubType(githubTool)
+			// Only add if using local (Docker) mode
+			if githubType == GitHubMCPModeLocal {
+				githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+				image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
+				if !imageSet[image] {
+					images = append(images, image)
+					imageSet[image] = true
+				}
 			}
 		}
 	}
@@ -42,6 +46,18 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 				images = append(images, image)
 				imageSet[image] = true
 			}
+		}
+	}
+
+	// Check for safe-outputs MCP server.
+	// Safe outputs run in the published gh-aw node container and must be part of
+	// the default predownload set and lock-file manifest whenever enabled.
+	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		image := constants.DefaultGhAwNodeImage
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+			dockerLog.Printf("Added safe-outputs MCP server container: %s", image)
 		}
 	}
 

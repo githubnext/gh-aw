@@ -75,6 +75,7 @@ create-issue
 create-pull-request
 create-pull-request-review-comment
 cron
+cross-repository
 custom
 custom-safe-outputs
 daily
@@ -120,11 +121,13 @@ gh-aw
 github
 github-app
 github-token
+github-tools
 go.mod
 gpt-5
 gpt-5-mini
 haiku
 headers
+hide-older-comments
 hourly
 http
 id-token
@@ -149,8 +152,9 @@ lock.yml
 lockfile
 manifest
 markdown
-max-continuations
 max-ai-credits
+max-continuations
+max-daily-ai-credits
 max-patch-size
 max-runs
 max-turns
@@ -164,6 +168,7 @@ merged
 midnight
 min-integrity
 min-samples
+min-version
 mini
 model
 model-alias
@@ -190,6 +195,7 @@ post-steps
 pre-activation
 pre-steps
 prepend
+preserve-branch-name
 private-key
 projected-effective-tokens
 prompt.txt
@@ -238,6 +244,8 @@ steps.sanitized.outputs.body
 steps.sanitized.outputs.text
 steps.sanitized.outputs.title
 stop-after
+sub-agent
+sub-issues
 target-repo
 threat-detection
 timeout-minutes
@@ -307,6 +315,13 @@ Common misrecognitions to correct:
 - "GitHub app" → "github-app" (hyphenated in YAML context)
 - "steps dot sanitized dot outputs dot text" → "steps.sanitized.outputs.text"
 - "fuzzy schedule" → "fuzzy-schedule" (hyphenated)
+- "cross repository" → "cross-repository" (hyphenated)
+- "sub agent" → "sub-agent" (hyphenated)
+- "sub issues" → "sub-issues" (hyphenated)
+- "GitHub tools" → "github-tools" (hyphenated in YAML context)
+- "hide older comments" → "hide-older-comments" (hyphenated)
+- "preserve branch name" → "preserve-branch-name" (hyphenated)
+- "max daily AI credits" → "max-daily-ai-credits" (hyphenated)
 
 ## Clean Up and Improve Text
 

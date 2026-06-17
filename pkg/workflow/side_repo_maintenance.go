@@ -409,7 +409,9 @@ jobs:
 
       - name: Record outputs
         id: record
-        run: echo "run_url=${{ inputs.run_url }}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_AW_RUN_URL: ${{ inputs.run_url }}
+        run: echo "run_url=$GH_AW_RUN_URL" >> "$GITHUB_OUTPUT"
 `)
 
 	// Add create_labels job for workflow_dispatch/workflow_call with operation == 'create_labels'

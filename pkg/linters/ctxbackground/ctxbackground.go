@@ -31,7 +31,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok || !isContextBackgroundCall(call) {
+		if !ok || !isContextBackgroundCall(pass, call) {
 			continue
 		}
 
@@ -74,16 +74,24 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func isContextBackgroundCall(call *ast.CallExpr) bool {
+func isContextBackgroundCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
+	if !ok || sel.Sel.Name != "Background" {
 		return false
 	}
 	ident, ok := sel.X.(*ast.Ident)
+	if !ok || pass.TypesInfo == nil {
+		return false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return false
+	}
+	pkgName, ok := obj.(*types.PkgName)
 	if !ok {
 		return false
 	}
-	return ident.Name == "context" && sel.Sel.Name == "Background"
+	return pkgName.Imported().Path() == "context"
 }
 
 // contextParamName returns the first non-blank context.Context parameter name.

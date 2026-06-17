@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -16,21 +17,37 @@ import (
 )
 
 var githubCLILog = logger.New("workflow:github_cli")
+var defaultGHHost struct {
+	mu   sync.RWMutex
+	host string
+}
+
+// SetDefaultGHHost sets the default host used by gh CLI helper commands when GH_HOST
+// is not set in the process environment.
+func SetDefaultGHHost(host string) {
+	defaultGHHost.mu.Lock()
+	defer defaultGHHost.mu.Unlock()
+	defaultGHHost.host = host
+}
+
+func getDefaultGHHost() string {
+	defaultGHHost.mu.RLock()
+	defer defaultGHHost.mu.RUnlock()
+	return defaultGHHost.host
+}
 
 // setupGHCommand creates an exec.Cmd for gh CLI with proper token configuration.
 // This is the core implementation shared by ExecGH and ExecGHContext.
-// When ctx is nil, it uses exec.Command; when ctx is provided, it uses exec.CommandContext.
+// When ctx is nil, it falls back to context.TODO().
 func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Check if GH_TOKEN or GITHUB_TOKEN is available
 	ghToken := os.Getenv("GH_TOKEN")
 	githubToken := os.Getenv("GITHUB_TOKEN")
 
-	var cmd *exec.Cmd
-	if ctx != nil {
-		cmd = exec.CommandContext(ctx, "gh", args...)
-	} else {
-		cmd = exec.Command("gh", args...)
+	if ctx == nil {
+		ctx = context.TODO()
 	}
+	cmd := exec.CommandContext(ctx, "gh", args...)
 
 	if ghToken != "" || githubToken != "" {
 		githubCLILog.Printf("Token detected, using gh CLI for command: gh %v", args)
@@ -43,6 +60,9 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	if ghToken == "" && githubToken != "" {
 		githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
 		cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
+	}
+	if os.Getenv("GH_HOST") == "" {
+		SetGHHostEnv(cmd, getDefaultGHHost())
 	}
 
 	return cmd

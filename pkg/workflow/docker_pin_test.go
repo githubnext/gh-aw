@@ -42,6 +42,13 @@ func TestApplyContainerPins(t *testing.T) {
 			expectedDigests: []string{"sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
 		},
 		{
+			name:            "embedded gh-aw-node pin used when cache is absent",
+			images:          []string{constants.DefaultGhAwNodeImage},
+			pins:            nil,
+			expectedRefs:    []string{"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},
+			expectedDigests: []string{"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},
+		},
+		{
 			name:   "pinned image replaced with digest reference",
 			images: []string{"node:lts-alpine"},
 			pins: map[string]ContainerPin{
@@ -122,11 +129,10 @@ func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
 	assert.Len(t, workflowData.DockerImagePins, len(workflowData.DockerImages), "pin count should match image count")
 }
 
-// TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine verifies that enabling
-// safe-outputs does not add node:lts-alpine to the Docker pull list. The safe-outputs
-// MCP server runs directly via system Node (not inside a Docker container), so pulling
-// the image is both unnecessary and fails when Docker Hub is unreachable.
-func TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine(t *testing.T) {
+// TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage verifies that enabling
+// safe-outputs adds the published gh-aw-node container to the default Docker pull
+// list and manifest data, while not falling back to node:lts-alpine.
+func TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
@@ -136,6 +142,16 @@ func TestCollectDockerImages_SafeOutputsNoLongerPullsNodeAlpine(t *testing.T) {
 	}
 
 	images := collectDockerImages(map[string]any{}, workflowData, ActionModeRelease)
+
+	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	assert.Contains(t, images, pinnedGhAwNodeImage,
+		"safe-outputs should add the gh-aw-node container image to the Docker pull list")
+	require.NotEmpty(t, workflowData.DockerImagePins, "DockerImagePins should be populated")
+	assert.Contains(t, workflowData.DockerImagePins, GHAWManifestContainer{
+		Image:       constants.DefaultGhAwNodeImage,
+		Digest:      "sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b",
+		PinnedImage: pinnedGhAwNodeImage,
+	}, "safe-outputs should add gh-aw-node to manifest container pins")
 
 	for _, img := range images {
 		assert.NotContains(t, img, constants.DefaultNodeAlpineLTSImage,

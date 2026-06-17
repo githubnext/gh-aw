@@ -415,6 +415,68 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsJobRunsOnAr
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsRunsOnSlimArrayForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on":           "workflow_dispatch",
+		"runs-on-slim": []any{"self-hosted", "linux"},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsRunsOnSlimObjectForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"runs-on-slim": map[string]any{
+			"group":  "arc-custom",
+			"labels": []any{"ubuntu2404", "x64"},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsSafeOutputsRunsOnArrayForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{},
+			"runs-on":      []any{"self-hosted", "linux", "x64"},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsThreatDetectionRunsOnObjectForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{},
+			"threat-detection": map[string]any{
+				"runs-on": map[string]any{
+					"group":  "arc-custom",
+					"labels": []any{"linux", "x64"},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsAllowedBaseBranchesInCreatePullRequest(t *testing.T) {
 	frontmatter := map[string]any{
 		"on": map[string]any{

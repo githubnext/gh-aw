@@ -18,8 +18,16 @@ This command creates a temporary private repository in your GitHub account, inst
 workflow(s) from their source repositories, and runs them in "trial mode" to capture safe outputs without
 making actual changes to the "simulated" host repository.
 
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/weekly-research                         # Run a single workflow in a temporary trial repository
+Repository modes:
+- Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
+- --logical-repo REPO: Simulates execution against a specified repository (github.repository context points to REPO while actually running in a temporary trial repository)
+- --host-repo REPO: Uses the specified repository as the host for trial execution instead of creating a temporary one
+- --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
+
+All workflows must support workflow_dispatch trigger to be used in trial mode.
+The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
+Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/weekly-research                         # Run a single workflow in a temporary trial repository
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan githubnext/agentics/weekly-research # Compare multiple workflows
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow # Run workflows from different repositories
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo    # Use an existing host repository
@@ -33,16 +41,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo .               # Use the current repository as the host
   ` + string(constants.CLIExtensionPrefix) + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2   # Run a local workflow against cloned contents
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --trigger-context https://github.com/owner/repo/issues/123 # Provide issue context for issue-triggered workflows
-
-Repository modes:
-- Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
-- --logical-repo REPO: Simulates execution against a specified repository (github.repository context points to REPO while actually running in a temporary trial repository)
-- --host-repo REPO: Uses the specified repository as the host for trial execution instead of creating a temporary one
-- --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
-
-All workflows must support workflow_dispatch trigger to be used in trial mode.
-The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
-Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
+`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExample:\n  %[1]s githubnext/agentics/daily-plan             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())

@@ -13,7 +13,7 @@ import (
 func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 	tests := []struct {
 		name              string
-		githubTool        any
+		githubTool        map[string]any
 		isLast            bool
 		expectedContent   []string
 		unexpectedContent []string
@@ -122,7 +122,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 func TestGetGitHubAllowedTools(t *testing.T) {
 	tests := []struct {
 		name       string
-		githubTool any
+		githubTool map[string]any
 		expected   []string
 	}{
 		{
@@ -169,8 +169,8 @@ func TestGetGitHubAllowedTools(t *testing.T) {
 			expected: []string{"issue_read:1", "list_labels"},
 		},
 		{
-			name:       "Not a map",
-			githubTool: "invalid",
+			name:       "Nil tool",
+			githubTool: nil,
 			expected:   nil,
 		},
 	}
@@ -208,7 +208,7 @@ func TestGetGitHubAllowedTools(t *testing.T) {
 func TestGetGitHubGuardPoliciesToolCallLimits(t *testing.T) {
 	tests := []struct {
 		name       string
-		githubTool any
+		githubTool map[string]any
 		expected   map[string]any
 	}{
 		{

@@ -56,7 +56,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		renderer := createRenderer(false) // isLast is always false in TOML format
 		switch toolName {
 		case "github":
-			githubTool := expandedTools["github"]
+			githubTool, _ := expandedTools["github"].(map[string]any)
 			renderer.RenderGitHubMCP(&mcpConfigContent, githubTool, workflowData)
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]

@@ -76,6 +76,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Package a compact usage artifact so forecasting/analytics commands can fetch
 	// token usage and aw_info without downloading full agent artifacts.
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Write this run's AIC to the per-workflow usage cache and save it via actions/cache
+	// so the next activation can skip artifact downloads for known runs.
+	if hasMaxDailyAICGuardrail(data) && data.WorkflowID != "" {
+		steps = append(steps, buildDailyAICUsageCacheSteps(data, c.getActionPin)...)
+	}
 
 	// Add noop processing step if noop is configured.
 	// This single step replaces the former two-step "Process No-Op Messages" + "Handle No-Op Message"
@@ -422,11 +427,15 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
 
-	// Pass cache-memory availability flag so the failure handler can detect cache-miss
-	// misconfigurations: a cache_miss reported by the agent despite cache-memory being available
-	// indicates the prompt is referencing an incorrect file path within the cache directory.
+	// Pass cache-memory availability and restore outputs so the failure handler can detect
+	// cache-miss misconfigurations only after a restore match (and avoid first-run/branch-scoped
+	// false positives when no cache entry is restored).
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CACHE_MEMORY_ENABLED: \"true\"\n")
+		for i := range data.CacheMemoryConfig.Caches {
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CACHE_MEMORY_RESTORE_%d_MATCHED_KEY: ${{ needs.%s.outputs.cache_memory_restore_%d_matched_key || '' }}\n", i, mainJobName, i))
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CACHE_MEMORY_RESTORE_%d_CACHE_HIT: ${{ needs.%s.outputs.cache_memory_restore_%d_cache_hit || 'false' }}\n", i, mainJobName, i))
+		}
 	}
 
 	// Build the agent failure handling step.
@@ -689,6 +698,63 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"            /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
 		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildDailyAICUsageCacheSteps creates steps that compute AIC for the current run and persist
+// it to a per-workflow JSONL cache via actions/cache/save.  The cache is restored by the
+// activation job so that subsequent guardrail checks can skip artifact downloads for known runs.
+//
+// The sequence is: restore latest snapshot → append current run entry → save updated snapshot.
+// The restore step uses a prefix restore-key so it picks up the most recent snapshot even when
+// the exact key (which includes the current run ID) does not exist yet.
+func buildDailyAICUsageCacheSteps(data *WorkflowData, pinAction func(string) string) []string {
+	sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	cacheKeyPrefix := fmt.Sprintf("agentic-workflow-usage-%s-", sanitized)
+	cacheKey := cacheKeyPrefix + "${{ github.run_id }}"
+	return []string{
+		"      - name: Restore daily AIC usage cache\n",
+		"        id: restore-daily-aic-cache-conclusion\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/cache/restore")),
+		"        with:\n",
+		fmt.Sprintf("          key: %s\n", cacheKey),
+		fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix),
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+		"      - name: Write daily AIC usage cache entry\n",
+		"        id: write-daily-aic-cache\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
+		"        with:\n",
+		"          github-token: ${{ github.token }}\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context);\n",
+		"            const { main } = require('" + SetupActionDestination + "/write_daily_aic_usage_cache.cjs');\n",
+		"            await main();\n",
+		"      - name: Save daily AIC usage cache\n",
+		"        id: save-daily-aic-cache\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/cache/save")),
+		"        with:\n",
+		fmt.Sprintf("          key: %s\n", cacheKey),
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+		// Upload the cache file as an artifact so the activation job's artifact-based
+		// fallback can retrieve it on a different PR branch where actions/cache is
+		// branch-scoped and would otherwise always miss.
+		"      - name: Upload daily AIC usage cache artifact\n",
+		"        id: upload-daily-aic-cache\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/upload-artifact")),
+		"        with:\n",
+		"          name: aic-usage-cache\n",
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+		"          if-no-files-found: ignore\n",
+		"          retention-days: 7\n",
 	}
 }
 

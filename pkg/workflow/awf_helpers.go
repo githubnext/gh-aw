@@ -38,6 +38,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfDockerHostVarName        = "GH_AW_DOCKER_HOST"
 	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
 	awfMaxAICreditsVarName      = "GH_AW_MAX_AI_CREDITS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
@@ -49,6 +50,16 @@ const (
 	// any other TCP Docker daemon configuration.
 	awfArcDindDockerHostRegex    = `^tcp://`
 	awfArcDindHostPathPrefixFlag = "--docker-host-path-prefix /tmp/gh-aw"
+
+	// awfArcDindChrootBinariesSourcePath is the runner-side directory that AWF overlays
+	// at /usr/local/bin inside chroot mode for ARC/DinD split-filesystem runners.
+	// This is the gh-aw staging directory that holds pre-downloaded binaries (e.g., copilot).
+	awfArcDindChrootBinariesSourcePath = "/tmp/gh-aw"
+
+	// awfArcDindChrootIdentityHome is the home directory path exported inside chroot mode
+	// for ARC/DinD runners. A dedicated directory under /tmp/gh-aw is used so that the
+	// runner user has a consistent home that exists on the daemon-visible filesystem.
+	awfArcDindChrootIdentityHome = "/tmp/gh-aw/home"
 )
 
 // AWFCommandConfig contains configuration for building AWF commands.
@@ -83,6 +94,13 @@ type AWFCommandConfig struct {
 	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
 	// Requires AWF v0.25.3+ for --exclude-env support.
 	ExcludeEnvVarNames []string
+
+	// ResolveMaxAICreditsFromEnv switches maxAiCredits runtime resolution from an inline
+	// GitHub Actions expression in run: to the GH_AW_MAX_AI_CREDITS step env variable.
+	// When true and max-ai-credits is unset, BuildAWFCommand emits:
+	//   GH_AW_MAX_AI_CREDITS="${GH_AW_MAX_AI_CREDITS:-<default>}"
+	// instead of embedding ${{ vars.* }} directly in run:.
+	ResolveMaxAICreditsFromEnv bool
 }
 
 func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
@@ -94,6 +112,26 @@ func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
 
 func buildModelsJSONPathExportScript() string {
 	return fmt.Sprintf(`export GH_AW_MODELS_JSON_PATH="%s"`, awfModelsJSONPathExpr)
+}
+
+// applyDefaultMaxAICreditsEnvToMap adds the runtime max-ai-credits GitHub Actions expression
+// to env when no compile-time max-ai-credits is configured.
+//
+// This keeps the organization/repository variable override behavior while allowing AWF run:
+// scripts to read GH_AW_MAX_AI_CREDITS from step env instead of embedding ${{ vars.* }}
+// directly in run blocks.
+func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *WorkflowData) {
+	if env == nil {
+		return
+	}
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxAICredits != 0 {
+		return
+	}
+	if workflowData != nil && workflowData.IsDetectionRun {
+		env[awfMaxAICreditsVarName] = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
+		return
+	}
+	env[awfMaxAICreditsVarName] = compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
 }
 
 // injectMaxAICreditsExpression inserts "maxAiCredits":expr into the apiProxy
@@ -136,7 +174,7 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
 	}
 
-	return fmt.Sprintf(`python - <<'PY'
+	return fmt.Sprintf(`python3 - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -197,20 +235,37 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	awfArgs := BuildAWFArgs(config)
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 
-	// Auto-detect ARC/DinD split daemon topology at runtime and emit
+	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
+	// tcp:// scheme and pass it through to AWF via --docker-host, and emit
 	// --docker-host-path-prefix when supported by the selected AWF version.
-	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
+	// All behaviors avoid requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
+	// When AWF also supports chroot config (v0.27.1+), the Python patch body is embedded inside
+	// the same if-block so the script only contains one DOCKER_HOST condition check.
 	arcDindPrefixProbe := ""
 	arcDindPrefixArgsRef := ""
+	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
+if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
+  %s="${DOCKER_HOST}"
+fi`,
+		awfDockerHostVarName,
+		awfArcDindDockerHostRegex,
+		awfDockerHostVarName,
+	)
+	arcDindDockerHostRef := fmt.Sprintf("${%s:+--docker-host \"$%s\"}", awfDockerHostVarName, awfDockerHostVarName)
 	if awfSupportsDockerHostPathPrefix(firewallConfig) {
+		chrootPatchBody := ""
+		if awfSupportsChrootConfig(firewallConfig) {
+			chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBody()
+		}
 		arcDindPrefixProbe = fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
-  %s="%s"
+  %s="%s"%s
 fi`,
 			awfArcDindPrefixArgsVarName,
 			awfArcDindDockerHostRegex,
 			awfArcDindPrefixArgsVarName,
-			awfArcDindHostPathPrefixFlag)
+			awfArcDindHostPathPrefixFlag,
+			chrootPatchBody)
 		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
 	toolCacheMountProbe := fmt.Sprintf(`%s=""
@@ -267,12 +322,20 @@ fi`,
 		// for standard agent runs, use the main-agent variable/fallback.
 		var maxAICreditsExportLine string
 		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
-			expr := compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10))
+			defaultMaxAICredits := strconv.FormatInt(constants.DefaultMaxAICredits, 10)
 			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
-				expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
+				defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
 			}
 			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
-			maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
+			if config.ResolveMaxAICreditsFromEnv {
+				maxAICreditsExportLine = fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits)
+			} else {
+				expr := compilerenv.BuildDefaultMaxAICreditsExpression(defaultMaxAICredits)
+				if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
+					expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
+				}
+				maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
+			}
 			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
 		}
 		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
@@ -360,19 +423,22 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -386,18 +452,21 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -410,18 +479,21 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -433,17 +505,20 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s %s \
+%s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			modelsJSONPathExport,
+			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
+			arcDindDockerHostRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -870,4 +945,34 @@ func awfSupportsDockerHostPathPrefix(firewallConfig *FirewallConfig) bool {
 // apiProxy.enableTokenSteering.
 func awfSupportsTokenSteering(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFTokenSteeringMinVersion)
+}
+
+// awfSupportsChrootConfig returns true when the effective AWF version supports
+// chroot.binariesSourcePath and chroot.identity.* in the config file (AWF v0.27.1+).
+func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFChrootConfigMinVersion)
+}
+
+// buildArcDindChrootConfigPatchBody returns the Python heredoc that patches the AWF
+// config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
+// embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
+//
+// The Python is intentionally kept compact to minimise script size and stay within
+// GitHub Actions' 21 KB per-step expression limit.
+// Both config paths are updated: ${RUNNER_TEMP}/gh-aw/awf-config.json (read by AWF) and
+// /tmp/gh-aw/awf-config.json (used by the unified agent artifact upload).
+func buildArcDindChrootConfigPatchBody() string {
+	return fmt.Sprintf(`  python3 - <<'PY'
+import json,os,subprocess as sp
+from pathlib import Path
+try:
+ p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
+ c=json.loads(p.read_text())
+ c["chroot"]={"binariesSourcePath":"%s","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"%s"}}
+ out=json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n"
+ p.write_text(out)
+ Path("%s/awf-config.json").write_text(out)
+except Exception as e:
+ raise SystemExit(f"chroot config patch failed: {e}") from e
+PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome, awfArcDindChrootBinariesSourcePath)
 }

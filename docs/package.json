@@ -23,20 +23,20 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
     "@astrojs/sitemap": "^3.7.3",
-    "@astrojs/starlight": "^0.39.3",
+    "@astrojs/starlight": "^0.40.0",
     "@primer/octicons": "^19.28.1",
-    "astro": "^6.4.4",
+    "astro": "^6.4.6",
     "astro-mermaid": "^2.0.2",
     "mermaid": "^11.15.0",
     "pdfjs-dist": "^6.0.227",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.1",
     "starlight-blog": "^0.26.1",
     "starlight-changelogs": "^0.5.0",
-    "starlight-links-validator": "^0.24.0",
+    "starlight-links-validator": "^0.24.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.0",
     "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
     "starlight-github-alerts": "^0.2.0"

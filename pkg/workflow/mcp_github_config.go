@@ -82,12 +82,9 @@ func hasGitHubTool(parsedTools *Tools) bool {
 }
 
 // hasGitHubApp checks if a GitHub App is configured in the (merged) GitHub tool configuration
-func hasGitHubApp(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		_, hasGitHubApp := toolConfig["github-app"]
-		return hasGitHubApp
-	}
-	return false
+func hasGitHubApp(githubTool map[string]any) bool {
+	_, hasApp := githubTool["github-app"]
+	return hasApp
 }
 
 // isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is explicitly set
@@ -107,13 +104,13 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 		if toolConfig, ok := githubTool.(map[string]any); ok {
 			if modeSetting, exists := toolConfig["mode"]; exists {
 				if stringValue, ok := modeSetting.(string); ok {
-					switch modeValue := strings.ToLower(strings.TrimSpace(stringValue)); modeValue {
-					case "gh-proxy", "cli":
+					switch GitHubMCPMode(strings.ToLower(strings.TrimSpace(stringValue))) {
+					case GitHubMCPModeGHProxy, GitHubMCPModeCLI:
 						return true
-					case "local", "remote":
+					case GitHubMCPModeLocal, GitHubMCPModeRemote:
 						return false
 					default:
-						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", modeValue)
+						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", stringValue)
 					}
 				}
 			}
@@ -124,10 +121,10 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 
 // normalizeGitHubType normalizes and validates GitHub MCP transport values.
 // Supported values are `local` and `remote`.
-func normalizeGitHubType(value string) (string, bool) {
-	normalizedValue := strings.ToLower(strings.TrimSpace(value))
+func normalizeGitHubType(value string) (GitHubMCPMode, bool) {
+	normalizedValue := GitHubMCPMode(strings.ToLower(strings.TrimSpace(value)))
 	switch normalizedValue {
-	case "local", "remote":
+	case GitHubMCPModeLocal, GitHubMCPModeRemote:
 		return normalizedValue, true
 	default:
 		return "", false
@@ -136,37 +133,33 @@ func normalizeGitHubType(value string) (string, bool) {
 
 // getGitHubType extracts the MCP transport type from GitHub tool configuration
 // (local or remote). Supports both `type` (preferred) and legacy `mode` values.
-func getGitHubType(githubTool any) string {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if typeSetting, exists := toolConfig["type"]; exists {
-			if stringValue, ok := typeSetting.(string); ok {
-				if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
-					githubConfigLog.Printf("GitHub MCP type set explicitly: %s", normalizedValue)
-					return normalizedValue
-				}
-				githubConfigLog.Printf("Unrecognized tools.github.type value: %q, falling back to default", stringValue)
+func getGitHubType(githubTool map[string]any) GitHubMCPMode {
+	if typeSetting, exists := githubTool["type"]; exists {
+		if stringValue, ok := typeSetting.(string); ok {
+			if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
+				githubConfigLog.Printf("GitHub MCP type set explicitly: %s", normalizedValue)
+				return normalizedValue
 			}
+			githubConfigLog.Printf("Unrecognized tools.github.type value: %q, falling back to default", stringValue)
 		}
-		if modeSetting, exists := toolConfig["mode"]; exists {
-			if stringValue, ok := modeSetting.(string); ok {
-				if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
-					githubConfigLog.Printf("GitHub MCP type read from legacy mode field: %s", normalizedValue)
-					return normalizedValue
-				}
+	}
+	if modeSetting, exists := githubTool["mode"]; exists {
+		if stringValue, ok := modeSetting.(string); ok {
+			if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
+				githubConfigLog.Printf("GitHub MCP type read from legacy mode field: %s", normalizedValue)
+				return normalizedValue
 			}
 		}
 	}
 	githubConfigLog.Print("GitHub MCP mode: local (default)")
-	return "local" // default to local (Docker)
+	return GitHubMCPModeLocal // default to local (Docker)
 }
 
 // getGitHubToken extracts the custom github-token from GitHub tool configuration
-func getGitHubToken(githubTool any) string {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if tokenSetting, exists := toolConfig["github-token"]; exists {
-			if stringValue, ok := tokenSetting.(string); ok {
-				return stringValue
-			}
+func getGitHubToken(githubTool map[string]any) string {
+	if tokenSetting, exists := githubTool["github-token"]; exists {
+		if stringValue, ok := tokenSetting.(string); ok {
+			return stringValue
 		}
 	}
 	return ""
@@ -174,45 +167,38 @@ func getGitHubToken(githubTool any) string {
 
 // getGitHubReadOnly returns true always, since the GitHub MCP server is always read-only.
 // Setting read-only: false is not supported and will be flagged as a validation error.
-func getGitHubReadOnly(_ any) bool {
+func getGitHubReadOnly() bool {
 	return true
 }
 
 // getGitHubLockdown checks if lockdown mode is enabled for GitHub tool
 // Defaults to constants.DefaultGitHubLockdown (false)
-func getGitHubLockdown(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if lockdownSetting, exists := toolConfig["lockdown"]; exists {
-			if boolValue, ok := lockdownSetting.(bool); ok {
-				return boolValue
-			}
+func getGitHubLockdown(githubTool map[string]any) bool {
+	if lockdownSetting, exists := githubTool["lockdown"]; exists {
+		if boolValue, ok := lockdownSetting.(bool); ok {
+			return boolValue
 		}
 	}
 	return constants.DefaultGitHubLockdown
 }
 
 // hasGitHubLockdownExplicitlySet checks if lockdown field is explicitly set in GitHub tool config
-func hasGitHubLockdownExplicitlySet(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		_, exists := toolConfig["lockdown"]
-		return exists
-	}
-	return false
+func hasGitHubLockdownExplicitlySet(githubTool map[string]any) bool {
+	_, exists := githubTool["lockdown"]
+	return exists
 }
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
 // Expands "default" to individual toolsets for action-friendly compatibility
-func getGitHubToolsets(githubTool any) string {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if toolsetsSetting, exists := toolConfig["toolsets"]; exists {
-			// Handle array format only
-			if toolsets := parseStringSliceAny(toolsetsSetting, githubConfigLog); toolsets != nil {
-				toolsetsStr := strings.Join(toolsets, ",")
-				// Expand "default" to individual toolsets for action-friendly compatibility
-				resolved := expandDefaultToolset(toolsetsStr)
-				githubConfigLog.Printf("GitHub MCP toolsets resolved: %s", resolved)
-				return resolved
-			}
+func getGitHubToolsets(githubTool map[string]any) string {
+	if toolsetsSetting, exists := githubTool["toolsets"]; exists {
+		// Handle array format only
+		if toolsets := parseStringSliceAny(toolsetsSetting, githubConfigLog); toolsets != nil {
+			toolsetsStr := strings.Join(toolsets, ",")
+			// Expand "default" to individual toolsets for action-friendly compatibility
+			resolved := expandDefaultToolset(toolsetsStr)
+			githubConfigLog.Printf("GitHub MCP toolsets resolved: %s", resolved)
+			return resolved
 		}
 	}
 	// default to action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
@@ -262,12 +248,10 @@ func expandDefaultToolset(toolsetsStr string) string {
 
 // getGitHubAllowedTools extracts the allowed tools list from GitHub tool configuration
 // Returns the list of allowed tools, or nil if no allowed list is specified (which means all tools are allowed)
-func getGitHubAllowedTools(githubTool any) []string {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if allowedSetting, exists := toolConfig["allowed"]; exists {
-			allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
-			return allowedTools
-		}
+func getGitHubAllowedTools(githubTool map[string]any) []string {
+	if allowedSetting, exists := githubTool["allowed"]; exists {
+		allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
+		return allowedTools
 	}
 	return nil
 }
@@ -324,45 +308,43 @@ func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]
 // the org/repo variable fallback expressions so that a centrally-configured variable extends the
 // per-workflow list rather than replacing it.
 // Returns nil if no guard policies are configured.
-func getGitHubGuardPolicies(githubTool any) map[string]any {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		var toolCallLimits map[string]int
-		if allowedSetting, exists := toolConfig["allowed"]; exists {
-			_, toolCallLimits = parseGitHubAllowedToolsAndLimits(allowedSetting)
-		}
-		hasToolCallLimits := len(toolCallLimits) > 0
+func getGitHubGuardPolicies(githubTool map[string]any) map[string]any {
+	var toolCallLimits map[string]int
+	if allowedSetting, exists := githubTool["allowed"]; exists {
+		_, toolCallLimits = parseGitHubAllowedToolsAndLimits(allowedSetting)
+	}
+	hasToolCallLimits := len(toolCallLimits) > 0
 
-		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
-		repos, hasRepos := toolConfig["allowed-repos"]
-		if !hasRepos {
-			repos, hasRepos = toolConfig["repos"]
+	// Support both 'allowed-repos' (preferred) and deprecated 'repos'
+	repos, hasRepos := githubTool["allowed-repos"]
+	if !hasRepos {
+		repos, hasRepos = githubTool["repos"]
+	}
+	integrity, hasIntegrity := githubTool["min-integrity"]
+	if hasRepos || hasIntegrity || hasToolCallLimits {
+		policy := map[string]any{}
+		if hasRepos {
+			policy["repos"] = normalizeGitHubRepositoryInReposScope(repos)
+		} else {
+			// Default repos to "all" when min-integrity is specified without repos.
+			// The MCP Gateway requires repos in the allow-only policy.
+			policy["repos"] = "all"
 		}
-		integrity, hasIntegrity := toolConfig["min-integrity"]
-		if hasRepos || hasIntegrity || hasToolCallLimits {
-			policy := map[string]any{}
-			if hasRepos {
-				policy["repos"] = normalizeGitHubRepositoryInReposScope(repos)
-			} else {
-				// Default repos to "all" when min-integrity is specified without repos.
-				// The MCP Gateway requires repos in the allow-only policy.
-				policy["repos"] = "all"
-			}
-			if hasIntegrity {
-				policy["min-integrity"] = integrity
-			}
-			if hasToolCallLimits {
-				policy["tool-call-limits"] = toolCallLimits
-			}
-			// blocked-users, trusted-users, and approval-labels are parsed at runtime by the
-			// parse-guard-vars step. The step outputs proper JSON arrays (split on comma/newline,
-			// validated, jq-encoded) from both the compile-time static values and the
-			// GH_AW_GITHUB_* org/repo variables.
-			policy["blocked-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.blocked_users }}"
-			policy["trusted-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.trusted_users }}"
-			policy["approval-labels"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.approval_labels }}"
-			return map[string]any{
-				"allow-only": policy,
-			}
+		if hasIntegrity {
+			policy["min-integrity"] = integrity
+		}
+		if hasToolCallLimits {
+			policy["tool-call-limits"] = toolCallLimits
+		}
+		// blocked-users, trusted-users, and approval-labels are parsed at runtime by the
+		// parse-guard-vars step. The step outputs proper JSON arrays (split on comma/newline,
+		// validated, jq-encoded) from both the compile-time static values and the
+		// GH_AW_GITHUB_* org/repo variables.
+		policy["blocked-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.blocked_users }}"
+		policy["trusted-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.trusted_users }}"
+		policy["approval-labels"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.approval_labels }}"
+		return map[string]any{
+			"allow-only": policy,
 		}
 	}
 	return nil
@@ -463,7 +445,7 @@ func mcpgSupportsIntegrityReactions(gatewayConfig *MCPGatewayRuntimeConfig) bool
 //
 // This allows the gateway to read data from the GitHub MCP server and still write to safeoutputs.
 // Returns nil if no GitHub guard policies are configured.
-func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
+func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
 	if githubPolicies == nil {
 		return nil
@@ -556,13 +538,15 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil
 	}
-	githubTool, hasGitHub := workflowData.Tools["github"]
+	rawGithubTool, hasGitHub := workflowData.Tools["github"]
 	if !hasGitHub {
 		return nil
 	}
 
+	toolConfig, _ := rawGithubTool.(map[string]any)
+
 	// Try to derive from explicit guard policy first
-	policy := deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+	policy := deriveSafeOutputsGuardPolicyFromGitHub(toolConfig)
 	if policy != nil {
 		return policy
 	}
@@ -570,7 +554,7 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	// When no explicit guard policy is configured but automatic lockdown detection would run
 	// (GitHub tool present and not disabled, no GitHub App configured), return accept=["*"]
 	// because automatic lockdown always sets repos=all at runtime.
-	if githubTool != false && len(getGitHubGuardPolicies(githubTool)) == 0 && !hasGitHubApp(githubTool) {
+	if rawGithubTool != false && len(getGitHubGuardPolicies(toolConfig)) == 0 && !hasGitHubApp(toolConfig) {
 		return map[string]any{
 			"write-sink": map[string]any{
 				"accept": []string{"*"},
@@ -581,25 +565,23 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	return nil
 }
 
-func getGitHubDockerImageVersion(githubTool any) string {
+func getGitHubDockerImageVersion(githubTool map[string]any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["version"]; exists {
-			// Handle different version types
-			switch v := versionSetting.(type) {
-			case string:
-				githubDockerImageVersion = v
-			case int:
-				githubDockerImageVersion = strconv.Itoa(v)
-			case int64:
-				githubDockerImageVersion = strconv.FormatInt(v, 10)
-			case uint64:
-				githubDockerImageVersion = strconv.FormatUint(v, 10)
-			case float64:
-				// Use %g to avoid trailing zeros and scientific notation for simple numbers
-				githubDockerImageVersion = fmt.Sprintf("%g", v)
-			}
+	if versionSetting, exists := githubTool["version"]; exists {
+		// Handle different version types
+		switch v := versionSetting.(type) {
+		case string:
+			githubDockerImageVersion = v
+		case int:
+			githubDockerImageVersion = strconv.Itoa(v)
+		case int64:
+			githubDockerImageVersion = strconv.FormatInt(v, 10)
+		case uint64:
+			githubDockerImageVersion = strconv.FormatUint(v, 10)
+		case float64:
+			// Use %g to avoid trailing zeros and scientific notation for simple numbers
+			githubDockerImageVersion = fmt.Sprintf("%g", v)
 		}
 	}
 	githubConfigLog.Printf("GitHub MCP Docker image version: %s", githubDockerImageVersion)

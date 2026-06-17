@@ -77,7 +77,7 @@ func TestExpandDefaultToolset(t *testing.T) {
 func TestGetGitHubToolsetsExpandsDefault(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    any
+		input    map[string]any
 		expected string
 	}{
 		{

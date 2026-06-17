@@ -89,7 +89,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `DependencyReport` | `deps_report.go` | Full dependency report |
 | `OutdatedDependency` | `deps_outdated.go` | An outdated dependency entry |
 | `SecurityAdvisory` | `deps_security.go` | A security advisory entry |
-| `WorkflowStatus` | `status_command.go` | Run status for a single workflow |
+| `WorkflowStatus` | `status_command.go` | Run status for a single workflow; embeds `WorkflowListItem` |
 | `MCPRegistryClient` | `mcp_registry.go` | Client for the MCP registry API |
 | `ToolGraph` | `tool_graph.go` | Dependency graph of MCP tools |
 | `DependencyGraph` | `dependency_graph.go` | Dependency graph across workflows |
@@ -394,7 +394,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `WorkflowFailure` | struct | A workflow failure record |
 | `WorkflowFileStatus` | struct | Status of a workflow file (exists, outdated, etc.) |
 | `WorkflowJob` | struct | A GitHub Actions job within a workflow run |
-| `WorkflowListItem` | struct | A single item in the `gh aw list` output |
+| `WorkflowListItem` | struct | A single item in `gh aw list`; shared workflow metadata fields (name, engine, compiled status, labels, triggers) also embedded in `WorkflowStatus` |
 | `WorkflowMCPMetadata` | struct | MCP server metadata scanned from a workflow file |
 | `WorkflowNode` | struct | A node in the workflow dependency graph |
 | `WorkflowOption` | struct | A selectable workflow option for interactive prompts |

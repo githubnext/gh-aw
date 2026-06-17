@@ -14,6 +14,24 @@ engine:
   id: copilot
   copilot-sdk: true
 tracker-id: architecture-guardian
+experiments:
+  sub_agent_strategy:
+    variants: [sub_agents, single_agent]
+    description: "Test whether inlining violation classification in the main agent reduces AI credit spend without sacrificing detection accuracy"
+    hypothesis: "H0: single_agent does not change ai_credits_spent vs sub_agents. H1: single_agent reduces ai_credits_spent by ≥15% by eliminating sub-agent model-call overhead"
+    metric: ai_credits_spent
+    secondary_metrics: [run_duration_ms, violation_count_delta]
+    guardrail_metrics:
+      - name: run_failure_rate
+        direction: min
+        threshold: 0.10
+      - name: empty_output_rate
+        direction: min
+        threshold: 0.05
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-06-13"
+    issue: 39062
 imports:
   - uses: shared/skip-if-issue-open.md
     with:
@@ -169,7 +187,17 @@ If `noop` is `true`, call the `noop` safe-output tool and stop:
 
 ## Step 2: Classify Violations by Severity
 
+{{#if experiments.sub_agent_strategy == 'single_agent' }}
+Read the metrics JSON already loaded in Step 1. Apply the following rules using the `thresholds` values directly:
+
+- **BLOCKER**: `import_cycles` non-empty → import cycle; `files[].lines > thresholds.file_lines_blocker` → oversized file
+- **WARNING**: `files[].lines > thresholds.file_lines_warning` → near-limit file; Go `func_data` entries with line count > `thresholds.function_lines` → oversized function
+- **INFO**: `files[].export_count > thresholds.max_exports` → excessive exports
+
+Build `blockers`, `warnings`, and `infos` arrays from this analysis and proceed to Step 3.
+{{else}}
 Use the `violation-classifier` agent to read `/tmp/gh-aw/agent/arch-metrics.json` and return the categorized violation list. If it returns `{"noop": true}`, skip to the noop call in Step 3.
+{{/if}}
 
 ## Step 3: Post Report
 

@@ -337,11 +337,19 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `ActionCache` | struct | Cache for resolved action SHAs |
 | `ActionResolver` | struct | Resolves action SHAs from GitHub |
 
+#### `ActionResolver` Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `NewActionResolver` | `func(cache *ActionCache) *ActionResolver` | Creates a new `ActionResolver` backed by the given cache |
+| `ResolveSHA` | `func(ctx context.Context, repo, version string) (string, error)` | Resolves a GitHub Action repo+version to its full commit SHA; serves cache hits first |
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `GetActionPin` | `func(actionRepo string) string` | Returns the pinned SHA for an action |
 | `DetectActionMode` | `func(version string) ActionMode` | Detects the action reference mode |
 | `ParseTagRefTSV` | `func(line string) (sha, objType string, err error)` | Parses tab-separated tag ref output into SHA and object type |
+| `ResolveGhAwRef` | `func(ctx context.Context, ref string) (string, error)` | Resolves a branch, tag, or SHA ref in `github/gh-aw` to its full 40-character commit SHA; passes full SHAs through unchanged |
 | `ExtractActionsFromLockFile` | `func(lockFilePath string) ([]ActionUsage, error)` | Extracts action usages from a lock file |
 | `CheckActionSHAUpdates` | `func(actions []ActionUsage, resolver *ActionResolver) []ActionUpdateCheck` | Checks whether action SHAs need updates |
 | `ApplyActionPinsToTypedSteps` | `func([]*WorkflowStep, *WorkflowData) []*WorkflowStep` | Applies pins to all steps |

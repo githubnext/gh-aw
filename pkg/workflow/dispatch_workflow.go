@@ -13,6 +13,7 @@ type DispatchWorkflowConfig struct {
 	WorkflowFiles        map[string]string `yaml:"workflow_files,omitempty"`       // Map of workflow name to file extension (.lock.yml or .yml) - populated at compile time
 	AwContextWorkflows   []string          `yaml:"aw_context_workflows,omitempty"` // Workflows that declare aw_context in workflow_dispatch.inputs - populated at compile time
 	TargetRepoSlug       string            `yaml:"target-repo,omitempty"`          // Target repository for cross-repo dispatch (owner/repo or GitHub Actions expression)
+	AllowedRepos         []string          `yaml:"allowed-repos,omitempty"`        // Allowlist for cross-repository dispatch targets
 	TargetRef            string            `yaml:"target-ref,omitempty"`           // Target ref for cross-repo dispatch; overrides the caller's GITHUB_REF
 }
 
@@ -60,6 +61,7 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 
 			// Parse target-repo (optional cross-repo dispatch target)
 			dispatchWorkflowConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", dispatchWorkflowLog)
+			dispatchWorkflowConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", dispatchWorkflowLog)
 
 			// Cap max at 50 (absolute maximum allowed) – only for literal integer values
 			if maxVal := templatableIntValue(dispatchWorkflowConfig.Max); maxVal > 50 {

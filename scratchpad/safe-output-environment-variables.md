@@ -52,7 +52,7 @@ Each safe output type has additional environment variables specific to its confi
 | `GH_AW_PR_DRAFT` | Create as draft PR | Always (default: `true`) | `"true"` or `"false"` |
 | `GH_AW_PR_IF_NO_CHANGES` | Behavior when no changes detected | Always (default: `warn`) | `"warn"`, `"error"`, or `"ignore"` |
 | `GH_AW_PR_ALLOW_EMPTY` | Allow PRs with no changes | Always (default: `false`) | `"true"` or `"false"` |
-| `GH_AW_MAX_PATCH_SIZE` | Maximum patch size in KB | Always (default: `1024`) | `1024` |
+| `GH_AW_MAX_PATCH_SIZE` | Maximum patch size in KB | Always (default: `4096`) | `4096` |
 | `GH_AW_PR_EXPIRES` | Days until auto-close (same-repo only) | `expires` configured | `"14"` |
 | `GH_AW_COMMENT_ID` | Comment ID from activation job | Command-triggered workflow | From activation job output |
 | `GH_AW_COMMENT_REPO` | Repository containing comment | Command-triggered workflow | From activation job output |
@@ -136,7 +136,7 @@ Each safe output type has additional environment variables specific to its confi
 | `GH_AW_PR_TITLE_PREFIX` | Required title prefix | `title-prefix` configured | `"[bot] "` |
 | `GH_AW_PR_LABELS` | Required labels (all must match) | `labels` configured | `"automated"` |
 | `GH_AW_COMMIT_TITLE_SUFFIX` | Suffix for commit titles | `commit-title-suffix` configured | `" [skip ci]"` |
-| `GH_AW_MAX_PATCH_SIZE` | Maximum patch size in KB | Always (default: `1024`) | `1024` |
+| `GH_AW_MAX_PATCH_SIZE` | Maximum patch size in KB | Always (default: `4096`) | `4096` |
 | `GH_AW_COMMENT_ID` | Comment ID from activation job | Command-triggered workflow | From activation job output |
 | `GH_AW_COMMENT_REPO` | Repository containing comment | Command-triggered workflow | From activation job output |
 

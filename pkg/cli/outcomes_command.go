@@ -29,10 +29,8 @@ For each safe output (created issue, PR, comment, label, etc.), checks the curre
 state of the GitHub object to determine whether the action was accepted, rejected,
 ignored, or is still pending.
 
-This answers the question: "Did this workflow's actions actually help?"
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` outcomes 1234567890                # Check outcomes for a specific run
+This answers the question: "Did this workflow's actions actually help?"`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` outcomes 1234567890                # Check outcomes for a specific run
   ` + string(constants.CLIExtensionPrefix) + ` outcomes 1234567890 --json         # JSON output
   ` + string(constants.CLIExtensionPrefix) + ` outcomes 1234567890 --repo o/r     # Specify repository
   ` + string(constants.CLIExtensionPrefix) + ` outcomes 1234567890 -v             # Verbose output`,

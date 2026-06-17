@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateInformationSection } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateInformationSection, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Antigravity",
@@ -112,9 +112,11 @@ function parseAntigravityLog(logContent) {
     });
   }
 
+  const canonicalLogEntries = convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "antigravity" });
+
   return {
     markdown,
-    logEntries,
+    logEntries: canonicalLogEntries,
     mcpFailures: [],
     maxTurnsHit: false,
   };

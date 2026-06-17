@@ -785,10 +785,10 @@ This workflow uses the imported meta configuration.
 	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported and set to true")
 	assert.Equal(t, map[string]string{"TEST_VAR": "test_value"}, workflowData.SafeOutputs.Env, "Env should be imported")
 	assert.Equal(t, "${{ secrets.CUSTOM_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
-	// Note: When main workflow has safe-outputs section, extractSafeOutputsConfig sets MaximumPatchSize default (1024)
+	// Note: When main workflow has safe-outputs section, extractSafeOutputsConfig sets MaximumPatchSize default (4096)
 	// before merge happens, so imported value is not used. User should specify max-patch-size in main workflow.
-	assert.Equal(t, 1024, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize defaults to 1024 when main has safe-outputs")
-	assert.Equal(t, "ubuntu-latest", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
+	assert.Equal(t, 4096, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize defaults to 4096 when main has safe-outputs")
+	assert.Equal(t, "runs-on: ubuntu-latest", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
 }
 
 // TestSafeOutputsImportMetaFieldsMainTakesPrecedence tests that main workflow meta fields take precedence over imports
@@ -929,7 +929,7 @@ This workflow uses only imported safe-outputs configuration.
 	assert.Equal(t, "${{ secrets.IMPORT_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
 	assert.Equal(t, 4096, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize should be imported")
 	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported and set to true")
-	assert.Equal(t, "ubuntu-22.04", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
+	assert.Equal(t, "runs-on: ubuntu-22.04", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
 }
 
 // TestSafeOutputsImportJobsFromSharedWorkflow tests that safe-outputs.jobs can be imported from shared workflows

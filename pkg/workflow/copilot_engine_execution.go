@@ -399,10 +399,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		} else {
 			allowedDomains = GetAllowedDomainsForEngine(constants.CopilotEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}
-		// Add Copilot API target domains to the firewall allow-list.
-		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
-		if copilotAPITarget := GetCopilotAPITarget(workflowData); copilotAPITarget != "" {
-			allowedDomains = mergeAPITargetDomains(allowedDomains, copilotAPITarget)
+		// Add Copilot BYOK/API target domains to the firewall allow-list.
+		// This keeps normal and detection runs in sync while preserving detection's
+		// otherwise-minimal network footprint.
+		for _, copilotTarget := range GetCopilotAllowlistTargets(workflowData) {
+			allowedDomains = mergeAPITargetDomains(allowedDomains, copilotTarget)
 		}
 
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
@@ -468,6 +469,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Copilot doesn't require TTY
 			AllowedDomains: allowedDomains,
+			// Keep max-ai-credits runtime expression in step env (not run:) to reduce
+			// template-injection findings on generated Execute GitHub Copilot CLI steps.
+			ResolveMaxAICreditsFromEnv: true,
 			// Create the agent step summary file before AWF starts so it is accessible
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
@@ -591,6 +595,7 @@ touch %s
 	} else {
 		env["GH_AW_VERSION"] = "dev"
 	}
+	applyDefaultMaxAICreditsEnvToMap(env, workflowData)
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers.
 	// The value is exported from the run script (see buildCopilotMCPConfigExport) so
@@ -604,12 +609,14 @@ touch %s
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
 			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
 			if workflowData.ParsedTools.GitHub.GitHubApp.shouldIgnoreMissingKey() {
-				customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+				githubToolConfig, _ := workflowData.Tools["github"].(map[string]any)
+				customGitHubToken := getGitHubToken(githubToolConfig)
 				tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
 			}
 			env["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
-			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+			githubToolConfig, _ := workflowData.Tools["github"].(map[string]any)
+			customGitHubToken := getGitHubToken(githubToolConfig)
 			// Use effective token with precedence: custom > default
 			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 			env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
@@ -618,6 +625,9 @@ touch %s
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
+
+	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
+	applyTraceContextEnvToMap(env)
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	// Supports both literal integers and GitHub Actions expressions (e.g. "${{ inputs.startup-timeout }}")

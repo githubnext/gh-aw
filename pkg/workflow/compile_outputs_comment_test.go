@@ -272,8 +272,8 @@ This workflow tests the safe_outputs job generation.
 		t.Error("Expected 45-minute timeout in safe_outputs job")
 	}
 
-	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      discussions: write\n      issues: write\n      pull-requests: write") {
-		t.Error("Expected correct permissions in safe_outputs job (discussions: write is always included for add-comment)")
+	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write\n      pull-requests: write") {
+		t.Error("Expected correct permissions in safe_outputs job (add-comment defaults to no discussions permission)")
 	}
 
 	// Verify the job uses github-script

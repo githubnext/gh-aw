@@ -1,6 +1,8 @@
 ---
 title: Self-Hosted Runners
 description: How to configure and run agentic workflows on self-hosted runners, ARC/Kubernetes, and GHES environments.
+sidebar:
+  order: 810
 ---
 
 Use the `runs-on` frontmatter field to target a self-hosted runner instead of the default `ubuntu-latest`.
@@ -91,7 +93,7 @@ runs-on: [self-hosted, linux, x64]
 safe-outputs:
   create-issue: {}
   threat-detection:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
 ---
 ```
 
@@ -105,14 +107,16 @@ Framework jobs — activation, pre-activation, safe-outputs, unlock, APM, update
 ---
 on: issues
 runs-on: [self-hosted, linux, x64]
-runs-on-slim: self-hosted
+runs-on-slim: [self-hosted, linux, x64]
 safe-outputs:
+  runs-on: [self-hosted, linux, x64]
   create-issue: {}
 ---
 ```
 
 > [!NOTE]
 > `runs-on` controls only the main agent job. `runs-on-slim` controls all framework/generated jobs. `safe-outputs.runs-on` still takes precedence over `runs-on-slim` for safe-output jobs specifically.
+> `runs-on-slim` accepts the same string, array, or runner-group object forms as `runs-on`.
 
 ## Configuring the maintenance workflow runner
 

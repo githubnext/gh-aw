@@ -367,7 +367,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			options: JSONMCPConfigOptions{
 				ConfigPath: "/tmp/test-config.json",
 				Renderers: MCPToolRenderers{
-					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+					RenderGitHub: func(yaml *strings.Builder, githubTool map[string]any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": { \"test\": true }")
 						if !isLast {
 							yaml.WriteString(",")
@@ -406,7 +406,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			options: JSONMCPConfigOptions{
 				ConfigPath: "/tmp/filtered-config.json",
 				Renderers: MCPToolRenderers{
-					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+					RenderGitHub: func(yaml *strings.Builder, githubTool map[string]any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": { \"filtered\": true }")
 						if !isLast {
 							yaml.WriteString(",")
@@ -442,7 +442,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			options: JSONMCPConfigOptions{
 				ConfigPath: "/tmp/debug-config.json",
 				Renderers: MCPToolRenderers{
-					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+					RenderGitHub: func(yaml *strings.Builder, githubTool map[string]any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": {}\n")
 					},
 					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
@@ -511,7 +511,7 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 	options := JSONMCPConfigOptions{
 		ConfigPath: "/tmp/test.json",
 		Renderers: MCPToolRenderers{
-			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+			RenderGitHub: func(yaml *strings.Builder, githubTool map[string]any, isLast bool, workflowData *WorkflowData) {
 				callOrder = append(callOrder, "github")
 				isLastValues = append(isLastValues, isLast)
 			},

@@ -46,6 +46,7 @@ const (
 	MaxGitHubTeamSlugLength = 100
 	MinIssueBodyLength      = 20 // Minimum body length for create_issue to prevent placeholder-only submissions
 	MinDiscussionBodyLength = 64 // Minimum body length for create_discussion to prevent placeholder-only submissions
+	MinReleaseBodyLength    = 20 // Minimum body length for update_release to prevent placeholder-only submissions
 )
 
 // ValidationConfig contains all safe output type validation rules
@@ -297,7 +298,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"tag":       {Type: "string", Sanitize: true, MaxLength: 256},
 			"operation": {Required: true, Type: "string", Enum: []string{"replace", "append", "prepend"}},
-			"body":      {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body":      {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinReleaseBodyLength},
 		},
 	},
 	"upload_asset": {

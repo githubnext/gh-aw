@@ -45,6 +45,7 @@ tools:
     - "cat specs/*.md"
     - "find . -name \"*_test.go\" -path \"*/pkg/*\" | head -20"
     - "cat pkg/workflow/*.go | head -200"
+    - "cat pkg/cli/*.go"
 
 safe-outputs:
   mentions: false

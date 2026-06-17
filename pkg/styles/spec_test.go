@@ -8,16 +8,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestSpec_Constants_DocumentedSemanticColorHexValues validates that the four
-// primary semantic color variables have the exact hex values stated in the
-// package README.md specification table.
+// TestSpec_Constants_DocumentedSemanticColorHexValues validates that every one
+// of the eleven adaptive color variables has the exact Light and Dark hex
+// values stated in the package README.md specification table. The README now
+// documents an exact hex value for all eleven colors, so each is asserted here.
 //
-// Specification (README.md adaptive color table):
+// Specification (README.md "Adaptive Color Variables" table):
 //
-//	ColorError:   Light=#D73737, Dark=#FF5555
-//	ColorWarning: Light=#E67E22, Dark=#FFB86C
-//	ColorSuccess: Light=#27AE60, Dark=#50FA7B
-//	ColorInfo:    Light=#2980B9, Dark=#8BE9FD
+//	ColorError       Light=#D73737 Dark=#FF5555
+//	ColorWarning     Light=#E67E22 Dark=#FFB86C
+//	ColorSuccess     Light=#27AE60 Dark=#50FA7B
+//	ColorInfo        Light=#2980B9 Dark=#8BE9FD
+//	ColorPurple      Light=#8E44AD Dark=#BD93F9
+//	ColorYellow      Light=#B7950B Dark=#F1FA8C
+//	ColorComment     Light=#6C7A89 Dark=#6272A4
+//	ColorForeground  Light=#2C3E50 Dark=#F8F8F2
+//	ColorBackground  Light=#ECF0F1 Dark=#282A36
+//	ColorBorder      Light=#BDC3C7 Dark=#44475A
+//	ColorTableAltRow Light=#F5F5F5 Dark=#1A1A1A
 func TestSpec_Constants_DocumentedSemanticColorHexValues(t *testing.T) {
 	tests := []struct {
 		colorName string
@@ -30,7 +38,17 @@ func TestSpec_Constants_DocumentedSemanticColorHexValues(t *testing.T) {
 		{"ColorWarning", hexColorWarningLight, hexColorWarningDark, "#E67E22", "#FFB86C"},
 		{"ColorSuccess", hexColorSuccessLight, hexColorSuccessDark, "#27AE60", "#50FA7B"},
 		{"ColorInfo", hexColorInfoLight, hexColorInfoDark, "#2980B9", "#8BE9FD"},
+		{"ColorPurple", hexColorPurpleLight, hexColorPurpleDark, "#8E44AD", "#BD93F9"},
+		{"ColorYellow", hexColorYellowLight, hexColorYellowDark, "#B7950B", "#F1FA8C"},
+		{"ColorComment", hexColorCommentLight, hexColorCommentDark, "#6C7A89", "#6272A4"},
+		{"ColorForeground", hexColorForegroundLight, hexColorForegroundDark, "#2C3E50", "#F8F8F2"},
+		{"ColorBackground", hexColorBackgroundLight, hexColorBackgroundDark, "#ECF0F1", "#282A36"},
+		{"ColorBorder", hexColorBorderLight, hexColorBorderDark, "#BDC3C7", "#44475A"},
+		{"ColorTableAltRow", hexColorTableAltRowLight, hexColorTableAltRowDark, "#F5F5F5", "#1A1A1A"},
 	}
+
+	assert.Len(t, tests, 11,
+		"README.md adaptive color table documents exact hex values for 11 colors")
 
 	for _, tt := range tests {
 		t.Run(tt.colorName, func(t *testing.T) {

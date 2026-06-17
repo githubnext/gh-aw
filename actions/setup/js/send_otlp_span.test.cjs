@@ -1195,6 +1195,22 @@ describe("buildGitHubActionsResourceAttributes", () => {
     expect(attrs["gh=aw.workflow.name"]).toBe("Daily\\ Token, Report");
     expect(attrs["service.version"]).toBe("1.2.3");
   });
+
+  it("parses percent-encoded OTEL_RESOURCE_ATTRIBUTES values", () => {
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily%20Token%2C%20Report,gh-aw.engine.id=claude%3Dsonnet%5C4,service.version=1.2.3";
+
+    const attrs = Object.fromEntries(
+      buildGitHubActionsResourceAttributes({
+        repository: "owner/repo",
+        runId: "987654321",
+        staged: false,
+      }).map(attr => [attr.key, attr.value.stringValue])
+    );
+
+    expect(attrs["gh-aw.workflow.name"]).toBe("Daily Token, Report");
+    expect(attrs["gh-aw.engine.id"]).toBe("claude=sonnet\\4");
+    expect(attrs["service.version"]).toBe("1.2.3");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1561,13 +1577,13 @@ describe("sendJobSetupSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_REPOSITORY = "owner/repo";
     process.env.GITHUB_RUN_ID = "987654321";
-    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily\\, Token\\= Report,gh-aw.run.id=987654321,gh-aw.engine.id=claude,service.version=1.2.3";
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily%20Token%2C%20Report,gh-aw.run.id=987654321,gh-aw.engine.id=claude,service.version=1.2.3";
 
     await sendJobSetupSpan();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
-    expect(resourceAttrs).toContainEqual({ key: "gh-aw.workflow.name", value: { stringValue: "Daily, Token= Report" } });
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.workflow.name", value: { stringValue: "Daily Token, Report" } });
     expect(resourceAttrs).toContainEqual({ key: "gh-aw.run.id", value: { stringValue: "987654321" } });
     expect(resourceAttrs).toContainEqual({ key: "gh-aw.engine.id", value: { stringValue: "claude" } });
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "1.2.3" } });
@@ -4043,7 +4059,7 @@ describe("sendJobConclusionSpan", () => {
     expect(spanAttrs).toContainEqual({ key: "gh-aw.cli.version", value: { stringValue: "v3.1.0" } });
   });
 
-  it("prefers agent_version from aw_info.json over cli_version for scope version", async () => {
+  it("prefers cli_version from aw_info.json over agent_version for scope version", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -4052,7 +4068,7 @@ describe("sendJobConclusionSpan", () => {
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/aw_info.json") {
-        return JSON.stringify({ agent_version: "2.1.150" });
+        return JSON.stringify({ cli_version: "v3.2.0", agent_version: "2.1.150" });
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
@@ -4062,7 +4078,7 @@ describe("sendJobConclusionSpan", () => {
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("2.1.150");
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v3.2.0");
   });
 
   it("uses GITHUB_AW_OTEL_TRACE_ID from env as trace ID (1 trace per run)", async () => {

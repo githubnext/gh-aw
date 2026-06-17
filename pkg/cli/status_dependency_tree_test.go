@@ -52,8 +52,8 @@ func TestExtractWorkflowDependencies_ImportsObjectAW(t *testing.T) {
 func TestRenderWorkflowDependencyTree(t *testing.T) {
 	statuses := []WorkflowStatus{
 		{
-			Workflow:     "main-workflow",
-			Dependencies: []string{"shared/base.md", "local/helpers.md"},
+			WorkflowListItem: WorkflowListItem{Workflow: "main-workflow"},
+			Dependencies:     []string{"shared/base.md", "local/helpers.md"},
 		},
 	}
 
@@ -65,6 +65,6 @@ func TestRenderWorkflowDependencyTree(t *testing.T) {
 }
 
 func TestRenderWorkflowDependencyTree_Empty(t *testing.T) {
-	statuses := []WorkflowStatus{{Workflow: "standalone"}}
+	statuses := []WorkflowStatus{{WorkflowListItem: WorkflowListItem{Workflow: "standalone"}}}
 	assert.Empty(t, renderWorkflowDependencyTree(statuses), "dependency tree should be empty when no dependencies exist")
 }

@@ -170,13 +170,12 @@ func buildByRepoIndex(pins []ActionPin) map[string][]ActionPin {
 	for _, pin := range pins {
 		byRepo[pin.Repo] = append(byRepo[pin.Repo], pin)
 	}
-	for repo, repoPins := range byRepo {
+	for _, repoPins := range byRepo {
 		slices.SortFunc(repoPins, func(a, b ActionPin) int {
 			v1 := strings.TrimPrefix(a.Version, "v")
 			v2 := strings.TrimPrefix(b.Version, "v")
 			return semverutil.Compare(v2, v1) // descending by semver
 		})
-		byRepo[repo] = repoPins
 	}
 	return byRepo
 }
@@ -337,7 +336,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	if !ctx.Warnings[cacheKey] {
 		warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
 		if ctx.Resolver != nil {
-			warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+			warningMsg += ": resolution failed"
 		}
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 		ctx.Warnings[cacheKey] = true

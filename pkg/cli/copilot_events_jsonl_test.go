@@ -79,7 +79,7 @@ func realFormatEventsLine(eventType string, dataJSON string) string {
 	return `{"type":"` + eventType + `","data":` + dataJSON + `,"id":"test-id","timestamp":"2026-04-02T04:00:00.000Z"}`
 }
 
-// TestParseEventsJSONLFile verifies that parseEventsJSONLFile correctly extracts
+// TestParseEventsJSONLFile verifies that parseEventsJSONLMetrics correctly extracts
 // turns, tool calls, tool sequences, and token counts from events.jsonl using
 // the real Copilot CLI format (nested data object, tool.execution_start events).
 func TestParseEventsJSONLFile(t *testing.T) {
@@ -156,7 +156,7 @@ func TestParseEventsJSONLFile(t *testing.T) {
 			eventsPath := filepath.Join(dir, "events.jsonl")
 			require.NoError(t, os.WriteFile(eventsPath, []byte(tt.content), 0644))
 
-			metrics, err := parseEventsJSONLFile(eventsPath, false)
+			metrics, err := parseEventsJSONLMetrics(eventsPath, false)
 
 			if tt.wantErr {
 				assert.Error(t, err, "expected an error")
@@ -206,7 +206,7 @@ func TestParseEventsJSONLFile_RealArtifact(t *testing.T) {
 	eventsPath := filepath.Join(dir, "events.jsonl")
 	require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
 
-	metrics, err := parseEventsJSONLFile(eventsPath, false)
+	metrics, err := parseEventsJSONLMetrics(eventsPath, false)
 	require.NoError(t, err, "should parse without error")
 
 	assert.Equal(t, 2, metrics.Turns, "should detect 2 turns")
@@ -306,7 +306,7 @@ func TestParseEventsJSONLFile_TBT(t *testing.T) {
 		eventsPath := filepath.Join(dir, "events.jsonl")
 		require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
 
-		metrics, err := parseEventsJSONLFile(eventsPath, false)
+		metrics, err := parseEventsJSONLMetrics(eventsPath, false)
 		require.NoError(t, err, "should parse without error")
 
 		assert.Equal(t, 3, metrics.Turns, "should detect 3 turns")
@@ -322,7 +322,7 @@ func TestParseEventsJSONLFile_TBT(t *testing.T) {
 		eventsPath := filepath.Join(dir, "events.jsonl")
 		require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
 
-		metrics, err := parseEventsJSONLFile(eventsPath, false)
+		metrics, err := parseEventsJSONLMetrics(eventsPath, false)
 		require.NoError(t, err, "should parse without error")
 
 		assert.Equal(t, 1, metrics.Turns, "should detect 1 turn")
@@ -340,7 +340,7 @@ func TestParseEventsJSONLFile_TBT(t *testing.T) {
 		eventsPath := filepath.Join(dir, "events.jsonl")
 		require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
 
-		metrics, err := parseEventsJSONLFile(eventsPath, false)
+		metrics, err := parseEventsJSONLMetrics(eventsPath, false)
 		require.NoError(t, err, "should parse without error")
 
 		assert.Equal(t, 2, metrics.Turns, "should detect 2 turns")

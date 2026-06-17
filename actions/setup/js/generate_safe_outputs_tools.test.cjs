@@ -273,4 +273,37 @@ describe("generate_safe_outputs_tools", () => {
     // Description should be unchanged (no suffix applied)
     expect(result[0].description).toBe("Creates a GitHub issue.");
   });
+
+  it("dynamically marks add_comment discussion support as enabled when discussions:true", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ add_comment: { discussions: true } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const addCommentTool = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_comment");
+    expect(addCommentTool).toBeDefined();
+    expect(addCommentTool.description).toContain("Discussion comments are enabled for this workflow");
+    expect(addCommentTool.description).toContain("Supports reply_to_id for discussion threading.");
+  });
+
+  it("dynamically marks add_comment discussion support as disabled by default", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ add_comment: { max: 1 } }));
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: { add_comment: " Supports reply_to_id for discussion threading." },
+        repo_params: {},
+        dynamic_tools: [],
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const addCommentTool = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_comment");
+    expect(addCommentTool).toBeDefined();
+    expect(addCommentTool.description).toContain("Discussion comments are disabled for this workflow");
+    expect(addCommentTool.description).not.toContain("Supports reply_to_id for discussion threading.");
+  });
 });

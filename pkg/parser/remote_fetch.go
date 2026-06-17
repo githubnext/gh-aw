@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -554,7 +555,7 @@ func buildCommitLookupAPIPath(owner, repo, ref string) string {
 
 // downloadFileViaGit downloads a file from a Git repository using git commands
 // This is a fallback for when GitHub API authentication fails
-func downloadFileViaGit(owner, repo, path, ref, host string) ([]byte, error) {
+func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
 	// First, try via raw.githubusercontent.com — no auth required for public repos and
@@ -562,7 +563,7 @@ func downloadFileViaGit(owner, repo, path, ref, host string) ([]byte, error) {
 	// Only attempt raw URL for github.com repos (not GHE) since raw.githubusercontent.com
 	// only serves public GitHub content.
 	if host == "" || host == "github.com" {
-		content, rawErr := downloadFileViaRawURL(owner, repo, path, ref)
+		content, rawErr := downloadFileViaRawURL(ctx, owner, repo, path, ref)
 		if rawErr == nil {
 			return content, nil
 		}
@@ -601,7 +602,7 @@ func downloadFileViaGit(owner, repo, path, ref, host string) ([]byte, error) {
 
 // downloadFileViaRawURL fetches a file using the raw.githubusercontent.com URL.
 // This requires no authentication for public repositories and no git installation.
-func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
+func downloadFileViaRawURL(ctx context.Context, owner, repo, filePath, ref string) ([]byte, error) {
 	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filePath)
 	remoteLog.Printf("Attempting raw URL download: %s", rawURL)
 
@@ -610,7 +611,11 @@ func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
 
 	// #nosec G107 -- rawURL is constructed from workflow import configuration authored by
 	// the developer; the owner, repo, filePath, and ref are user-supplied workflow spec fields.
-	resp, err := rawClient.Get(rawURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("raw URL request failed for %s: %w", rawURL, err)
+	}
+	resp, err := rawClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("raw URL request failed for %s: %w", rawURL, err)
 	}
@@ -851,7 +856,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 	if err != nil {
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
-			content, gitErr := downloadFileViaGit(owner, repo, path, ref, host)
+			content, gitErr := downloadFileViaGit(context.Background(), owner, repo, path, ref, host)
 			if gitErr != nil {
 				remoteLog.Printf("Git fallback also failed for %s/%s/%s@%s: %v", owner, repo, path, ref, gitErr)
 				return nil, fmt.Errorf("failed to fetch file content: %w", err)
@@ -871,7 +876,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 	if err != nil {
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
-			content, gitErr := downloadFileViaGit(owner, repo, path, ref, host)
+			content, gitErr := downloadFileViaGit(context.Background(), owner, repo, path, ref, host)
 			if gitErr != nil {
 				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
 			}

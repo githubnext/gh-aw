@@ -109,6 +109,9 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		agentInfo.EngineVersions = collectEngineVersionsForMetadata(data)
 		agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)
 		metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
+		if metadata.CompilerVersion == "" && c.GetActionTag() != "" {
+			metadata.CompilerVersion = c.GetVersion()
+		}
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails
@@ -933,12 +936,15 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
 	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.
 	githubTool, hasGitHub := data.Tools["github"]
-	if hasGitHub && githubTool != false && hasGitHubLockdownExplicitlySet(githubTool) && getGitHubLockdown(githubTool) {
-		yaml.WriteString("          GITHUB_MCP_LOCKDOWN_EXPLICIT: \"true\"\n")
-		yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
-		yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
-		if customToken := getGitHubToken(githubTool); customToken != "" {
-			fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
+	if hasGitHub && githubTool != false {
+		toolConfig, _ := githubTool.(map[string]any)
+		if hasGitHubLockdownExplicitlySet(toolConfig) && getGitHubLockdown(toolConfig) {
+			yaml.WriteString("          GITHUB_MCP_LOCKDOWN_EXPLICIT: \"true\"\n")
+			yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
+			yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
+			if customToken := getGitHubToken(toolConfig); customToken != "" {
+				fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
+			}
 		}
 	}
 	// Embed custom token weights only when custom model multipliers are configured.

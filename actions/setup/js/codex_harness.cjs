@@ -439,10 +439,11 @@ async function main() {
     }
 
     const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
-    if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests) {
+    if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive) {
       const reasons = [];
       if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
       if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
+      if (nonRetryableGuard.goalAlreadyActive) reasons.push("goal is already active for this thread (use update_goal when the current goal is complete)");
       log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
       break;
     }

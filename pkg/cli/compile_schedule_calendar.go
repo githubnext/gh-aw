@@ -200,20 +200,20 @@ func intensityChar(count int) string {
 func intensityStyle(count int, isTerminal bool) lipgloss.Style {
 	if !isTerminal {
 		// Keep glyph rendering unchanged while preventing ANSI escapes in piped output.
-		return lipgloss.NewStyle()
+		return lipgloss.Style{}
 	}
 
 	switch {
 	case count == 0:
-		return lipgloss.NewStyle().Foreground(styles.ColorComment)
+		return styles.ScheduleCalendarEmpty
 	case count == 1:
-		return lipgloss.NewStyle().Foreground(styles.ColorInfo)
+		return styles.ScheduleCalendarLow
 	case count <= 3:
-		return lipgloss.NewStyle().Foreground(styles.ColorSuccess)
+		return styles.ScheduleCalendarMedium
 	case count <= 6:
-		return lipgloss.NewStyle().Foreground(styles.ColorWarning)
+		return styles.ScheduleCalendarHigh
 	default:
-		return lipgloss.NewStyle().Bold(true).Foreground(styles.ColorError)
+		return styles.ScheduleCalendarCritical
 	}
 }
 

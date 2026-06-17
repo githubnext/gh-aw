@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var cacheIntegrityLog = logger.New("workflow:cache_integrity")
@@ -106,14 +107,7 @@ func canonicalUserList(users []string) string {
 	}
 
 	// Deduplicate
-	seen := make(map[string]struct{}, len(normalized))
-	deduped := normalized[:0]
-	for _, u := range normalized {
-		if _, exists := seen[u]; !exists {
-			seen[u] = struct{}{}
-			deduped = append(deduped, u)
-		}
-	}
+	deduped := sliceutil.Deduplicate(normalized)
 
 	// Sort
 	sort.Strings(deduped)

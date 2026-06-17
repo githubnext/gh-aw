@@ -151,7 +151,7 @@ steps:
 tools:
   playwright:
     mode: cli
-    version: "v1.52.0"
+    version: "0.1.13"  # pins `@playwright/cli` npm package; see Configuration > Version
   bash:
     - "npm *"
     - "curl http://localhost:*"

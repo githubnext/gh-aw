@@ -866,22 +866,41 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) (string, error
 	return ifExpr, nil
 }
 
+// extractOnTriggerValue returns the raw value for on.<trigger> when the frontmatter
+// contains an "on" map with that trigger configured.
+func extractOnTriggerValue(frontmatter map[string]any, trigger string) (any, bool) {
+	onMap, ok := frontmatter["on"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	value, ok := onMap[trigger]
+	return value, ok
+}
+
+// extractOnTriggerMap returns the on.<trigger> value as a map when the configured
+// trigger uses object syntax.
+func extractOnTriggerMap(frontmatter map[string]any, trigger string) (map[string]any, bool) {
+	value, ok := extractOnTriggerValue(frontmatter, trigger)
+	if !ok {
+		return nil, false
+	}
+	triggerMap, ok := value.(map[string]any)
+	return triggerMap, ok
+}
+
+// normalizeStringOrStringSlice converts a string or string-like array value into a
+// []string, ignoring non-string array elements.
+func normalizeStringOrStringSlice(raw any) []string {
+	if s, ok := raw.(string); ok {
+		return []string{s}
+	}
+	return parseStringSliceAny(raw, nil)
+}
+
 // extractDeploymentStatusStateCondition reads on.deployment_status.state and converts it
 // into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
 func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
-	onValue, ok := frontmatter["on"]
-	if !ok {
-		return ""
-	}
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		return ""
-	}
-	dsValue, ok := onMap["deployment_status"]
-	if !ok {
-		return ""
-	}
-	dsMap, ok := dsValue.(map[string]any)
+	dsMap, ok := extractOnTriggerMap(frontmatter, "deployment_status")
 	if !ok {
 		return ""
 	}
@@ -891,12 +910,7 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
 	}
 
 	// GitHub Actions allows state as a single string or an array
-	var states []string
-	if s, ok := stateValue.(string); ok {
-		states = []string{s}
-	} else {
-		states = parseStringSliceAny(stateValue, nil)
-	}
+	states := normalizeStringOrStringSlice(stateValue)
 
 	if len(states) == 0 {
 		return ""
@@ -938,19 +952,7 @@ func isValidWorkflowRunConclusion(v string) bool {
 // extractWorkflowRunConclusionCondition reads on.workflow_run.conclusion and converts it
 // into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
 func extractWorkflowRunConclusionCondition(frontmatter map[string]any) (string, error) {
-	onValue, ok := frontmatter["on"]
-	if !ok {
-		return "", nil
-	}
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		return "", nil
-	}
-	wrValue, ok := onMap["workflow_run"]
-	if !ok {
-		return "", nil
-	}
-	wrMap, ok := wrValue.(map[string]any)
+	wrMap, ok := extractOnTriggerMap(frontmatter, "workflow_run")
 	if !ok {
 		return "", nil
 	}
@@ -959,17 +961,7 @@ func extractWorkflowRunConclusionCondition(frontmatter map[string]any) (string, 
 		return "", nil
 	}
 
-	var conclusions []string
-	switch v := conclusionValue.(type) {
-	case string:
-		conclusions = []string{v}
-	case []any:
-		for _, s := range v {
-			if str, ok := s.(string); ok {
-				conclusions = append(conclusions, str)
-			}
-		}
-	}
+	conclusions := normalizeStringOrStringSlice(conclusionValue)
 
 	if len(conclusions) == 0 {
 		return "", nil
@@ -1019,80 +1011,53 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 	frontmatterLog.Print("Extracting command configuration from frontmatter")
 	// Check new format: on.slash_command or on.slash_command.name (preferred)
 	// Also check legacy format: on.command or on.command.name (deprecated)
-	if onValue, exists := frontmatter["on"]; exists {
-		if onMap, ok := onValue.(map[string]any); ok {
-			var commandValue any
-			var hasCommand bool
-			var isDeprecated bool
+	commandValue, hasCommand := extractOnTriggerValue(frontmatter, "slash_command")
+	isDeprecated := false
+	if !hasCommand {
+		commandValue, hasCommand = extractOnTriggerValue(frontmatter, "command")
+		isDeprecated = hasCommand
+	}
+	if hasCommand {
+		// Show deprecation warning if using old field name
+		if isDeprecated {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'command:' trigger field is deprecated. Please use 'slash_command:' instead."))
+			c.IncrementWarningCount()
+		}
 
-			// Check for slash_command first (preferred)
-			if slashCommandValue, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
-				commandValue = slashCommandValue
-				hasCommand = true
-				isDeprecated = false
-			} else if legacyCommandValue, hasLegacyCommand := onMap["command"]; hasLegacyCommand {
-				// Fall back to command (deprecated)
-				commandValue = legacyCommandValue
-				hasCommand = true
-				isDeprecated = true
+		// Check if command is a string (shorthand format)
+		if commandStr, ok := commandValue.(string); ok {
+			frontmatterLog.Printf("Extracted command name (shorthand): %s", commandStr)
+			return []string{commandStr}, nil, false, "" // nil means default (all events)
+		}
+		// Check if command is a map with a name key (object format)
+		if commandMap, ok := commandValue.(map[string]any); ok {
+			var events []string
+			centralized := false
+			placeholder := ""
+			names := normalizeStringOrStringSlice(commandMap["name"])
+
+			// Extract events field
+			if eventsValue, hasEvents := commandMap["events"]; hasEvents {
+				events = ParseCommandEvents(eventsValue)
 			}
 
-			if hasCommand {
-				// Show deprecation warning if using old field name
-				if isDeprecated {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'command:' trigger field is deprecated. Please use 'slash_command:' instead."))
-					c.IncrementWarningCount()
-				}
-
-				// Check if command is a string (shorthand format)
-				if commandStr, ok := commandValue.(string); ok {
-					frontmatterLog.Printf("Extracted command name (shorthand): %s", commandStr)
-					return []string{commandStr}, nil, false, "" // nil means default (all events)
-				}
-				// Check if command is a map with a name key (object format)
-				if commandMap, ok := commandValue.(map[string]any); ok {
-					var names []string
-					var events []string
-					centralized := false
-					placeholder := ""
-
-					if nameValue, hasName := commandMap["name"]; hasName {
-						// Handle string or array of strings
-						if nameStr, ok := nameValue.(string); ok {
-							names = []string{nameStr}
-						} else if nameArray, ok := nameValue.([]any); ok {
-							for _, nameItem := range nameArray {
-								if nameItemStr, ok := nameItem.(string); ok {
-									names = append(names, nameItemStr)
-								}
-							}
-						}
-					}
-
-					// Extract events field
-					if eventsValue, hasEvents := commandMap["events"]; hasEvents {
-						events = ParseCommandEvents(eventsValue)
-					}
-
-					if strategyRaw, hasStrategy := commandMap["strategy"]; hasStrategy {
-						if strategy, ok := strategyRaw.(string); ok && strings.EqualFold(strings.TrimSpace(strategy), "centralized") {
-							centralized = true
-						}
-					}
-
-					// Extract optional placeholder for footer hint text
-					if placeholderRaw, hasPlaceholder := commandMap["placeholder"]; hasPlaceholder {
-						if placeholderStr, ok := placeholderRaw.(string); ok {
-							if trimmed := strings.TrimSpace(placeholderStr); trimmed != "" {
-								placeholder = trimmed
-							}
-						}
-					}
-
-					frontmatterLog.Printf("Extracted command config: names=%v, events=%v, centralized=%v, placeholder=%q", names, events, centralized, placeholder)
-					return names, events, centralized, placeholder
+			if strategyRaw, hasStrategy := commandMap["strategy"]; hasStrategy {
+				if strategy, ok := strategyRaw.(string); ok && strings.EqualFold(strings.TrimSpace(strategy), "centralized") {
+					centralized = true
 				}
 			}
+
+			// Extract optional placeholder for footer hint text
+			if placeholderRaw, hasPlaceholder := commandMap["placeholder"]; hasPlaceholder {
+				if placeholderStr, ok := placeholderRaw.(string); ok {
+					if trimmed := strings.TrimSpace(placeholderStr); trimmed != "" {
+						placeholder = trimmed
+					}
+				}
+			}
+
+			frontmatterLog.Printf("Extracted command config: names=%v, events=%v, centralized=%v, placeholder=%q", names, events, centralized, placeholder)
+			return names, events, centralized, placeholder
 		}
 	}
 
@@ -1109,15 +1074,7 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 // and removeLabel defaults to true when not specified.
 func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelNames []string, labelEvents []string, decentralized bool, removeLabel bool) {
 	frontmatterLog.Print("Extracting label-command configuration from frontmatter")
-	onValue, exists := frontmatter["on"]
-	if !exists {
-		return nil, nil, false, true
-	}
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		return nil, nil, false, true
-	}
-	labelCommandValue, hasLabelCommand := onMap["label_command"]
+	labelCommandValue, hasLabelCommand := extractOnTriggerValue(frontmatter, "label_command")
 	if !hasLabelCommand {
 		return nil, nil, false, true
 	}
@@ -1130,32 +1087,13 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 
 	// Map form: label_command: {name: "...", names: [...], events: [...], remove_label: bool}
 	if lcMap, ok := labelCommandValue.(map[string]any); ok {
-		var names []string
 		var events []string
 		decentralized := false
 		removeLabelVal := true // default to true
+		names := normalizeStringOrStringSlice(lcMap["name"])
 
-		if nameVal, hasName := lcMap["name"]; hasName {
-			if nameStr, ok := nameVal.(string); ok {
-				names = []string{nameStr}
-			} else if nameArray, ok := nameVal.([]any); ok {
-				for _, item := range nameArray {
-					if s, ok := item.(string); ok {
-						names = append(names, s)
-					}
-				}
-			}
-		}
 		if namesVal, hasNames := lcMap["names"]; hasNames {
-			if namesArray, ok := namesVal.([]any); ok {
-				for _, item := range namesArray {
-					if s, ok := item.(string); ok {
-						names = append(names, s)
-					}
-				}
-			} else if namesStr, ok := namesVal.(string); ok {
-				names = append(names, namesStr)
-			}
+			names = append(names, normalizeStringOrStringSlice(namesVal)...)
 		}
 
 		if eventsVal, hasEvents := lcMap["events"]; hasEvents {

@@ -11,6 +11,84 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestDispatchWorkflowConfigTargetRepo verifies that dispatch-workflow correctly parses
+// target-repo and allowed-repos fields.
+func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name          string
+		configMap     map[string]any
+		expectedRepo  string
+		expectedRepos []string
+		expectedToken string
+	}{
+		{
+			name: "target-repo and allowed-repos configured",
+			configMap: map[string]any{
+				"dispatch-workflow": map[string]any{
+					"workflows":     []any{"worker"},
+					"target-repo":   "githubnext/gh-aw-side-repo",
+					"allowed-repos": []any{"githubnext/gh-aw-side-repo"},
+					"github-token":  "${{ secrets.TEMP_USER_PAT }}",
+				},
+			},
+			expectedRepo:  "githubnext/gh-aw-side-repo",
+			expectedRepos: []string{"githubnext/gh-aw-side-repo"},
+			expectedToken: "${{ secrets.TEMP_USER_PAT }}",
+		},
+		{
+			name: "multiple allowed repos",
+			configMap: map[string]any{
+				"dispatch-workflow": map[string]any{
+					"workflows":     []any{"worker"},
+					"target-repo":   "org/primary-repo",
+					"allowed-repos": []any{"org/primary-repo", "org/secondary-repo"},
+				},
+			},
+			expectedRepo:  "org/primary-repo",
+			expectedRepos: []string{"org/primary-repo", "org/secondary-repo"},
+			expectedToken: "",
+		},
+		{
+			name: "allowed-repos as GitHub Actions expression",
+			configMap: map[string]any{
+				"dispatch-workflow": map[string]any{
+					"workflows":     []any{"worker"},
+					"target-repo":   "${{ inputs.target_repo }}",
+					"allowed-repos": "${{ inputs['allowed-repos'] }}",
+				},
+			},
+			expectedRepo:  "${{ inputs.target_repo }}",
+			expectedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+			expectedToken: "",
+		},
+		{
+			name: "no cross-repo config",
+			configMap: map[string]any{
+				"dispatch-workflow": map[string]any{
+					"workflows": []any{"worker"},
+					"max":       2,
+				},
+			},
+			expectedRepo:  "",
+			expectedRepos: nil,
+			expectedToken: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := compiler.parseDispatchWorkflowConfig(tt.configMap)
+
+			require.NotNil(t, cfg, "config should not be nil")
+			assert.Equal(t, tt.expectedRepo, cfg.TargetRepoSlug, "TargetRepoSlug mismatch")
+			assert.Equal(t, tt.expectedRepos, cfg.AllowedRepos, "AllowedRepos mismatch")
+			assert.Equal(t, tt.expectedToken, cfg.GitHubToken, "GitHubToken mismatch")
+		})
+	}
+}
+
 // TestCreateCodeScanningAlertConfigTargetRepo verifies that create-code-scanning-alert
 // correctly parses target-repo and allowed-repos fields.
 func TestCreateCodeScanningAlertConfigTargetRepo(t *testing.T) {
@@ -416,6 +494,42 @@ func TestPushToPullRequestBranchCrossRepoInHandlerConfig(t *testing.T) {
 	assert.Equal(t, "githubnext/gh-aw-side-repo", pushBranch["target-repo"], "target-repo should be in handler config")
 
 	allowedRepos, ok := pushBranch["allowed_repos"]
+	require.True(t, ok, "allowed_repos should be present")
+	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
+}
+
+// TestDispatchWorkflowCrossRepoInHandlerConfig verifies that target-repo, allowed-repos,
+// and github-token are included in the handler manager config JSON for dispatch-workflow.
+func TestDispatchWorkflowCrossRepoInHandlerConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test",
+		SafeOutputs: &SafeOutputsConfig{
+			DispatchWorkflow: &DispatchWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubToken: "${{ secrets.TEMP_USER_PAT }}",
+				},
+				Workflows:      []string{"worker"},
+				TargetRepoSlug: "githubnext/gh-aw-side-repo",
+				AllowedRepos:   []string{"githubnext/gh-aw-side-repo"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	require.NotEmpty(t, steps)
+	handlerConfig := extractHandlerConfig(t, strings.Join(steps, ""))
+
+	dispatchWorkflow, ok := handlerConfig["dispatch_workflow"]
+	require.True(t, ok, "dispatch_workflow config should be present")
+
+	assert.Equal(t, "${{ secrets.TEMP_USER_PAT }}", dispatchWorkflow["github-token"], "github-token should be in handler config")
+	assert.Equal(t, "githubnext/gh-aw-side-repo", dispatchWorkflow["target-repo"], "target-repo should be in handler config")
+
+	allowedRepos, ok := dispatchWorkflow["allowed_repos"]
 	require.True(t, ok, "allowed_repos should be present")
 	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
 }

@@ -40,6 +40,21 @@ func nextH2After(offset int, h2Positions []int, markdownLength int) int {
 	return markdownLength
 }
 
+// extractInlineSections collects all sections delimited by marker positions in
+// markdown. The caller provides allStarts (already validated non-empty), and a
+// makeItem factory that converts a (name, content) pair into the desired result
+// type T. It returns the trimmed main markdown (the text before the first
+// marker) and the collected items.
+func extractInlineSections[T any](markdown string, allStarts [][]int, makeItem func(name, content string) T) (mainMarkdown string, items []T) {
+	mainMarkdown = strings.TrimRight(markdown[:allStarts[0][0]], "\n")
+	h2Positions := collectH2Positions(markdown)
+	for _, m := range allStarts {
+		name, content := extractInlineSection(markdown, m, h2Positions)
+		items = append(items, makeItem(name, content))
+	}
+	return mainMarkdown, items
+}
+
 func validateUniqueInlineSectionNames(markdown string, allStarts [][]int, createDuplicateError func(name string) error) error {
 	seen := make(map[string]struct{})
 	for _, m := range allStarts {

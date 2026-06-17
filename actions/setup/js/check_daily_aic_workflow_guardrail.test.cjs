@@ -10,6 +10,8 @@ describe("check_daily_aic_workflow_guardrail", () => {
     vi.resetModules();
     process.env.GITHUB_EVENT_NAME = "";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
+    process.env.GH_AW_HAS_SLASH_COMMAND = "false";
+    process.env.GH_AW_HAS_LABEL_COMMAND = "false";
     const mod = await import("./check_daily_aic_workflow_guardrail.cjs");
     exports = mod.default || mod;
   });
@@ -17,9 +19,11 @@ describe("check_daily_aic_workflow_guardrail", () => {
   afterEach(() => {
     delete process.env.GITHUB_EVENT_NAME;
     delete process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT;
+    delete process.env.GH_AW_HAS_SLASH_COMMAND;
+    delete process.env.GH_AW_HAS_LABEL_COMMAND;
   });
 
-  it("skips workflow_call, repository_dispatch, and workflow_dispatch with aw_context", () => {
+  it("skips workflow_call, repository_dispatch, and workflow_dispatch (manual and aw_context)", () => {
     process.env.GITHUB_EVENT_NAME = "workflow_call";
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
@@ -27,44 +31,64 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"schedule"}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"workflow_dispatch"}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "";
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
   });
 
-  it("does not skip for label command triggers in aw_context", () => {
+  it("skips for label command triggers in aw_context", () => {
     process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request","trigger_label":"smoke"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issues","trigger_label":"ci-doctor"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-  });
-
-  it("does not skip for slash command triggers in aw_context", () => {
-    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issue_comment","trigger_label":""}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request_review_comment"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"discussion_comment"}';
-    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
-  });
-
-  it("skips for workflow_dispatch with aw_context that has no trigger_label and non-slash event_type", () => {
-    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
-    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"push","trigger_label":""}';
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
 
-    // Malformed JSON should still skip (safe fallback)
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issues","trigger_label":"ci-doctor"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for slash command triggers in aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"issue_comment","trigger_label":""}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"pull_request_review_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = '{"event_type":"discussion_comment"}';
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for workflow_dispatch with malformed aw_context", () => {
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
     process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT = "not-json";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for non-centralized slash command events only when slash command is enabled", () => {
+    process.env.GITHUB_EVENT_NAME = "issue_comment";
+    process.env.GH_AW_HAS_SLASH_COMMAND = "false";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_HAS_SLASH_COMMAND = "true";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GITHUB_EVENT_NAME = "pull_request_review_comment";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+  });
+
+  it("skips for non-centralized label command events only when label command is enabled", () => {
+    process.env.GITHUB_EVENT_NAME = "issues";
+    process.env.GH_AW_HAS_LABEL_COMMAND = "false";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(false);
+
+    process.env.GH_AW_HAS_LABEL_COMMAND = "true";
+    expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
+
+    process.env.GITHUB_EVENT_NAME = "pull_request";
     expect(exports.shouldSkipDailyAICGuardrail()).toBe(true);
   });
 
@@ -358,6 +382,102 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
+  it("main() stops paginating as soon as a run older than the 24h cutoff is found", async () => {
+    const nowIso = new Date().toISOString();
+    const staleIso = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+
+    let listCallCount = 0;
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: { workflow_id: 999, actor: { login: "bot" }, triggering_actor: { login: "bot" } },
+            headers: {},
+          }),
+          listWorkflowRuns: async ({ page }) => {
+            listCallCount += 1;
+            // Page 1: one recent run followed by a stale run.
+            // If early-exit works, page 2 should never be requested.
+            if (page === 1) {
+              return {
+                data: {
+                  workflow_runs: [
+                    { id: 10, html_url: "https://example.test/runs/10", created_at: nowIso, conclusion: "success" },
+                    // A stale run: encountering this should immediately stop pagination.
+                    { id: 9, html_url: "https://example.test/runs/9", created_at: staleIso, conclusion: "success" },
+                  ],
+                },
+                headers: {},
+              };
+            }
+            // Should never reach page 2.
+            return { data: { workflow_runs: [] }, headers: {} };
+          },
+        },
+      },
+    };
+
+    const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(50);
+
+    const coreOutputs = {};
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: () => {},
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    const mockContext = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+
+      // Only page 1 should have been fetched; the stale run should have
+      // terminated pagination before page 2 was requested.
+      expect(listCallCount).toBe(1);
+
+      // Only the recent run (id: 10) should have been inspected.
+      expect(getRunAICSpy).toHaveBeenCalledTimes(1);
+      expect(getRunAICSpy.mock.calls[0][1]).toBe(10);
+
+      // Guardrail not exceeded (50 < 1000).
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GITHUB_EVENT_NAME;
+      getRunAICSpy.mockRestore();
+    }
+  });
+
   it("main() marks the step failed when the daily AI Credits guardrail is exceeded", async () => {
     const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(200);
 
@@ -452,5 +572,94 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete process.env.GITHUB_EVENT_NAME;
       getRunAICSpy.mockRestore();
     }
+  });
+
+  describe("loadAICUsageCache", () => {
+    let tmpDir;
+    let cacheFile;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-cache-test-"));
+      cacheFile = path.join(tmpDir, "agentic-workflow-usage-cache.jsonl");
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      delete global.core;
+    });
+
+    it("returns an empty map when the cache file does not exist", () => {
+      const cache = exports.loadAICUsageCache(path.join(tmpDir, "nonexistent.jsonl"));
+      expect(cache).toBeInstanceOf(Map);
+      expect(cache.size).toBe(0);
+    });
+
+    it("returns an empty map when the cache file is empty", () => {
+      fs.writeFileSync(cacheFile, "", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache).toBeInstanceOf(Map);
+      expect(cache.size).toBe(0);
+    });
+
+    it("parses valid JSONL entries into a run_id → aic map", () => {
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 101, aic: 5.5 }), JSON.stringify({ run_id: 202, aic: 12.0 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.size).toBe(2);
+      expect(cache.get(101)).toBe(5.5);
+      expect(cache.get(202)).toBe(12.0);
+    });
+
+    it("skips malformed lines without throwing", () => {
+      fs.writeFileSync(cacheFile, ["not-json-at-all", JSON.stringify({ run_id: 303, aic: 7.0 }), "{bad json", "", JSON.stringify({ run_id: 404, aic: 3.0 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.size).toBe(2);
+      expect(cache.get(303)).toBe(7.0);
+      expect(cache.get(404)).toBe(3.0);
+    });
+
+    it("uses the last entry when run_id appears more than once (last-writer-wins)", () => {
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 505, aic: 1.0 }), JSON.stringify({ run_id: 505, aic: 9.9 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.size).toBe(1);
+      expect(cache.get(505)).toBe(9.9);
+    });
+
+    it("loads entries with aic = 0 and skips entries with negative or non-finite aic values", () => {
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 601, aic: 0 }), JSON.stringify({ run_id: 602, aic: -1.5 }), JSON.stringify({ run_id: 603, aic: null }), JSON.stringify({ run_id: 604, aic: 4.2 })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      // aic = 0 is loaded (agent was blocked, legitimately used 0 credits)
+      expect(cache.has(601)).toBe(true);
+      expect(cache.get(601)).toBe(0);
+      // negative and non-finite aic values are skipped
+      expect(cache.has(602)).toBe(false);
+      expect(cache.has(603)).toBe(false);
+      expect(cache.get(604)).toBe(4.2);
+    });
+
+    it("loads entries that have a recent timestamp (within 48 h)", () => {
+      const recentTimestamp = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+      fs.writeFileSync(cacheFile, JSON.stringify({ run_id: 701, aic: 8.0, timestamp: recentTimestamp }) + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(701)).toBe(true);
+      expect(cache.get(701)).toBe(8.0);
+    });
+
+    it("skips entries whose timestamp is older than 48 h", () => {
+      const staleTimestamp = new Date(Date.now() - 49 * 60 * 60 * 1000).toISOString(); // 49 hours ago
+      const recentTimestamp = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 minutes ago
+      fs.writeFileSync(cacheFile, [JSON.stringify({ run_id: 801, aic: 3.0, timestamp: staleTimestamp }), JSON.stringify({ run_id: 802, aic: 5.0, timestamp: recentTimestamp })].join("\n") + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(801)).toBe(false);
+      expect(cache.has(802)).toBe(true);
+      expect(cache.get(802)).toBe(5.0);
+    });
+
+    it("keeps entries without a timestamp (backward compatibility)", () => {
+      fs.writeFileSync(cacheFile, JSON.stringify({ run_id: 901, aic: 2.5 }) + "\n", "utf8");
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(901)).toBe(true);
+      expect(cache.get(901)).toBe(2.5);
+    });
   });
 });

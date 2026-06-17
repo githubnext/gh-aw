@@ -46,10 +46,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
       For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.
       Use full https://github.com/... source URLs for other public github.com workflows.
 
-` + WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` update                    # Update all workflows from source
+` + WorkflowIDExplanation,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` update                    # Update all workflows from source
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist        # Update a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist.md     # Same (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream

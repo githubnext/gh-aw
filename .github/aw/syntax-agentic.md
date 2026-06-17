@@ -25,10 +25,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Bot must be active (installed) on repository to trigger workflow
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - Must be `true`
-- **`max-runs:`** - Maximum number of LLM invocations allowed per workflow run (integer or numeric string, minimum: 1)
-  - Top-level field mapped to `apiProxy.maxRuns`
-  - Supported by all engines
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
+- **`max-runs:`** - Deprecated legacy alias for the AWF invocation cap (`apiProxy.maxRuns`, defaults to `500` when omitted). Use `max-turns` instead; run `gh aw fix` to migrate.
 - **`max-ai-credits:`** - Per-run AI Credits (AIC) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `1000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
 - **`max-daily-ai-credits:`** - Per-user 24-hour AI Credits (AIC) guardrail: activation blocks execution once the triggering user's aggregated AI Credits for this workflow over the last 24h exceed the threshold (integer or `K`/`M` short-form string, or `-1`). Enabled by default with a system default threshold; set `-1` to disable or an explicit value to override. See [token-optimization.md](token-optimization.md).
 - **`user-rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
@@ -36,7 +34,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **`window:`** - Time window in minutes (integer 1-180, default: 60)
   - **`events:`** - Event types to apply rate limiting to (array; if omitted, applies to all programmatic events)
     - Available: `workflow_dispatch`, `issue_comment`, `pull_request_review`, `pull_request_review_comment`, `issues`, `pull_request`, `discussion_comment`, `discussion`
-  - **`ignored-roles:`** - Roles exempt from rate limiting (array, default: `[admin, maintain, write]`). Set to `[]` to apply to all users.
+  - **`ignored-roles:`** - Roles exempt from rate limiting (array of `admin`, `maintain`, `write`, `triage`, `read`; default: `[admin, maintain, write]`). Set to `[]` to apply to all users.
   - Example:
 
     ```yaml
@@ -270,12 +268,12 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - `setup-steps`/`pre-steps` also apply to built-in jobs (e.g. `activation`): use `setup-steps` for OIDC/secret bootstrap that must run before framework token minting, then verify the result in `pre-steps`.
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or `"opencode"` (experimental)
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"opencode"`, `"crush"`, `"pi"`
   - Object format for extended configuration:
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini, or opencode)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: opencode, crush, pi)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
@@ -303,6 +301,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
   - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
   - **`copilot-sdk` / `copilot-sdk-driver`** (experimental, copilot only): set `copilot-sdk: true` to start a headless Copilot CLI SDK sidecar; `copilot-sdk-driver: <path-or-command>` supplies a custom driver (`.js`/`.cjs`/`.mjs`/`.py`/`.ts`/`.mts`/`.rb`, or a bare PATH command) and implies `copilot-sdk: true`. Tune the repeated-tool-denial safeguard with the top-level `max-tool-denials:` field (default `5`).
+  - **`engine.auth:`** — keyless Workload Identity Federation via the AWF API proxy instead of a static API key; requires `id-token: write`. Set `type: github-oidc` (only supported type) plus `provider: azure` (`azure-tenant-id`, `azure-client-id`, optional `azure-scope`/`azure-cloud`) for Azure OpenAI, or `provider: anthropic` (`federation-rule-id`, `organization-id`, `service-account-id`, `workspace-id`) for Claude. Optional `audience:`. Maps to `AWF_AUTH_*` env vars.
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)
@@ -451,7 +450,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - `runs-on:` — runner for safe-output jobs (default: `ubuntu-slim`)
   - `messages:` — custom footer/notification message templates
   - `env:` — environment variables for safe-output jobs
-  - `max-patch-size:` — maximum git patch size in KB (default: 1024)
+  - `max-patch-size:` — maximum git patch size in KB (default: 4096)
 
 
 - **`mcp-scripts:`** - Define custom lightweight MCP tools as JavaScript, shell, Python, or Go scripts (object)

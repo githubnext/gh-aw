@@ -54,7 +54,7 @@ func TestGitHubLockdownField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			githubTool := tt.toolsMap["github"]
+			githubTool, _ := tt.toolsMap["github"].(map[string]any)
 			result := getGitHubLockdown(githubTool)
 			if result != tt.expected {
 				t.Errorf("getGitHubLockdown() = %v, want %v", result, tt.expected)

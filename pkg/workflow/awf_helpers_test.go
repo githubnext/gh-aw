@@ -5,10 +5,12 @@ package workflow
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -269,6 +271,37 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 		assert.NotContains(t, argsStr, "--openai-api-target", "Should not emit --openai-api-target as CLI flag")
 		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag")
+	})
+}
+
+func TestApplyDefaultMaxAICreditsEnvToMap(t *testing.T) {
+	t.Run("sets default agent expression when max-ai-credits is unset", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+		})
+		assert.Equal(t, compilerenv.BuildDefaultMaxAICreditsExpression(strconv.FormatInt(constants.DefaultMaxAICredits, 10)), env[awfMaxAICreditsVarName])
+	})
+
+	t.Run("sets default detection expression for detection runs", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			IsDetectionRun: true,
+			EngineConfig:   &EngineConfig{ID: "copilot"},
+		})
+		assert.Equal(t, compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)), env[awfMaxAICreditsVarName])
+	})
+
+	t.Run("does not set expression when max-ai-credits is configured", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID:           "copilot",
+				MaxAICredits: 777,
+			},
+		})
+		_, exists := env[awfMaxAICreditsVarName]
+		assert.False(t, exists)
 	})
 }
 
@@ -876,6 +909,71 @@ func TestGetCopilotAPITarget(t *testing.T) {
 	}
 }
 
+func TestGetCopilotAllowlistTargets(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     []string
+	}{
+		{
+			name: "includes BYOK provider host and api-target when both are configured",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "api.acme.ghe.com",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://llm.corp.example.com/v1",
+					},
+				},
+			},
+			expected: []string{"llm.corp.example.com", "api.acme.ghe.com"},
+		},
+		{
+			name: "includes only BYOK provider host when no copilot api target is configured",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+					},
+				},
+			},
+			expected: []string{"localhost:11434"},
+		},
+		{
+			name: "deduplicates identical provider and api targets",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "llm.corp.example.com",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://llm.corp.example.com/v1",
+					},
+				},
+			},
+			expected: []string{"llm.corp.example.com"},
+		},
+		{
+			name: "skips provider host extraction when BYOK base URL is a GitHub expression",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
+					},
+				},
+			},
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, GetCopilotAllowlistTargets(tt.workflowData), "GetCopilotAllowlistTargets should return expected targets for %s", tt.name)
+		})
+	}
+}
+
 // TestCopilotEngineIncludesCopilotAPITargetFromEnvVar tests that the Copilot engine execution
 // step includes the copilot API target in the JSON config when GITHUB_COPILOT_BASE_URL is
 // configured in engine.env.
@@ -1273,47 +1371,65 @@ func TestAWFSupportsDockerHostPathPrefix(t *testing.T) {
 }
 
 // TestArcDindDockerHostDetection exercises the generated shell snippet that probes
-// DOCKER_HOST and sets --docker-host-path-prefix. It runs the snippet in a real
-// bash subprocess with various DOCKER_HOST values to verify runtime behavior.
+// DOCKER_HOST and conditionally sets both the --docker-host passthrough value and
+// --docker-host-path-prefix. It runs the snippet in a real bash subprocess with
+// various DOCKER_HOST values to verify runtime behavior.
 func TestArcDindDockerHostDetection(t *testing.T) {
 	tests := []struct {
-		name       string
-		dockerHost string
-		wantSet    bool
+		name            string
+		dockerHost      string
+		wantPrefixSet   bool
+		wantDockerHost  bool
+		wantDockerHostV string
 	}{
-		{"tcp://localhost:2375", "tcp://localhost:2375", true},
-		{"tcp://127.0.0.1:2375", "tcp://127.0.0.1:2375", true},
-		{"tcp://dind:2375 (K8s service name)", "tcp://dind:2375", true},
-		{"tcp://172.30.0.5:2375 (pod IP)", "tcp://172.30.0.5:2375", true},
-		{"tcp://dind-sidecar.default.svc:2376", "tcp://dind-sidecar.default.svc:2376", true},
-		{"unix socket (not tcp)", "unix:///var/run/docker.sock", false},
-		{"bare path", "/var/run/docker.sock", false},
-		{"empty (unset)", "", false},
+		{"tcp://localhost:2375", "tcp://localhost:2375", true, true, "tcp://localhost:2375"},
+		{"tcp://127.0.0.1:2375", "tcp://127.0.0.1:2375", true, true, "tcp://127.0.0.1:2375"},
+		{"tcp://dind:2375 (K8s service name)", "tcp://dind:2375", true, true, "tcp://dind:2375"},
+		{"tcp://172.30.0.5:2375 (pod IP)", "tcp://172.30.0.5:2375", true, true, "tcp://172.30.0.5:2375"},
+		{"tcp://dind-sidecar.default.svc:2376", "tcp://dind-sidecar.default.svc:2376", true, true, "tcp://dind-sidecar.default.svc:2376"},
+		{"unix socket (not tcp)", "unix:///var/run/docker.sock", false, false, ""},
+		{"bare path", "/var/run/docker.sock", false, false, ""},
+		{"empty (unset)", "", false, false, ""},
 	}
 
 	// Build the shell snippet from the constant (same code the compiler emits).
 	scriptTemplate := fmt.Sprintf(`#!/bin/bash
 export DOCKER_HOST="%%s"
+GH_AW_DOCKER_HOST=""
+if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
+  GH_AW_DOCKER_HOST="${DOCKER_HOST}"
+fi
 GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="%s"
 fi
-echo "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
-`, awfArcDindDockerHostRegex, awfArcDindHostPathPrefixFlag)
+printf 'docker-host=%%%%s\n' "$GH_AW_DOCKER_HOST"
+printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+`, awfArcDindDockerHostRegex, awfArcDindDockerHostRegex, awfArcDindHostPathPrefixFlag)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			script := fmt.Sprintf(scriptTemplate, tt.dockerHost)
 			cmd := exec.Command("bash", "-c", script)
-			out, err := cmd.Output()
-			require.NoError(t, err, "bash script should succeed")
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, "bash script should succeed, output: %s", string(out))
 
-			got := strings.TrimSpace(string(out))
-			if tt.wantSet {
-				assert.Equal(t, awfArcDindHostPathPrefixFlag, got,
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			require.Len(t, lines, 2)
+			gotDockerHost := strings.TrimPrefix(lines[0], "docker-host=")
+			gotPrefix := strings.TrimPrefix(lines[1], "docker-host-path-prefix=")
+			if tt.wantDockerHost {
+				assert.Equal(t, tt.wantDockerHostV, gotDockerHost,
+					"expected docker host passthrough value to be set for DOCKER_HOST=%s", tt.dockerHost)
+			} else {
+				assert.Empty(t, gotDockerHost,
+					"expected docker host passthrough value to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
+			}
+			if tt.wantPrefixSet {
+				assert.Equal(t, awfArcDindHostPathPrefixFlag, gotPrefix,
 					"expected --docker-host-path-prefix to be set for DOCKER_HOST=%s", tt.dockerHost)
 			} else {
-				assert.Empty(t, got,
+				assert.Empty(t, gotPrefix,
 					"expected --docker-host-path-prefix to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
 			}
 		})
@@ -1362,8 +1478,110 @@ func TestAWFSupportsTokenSteering(t *testing.T) {
 	}
 }
 
-// TestGetGeminiAPITarget tests the GetGeminiAPITarget helper that resolves the effective
-// Gemini API target from GEMINI_API_BASE_URL in engine.env or the default endpoint.
+// TestAWFSupportsChrootConfig tests the awfSupportsChrootConfig version gate.
+func TestAWFSupportsChrootConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config returns true (uses default version)",
+			firewallConfig: nil,
+			want:           true,
+		},
+		{
+			name:           "empty version returns true (uses default version)",
+			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "latest returns true",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.27.1 supports chroot config (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.27.1"},
+			want:           true,
+		},
+		{
+			name:           "v0.27.0 does not support chroot config",
+			firewallConfig: &FirewallConfig{Version: "v0.27.0"},
+			want:           false,
+		},
+		{
+			name:           "v0.25.44 (old) does not support chroot config",
+			firewallConfig: &FirewallConfig{Version: "v0.25.44"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsChrootConfig(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsChrootConfig result")
+		})
+	}
+}
+
+// TestBuildAWFCommand_IncludesChrootInjectScript verifies that BuildAWFCommand
+// includes the chroot injection script in the generated run step when the AWF
+// version supports it.
+func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
+	t.Run("chroot inject script present when AWF version supports it", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:    "copilot",
+			EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
+			LogFile:       "/tmp/gh-aw/agent-stdio.log",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: string(constants.AWFChrootConfigMinVersion),
+					},
+				},
+			},
+		}
+		command := BuildAWFCommand(config)
+		assert.Contains(t, command, "binariesSourcePath",
+			"command should include chroot inject script reference to binariesSourcePath")
+		assert.Contains(t, command, awfArcDindChrootBinariesSourcePath,
+			"command should include the expected binariesSourcePath constant")
+		assert.Contains(t, command, awfArcDindChrootIdentityHome,
+			"command should include the expected identity.home constant")
+		assert.Contains(t, command, awfArcDindDockerHostRegex,
+			"chroot inject script should reuse the DinD Docker host regex")
+		// Structural: the chroot injection must appear *after* the DOCKER_HOST guard,
+		// confirming it is nested inside the if-block and not emitted at top level.
+		dockerhostIdx := strings.Index(command, awfArcDindDockerHostRegex)
+		binariesIdx := strings.Index(command, "binariesSourcePath")
+		assert.Greater(t, binariesIdx, dockerhostIdx,
+			"chroot injection must appear after the DOCKER_HOST guard in the generated script")
+	})
+
+	t.Run("chroot inject script absent when AWF version too old", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:    "copilot",
+			EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
+			LogFile:       "/tmp/gh-aw/agent-stdio.log",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.27.0",
+					},
+				},
+			},
+		}
+		command := BuildAWFCommand(config)
+		assert.NotContains(t, command, "binariesSourcePath",
+			"command should NOT include chroot inject script for old AWF version")
+	})
+}
+
 func TestGetGeminiAPITarget(t *testing.T) {
 	tests := []struct {
 		name         string

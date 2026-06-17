@@ -182,7 +182,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if !isNilValue(fc.RunsOn) {
 		result["runs-on"] = fc.RunsOn
 	}
-	if fc.RunsOnSlim != "" {
+	if !isEmptyRunsOnValue(fc.RunsOnSlim) {
 		result["runs-on-slim"] = fc.RunsOnSlim
 	}
 	if fc.RunName != "" {

@@ -13,11 +13,16 @@ const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_r
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Cache entries older than this threshold (in ms) are skipped when loading. */
+const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
 const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
+
+/** Path where the per-workflow usage cache is restored by the activation job's cache-restore step. */
+const AIC_USAGE_CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
 
 /**
  * @returns {Promise<DefaultArtifactClient>}
@@ -61,6 +66,20 @@ function logDailyGuardrail(message, details) {
  * typing a slash command in a comment, and the daily guardrail should not be skipped.
  */
 const SLASH_COMMAND_EVENT_TYPES = ["issue_comment", "pull_request_review_comment", "discussion_comment"];
+const SLASH_COMMAND_TRIGGERING_EVENTS = ["issues", "issue_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"];
+const LABEL_COMMAND_TRIGGERING_EVENTS = ["issues", "pull_request", "discussion"];
+
+/**
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function envFlagEnabled(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
 
 /**
  * @returns {boolean}
@@ -69,24 +88,103 @@ function shouldSkipDailyAICGuardrail() {
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const isWorkflowCall = eventName === "workflow_call";
   const isRepositoryDispatch = eventName === "repository_dispatch";
+  const hasSlashCommand = envFlagEnabled(process.env.GH_AW_HAS_SLASH_COMMAND);
+  const hasLabelCommand = envFlagEnabled(process.env.GH_AW_HAS_LABEL_COMMAND);
   const rawContext = (process.env.GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT || "").trim();
   const hasDispatchContext = rawContext !== "";
-  if (!(isWorkflowCall || isRepositoryDispatch || (eventName === "workflow_dispatch" && hasDispatchContext))) {
-    return false;
+  if (isWorkflowCall || isRepositoryDispatch) {
+    return true;
   }
-  if (eventName === "workflow_dispatch" && hasDispatchContext) {
+  if (eventName === "workflow_dispatch") {
+    // Manual user-triggered runs intentionally bypass the daily guardrail.
+    if (!hasDispatchContext) {
+      return true;
+    }
+    // Dispatch-routed slash/label commands intentionally bypass the daily guardrail.
     try {
       const awContext = JSON.parse(rawContext);
       const isLabelCommand = typeof awContext.trigger_label === "string" && awContext.trigger_label.trim() !== "";
       const isSlashCommand = SLASH_COMMAND_EVENT_TYPES.includes(awContext.event_type);
       if (isLabelCommand || isSlashCommand) {
-        return false;
+        return true;
       }
     } catch {
-      // Malformed aw_context: fall through and skip as before.
+      // Malformed aw_context: skip guardrail as a safe fallback for manual dispatch.
     }
+    // Existing behavior: dispatch-routed runs with aw_context bypass the guardrail.
+    return true;
   }
-  return true;
+  if (hasSlashCommand && SLASH_COMMAND_TRIGGERING_EVENTS.includes(eventName)) {
+    return true;
+  }
+  if (hasLabelCommand && LABEL_COMMAND_TRIGGERING_EVENTS.includes(eventName)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Loads the per-workflow usage cache from the JSONL file restored by the activation job's
+ * cache-restore step.  Each line is a JSON object `{ run_id: number, aic: number, timestamp?: string }`.
+ *
+ * Entries with a `timestamp` older than {@link CACHE_RETENTION_MS} (48 h) are skipped so that
+ * stale data cannot inflate the daily-AIC total.  Entries without a `timestamp` (written by an
+ * older version of the write script) are kept for backward compatibility.
+ *
+ * Returns a `Map<runId, aic>` so that callers can check whether a prior run's AIC is already
+ * known without downloading the run's artifact from the GitHub API.
+ *
+ * @param {string} [filePath]
+ * @returns {Map<number, number>}
+ */
+function loadAICUsageCache(filePath) {
+  const cachePath = filePath || AIC_USAGE_CACHE_FILE_PATH;
+  /** @type {Map<number, number>} */
+  const cache = new Map();
+  try {
+    if (!fs.existsSync(cachePath)) {
+      logDailyGuardrail("No usage cache file found; all runs will be resolved via API", { path: cachePath });
+      return cache;
+    }
+    const content = fs.readFileSync(cachePath, "utf8");
+    const now = Date.now();
+    const cutoff = now - CACHE_RETENTION_MS;
+    let loaded = 0;
+    let skippedStale = 0;
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (!line || !line.startsWith("{")) {
+        continue;
+      }
+      try {
+        const entry = JSON.parse(line);
+        // Skip entries that have a timestamp and are older than the retention window.
+        if (typeof entry?.timestamp === "string") {
+          const ts = Date.parse(entry.timestamp);
+          if (Number.isFinite(ts) && ts < cutoff) {
+            skippedStale++;
+            continue;
+          }
+        }
+        const runId = Number(entry?.run_id);
+        const rawAic = entry?.aic;
+        const aic = typeof rawAic === "number" ? rawAic : NaN;
+        if (Number.isFinite(runId) && runId > 0 && Number.isFinite(aic) && aic >= 0) {
+          cache.set(runId, aic);
+          loaded++;
+        }
+      } catch {
+        // Ignore malformed lines.
+      }
+    }
+    logDailyGuardrail("Loaded usage cache", { path: cachePath, entriesLoaded: loaded, skippedStale });
+  } catch (err) {
+    logDailyGuardrail("Failed to load usage cache; proceeding without it", {
+      path: cachePath,
+      error: typeof err === "object" && err !== null && "message" in err ? String(err.message) : String(err),
+    });
+  }
+  return cache;
 }
 
 /**
@@ -322,7 +420,7 @@ async function main() {
     return;
   }
   if (shouldSkipDailyAICGuardrail()) {
-    core.info("Skipping daily workflow AI Credits guardrail for workflow_call, repository_dispatch, or workflow_dispatch with aw_context.");
+    core.info("Skipping daily workflow AI Credits guardrail for manual or command-driven runs.");
     return;
   }
 
@@ -382,6 +480,11 @@ async function main() {
     const candidateRuns = [];
     let page = 1;
     let truncatedByRateLimit = false;
+    // listWorkflowRuns returns runs in descending creation order (newest first).
+    // The first run whose created_at falls before the cutoff means all remaining
+    // runs on this page and every subsequent page are also outside the window, so
+    // we can stop paginating immediately rather than exhausting the page budget.
+    let reachedCutoff = false;
     while (page <= MAX_WORKFLOW_RUN_PAGES) {
       logDailyGuardrail("Querying completed workflow runs", {
         workflowId: currentRun.data.workflow_id,
@@ -401,7 +504,8 @@ async function main() {
       logDailyGuardrail("Received workflow runs page", {
         page,
         runCount: runs.length,
-        runIds: runs.map(run => run?.id).filter(Boolean),
+        firstRunId: runs[0]?.id ?? null,
+        lastRunId: runs[runs.length - 1]?.id ?? null,
       });
       if (runs.length === 0) {
         break;
@@ -412,7 +516,10 @@ async function main() {
         }
         const createdAtMs = Date.parse(run.created_at || "");
         if (!Number.isFinite(createdAtMs) || createdAtMs < cutoffMs) {
-          continue;
+          // Runs are newest-first; any run older than the cutoff means all
+          // remaining runs (and pages) are also outside the 24h window.
+          reachedCutoff = true;
+          break;
         }
         candidateRuns.push(run);
         if (candidateRuns.length >= maxInspectableRuns) {
@@ -420,7 +527,7 @@ async function main() {
           break;
         }
       }
-      if (candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
+      if (reachedCutoff || candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
         break;
       }
       page += 1;
@@ -432,17 +539,28 @@ async function main() {
       truncatedByRateLimit,
     });
 
+    // Load the per-workflow usage cache restored by the activation job's cache-restore step.
+    // Entries that are already cached skip the artifact download entirely, reducing API usage.
+    const usageCache = module.exports.loadAICUsageCache();
+
     const artifactClient = await module.exports.getArtifactClient();
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
     for (const run of candidateRuns) {
-      if (countedRuns.length >= maxInspectableRuns) {
-        truncatedByRateLimit = true;
-        break;
-      }
       try {
-        const runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
+        let runAIC;
+        if (usageCache.has(run.id)) {
+          // Cache hit: use the previously recorded AIC without downloading the artifact.
+          runAIC = usageCache.get(run.id) ?? 0;
+          logDailyGuardrail("Cache hit: using cached AIC for run", {
+            runId: run.id,
+            cachedAIC: runAIC,
+          });
+        } else {
+          // Cache miss: fetch AIC from the run's usage artifact.
+          runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
+        }
         if (runAIC <= 0) {
           logDailyGuardrail("Skipping run without AIC usage artifact data", {
             runId: run.id,
@@ -531,6 +649,7 @@ module.exports = {
   main,
   getArtifactClient,
   getRunAIC,
+  loadAICUsageCache,
   shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,

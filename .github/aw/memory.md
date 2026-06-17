@@ -97,6 +97,10 @@ tools:
 - Single cache: `/tmp/gh-aw/cache-memory/`
 - Multiple caches: `/tmp/gh-aw/cache-memory/{id}/`
 
+### Branch scoping
+
+Caches are **branch-scoped**: a run restores from caches saved on the same branch, with GitHub Actions also allowing fallback restore from the default branch (typically `main`). A non-default branch's first restore usually comes from the default branch; subsequent saves fork a branch-local lineage. For workflows that depend on warmed state, prefer scheduling on the default branch so each run reuses and updates one lineage instead of fragmenting state across feature branches.
+
 ### Deduplication example (scheduled workflow)
 
 The following pattern lets a scheduled workflow skip items it has already processed:

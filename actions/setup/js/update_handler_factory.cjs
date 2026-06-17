@@ -138,15 +138,13 @@ function createUpdateHandlerFactory(handlerConfig) {
     // Check if we're in staged mode
     const isStaged = isStagedMode(config);
 
-    // Build configuration log message
-    const configParts = [`max=${maxCount}`, `target=${updateTarget}`];
-
-    // Add additional config items to log
-    Object.entries(additionalConfig).forEach(([key, value]) => {
-      if (config[key] !== undefined) {
-        configParts.push(`${key}=${config[key]}`);
-      }
-    });
+    const configParts = [
+      `max=${maxCount}`,
+      `target=${updateTarget}`,
+      ...Object.entries(additionalConfig)
+        .filter(([key]) => config[key] !== undefined)
+        .map(([key]) => `${key}=${config[key]}`),
+    ];
 
     core.info(`Update ${itemTypeName} configuration: ${configParts.join(", ")}`);
 

@@ -8,19 +8,18 @@
 // workflow execution, and memory management.
 //
 // Key responsibilities:
-//   - Rendering safe-outputs MCP server configuration (HTTP transport)
+//   - Rendering safe-outputs MCP server configuration (containerized stdio transport)
 //   - Rendering agentic-workflows MCP server configuration (stdio transport)
 //   - Engine-specific format handling (JSON vs TOML)
-//   - Managing HTTP server endpoints and authentication
-//   - Configuring Docker containers for stdio servers
+//   - Configuring Docker containers for built-in stdio servers
 //   - Handling environment variable passthrough
 //
 // Built-in MCP servers:
 //
 // 1. Safe-outputs MCP server:
-//   - Transport: HTTP (runs on host, accessed via HTTP)
-//   - Port: 3001 (configurable via GH_AW_SAFE_OUTPUTS_PORT)
-//   - Authentication: API key in Authorization header
+//   - Transport: stdio (runs in gh-aw node container)
+//   - Container: ghcr.io/github/gh-aw-node with workspace-mounted JS entrypoint
+//   - Mounts: workspace, safe-outputs runtime files, and safe-outputs log directory
 //   - Purpose: Provides controlled storage for AI agent outputs
 //   - Tools: add_issue_comment, create_issue, update_issue, upload_asset, etc.
 //
@@ -47,14 +46,10 @@
 //   - Backslash-escaped variables: \${VAR} for MCP passthrough
 //
 // Safe-outputs configuration:
-// Safe-outputs runs as an HTTP server and requires:
-//   - Port and API key from step outputs
+// Safe-outputs runs as a stdio container and requires:
 //   - Config files: config.json, tools.json, validation.json
-//   - Environment variables for feature configuration
-//
-// The HTTP URL uses either:
-//   - host.docker.internal: When agent runs in firewall container
-//   - localhost: When agent firewall is disabled (sandbox.agent.disabled)
+//   - Environment variables for runtime paths and feature configuration
+//   - Read-write mounts for the workspace, safe-outputs runtime files, and log directory
 //
 // Agentic-workflows configuration:
 // Agentic-workflows runs in a stdio container and requires:
@@ -75,10 +70,11 @@
 //
 //	{
 //	  "safe_outputs": {
-//	    "type": "http",
-//	    "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
-//	    "headers": {
-//	      "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+//	    "type": "stdio",
+//	    "container": "ghcr.io/github/gh-aw-node",
+//	    "mounts": ["${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw", ...],
+//	    "env": {
+//	      "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"
 //	    }
 //	  }
 //	}

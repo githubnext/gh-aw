@@ -195,7 +195,7 @@ runs-on-slim: ubuntu-slim            # Defaults to ubuntu-slim (framework jobs o
 timeout-minutes: 30                  # Defaults to 20 minutes
 ```
 
-`runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.) and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
+`runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.), accepts the same string, array, or runner-group object forms as `runs-on`, and defaults to `ubuntu-slim`. `safe-outputs.runs-on` and `safe-outputs.threat-detection.runs-on` also accept the same runner forms and take precedence where applicable.
 
 `timeout-minutes` accepts an integer or a GitHub Actions expression string (e.g. `${{ inputs.timeout }}`), letting a reusable `workflow_call` workflow parameterize its own timeout from caller inputs. It applies to the workflow being compiled, **not** to plain caller jobs that invoke a reusable workflow with job-level `uses:` — GitHub rejects `timeout-minutes` there.
 
@@ -234,12 +234,7 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 Sets the AWF AI Credits budget used for cost enforcement. It is enabled by default and defaults to `1000` (`1k`) when omitted. Steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and steering.
 
 ```yaml wrap
-max-ai-credits: 5M
-```
-
-```yaml wrap
-# Equivalent shorthand
-max-ai-credits: 100M
+max-ai-credits: 500
 ```
 
 ```yaml wrap
@@ -254,12 +249,7 @@ Sets a 24-hour AI Credits cap for a single workflow, aggregated across recent ru
 This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 
 ```yaml wrap
-max-daily-ai-credits: 15M
-```
-
-```yaml wrap
-# Equivalent shorthand
-max-daily-ai-credits: 100M
+max-daily-ai-credits: 10000
 ```
 
 ```yaml wrap

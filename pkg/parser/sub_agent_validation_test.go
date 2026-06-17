@@ -24,9 +24,9 @@ Do some work.
 	assert.Empty(t, warnings, "no sub-agents should produce no warnings")
 }
 
-// TestValidateInlineSubAgentsFrontmatter_ValidFields verifies that known fields
-// (description and model) produce no warnings.
-func TestValidateInlineSubAgentsFrontmatter_ValidFields(t *testing.T) {
+// TestValidateInlineSubAgentsFrontmatter_PreservedFields verifies that authored
+// sub-agent frontmatter is accepted without warnings.
+func TestValidateInlineSubAgentsFrontmatter_PreservedFields(t *testing.T) {
 	markdown := strings.Join([]string{
 		"---",
 		"engine: copilot",
@@ -38,18 +38,22 @@ func TestValidateInlineSubAgentsFrontmatter_ValidFields(t *testing.T) {
 		agentLine("helper"),
 		"---",
 		"description: A helpful sub-agent",
+		"tools:",
+		"  github:",
+		"    toolsets: [issues]",
 		"model: claude-haiku-4.5",
+		"engine: copilot",
 		"---",
 		"You are a helpful assistant.",
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Empty(t, warnings, "only valid fields should produce no warnings")
+	assert.Empty(t, warnings, "preserved sub-agent frontmatter should not produce warnings")
 }
 
-// TestValidateInlineSubAgentsFrontmatter_UnknownField verifies that an unknown
-// frontmatter field in a sub-agent block produces a warning.
-func TestValidateInlineSubAgentsFrontmatter_UnknownField(t *testing.T) {
+// TestValidateInlineSubAgentsFrontmatter_ArbitraryFields verifies that arbitrary
+// frontmatter fields in a sub-agent block do not produce warnings.
+func TestValidateInlineSubAgentsFrontmatter_ArbitraryFields(t *testing.T) {
 	markdown := strings.Join([]string{
 		"---",
 		"engine: copilot",
@@ -67,15 +71,12 @@ func TestValidateInlineSubAgentsFrontmatter_UnknownField(t *testing.T) {
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Len(t, warnings, 1, "one unknown field should produce one warning")
-	assert.Contains(t, warnings[0], `sub-agent "helper"`, "warning should include agent name")
-	assert.Contains(t, warnings[0], "engine", "warning should name the unknown field")
-	assert.Contains(t, warnings[0], "description, model", "warning should list valid fields")
+	assert.Empty(t, warnings, "arbitrary sub-agent frontmatter should not produce warnings")
 }
 
-// TestValidateInlineSubAgentsFrontmatter_MultipleUnknownFields verifies that
-// multiple unknown fields in the same sub-agent are reported in a single warning.
-func TestValidateInlineSubAgentsFrontmatter_MultipleUnknownFields(t *testing.T) {
+// TestValidateInlineSubAgentsFrontmatter_MultipleArbitraryFields verifies that
+// multiple arbitrary fields in the same sub-agent are accepted.
+func TestValidateInlineSubAgentsFrontmatter_MultipleArbitraryFields(t *testing.T) {
 	markdown := strings.Join([]string{
 		"# Main workflow",
 		"",
@@ -89,14 +90,11 @@ func TestValidateInlineSubAgentsFrontmatter_MultipleUnknownFields(t *testing.T) 
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Len(t, warnings, 1, "multiple unknown fields should produce one warning per agent")
-	assert.Contains(t, warnings[0], `sub-agent "worker"`, "warning should include agent name")
-	assert.Contains(t, warnings[0], "engine", "warning should mention engine field")
-	assert.Contains(t, warnings[0], "on", "warning should mention on field")
+	assert.Empty(t, warnings, "multiple arbitrary fields should not produce warnings")
 }
 
-// TestValidateInlineSubAgentsFrontmatter_MultipleAgents verifies that each
-// sub-agent with issues produces its own warning.
+// TestValidateInlineSubAgentsFrontmatter_MultipleAgents verifies that multiple
+// sub-agents with arbitrary fields are accepted.
 func TestValidateInlineSubAgentsFrontmatter_MultipleAgents(t *testing.T) {
 	markdown := strings.Join([]string{
 		"# Main workflow",
@@ -117,11 +115,7 @@ func TestValidateInlineSubAgentsFrontmatter_MultipleAgents(t *testing.T) {
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Len(t, warnings, 2, "each agent with issues should produce one warning")
-
-	combined := strings.Join(warnings, " ")
-	assert.Contains(t, combined, "planner", "should warn about planner agent")
-	assert.Contains(t, combined, "executor", "should warn about executor agent")
+	assert.Empty(t, warnings, "multiple agents with arbitrary frontmatter should not produce warnings")
 }
 
 // TestValidateInlineSubAgentsFrontmatter_NoFrontmatter verifies that a sub-agent
@@ -195,24 +189,22 @@ func TestValidateInlineSubAgentsFrontmatter_DuplicateAgentNames(t *testing.T) {
 	assert.Contains(t, warnings[0], "helper", "warning should mention the duplicate agent name")
 }
 
-// TestValidateInlineSubAgentsFrontmatter_FieldFormat verifies that unknown fields are
-// formatted with comma separation rather than Go slice notation.
-func TestValidateInlineSubAgentsFrontmatter_FieldFormat(t *testing.T) {
+// TestValidateInlineSubAgentsFrontmatter_ParseError verifies that malformed
+// sub-agent frontmatter still surfaces a warning.
+func TestValidateInlineSubAgentsFrontmatter_ParseError(t *testing.T) {
 	markdown := strings.Join([]string{
 		"# Main workflow",
 		"",
 		agentLine("worker"),
 		"---",
-		"engine: copilot",
-		"on:",
-		"  workflow_dispatch:",
+		`description: "unterminated string`,
+		"model: claude-haiku-4.5",
 		"---",
 		"Do work.",
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
 	assert.Len(t, warnings, 1, "should produce one warning")
-	// Fields should be comma-separated, not formatted as a Go slice [engine on]
-	assert.NotContains(t, warnings[0], "[", "warning should not use Go slice notation")
-	assert.NotContains(t, warnings[0], "]", "warning should not use Go slice notation")
+	assert.Contains(t, warnings[0], `sub-agent "worker"`, "warning should include agent name")
+	assert.Contains(t, warnings[0], "could not parse frontmatter", "warning should mention the parse failure")
 }

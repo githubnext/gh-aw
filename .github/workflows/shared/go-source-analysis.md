@@ -17,12 +17,4 @@ tools:
 
 Serena Go LSP analysis is configured for this workspace. Standard bash tools for Go source navigation are available.
 
-### Bash Navigation Tools
-
-Use these bash tools to supplement Serena's semantic analysis:
-
-- `find pkg -name '*.go' ! -name '*_test.go' -type f` — list all non-test Go source files
-- `find pkg/ -maxdepth 1 -ls` / `find pkg/workflow/ -maxdepth 1 -ls` — explore directory structure
-- `wc -l pkg/**/*.go` — measure file sizes
-- `head -n * pkg/**/*.go` / `cat pkg/**/*.go` — read file contents
-- `grep -r 'func ' pkg --include='*.go'` — find all function definitions
+Use Serena semantic tools first; use the listed bash commands only for quick file discovery, sizing, and raw content checks.

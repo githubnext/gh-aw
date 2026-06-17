@@ -4,6 +4,8 @@ description: Specification for computing deterministic hashes of agentic workflo
 version: 1.0.0
 status: Draft
 publication_date: 2026-05-07
+sidebar:
+  order: 1360
 ---
 
 # Frontmatter Hash Specification

@@ -185,7 +185,7 @@ func markdownPerRunFields(run PerRunFirewallBreakdown) (string, string, string, 
 	}
 	tokenStr := "—"
 	if run.Tokens > 0 {
-		tokenStr = formatTokens(run.Tokens)
+		tokenStr = console.FormatTokens(run.Tokens)
 		if run.TokenSpike {
 			tokenStr += " ⚠"
 		}
@@ -246,8 +246,8 @@ func renderPrettyTokenTrend(mt MetricsTrendData) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "  Tokens:   total=%s  avg=%s/run  min=%s  max=%s\n%s",
-		formatTokens(mt.TotalTokens), formatTokens(mt.AvgTokens),
-		formatTokens(mt.MinTokens), formatTokens(mt.MaxTokens), prettySpikeNote("Token", mt.TokenSpikes))
+		console.FormatTokens(mt.TotalTokens), console.FormatTokens(mt.AvgTokens),
+		console.FormatTokens(mt.MinTokens), console.FormatTokens(mt.MaxTokens), prettySpikeNote("Token", mt.TokenSpikes))
 }
 
 func renderPrettyTurnTrend(mt MetricsTrendData) {
@@ -376,7 +376,7 @@ func prettyPerRunOptionalFields(run PerRunFirewallBreakdown) string {
 	}
 	if run.Tokens > 0 {
 		parts.WriteString("  tokens=")
-		parts.WriteString(formatTokens(run.Tokens))
+		parts.WriteString(console.FormatTokens(run.Tokens))
 		if run.TokenSpike {
 			parts.WriteString("⚠")
 		}

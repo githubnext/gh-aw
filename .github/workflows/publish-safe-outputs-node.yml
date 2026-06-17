@@ -1,0 +1,246 @@
+name: Publish safe outputs Node image
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-safe-outputs-node
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/github/gh-aw-node
+  NODE_IMAGE_TAG: node:lts-alpine
+  NODE_IMAGE_METADATA_URL: https://hub.docker.com/v2/repositories/library/node/tags/lts-alpine
+  NODE_IMAGE_COOLDOWN_DAYS: '1'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Resolve upstream Node image metadata
+        id: upstream
+        env:
+          COOLDOWN_DAYS: ${{ env.NODE_IMAGE_COOLDOWN_DAYS }}
+          METADATA_URL: ${{ env.NODE_IMAGE_METADATA_URL }}
+          NODE_IMAGE_TAG: ${{ env.NODE_IMAGE_TAG }}
+        run: |
+          set -euo pipefail
+
+          echo "Fetching metadata for ${NODE_IMAGE_TAG} from ${METADATA_URL}"
+          metadata=$(curl -fsSL "$METADATA_URL")
+          echo "Metadata fetched successfully"
+
+          digest=$(printf '%s' "$metadata" | jq -r '.images[] | select(.os == "linux" and .architecture == "amd64") | .digest' | head -n 1)
+          last_updated=$(printf '%s' "$metadata" | jq -r '.last_updated')
+
+          echo "Resolved linux/amd64 digest: ${digest}"
+          echo "Upstream last_updated: ${last_updated}"
+
+          if [ -z "$digest" ] || [ "$digest" = "null" ] || [ -z "$last_updated" ] || [ "$last_updated" = "null" ]; then
+            echo "Failed to resolve node:lts-alpine metadata"
+            exit 1
+          fi
+
+          last_updated_epoch=$(date -u -d "$last_updated" +%s)
+          now_epoch=$(date -u +%s)
+          cooldown_seconds=$((COOLDOWN_DAYS * 24 * 60 * 60))
+          age_seconds=$((now_epoch - last_updated_epoch))
+          if [ "$age_seconds" -lt 0 ]; then
+            age_seconds=0
+          fi
+
+          in_cooldown=false
+          if [ "$age_seconds" -lt "$cooldown_seconds" ]; then
+            in_cooldown=true
+          fi
+
+          short_digest=$(printf '%s' "$digest" | sed 's/^sha256://' | cut -c1-12)
+
+          echo "Upstream image age: $((age_seconds / 86400)) day(s) (cooldown window: ${COOLDOWN_DAYS} day(s))"
+          echo "In cooldown: ${in_cooldown}"
+          echo "Short digest: ${short_digest}"
+
+          echo "base_image=${NODE_IMAGE_TAG}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "short_digest=$short_digest" >> "$GITHUB_OUTPUT"
+          echo "last_updated=$last_updated" >> "$GITHUB_OUTPUT"
+          echo "age_days=$((age_seconds / 86400))" >> "$GITHUB_OUTPUT"
+          echo "in_cooldown=$in_cooldown" >> "$GITHUB_OUTPUT"
+
+      - name: Compute container source hash
+        id: source
+        run: |
+          set -euo pipefail
+
+          dockerfile="actions/setup/js/Dockerfile.safe-outputs-mcp"
+          echo "Computing SHA-256 hash of ${dockerfile}"
+          hash=$(sha256sum "$dockerfile" | cut -d' ' -f1)
+          echo "Dockerfile hash: ${hash}"
+
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inspect published image
+        id: published
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+
+          image_exists=false
+          existing_digest=""
+          existing_revision=""
+          existing_dockerfile_hash=""
+
+          echo "Attempting to pull ${IMAGE_NAME}:latest"
+          if docker pull "$IMAGE_NAME:latest" >/dev/null 2>&1; then
+            image_exists=true
+            echo "Image pulled successfully; extracting labels"
+            existing_digest=$(docker inspect "$IMAGE_NAME:latest" --format '{{ index .Config.Labels "org.opencontainers.image.base.digest" }}' 2>/dev/null || true)
+            existing_revision=$(docker inspect "$IMAGE_NAME:latest" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null || true)
+            existing_dockerfile_hash=$(docker inspect "$IMAGE_NAME:latest" --format '{{ index .Config.Labels "io.github.gh-aw.safe-outputs.dockerfile-hash" }}' 2>/dev/null || true)
+          else
+            echo "Image ${IMAGE_NAME}:latest not found in registry"
+          fi
+
+          if [ "$existing_digest" = "<no value>" ]; then
+            existing_digest=""
+          fi
+          if [ "$existing_revision" = "<no value>" ]; then
+            existing_revision=""
+          fi
+          if [ "$existing_dockerfile_hash" = "<no value>" ]; then
+            existing_dockerfile_hash=""
+          fi
+
+          echo "Image exists: ${image_exists}"
+          echo "Published base digest: ${existing_digest:-none}"
+          echo "Published revision: ${existing_revision:-none}"
+          echo "Published Dockerfile hash: ${existing_dockerfile_hash:-none}"
+
+          echo "image_exists=$image_exists" >> "$GITHUB_OUTPUT"
+          echo "base_digest=$existing_digest" >> "$GITHUB_OUTPUT"
+          echo "revision=$existing_revision" >> "$GITHUB_OUTPUT"
+          echo "dockerfile_hash=$existing_dockerfile_hash" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to publish
+        id: decision
+        env:
+          COOLDOWN_DAYS: ${{ env.NODE_IMAGE_COOLDOWN_DAYS }}
+          CURRENT_BASE_DIGEST: ${{ steps.upstream.outputs.digest }}
+          CURRENT_DOCKERFILE_HASH: ${{ steps.source.outputs.hash }}
+          EXISTING_BASE_DIGEST: ${{ steps.published.outputs.base_digest }}
+          EXISTING_DOCKERFILE_HASH: ${{ steps.published.outputs.dockerfile_hash }}
+          IMAGE_EXISTS: ${{ steps.published.outputs.image_exists }}
+          IN_COOLDOWN: ${{ steps.upstream.outputs.in_cooldown }}
+        run: |
+          set -euo pipefail
+
+          echo "--- Decision inputs ---"
+          echo "Image exists: ${IMAGE_EXISTS}"
+          echo "In cooldown: ${IN_COOLDOWN} (window: ${COOLDOWN_DAYS} day(s))"
+          echo "Current upstream digest:    ${CURRENT_BASE_DIGEST}"
+          echo "Published base digest:      ${EXISTING_BASE_DIGEST:-none}"
+          echo "Current Dockerfile hash:    ${CURRENT_DOCKERFILE_HASH}"
+          echo "Published Dockerfile hash:  ${EXISTING_DOCKERFILE_HASH:-none}"
+          echo "--- Evaluating conditions ---"
+
+          should_push=false
+          reason="No changes detected"
+
+          if [ "$IN_COOLDOWN" = "true" ] && { [ "$IMAGE_EXISTS" != "true" ] || [ "$EXISTING_BASE_DIGEST" != "$CURRENT_BASE_DIGEST" ]; }; then
+            reason="node:lts-alpine is still within the ${COOLDOWN_DAYS}-day cooldown window"
+          elif [ "$IMAGE_EXISTS" != "true" ]; then
+            should_push=true
+            reason="Published image does not exist"
+          elif [ "$EXISTING_BASE_DIGEST" != "$CURRENT_BASE_DIGEST" ]; then
+            should_push=true
+            reason="Upstream node:lts-alpine digest changed"
+          elif [ "$EXISTING_DOCKERFILE_HASH" != "$CURRENT_DOCKERFILE_HASH" ]; then
+            should_push=true
+            reason="Container Dockerfile changed"
+          fi
+
+          echo "Decision: should_push=${should_push}"
+          echo "Reason: ${reason}"
+
+          echo "should_push=$should_push" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        if: steps.decision.outputs.should_push == 'true'
+        uses: docker/setup-buildx-action@v4.1.0
+
+      - name: Build and push gh-aw-node
+        if: steps.decision.outputs.should_push == 'true'
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: .
+          file: actions/setup/js/Dockerfile.safe-outputs-mcp
+          platforms: linux/amd64
+          pull: true
+          push: true
+          build-args: |
+            NODE_IMAGE=${{ steps.upstream.outputs.base_image }}
+            NODE_IMAGE_DIGEST=${{ steps.upstream.outputs.digest }}
+            NODE_IMAGE_UPDATED_AT=${{ steps.upstream.outputs.last_updated }}
+            DOCKERFILE_HASH=${{ steps.source.outputs.hash }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:node-lts-alpine-${{ steps.upstream.outputs.short_digest }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=Node LTS Alpine with git for the local safe-outputs MCP runtime
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.base.name=${{ env.NODE_IMAGE_TAG }}
+            org.opencontainers.image.base.digest=${{ steps.upstream.outputs.digest }}
+            io.github.gh-aw.safe-outputs.node.updated-at=${{ steps.upstream.outputs.last_updated }}
+            io.github.gh-aw.safe-outputs.dockerfile-hash=${{ steps.source.outputs.hash }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Write summary
+        if: always()
+        env:
+          AGE_DAYS: ${{ steps.upstream.outputs.age_days }}
+          BASE_DIGEST: ${{ steps.upstream.outputs.digest }}
+          EXISTING_BASE_DIGEST: ${{ steps.published.outputs.base_digest }}
+          EXISTING_DOCKERFILE_HASH: ${{ steps.published.outputs.dockerfile_hash }}
+          IMAGE_EXISTS: ${{ steps.published.outputs.image_exists }}
+          IN_COOLDOWN: ${{ steps.upstream.outputs.in_cooldown }}
+          REASON: ${{ steps.decision.outputs.reason }}
+          DOCKERFILE_HASH: ${{ steps.source.outputs.hash }}
+          SHOULD_PUSH: ${{ steps.decision.outputs.should_push }}
+          UPDATED_AT: ${{ steps.upstream.outputs.last_updated }}
+        run: |
+          {
+            echo "## gh-aw-node publish decision"
+            echo ""
+            echo "- Published image exists: ${IMAGE_EXISTS}"
+            echo "- Current node:lts-alpine digest: \`${BASE_DIGEST}\`"
+            echo "- Published base digest: \`${EXISTING_BASE_DIGEST:-none}\`"
+            echo "- Current Dockerfile hash: \`${DOCKERFILE_HASH}\`"
+            echo "- Published Dockerfile hash: \`${EXISTING_DOCKERFILE_HASH:-none}\`"
+            echo "- Upstream last updated: ${UPDATED_AT}"
+            echo "- Upstream age: ${AGE_DAYS} day(s)"
+            echo "- In cooldown: ${IN_COOLDOWN}"
+            echo "- Push image: ${SHOULD_PUSH}"
+            echo "- Reason: ${REASON}"
+          } >> "$GITHUB_STEP_SUMMARY"

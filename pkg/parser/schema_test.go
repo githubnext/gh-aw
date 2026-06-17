@@ -1025,6 +1025,25 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchema_CreateDiscussionRequiredCategoryAllowed(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"create-discussion": map[string]any{
+				"category":                "Ideas",
+				"close-older-discussions": true,
+				"required-category":       "Ideas",
+			},
+		},
+	}
+
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("expected create-discussion.required-category to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchemaPushToPullRequestBranchHasMaxPatchSize(t *testing.T) {
 	schemaPath := "schemas/main_workflow_schema.json"
 	schemaContent, err := os.ReadFile(schemaPath)
@@ -1167,6 +1186,30 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppImpli
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-implicit-oidc-schema-test.md")
 	if err != nil {
 		t.Fatalf("expected empty observability.otlp.github-app to pass schema validation for implicit OIDC, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPResourceAttributes(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP resource attributes config",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"resource-attributes": map[string]any{
+					"my.target-repo": "${{ github.repository }}",
+					"my.event":       "${{ github.event_name }}",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-resource-attributes-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected observability.otlp.resource-attributes to pass schema validation, got: %v", err)
 	}
 }
 

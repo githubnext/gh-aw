@@ -462,7 +462,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 			// Set default value if not specified or invalid
 			if config.MaximumPatchSize == 0 {
-				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
+				config.MaximumPatchSize = 4096 // Default to 4MB = 4096 KB
 			}
 
 			// Handle max-patch-files configuration (maximum unique files allowed in
@@ -527,9 +527,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 			// Handle runs-on configuration
 			if runsOn, exists := outputMap["runs-on"]; exists {
-				if runsOnStr, ok := runsOn.(string); ok {
-					config.RunsOn = runsOnStr
-				}
+				config.RunsOn = renderRunsOnSnippet(runsOn)
 			}
 
 			// Handle timeout-minutes configuration

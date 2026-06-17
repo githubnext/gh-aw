@@ -38,7 +38,7 @@ func getEffectiveTokensToAICreditsCodemod() Codemod {
 			migrateMaxAICredits := false
 			if !hasMaxAICredits {
 				if raw, exists := frontmatter["max-effective-tokens"]; exists {
-					if normalized, ok := normalizeLegacyBudgetValue(raw, false); ok {
+					if normalized, ok := normalizeLegacyBudgetValue(raw, true); ok {
 						maxAICreditsNormalized = normalized
 						migrateMaxAICredits = true
 					}

@@ -252,7 +252,7 @@ constants.AgenticWorkflowsMCPServerID  // "agenticworkflows"
 
 ```go
 // AI engine CLIs
-constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.21")
+constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.60")
 constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
@@ -274,7 +274,7 @@ constants.DefaultGitHubScriptVersion    // actions/github-script action version
 // Runtime setup versions
 constants.DefaultNodeVersion            // Node.js (e.g. "24")
 constants.DefaultPythonVersion          // Python (e.g. "3.12")
-constants.DefaultGoVersion              // Go (e.g. "1.25")
+constants.DefaultGoVersion              // Go (e.g. "1.26")
 constants.DefaultBunVersion             // Bun
 constants.DefaultRubyVersion            // Ruby
 constants.DefaultDotNetVersion          // .NET
@@ -482,6 +482,14 @@ fmt.Println(constants.GhAwRootDirShell)  // "${RUNNER_TEMP}/gh-aw"
 // Dynamic workflow directory (respects GH_AW_WORKFLOWS_DIR)
 dir := constants.GetWorkflowDir() // ".github/workflows"
 ```
+
+## Dependencies
+
+**Internal**:
+- None
+
+**External**:
+- None beyond the Go standard library (`io/fs`, `os`, `path/filepath`, `time`).
 
 ## Design Notes
 

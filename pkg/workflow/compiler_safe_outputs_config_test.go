@@ -1143,6 +1143,17 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			expected:   true,
 		},
 		{
+			name: "add comment discussions opt-in",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					Discussions: boolPtr(true),
+				},
+			},
+			checkField: "add_comment",
+			checkKey:   "discussions",
+			expected:   true,
+		},
+		{
 			name: "close older discussions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
@@ -1521,7 +1532,7 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 		{
 			name:         "default patch size",
 			maxPatchSize: 0,
-			expectedSize: 1024,
+			expectedSize: 4096,
 		},
 		{
 			name:         "custom patch size",

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getErrorMessage, isLockedError, isRateLimitError } from "./error_helpers.cjs";
+import { getErrorMessage, isHtmlContent, isLockedError, isRateLimitError } from "./error_helpers.cjs";
 
 describe("error_helpers", () => {
   describe("getErrorMessage", () => {
@@ -37,6 +37,71 @@ describe("error_helpers", () => {
     it("should handle object without message property", () => {
       const error = { code: "ERROR_CODE", status: 500 };
       expect(getErrorMessage(error)).toBe("[object Object]");
+    });
+
+    it("should sanitize HTML DOCTYPE error response with status", () => {
+      const html = "<!DOCTYPE html>\n<html><head><title>Unicorn!</title></head><body>...</body></html>";
+      const error = new Error(html);
+      /** @type {any} */ error.status = 504;
+      expect(getErrorMessage(error)).toBe("GitHub returned an unexpected HTML response (HTTP 504)");
+    });
+
+    it("should sanitize HTML DOCTYPE error response without status", () => {
+      const html = "<!DOCTYPE html>\n<html><head><title>Unicorn!</title></head><body>...</body></html>";
+      const error = new Error(html);
+      expect(getErrorMessage(error)).toBe("GitHub returned an unexpected HTML response");
+    });
+
+    it("should sanitize bare <html> error response with status", () => {
+      const html = "<html><head><title>Service Unavailable</title></head><body>...</body></html>";
+      const error = { message: html, status: 503 };
+      expect(getErrorMessage(error)).toBe("GitHub returned an unexpected HTML response (HTTP 503)");
+    });
+
+    it("should sanitize html with leading whitespace", () => {
+      const html = "  \n<!DOCTYPE html><html>...</html>";
+      const error = new Error(html);
+      expect(getErrorMessage(error)).toBe("GitHub returned an unexpected HTML response");
+    });
+
+    it("should sanitize raw HTML string throw", () => {
+      const html = "<!DOCTYPE html><html><body>Unicorn</body></html>";
+      expect(getErrorMessage(html)).toBe("GitHub returned an unexpected HTML response");
+    });
+
+    it("should not sanitize plain-text error messages that happen to mention html", () => {
+      const error = new Error("Validation failed: invalid html content provided");
+      expect(getErrorMessage(error)).toBe("Validation failed: invalid html content provided");
+    });
+  });
+
+  describe("isHtmlContent", () => {
+    it("should return true for DOCTYPE HTML string", () => {
+      expect(isHtmlContent("<!DOCTYPE html><html></html>")).toBe(true);
+    });
+
+    it("should return true for bare html tag", () => {
+      expect(isHtmlContent("<html><head></head><body></body></html>")).toBe(true);
+    });
+
+    it("should return true with leading whitespace", () => {
+      expect(isHtmlContent("\n  <!DOCTYPE html>...")).toBe(true);
+    });
+
+    it("should return true for case-insensitive DOCTYPE", () => {
+      expect(isHtmlContent("<!doctype HTML><html></html>")).toBe(true);
+    });
+
+    it("should return false for plain text", () => {
+      expect(isHtmlContent("Resource not accessible by integration")).toBe(false);
+    });
+
+    it("should return false for JSON-like content", () => {
+      expect(isHtmlContent('{"message":"Not Found","documentation_url":"..."}')).toBe(false);
+    });
+
+    it("should return false for empty string", () => {
+      expect(isHtmlContent("")).toBe(false);
     });
   });
 

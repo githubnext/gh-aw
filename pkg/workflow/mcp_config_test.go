@@ -122,7 +122,7 @@ This is a test workflow for MCP configuration.
 func TestGenerateGitHubMCPConfig(t *testing.T) {
 	tests := []struct {
 		name         string
-		githubTool   any
+		githubTool   map[string]any
 		expectedType string
 	}{
 		{
@@ -148,9 +148,9 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 			expectedType: "docker",
 		},
 		{
-			name:       "non-map github tool",
-			githubTool: "invalid",
-			// With Docker always enabled, invalid tool config defaults to docker (not services)
+			name:       "nil github tool defaults to docker",
+			githubTool: nil,
+			// With Docker always enabled, nil tool config defaults to docker (not services)
 			expectedType: "docker",
 		},
 	}
@@ -187,7 +187,7 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 func TestMCPConfigurationEdgeCases(t *testing.T) {
 	tests := []struct {
 		name       string
-		githubTool any
+		githubTool map[string]any
 		isLast     bool
 		expected   string
 	}{

@@ -485,9 +485,9 @@ func resolveCentralSlashRunsOn(workflowDataList []*WorkflowData) string {
 
 		resolved := constants.DefaultActivationJobRunnerImage
 		if wd.SafeOutputs != nil && strings.TrimSpace(wd.SafeOutputs.RunsOn) != "" {
-			resolved = strings.TrimSpace(wd.SafeOutputs.RunsOn)
+			resolved = formatRunsOnSnippetForInlineValue(wd.SafeOutputs.RunsOn)
 		} else if strings.TrimSpace(wd.RunsOnSlim) != "" {
-			resolved = strings.TrimSpace(wd.RunsOnSlim)
+			resolved = formatRunsOnSnippetForInlineValue(wd.RunsOnSlim)
 		}
 		counts[resolved]++
 	}
@@ -501,6 +501,29 @@ func resolveCentralSlashRunsOn(workflowDataList []*WorkflowData) string {
 		}
 	}
 	return best
+}
+
+func formatRunsOnSnippetForInlineValue(runsOn string) string {
+	runsOn = strings.TrimSpace(runsOn)
+	if !strings.HasPrefix(runsOn, "runs-on:") {
+		return runsOn
+	}
+
+	value := strings.TrimPrefix(runsOn, "runs-on:")
+	if !strings.HasPrefix(value, "\n") {
+		return strings.TrimSpace(value)
+	}
+
+	value = strings.TrimPrefix(value, "\n")
+	lines := strings.Split(value, "\n")
+	for i, line := range lines {
+		// The 2-space strip matches DefaultMarshalOptions map indentation.
+		// The 6-space re-indent aligns with the central slash command template,
+		// where runs-on: lives at 4-space job-level indent (4 + 2 = 6).
+		line = strings.TrimPrefix(line, "  ")
+		lines[i] = "      " + line
+	}
+	return "\n" + strings.Join(lines, "\n")
 }
 
 func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map[string]bool) {

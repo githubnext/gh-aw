@@ -542,16 +542,21 @@ function isFailedProcessingResult(result) {
   return Boolean(result?.success === false && !result?.deferred && !result?.skipped && !result?.cancelled);
 }
 
+/** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
+const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
+
 /**
  * Determine whether a failed result should be reported without failing the safe_outputs job.
  * Agent assignment can fail after other safe outputs already succeeded, so those failures
  * are surfaced through dedicated outputs and summaries instead of failing the entire job.
+ * Artifact uploads are best-effort and non-critical: a failed upload should not fail an
+ * otherwise-successful run.
  *
  * @param {{type?: string, success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
  * @returns {boolean}
  */
 function isReportOnlyFailureResult(result) {
-  return isFailedProcessingResult(result) && result?.type === "assign_to_agent";
+  return isFailedProcessingResult(result) && !!(result?.type && REPORT_ONLY_FAILURE_TYPES.has(result.type));
 }
 
 /**
@@ -562,8 +567,8 @@ function isReportOnlyFailureResult(result) {
  */
 function partitionFailureResults(results) {
   const failedResults = results.filter(isFailedProcessingResult);
-  const reportOnlyFailures = failedResults.filter(r => r?.type === "assign_to_agent");
-  const fatalFailures = failedResults.filter(r => r?.type !== "assign_to_agent");
+  const reportOnlyFailures = failedResults.filter(r => REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
+  const fatalFailures = failedResults.filter(r => !REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
   return { fatalFailures, reportOnlyFailures };
 }
 
@@ -1506,7 +1511,8 @@ async function main() {
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
     }
     if (reportOnlyFailureCount > 0) {
-      core.warning(`${reportOnlyFailureCount} agent assignment(s) failed but were reported without failing safe_outputs`);
+      const reportOnlyTypes = [...new Set(reportOnlyFailures.map(r => r.type || "unknown"))];
+      core.warning(`${reportOnlyFailureCount} non-fatal safe output(s) failed but were reported without failing safe_outputs: ${reportOnlyTypes.join(", ")}`);
     }
     if (cancelledCount > 0) {
       core.warning(`${cancelledCount} message(s) were cancelled because a code push operation failed`);

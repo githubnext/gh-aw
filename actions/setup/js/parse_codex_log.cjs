@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, truncateString, estimateTokens, formatToolCallAsDetails } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, truncateString, estimateTokens, formatToolCallAsDetails, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Codex",
@@ -643,9 +643,11 @@ function parseCodexLog(logContent) {
   // Check for MCP failures
   const mcpFailures = mcpInfo.servers.filter(server => server.status === "failed").map(server => server.name);
 
+  const canonicalLogEntries = convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "codex" });
+
   return {
     markdown,
-    logEntries,
+    logEntries: canonicalLogEntries,
     mcpFailures,
     maxTurnsHit: false, // Codex doesn't have max-turns concept in logs
   };

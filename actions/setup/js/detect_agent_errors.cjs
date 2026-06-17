@@ -16,6 +16,8 @@
  *   - model_not_supported_error: The configured model is invalid or unsupported
  *     for the selected engine/account (for example unknown model name, model not
  *     found, or model unavailable for the plan).
+ *   - capi_quota_exceeded_error: The Copilot CAPI quota has been exhausted
+ *     (e.g., "CAPIError: 429 429 quota exceeded").
  *
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
@@ -55,10 +57,24 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 const MODEL_NOT_SUPPORTED_PATTERN =
   /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable))/i;
 
+// Pattern: Copilot/CAPI quota exhaustion.
+// Matches the observed error: "CAPIError: 429 429 quota exceeded".
+// Quota exhaustion is a persistent, non-retryable condition.
+const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
+
+/**
+ * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isCAPIQuotaExceededError(output) {
+  return CAPI_QUOTA_EXCEEDED_PATTERN.test(output);
+}
+
 /**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, capiQuotaExceededError: boolean }}
  */
 function detectErrors(logContent) {
   return {
@@ -66,12 +82,13 @@ function detectErrors(logContent) {
     mcpPolicyError: MCP_POLICY_BLOCKED_PATTERN.test(logContent),
     agenticEngineTimeout: AGENTIC_ENGINE_TIMEOUT_PATTERN.test(logContent),
     modelNotSupportedError: MODEL_NOT_SUPPORTED_PATTERN.test(logContent),
+    capiQuotaExceededError: isCAPIQuotaExceededError(logContent),
   };
 }
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, capiQuotaExceededError: boolean }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -85,6 +102,7 @@ function writeOutputs(results) {
     `mcp_policy_error=${results.mcpPolicyError}`,
     `agentic_engine_timeout=${results.agenticEngineTimeout}`,
     `model_not_supported_error=${results.modelNotSupportedError}`,
+    `capi_quota_exceeded_error=${results.capiQuotaExceededError}`,
   ];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
@@ -112,6 +130,9 @@ function main() {
   if (results.modelNotSupportedError) {
     process.stderr.write("[detect-agent-errors] Detected model configuration error: configured model is invalid or unavailable for this engine/account\n");
   }
+  if (results.capiQuotaExceededError) {
+    process.stderr.write("[detect-agent-errors] Detected CAPI quota exhaustion: Copilot quota has been exceeded\n");
+  }
 
   writeOutputs(results);
 }
@@ -120,4 +141,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN };
+module.exports = { detectErrors, isCAPIQuotaExceededError, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN, CAPI_QUOTA_EXCEEDED_PATTERN };
