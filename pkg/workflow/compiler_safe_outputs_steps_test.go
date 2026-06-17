@@ -40,6 +40,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"name: Configure Git credentials",
 				"git config --global user.email",
 				"github-actions[bot]@users.noreply.github.com",
+				"git config --global --add safe.directory",
 			},
 		},
 		{

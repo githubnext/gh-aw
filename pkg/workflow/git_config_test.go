@@ -80,9 +80,9 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitConfigurationSteps()
 
-	// Verify we get expected number of lines (13 lines with env block including GITHUB_TOKEN)
-	if len(steps) != 13 {
-		t.Errorf("Expected 13 lines in git configuration steps, got %d", len(steps))
+	// Verify we get expected number of lines (14 lines with env block including GITHUB_TOKEN and safe.directory)
+	if len(steps) != 14 {
+		t.Errorf("Expected 14 lines in git configuration steps, got %d", len(steps))
 	}
 
 	// Verify the content of the steps
@@ -95,6 +95,7 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 		"git config --global user.email",
 		"git config --global user.name",
 		"git config --global am.keepcr true",
+		"git config --global --add safe.directory",
 		"git remote set-url origin",
 		"x-access-token:${GITHUB_TOKEN}",
 		"${REPO_NAME}.git",
