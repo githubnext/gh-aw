@@ -1,20 +1,46 @@
 // @ts-check
 
 /**
+ * Detect whether a string looks like an HTML page rather than a plain error message.
+ * Used to sanitize GitHub's "Unicorn" / gateway error HTML responses so they don't
+ * pollute CI logs with hundreds of lines of markup.
+ *
+ * @param {string} str - The string to inspect
+ * @returns {boolean} True when the string appears to be an HTML document
+ */
+function isHtmlContent(str) {
+  return /^\s*<!DOCTYPE\s/i.test(str) || /^\s*<html[\s>]/i.test(str);
+}
+
+/**
  * Safely extract an error message from an unknown error value.
  * Handles Error instances, objects with message properties, and other values.
+ *
+ * When the extracted message looks like an HTML page (e.g. GitHub's "Unicorn"
+ * 504 error page), it is replaced with a concise human-readable description so
+ * that CI logs stay readable.  The HTTP status code is included when available.
  *
  * @param {unknown} error - The error value to extract a message from
  * @returns {string} The error message as a string
  */
 function getErrorMessage(error) {
+  // prettier-ignore
+  const errorAsAny = /** @type {any} */ (error);
+  let message;
   if (error instanceof Error) {
-    return error.message;
+    message = error.message;
+  } else if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    message = error.message;
+  } else {
+    message = String(error);
   }
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
+
+  if (isHtmlContent(message)) {
+    const status = errorAsAny != null && typeof errorAsAny.status === "number" ? errorAsAny.status : null;
+    return status != null ? `GitHub returned an unexpected HTML response (HTTP ${status})` : "GitHub returned an unexpected HTML response";
   }
-  return String(error);
+
+  return message;
 }
 
 /**
@@ -54,4 +80,4 @@ function isRateLimitError(error) {
   return /\bapi rate limit\b|\brate limit exceeded\b/i.test(errorMessage);
 }
 
-module.exports = { getErrorMessage, isLockedError, isRateLimitError };
+module.exports = { getErrorMessage, isHtmlContent, isLockedError, isRateLimitError };

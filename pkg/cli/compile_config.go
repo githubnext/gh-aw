@@ -27,8 +27,8 @@ type CompileConfig struct {
 	RunnerGuard            bool     // Run runner-guard taint analysis scanner on generated .lock.yml files
 	JSONOutput             bool     // Output validation results as JSON
 	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
-	ActionMode             string   // Action script inlining mode: inline, dev, or release
-	ActionTag              string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
+	ActionMode             string   // How action scripts are referenced: dev, release, or action. Auto-detected if empty.
+	ActionTag              string   // Pin action refs to this SHA or version tag (e.g. v1, <full-sha>). Sets release mode unless ActionMode is already "action". Mutually exclusive with GHAwRef at the CLI layer.
 	ActionsRepo            string   // Override the external actions repository (default: github/gh-aw-actions)
 	Stats                  bool     // Display statistics table sorted by file size
 	FailFast               bool     // Stop at first error instead of collecting all errors

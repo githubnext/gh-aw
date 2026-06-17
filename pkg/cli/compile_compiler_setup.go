@@ -19,7 +19,7 @@
 //
 // Configuration:
 //   - configureCompilerFlags() - Sets validation, strict mode, trial mode flags
-//   - setupActionMode() - Configures action script inlining mode
+//   - setupActionMode() - Configures how gh-aw action scripts are referenced (--action-mode / --action-tag / --gh-aw-ref)
 //   - setupRepositoryContext() - Sets repository slug for schedule scattering
 //
 // These functions abstract compiler setup, allowing the main compile
@@ -195,14 +195,20 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	}
 }
 
-// setupActionMode configures the action script inlining mode
+// setupActionMode configures how gh-aw action scripts are referenced in compiled workflows.
+// Priority order (after --gh-aw-ref resolution):
+//   - actionTag != ""                  → pin to that SHA/tag; use ActionModeRelease unless actionMode is explicitly "action"
+//   - actionTag == "" && actionMode != "" → honour the explicit mode
+//   - neither set                      → auto-detect from the binary build type via DetectActionMode
 func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag string) {
 	compileCompilerSetupLog.Printf("Setting up action mode: %s, actionTag: %s", actionMode, actionTag)
 
-	// If actionTag is specified, it pins the version used in action/release references.
-	// When --action-mode action is explicitly set alongside --action-tag, honour the explicit
-	// action mode so that the external actions repo (--actions-repo) is also respected.
-	// Without an explicit action mode, --action-tag still defaults to release mode (original behaviour).
+	// --action-tag pins the version used in action/release references.
+	// When --action-mode action is also explicitly set, honour it so that the
+	// external actions repo (--actions-repo) is respected too.
+	// Otherwise --action-tag implies release mode.
+	// Note: --gh-aw-ref is mutually exclusive with both flags and resolves to a
+	// full SHA before calling this function, so there is no double-set risk here.
 	if actionTag != "" {
 		compiler.SetActionTag(actionTag)
 		if actionMode == string(workflow.ActionModeAction) {
@@ -210,7 +216,7 @@ func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag s
 			compiler.SetActionMode(workflow.ActionModeAction)
 			compileCompilerSetupLog.Printf("Action mode set to: action with tag/SHA: %s", actionTag)
 		} else {
-			compileCompilerSetupLog.Printf("--action-tag specified (%s), overriding to release mode", actionTag)
+			compileCompilerSetupLog.Printf("--action-tag specified (%s), defaulting to release mode", actionTag)
 			compiler.SetActionMode(workflow.ActionModeRelease)
 			compileCompilerSetupLog.Printf("Action mode set to: release with tag/SHA: %s", actionTag)
 		}
