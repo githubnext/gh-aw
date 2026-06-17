@@ -432,6 +432,80 @@ steps:
 	}
 }
 
+// TestCompileWithoutDependabotFlagDoesNotTouchDependabotYML verifies that compiling
+// without --dependabot does not modify an existing dependabot.yml file.
+func TestCompileWithoutDependabotFlagDoesNotTouchDependabotYML(t *testing.T) {
+	// Create temp directory for test
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	githubDir := filepath.Join(tempDir, ".github")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("failed to create workflows directory: %v", err)
+	}
+
+	// Change to temp directory
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir(tempDir)
+
+	// Initialize git repo
+	initGitRepo(t, tempDir)
+
+	// Write a dependabot.yml with comments that should be preserved
+	dependabotContent := `# This comment must be preserved.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+`
+	dependabotPath := filepath.Join(githubDir, "dependabot.yml")
+	if err := os.WriteFile(dependabotPath, []byte(dependabotContent), 0644); err != nil {
+		t.Fatalf("failed to write existing dependabot.yml: %v", err)
+	}
+
+	// Create a minimal workflow file
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+---
+
+# Test Workflow
+`
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	// Compile WITHOUT the Dependabot flag
+	config := CompileConfig{
+		MarkdownFiles:  nil,
+		Verbose:        false,
+		Validate:       false,
+		WorkflowDir:    ".github/workflows",
+		Dependabot:     false,
+		ForceOverwrite: false,
+		Strict:         false,
+	}
+
+	_, err := CompileWorkflows(context.Background(), config)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	// Verify dependabot.yml was not modified
+	actual, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read dependabot.yml: %v", err)
+	}
+
+	if string(actual) != dependabotContent {
+		t.Errorf("dependabot.yml was modified without --dependabot flag:\ngot:\n%s\nwant:\n%s", string(actual), dependabotContent)
+	}
+}
+
 // Helper function to initialize a git repo for testing
 func initGitRepo(t *testing.T, dir string) {
 	// Use exec to run git init to properly initialize the repo
