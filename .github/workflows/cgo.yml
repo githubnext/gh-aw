@@ -1858,23 +1858,23 @@ jobs:
         $logFile = Join-Path $env:RUNNER_TEMP "defender-scan-log.txt"
         $mpStatusLines = if ($mpStatus) {
           @(
-            "AntivirusEnabled:              $($mpStatus.AntivirusEnabled)",
-            "RealTimeProtectionEnabled:     $($mpStatus.RealTimeProtectionEnabled)",
-            "AntivirusSignatureVersion:     $($mpStatus.AntivirusSignatureVersion)",
+            "AntivirusEnabled: $($mpStatus.AntivirusEnabled)",
+            "RealTimeProtectionEnabled: $($mpStatus.RealTimeProtectionEnabled)",
+            "AntivirusSignatureVersion: $($mpStatus.AntivirusSignatureVersion)",
             "AntivirusSignatureLastUpdated: $($mpStatus.AntivirusSignatureLastUpdated)",
-            "AMProductVersion:              $($mpStatus.AMProductVersion)",
-            "AMEngineVersion:               $($mpStatus.AMEngineVersion)",
-            "AMRunningMode:                 $($mpStatus.AMRunningMode)",
-            "IoavProtectionEnabled:         $($mpStatus.IoavProtectionEnabled)"
+            "AMProductVersion: $($mpStatus.AMProductVersion)",
+            "AMEngineVersion: $($mpStatus.AMEngineVersion)",
+            "AMRunningMode: $($mpStatus.AMRunningMode)",
+            "IoavProtectionEnabled: $($mpStatus.IoavProtectionEnabled)"
           )
         } else {
           @("(Get-MpComputerStatus unavailable)")
         }
         $mpPrefLines = if ($mpPreference) {
           @(
-            "ExclusionPath:      $(@($mpPreference.ExclusionPath) -join '; ')",
+            "ExclusionPath: $(@($mpPreference.ExclusionPath) -join '; ')",
             "ExclusionExtension: $(@($mpPreference.ExclusionExtension) -join '; ')",
-            "ExclusionProcess:   $(@($mpPreference.ExclusionProcess) -join '; ')",
+            "ExclusionProcess: $(@($mpPreference.ExclusionProcess) -join '; ')",
             "ExclusionIpAddress: $(@($mpPreference.ExclusionIpAddress) -join '; ')"
           )
         } else {
@@ -1883,30 +1883,35 @@ jobs:
         $winDefendLines = if ($winDefendService) {
           @(
             "WinDefend service status: $($winDefendService.Status)",
-            "WinDefend service start:  $($winDefendService.StartType)"
+            "WinDefend service start: $($winDefendService.StartType)"
           )
         } else {
           @("(WinDefend service unavailable)")
         }
-        @(
+        $logContent = @(
           "=== Microsoft Defender diagnostic info ===",
           ($mpStatusLines -join "`n"),
           ($mpPrefLines -join "`n"),
           ($winDefendLines -join "`n"),
           "MpCmdRun.exe path: $mpCmdRun",
-          "Workspace binary:  $workspaceBinaryPath",
-          "Workspace size:    $($stableBinaryItem.Length) bytes",
-          "Workspace SHA256:  $workspaceBinaryHash",
-          "Binary to scan:    $binaryPath",
-          "Binary size:       $($scanBinaryItem.Length) bytes",
-          "Binary SHA256:     $scanBinaryHash",
+          "Workspace binary: $workspaceBinaryPath",
+          "Workspace size: $($stableBinaryItem.Length) bytes",
+          "Workspace SHA256: $workspaceBinaryHash",
+          "Binary to scan: $binaryPath",
+          "Binary size: $($scanBinaryItem.Length) bytes",
+          "Binary SHA256: $scanBinaryHash",
           "==========================================",
           "",
           "=== MpCmdRun output ===",
           $outputText,
           "Exit code: $scanExitCode",
           "======================="
-        ) -join "`n" | Set-Content -Path $logFile -Encoding UTF8
+        ) -join "`n"
+        try {
+          Set-Content -Path $logFile -Value $logContent -Encoding UTF8
+        } catch {
+          Write-Host "Warning: could not write defender scan log file: $_"
+        }
 
         # Exit code alone is not enough: explicitly parse output to confirm scan execution.
         $skipped = $output | Where-Object { $_ -imatch "\bwas skipped\b|\bcannot be scanned\b|\bnot performed\b|\b(?:file|scan).*\bexcluded\b" }
