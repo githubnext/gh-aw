@@ -17,8 +17,9 @@ const mockGithub = {
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
 
-const { AGENT_LOGIN_NAMES, getAgentName, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
-  await import("./assign_agent_helpers.cjs");
+const { AGENT_LOGIN_NAMES, getAgentName, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } = await import(
+  "./assign_agent_helpers.cjs"
+);
 
 describe("assign_agent_helpers.cjs", () => {
   beforeEach(() => {

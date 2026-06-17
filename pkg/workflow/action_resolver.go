@@ -166,15 +166,15 @@ func ResolveGhAwRef(ctx context.Context, ref string) (string, error) {
 	apiPath := fmt.Sprintf("/repos/github/gh-aw/commits/%s", ref)
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-cmd := ExecGHContext(callCtx, "api", apiPath, "--jq", ".sha")
-output, err := cmd.CombinedOutput()
-if err != nil {
-	msg := strings.TrimSpace(string(output))
-	if msg != "" {
-		return "", fmt.Errorf("failed to resolve gh-aw ref %q to SHA: %s: %w", ref, msg, err)
+	cmd := ExecGHContext(callCtx, "api", apiPath, "--jq", ".sha")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(output))
+		if msg != "" {
+			return "", fmt.Errorf("failed to resolve gh-aw ref %q to SHA: %s: %w", ref, msg, err)
+		}
+		return "", fmt.Errorf("failed to resolve gh-aw ref %q to SHA: %w", ref, err)
 	}
-	return "", fmt.Errorf("failed to resolve gh-aw ref %q to SHA: %w", ref, err)
-}
 	sha := strings.TrimSpace(string(output))
 	if !gitutil.IsValidFullSHA(sha) {
 		return "", fmt.Errorf("unexpected response resolving gh-aw ref %q: got %q (expected 40-char hex SHA)", ref, sha)

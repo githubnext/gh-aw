@@ -220,9 +220,11 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 			"data": map[string]any{
 				"repository": map[string]any{
 					"pullRequest": map[string]any{
+						"id": "PR_kwDOAAABCD4",
 						"closingIssuesReferences": map[string]any{
 							"nodes": []any{
 								map[string]any{
+									"id":     "I_kwDOAAABCQ4",
 									"number": float64(1234),
 									"url":    "https://github.com/owner/repo/issues/1234",
 									"labels": map[string]any{"nodes": []any{
@@ -253,6 +255,8 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 	assert.Equal(t, 90, report.ObjectiveValue)
 	assert.Equal(t, []string{"agentic-campaign", "security"}, report.ObjectiveLabels)
 	assert.Equal(t, "https://github.com/owner/repo/issues/1234", report.TracedRootURL)
+	assert.Equal(t, "mapped", report.AttributionStatus)
+	assert.Equal(t, "closing_issue", report.AttributionSource)
 }
 
 func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
@@ -278,6 +282,64 @@ func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
 	assert.Equal(t, 70, report.ObjectiveValue)
 	assert.Equal(t, []string{"automation", "testing"}, report.ObjectiveLabels)
 	assert.Equal(t, "https://github.com/owner/repo/issues/42", report.TracedRootURL)
+	assert.Equal(t, "mapped", report.AttributionStatus)
+	assert.Equal(t, "issue_labels", report.AttributionSource)
+}
+
+func TestEnrichOutcomeWithObjectiveValue_MultipleClosingIssuesRemainAmbiguous(t *testing.T) {
+	oldGraphQL := objectiveMappingGHAPIGraphQL
+	oldGetArray := objectiveMappingGHAPIGetArray
+	t.Cleanup(func() {
+		objectiveMappingGHAPIGraphQL = oldGraphQL
+		objectiveMappingGHAPIGetArray = oldGetArray
+	})
+
+	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"pullRequest": map[string]any{
+						"id": "PR_kwDOAAABCD4",
+						"closingIssuesReferences": map[string]any{
+							"nodes": []any{
+								map[string]any{
+									"id":  "I_kwDOAAABCQ4",
+									"url": "https://github.com/owner/repo/issues/1234",
+									"labels": map[string]any{"nodes": []any{
+										map[string]any{"name": "agentic-campaign"},
+									}},
+								},
+								map[string]any{
+									"id":  "I_kwDOAAABCR4",
+									"url": "https://github.com/owner/repo/issues/1235",
+									"labels": map[string]any{"nodes": []any{
+										map[string]any{"name": "security"},
+									}},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return []map[string]any{{"name": "automation"}}, nil
+	}
+
+	report := OutcomeReport{Type: "create_pull_request", ObjectURL: "https://github.com/owner/repo/pull/77", ObjectNumber: 77}
+	mapping := &github.ObjectiveMapping{
+		LabelToValue:    map[string]int{"agentic-campaign": 90, "security": 85, "automation": 70},
+		MultiLabelLogic: "max",
+	}
+
+	enrichOutcomeWithObjectiveValue(&report, "owner/repo", mapping)
+
+	assert.Equal(t, "ambiguous", report.AttributionStatus)
+	assert.Equal(t, "closing_issue", report.AttributionSource)
+	assert.Empty(t, report.TracedRootURL)
+	assert.Zero(t, report.ObjectiveValue)
+	assert.Empty(t, report.ObjectiveLabels)
 }
 
 func TestNormalizeOutcomeEvaluationTargetExistsOnly(t *testing.T) {

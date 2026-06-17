@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/github"
+	"github.com/github/gh-aw/pkg/intent"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -37,6 +38,8 @@ type OutcomeReport struct {
 	ObjectURL          string        `json:"object_url,omitempty" console:"header:URL,omitempty"`
 	ObjectNumber       int           `json:"object_number,omitempty" console:"header:#,omitempty"`
 	TracedRootURL      string        `json:"traced_root_url,omitempty" console:"-"`
+	AttributionStatus  string        `json:"attribution_status,omitempty" console:"-"`
+	AttributionSource  string        `json:"attribution_source,omitempty" console:"-"`
 	Repo               string        `json:"repo,omitempty" console:"header:Repo,omitempty"`
 	Result             OutcomeResult `json:"result" console:"header:Outcome"`
 	Detail             string        `json:"detail,omitempty" console:"header:Detail,omitempty"`
@@ -402,16 +405,18 @@ func enrichOutcomeWithObjectiveValue(report *OutcomeReport, repo string, mapping
 
 	outcomeEvalLog.Printf("Computing objective value: type=%s, repo=%s, number=%d", report.Type, repo, num)
 
-	root, err := traceOutcomeRoot(*report, repo)
+	resolvedIntent, err := resolveOutcomeIntent(*report, repo, mapping)
 	if err != nil {
 		outcomeEvalLog.Printf("Could not trace root for objective value computation: %v", err)
 		return
 	}
-	report.TracedRootURL = root.URL
+	report.AttributionStatus = string(resolvedIntent.Status)
+	report.AttributionSource = string(resolvedIntent.Source)
+	report.TracedRootURL = resolvedIntent.RootURL
 
-	labelNames := root.Labels
+	labelNames := resolvedIntent.Labels
 	if len(labelNames) > 0 {
-		outcomeEvalLog.Printf("Fetched root labels for %s#%d: root=%s labels=%v", repo, num, root.URL, labelNames)
+		outcomeEvalLog.Printf("Fetched root labels for %s#%d: root=%s labels=%v", repo, num, resolvedIntent.RootURL, labelNames)
 	}
 
 	// Compute objective value
@@ -423,17 +428,18 @@ func enrichOutcomeWithObjectiveValue(report *OutcomeReport, repo string, mapping
 	outcomeEvalLog.Printf("Computed objective value for %s#%d: value=%d, labels=%v", repo, num, objectiveValue, objectiveLabels)
 }
 
-type tracedOutcomeRoot struct {
-	URL    string
-	Number int
-	Labels []string
-}
+func resolveOutcomeIntent(report OutcomeReport, repo string, mapping *github.ObjectiveMapping) (intent.IntentRecord, error) {
+	resolver := intent.Resolver{
+		ResolverVersion: "outcome-eval-v1",
+		MatchLabels: func(labels []string) []string {
+			return mapping.GetObjectiveLabels(labels)
+		},
+	}
 
-func traceOutcomeRoot(report OutcomeReport, repo string) (tracedOutcomeRoot, error) {
 	if isPullRequestOutcomeType(report.Type) {
-		root, err := tracePullRequestRoot(report.ObjectNumber, repo)
-		if err == nil && root.Number > 0 {
-			return root, nil
+		prIntent, err := resolvePullRequestIntent(report, repo, resolver)
+		if err == nil {
+			return prIntent, nil
 		}
 		if err != nil {
 			outcomeEvalLog.Printf("Falling back to direct labels after PR root trace failure: %v", err)
@@ -442,13 +448,9 @@ func traceOutcomeRoot(report OutcomeReport, repo string) (tracedOutcomeRoot, err
 
 	labels, err := objectiveMappingGHAPIGetArray(fmt.Sprintf("issues/%d/labels", report.ObjectNumber), repo)
 	if err != nil {
-		return tracedOutcomeRoot{}, err
+		return intent.IntentRecord{}, err
 	}
-	return tracedOutcomeRoot{
-		URL:    report.ObjectURL,
-		Number: report.ObjectNumber,
-		Labels: labelsToStringsFromMaps(labels),
-	}, nil
+	return resolver.ResolveIssue("", report.ObjectURL, labelsToStringsFromMaps(labels)), nil
 }
 
 func isPullRequestOutcomeType(outcomeType string) bool {
@@ -462,18 +464,29 @@ func isPullRequestOutcomeType(outcomeType string) bool {
 	}
 }
 
-func tracePullRequestRoot(prNumber int, repo string) (tracedOutcomeRoot, error) {
+func resolvePullRequestIntent(report OutcomeReport, repo string, resolver intent.Resolver) (intent.IntentRecord, error) {
+	prData, err := loadPullRequestIntentData(report, repo)
+	if err != nil {
+		return intent.IntentRecord{}, err
+	}
+	return resolver.ResolvePullRequest(prData), nil
+}
+
+func loadPullRequestIntentData(report OutcomeReport, repo string) (intent.PullRequestData, error) {
+	prNumber := report.ObjectNumber
 	ownerRepo, _ := normalizeRepoForAPI(repo)
 	owner, name, found := strings.Cut(ownerRepo, "/")
 	if !found || owner == "" || name == "" {
-		return tracedOutcomeRoot{}, fmt.Errorf("invalid repo for root tracing: %s", repo)
+		return intent.PullRequestData{}, fmt.Errorf("invalid repo for root tracing: %s", repo)
 	}
 
 	query := fmt.Sprintf(`query {
 		repository(owner: "%s", name: "%s") {
 			pullRequest(number: %d) {
+				id
 				closingIssuesReferences(first: 10) {
 					nodes {
+						id
 						number
 						url
 						labels(first: 20) {
@@ -491,30 +504,44 @@ func tracePullRequestRoot(prNumber int, repo string) (tracedOutcomeRoot, error) 
 
 	result, err := objectiveMappingGHAPIGraphQL(query, repo)
 	if err != nil {
-		return tracedOutcomeRoot{}, err
+		return intent.PullRequestData{}, err
 	}
 	data, _ := result["data"].(map[string]any)
 	repository, _ := data["repository"].(map[string]any)
 	pullRequest, _ := repository["pullRequest"].(map[string]any)
+	prData := intent.PullRequestData{URL: report.ObjectURL}
+	if nodeID, ok := pullRequest["id"].(string); ok {
+		prData.NodeID = nodeID
+	}
 	closingRefs, _ := pullRequest["closingIssuesReferences"].(map[string]any)
 	nodes, _ := closingRefs["nodes"].([]any)
 	if len(nodes) == 0 {
-		return tracedOutcomeRoot{}, fmt.Errorf("no closing issues found for PR #%d", prNumber)
-	}
-	firstNode, _ := nodes[0].(map[string]any)
-	root := tracedOutcomeRoot{}
-	if url, ok := firstNode["url"].(string); ok {
-		root.URL = url
-	}
-	if number, ok := firstNode["number"].(float64); ok {
-		root.Number = int(number)
-	}
-	if labels, ok := firstNode["labels"].(map[string]any); ok {
-		if labelNodes, ok := labels["nodes"].([]any); ok {
-			root.Labels = labelsToStringsFromNodes(labelNodes)
+		labels, labelErr := objectiveMappingGHAPIGetArray(fmt.Sprintf("issues/%d/labels", report.ObjectNumber), repo)
+		if labelErr == nil {
+			prData.Labels = labelsToStringsFromMaps(labels)
 		}
+		return prData, nil
 	}
-	return root, nil
+
+	prData.ClosingIssues = make([]intent.RootReference, 0, len(nodes))
+	for _, node := range nodes {
+		rootNode, _ := node.(map[string]any)
+		root := intent.RootReference{Type: "issue"}
+		if nodeID, ok := rootNode["id"].(string); ok {
+			root.NodeID = nodeID
+		}
+		if url, ok := rootNode["url"].(string); ok {
+			root.URL = url
+		}
+		if labels, ok := rootNode["labels"].(map[string]any); ok {
+			if labelNodes, ok := labels["nodes"].([]any); ok {
+				root.Labels = labelsToStringsFromNodes(labelNodes)
+			}
+		}
+		prData.ClosingIssues = append(prData.ClosingIssues, root)
+	}
+
+	return prData, nil
 }
 
 func labelsToStringsFromNodes(nodes []any) []string {
