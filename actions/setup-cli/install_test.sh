@@ -125,6 +125,19 @@ test_version_mismatch_detection() {
   fi
 }
 
+# Test 8: Verify no-color gate for CI environments
+test_no_color_gate() {
+  echo ""
+  echo "Test 8: Verify no-color gate"
+
+  if grep -q 'NO_COLOR+set' "$SCRIPT_PATH" && \
+     grep -q 'RED=""' "$SCRIPT_PATH"; then
+    print_result "No-color gate present and spec-compliant" "PASS"
+  else
+    print_result "No-color gate missing or not spec-compliant" "FAIL"
+  fi
+}
+
 # Run all tests
 echo "========================================="
 echo "Testing setup-cli action install.sh"
@@ -137,6 +150,7 @@ test_gh_install
 test_version_pinning
 test_checksum_validation
 test_version_mismatch_detection
+test_no_color_gate
 
 # Summary
 echo ""
