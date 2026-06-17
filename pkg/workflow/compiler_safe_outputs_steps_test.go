@@ -38,9 +38,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"persist-credentials: false",
 				"fetch-depth: 1",
 				"name: Configure Git credentials",
-				"git config --global user.email",
-				"github-actions[bot]@users.noreply.github.com",
-				"git config --global --add safe.directory",
+				"configure_git_credentials.sh",
 			},
 		},
 		{

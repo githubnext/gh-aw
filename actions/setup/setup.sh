@@ -395,6 +395,18 @@ if [ ! -f "${SAFE_OUTPUTS_DEST}/config.json" ]; then
   debug_log "Created empty config.json for safe-outputs server"
 fi
 
+# Copy configure_git_credentials.sh to safeoutputs so the gh-aw-node container can run it
+# The container's entrypoint calls this script to configure git identity and safe.directory
+GIT_CREDENTIALS_SCRIPT="${SH_SOURCE_DIR}/configure_git_credentials.sh"
+if [ -f "${GIT_CREDENTIALS_SCRIPT}" ]; then
+  cp "${GIT_CREDENTIALS_SCRIPT}" "${SAFE_OUTPUTS_DEST}/configure_git_credentials.sh"
+  chmod +x "${SAFE_OUTPUTS_DEST}/configure_git_credentials.sh"
+  debug_log "Copied git credentials script to safe-outputs: configure_git_credentials.sh"
+else
+  echo "::error::configure_git_credentials.sh not found at ${GIT_CREDENTIALS_SCRIPT}"
+  exit 1
+fi
+
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 
 # Send OTLP job setup span when configured (non-fatal).

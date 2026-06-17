@@ -56,21 +56,9 @@ This is a test workflow to verify git configuration is included.
 		t.Error("Expected 'Configure Git credentials' step to be present in compiled workflow")
 	}
 
-	// Verify the git config commands are present
-	if !strings.Contains(lockContent, "git config --global user.email") {
-		t.Error("Expected git config email command to be present")
-	}
-
-	if !strings.Contains(lockContent, "git config --global user.name") {
-		t.Error("Expected git config name command to be present")
-	}
-
-	if !strings.Contains(lockContent, "git config --global am.keepcr true") {
-		t.Error("Expected git config am.keepcr command to be present")
-	}
-
-	if !strings.Contains(lockContent, "github-actions[bot]@users.noreply.github.com") {
-		t.Error("Expected github-actions bot email to be present")
+	// Verify the step calls the git credentials shell script
+	if !strings.Contains(lockContent, "configure_git_credentials.sh") {
+		t.Error("Expected configure_git_credentials.sh to be called in compiled workflow")
 	}
 }
 
@@ -80,9 +68,9 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitConfigurationSteps()
 
-	// Verify we get expected number of lines (14 lines with env block including GITHUB_TOKEN and safe.directory)
-	if len(steps) != 14 {
-		t.Errorf("Expected 14 lines in git configuration steps, got %d", len(steps))
+	// Verify we get expected number of lines (6 lines: name, env, REPO_NAME, SERVER_URL, GITHUB_TOKEN, run)
+	if len(steps) != 6 {
+		t.Errorf("Expected 6 lines in git configuration steps, got %d", len(steps))
 	}
 
 	// Verify the content of the steps
@@ -91,15 +79,7 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 		"env:",
 		"REPO_NAME:",
 		"GITHUB_TOKEN:",
-		"run: |",
-		"git config --global user.email",
-		"git config --global user.name",
-		"git config --global am.keepcr true",
-		"git config --global --add safe.directory",
-		"git remote set-url origin",
-		"x-access-token:${GITHUB_TOKEN}",
-		"${REPO_NAME}.git",
-		"Git configured with standard GitHub Actions identity",
+		"configure_git_credentials.sh",
 	}
 
 	fullContent := strings.Join(steps, "")

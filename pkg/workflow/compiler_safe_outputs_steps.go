@@ -246,15 +246,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		fmt.Sprintf("          REPO_NAME: %s\n", repoNameValue),
 		"          SERVER_URL: ${{ github.server_url }}\n",
 		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"github-actions[bot]\"\n",
-		"          git config --global am.keepcr true\n",
-		"          git config --global --add safe.directory \"${GITHUB_WORKSPACE}\"\n",
-		"          # Re-authenticate git with GitHub token\n",
-		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		"          git remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 	}
 	steps = append(steps, gitConfigSteps...)
 
@@ -357,37 +349,50 @@ func (c *Compiler) buildMultiRepoCheckoutSteps(data *WorkflowData, checkoutMgr *
 
 	// Step 3: Configure Git credentials for ALL repositories.
 	// Set up authentication for the workspace root and each subdirectory checkout.
-	gitConfigSteps := []string{
-		"      - name: Configure Git credentials\n",
-		fmt.Sprintf("        if: %s\n", conditionStr),
-		"        env:\n",
-		"          REPO_NAME: ${{ github.repository }}\n",
-		"          SERVER_URL: ${{ github.server_url }}\n",
-		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"github-actions[bot]\"\n",
-		"          git config --global am.keepcr true\n",
-		"          git config --global --add safe.directory \"${GITHUB_WORKSPACE}\"\n",
-		"          # Re-authenticate git with GitHub token for workspace root\n",
-		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		"          git remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
+
+	// Collect subdirectory checkouts that need per-repo authentication
+	var subRepoConfigs []*CheckoutConfig
+	for _, cfg := range data.CheckoutConfigs {
+		if cfg != nil && cfg.Repository != "" && cfg.Path != "" && !cfg.Wiki {
+			subRepoConfigs = append(subRepoConfigs, cfg)
+		}
 	}
 
-	// Also configure credentials for each subdirectory checkout
-	for _, cfg := range data.CheckoutConfigs {
-		if cfg == nil || cfg.Repository == "" || cfg.Path == "" || cfg.Wiki {
-			continue
+	var gitConfigSteps []string
+	if len(subRepoConfigs) == 0 {
+		// Simple case: single root repo, call the script directly
+		gitConfigSteps = []string{
+			"      - name: Configure Git credentials\n",
+			fmt.Sprintf("        if: %s\n", conditionStr),
+			"        env:\n",
+			"          REPO_NAME: ${{ github.repository }}\n",
+			"          SERVER_URL: ${{ github.server_url }}\n",
+			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
+		}
+	} else {
+		// Multi-repo case: call the script for root repo, then configure each subdirectory
+		gitConfigSteps = []string{
+			"      - name: Configure Git credentials\n",
+			fmt.Sprintf("        if: %s\n", conditionStr),
+			"        env:\n",
+			"          REPO_NAME: ${{ github.repository }}\n",
+			"          SERVER_URL: ${{ github.server_url }}\n",
+			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+			"        run: |\n",
+			"          bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
+			"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		}
+		for _, cfg := range subRepoConfigs {
+			gitConfigSteps = append(gitConfigSteps,
+				fmt.Sprintf("          # Re-authenticate git for %s\n", cfg.Repository),
+				fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/%s.git\"\n", cfg.Path, cfg.Repository),
+			)
 		}
 		gitConfigSteps = append(gitConfigSteps,
-			fmt.Sprintf("          # Re-authenticate git for %s\n", cfg.Repository),
-			fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/%s.git\"\n", cfg.Path, cfg.Repository),
+			"          echo \"Git configured with standard GitHub Actions identity\"\n",
 		)
 	}
-
-	gitConfigSteps = append(gitConfigSteps,
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
-	)
 	steps = append(steps, gitConfigSteps...)
 
 	// Step 4: Fetch additional refs for each repository that declares them.
