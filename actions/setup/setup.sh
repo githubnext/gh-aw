@@ -407,14 +407,6 @@ else
   exit 1
 fi
 
-# Export GIT_SERVER_URL as a pre-stripped server URL (without https:// prefix) so
-# the gh-aw-node container receives it ready for use in git remote URLs.
-if [ -n "${GITHUB_SERVER_URL:-}" ] && [ -n "${GITHUB_ENV:-}" ]; then
-  GIT_SERVER_URL="${GITHUB_SERVER_URL#https://}"
-  echo "GIT_SERVER_URL=${GIT_SERVER_URL}" >> "${GITHUB_ENV}"
-  debug_log "Exported GIT_SERVER_URL=${GIT_SERVER_URL} to GITHUB_ENV"
-fi
-
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 
 # Send OTLP job setup span when configured (non-fatal).

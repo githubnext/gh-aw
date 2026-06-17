@@ -244,7 +244,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		fmt.Sprintf("        if: %s\n", RenderCondition(condition)),
 		"        env:\n",
 		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", repoNameValue),
-		"          GIT_SERVER_URL: ${{ github.server_url }}\n",
+		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
 		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 	}
@@ -366,7 +366,7 @@ func (c *Compiler) buildMultiRepoCheckoutSteps(data *WorkflowData, checkoutMgr *
 			fmt.Sprintf("        if: %s\n", conditionStr),
 			"        env:\n",
 			"          GITHUB_REPOSITORY: ${{ github.repository }}\n",
-			"          GIT_SERVER_URL: ${{ github.server_url }}\n",
+			"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
 			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 		}
@@ -377,11 +377,11 @@ func (c *Compiler) buildMultiRepoCheckoutSteps(data *WorkflowData, checkoutMgr *
 			fmt.Sprintf("        if: %s\n", conditionStr),
 			"        env:\n",
 			"          GITHUB_REPOSITORY: ${{ github.repository }}\n",
-			"          GIT_SERVER_URL: ${{ github.server_url }}\n",
+			"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
 			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 			"        run: |\n",
 			"          bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
-			"          GIT_SERVER_URL_STRIPPED=\"${GIT_SERVER_URL#https://}\"\n",
+			"          GIT_SERVER_URL_STRIPPED=\"${GITHUB_SERVER_URL#https://}\"\n",
 		}
 		for _, cfg := range subRepoConfigs {
 			gitConfigSteps = append(gitConfigSteps,

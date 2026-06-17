@@ -558,7 +558,7 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Checkout PR branch
@@ -1033,7 +1033,7 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Copy Copilot session state files to logs
@@ -1899,7 +1899,7 @@ jobs:
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         env:
           GITHUB_REPOSITORY: "github/gh-aw-side-repo"
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GIT_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Configure GH_HOST for enterprise compatibility

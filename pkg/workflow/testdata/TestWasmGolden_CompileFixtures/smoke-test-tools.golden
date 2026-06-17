@@ -322,12 +322,12 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
-          GIT_SERVER_URL_STRIPPED="${GIT_SERVER_URL#https://}"
+          GIT_SERVER_URL_STRIPPED="${GITHUB_SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${GIT_SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
@@ -490,12 +490,12 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
-          GIT_SERVER_URL_STRIPPED="${GIT_SERVER_URL#https://}"
+          GIT_SERVER_URL_STRIPPED="${GITHUB_SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${GIT_SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Copy Copilot session state files to logs

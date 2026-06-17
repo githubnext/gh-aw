@@ -13,7 +13,7 @@ set +o histexpand
 #
 # Optional environment variables for remote authentication:
 #   GITHUB_REPOSITORY    - Repository slug (e.g., "org/repo")
-#   GIT_SERVER_URL       - GitHub server URL (with or without https:// prefix); falls back to GITHUB_SERVER_URL
+#   GITHUB_SERVER_URL    - GitHub server URL (with or without https:// prefix)
 #   GITHUB_TOKEN         - Authentication token; falls back to GIT_TOKEN
 #
 # Exit codes:
@@ -35,7 +35,7 @@ fi
 
 # Configure remote URL authentication when credentials are provided
 REPO="${GITHUB_REPOSITORY:-}"
-URL="${GIT_SERVER_URL:-${GITHUB_SERVER_URL:-}}"
+URL="${GITHUB_SERVER_URL:-}"
 TOKEN="${GITHUB_TOKEN:-${GIT_TOKEN:-}}"
 
 if [ -n "${REPO}" ] && [ -n "${URL}" ] && [ -n "${TOKEN}" ]; then

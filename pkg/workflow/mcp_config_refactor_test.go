@@ -232,7 +232,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`args = ["-w", "$GITHUB_WORKSPACE"]`,
 		`entrypoint = "sh"`,
 		`entrypointArgs = ["-c", "bash ${RUNNER_TEMP}/gh-aw/safeoutputs/configure_git_credentials.sh && exec node ${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"]`,
-		`env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "GIT_SERVER_URL", "RUNNER_TEMP"]`,
+		`env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP"]`,
 	}
 
 	unexpectedContent := []string{

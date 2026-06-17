@@ -490,7 +490,7 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Checkout PR branch
@@ -942,7 +942,7 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Copy Copilot session state files to logs
@@ -1681,7 +1681,7 @@ jobs:
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GIT_SERVER_URL: ${{ github.server_url }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Download repo-memory artifact (default)
