@@ -377,8 +377,8 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     ];
     core.debug(`GraphQL mutation with variables: ${debugParts.join(", ")}`);
 
-    // Build GraphQL-Features header - include coding_agent_model_selection when model is provided
-    const graphqlFeatures = model ? "issues_copilot_assignment_api_support,coding_agent_model_selection" : "issues_copilot_assignment_api_support";
+    // Both feature flags are required per GitHub Copilot documentation
+    const graphqlFeatures = "issues_copilot_assignment_api_support,coding_agent_model_selection";
 
     const response = await githubClient.graphql(mutation, {
       ...variables,
@@ -483,7 +483,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
           assignableId,
           assigneeIds: [agentId],
           headers: {
-            "GraphQL-Features": "issues_copilot_assignment_api_support",
+            "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
           },
         });
         if (fallbackResp?.addAssigneesToAssignable) {

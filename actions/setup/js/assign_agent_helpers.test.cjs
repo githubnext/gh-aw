@@ -260,10 +260,10 @@ describe("assign_agent_helpers.cjs", () => {
         })
       );
 
-      // Should only include issues_copilot_assignment_api_support when model is not provided
+      // Should always include both issues_copilot_assignment_api_support and coding_agent_model_selection
       const calledArgs = mockGithub.graphql.mock.calls[0];
       const variables = calledArgs[1];
-      expect(variables.headers["GraphQL-Features"]).toBe("issues_copilot_assignment_api_support");
+      expect(variables.headers["GraphQL-Features"]).toBe("issues_copilot_assignment_api_support,coding_agent_model_selection");
     });
 
     it("should preserve existing assignees when adding agent", async () => {
@@ -330,7 +330,7 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mutation).toContain("agentAssignment");
       expect(mutation).toContain("model: $model");
       expect(variables.model).toBe("claude-opus-4.6");
-      // Should include coding_agent_model_selection feature flag when model is provided
+      // Should always include both feature flags
       expect(variables.headers["GraphQL-Features"]).toBe("issues_copilot_assignment_api_support,coding_agent_model_selection");
     });
 
