@@ -54,6 +54,16 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Disable colors when output is captured or color is explicitly disabled.
+# This keeps logs readable in CI systems like GitHub Actions.
+if [ -n "${CI:-}" ] || [ -n "${NO_COLOR:-}" ] || [ -n "${NO_COLORS:-}" ] || [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ]; then
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    NC=""
+fi
+
 # Function to print colored output
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
