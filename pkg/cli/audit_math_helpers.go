@@ -57,3 +57,21 @@ func formatFloatDelta(value1, value2 float64) string {
 	}
 	return fmt.Sprintf("%.3f", delta)
 }
+
+// formatAnomalyTag returns a warning emoji suffix for markdown rendering
+// when isAnomaly is true, otherwise returns an empty string.
+func formatAnomalyTag(isAnomaly bool) string {
+	if isAnomaly {
+		return " ⚠️"
+	}
+	return ""
+}
+
+// formatAnomalyNote returns a formatted anomaly note for table rendering
+// with a warning emoji prefix when isAnomaly is true, otherwise returns an empty string.
+func formatAnomalyNote(isAnomaly bool, anomalyNote string) string {
+	if isAnomaly {
+		return "⚠️ " + anomalyNote
+	}
+	return ""
+}

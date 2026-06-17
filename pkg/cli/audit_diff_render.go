@@ -150,10 +150,7 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 		for _, entry := range diff.NewDomains {
 			total := entry.Run2Allowed + entry.Run2Blocked
 			statusIcon := firewallStatusEmoji(entry.Run2Status)
-			anomalyTag := ""
-			if entry.IsAnomaly {
-				anomalyTag = " ⚠️"
-			}
+			anomalyTag := formatAnomalyTag(entry.IsAnomaly)
 			fmt.Fprintf(os.Stdout, "- %s `%s` (%d requests, %s)%s\n", statusIcon, entry.Domain, total, entry.Run2Status, anomalyTag)
 		}
 		fmt.Fprintln(os.Stdout)
@@ -173,10 +170,7 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 		for _, entry := range diff.StatusChanges {
 			icon1 := firewallStatusEmoji(entry.Run1Status)
 			icon2 := firewallStatusEmoji(entry.Run2Status)
-			anomalyTag := ""
-			if entry.IsAnomaly {
-				anomalyTag = " ⚠️"
-			}
+			anomalyTag := formatAnomalyTag(entry.IsAnomaly)
 			fmt.Fprintf(os.Stdout, "- `%s`: %s %s → %s %s%s\n", entry.Domain, icon1, entry.Run1Status, icon2, entry.Run2Status, anomalyTag)
 		}
 		fmt.Fprintln(os.Stdout)
@@ -205,10 +199,7 @@ func renderMCPToolsDiffMarkdownSection(diff *MCPToolsDiff) {
 	if len(diff.NewTools) > 0 {
 		fmt.Fprintf(os.Stdout, "**New tools (%d)**\n", len(diff.NewTools))
 		for _, entry := range diff.NewTools {
-			anomalyTag := ""
-			if entry.IsAnomaly {
-				anomalyTag = " ⚠️"
-			}
+			anomalyTag := formatAnomalyTag(entry.IsAnomaly)
 			fmt.Fprintf(os.Stdout, "- `%s/%s` (%d calls)%s\n", entry.ServerName, entry.ToolName, entry.Run2CallCount, anomalyTag)
 		}
 		fmt.Fprintln(os.Stdout)
@@ -225,10 +216,7 @@ func renderMCPToolsDiffMarkdownSection(diff *MCPToolsDiff) {
 	if len(diff.ChangedTools) > 0 {
 		fmt.Fprintf(os.Stdout, "**Changed tools (%d)**\n", len(diff.ChangedTools))
 		for _, entry := range diff.ChangedTools {
-			anomalyTag := ""
-			if entry.IsAnomaly {
-				anomalyTag = " ⚠️"
-			}
+			anomalyTag := formatAnomalyTag(entry.IsAnomaly)
 			errInfo := ""
 			if entry.Run1ErrorCount > 0 || entry.Run2ErrorCount > 0 {
 				errInfo = fmt.Sprintf(", errors: %d → %d", entry.Run1ErrorCount, entry.Run2ErrorCount)
@@ -327,10 +315,7 @@ func renderFirewallDiffPrettySection(diff *FirewallDiff) {
 		}
 		for _, entry := range diff.NewDomains {
 			total := entry.Run2Allowed + entry.Run2Blocked
-			anomalyNote := ""
-			if entry.IsAnomaly {
-				anomalyNote = "⚠️ " + entry.AnomalyNote
-			}
+			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
 			config.Rows = append(config.Rows, []string{
 				entry.Domain,
 				firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status,
@@ -365,10 +350,7 @@ func renderFirewallDiffPrettySection(diff *FirewallDiff) {
 			Rows:    make([][]string, 0, len(diff.StatusChanges)),
 		}
 		for _, entry := range diff.StatusChanges {
-			anomalyNote := ""
-			if entry.IsAnomaly {
-				anomalyNote = "⚠️ " + entry.AnomalyNote
-			}
+			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
 			config.Rows = append(config.Rows, []string{
 				entry.Domain,
 				firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status,
@@ -415,10 +397,7 @@ func renderMCPToolsDiffPrettySection(diff *MCPToolsDiff) {
 			Rows:    make([][]string, 0, len(diff.NewTools)),
 		}
 		for _, entry := range diff.NewTools {
-			anomalyNote := ""
-			if entry.IsAnomaly {
-				anomalyNote = "⚠️ " + entry.AnomalyNote
-			}
+			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
 			config.Rows = append(config.Rows, []string{
 				entry.ServerName,
 				entry.ToolName,
@@ -452,10 +431,7 @@ func renderMCPToolsDiffPrettySection(diff *MCPToolsDiff) {
 			Rows:    make([][]string, 0, len(diff.ChangedTools)),
 		}
 		for _, entry := range diff.ChangedTools {
-			anomalyNote := ""
-			if entry.IsAnomaly {
-				anomalyNote = "⚠️ " + entry.AnomalyNote
-			}
+			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
 			config.Rows = append(config.Rows, []string{
 				entry.ServerName,
 				entry.ToolName,

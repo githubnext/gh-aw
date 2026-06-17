@@ -156,11 +156,11 @@ func (t *TemplatableBool) String() string {
 	return string(*t)
 }
 
-// buildTemplatableBoolEnvVar returns a YAML environment variable entry for a
-// templatable boolean field. If value is a GitHub Actions expression it is
+// buildTemplatableEnvVar returns a YAML environment variable entry for a
+// templatable field. If value is a GitHub Actions expression it is
 // embedded unquoted so that GitHub Actions can evaluate it at runtime;
 // otherwise the literal string is quoted. Returns nil if value is nil.
-func buildTemplatableBoolEnvVar(envVarName string, value *string) []string {
+func buildTemplatableEnvVar(envVarName string, value *string) []string {
 	if value == nil {
 		return nil
 	}
@@ -169,6 +169,14 @@ func buildTemplatableBoolEnvVar(envVarName string, value *string) []string {
 		return []string{fmt.Sprintf("          %s: %s\n", envVarName, v)}
 	}
 	return []string{fmt.Sprintf("          %s: %q\n", envVarName, v)}
+}
+
+// buildTemplatableBoolEnvVar returns a YAML environment variable entry for a
+// templatable boolean field. If value is a GitHub Actions expression it is
+// embedded unquoted so that GitHub Actions can evaluate it at runtime;
+// otherwise the literal string is quoted. Returns nil if value is nil.
+func buildTemplatableBoolEnvVar(envVarName string, value *string) []string {
+	return buildTemplatableEnvVar(envVarName, value)
 }
 
 // AddTemplatableBool adds a templatable boolean field to the handler config.
@@ -200,14 +208,7 @@ func (b *handlerConfigBuilder) AddTemplatableBool(key string, value *string) *ha
 // embedded unquoted so that GitHub Actions can evaluate it at runtime;
 // otherwise the literal string is quoted. Returns nil if value is nil.
 func buildTemplatableIntEnvVar(envVarName string, value *string) []string {
-	if value == nil {
-		return nil
-	}
-	v := *value
-	if isExpression(v) {
-		return []string{fmt.Sprintf("          %s: %s\n", envVarName, v)}
-	}
-	return []string{fmt.Sprintf("          %s: %q\n", envVarName, v)}
+	return buildTemplatableEnvVar(envVarName, value)
 }
 
 // AddTemplatableInt adds a templatable integer field to the handler config.

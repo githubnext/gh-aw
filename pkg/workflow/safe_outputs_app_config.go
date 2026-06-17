@@ -293,11 +293,7 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 		}
 
 		// Extract and sort keys for deterministic ordering
-		keys := make([]string, 0, len(permissionFields))
-		for key := range permissionFields {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
+		keys := sortedMapKeys(permissionFields)
 
 		// Add permissions in sorted order
 		for _, key := range keys {

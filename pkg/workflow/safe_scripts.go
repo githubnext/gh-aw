@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -105,11 +104,7 @@ func buildCustomSafeOutputScriptsJSON(data *WorkflowData) string {
 	}
 
 	// Sort keys for deterministic output
-	keys := make([]string, 0, len(scriptMapping))
-	for k := range scriptMapping {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := sortedMapKeys(scriptMapping)
 
 	ordered := make(map[string]string, len(keys))
 	for _, k := range keys {

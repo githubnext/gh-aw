@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -24,11 +23,7 @@ func buildNormalizedSortedJSON(names []string, valueFn func(string) string) (str
 		values[normalizedName] = valueFn(normalizedName)
 	}
 
-	keys := make([]string, 0, len(values))
-	for k := range values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := sortedMapKeys(values)
 
 	ordered := make(map[string]string, len(keys))
 	for _, k := range keys {
