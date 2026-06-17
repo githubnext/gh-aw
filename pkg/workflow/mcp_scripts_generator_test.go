@@ -38,6 +38,10 @@ func TestGenerateMCPScriptsMCPServerScript(t *testing.T) {
 				Name:        "analyze-data",
 				Description: "Analyze data with Python",
 				Py:          "import json\nprint(json.dumps({'result': 'success'}))",
+				Dependencies: []string{
+					"urllib3",
+					"requests",
+				},
 				Inputs: map[string]*MCPScriptParam{
 					"data": {
 						Type:        "string",
@@ -125,6 +129,16 @@ func TestGenerateMCPScriptsMCPServerScript(t *testing.T) {
 	// Check for Python tool handler
 	if !strings.Contains(toolsJSON, `"handler": "analyze-data.py"`) {
 		t.Error("Tools config should reference Python script handler file")
+	}
+
+	if !strings.Contains(toolsJSON, `"dependencies": [`) {
+		t.Error("Tools config should include dependencies array when configured")
+	}
+	if !strings.Contains(toolsJSON, `"requests",`) || !strings.Contains(toolsJSON, `"urllib3"`) {
+		t.Error("Tools config should include configured dependencies")
+	}
+	if strings.Index(toolsJSON, `"requests"`) > strings.Index(toolsJSON, `"urllib3"`) {
+		t.Error("Tools config should sort dependencies for stable output")
 	}
 
 	// Check for Go tool handler

@@ -40,15 +40,16 @@ type MCPScriptsConfig struct {
 
 // MCPScriptToolConfig holds the configuration for a single mcp-script tool
 type MCPScriptToolConfig struct {
-	Name        string                     // Tool name (key from the config)
-	Description string                     // Required: tool description
-	Inputs      map[string]*MCPScriptParam // Optional: input parameters
-	Script      string                     // JavaScript implementation (mutually exclusive with Run, Py, and Go)
-	Run         string                     // Shell script implementation (mutually exclusive with Script, Py, and Go)
-	Py          string                     // Python script implementation (mutually exclusive with Script, Run, and Go)
-	Go          string                     // Go script implementation (mutually exclusive with Script, Run, and Py)
-	Env         map[string]string          // Environment variables (typically for secrets)
-	Timeout     int                        // Timeout in seconds for tool execution (default: 60)
+	Name         string                     // Tool name (key from the config)
+	Description  string                     // Required: tool description
+	Inputs       map[string]*MCPScriptParam // Optional: input parameters
+	Script       string                     // JavaScript implementation (mutually exclusive with Run, Py, and Go)
+	Run          string                     // Shell script implementation (mutually exclusive with Script, Py, and Go)
+	Py           string                     // Python script implementation (mutually exclusive with Script, Run, and Go)
+	Go           string                     // Go script implementation (mutually exclusive with Script, Run, and Py)
+	Dependencies []string                   // Optional runtime dependencies
+	Env          map[string]string          // Environment variables (typically for secrets)
+	Timeout      int                        // Timeout in seconds for tool execution (default: 60)
 }
 
 // MCPScriptParam holds the configuration for a tool input parameter
@@ -166,6 +167,17 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 			for envName, envValue := range envMap {
 				if envStr, ok := envValue.(string); ok {
 					toolConfig.Env[envName] = envStr
+				}
+			}
+		}
+	}
+
+	// Parse dependencies (optional list of strings)
+	if dependencies, exists := toolMap["dependencies"]; exists {
+		if depsList, ok := dependencies.([]any); ok {
+			for _, dep := range depsList {
+				if depStr, ok := dep.(string); ok {
+					toolConfig.Dependencies = append(toolConfig.Dependencies, depStr)
 				}
 			}
 		}

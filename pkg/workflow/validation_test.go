@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -279,6 +280,22 @@ func TestValidateRuntimePackages(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "invalid mcp-scripts pip dependency name",
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"fetch-url": {
+							Name:         "fetch-url",
+							Description:  "Fetch URL",
+							Py:           "print('ok')",
+							Dependencies: []string{"re quests"},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
 		// Note: These tests would fail if npm/uv/pip are available, so we skip them
 		// The actual validation logic is tested by the extraction tests
 	}
@@ -294,6 +311,11 @@ func TestValidateRuntimePackages(t *testing.T) {
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
+			}
+			if tt.expectError && err != nil && strings.Contains(tt.name, "mcp-scripts") {
+				if !strings.Contains(err.Error(), `invalid dependency name "re quests" for tool "fetch-url"`) {
+					t.Fatalf("expected invalid dependency error message, got: %v", err)
+				}
 			}
 		})
 	}
