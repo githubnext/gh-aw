@@ -1514,14 +1514,13 @@ This mirrors the `noop.report-as-issue` pattern. Use this to silence noisy failu
 
 #### Category Filtering (Selective Reporting)
 
-Filter which failure types trigger issue creation using the `categories` field. Only failures matching the specified categories will create issues:
+Filter which failure types trigger issue creation by specifying a list of categories. Only failures matching the specified categories will create issues:
 
 ```yaml wrap
 safe-outputs:
   report-failure-as-issue:
-    categories:
-      - agent_failure           # Report only genuine agent-side failures
-      - missing_safe_outputs    # Report missing outputs
+    - agent_failure           # Report only genuine agent-side failures
+    - missing_safe_outputs    # Report missing outputs
   create-issue:
 ```
 
@@ -1550,11 +1549,10 @@ For scheduled workflows that frequently encounter transient infrastructure failu
 ```yaml wrap
 safe-outputs:
   report-failure-as-issue:
-    categories:
-      - agent_failure
-      - missing_safe_outputs
-      - missing_tool
-      - missing_data
+    - agent_failure
+    - missing_safe_outputs
+    - missing_tool
+    - missing_data
   create-issue:
 ```
 

@@ -4,11 +4,10 @@ on:
   workflow_dispatch:
 safe-outputs:
   report-failure-as-issue:
-    categories:
-      - agent_failure           # Only report genuine agent-side failures
-      - missing_safe_outputs    # Only report when outputs are missing
-      - missing_tool           # Only report when functionality is missing
-      - missing_data           # Only report when required data is unavailable
+    - agent_failure           # Only report genuine agent-side failures
+    - missing_safe_outputs    # Only report when outputs are missing
+    - missing_tool            # Only report when functionality is missing
+    - missing_data            # Only report when required data is unavailable
     # Excluded categories (won't create issues):
     # - report_incomplete: Infrastructure/tool failures
     # - inference_access_error: AI server transient errors
@@ -38,11 +37,10 @@ Use category filtering to only report actionable failures:
 ```yaml
 safe-outputs:
   report-failure-as-issue:
-    categories:
-      - agent_failure
-      - missing_safe_outputs
-      - missing_tool
-      - missing_data
+    - agent_failure
+    - missing_safe_outputs
+    - missing_tool
+    - missing_data
 ```
 
 This prevents noise while preserving actionable signals.

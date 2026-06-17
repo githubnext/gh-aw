@@ -219,9 +219,8 @@ Filter which failure types trigger issue creation:
 ```yaml
 safe-outputs:
   report-failure-as-issue:
-    categories:
-      - agent_failure           # Only report genuine agent-side failures
-      - missing_safe_outputs    # Only report missing outputs
+    - agent_failure           # Only report genuine agent-side failures
+    - missing_safe_outputs    # Only report missing outputs
 ```
 
 Common categories include: `agent_failure`, `timed_out`, `missing_safe_outputs`, `report_incomplete` (infrastructure failures), `missing_tool`, `missing_data`, `inference_access_error` (AI server transient errors), `ai_credits_rate_limit_error`, and others.

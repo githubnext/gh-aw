@@ -394,15 +394,15 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Pass report-failure-as-issue configuration flag (defaults to true if not specified)
-	// Supports both bool and object with categories filter
+	// Supports both bool and array of category strings
 	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailureAsIssue != nil {
 		if reportBool, ok := data.SafeOutputs.ReportFailureAsIssue.(bool); ok && !reportBool {
 			agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"false\"\n")
 		} else {
 			agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
 			// If categories filter is configured, pass it as JSON
-			if data.SafeOutputs.ReportFailureAsIssueConfig != nil && len(data.SafeOutputs.ReportFailureAsIssueConfig.Categories) > 0 {
-				categoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueConfig.Categories)
+			if len(data.SafeOutputs.ReportFailureAsIssueCategories) > 0 {
+				categoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueCategories)
 				if err == nil {
 					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_CATEGORIES_FILTER: '%s'\n", categoriesJSON))
 				}

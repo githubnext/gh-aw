@@ -613,30 +613,23 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Handle report-failure-as-issue flag or config object
+			// Handle report-failure-as-issue flag or array of categories
 			if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
-				// Support both bool (legacy) and object (new with categories filter)
+				// Support both bool (legacy) and []string (new with categories filter)
 				if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
 					config.ReportFailureAsIssue = reportFailureAsIssueBool
 					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
-				} else if reportFailureAsIssueMap, ok := reportFailureAsIssue.(map[string]any); ok {
-					// Parse as config object with categories
-					reportConfig := &ReportFailureAsIssueConfig{}
-
-					if categories, exists := reportFailureAsIssueMap["categories"]; exists {
-						if categoriesList, ok := categories.([]any); ok {
-							reportConfig.Categories = make([]string, 0, len(categoriesList))
-							for _, cat := range categoriesList {
-								if catStr, ok := cat.(string); ok {
-									reportConfig.Categories = append(reportConfig.Categories, catStr)
-								}
-							}
-							safeOutputsConfigLog.Printf("Report failure as issue with category filter: %v", reportConfig.Categories)
+				} else if categoriesList, ok := reportFailureAsIssue.([]any); ok {
+					// Parse as array of category strings
+					categories := make([]string, 0, len(categoriesList))
+					for _, cat := range categoriesList {
+						if catStr, ok := cat.(string); ok {
+							categories = append(categories, catStr)
 						}
 					}
-
-					config.ReportFailureAsIssue = reportFailureAsIssueMap
-					config.ReportFailureAsIssueConfig = reportConfig
+					config.ReportFailureAsIssue = categoriesList
+					config.ReportFailureAsIssueCategories = categories
+					safeOutputsConfigLog.Printf("Report failure as issue with category filter: %v", categories)
 				}
 			}
 

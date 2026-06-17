@@ -3347,14 +3347,13 @@ func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
 }
 
 // TestReportFailureAsIssueWithCategoriesFilter tests that report-failure-as-issue
-// parsing supports both bool (legacy) and object with categories filter
+// parsing supports both bool (legacy) and array of category strings
 func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 	tests := []struct {
-		name               string
-		reportValue        any
-		expectBool         *bool
-		expectCategories   []string
-		expectConfigNotNil bool
+		name             string
+		reportValue      any
+		expectBool       *bool
+		expectCategories []string
 	}{
 		{
 			name:        "boolean true",
@@ -3367,20 +3366,14 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 			expectBool:  boolPtr(false),
 		},
 		{
-			name: "object with categories filter",
-			reportValue: map[string]any{
-				"categories": []any{"agent_failure", "missing_safe_outputs"},
-			},
-			expectCategories:   []string{"agent_failure", "missing_safe_outputs"},
-			expectConfigNotNil: true,
+			name:             "array of categories",
+			reportValue:      []any{"agent_failure", "missing_safe_outputs"},
+			expectCategories: []string{"agent_failure", "missing_safe_outputs"},
 		},
 		{
-			name: "object with empty categories",
-			reportValue: map[string]any{
-				"categories": []any{},
-			},
-			expectCategories:   []string{},
-			expectConfigNotNil: true,
+			name:             "array with one category",
+			reportValue:      []any{"agent_failure"},
+			expectCategories: []string{"agent_failure"},
 		},
 	}
 
@@ -3405,9 +3398,8 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 				assert.Equal(t, *tt.expectBool, reportBool, "Boolean value should match")
 			}
 
-			if tt.expectConfigNotNil {
-				require.NotNil(t, config.ReportFailureAsIssueConfig, "ReportFailureAsIssueConfig should be set")
-				assert.Equal(t, tt.expectCategories, config.ReportFailureAsIssueConfig.Categories, "Categories should match")
+			if len(tt.expectCategories) > 0 {
+				assert.Equal(t, tt.expectCategories, config.ReportFailureAsIssueCategories, "Categories should match")
 			}
 		})
 	}
