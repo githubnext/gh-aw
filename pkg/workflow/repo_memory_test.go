@@ -1417,3 +1417,130 @@ func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
 			"Condition should NOT use != 'skipped' for agent check")
 	})
 }
+
+// TestRepoMemoryFormatJSONObjectConfig tests that format-json is parsed in object notation
+func TestRepoMemoryFormatJSONObjectConfig(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"branch-name": "memory/notes",
+			"format-json": true,
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config)
+	require.Len(t, config.Memories, 1)
+
+	memory := config.Memories[0]
+	assert.True(t, memory.FormatJSON, "Expected format-json to be true")
+}
+
+// TestRepoMemoryFormatJSONObjectConfigFalse tests that format-json defaults to false in object notation
+func TestRepoMemoryFormatJSONObjectConfigFalse(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"branch-name": "memory/notes",
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config)
+	require.Len(t, config.Memories, 1)
+
+	memory := config.Memories[0]
+	assert.False(t, memory.FormatJSON, "Expected format-json to be false by default")
+}
+
+// TestRepoMemoryFormatJSONArrayConfig tests that format-json is parsed in array notation
+func TestRepoMemoryFormatJSONArrayConfig(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":          "notes",
+				"branch-name": "memory/notes",
+				"format-json": true,
+			},
+			map[string]any{
+				"id":          "logs",
+				"branch-name": "memory/logs",
+			},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config)
+	require.Len(t, config.Memories, 2)
+
+	assert.True(t, config.Memories[0].FormatJSON, "Expected notes memory to have format-json=true")
+	assert.False(t, config.Memories[1].FormatJSON, "Expected logs memory to have format-json=false by default")
+}
+
+// TestRepoMemoryFormatJSONPushStepEnvVar tests that FORMAT_JSON env var is emitted in push steps
+func TestRepoMemoryFormatJSONPushStepEnvVar(t *testing.T) {
+	t.Run("format-json=true emits FORMAT_JSON env var", func(t *testing.T) {
+		config := &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{
+					ID:           "default",
+					BranchName:   "memory/default",
+					MaxFileSize:  102400,
+					MaxFileCount: 100,
+					MaxPatchSize: 10240,
+					CreateOrphan: true,
+					FormatJSON:   true,
+				},
+			},
+		}
+		data := &WorkflowData{RepoMemoryConfig: config}
+
+		compiler := NewCompiler()
+		pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
+		require.NoError(t, err)
+		require.NotNil(t, pushJob)
+
+		pushJobOutput := strings.Join(pushJob.Steps, "\n")
+		assert.Contains(t, pushJobOutput, "FORMAT_JSON: 'true'",
+			"Push step should include FORMAT_JSON env var when format-json is true")
+	})
+
+	t.Run("format-json=false omits FORMAT_JSON env var", func(t *testing.T) {
+		config := &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{
+					ID:           "default",
+					BranchName:   "memory/default",
+					MaxFileSize:  102400,
+					MaxFileCount: 100,
+					MaxPatchSize: 10240,
+					CreateOrphan: true,
+					FormatJSON:   false,
+				},
+			},
+		}
+		data := &WorkflowData{RepoMemoryConfig: config}
+
+		compiler := NewCompiler()
+		pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
+		require.NoError(t, err)
+		require.NotNil(t, pushJob)
+
+		pushJobOutput := strings.Join(pushJob.Steps, "\n")
+		assert.NotContains(t, pushJobOutput, "FORMAT_JSON",
+			"Push step should NOT include FORMAT_JSON env var when format-json is false")
+	})
+}

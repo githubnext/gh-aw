@@ -3345,3 +3345,77 @@ func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
 	assert.NotContains(t, stepsContent, "target_checkout_ref",
 		"dispatch target-ref must NOT use target_checkout_ref (commit SHA)")
 }
+
+// TestReportFailureAsIssueWithCategoriesFilter tests that report-failure-as-issue
+// parsing supports both bool (legacy) and array of category strings
+func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
+	tests := []struct {
+		name                     string
+		reportValue              any
+		expectBool               *bool
+		expectCategories         []string
+		expectExcludedCategories []string
+	}{
+		{
+			name:        "boolean true",
+			reportValue: true,
+			expectBool:  boolPtr(true),
+		},
+		{
+			name:        "boolean false",
+			reportValue: false,
+			expectBool:  boolPtr(false),
+		},
+		{
+			name:             "array of categories",
+			reportValue:      []any{"agent_failure", "missing_safe_outputs"},
+			expectCategories: []string{"agent_failure", "missing_safe_outputs"},
+		},
+		{
+			name:             "array with one category",
+			reportValue:      []any{"agent_failure"},
+			expectCategories: []string{"agent_failure"},
+		},
+		{
+			name:                     "array with excluded categories",
+			reportValue:              []any{"!inference_access_error", "!ai_credits_rate_limit_error"},
+			expectExcludedCategories: []string{"inference_access_error", "ai_credits_rate_limit_error"},
+		},
+		{
+			name:                     "array with mixed include and exclude categories",
+			reportValue:              []any{"agent_failure", "missing_safe_outputs", "!unknown_model_ai_credits"},
+			expectCategories:         []string{"agent_failure", "missing_safe_outputs"},
+			expectExcludedCategories: []string{"unknown_model_ai_credits"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			// Simulate the parsing by calling extractSafeOutputsConfig
+			frontmatter := map[string]any{
+				"safe-outputs": map[string]any{
+					"report-failure-as-issue": tt.reportValue,
+					"create-issue":            nil, // Enable safe outputs
+				},
+			}
+
+			config := compiler.extractSafeOutputsConfig(frontmatter)
+			require.NotNil(t, config, "SafeOutputsConfig should be created")
+
+			if tt.expectBool != nil {
+				reportBool, ok := config.ReportFailureAsIssue.(bool)
+				require.True(t, ok, "ReportFailureAsIssue should be bool")
+				assert.Equal(t, *tt.expectBool, reportBool, "Boolean value should match")
+			}
+
+			if len(tt.expectCategories) > 0 {
+				assert.Equal(t, tt.expectCategories, config.ReportFailureAsIssueCategories, "Categories should match")
+			}
+			if len(tt.expectExcludedCategories) > 0 {
+				assert.Equal(t, tt.expectExcludedCategories, config.ReportFailureAsIssueExcludedCategories, "Excluded categories should match")
+			}
+		})
+	}
+}

@@ -394,8 +394,27 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Pass report-failure-as-issue configuration flag (defaults to true if not specified)
-	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailureAsIssue != nil && !*data.SafeOutputs.ReportFailureAsIssue {
-		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"false\"\n")
+	// Supports both bool and array of category strings (with ! prefix for exclusions)
+	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailureAsIssue != nil {
+		if reportBool, ok := data.SafeOutputs.ReportFailureAsIssue.(bool); ok && !reportBool {
+			agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"false\"\n")
+		} else {
+			agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
+			// If included categories filter is configured, pass it as JSON
+			if len(data.SafeOutputs.ReportFailureAsIssueCategories) > 0 {
+				categoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueCategories)
+				if err == nil {
+					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_CATEGORIES_FILTER: '%s'\n", categoriesJSON))
+				}
+			}
+			// If excluded categories filter is configured, pass it as JSON
+			if len(data.SafeOutputs.ReportFailureAsIssueExcludedCategories) > 0 {
+				excludedCategoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueExcludedCategories)
+				if err == nil {
+					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: '%s'\n", excludedCategoriesJSON))
+				}
+			}
+		}
 	} else {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
 	}

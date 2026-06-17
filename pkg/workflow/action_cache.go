@@ -96,6 +96,26 @@ func (c *ActionCache) DeleteContainerPin(image string) {
 	}
 }
 
+// PruneStaleContainerPins removes container pin entries whose keys are not present
+// in knownImages. It returns the number of entries that were removed.
+// This is used to keep actions-lock.json consistent with the set of images
+// actually referenced by the compiled lock files.
+func (c *ActionCache) PruneStaleContainerPins(knownImages map[string]bool) int {
+	if c.ContainerPins == nil {
+		return 0
+	}
+	pruned := 0
+	for image := range c.ContainerPins {
+		if !knownImages[image] {
+			delete(c.ContainerPins, image)
+			c.dirty = true
+			pruned++
+			actionCacheLog.Printf("Pruned stale container pin for image=%s", image)
+		}
+	}
+	return pruned
+}
+
 // Load loads the cache from disk
 func (c *ActionCache) Load() error {
 	actionCacheLog.Printf("Loading action cache from: %s", c.path)

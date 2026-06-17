@@ -175,19 +175,22 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
 	}
 
-	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
-	updateLog.Print("Updating container image digest pins")
-	if err := UpdateContainerPins(ctx, opts.WorkflowsDir, opts.Verbose); err != nil {
-		// Non-fatal: Docker may not be available in all environments.
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
-	}
-
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")
 	if err := UpdateActionsInWorkflowFiles(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.DisableReleaseBump, opts.NoCompile, opts.CoolDown); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
+	}
+
+	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
+	// This runs after compilation (via UpdateActionsInWorkflowFiles) so that the lock files
+	// already reflect the current AWF version; stale pins from superseded versions are pruned
+	// and new versions are resolved in a single pass.
+	updateLog.Print("Updating container image digest pins")
+	if err := UpdateContainerPins(ctx, opts.WorkflowsDir, opts.Verbose); err != nil {
+		// Non-fatal: Docker may not be available in all environments.
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
 	}
 
 	updateLog.Printf("Update process complete: had_error=%v", firstErr != nil)

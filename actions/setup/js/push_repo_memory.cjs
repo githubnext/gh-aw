@@ -48,6 +48,7 @@ async function main() {
   const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
   const maxPatchSize = parseInt(process.env.MAX_PATCH_SIZE || "10240", 10);
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+  const formatJSON = process.env.FORMAT_JSON === "true";
 
   // Parse allowed extensions with error handling
   let allowedExtensions = [".json", ".jsonl", ".txt", ".md", ".csv"];
@@ -74,6 +75,7 @@ async function main() {
   core.info(`  ALLOWED_EXTENSIONS: ${JSON.stringify(allowedExtensions)}`);
   core.info(`  FILE_GLOB_FILTER: ${fileGlobFilter ? `"${fileGlobFilter}"` : "(empty - all files accepted)"}`);
   core.info(`  FILE_GLOB_FILTER length: ${fileGlobFilter.length}`);
+  core.info(`  FORMAT_JSON: ${formatJSON}`);
 
   /** @param {unknown} value */
   function isPlainObject(value) {
@@ -355,6 +357,58 @@ async function main() {
       core.info(`Copied: ${file.relativePath} (${file.size} bytes)`);
     } catch (error) {
       core.setFailed(`Failed to copy file ${file.relativePath}: ${getErrorMessage(error)}`);
+      return;
+    }
+  }
+
+  // Format JSON files if requested
+  if (formatJSON) {
+    core.info("FORMAT_JSON is enabled: formatting .json files as human-readable...");
+
+    /**
+     * Recursively find and format all .json files under a directory
+     * @param {string} dirPath - Directory to scan
+     */
+    function formatJSONFilesInDir(dirPath) {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== ".git") {
+            formatJSONFilesInDir(fullPath);
+          }
+        } else if (entry.isFile() && entry.name.endsWith(".json")) {
+          try {
+            const raw = fs.readFileSync(fullPath, "utf8");
+            if (!raw.trim()) {
+              continue;
+            }
+            const parsed = JSON.parse(raw);
+            const formatted = JSON.stringify(parsed, null, 2) + "\n";
+            if (raw !== formatted) {
+              const formattedSize = Buffer.byteLength(formatted, "utf8");
+              if (formattedSize > maxFileSize) {
+                const sizeError = new Error(`Formatted JSON exceeds MAX_FILE_SIZE: ${path.relative(destMemoryPath, fullPath)} (${formattedSize} bytes > ${maxFileSize} bytes)`);
+                sizeError.name = "FormatJSONSizeLimitError";
+                throw sizeError;
+              }
+              fs.writeFileSync(fullPath, formatted, "utf8");
+              core.info(`Formatted JSON: ${path.relative(destMemoryPath, fullPath)}`);
+            }
+          } catch (/** @type {any} */ error) {
+            if (error?.name === "FormatJSONSizeLimitError") {
+              throw error;
+            }
+            core.warning(`Skipping JSON formatting for ${path.relative(destMemoryPath, fullPath)}: ${error.message}`);
+          }
+        }
+      }
+    }
+
+    try {
+      formatJSONFilesInDir(destMemoryPath);
+    } catch (error) {
+      core.setFailed(`Failed to format JSON files: ${getErrorMessage(error)}`);
       return;
     }
   }
