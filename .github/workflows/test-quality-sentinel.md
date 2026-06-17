@@ -272,7 +272,15 @@ Guideline violations always trigger `REQUEST_CHANGES` regardless of the quality 
 
 ## Step 7: Post PR Comment with Results
 
-Post a comment to the pull request with the full analysis using `add-comment`. Use the `tqs-report-template` skill for the exact comment format.
+Post a comment to the pull request with the full analysis using the `add-comment` safe-output tool (tool call, not shell). Use the `tqs-report-template` skill for the exact comment format.
+
+Use this shape:
+
+```json
+{"add_comment":{"body":"<full markdown report>"}}
+```
+
+Do **not** invoke `safeoutputs` from bash, and do **not** set `item_number` for this step. Let `add_comment` auto-target the triggering pull request.
 
 ## Step 8: Submit PR Review Based on Result
 
