@@ -241,7 +241,7 @@ mcp-scripts:
     run: |
       echo "$INPUT_JSON" | jq '.data | length'
     dependencies:
-      - jq
+      - jq=1.6-2.1
     timeout: 30
 ```
 
@@ -261,12 +261,13 @@ mcp-scripts:
       response = requests.get(inputs.get('url'))
       print(json.dumps({"status": response.status_code, "content_length": len(response.text)}))
     dependencies:
-      - requests
+      - requests==2.32.3
     timeout: 60
 ```
 
 **Requirements**:
 - Implementations MUST install dependencies before first tool invocation
+- Dependencies MUST be pinned to exact release versions (floating references such as `latest`, bare names, or version ranges are not allowed)
 - Dependencies SHOULD be cached for subsequent invocations
 - Dependency installation failures MUST result in tool execution errors
 - Package names MUST be valid for the target package manager

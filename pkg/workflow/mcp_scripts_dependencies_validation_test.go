@@ -16,11 +16,11 @@ func TestValidateMCPScriptDependencies(t *testing.T) {
 				Tools: map[string]*MCPScriptToolConfig{
 					"js-tool": {
 						Script:       "return { ok: true }",
-						Dependencies: []string{"lodash", "@scope/pkg@1.0.0"},
+						Dependencies: []string{"lodash@4.17.21", "@scope/pkg@1.0.0"},
 					},
 					"py-tool": {
 						Py:           "print('ok')",
-						Dependencies: []string{"requests", "urllib3==2.2.1"},
+						Dependencies: []string{"requests==2.32.3", "urllib3==2.2.1"},
 					},
 					"go-tool": {
 						Go:           `fmt.Println("ok")`,
@@ -28,7 +28,7 @@ func TestValidateMCPScriptDependencies(t *testing.T) {
 					},
 					"sh-tool": {
 						Run:          "echo ok",
-						Dependencies: []string{"jq", "curl=8.5.0"},
+						Dependencies: []string{"jq=1.6-2.1", "curl=8.5.0"},
 					},
 				},
 			},
@@ -53,6 +53,25 @@ func TestValidateMCPScriptDependencies(t *testing.T) {
 			t.Fatal("expected error")
 		}
 		if !strings.Contains(err.Error(), `invalid dependency name "re quests" for tool "fetch-url"`) {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("floating dependency rejected", func(t *testing.T) {
+		err := compiler.validateMCPScriptDependencies(&WorkflowData{
+			MCPScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
+					"fetch-url": {
+						Py:           "print('ok')",
+						Dependencies: []string{"requests"},
+					},
+				},
+			},
+		})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), `dependency "requests" for tool "fetch-url" is not pinned to a release tag`) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})

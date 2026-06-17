@@ -296,6 +296,22 @@ func TestValidateRuntimePackages(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "floating mcp-scripts pip dependency",
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"fetch-url": {
+							Name:         "fetch-url",
+							Description:  "Fetch URL",
+							Py:           "print('ok')",
+							Dependencies: []string{"requests"},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
 		// Note: These tests would fail if npm/uv/pip are available, so we skip them
 		// The actual validation logic is tested by the extraction tests
 	}
@@ -312,9 +328,14 @@ func TestValidateRuntimePackages(t *testing.T) {
 			if !tt.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
-			if tt.expectError && err != nil && strings.Contains(tt.name, "mcp-scripts") {
+			if tt.expectError && err != nil && tt.name == "invalid mcp-scripts pip dependency name" {
 				if !strings.Contains(err.Error(), `invalid dependency name "re quests" for tool "fetch-url"`) {
 					t.Fatalf("expected invalid dependency error message, got: %v", err)
+				}
+			}
+			if tt.expectError && err != nil && tt.name == "floating mcp-scripts pip dependency" {
+				if !strings.Contains(err.Error(), `dependency "requests" for tool "fetch-url" is not pinned to a release tag`) {
+					t.Fatalf("expected pinned dependency error message, got: %v", err)
 				}
 			}
 		})
