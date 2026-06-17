@@ -45,4 +45,4 @@ if [ -n "${REPO}" ] && [ -n "${URL}" ] && [ -n "${TOKEN}" ]; then
   git remote set-url origin "https://x-access-token:${TOKEN}@${URL_STRIPPED}/${REPO}.git"
 fi
 
-echo "Git configured with standard GitHub Actions identity"
+echo "Git configured with standard GitHub Actions identity" >&2

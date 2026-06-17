@@ -12,6 +12,6 @@
 
 set -e
 
-sh "${RUNNER_TEMP}/gh-aw/safeoutputs/configure_git_credentials.sh"
+sh "${RUNNER_TEMP}/gh-aw/safeoutputs/configure_git_credentials.sh" >&2
 
 exec node "${RUNNER_TEMP}/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs"
