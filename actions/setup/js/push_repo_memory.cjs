@@ -386,10 +386,19 @@ async function main() {
             const parsed = JSON.parse(raw);
             const formatted = JSON.stringify(parsed, null, 2) + "\n";
             if (raw !== formatted) {
+              const formattedSize = Buffer.byteLength(formatted, "utf8");
+              if (formattedSize > maxFileSize) {
+                const sizeError = new Error(`Formatted JSON exceeds MAX_FILE_SIZE: ${path.relative(destMemoryPath, fullPath)} (${formattedSize} bytes > ${maxFileSize} bytes)`);
+                sizeError.name = "FormatJSONSizeLimitError";
+                throw sizeError;
+              }
               fs.writeFileSync(fullPath, formatted, "utf8");
               core.info(`Formatted JSON: ${path.relative(destMemoryPath, fullPath)}`);
             }
           } catch (/** @type {any} */ error) {
+            if (error?.name === "FormatJSONSizeLimitError") {
+              throw error;
+            }
             core.warning(`Skipping JSON formatting for ${path.relative(destMemoryPath, fullPath)}: ${error.message}`);
           }
         }
