@@ -873,7 +873,11 @@ async function main() {
 
     // Try to read gateway.md if it exists (preferred for general gateway summary)
     if (fs.existsSync(gatewayMdPath)) {
-      const gatewayMdContent = fs.readFileSync(gatewayMdPath, "utf8");
+      // MCPG pre-allocates a fixed-size header region in gateway.md that is never
+      // populated, leaving leading null bytes (U+0000). GitHub renders U+0000 as
+      // U+FFFD (replacement character), producing hundreds of garbled characters at
+      // the top of the step summary. Strip all null bytes before using the content.
+      const gatewayMdContent = fs.readFileSync(gatewayMdPath, "utf8").replace(/\x00/g, "");
       if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
         aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayMdContent]);

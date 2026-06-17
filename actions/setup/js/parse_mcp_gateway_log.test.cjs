@@ -340,6 +340,69 @@ Some content here.`;
       }
     });
 
+    test("strips leading null bytes from gateway.md before writing to step summary", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const gatewayMdPath = path.join(tmpDir, "gateway.md");
+
+      // Simulate MCPG's behaviour: pre-allocate a fixed-size header region filled
+      // with null bytes (1444 bytes, as seen in production runs) before real content.
+      const nullBytes = "\x00".repeat(1444);
+      const realContent = "- ✓ **backend**\n  Successfully connected to MCP backend server.\n";
+      fs.writeFileSync(gatewayMdPath, nullBytes + realContent);
+
+      const mockCore = {
+        info: vi.fn(),
+        debug: vi.fn(),
+        startGroup: vi.fn(),
+        endGroup: vi.fn(),
+        notice: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        setFailed: vi.fn(),
+        exportVariable: vi.fn(),
+        setOutput: vi.fn(),
+        summary: {
+          addRaw: vi.fn().mockReturnThis(),
+          addDetails: vi.fn().mockReturnThis(),
+          write: vi.fn(),
+        },
+      };
+
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      fs.existsSync = vi.fn(filepath => {
+        if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return true;
+        return originalExistsSync(filepath);
+      });
+
+      fs.readFileSync = vi.fn((filepath, encoding) => {
+        if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") {
+          return originalReadFileSync(gatewayMdPath, encoding);
+        }
+        return originalReadFileSync(filepath, encoding);
+      });
+
+      global.core = mockCore;
+
+      try {
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        // Step summary must contain the real content without any null bytes
+        const addRawCalls = mockCore.summary.addRaw.mock.calls;
+        expect(addRawCalls.length).toBeGreaterThan(0);
+        const writtenContent = addRawCalls.map(call => call[0]).join("");
+        expect(writtenContent).not.toContain("\x00");
+        expect(writtenContent).toContain("backend");
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     test("does not append token usage details when token usage file exists", async () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const gatewayMdPath = path.join(tmpDir, "gateway.md");
