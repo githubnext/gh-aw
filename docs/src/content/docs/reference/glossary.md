@@ -203,14 +203,30 @@ Customizable messages workflows can display during execution. Configured in `saf
 
 ### Failure Issue Reporting (`report-failure-as-issue:`)
 
-A `safe-outputs` option controlling whether workflow run failures are automatically reported as GitHub issues. Defaults to `true` when safe outputs are configured. Set to `false` to suppress failure issue creation for workflows where failures are expected or handled externally:
+A `safe-outputs` option controlling whether workflow run failures are automatically reported as GitHub issues. Defaults to `true` when safe outputs are configured.
+
+**Simple boolean (opt-out all failures):**
 
 ```yaml
 safe-outputs:
   report-failure-as-issue: false
 ```
 
-See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+**Category filtering (selective reporting):**
+
+Filter which failure types trigger issue creation:
+
+```yaml
+safe-outputs:
+  report-failure-as-issue:
+    categories:
+      - agent_failure           # Only report genuine agent-side failures
+      - missing_safe_outputs    # Only report missing outputs
+```
+
+Common categories include: `agent_failure`, `timed_out`, `missing_safe_outputs`, `report_incomplete` (infrastructure failures), `missing_tool`, `missing_data`, `inference_access_error` (AI server transient errors), `ai_credits_rate_limit_error`, and others.
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete documentation.
 
 ### Failure Issue Repository (`failure-issue-repo:`)
 
