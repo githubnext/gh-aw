@@ -114,7 +114,7 @@ function createReviewBuffer() {
       return await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
     } catch (error) {
       if (!isTransientError(error)) {
-        throw new Error(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)} (non-recoverable metadata capture error)`, { cause: error });
+        throw new Error(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)} (non-recoverable)`, { cause: error });
       }
       core.warning(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)}. Continuing without execution-state metadata.`);
       return null;
