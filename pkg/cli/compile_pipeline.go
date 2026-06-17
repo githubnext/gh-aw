@@ -508,22 +508,15 @@ func runPostProcessing(
 	// Update .gitattributes (errors are non-fatal)
 	_ = updateGitAttributes(successCount, actionCache, config.Verbose)
 
-	// Generate Dependabot manifests if requested
+	// Generate Dependabot manifests and reconcile compiler-managed ignore entries if requested.
 	if config.Dependabot && !config.NoEmit {
-		gitRoot, err := gitutil.FindGitRoot()
-		if err == nil {
+		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 			absWorkflowDir := filepath.Join(gitRoot, config.WorkflowDir)
 			if err := generateDependabotManifestsWrapper(compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {
 				if config.Strict {
 					return err
 				}
 			}
-		}
-	}
-
-	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
-	if !config.NoEmit {
-		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 			if err := compiler.ReconcileManagedDependabotIgnoresInRepo(gitRoot); err != nil {
 				if config.Strict {
 					return err
@@ -576,7 +569,7 @@ func runPostProcessingForDirectory(
 	}
 
 	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
-	if !config.NoEmit {
+	if config.Dependabot && !config.NoEmit {
 		if err := compiler.ReconcileManagedDependabotIgnoresInRepo(gitRoot); err != nil {
 			if config.Strict {
 				return err
