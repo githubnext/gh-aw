@@ -24,6 +24,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { attachExecutionState, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
@@ -34,6 +35,11 @@ const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
 const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
 const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
 const ELLIPSIS = "…";
+const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
+  ...RATE_LIMIT_RETRY_CONFIG,
+  maxRetries: 1,
+  maxDelayMs: 60000,
+};
 
 /**
  * @typedef {Object} BufferedComment
@@ -86,6 +92,25 @@ function createReviewBuffer() {
 
   /** @type {boolean} When true, dismiss older same-workflow REQUEST_CHANGES reviews after posting a replacement review. */
   let supersedeOlderReviews = false;
+
+  /**
+   * Best-effort execution-state capture.
+   * When the installation token is out of quota, metadata collection should not
+   * prevent the actual review submission from proceeding.
+   *
+   * @param {{owner: string, repo: string}} repoParts
+   * @param {number} pullRequestNumber
+   * @param {"before" | "after"} phase
+   * @returns {Promise<ReturnType<typeof fetchPullRequestReviewState> extends Promise<infer T> ? T | null : null>}
+   */
+  async function fetchReviewStateBestEffort(repoParts, pullRequestNumber, phase) {
+    try {
+      return await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
+    } catch (error) {
+      core.warning(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)}. Continuing without execution-state metadata.`);
+      return null;
+    }
+  }
   /**
    * Add a validated comment to the buffer.
    * Rejects comments targeting a different repo/PR than the first comment.
@@ -245,7 +270,7 @@ function createReviewBuffer() {
     }
 
     const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
-    const beforeState = await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
+    const beforeState = await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "before");
 
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       core.warning("Pull request head SHA not available - cannot submit review");
@@ -504,9 +529,18 @@ function createReviewBuffer() {
       }
     }
 
+    async function createReviewWithRetry(params) {
+      return withRetry(
+        () => github.rest.pulls.createReview(params),
+        REVIEW_RATE_LIMIT_RETRY_CONFIG,
+        `pulls.createReview ${repo}#${pullRequestNumber}`
+      );
+    }
+
     try {
-      const { data: review } = await github.rest.pulls.createReview(requestParams);
+      const { data: review } = await createReviewWithRetry(requestParams);
       await maybeSupersedeOlderReviews(review.id);
+      const afterState = beforeState ? await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
 
       core.info(`Created PR review #${review.id}: ${review.html_url}`);
 
@@ -528,7 +562,7 @@ function createReviewBuffer() {
           },
         },
         beforeState,
-        await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+        afterState
       );
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -541,8 +575,9 @@ function createReviewBuffer() {
         core.warning(`Cannot submit ${event} review on own PR. Retrying with event=COMMENT.`);
         try {
           requestParams.event = "COMMENT";
-          const { data: review } = await github.rest.pulls.createReview(requestParams);
+          const { data: review } = await createReviewWithRetry(requestParams);
           await maybeSupersedeOlderReviews(review.id);
+          const afterState = beforeState ? await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
           return attachExecutionState(
             {
@@ -562,7 +597,7 @@ function createReviewBuffer() {
               },
             },
             beforeState,
-            await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+            afterState
           );
         } catch (retryError) {
           core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
@@ -582,8 +617,9 @@ function createReviewBuffer() {
           const bodyOnlyParams = { ...requestParams };
           delete bodyOnlyParams.comments;
           bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
-          const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
+          const { data: review } = await createReviewWithRetry(bodyOnlyParams);
           await maybeSupersedeOlderReviews(review.id);
+          const afterState = beforeState ? await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
           return attachExecutionState(
             {
@@ -603,7 +639,7 @@ function createReviewBuffer() {
               },
             },
             beforeState,
-            await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+            afterState
           );
         } catch (retryError) {
           core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);

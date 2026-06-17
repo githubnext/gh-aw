@@ -257,6 +257,77 @@ describe("pr_review_buffer (factory pattern)", () => {
       });
     });
 
+    it("should continue when before-state capture is rate-limited", async () => {
+      buffer.setReviewMetadata("Looks good", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      const rateLimitError = new Error("API rate limit exceeded for installation");
+      rateLimitError.response = {
+        status: 403,
+        headers: {
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60),
+        },
+      };
+      mockGithub.rest.pulls.get.mockRejectedValueOnce(rateLimitError);
+      mockGithub.rest.pulls.createReview.mockResolvedValue({
+        data: {
+          id: 101,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-101",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.before_state).toBeUndefined();
+      expect(result.after_state).toBeUndefined();
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to capture before PR review state"));
+    });
+
+    it("should retry createReview once on rate-limit errors", async () => {
+      vi.useFakeTimers();
+      try {
+        buffer.setReviewMetadata("Looks good", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        const rateLimitError = new Error("API rate limit exceeded for installation");
+        rateLimitError.response = {
+          status: 403,
+          headers: {
+            "x-ratelimit-remaining": "0",
+            "retry-after": "1",
+          },
+        };
+        mockGithub.rest.pulls.createReview.mockRejectedValueOnce(rateLimitError).mockResolvedValueOnce({
+          data: {
+            id: 102,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-102",
+          },
+        });
+
+        const submitPromise = buffer.submitReview();
+        await vi.advanceTimersByTimeAsync(1000);
+        const result = await submitPromise;
+
+        expect(result.success).toBe(true);
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("should capture before and after review state metadata", async () => {
       buffer.setReviewMetadata("Looks good", "COMMENT");
       buffer.setReviewContext({
