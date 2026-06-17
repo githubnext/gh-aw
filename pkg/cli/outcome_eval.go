@@ -517,9 +517,10 @@ func loadPullRequestIntentData(report OutcomeReport, repo string) (intent.PullRe
 	nodes, _ := closingRefs["nodes"].([]any)
 	if len(nodes) == 0 {
 		labels, labelErr := objectiveMappingGHAPIGetArray(fmt.Sprintf("issues/%d/labels", report.ObjectNumber), repo)
-		if labelErr == nil {
-			prData.Labels = labelsToStringsFromMaps(labels)
+		if labelErr != nil {
+			return intent.PullRequestData{}, labelErr
 		}
+		prData.Labels = labelsToStringsFromMaps(labels)
 		return prData, nil
 	}
 
