@@ -433,7 +433,7 @@ func compileAllFilesInDirectory(
 	}
 
 	// Post-processing
-	if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount); err != nil {
+	if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
 		return workflowDataList, err
 	}
 
@@ -551,6 +551,7 @@ func runPostProcessingForDirectory(
 	workflowsDir string,
 	gitRoot string,
 	successCount int,
+	errorCount int,
 ) error {
 	// Get action cache
 	actionCache := compiler.GetSharedActionCache()
@@ -600,8 +601,8 @@ func runPostProcessingForDirectory(
 
 	// Prune orphaned entries — entries for action versions no longer referenced
 	// by any workflow in the directory (e.g. old pins left after a version bump).
-	// Safe to call only after a full-directory compilation (all workflows compiled).
-	pruneOrphanedActionCacheEntries(compiler, actionCache)
+	// Safe to call only after a full-directory compilation with zero compile errors.
+	pruneOrphanedActionCacheEntries(compiler, actionCache, errorCount)
 
 	// Save action cache (errors are logged but non-fatal)
 	_ = saveActionCache(actionCache, config.Verbose)

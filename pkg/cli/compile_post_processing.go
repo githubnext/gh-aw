@@ -306,9 +306,12 @@ func pruneStaleActionCacheEntries(compiler *workflow.Compiler, actionCache *work
 //
 // This is only safe to call after a full-directory compilation — compiling a
 // subset of files would incorrectly prune entries still referenced by other
-// (uncompiled) workflows.
-func pruneOrphanedActionCacheEntries(compiler *workflow.Compiler, actionCache *workflow.ActionCache) {
+// (uncompiled) workflows — and only when there were zero compile errors.
+func pruneOrphanedActionCacheEntries(compiler *workflow.Compiler, actionCache *workflow.ActionCache, errorCount int) {
 	if actionCache == nil {
+		return
+	}
+	if errorCount > 0 {
 		return
 	}
 

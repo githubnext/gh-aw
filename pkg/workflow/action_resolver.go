@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -34,7 +35,9 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 // were successfully resolved from the cache or written to the cache during this run.
 // These represent the action pins actually referenced by the compiled workflows.
 func (r *ActionResolver) GetUsedCacheKeys() map[string]bool {
-	return r.usedCacheKeys
+	keys := make(map[string]bool, len(r.usedCacheKeys))
+	maps.Copy(keys, r.usedCacheKeys)
+	return keys
 }
 
 // ResolveSHA resolves the SHA for a given action@version using GitHub CLI
@@ -45,6 +48,7 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	// Create a cache key for tracking failed resolutions and cache lookups.
 	// Computed once here and reused below to avoid duplicate allocation.
 	cacheKey := formatActionCacheKey(repo, version)
+	r.usedCacheKeys[cacheKey] = true
 
 	// Check if we've already failed to resolve this action in this run
 	if r.failedResolutions[cacheKey] {
@@ -55,7 +59,6 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	// Check cache first using the pre-computed key to avoid a second key allocation.
 	if sha, found := r.cache.GetByCacheKey(cacheKey); found {
 		resolverLog.Printf("Cache hit for %s@%s: %s", repo, version, sha)
-		r.usedCacheKeys[cacheKey] = true
 		return sha, nil
 	}
 
@@ -105,7 +108,6 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	// Cache the result
 	resolverLog.Printf("Caching result: %s@%s → %s", repo, version, sha)
 	r.cache.Set(repo, version, sha)
-	r.usedCacheKeys[cacheKey] = true
 
 	return sha, nil
 }
