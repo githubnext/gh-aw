@@ -1498,7 +1498,11 @@ jobs:
 
 ### Failure Issue Reporting (`report-failure-as-issue:`)
 
-Controls whether workflow failures are reported as GitHub issues (default: `true`). Set to `false` to suppress automatic failure issue creation for a specific workflow.
+Controls whether workflow failures are reported as GitHub issues (default: `true`).
+
+#### Simple Boolean (Opt-Out All Failures)
+
+Set to `false` to suppress automatic failure issue creation for a specific workflow:
 
 ```yaml wrap
 safe-outputs:
@@ -1507,6 +1511,93 @@ safe-outputs:
 ```
 
 This mirrors the `noop.report-as-issue` pattern. Use this to silence noisy failure reports for workflows where failures are expected or handled externally.
+
+#### Category Filtering (Selective Reporting)
+
+Filter which failure types trigger issue creation by specifying a list of categories. Categories can be included (default) or excluded (using `!` prefix).
+
+##### Include Only Specific Categories
+
+Only failures matching the specified categories will create issues:
+
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - agent_failure           # Report only genuine agent-side failures
+    - missing_safe_outputs    # Report missing outputs
+  create-issue:
+```
+
+##### Exclude Specific Categories
+
+Report all failures except the specified categories (use `!` prefix):
+
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - "!inference_access_error"        # Exclude AI server transient errors
+    - "!ai_credits_rate_limit_error"   # Exclude AI rate limits
+    - "!report_incomplete"             # Exclude infrastructure failures
+  create-issue:
+```
+
+##### Mixed Include and Exclude
+
+Combine both syntaxes - categories must match included AND not match excluded:
+
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - agent_failure                    # Include agent failures
+    - missing_safe_outputs             # Include missing outputs
+    - "!unknown_model_ai_credits"      # But exclude unknown model AI credits
+  create-issue:
+```
+
+**Common failure categories:**
+
+| Category | Description |
+|---|---|
+| `agent_failure` | Agent crashed or returned a non-zero exit code (excluding timeouts) |
+| `timed_out` | Agent execution exceeded the timeout limit |
+| `missing_safe_outputs` | Agent succeeded but produced no safe outputs |
+| `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
+| `missing_tool` | Required functionality is not available |
+| `missing_data` | Required data is not accessible |
+| `inference_access_error` | AI inference endpoint authentication or access failures |
+| `mcp_policy_error` | MCP server policy violations |
+| `ai_credits_rate_limit_error` | AI credits rate limit exceeded |
+| `max_ai_credits_exceeded` | Maximum AI credits budget exceeded |
+| `cache_miss_misconfiguration` | Cache configuration errors |
+| `code_push_failures` | Failures pushing code to branches |
+| `assignment_errors` | Failures assigning issues or reviewers |
+
+**Use case: Suppress transient infrastructure failures**
+
+For scheduled workflows that frequently encounter transient infrastructure failures (Docker registry timeouts, AI server 5xx errors, firewall issues), you can either:
+
+Include only actionable categories:
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - agent_failure
+    - missing_safe_outputs
+    - missing_tool
+    - missing_data
+  create-issue:
+```
+
+Or exclude transient categories:
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - "!report_incomplete"           # Exclude infrastructure errors
+    - "!inference_access_error"      # Exclude AI server flake
+    - "!ai_credits_rate_limit_error" # Exclude rate limits
+  create-issue:
+```
+
+Both approaches prevent noise while preserving actionable signals, but exclusion syntax is more concise when most categories should be reported.
 
 ### Failure Issue Repository (`failure-issue-repo:`)
 

@@ -56,6 +56,7 @@ type RepoMemoryEntry struct {
 	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
 	Wiki              bool     `yaml:"wiki,omitempty"`               // use the GitHub Wiki git repository instead of the regular repo
+	FormatJSON        bool     `yaml:"format-json,omitempty"`        // pretty-print all .json files before committing (default: false)
 }
 
 // RepoMemoryToolConfig represents the configuration for repo-memory in tools
@@ -308,6 +309,13 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 					entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
 				}
 
+				// Parse format-json field
+				if formatJSON, exists := memoryMap["format-json"]; exists {
+					if formatJSONBool, ok := formatJSON.(bool); ok {
+						entry.FormatJSON = formatJSONBool
+					}
+				}
+
 				config.Memories = append(config.Memories, entry)
 			}
 		}
@@ -463,6 +471,13 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 		// Default to standard allowed extensions if not specified
 		if len(entry.AllowedExtensions) == 0 {
 			entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
+		}
+
+		// Parse format-json field
+		if formatJSON, exists := configMap["format-json"]; exists {
+			if formatJSONBool, ok := formatJSON.(bool); ok {
+				entry.FormatJSON = formatJSONBool
+			}
 		}
 
 		config.Memories = []RepoMemoryEntry{entry}
@@ -719,6 +734,9 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		if fileGlobFilter != "" {
 			// Quote the value to prevent YAML alias interpretation of patterns like *.md
 			fmt.Fprintf(&step, "          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter)
+		}
+		if memory.FormatJSON {
+			step.WriteString("          FORMAT_JSON: 'true'\n")
 		}
 		step.WriteString("        with:\n")
 		step.WriteString("          script: |\n")

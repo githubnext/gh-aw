@@ -17,6 +17,7 @@ const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
  * @property {Object} inputSchema - JSON Schema for tool inputs
  * @property {string} [handler] - Path to handler file (.cjs, .sh, or .py)
  * @property {number} [timeout] - Timeout in seconds for tool execution (default: 60)
+ * @property {string[]} [dependencies] - Runtime dependencies installed before first invocation
  */
 
 /**

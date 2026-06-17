@@ -4606,6 +4606,10 @@
                     "type": "string"
                   },
                   "description": "List of allowed file extensions (e.g., [\".json\", \".txt\"]). Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                },
+                "format-json": {
+                  "type": "boolean",
+                  "description": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in the repository (default: false)"
                 }
               },
               "additionalProperties": false,
@@ -4697,6 +4701,10 @@
                       "type": "string"
                     },
                     "description": "List of allowed file extensions (e.g., [\".json\", \".txt\"]). Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                  },
+                  "format-json": {
+                    "type": "boolean",
+                    "description": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in the repository (default: false)"
                   }
                 },
                 "additionalProperties": false
@@ -10269,10 +10277,24 @@
           "examples": [false, true]
         },
         "report-failure-as-issue": {
-          "type": "boolean",
-          "description": "When false, disables creating failure tracking issues when workflows fail. Useful for workflows where failures are expected or handled elsewhere. Defaults to true.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "When false, disables creating failure tracking issues when workflows fail. When true, all failures trigger issues. Defaults to true."
+            },
+            {
+              "type": "array",
+              "description": "List of failure categories that should trigger issue creation. Categories can be prefixed with '!' to exclude them (e.g., '!inference_access_error'). If only non-prefixed categories are specified, only those categories trigger issues. If only prefixed (excluded) categories are specified, all categories except those trigger issues. If both are specified, categories must match included AND not match excluded. Common categories: agent_failure, timed_out, missing_safe_outputs, report_incomplete, missing_tool, missing_data, inference_access_error, mcp_policy_error, ai_credits_rate_limit_error, max_ai_credits_exceeded.",
+              "items": {
+                "type": "string",
+                "pattern": "^!?(agent_failure|timed_out|missing_safe_outputs|report_incomplete|missing_tool|missing_data|tool_denials_exceeded|cache_miss_misconfiguration|secret_verification_failed|inference_access_error|mcp_policy_error|model_not_supported_error|ai_credits_rate_limit_error|unknown_model_ai_credits|max_ai_credits_exceeded|app_token_minting_failed|lockdown_check_failed|stale_lock_file_failed|daily_ai_credits_exceeded|assignment_errors|assign_copilot_failures|create_discussion_errors|code_push_failures|repo_memory_validation_errors|push_repo_memory_failure)$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          ],
           "default": true,
-          "examples": [false, true]
+          "examples": [false, true, ["agent_failure", "missing_safe_outputs"], ["!inference_access_error", "!ai_credits_rate_limit_error"]]
         },
         "failure-issue-repo": {
           "type": "string",

@@ -25,6 +25,9 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 	if workflowData.ParsedTools != nil {
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
+	if workflowData.MCPScripts != nil {
+		detectFromMCPScripts(workflowData.MCPScripts, requirements)
+	}
 
 	// When using a custom image runner, ensure Node.js is set up.
 	// Standard GitHub-hosted runners (ubuntu-*, windows-*) have Node.js pre-installed,
@@ -203,6 +206,31 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 		// For non-containerized custom MCP servers, check the Command field
 		if tool.Command != "" {
 			if runtime, found := commandToRuntime[tool.Command]; found {
+				updateRequiredRuntime(runtime, "", requirements)
+			}
+		}
+
+	}
+}
+
+// detectFromMCPScripts scans mcp-scripts tool definitions for language runtimes.
+func detectFromMCPScripts(mcpScripts *MCPScriptsConfig, requirements map[string]*RuntimeRequirement) {
+	if mcpScripts == nil {
+		return
+	}
+
+	for _, tool := range mcpScripts.Tools {
+		switch {
+		case tool.Script != "":
+			if runtime := findRuntimeByID("node"); runtime != nil {
+				updateRequiredRuntime(runtime, "", requirements)
+			}
+		case tool.Py != "":
+			if runtime := findRuntimeByID("python"); runtime != nil {
+				updateRequiredRuntime(runtime, "", requirements)
+			}
+		case tool.Go != "":
+			if runtime := findRuntimeByID("go"); runtime != nil {
 				updateRequiredRuntime(runtime, "", requirements)
 			}
 		}

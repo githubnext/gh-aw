@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var resolverLog = logger.New("workflow:action_resolver")
@@ -47,7 +49,35 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 		return sha, nil
 	}
 
-	resolverLog.Printf("Cache miss for %s@%s, querying GitHub API", repo, version)
+	resolverLog.Printf("Cache miss for %s@%s, checking embedded action pins", repo, version)
+
+	// Check embedded action pins for a semver-compatible version before making
+	// a network call. The embedded pins are the source-of-truth for known versions
+	// and are always available without network access. This avoids a ~1s gh-api
+	// subprocess for any action that is already covered by the embedded pin set.
+	requested := semverutil.EnsureVPrefix(version)
+	requestedVer := semverutil.ParseVersion(requested)
+	requestedIsPrecise := requestedVer != nil && requestedVer.IsPreciseVersion()
+
+	for _, pin := range actionpins.GetActionPinsByRepo(repo) {
+		pinVersion := semverutil.EnsureVPrefix(pin.Version)
+		if requestedIsPrecise {
+			if pinVersion != requested {
+				continue
+			}
+		} else if !semverutil.IsCompatible(pinVersion, requested) {
+			continue
+		}
+
+		resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)
+		// Note: we intentionally do NOT call r.cache.Set() here. The embedded pins
+		// are always available in memory so there is nothing to persist, and writing
+		// to the on-disk cache would create root-owned files when compiling inside
+		// Docker containers (e.g. the Alpine CI test), preventing cleanup by the host.
+		return pin.SHA, nil
+	}
+
+	resolverLog.Printf("No embedded pin for %s@%s, querying GitHub API", repo, version)
 	resolverLog.Printf("This may take a moment as we query GitHub API at /repos/%s/git/ref/tags/%s", gitutil.ExtractBaseRepo(repo), version)
 
 	// Resolve using GitHub CLI

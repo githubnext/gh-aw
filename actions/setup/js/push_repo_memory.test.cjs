@@ -1459,6 +1459,17 @@ describe("push_repo_memory.cjs - changed-file limit checks", () => {
     expect(scriptContent).not.toContain("if (filesToCopy.length > maxFileCount)");
     expect(scriptContent).toContain("if (changedFileCount > maxFileCount)");
   });
+
+  it("should fail when formatting expands a JSON file beyond MAX_FILE_SIZE (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    expect(scriptContent).toContain('Buffer.byteLength(formatted, "utf8")');
+    expect(scriptContent).toContain("Formatted JSON exceeds MAX_FILE_SIZE");
+    expect(scriptContent).toContain("FormatJSONSizeLimitError");
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

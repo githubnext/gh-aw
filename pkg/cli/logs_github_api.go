@@ -167,20 +167,23 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 
 // ListWorkflowRunsOptions holds the options for listWorkflowRunsWithPagination
 type ListWorkflowRunsOptions struct {
-	Context        context.Context
-	WorkflowName   string // filter by specific workflow (if empty, fetches all agentic workflows)
-	Status         string // filter by run status/conclusion (for example: completed, success, failure)
-	Limit          int    // maximum number of runs to fetch in this API call (batch size)
-	StartDate      string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
-	EndDate        string // filter by creation date (<=); combined with StartDate into a single --created range
-	BeforeDate     string // exclusive upper bound used for pagination (<); combined with StartDate into a single --created range
-	Ref            string // filter by branch or tag name
-	BeforeRunID    int64  // filter by run database ID (< this ID)
-	AfterRunID     int64  // filter by run database ID (> this ID)
-	RepoOverride   string // fetch from a specific repository instead of current
-	ProcessedCount int    // number of runs already processed (for progress display)
-	TargetCount    int    // target number of runs to fetch (for progress display)
-	Verbose        bool   // enable verbose logging
+	Context      context.Context
+	WorkflowName string // filter by specific workflow (if empty, fetches all agentic workflows)
+	Status       string // filter by run status/conclusion (for example: completed, success, failure)
+	Limit        int    // maximum number of runs to fetch in this API call (batch size)
+	StartDate    string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
+	EndDate      string // filter by creation date (<=); combined with StartDate into a single --created range
+	BeforeDate   string // exclusive upper bound used for pagination (<); combined with StartDate into a single --created range
+	Ref          string // filter by branch or tag name
+	BeforeRunID  int64  // filter by run database ID (< this ID)
+	AfterRunID   int64  // filter by run database ID (> this ID)
+	RepoOverride string // fetch from a specific repository instead of current
+	// OldestFetchedCreatedAt, when set, is populated with the oldest run creation
+	// timestamp returned by GitHub in this batch before any workflow/conclusion filtering.
+	OldestFetchedCreatedAt *time.Time
+	ProcessedCount         int  // number of runs already processed (for progress display)
+	TargetCount            int  // target number of runs to fetch (for progress display)
+	Verbose                bool // enable verbose logging
 }
 
 // listWorkflowRunsWithPagination fetches workflow runs from GitHub Actions using the GitHub CLI.
@@ -319,6 +322,13 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 
 	// Store the total count fetched from API before filtering
 	totalFetched := len(runs)
+	if opts.OldestFetchedCreatedAt != nil {
+		var oldest time.Time
+		if totalFetched > 0 {
+			oldest = runs[totalFetched-1].CreatedAt
+		}
+		*opts.OldestFetchedCreatedAt = oldest
+	}
 
 	// Filter only agentic workflow runs when no specific workflow is specified
 	// If a workflow name was specified, we already filtered by it in the API call

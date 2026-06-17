@@ -282,21 +282,6 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		}
 	}
 
-	// Step 3b: Update container image digest pins (unless --no-fix or --no-actions is specified)
-	// Container pins are stored alongside action pins in .github/aw/actions-lock.json.
-	// Running this before compilation means the next compile step will embed the
-	// pinned @sha256: references in the generated lock files.
-	if !opts.noFix && !opts.noActions {
-		upgradeLog.Print("Updating container image digest pins")
-		if err := UpdateContainerPins(opts.ctx, opts.workflowDir, opts.verbose); err != nil {
-			upgradeLog.Printf("Failed to update container pins: %v", err)
-			// Non-critical — Docker may not be available in all environments.
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
-		} else if opts.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated container image pins"))
-		}
-	}
-
 	// Step 4: Compile all workflows (unless --no-fix or --no-compile is specified)
 	if !opts.noFix && !opts.noCompile {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
@@ -341,6 +326,24 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-compile specified)"))
 			}
+		}
+	}
+
+	// Step 4b: Update container image digest pins (unless --no-fix or --no-actions is specified)
+	// Container pins are stored alongside action pins in .github/aw/actions-lock.json.
+	// This runs AFTER compilation so that the compiled lock files already reflect the
+	// current AWF version; stale pins from superseded versions are pruned and new
+	// versions are resolved in a single pass.  When --no-compile is set, the existing
+	// lock files are used as-is — pins are still pruned and refreshed against whatever
+	// lock files are currently on disk.
+	if !opts.noFix && !opts.noActions {
+		upgradeLog.Print("Updating container image digest pins")
+		if err := UpdateContainerPins(opts.ctx, opts.workflowDir, opts.verbose); err != nil {
+			upgradeLog.Printf("Failed to update container pins: %v", err)
+			// Non-critical — Docker may not be available in all environments.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
+		} else if opts.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated container image pins"))
 		}
 	}
 

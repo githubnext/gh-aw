@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -167,4 +168,76 @@ Manifests:
 			}
 		})
 	}
+}
+
+// TestUpdateContainerPins_PrunesStaleEntries verifies that UpdateContainerPins
+// removes container pin entries from actions-lock.json that are no longer
+// referenced in the compiled lock files (e.g. superseded AWF versions).
+func TestUpdateContainerPins_PrunesStaleEntries(t *testing.T) {
+	// Create a temp directory acting as the repo root.
+	tmpDir := t.TempDir()
+
+	// Write an actions-lock.json with a stale container pin and a live one.
+	// The live pin (0.27.2) should be kept; the stale one (0.27.0) should be pruned.
+	actionsLockDir := filepath.Join(tmpDir, ".github", "aw")
+	require.NoError(t, os.MkdirAll(actionsLockDir, 0755))
+	actionsLockContent := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/gh-aw-firewall/agent:0.27.0": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.0",
+      "digest": "sha256:olddigest0000000000000000000000000000000000000000000000000000000",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.27.0@sha256:olddigest0000000000000000000000000000000000000000000000000000000"
+    },
+    "ghcr.io/github/gh-aw-firewall/agent:0.27.2": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.2",
+      "digest": "sha256:newdigest0000000000000000000000000000000000000000000000000000000",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.27.2@sha256:newdigest0000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}
+`
+	actionsLockPath := filepath.Join(actionsLockDir, "actions-lock.json")
+	require.NoError(t, os.WriteFile(actionsLockPath, []byte(actionsLockContent), 0644))
+
+	// Write a lock file referencing the NEW AWF version (0.27.2), not the old one.
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	lockFileContent := `name: test
+jobs:
+  setup:
+    steps:
+      - name: Download container images
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.2
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-workflow.lock.yml"), []byte(lockFileContent), 0644))
+
+	// collectImagesFromLockFiles should find the new version only.
+	images, err := collectImagesFromLockFiles(workflowsDir)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.2"}, images)
+
+	// Load the cache and exercise PruneStaleContainerPins directly (Docker is not
+	// available in unit tests so we can't call the full UpdateContainerPins function).
+	cache := workflow.NewActionCache(tmpDir)
+	require.NoError(t, cache.Load())
+
+	imageSet := map[string]bool{"ghcr.io/github/gh-aw-firewall/agent:0.27.2": true}
+	pruned := cache.PruneStaleContainerPins(imageSet)
+	assert.Equal(t, 1, pruned, "stale 0.27.0 entry should be pruned")
+
+	_, ok := cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.0")
+	assert.False(t, ok, "old-version pin should not be in cache after prune")
+
+	pin, ok := cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.2")
+	require.True(t, ok, "current-version pin should still be in cache")
+	assert.Equal(t, "sha256:newdigest0000000000000000000000000000000000000000000000000000000", pin.Digest)
+
+	// Save and verify the stale entry is gone from disk.
+	require.NoError(t, cache.Save())
+
+	data, err := os.ReadFile(actionsLockPath)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "0.27.0", "stale version should not appear in saved file")
+	assert.Contains(t, string(data), "0.27.2", "current version should be in saved file")
 }

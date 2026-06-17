@@ -34,7 +34,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok || !isRegexpCompileCall(call) {
+		if !ok || !isRegexpCompileCall(pass, call) {
 			continue
 		}
 		if !hasConstantStringPattern(pass, call) {
@@ -68,17 +68,30 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// isRegexpCompileCall checks if the call is to regexp.MustCompile or regexp.Compile.
-func isRegexpCompileCall(call *ast.CallExpr) bool {
+// isRegexpCompileCall checks if the call is to regexp.MustCompile or regexp.Compile,
+// resolving the package identity via the type checker to handle aliased imports
+// and avoid false positives from local identifiers named "regexp".
+func isRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
+	if sel.Sel.Name != "MustCompile" && sel.Sel.Name != "Compile" {
 		return false
 	}
-	return ident.Name == "regexp" && (sel.Sel.Name == "MustCompile" || sel.Sel.Name == "Compile")
+	ident, ok := sel.X.(*ast.Ident)
+	if !ok || pass.TypesInfo == nil {
+		return false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return false
+	}
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok || pkgName.Imported() == nil {
+		return false
+	}
+	return pkgName.Imported().Path() == "regexp"
 }
 
 // hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string,

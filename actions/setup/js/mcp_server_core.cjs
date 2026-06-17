@@ -34,6 +34,7 @@ const { ReadBuffer } = require("./read_buffer.cjs");
 const { validateRequiredFields, validateStringInputLengths } = require("./mcp_scripts_validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
+const { createDependencyInstallGate } = require("./mcp_dependencies_manager.cjs");
 
 const encoder = new TextEncoder();
 const PARAMETER_SIMILARITY_DISTANCE_BONUS = 2;
@@ -53,6 +54,7 @@ const UNKNOWN_PARAMETER_LIST_PREVIEW_MAX = 10;
  * @property {Function} [handler] - Tool handler function
  * @property {string} [handlerPath] - Optional file path to handler module (original path from config)
  * @property {number} [timeout] - Timeout in seconds for tool execution (default: 60)
+ * @property {string[]} [dependencies] - Runtime dependencies to install before first invocation
  */
 
 /**
@@ -391,7 +393,12 @@ function loadToolHandlers(server, tools, basePath) {
         // Lazy-load shell handler module
         const { createShellHandler } = require("./mcp_handler_shell.cjs");
         const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
-        tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
+        const baseHandler = createShellHandler(server, toolName, resolvedPath, timeout);
+        const ensureDependenciesInstalled = createDependencyInstallGate(server, toolName, resolvedPath, tool.dependencies, basePath || process.cwd());
+        tool.handler = async args => {
+          await ensureDependenciesInstalled();
+          return baseHandler(args);
+        };
 
         loadedCount++;
         server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
@@ -417,7 +424,12 @@ function loadToolHandlers(server, tools, basePath) {
         // Lazy-load Python handler module
         const { createPythonHandler } = require("./mcp_handler_python.cjs");
         const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
-        tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
+        const baseHandler = createPythonHandler(server, toolName, resolvedPath, timeout);
+        const ensureDependenciesInstalled = createDependencyInstallGate(server, toolName, resolvedPath, tool.dependencies, basePath || process.cwd());
+        tool.handler = async args => {
+          await ensureDependenciesInstalled();
+          return baseHandler(args);
+        };
 
         loadedCount++;
         server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
@@ -428,7 +440,12 @@ function loadToolHandlers(server, tools, basePath) {
         // Lazy-load Go handler module
         const { createGoHandler } = require("./mcp_handler_go.cjs");
         const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
-        tool.handler = createGoHandler(server, toolName, resolvedPath, timeout);
+        const baseHandler = createGoHandler(server, toolName, resolvedPath, timeout);
+        const ensureDependenciesInstalled = createDependencyInstallGate(server, toolName, resolvedPath, tool.dependencies, basePath || process.cwd());
+        tool.handler = async args => {
+          await ensureDependenciesInstalled();
+          return baseHandler(args);
+        };
 
         loadedCount++;
         server.debug(`  [${toolName}] Go handler created successfully with timeout: ${timeout}s`);
@@ -439,7 +456,12 @@ function loadToolHandlers(server, tools, basePath) {
         // Lazy-load JavaScript handler module
         const { createJavaScriptHandler } = require("./mcp_handler_javascript.cjs");
         const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
-        tool.handler = createJavaScriptHandler(server, toolName, resolvedPath, timeout);
+        const baseHandler = createJavaScriptHandler(server, toolName, resolvedPath, timeout);
+        const ensureDependenciesInstalled = createDependencyInstallGate(server, toolName, resolvedPath, tool.dependencies, basePath || process.cwd());
+        tool.handler = async args => {
+          await ensureDependenciesInstalled();
+          return baseHandler(args);
+        };
 
         loadedCount++;
         server.debug(`  [${toolName}] JavaScript handler created successfully with timeout: ${timeout}s`);

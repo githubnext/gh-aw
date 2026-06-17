@@ -131,7 +131,7 @@ mcp-scripts:
       print(json.dumps(result))
 ```
 
-Python 3.10+ is available with standard library modules. Install additional packages inline using pip if needed.
+Python 3.10+ is available with standard library modules. For third-party packages, use the `dependencies:` field with exact version pins (for example, `requests==2.32.3`) so gh-aw installs them before first tool invocation.
 
 ## Go Tools (`go:`)
 

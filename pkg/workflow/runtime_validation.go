@@ -255,6 +255,10 @@ func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 	runtimeValidationLog.Printf("Validating runtime packages: found %d runtime requirements", len(requirements))
 
 	var errors []string
+	if err := c.validateMCPScriptDependencies(workflowData); err != nil {
+		errors = append(errors, err.Error())
+	}
+
 	for _, req := range requirements {
 		switch req.Runtime.ID {
 		case "node":
