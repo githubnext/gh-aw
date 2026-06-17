@@ -1,6 +1,7 @@
 #!/bin/bash
 set +o histexpand
 
+# Kept in sync with actions/setup-cli/install.sh — edit this file, then copy to that path.
 
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
@@ -55,8 +56,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Disable colors when output is captured or color is explicitly disabled.
-# This keeps logs readable in CI systems like GitHub Actions.
-if [ -n "${CI:-}" ] || [ -n "${NO_COLOR:-}" ] || [ -n "${NO_COLORS:-}" ] || [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ]; then
+# NO_COLOR is the no-color.org standard; NO_COLORS covers tools that use the non-standard variant.
+# Per the spec, NO_COLOR disables colors even when set to an empty string, so we test with +set.
+if [ -n "${CI:-}" ] || [ "${NO_COLOR+set}" = "set" ] || [ "${NO_COLORS+set}" = "set" ] || [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ]; then
     RED=""
     GREEN=""
     YELLOW=""
