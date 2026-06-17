@@ -57,6 +57,29 @@ func TestMCPGatewayCustomMounts(t *testing.T) {
 	require.Equal(t, customMounts, workflowData.SandboxConfig.MCP.Mounts, "Custom mounts should be preserved")
 }
 
+func TestMCPGatewayCustomMountsWithUploadAssets(t *testing.T) {
+	customMounts := []string{
+		"/custom/path:/container/path:ro",
+		"/data:/data:rw",
+	}
+
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			MCP: &MCPGatewayRuntimeConfig{
+				Mounts: customMounts,
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			UploadAssets: &UploadAssetsConfig{},
+		},
+	}
+
+	ensureDefaultMCPGatewayConfig(workflowData)
+
+	require.Contains(t, workflowData.SandboxConfig.MCP.Mounts, safeOutputsMount, "Safe outputs mount should be added when upload assets is enabled")
+	require.Len(t, workflowData.SandboxConfig.MCP.Mounts, len(customMounts)+1, "Should preserve custom mounts and add safe outputs mount")
+}
+
 // TestMCPGatewayMountsInDockerCommand tests the docker command generation with mounts
 func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 	tests := []struct {

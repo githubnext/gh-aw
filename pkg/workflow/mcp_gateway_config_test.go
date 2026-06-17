@@ -136,6 +136,27 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "adds safeoutputs mount to custom mounts when upload assets enabled",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Container: "custom-container",
+						Version:   "v1.0.0",
+						Port:      8080,
+						Mounts:    []string{"/custom:/mount:ro"},
+					},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					UploadAssets: &UploadAssetsConfig{},
+				},
+			},
+			validate: func(t *testing.T, wd *WorkflowData) {
+				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 2, "Should preserve custom mount and add safeoutputs mount")
+				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, "/custom:/mount:ro", "Custom mount should be preserved")
+				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, safeOutputsMount, "Safeoutputs mount should be present")
+			},
+		},
+		{
 			name: "fills in missing payloadDir field",
 			workflowData: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
