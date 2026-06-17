@@ -24,7 +24,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { attachExecutionState, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
-const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG, isTransientError } = require("./error_recovery.cjs");
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
@@ -40,6 +40,8 @@ const ELLIPSIS = "…";
 const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
   ...RATE_LIMIT_RETRY_CONFIG,
   maxRetries: 1,
+  initialDelayMs: 1000,
+  jitterMs: 0,
   maxDelayMs: 60000,
 };
 
@@ -109,6 +111,9 @@ function createReviewBuffer() {
     try {
       return await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
     } catch (error) {
+      if (!isTransientError(error)) {
+        throw error;
+      }
       core.warning(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)}. Continuing without execution-state metadata.`);
       return null;
     }
@@ -272,7 +277,6 @@ function createReviewBuffer() {
     }
 
     const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
-    const beforeState = await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "before");
 
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       core.warning("Pull request head SHA not available - cannot submit review");
@@ -438,6 +442,8 @@ function createReviewBuffer() {
       core.info("📝 PR review preview written to step summary (staged mode)");
       return { success: true, staged: true };
     }
+
+    const beforeState = await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "before");
 
     /** @type {any} */
     const requestParams = {

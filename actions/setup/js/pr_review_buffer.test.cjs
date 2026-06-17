@@ -224,6 +224,8 @@ describe("pr_review_buffer (factory pattern)", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("head SHA not available");
+      expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+      expect(mockGithub.rest.pulls.listReviews).not.toHaveBeenCalled();
     });
 
     it("should submit review with default COMMENT event when no metadata set", async () => {
@@ -288,6 +290,7 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.before_state).toBeUndefined();
       expect(result.after_state).toBeUndefined();
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.pulls.listReviews).not.toHaveBeenCalled();
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to capture before PR review state"));
     });
 
@@ -327,8 +330,44 @@ describe("pr_review_buffer (factory pattern)", () => {
         expect(result.success).toBe(true);
         expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
         expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
-        expect(setTimeoutSpy.mock.calls[0][1]).toBeGreaterThanOrEqual(1000);
-        expect(setTimeoutSpy.mock.calls[0][1]).toBeLessThan(6000);
+        expect(setTimeoutSpy.mock.calls[0][1]).toBe(1000);
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
+    });
+
+    it("should return success:false when createReview rate-limit retry is exhausted", async () => {
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
+        if (typeof handler === "function") {
+          handler();
+        }
+        return 0;
+      });
+      try {
+        buffer.setReviewMetadata("Looks good", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        const rateLimitError = new Error("API rate limit exceeded for installation");
+        rateLimitError.response = {
+          status: 403,
+          headers: {
+            "x-ratelimit-remaining": "0",
+            "retry-after": "1",
+          },
+        };
+        mockGithub.rest.pulls.createReview.mockRejectedValue(rateLimitError);
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+        expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
       } finally {
         setTimeoutSpy.mockRestore();
       }
@@ -675,6 +714,54 @@ describe("pr_review_buffer (factory pattern)", () => {
       const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
       expect(retryArgs.event).toBe("COMMENT");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cannot submit APPROVE review on own PR"));
+    });
+
+    it("should retry rate-limited own-PR fallback submission", async () => {
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
+        if (typeof handler === "function") {
+          handler();
+        }
+        return 0;
+      });
+      try {
+        buffer.addComment({ path: "test.js", line: 1, body: "comment" });
+        buffer.setReviewMetadata("LGTM", "APPROVE");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
+        });
+
+        const ownPrError = new Error("Can not approve your own pull request");
+        const rateLimitError = new Error("API rate limit exceeded for installation");
+        rateLimitError.response = {
+          status: 403,
+          headers: {
+            "x-ratelimit-remaining": "0",
+            "retry-after": "1",
+          },
+        };
+
+        mockGithub.rest.pulls.createReview
+          .mockRejectedValueOnce(ownPrError)
+          .mockRejectedValueOnce(rateLimitError)
+          .mockResolvedValueOnce({
+            data: {
+              id: 1700,
+              html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-1700",
+            },
+          });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.event).toBe("COMMENT");
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+        expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
     });
 
     it("should retry with COMMENT when REQUEST_CHANGES is rejected on own PR", async () => {

@@ -204,19 +204,17 @@ function extractReviewStateFromData(pullRequest, reviews) {
 }
 
 async function fetchPullRequestReviewState(github, repoParts, pullRequestNumber) {
-  const [{ data: pullRequest }, { data: reviews }] = await Promise.all([
-    github.rest.pulls.get({
-      owner: repoParts.owner,
-      repo: repoParts.repo,
-      pull_number: pullRequestNumber,
-    }),
-    github.rest.pulls.listReviews({
-      owner: repoParts.owner,
-      repo: repoParts.repo,
-      pull_number: pullRequestNumber,
-      per_page: 100,
-    }),
-  ]);
+  const { data: pullRequest } = await github.rest.pulls.get({
+    owner: repoParts.owner,
+    repo: repoParts.repo,
+    pull_number: pullRequestNumber,
+  });
+  const { data: reviews } = await github.rest.pulls.listReviews({
+    owner: repoParts.owner,
+    repo: repoParts.repo,
+    pull_number: pullRequestNumber,
+    per_page: 100,
+  });
   return extractReviewStateFromData(pullRequest, reviews);
 }
 
