@@ -427,6 +427,14 @@ func (c *Compiler) GetSharedActionCache() *ActionCache {
 	return cache
 }
 
+// GetSharedActionResolver returns the shared action resolver used by this compiler instance.
+// The resolver is lazily initialized on first access and shared across all workflows.
+// It tracks which cache keys were used during compilation, enabling orphaned-entry pruning.
+func (c *Compiler) GetSharedActionResolver() *ActionResolver {
+	_, resolver := c.getSharedActionResolver()
+	return resolver
+}
+
 // SkipIfMatchConfig holds the configuration for skip-if-match conditions
 type SkipIfMatchConfig struct {
 	Query string // GitHub search query to check before running workflow

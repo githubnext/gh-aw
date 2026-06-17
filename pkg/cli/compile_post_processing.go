@@ -298,3 +298,28 @@ func pruneStaleActionCacheEntries(compiler *workflow.Compiler, actionCache *work
 
 	actionCache.PruneStaleGHAWEntries(version, compiler.EffectiveActionsRepo())
 }
+
+// pruneOrphanedActionCacheEntries removes entries from the action cache that were
+// not referenced during the current compilation run. This garbage-collects entries
+// for action versions no longer used by any workflow in the target directory (e.g.
+// old version pins left behind after bumping a `uses:` tag).
+//
+// This is only safe to call after a full-directory compilation — compiling a
+// subset of files would incorrectly prune entries still referenced by other
+// (uncompiled) workflows.
+func pruneOrphanedActionCacheEntries(compiler *workflow.Compiler, actionCache *workflow.ActionCache) {
+	if actionCache == nil {
+		return
+	}
+
+	resolver := compiler.GetSharedActionResolver()
+	if resolver == nil {
+		return
+	}
+
+	usedKeys := resolver.GetUsedCacheKeys()
+	pruned := actionCache.PruneOrphanedEntries(usedKeys)
+	if pruned > 0 {
+		compilePostProcessingLog.Printf("Pruned %d orphaned entries from actions-lock.json", pruned)
+	}
+}

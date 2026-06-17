@@ -202,3 +202,32 @@ func TestParseTagRefTSV(t *testing.T) {
 		})
 	}
 }
+
+// TestActionResolverUsedCacheKeysOnCacheHit verifies that GetUsedCacheKeys tracks
+// cache hits — i.e. keys that were already in the cache and returned by ResolveSHA.
+func TestActionResolverUsedCacheKeysOnCacheHit(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+	resolver := NewActionResolver(cache)
+
+	// Pre-populate the cache with two entries.
+	cache.Set("owner/action-a", "v1", "sha_a")
+	cache.Set("owner/action-b", "v2", "sha_b")
+
+	// Resolve only action-a — it should appear in UsedCacheKeys.
+	sha, err := resolver.ResolveSHA(context.Background(), "owner/action-a", "v1")
+	if err != nil {
+		t.Fatalf("Expected no error for cached entry, got: %v", err)
+	}
+	if sha != "sha_a" {
+		t.Errorf("Expected sha_a, got %q", sha)
+	}
+
+	usedKeys := resolver.GetUsedCacheKeys()
+	if !usedKeys["owner/action-a@v1"] {
+		t.Error("Expected owner/action-a@v1 to be in used cache keys after a cache hit")
+	}
+	if usedKeys["owner/action-b@v2"] {
+		t.Error("Expected owner/action-b@v2 to be absent from used cache keys (never resolved)")
+	}
+}

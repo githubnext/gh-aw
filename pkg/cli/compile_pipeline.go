@@ -605,6 +605,11 @@ func runPostProcessingForDirectory(
 	// Prune stale gh-aw-actions entries before saving
 	pruneStaleActionCacheEntries(compiler, actionCache)
 
+	// Prune orphaned entries — entries for action versions no longer referenced
+	// by any workflow in the directory (e.g. old pins left after a version bump).
+	// Safe to call only after a full-directory compilation (all workflows compiled).
+	pruneOrphanedActionCacheEntries(compiler, actionCache)
+
 	// Save action cache (errors are logged but non-fatal)
 	_ = saveActionCache(actionCache, config.Verbose)
 

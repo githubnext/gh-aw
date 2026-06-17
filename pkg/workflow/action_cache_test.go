@@ -881,3 +881,108 @@ func TestActionCacheReleasedAtClearedOnSHAChange(t *testing.T) {
 		t.Error("ReleasedAt should be cleared when SHA changes")
 	}
 }
+
+// TestPruneOrphanedEntries verifies that PruneOrphanedEntries removes entries
+// whose keys are absent from the referenced set, while preserving referenced ones.
+func TestPruneOrphanedEntries(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Simulate a version bump: v1.7.2 was old, v1.9.1 is now used.
+	cache.Set("microsoft/apm-action", "v1.7.2", "sha_old")
+	cache.Set("microsoft/apm-action", "v1.9.1", "sha_new")
+	cache.Set("actions/checkout", "v4", "sha_checkout")
+
+	if len(cache.Entries) != 3 {
+		t.Fatalf("Expected 3 entries before pruning, got %d", len(cache.Entries))
+	}
+
+	// Only v1.9.1 and checkout are referenced by compiled workflows.
+	referenced := map[string]bool{
+		"microsoft/apm-action@v1.9.1": true,
+		"actions/checkout@v4":         true,
+	}
+	pruned := cache.PruneOrphanedEntries(referenced)
+
+	if pruned != 1 {
+		t.Errorf("Expected 1 pruned entry, got %d", pruned)
+	}
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries after pruning, got %d", len(cache.Entries))
+	}
+	if _, exists := cache.Entries["microsoft/apm-action@v1.7.2"]; exists {
+		t.Error("Expected orphaned entry microsoft/apm-action@v1.7.2 to be removed")
+	}
+	if _, exists := cache.Entries["microsoft/apm-action@v1.9.1"]; !exists {
+		t.Error("Expected referenced entry microsoft/apm-action@v1.9.1 to remain")
+	}
+	if _, exists := cache.Entries["actions/checkout@v4"]; !exists {
+		t.Error("Expected referenced entry actions/checkout@v4 to remain")
+	}
+}
+
+// TestPruneOrphanedEntries_EmptyReferenced verifies that passing an empty
+// referenced set is a no-op (safe guard: an empty set most likely means no
+// compilation happened, not that all entries are orphaned).
+func TestPruneOrphanedEntries_EmptyReferenced(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	cache.Set("actions/checkout", "v4", "sha1")
+	cache.Set("actions/setup-node", "v4", "sha2")
+
+	pruned := cache.PruneOrphanedEntries(map[string]bool{})
+
+	if pruned != 0 {
+		t.Errorf("Expected 0 pruned entries (empty referenced set is a no-op), got %d", pruned)
+	}
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (unchanged), got %d", len(cache.Entries))
+	}
+}
+
+// TestPruneOrphanedEntries_NoneOrphaned verifies that no entries are removed
+// when all cached entries are referenced.
+func TestPruneOrphanedEntries_NoneOrphaned(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	cache.Set("actions/checkout", "v4", "sha1")
+	cache.Set("actions/setup-node", "v4", "sha2")
+
+	referenced := map[string]bool{
+		"actions/checkout@v4":   true,
+		"actions/setup-node@v4": true,
+	}
+	pruned := cache.PruneOrphanedEntries(referenced)
+
+	if pruned != 0 {
+		t.Errorf("Expected 0 pruned entries, got %d", pruned)
+	}
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (unchanged), got %d", len(cache.Entries))
+	}
+}
+
+// TestPruneOrphanedEntries_AllOrphaned verifies that all entries are removed
+// when none are referenced (but referenced set is non-empty).
+func TestPruneOrphanedEntries_AllOrphaned(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	cache.Set("actions/checkout", "v4", "sha1")
+	cache.Set("actions/setup-node", "v4", "sha2")
+
+	// Referenced set is non-empty but contains neither of the cached entries.
+	referenced := map[string]bool{
+		"some/other-action@v1": true,
+	}
+	pruned := cache.PruneOrphanedEntries(referenced)
+
+	if pruned != 2 {
+		t.Errorf("Expected 2 pruned entries, got %d", pruned)
+	}
+	if len(cache.Entries) != 0 {
+		t.Errorf("Expected 0 entries after pruning all orphans, got %d", len(cache.Entries))
+	}
+}

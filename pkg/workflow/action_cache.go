@@ -96,6 +96,30 @@ func (c *ActionCache) DeleteContainerPin(image string) {
 	}
 }
 
+// PruneOrphanedEntries removes action cache entries whose keys are not present
+// in referencedKeys. It returns the number of entries that were removed.
+// This is used to keep actions-lock.json a faithful reflection of what the
+// compiled workflows actually reference — entries for old action versions that
+// are no longer used by any workflow are removed.
+func (c *ActionCache) PruneOrphanedEntries(referencedKeys map[string]bool) int {
+	if len(referencedKeys) == 0 {
+		return 0
+	}
+	pruned := 0
+	for key := range c.Entries {
+		if !referencedKeys[key] {
+			delete(c.Entries, key)
+			c.dirty = true
+			pruned++
+			actionCacheLog.Printf("Pruned orphaned action cache entry: %s", key)
+		}
+	}
+	if pruned > 0 {
+		actionCacheLog.Printf("Pruned %d orphaned action cache entries, %d entries remaining", pruned, len(c.Entries))
+	}
+	return pruned
+}
+
 // PruneStaleContainerPins removes container pin entries whose keys are not present
 // in knownImages. It returns the number of entries that were removed.
 // This is used to keep actions-lock.json consistent with the set of images
