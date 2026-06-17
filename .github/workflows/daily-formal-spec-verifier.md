@@ -46,6 +46,7 @@ tools:
     - "find . -name \"*_test.go\" -path \"*/pkg/*\" | head -20"
     - "cat pkg/workflow/*.go | head -200"
     - "cat pkg/cli/*.go"
+    - "sed -n"
 
 safe-outputs:
   mentions: false
