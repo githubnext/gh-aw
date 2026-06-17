@@ -57,7 +57,7 @@ const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 const DefaultCrushVersion Version = "0.59.0"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.79.4"
+const DefaultPiVersion Version = "0.79.6"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
