@@ -12,6 +12,35 @@ const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEM
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
+/**
+ * Detect whether git output indicates a partial/shallow-clone object availability
+ * failure (as opposed to a genuine merge conflict).
+ *
+ * On a shallow + partial (`--filter=blob:none`) checkout of a large monorepo, a
+ * `git rebase --onto` can fail because git lazily fetches required objects (merge
+ * bases, trees, blobs of intermediate commits) from the promisor remote and the
+ * fetch is rejected. The hallmark messages are emitted by git's lazy-fetch path:
+ *   - `could not fetch <sha> from promisor remote`
+ *   - `remote error: upload-pack: not our ref <sha>`
+ *   - `unable to read <sha>` / `object <sha> missing` for objects git expected locally
+ *
+ * These failures are recoverable by backfilling history (`git fetch --unshallow`),
+ * unlike merge conflicts which require manual resolution.
+ *
+ * @param {string} output - Combined stdout/stderr from the failed git command.
+ * @returns {boolean} True when the failure looks like a partial-clone object fetch failure.
+ */
+function isPartialCloneObjectFailure(output) {
+  if (!output) return false;
+  return (
+    /could not fetch .* from promisor remote/i.test(output) ||
+    /upload-pack: not our ref/i.test(output) ||
+    /remote error: upload-pack/i.test(output) ||
+    /(unable to read|object).*(missing|not found)/i.test(output) ||
+    /fatal: bad object/i.test(output)
+  );
+}
+
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
  *  (merge commit, symlink mode 120000, or submodule mode 160000).  The catch
@@ -375,19 +404,69 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   }
   if (firstReplayParentOid && firstGraphqlParentOid && firstReplayParentOid !== firstGraphqlParentOid && !graphqlParentIsAncestorOfHead) {
     core.warning(`pushSignedCommits: replay parent ${firstReplayParentOid} does not match GraphQL parent ${firstGraphqlParentOid}; ` + `rebasing commit range before signed replay to avoid stale-base file synthesis`);
-    try {
-      await exec.exec("git", ["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd });
-    } catch (rebaseError) {
+    // Attempt the rebase, capturing combined output so we can distinguish a
+    // recoverable partial/shallow-clone object fetch failure from a genuine
+    // merge conflict. On a shallow + partial checkout of a large monorepo the
+    // rebase can fail because git lazily fetches intermediate-commit objects
+    // from the promisor remote and the fetch is rejected.
+    const runRebase = async () => {
+      const result = await exec.getExecOutput("git", ["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd, ignoreReturnCode: true });
+      return result;
+    };
+    let rebaseResult = await runRebase();
+    if (rebaseResult.exitCode !== 0) {
+      const combinedOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
+      // Always abort the in-progress rebase before attempting any recovery.
       try {
         await exec.exec("git", ["rebase", "--abort"], { cwd });
       } catch {
         // Ignore cleanup failures.
       }
-      throw new Error(
-        `pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` +
-          `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${rebaseError instanceof Error ? rebaseError.message : String(rebaseError)}`,
-        { cause: rebaseError }
-      );
+
+      // Recovery: if the failure was caused by missing objects in a shallow/
+      // partial clone, backfill history and retry the rebase once.
+      if (isPartialCloneObjectFailure(combinedOutput)) {
+        core.warning("pushSignedCommits: rebase failed due to missing objects in a shallow/partial clone; backfilling history with git fetch --unshallow and retrying once");
+        let recovered = false;
+        try {
+          const unshallowResult = await exec.getExecOutput("git", ["fetch", "--unshallow", "origin"], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) }, ignoreReturnCode: true });
+          if (unshallowResult.exitCode === 0) {
+            recovered = true;
+          } else {
+            // A non-shallow repo rejects --unshallow ("--unshallow on a complete
+            // repository does not make sense"); in that case re-fetch the base
+            // ref so promisor objects become available.
+            const fetchResult = await exec.getExecOutput("git", ["fetch", "origin", baseRef], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) }, ignoreReturnCode: true });
+            recovered = fetchResult.exitCode === 0;
+          }
+        } catch (recoveryError) {
+          core.warning(`pushSignedCommits: history backfill failed: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`);
+        }
+
+        if (recovered) {
+          rebaseResult = await runRebase();
+          if (rebaseResult.exitCode !== 0) {
+            try {
+              await exec.exec("git", ["rebase", "--abort"], { cwd });
+            } catch {
+              // Ignore cleanup failures.
+            }
+            const retryOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
+            throw new Error(
+              `pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling history. ` +
+                `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${retryOutput.trim()}`
+            );
+          }
+        } else {
+          throw new Error(
+            `pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}); ` +
+              `missing objects could not be backfilled from a shallow/partial clone. ` +
+              `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`
+          );
+        }
+      } else {
+        throw new Error(`pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` + `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`);
+      }
     }
     const { stdout: rebasedRevListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${firstGraphqlParentOid}..HEAD`], { cwd });
     revListEntries = rebasedRevListOut
