@@ -1,7 +1,5 @@
 // @ts-check
 
-require("./shim.cjs");
-
 /**
  * MCP Scripts Runner
  *
