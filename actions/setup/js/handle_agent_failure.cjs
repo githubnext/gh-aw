@@ -2921,37 +2921,37 @@ async function main() {
     // 2. If only included categories are specified: report ONLY those categories
     // 3. If both are specified: report categories that are included AND not excluded
     if (failureCategoriesFilter || failureExcludedCategoriesFilter) {
-      const hasIncludeFilter = failureCategoriesFilter && Array.isArray(failureCategoriesFilter) && failureCategoriesFilter.length > 0;
-      const hasExcludeFilter = failureExcludedCategoriesFilter && Array.isArray(failureExcludedCategoriesFilter) && failureExcludedCategoriesFilter.length > 0;
+      const includeCategories = Array.isArray(failureCategoriesFilter) ? failureCategoriesFilter : [];
+      const excludeCategories = Array.isArray(failureExcludedCategoriesFilter) ? failureExcludedCategoriesFilter : [];
+      const hasIncludeFilter = includeCategories.length > 0;
+      const hasExcludeFilter = excludeCategories.length > 0;
 
       let shouldCreateIssue = false;
 
       if (hasIncludeFilter && hasExcludeFilter) {
         // Both filters: must match include AND not match exclude
-        const hasIncludedCategory = failureCategories.some(cat => failureCategoriesFilter.includes(cat));
-        const hasExcludedCategory = failureCategories.some(cat => failureExcludedCategoriesFilter.includes(cat));
+        const hasIncludedCategory = failureCategories.some(cat => includeCategories.includes(cat));
+        const hasExcludedCategory = failureCategories.some(cat => excludeCategories.includes(cat));
         shouldCreateIssue = hasIncludedCategory && !hasExcludedCategory;
         if (!shouldCreateIssue) {
-          core.info(
-            `Skipping failure issue creation: categories don't match filters. Categories: [${failureCategories.join(", ")}], Include: [${failureCategoriesFilter.join(", ")}], Exclude: [${failureExcludedCategoriesFilter.join(", ")}]`
-          );
+          core.info(`Skipping failure issue creation: categories don't match filters. Categories: [${failureCategories.join(", ")}], Include: [${includeCategories.join(", ")}], Exclude: [${excludeCategories.join(", ")}]`);
         } else {
-          core.info(`Failure categories match filters, proceeding with issue creation. Include: [${failureCategoriesFilter.join(", ")}], Exclude: [${failureExcludedCategoriesFilter.join(", ")}]`);
+          core.info(`Failure categories match filters, proceeding with issue creation. Include: [${includeCategories.join(", ")}], Exclude: [${excludeCategories.join(", ")}]`);
         }
       } else if (hasIncludeFilter) {
         // Only include filter: must match at least one included category
-        shouldCreateIssue = failureCategories.some(cat => failureCategoriesFilter.includes(cat));
+        shouldCreateIssue = failureCategories.some(cat => includeCategories.includes(cat));
         if (!shouldCreateIssue) {
-          core.info(`Skipping failure issue creation: no failure categories match include filter. Categories: [${failureCategories.join(", ")}], Include: [${failureCategoriesFilter.join(", ")}]`);
+          core.info(`Skipping failure issue creation: no failure categories match include filter. Categories: [${failureCategories.join(", ")}], Include: [${includeCategories.join(", ")}]`);
         } else {
-          core.info(`Failure categories match include filter, proceeding with issue creation. Matching categories: [${failureCategories.filter(cat => failureCategoriesFilter.includes(cat)).join(", ")}]`);
+          core.info(`Failure categories match include filter, proceeding with issue creation. Matching categories: [${failureCategories.filter(cat => includeCategories.includes(cat)).join(", ")}]`);
         }
       } else if (hasExcludeFilter) {
         // Only exclude filter: must NOT match any excluded category
-        const hasExcludedCategory = failureCategories.some(cat => failureExcludedCategoriesFilter.includes(cat));
+        const hasExcludedCategory = failureCategories.some(cat => excludeCategories.includes(cat));
         shouldCreateIssue = !hasExcludedCategory;
         if (!shouldCreateIssue) {
-          core.info(`Skipping failure issue creation: failure categories match exclude filter. Categories: [${failureCategories.join(", ")}], Exclude: [${failureExcludedCategoriesFilter.join(", ")}]`);
+          core.info(`Skipping failure issue creation: failure categories match exclude filter. Categories: [${failureCategories.join(", ")}], Exclude: [${excludeCategories.join(", ")}]`);
         } else {
           core.info(`Failure categories don't match exclude filter, proceeding with issue creation. Categories: [${failureCategories.join(", ")}]`);
         }

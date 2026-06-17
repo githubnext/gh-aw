@@ -3350,10 +3350,11 @@ func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
 // parsing supports both bool (legacy) and array of category strings
 func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 	tests := []struct {
-		name             string
-		reportValue      any
-		expectBool       *bool
-		expectCategories []string
+		name                     string
+		reportValue              any
+		expectBool               *bool
+		expectCategories         []string
+		expectExcludedCategories []string
 	}{
 		{
 			name:        "boolean true",
@@ -3374,6 +3375,17 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 			name:             "array with one category",
 			reportValue:      []any{"agent_failure"},
 			expectCategories: []string{"agent_failure"},
+		},
+		{
+			name:                     "array with excluded categories",
+			reportValue:              []any{"!inference_access_error", "!ai_credits_rate_limit_error"},
+			expectExcludedCategories: []string{"inference_access_error", "ai_credits_rate_limit_error"},
+		},
+		{
+			name:                     "array with mixed include and exclude categories",
+			reportValue:              []any{"agent_failure", "missing_safe_outputs", "!unknown_model_ai_credits"},
+			expectCategories:         []string{"agent_failure", "missing_safe_outputs"},
+			expectExcludedCategories: []string{"unknown_model_ai_credits"},
 		},
 	}
 
@@ -3400,6 +3412,9 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 
 			if len(tt.expectCategories) > 0 {
 				assert.Equal(t, tt.expectCategories, config.ReportFailureAsIssueCategories, "Categories should match")
+			}
+			if len(tt.expectExcludedCategories) > 0 {
+				assert.Equal(t, tt.expectExcludedCategories, config.ReportFailureAsIssueExcludedCategories, "Excluded categories should match")
 			}
 		})
 	}
