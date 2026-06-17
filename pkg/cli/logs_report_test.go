@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // TestRenderLogsConsoleUnified tests the unified console rendering
@@ -222,7 +224,7 @@ func TestAddUniqueWorkflow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := addUniqueWorkflow(tt.workflows, tt.workflow)
+			result := sliceutil.MergeUnique(tt.workflows, tt.workflow)
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected length %d, got %d", len(tt.expected), len(result))
 			}
@@ -429,7 +431,7 @@ func TestAggregateSummaryItems(t *testing.T) {
 		},
 		func(summary *MissingToolSummary, tool MissingToolReport) {
 			summary.Count++
-			summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
+			summary.Workflows = sliceutil.MergeUnique(summary.Workflows, tool.WorkflowName)
 			summary.RunIDs = append(summary.RunIDs, tool.RunID)
 		},
 		func(summary *MissingToolSummary) {
