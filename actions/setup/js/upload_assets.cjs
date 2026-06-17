@@ -164,7 +164,7 @@ async function main() {
       }
     }
 
-    if (uploadCount == 0 && missingAssetCount > 0 && missingAssetCount === uploadItems.length) {
+    if (uploadCount === 0 && missingAssetCount > 0 && missingAssetCount === uploadItems.length) {
       core.setFailed(`All ${missingAssetCount} declared assets were missing; no assets published.`);
       return;
     }
