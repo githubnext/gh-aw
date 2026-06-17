@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-set +o histexpand
+#!/bin/sh
 
 #
 # configure_git_credentials.sh - Configure Git identity, safe directory, and remote authentication
@@ -21,7 +20,7 @@ set +o histexpand
 #   0 - Success
 #   1 - Error
 
-set -euo pipefail
+set -eu
 
 # Configure git identity
 git config --global user.email "github-actions[bot]@users.noreply.github.com"
