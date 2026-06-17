@@ -23,28 +23,8 @@
       },
       "action_description": "Add labels to an issue or a pull request."
     },
-    "actions/ai-inference@v2.1.1": {
-      "repo": "actions/ai-inference",
-      "version": "v2.1.1",
-      "sha": "a7805884c80886efc241e94a5351df715968a0ad"
-    },
-    "actions/attest-build-provenance@v4.1.0": {
-      "repo": "actions/attest-build-provenance",
-      "version": "v4.1.0",
-      "sha": "a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
-    },
     "actions/cache/restore@v5.0.5": {
       "repo": "actions/cache/restore",
-      "version": "v5.0.5",
-      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
-    },
-    "actions/cache/save@v5.0.5": {
-      "repo": "actions/cache/save",
-      "version": "v5.0.5",
-      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
-    },
-    "actions/cache@v5.0.5": {
-      "repo": "actions/cache",
       "version": "v5.0.5",
       "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
     },
@@ -52,11 +32,6 @@
       "repo": "actions/checkout",
       "version": "v6.0.3",
       "sha": "df4cb1c069e1874edd31b4311f1884172cec0e10"
-    },
-    "actions/create-github-app-token@v3.2.0": {
-      "repo": "actions/create-github-app-token",
-      "version": "v3.2.0",
-      "sha": "bcd2ba49218906704ab6c1aa796996da409d3eb1"
     },
     "actions/download-artifact@v8.0.1": {
       "repo": "actions/download-artifact",
@@ -68,20 +43,10 @@
       "version": "v9.0.0",
       "sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3"
     },
-    "actions/setup-dotnet@v5.3.0": {
-      "repo": "actions/setup-dotnet",
-      "version": "v5.3.0",
-      "sha": "9a946fdbd5fb07b82b2f5a4466058b876ab72bb2"
-    },
     "actions/setup-go@v6.4.0": {
       "repo": "actions/setup-go",
       "version": "v6.4.0",
       "sha": "4a3601121dd01d1626a1e23e37211e3254c1c06c"
-    },
-    "actions/setup-java@v5.2.0": {
-      "repo": "actions/setup-java",
-      "version": "v5.2.0",
-      "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
     },
     "actions/setup-node@v6.4.0": {
       "repo": "actions/setup-node",
@@ -102,21 +67,6 @@
       "repo": "anchore/sbom-action",
       "version": "v0.24.0",
       "sha": "e22c389904149dbc22b58101806040fa8d37a610"
-    },
-    "astral-sh/setup-uv@v8.2.0": {
-      "repo": "astral-sh/setup-uv",
-      "version": "v8.2.0",
-      "sha": "fac544c07dec837d0ccb6301d7b5580bf5edae39"
-    },
-    "cli/gh-extension-precompile@v2.1.0": {
-      "repo": "cli/gh-extension-precompile",
-      "version": "v2.1.0",
-      "sha": "9e2237c30f869ad3bcaed6a4be2cd43564dd421b"
-    },
-    "denoland/setup-deno@v2.0.4": {
-      "repo": "denoland/setup-deno",
-      "version": "v2.0.4",
-      "sha": "667a34cdef165d8d2b2e98dde39547c9daac7282"
     },
     "docker/build-push-action@v7.2.0": {
       "repo": "docker/build-push-action",
@@ -140,50 +90,10 @@
       "version": "v4.1.0",
       "sha": "d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5"
     },
-    "erlef/setup-beam@v1.24.0": {
-      "repo": "erlef/setup-beam",
-      "version": "v1.24.0",
-      "sha": "fc68ffb90438ef2936bbb3251622353b3dcb2f93"
-    },
-    "github/codeql-action/upload-sarif@v4.36.2": {
-      "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.36.2",
-      "sha": "8aad20d150bbac5944a9f9d289da16a4b0d87c1e"
-    },
-    "github/gh-aw-actions/setup@v0.79.8": {
-      "repo": "github/gh-aw-actions/setup",
-      "version": "v0.79.8",
-      "sha": "c0338fef4749d08c21f8f975fb0e37efa17dda47"
-    },
-    "github/gh-aw/actions/setup-cli@v0.79.8": {
-      "repo": "github/gh-aw/actions/setup-cli",
-      "version": "v0.79.8",
-      "sha": "8b02ab336d100a5746e9f53b8bc2b22878278a6f"
-    },
     "github/stale-repos@v9.0.14": {
       "repo": "github/stale-repos",
       "version": "v9.0.14",
       "sha": "378f317724a25737b846bd9895bacf5726dd72ff"
-    },
-    "haskell-actions/setup@v2.11.0": {
-      "repo": "haskell-actions/setup",
-      "version": "v2.11.0",
-      "sha": "cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553"
-    },
-    "microsoft/apm-action@v1.9.1": {
-      "repo": "microsoft/apm-action",
-      "version": "v1.9.1",
-      "sha": "e5650fb81c4b5965090a17bd1ed1956071e95d17"
-    },
-    "oven-sh/setup-bun@v2.2.0": {
-      "repo": "oven-sh/setup-bun",
-      "version": "v2.2.0",
-      "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
-    },
-    "ruby/setup-ruby@v1.313.0": {
-      "repo": "ruby/setup-ruby",
-      "version": "v1.313.0",
-      "sha": "89f90524b88a01fe6e0b732220432cc6142926af"
     },
     "safedep/pmg@v1": {
       "repo": "safedep/pmg",
