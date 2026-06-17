@@ -55,12 +55,23 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	// a network call. The embedded pins are the source-of-truth for known versions
 	// and are always available without network access. This avoids a ~1s gh-api
 	// subprocess for any action that is already covered by the embedded pin set.
+	requested := semverutil.EnsureVPrefix(version)
+	requestedVer := semverutil.ParseVersion(requested)
+	requestedIsPrecise := requestedVer != nil && requestedVer.IsPreciseVersion()
+
 	for _, pin := range actionpins.GetActionPinsByRepo(repo) {
-		if semverutil.IsCompatible(pin.Version, version) {
-			resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)
-			r.cache.Set(repo, version, pin.SHA)
-			return pin.SHA, nil
+		pinVersion := semverutil.EnsureVPrefix(pin.Version)
+		if requestedIsPrecise {
+			if pinVersion != requested {
+				continue
+			}
+		} else if !semverutil.IsCompatible(pinVersion, requested) {
+			continue
 		}
+
+		resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)
+		r.cache.Set(repo, version, pin.SHA)
+		return pin.SHA, nil
 	}
 
 	resolverLog.Printf("No embedded pin for %s@%s, querying GitHub API", repo, version)
