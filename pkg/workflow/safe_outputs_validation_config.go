@@ -232,7 +232,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"event":               {Type: "string", Enum: []string{"APPROVE", "REQUEST_CHANGES", "COMMENT"}},
-			"pull_request_number": {OptionalPositiveInteger: true},
+			"pull_request_number": {IssueOrPRNumber: true},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},

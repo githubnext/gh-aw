@@ -90,7 +90,7 @@ const SAMPLE_VALIDATION_CONFIG = {
     fields: {
       body: { type: "string", sanitize: true, maxLength: 65000 },
       event: { type: "string", enum: ["APPROVE", "REQUEST_CHANGES", "COMMENT"] },
-      pull_request_number: { optionalPositiveInteger: true },
+      pull_request_number: { issueOrPRNumber: true },
       repo: { type: "string", maxLength: 256 },
     },
   },
@@ -388,7 +388,7 @@ describe("safe_output_type_validator", () => {
       const result = validateItem({ type: "submit_pull_request_review", event: "APPROVE", pull_request_number: "42", repo: "owner/repo" }, "submit_pull_request_review", 1);
 
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.pull_request_number).toBe(42);
+      expect(result.normalizedItem.pull_request_number).toBe("42"); // IssueOrPRNumber does not normalize strings to integers
       expect(result.normalizedItem.repo).toBe("owner/repo");
     });
 
@@ -423,7 +423,8 @@ describe("safe_output_type_validator", () => {
     it("should reject invalid submit_pull_request_review pull_request_number", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const invalidValues = [0, -1, "abc", 3.14];
+      // IssueOrPRNumber accepts any string or number - only reject invalid types
+      const invalidValues = [{ foo: "bar" }, ["array"], true];
       for (const value of invalidValues) {
         const result = validateItem({ type: "submit_pull_request_review", event: "APPROVE", pull_request_number: value }, "submit_pull_request_review", 1);
         expect(result.isValid).toBe(false);
