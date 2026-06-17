@@ -101,7 +101,7 @@ function createReviewBuffer() {
    * @param {{owner: string, repo: string}} repoParts
    * @param {number} pullRequestNumber
    * @param {"before" | "after"} phase
-   * @returns {Promise<ReturnType<typeof fetchPullRequestReviewState> extends Promise<infer T> ? T | null : null>}
+   * @returns {Promise<Object | null>}
    */
   async function fetchReviewStateBestEffort(repoParts, pullRequestNumber, phase) {
     try {
@@ -533,10 +533,14 @@ function createReviewBuffer() {
       return withRetry(() => github.rest.pulls.createReview(params), REVIEW_RATE_LIMIT_RETRY_CONFIG, `pulls.createReview ${repo}#${pullRequestNumber}`);
     }
 
+    async function fetchAfterStateIfAvailable() {
+      return beforeState ? fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
+    }
+
     try {
       const { data: review } = await createReviewWithRetry(requestParams);
       await maybeSupersedeOlderReviews(review.id);
-      const afterState = beforeState ? await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
+      const afterState = await fetchAfterStateIfAvailable();
 
       core.info(`Created PR review #${review.id}: ${review.html_url}`);
 
@@ -573,7 +577,7 @@ function createReviewBuffer() {
           requestParams.event = "COMMENT";
           const { data: review } = await createReviewWithRetry(requestParams);
           await maybeSupersedeOlderReviews(review.id);
-          const afterState = beforeState ? await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
+          const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
           return attachExecutionState(
             {
@@ -615,7 +619,7 @@ function createReviewBuffer() {
           bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
           const { data: review } = await createReviewWithRetry(bodyOnlyParams);
           await maybeSupersedeOlderReviews(review.id);
-          const afterState = beforeState ? await fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
+          const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
           return attachExecutionState(
             {
