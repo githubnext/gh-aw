@@ -63,6 +63,20 @@ type LogsDownloadOptions struct {
 	After             string
 }
 
+func shouldStopPagination(totalFetched, batchSize int) bool {
+	return totalFetched < batchSize
+}
+
+func selectPaginationCursorDate(filteredRuns []WorkflowRun, oldestFetchedCreatedAt time.Time) (string, bool) {
+	if !oldestFetchedCreatedAt.IsZero() {
+		return oldestFetchedCreatedAt.Format(time.RFC3339), true
+	}
+	if len(filteredRuns) == 0 {
+		return "", false
+	}
+	return filteredRuns[len(filteredRuns)-1].CreatedAt.Format(time.RFC3339), true
+}
+
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	workflowName := opts.WorkflowName
@@ -239,29 +253,47 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 			}
 		}
 
+		var oldestFetchedCreatedAt time.Time
 		runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
-			WorkflowName:   workflowName,
-			Limit:          batchSize,
-			StartDate:      startDate,
-			EndDate:        endDate,
-			BeforeDate:     beforeDate,
-			Ref:            ref,
-			BeforeRunID:    beforeRunID,
-			AfterRunID:     afterRunID,
-			RepoOverride:   repoOverride,
-			ProcessedCount: len(processedRuns),
-			TargetCount:    count,
-			Verbose:        verbose,
+			WorkflowName:           workflowName,
+			Limit:                  batchSize,
+			StartDate:              startDate,
+			EndDate:                endDate,
+			BeforeDate:             beforeDate,
+			Ref:                    ref,
+			BeforeRunID:            beforeRunID,
+			AfterRunID:             afterRunID,
+			RepoOverride:           repoOverride,
+			OldestFetchedCreatedAt: &oldestFetchedCreatedAt,
+			ProcessedCount:         len(processedRuns),
+			TargetCount:            count,
+			Verbose:                verbose,
 		})
 		if err != nil {
 			return err
 		}
 
 		if len(runs) == 0 {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No more workflow runs found, stopping iteration"))
+			if shouldStopPagination(totalFetched, batchSize) {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No more workflow runs found, stopping iteration"))
+				}
+				break
 			}
-			break
+
+			cursor, ok := selectPaginationCursorDate(nil, oldestFetchedCreatedAt)
+			if !ok {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow batch filtered to zero runs but no pagination cursor was found, stopping iteration"))
+				}
+				break
+			}
+
+			beforeDate = cursor
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Batch filtered to zero runs; advancing pagination cursor and continuing"))
+			}
+			continue
 		}
 
 		if verbose {
@@ -515,10 +547,12 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 			}
 		}
 
-		// Prepare for next iteration: set beforeDate to the oldest processed run from this batch
-		if len(runs) > 0 && len(runsRemaining) == 0 {
-			oldestRun := runs[len(runs)-1] // runs are typically ordered by creation date descending
-			beforeDate = oldestRun.CreatedAt.Format(time.RFC3339)
+		// Prepare for next iteration: set beforeDate to the oldest run from the raw API batch.
+		// This guarantees pagination moves forward even when filtered runs are sparse.
+		if len(runsRemaining) == 0 {
+			if cursor, ok := selectPaginationCursorDate(runs, oldestFetchedCreatedAt); ok {
+				beforeDate = cursor
+			}
 		}
 
 		// If we got fewer runs than requested in this batch, we've likely hit the end
@@ -528,7 +562,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		// Example: API returns 250 total runs, but only 5 are agentic workflows after filtering.
 		//   Old buggy logic: len(runs)=5 < batchSize=250, stop iteration (WRONG - misses more agentic workflows!)
 		//   Fixed logic: totalFetched=250 < batchSize=250 is false, continue iteration (CORRECT)
-		if totalFetched < batchSize {
+		if shouldStopPagination(totalFetched, batchSize) {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received fewer runs than requested, likely reached end of available runs"))
 			}
