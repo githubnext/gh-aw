@@ -85,7 +85,16 @@ func (r Resolver) ResolveIssue(nodeID, url string, labels []string) IntentRecord
 	if len(labels) == 0 {
 		return r.unlinked("no_supported_intent_source")
 	}
-	return r.fromLabels(nodeID, url, labels, SourceIssueLabels, "issue_label_fallback")
+	return IntentRecord{
+		Status:          r.statusForLabels(labels),
+		Source:          SourceIssueLabels,
+		RootNodeID:      nodeID,
+		RootType:        "issue",
+		RootURL:         url,
+		Labels:          cloneStrings(labels),
+		Rule:            "issue_label_fallback",
+		ResolverVersion: r.ResolverVersion,
+	}
 }
 
 func (r Resolver) fromRoot(root RootReference, source AttributionSource, rule string) IntentRecord {
