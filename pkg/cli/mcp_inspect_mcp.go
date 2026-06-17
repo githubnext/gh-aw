@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -386,10 +387,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 		rows := make([][]string, 0, len(info.Resources))
 
 		for _, resource := range info.Resources {
-			description := resource.Description
-			if len(description) > 40 {
-				description = description[:37] + "..."
-			}
+			description := stringutil.Truncate(resource.Description, 40)
 
 			mimeType := resource.MIMEType
 			if mimeType == "" {

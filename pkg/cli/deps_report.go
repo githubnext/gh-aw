@@ -119,10 +119,7 @@ func DisplayDependencyReport(report *DependencyReport) {
 	fmt.Fprintf(os.Stderr, "Outdated: %d (%.0f%%)\n", len(report.Outdated), outdatedPercentage)
 	fmt.Fprintf(os.Stderr, "Security advisories: %d\n", len(report.Advisories))
 
-	v0Percentage := 0.0
-	if report.TotalDeps > 0 {
-		v0Percentage = float64(report.V0Count) / float64(report.TotalDeps) * 100
-	}
+	v0Percentage := safePercent(report.V0Count, report.TotalDeps)
 	fmt.Fprintf(os.Stderr, "v0.x dependencies: %d (%.0f%%)", report.V0Count, v0Percentage)
 	if v0Percentage > 30 {
 		fmt.Fprintf(os.Stderr, " ⚠️")
@@ -157,16 +154,10 @@ func DisplayDependencyReport(report *DependencyReport) {
 	}
 	fmt.Fprintln(os.Stderr, "")
 
-	v1Percentage := 0.0
-	if report.TotalDeps > 0 {
-		v1Percentage = float64(report.V1PlusCount) / float64(report.TotalDeps) * 100
-	}
+	v1Percentage := safePercent(report.V1PlusCount, report.TotalDeps)
 	fmt.Fprintf(os.Stderr, "v1.x (stable): %d (%.0f%%)\n", report.V1PlusCount, v1Percentage)
 
-	v2Percentage := 0.0
-	if report.TotalDeps > 0 {
-		v2Percentage = float64(report.V2PlusCount) / float64(report.TotalDeps) * 100
-	}
+	v2Percentage := safePercent(report.V2PlusCount, report.TotalDeps)
 	fmt.Fprintf(os.Stderr, "v2+ (mature): %d (%.0f%%)\n", report.V2PlusCount, v2Percentage)
 	fmt.Fprintln(os.Stderr, "")
 
@@ -201,14 +192,9 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 		outdatedPercentage = float64(len(report.Outdated)) / float64(report.DirectDeps) * 100
 	}
 
-	v0Percentage := 0.0
-	v1Percentage := 0.0
-	v2Percentage := 0.0
-	if report.TotalDeps > 0 {
-		v0Percentage = float64(report.V0Count) / float64(report.TotalDeps) * 100
-		v1Percentage = float64(report.V1PlusCount) / float64(report.TotalDeps) * 100
-		v2Percentage = float64(report.V2PlusCount) / float64(report.TotalDeps) * 100
-	}
+	v0Percentage := safePercent(report.V0Count, report.TotalDeps)
+	v1Percentage := safePercent(report.V1PlusCount, report.TotalDeps)
+	v2Percentage := safePercent(report.V2PlusCount, report.TotalDeps)
 
 	// Build JSON-friendly output structure
 	output := map[string]any{

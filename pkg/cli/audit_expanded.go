@@ -485,10 +485,7 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 			health.TotalRequests += server.RequestCount
 			health.TotalErrors += server.ErrorCount
 
-			errorRate := 0.0
-			if server.RequestCount > 0 {
-				errorRate = float64(server.ErrorCount) / float64(server.RequestCount) * 100
-			}
+			errorRate := safePercent(server.ErrorCount, server.RequestCount)
 
 			status := "✅ healthy"
 			if _, isFailed := failedServers[server.ServerName]; isFailed {
@@ -543,9 +540,7 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 	health.HealthySvrs = health.TotalServers - health.FailedSvrs - health.DegradedSvrs
 
 	// Calculate overall error rate
-	if health.TotalRequests > 0 {
-		health.ErrorRate = float64(health.TotalErrors) / float64(health.TotalRequests) * 100
-	}
+	health.ErrorRate = safePercent(health.TotalErrors, health.TotalRequests)
 
 	// Sort servers by request count (highest first)
 	slices.SortFunc(health.Servers, func(a, b MCPServerHealthDetail) int {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -52,10 +53,7 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 				// Append a truncated first error message to help quickly identify the root cause.
 				// Keep descriptions short enough to be useful in a key findings summary.
 				const maxErrMsgLen = 200
-				msg := errors[0].Message
-				if len(msg) > maxErrMsgLen {
-					msg = msg[:maxErrMsgLen] + "..."
-				}
+				msg := stringutil.Truncate(errors[0].Message, maxErrMsgLen)
 				desc += ": " + msg
 			}
 		}

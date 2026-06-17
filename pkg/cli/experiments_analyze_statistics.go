@@ -142,10 +142,7 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 	// Populate per-variant entries.
 	for i, name := range variantNames {
 		count := exp.Variants[name]
-		obsPct := 0.0
-		if exp.Total > 0 {
-			obsPct = float64(count) / float64(exp.Total) * 100
-		}
+		obsPct := safePercent(count, exp.Total)
 		a.Variants = append(a.Variants, VariantAnalysis{
 			Name:            name,
 			Count:           count,

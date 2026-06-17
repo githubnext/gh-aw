@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -687,9 +688,7 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 
 			if len(errorLines) > 0 {
 				message := strings.Join(errorLines, "\n")
-				if len(message) > maxMessageLen {
-					message = message[:maxMessageLen] + "..."
-				}
+				message = stringutil.Truncate(message, maxMessageLen)
 				auditReportLog.Printf("Extracted ##[error] annotations from flat job log %s (job %d)", jobName, num)
 				errorAnnotations = append(errorAnnotations, ErrorInfo{
 					Type:    "step_failure",
@@ -743,9 +742,7 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 
 			if len(errorLines) > 0 {
 				message := strings.Join(errorLines, "\n")
-				if len(message) > maxMessageLen {
-					message = message[:maxMessageLen] + "..."
-				}
+				message = stringutil.Truncate(message, maxMessageLen)
 				auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
 				errorAnnotations = append(errorAnnotations, ErrorInfo{
 					Type:    "step_failure",
@@ -778,9 +775,7 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		return nil
 	}
 
-	if len(message) > maxMessageLen {
-		message = message[:maxMessageLen] + "..."
-	}
+	message = stringutil.Truncate(message, maxMessageLen)
 
 	auditReportLog.Printf("Extracted pre-agent step error from %s (step %d) as fallback", lastStep.stepKey, lastStep.num)
 	return []ErrorInfo{{

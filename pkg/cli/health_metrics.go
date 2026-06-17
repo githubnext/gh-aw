@@ -93,10 +93,7 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 	}
 
 	totalRuns := len(runs)
-	successRate := 0.0
-	if totalRuns > 0 {
-		successRate = float64(successCount) / float64(totalRuns) * 100
-	}
+	successRate := safePercent(successCount, totalRuns)
 
 	avgDuration := time.Duration(durationStats.Mean())
 	avgTokens := int(tokenStats.Mean())
@@ -175,7 +172,7 @@ func calculateSuccessRate(runs []WorkflowRun) float64 {
 		}
 	}
 
-	return float64(successCount) / float64(len(runs)) * 100
+	return safePercent(successCount, len(runs))
 }
 
 // CalculateHealthSummary calculates aggregated health metrics across all workflows

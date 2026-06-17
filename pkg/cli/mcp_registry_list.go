@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var mcpRegistryListLog = logger.New("cli:mcp_registry_list")
@@ -55,10 +56,7 @@ func listAvailableServers(ctx context.Context, registryURL string, verbose bool)
 		}
 
 		// Truncate long descriptions for table display
-		description := server.Description
-		if len(description) > 80 {
-			description = description[:77] + "..."
-		}
+		description := stringutil.Truncate(server.Description, 80)
 		if description == "" {
 			description = "-"
 		}

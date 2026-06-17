@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/spf13/cobra"
 )
 
@@ -76,9 +77,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 				commandOrURL = config.Container
 			}
 			// Truncate if too long
-			if len(commandOrURL) > 40 {
-				commandOrURL = commandOrURL[:37] + "..."
-			}
+			commandOrURL = stringutil.Truncate(commandOrURL, 40)
 
 			rows = append(rows, []string{
 				config.Name,
@@ -185,9 +184,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		for _, workflow := range workflowData {
 			serverList := strings.Join(workflow.serverNames, ", ")
 			// Truncate if too long
-			if len(serverList) > 50 {
-				serverList = serverList[:47] + "..."
-			}
+			serverList = stringutil.Truncate(serverList, 50)
 
 			rows = append(rows, []string{
 				workflow.name,
@@ -241,9 +238,7 @@ func showInteractiveMCPWorkflowSelection(workflows []struct {
 	for i, wf := range workflows {
 		description := fmt.Sprintf("%d server(s): %s", wf.serverCount, strings.Join(wf.serverNames, ", "))
 		// Truncate description if too long
-		if len(description) > 80 {
-			description = description[:77] + "..."
-		}
+		description = stringutil.Truncate(description, 80)
 		items[i] = console.NewListItem(wf.name, description, wf.name)
 	}
 
