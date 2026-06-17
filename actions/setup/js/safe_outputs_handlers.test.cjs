@@ -210,6 +210,25 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("uploadAssetHandler", () => {
+    let testRunnerTemp;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      testRunnerTemp = `/tmp/test-runner-temp-${testId}`;
+      process.env.RUNNER_TEMP = testRunnerTemp;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      try {
+        if (fs.existsSync(testRunnerTemp)) {
+          fs.rmSync(testRunnerTemp, { recursive: true, force: true });
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
     it("should generate blob URL with raw=true for github.com", () => {
       process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GITHUB_SERVER_URL = "https://github.com";
@@ -263,6 +282,19 @@ describe("safe_outputs_handlers", () => {
       expect(result.content[0].type).toBe("text");
       const resultData = JSON.parse(result.content[0].text);
       expect(resultData.result).toContain("https://");
+    });
+
+    it("should stage asset file under RUNNER_TEMP not /tmp", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+
+      const testFile = path.join(testWorkspaceDir, "chart.png");
+      fs.writeFileSync(testFile, "chart content");
+
+      handlers.uploadAssetHandler({ path: testFile });
+
+      // File must be staged under RUNNER_TEMP, not hardcoded /tmp
+      const expectedDir = path.join(testRunnerTemp, "gh-aw", "safeoutputs", "assets");
+      expect(fs.existsSync(path.join(expectedDir, "chart.png"))).toBe(true);
     });
 
     it("should throw error if GH_AW_ASSETS_BRANCH not set", () => {

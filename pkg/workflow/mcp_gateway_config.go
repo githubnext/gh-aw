@@ -93,6 +93,7 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 			"/opt:/opt:ro",
 			"/tmp:/tmp:rw",
 			"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
+			"${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw",
 		}
 	}
 

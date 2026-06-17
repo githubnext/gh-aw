@@ -350,7 +350,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Create assets directory
-    const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
+    // Use RUNNER_TEMP so the staged files land on the host filesystem (shared with
+    // the artifact-upload step), matching the same pattern used by upload_artifact.
+    const assetsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "assets");
     if (!fs.existsSync(assetsDir)) {
       fs.mkdirSync(assetsDir, { recursive: true });
     }

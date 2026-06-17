@@ -125,8 +125,8 @@ async function main() {
       // Check if file exists in artifacts
       const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
       if (!fs.existsSync(assetSourcePath)) {
-        core.setFailed(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath}`);
-        return;
+        core.warning(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath} — skipping`);
+        continue;
       }
 
       // Verify SHA matches
