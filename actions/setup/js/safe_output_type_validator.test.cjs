@@ -141,6 +141,14 @@ const SAMPLE_VALIDATION_CONFIG = {
       },
     },
   },
+  update_release: {
+    defaultMax: 1,
+    fields: {
+      tag: { type: "string", sanitize: true, maxLength: 256 },
+      operation: { required: true, type: "string", enum: ["replace", "append", "prepend"] },
+      body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 20 },
+    },
+  },
 };
 
 const ISSUE_CLOSING_KEYWORDS = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
@@ -857,6 +865,33 @@ describe("safe_output_type_validator", () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const result = validateItem({ type: "create_discussion", title: "Test Discussion", body: "   short   " }, "create_discussion", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+    });
+
+    it("should reject update_release body shorter than minLength (e.g. 'test')", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_release", tag: "v1.0.0", operation: "prepend", body: "test" }, "update_release", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+      expect(result.error).toContain("20");
+    });
+
+    it("should accept update_release body that meets minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_release", tag: "v1.0.0", operation: "prepend", body: "Patch release with bug fixes and improvements." }, "update_release", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should reject update_release body that is only whitespace below minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_release", tag: "v1.0.0", operation: "prepend", body: "   test   " }, "update_release", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("too short");
