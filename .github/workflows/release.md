@@ -509,7 +509,7 @@ jobs:
               $output = & $mpCmdRun -Scan -ScanType 3 -File $binaryPath -DisableRemediation 2>&1 | ForEach-Object { "$_" }
               $scanExitCode = $LASTEXITCODE
               $outputText = @($output) -join "`n"
-              $isTransientError = $scanExitCode -ne 0 -and ($outputText -imatch "0x800106ba" -or $outputText -imatch "Failed with hr")
+              $isTransientError = $scanExitCode -ne 0 -and $outputText -imatch "0x800106ba"
               if (-not $isTransientError -or $scanAttempt -eq $scanAttempts) {
                 break
               }
