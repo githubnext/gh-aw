@@ -412,9 +412,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     // recoverable partial/shallow-clone object fetch failure from a genuine
     // merge conflict. On a shallow + partial checkout of a large monorepo the
     // rebase can fail because git lazily fetches intermediate-commit objects
-    // from the promisor remote and the fetch is rejected.
+    // from the promisor remote and the fetch is rejected. Pass gitAuthEnv so
+    // those on-demand promisor fetches can authenticate in private repos even
+    // after checkout credentials have been scrubbed from .git/config.
     const runRebase = async () => {
-      const result = await exec.getExecOutput("git", ["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd, ignoreReturnCode: true });
+      const result = await exec.getExecOutput("git", ["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) }, ignoreReturnCode: true });
       return result;
     };
     let rebaseResult = await runRebase();
