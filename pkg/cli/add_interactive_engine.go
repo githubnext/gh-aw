@@ -221,17 +221,22 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 
 	// Detect org Copilot CLI billing status before building the form.
 	// c.RepoOverride is in "owner/repo" format; we need just the org login.
+	// When no org login is available the result is inconclusive (same as a
+	// non-200 response) so the user still sees the info note.
 	copilotRequestsLabel := "Use copilot-requests (org's Copilot billing, no PAT)"
-	copilotRequestsDisabled := false
 
+	var probe orgCopilotBillingProbeResult
 	if orgLogin, _, found := strings.Cut(c.RepoOverride, "/"); found && orgLogin != "" {
-		probe := probeCopilotBillingForOrg(c.Ctx, orgLogin)
-		c.copilotCLIBillingStatus = probe.BillingStatus
-		copilotRequestsLabel += probe.LabelSuffix
-		copilotRequestsDisabled = probe.Disabled
-		if probe.InfoNote != "" {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
+		probe = probeCopilotBillingForOrg(c.Ctx, orgLogin)
+	} else {
+		probe = orgCopilotBillingProbeResult{
+			InfoNote: "Could not confirm org Copilot CLI billing — check with your org admin.",
 		}
+	}
+	c.copilotCLIBillingStatus = probe.BillingStatus
+	copilotRequestsLabel += probe.LabelSuffix
+	if probe.InfoNote != "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
 	}
 
 	fmt.Fprintln(os.Stderr, "")
@@ -245,7 +250,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	copilotRequestsOpt := huh.NewOption(copilotRequestsLabel, authMethodCopilotRequests)
 
 	var options []huh.Option[string]
-	switch c.copilotCLIBillingStatus {
+	switch probe.BillingStatus {
 	case "enabled":
 		// copilot-requests pre-selected
 		options = []huh.Option[string]{copilotRequestsOpt.Selected(true), patOpt}
@@ -261,7 +266,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		Options(options...).
 		Value(&authMethod)
 
-	if copilotRequestsDisabled {
+	if probe.Disabled {
 		selectField = selectField.Validate(func(v string) error {
 			if v == authMethodCopilotRequests {
 				return errors.New("org Copilot CLI billing is disabled — please choose PAT")

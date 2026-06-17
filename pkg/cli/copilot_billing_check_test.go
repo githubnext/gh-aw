@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +51,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 		name       string
 		handler    http.HandlerFunc
 		wantStatus string
-		wantErrNil bool
+		wantErr    bool
 	}{
 		{
 			name: "200 with cli enabled returns enabled",
@@ -65,7 +66,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 				})
 			},
 			wantStatus: "enabled",
-			wantErrNil: true,
+			wantErr:    false,
 		},
 		{
 			name: "200 with cli disabled returns disabled",
@@ -77,7 +78,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 				})
 			},
 			wantStatus: "disabled",
-			wantErrNil: true,
+			wantErr:    false,
 		},
 		{
 			name: "404 returns empty status and error (inconclusive)",
@@ -87,7 +88,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"message": "Not Found"})
 			},
 			wantStatus: "",
-			wantErrNil: false,
+			wantErr:    true,
 		},
 		{
 			name: "403 returns empty status and error (inconclusive)",
@@ -97,7 +98,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"message": "Forbidden"})
 			},
 			wantStatus: "",
-			wantErrNil: false,
+			wantErr:    true,
 		},
 		{
 			name: "200 with unknown cli value returns that value",
@@ -109,7 +110,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 				})
 			},
 			wantStatus: "unconfigured",
-			wantErrNil: true,
+			wantErr:    false,
 		},
 		{
 			name: "200 with missing cli field returns empty string",
@@ -121,7 +122,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 				})
 			},
 			wantStatus: "",
-			wantErrNil: true,
+			wantErr:    false,
 		},
 	}
 
@@ -137,10 +138,10 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 			status, err := detectOrgCopilotCLIBillingWithClient(context.Background(), "testorg", client)
 
 			assert.Equal(t, tc.wantStatus, status)
-			if tc.wantErrNil {
-				assert.NoError(t, err)
-			} else {
+			if tc.wantErr {
 				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -163,6 +164,33 @@ func TestDetectOrgCopilotCLIBillingWithClient_NetworkError(t *testing.T) {
 
 	assert.Empty(t, status, "network error should return empty status (inconclusive)")
 	assert.Error(t, err, "network error should return an error")
+}
+
+func TestDetectOrgCopilotCLIBillingWithClient_ContextCancellation(t *testing.T) {
+	// A handler that blocks indefinitely, simulating a slow server.
+	unblock := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-unblock
+	}))
+	t.Cleanup(func() {
+		close(unblock)
+		srv.Close()
+	})
+
+	// Pre-cancel the context before calling so the internal timeout inherits
+	// cancellation immediately, confirming the function honours context deadlines
+	// and returns quickly (well under copilotBillingTimeout).
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	client := newTestBillingClient(t, srv)
+	start := time.Now()
+	status, err := detectOrgCopilotCLIBillingWithClient(ctx, "testorg", client)
+	elapsed := time.Since(start)
+
+	assert.Empty(t, status, "cancelled context should return empty status")
+	require.Error(t, err, "cancelled context should return an error")
+	assert.Less(t, elapsed, time.Second, "should return quickly when context is already cancelled")
 }
 
 func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
