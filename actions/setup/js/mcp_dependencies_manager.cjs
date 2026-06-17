@@ -17,8 +17,11 @@ let execFileSyncRunner = execFileSync;
  * @param {string} message
  */
 function logWithCore(logger, level, message) {
-  if (logger && typeof logger.debug === "function") {
-    logger.debug(message);
+  if (logger) {
+    const logMethod = typeof logger[level] === "function" ? logger[level] : logger.debug;
+    if (typeof logMethod === "function") {
+      logMethod(message);
+    }
   }
   if (global.core && typeof global.core[level] === "function") {
     global.core[level](`[mcp-scripts.dependencies] ${message}`);
@@ -87,7 +90,7 @@ function executeInstallWithRetry(logger, toolName, dependency, command, args, cw
         throw new Error(`Dependency installation failed for '${dependency}' after ${attempt + 1} attempt(s): ${details || "unknown error"}`);
       }
 
-      logWithCore(logger, "warning", `  [${toolName}] Transient dependency install failure for '${dependency}', retrying (${attempt + 1}/${maxRetries + 1})`);
+      logWithCore(logger, "warning", `  [${toolName}] Transient dependency install failure for '${dependency}', retrying (${attempt + 1}/${maxRetries})`);
     }
   }
 }
