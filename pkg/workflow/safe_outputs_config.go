@@ -615,7 +615,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 			// Handle report-failure-as-issue flag or array of categories
 			if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
-				// Support both bool (legacy) and []string (new with categories filter)
+				// Support both bool (legacy) and []any (new with categories filter)
 				if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
 					config.ReportFailureAsIssue = reportFailureAsIssueBool
 					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
@@ -627,7 +627,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 							categories = append(categories, catStr)
 						}
 					}
-					config.ReportFailureAsIssue = categoriesList
+					config.ReportFailureAsIssue = reportFailureAsIssue // Preserve original value for proper serialization
 					config.ReportFailureAsIssueCategories = categories
 					safeOutputsConfigLog.Printf("Report failure as issue with category filter: %v", categories)
 				}
