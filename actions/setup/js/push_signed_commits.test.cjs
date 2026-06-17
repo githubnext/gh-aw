@@ -1961,7 +1961,7 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).not.toHaveBeenCalled();
     });
 
-    it("should recover from a partial-clone object failure by backfilling history and retrying the rebase", async () => {
+    it("should recover from a partial-clone object failure by backfilling the exact commit objects and retrying the rebase", async () => {
       // Base branch starts with a file.
       fs.writeFileSync(path.join(workDir, "base.txt"), "base\n");
       execGit(["add", "base.txt"], { cwd: workDir });
@@ -1984,11 +1984,12 @@ describe("push_signed_commits integration tests", () => {
       execGit(["checkout", "promisor-recover-branch"], { cwd: workDir });
 
       // Wrap the real exec so the FIRST `git rebase --onto` simulates a
-      // promisor object fetch failure, the `--unshallow` fetch is intercepted
-      // to succeed (the test repo is not actually shallow), and the SECOND
-      // rebase runs for real and succeeds.
+      // promisor object fetch failure, the targeted `git fetch --no-filter`
+      // backfill is intercepted to succeed (the test repo is not actually a
+      // partial clone), and the SECOND rebase runs for real and succeeds.
       const realExec = makeRealExec(workDir);
       let rebaseAttempts = 0;
+      let backfillTargets = null;
       global.exec = {
         getExecOutput: async (program, args, opts = {}) => {
           if (program === "git" && args[0] === "rebase" && args[1] === "--onto") {
@@ -2001,8 +2002,12 @@ describe("push_signed_commits integration tests", () => {
               };
             }
           }
-          if (program === "git" && args[0] === "fetch" && args.includes("--unshallow")) {
-            // Simulate a successful history backfill.
+          if (program === "git" && args[0] === "fetch" && args.includes("--no-filter")) {
+            // Targeted backfill of the exact anchor commit SHAs; must NOT use
+            // --unshallow or --deepen.
+            expect(args).not.toContain("--unshallow");
+            expect(args.some(arg => String(arg).startsWith("--deepen"))).toBe(false);
+            backfillTargets = args.slice(args.indexOf("origin") + 1);
             return { exitCode: 0, stdout: "", stderr: "" };
           }
           return realExec.getExecOutput(program, args, opts);
@@ -2023,10 +2028,15 @@ describe("push_signed_commits integration tests", () => {
 
       // The rebase was attempted twice (initial failure + post-recovery retry).
       expect(rebaseAttempts).toBe(2);
+      // The recovery fetched a bounded set of exact commit SHAs (anchors), not
+      // an unshallow / deepen of the whole history.
+      expect(backfillTargets).not.toBeNull();
+      expect(backfillTargets.length).toBeGreaterThan(0);
+      expect(backfillTargets.every(sha => /^[0-9a-f]{40}$/i.test(sha))).toBe(true);
       // The signed-commit GraphQL replay proceeded after recovery.
       expect(githubClient.graphql).toHaveBeenCalled();
       expect(result).toBeDefined();
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("backfilling history"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("backfilling object content"));
     });
 
     it("should not attempt history backfill for a genuine merge conflict", async () => {
@@ -2052,11 +2062,11 @@ describe("push_signed_commits integration tests", () => {
       execGit(["checkout", "conflict-no-backfill-branch"], { cwd: workDir });
 
       const realExec = makeRealExec(workDir);
-      let unshallowAttempted = false;
+      let backfillAttempted = false;
       global.exec = {
         getExecOutput: async (program, args, opts = {}) => {
-          if (program === "git" && args[0] === "fetch" && args.includes("--unshallow")) {
-            unshallowAttempted = true;
+          if (program === "git" && args[0] === "fetch" && (args.includes("--no-filter") || args.includes("--unshallow") || args.some(arg => String(arg).startsWith("--deepen")))) {
+            backfillAttempted = true;
           }
           return realExec.getExecOutput(program, args, opts);
         },
@@ -2077,7 +2087,7 @@ describe("push_signed_commits integration tests", () => {
       ).rejects.toThrow("failed to rebase commit range onto current GraphQL parent");
 
       // A genuine merge conflict must not trigger the partial-clone backfill path.
-      expect(unshallowAttempted).toBe(false);
+      expect(backfillAttempted).toBe(false);
       expect(githubClient.graphql).not.toHaveBeenCalled();
     });
 
