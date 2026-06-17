@@ -214,13 +214,25 @@ safe-outputs:
 
 **Category filtering (selective reporting):**
 
-Filter which failure types trigger issue creation:
+Filter which failure types trigger issue creation. Categories can be included (default) or excluded (using `!` prefix):
 
 ```yaml
 safe-outputs:
   report-failure-as-issue:
-    - agent_failure           # Only report genuine agent-side failures
-    - missing_safe_outputs    # Only report missing outputs
+    - agent_failure           # Include: report genuine agent-side failures
+    - missing_safe_outputs    # Include: report missing outputs
+    - "!inference_access_error"  # Exclude: don't report AI server errors
+```
+
+**Exclusion-only syntax:**
+
+When only exclusions are specified, all categories except those are reported:
+
+```yaml
+safe-outputs:
+  report-failure-as-issue:
+    - "!report_incomplete"           # Exclude infrastructure failures
+    - "!ai_credits_rate_limit_error" # Exclude rate limits
 ```
 
 Common categories include: `agent_failure`, `timed_out`, `missing_safe_outputs`, `report_incomplete` (infrastructure failures), `missing_tool`, `missing_data`, `inference_access_error` (AI server transient errors), `ai_credits_rate_limit_error`, and others.

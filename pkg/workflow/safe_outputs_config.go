@@ -625,11 +625,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					excludedCategories := make([]string, 0, len(categoriesList))
 					for _, cat := range categoriesList {
 						if catStr, ok := cat.(string); ok {
-							if strings.HasPrefix(catStr, "!") {
-								// Excluded category: strip the "!" prefix
-								excludedCategories = append(excludedCategories, strings.TrimPrefix(catStr, "!"))
+							if category, found := strings.CutPrefix(catStr, "!"); found {
+								// Excluded category: "!" prefix was found and removed
+								excludedCategories = append(excludedCategories, category)
 							} else {
-								// Included category
+								// Included category: no prefix
 								includedCategories = append(includedCategories, catStr)
 							}
 						}

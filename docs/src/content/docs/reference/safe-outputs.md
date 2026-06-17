@@ -1514,13 +1514,43 @@ This mirrors the `noop.report-as-issue` pattern. Use this to silence noisy failu
 
 #### Category Filtering (Selective Reporting)
 
-Filter which failure types trigger issue creation by specifying a list of categories. Only failures matching the specified categories will create issues:
+Filter which failure types trigger issue creation by specifying a list of categories. Categories can be included (default) or excluded (using `!` prefix).
+
+##### Include Only Specific Categories
+
+Only failures matching the specified categories will create issues:
 
 ```yaml wrap
 safe-outputs:
   report-failure-as-issue:
     - agent_failure           # Report only genuine agent-side failures
     - missing_safe_outputs    # Report missing outputs
+  create-issue:
+```
+
+##### Exclude Specific Categories
+
+Report all failures except the specified categories (use `!` prefix):
+
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - "!inference_access_error"        # Exclude AI server transient errors
+    - "!ai_credits_rate_limit_error"   # Exclude AI rate limits
+    - "!report_incomplete"             # Exclude infrastructure failures
+  create-issue:
+```
+
+##### Mixed Include and Exclude
+
+Combine both syntaxes - categories must match included AND not match excluded:
+
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - agent_failure                    # Include agent failures
+    - missing_safe_outputs             # Include missing outputs
+    - "!unknown_model_ai_credits"      # But exclude unknown model AI credits
   create-issue:
 ```
 
@@ -1544,8 +1574,9 @@ safe-outputs:
 
 **Use case: Suppress transient infrastructure failures**
 
-For scheduled workflows that frequently encounter transient infrastructure failures (Docker registry timeouts, AI server 5xx errors, firewall issues), filter to only report actionable agent-side failures:
+For scheduled workflows that frequently encounter transient infrastructure failures (Docker registry timeouts, AI server 5xx errors, firewall issues), you can either:
 
+Include only actionable categories:
 ```yaml wrap
 safe-outputs:
   report-failure-as-issue:
@@ -1556,7 +1587,17 @@ safe-outputs:
   create-issue:
 ```
 
-This prevents noise from `report_incomplete` (infrastructure errors), `inference_access_error` (AI server flake), and other transient failures while still reporting genuine agent bugs and missing functionality.
+Or exclude transient categories:
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue:
+    - "!report_incomplete"           # Exclude infrastructure errors
+    - "!inference_access_error"      # Exclude AI server flake
+    - "!ai_credits_rate_limit_error" # Exclude rate limits
+  create-issue:
+```
+
+Both approaches prevent noise while preserving actionable signals, but exclusion syntax is more concise when most categories should be reported.
 
 ### Failure Issue Repository (`failure-issue-repo:`)
 

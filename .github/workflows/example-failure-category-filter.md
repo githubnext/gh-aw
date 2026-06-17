@@ -18,7 +18,7 @@ safe-outputs:
 
 # Example: Failure Category Filtering
 
-This workflow demonstrates the new `report-failure-as-issue` category filtering feature.
+This workflow demonstrates the `report-failure-as-issue` category filtering feature with both inclusion and exclusion syntax.
 
 ## Context
 
@@ -34,6 +34,8 @@ Traditional `report-failure-as-issue: false` suppresses ALL failure reports, inc
 
 Use category filtering to only report actionable failures:
 
+### Inclusion Syntax (include only these categories)
+
 ```yaml
 safe-outputs:
   report-failure-as-issue:
@@ -41,6 +43,27 @@ safe-outputs:
     - missing_safe_outputs
     - missing_tool
     - missing_data
+```
+
+### Exclusion Syntax (exclude these categories, report all others)
+
+```yaml
+safe-outputs:
+  report-failure-as-issue:
+    - "!inference_access_error"        # Exclude AI server transient errors
+    - "!ai_credits_rate_limit_error"   # Exclude AI rate limits
+    - "!report_incomplete"             # Exclude infrastructure failures
+    - "!mcp_policy_error"              # Exclude MCP policy violations
+```
+
+### Mixed Syntax (include these, but not those)
+
+```yaml
+safe-outputs:
+  report-failure-as-issue:
+    - agent_failure                    # Include agent failures
+    - missing_safe_outputs             # Include missing outputs
+    - "!unknown_model_ai_credits"      # But exclude unknown model AI credits
 ```
 
 This prevents noise while preserving actionable signals.
