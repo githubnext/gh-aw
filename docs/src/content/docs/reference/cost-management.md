@@ -5,7 +5,7 @@ sidebar:
   order: 296
 ---
 
-The cost of running an agentic workflow is the sum of two components: **GitHub Actions minutes** consumed by the workflow jobs, and **inference costs** charged by the AI provider for each agent run.
+The cost of running an agentic workflow is the sum of two components: **GitHub Actions minutes** consumed by the workflow jobs, and **inference costs** charged by the AI provider for each agent run. For an overview of how billing works across providers and Copilot licensing, see [Billing](/gh-aw/reference/billing/).
 
 ## AI Credits (AIC)
 

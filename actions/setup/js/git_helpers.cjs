@@ -512,6 +512,46 @@ function extractBundlePrerequisiteCommits(message) {
 }
 
 /**
+ * Backfill the full object content (trees + blobs) of specific commits from
+ * origin, WITHOUT an uncontrolled `--unshallow` or unbounded deepen.
+ *
+ * Use this to recover an operation (e.g. `git rebase --onto`) that failed in a
+ * shallow + partial (`--filter=blob:none`) clone because git tried to lazily
+ * fetch objects from the promisor remote and the fetch was rejected. Instead of
+ * downloading a huge monorepo's entire history, we fetch *exactly* the commit
+ * SHAs the operation needs (`git fetch --no-filter origin <sha>...`). Passing
+ * `--no-filter` overrides the clone's configured `blob:none` partial-clone
+ * filter so the server sends the missing blobs for the reachable range — and
+ * nothing beyond what those anchor commits reach.
+ *
+ * This mirrors the targeted, bounded fetch-by-SHA strategy used as the primary
+ * path in `ensureFullHistoryForBundle`, keeping a single, unified approach to
+ * "the objects we need aren't present in this shallow/partial clone".
+ *
+ * @param {{ getExecOutput: Function }} execApi - Exec API to run git commands.
+ * @param {Array<string | undefined>} commitShas - Anchor commit SHAs whose object content must be present.
+ * @param {Object} [options] - Exec options (cwd, env, ...). `ignoreReturnCode` is forced on.
+ * @returns {Promise<boolean>} True when the targeted fetch succeeds.
+ */
+async function backfillCommitObjects(execApi, commitShas, options = {}) {
+  const targets = [...new Set((commitShas || []).filter(sha => typeof sha === "string" && /^[0-9a-f]{40}$/i.test(sha)))];
+  if (targets.length === 0) {
+    return false;
+  }
+  const fetchOptions = { ...options, ignoreReturnCode: true };
+  try {
+    const { exitCode, stderr } = await execApi.getExecOutput("git", ["fetch", "--no-filter", "origin", ...targets], fetchOptions);
+    if (exitCode !== 0) {
+      core.warning(`backfillCommitObjects: targeted fetch exited with code ${exitCode}: ${String(stderr || "").trim()}`);
+    }
+    return exitCode === 0;
+  } catch (error) {
+    core.warning(`backfillCommitObjects: targeted fetch failed: ${getErrorMessage(error)}`);
+    return false;
+  }
+}
+
+/**
  * Rewrite the commit range `baseRef..HEAD` as a single regular commit carrying the same tree.
  *
  * Saves the current HEAD, soft-resets to `baseRef`, validates that at least one file is
@@ -564,6 +604,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
 
 module.exports = {
   execGitSync,
+  backfillCommitObjects,
   ensureFullHistoryForBundle,
   ensureOriginRemoteTrackingRef,
   extractBundlePrerequisiteCommits,

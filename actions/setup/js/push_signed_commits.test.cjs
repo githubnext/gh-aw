@@ -1961,6 +1961,136 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).not.toHaveBeenCalled();
     });
 
+    it("should recover from a partial-clone object failure by backfilling the exact commit objects and retrying the rebase", async () => {
+      // Base branch starts with a file.
+      fs.writeFileSync(path.join(workDir, "base.txt"), "base\n");
+      execGit(["add", "base.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add base file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges from old main and edits a DIFFERENT file (no conflict).
+      execGit(["checkout", "-b", "promisor-recover-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "agent.txt"), "agent change\n");
+      execGit(["add", "agent.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit"], { cwd: workDir });
+
+      // Base branch advances with a non-conflicting edit.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "upstream.txt"), "upstream change\n");
+      execGit(["add", "upstream.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "promisor-recover-branch"], { cwd: workDir });
+
+      // Wrap the real exec so the FIRST `git rebase --onto` simulates a
+      // promisor object fetch failure, the targeted `git fetch --no-filter`
+      // backfill is intercepted to succeed (the test repo is not actually a
+      // partial clone), and the SECOND rebase runs for real and succeeds.
+      const realExec = makeRealExec(workDir);
+      let rebaseAttempts = 0;
+      let backfillTargets = null;
+      global.exec = {
+        getExecOutput: async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "rebase" && args[1] === "--onto") {
+            rebaseAttempts++;
+            if (rebaseAttempts === 1) {
+              return {
+                exitCode: 128,
+                stdout: "",
+                stderr: "fatal: remote error: upload-pack: not our ref 0035eb55fe03ab52d8b95e7fcfaee53548b5e8d6\nfatal: could not fetch 4f0af08119278bacff5772a1ddf987d4b4045be8 from promisor remote\n",
+              };
+            }
+          }
+          if (program === "git" && args[0] === "fetch" && args.includes("--no-filter")) {
+            // Targeted backfill of the exact anchor commit SHAs; must NOT use
+            // --unshallow or --deepen.
+            expect(args).not.toContain("--unshallow");
+            expect(args.some(arg => String(arg).startsWith("--deepen"))).toBe(false);
+            backfillTargets = args.slice(args.indexOf("origin") + 1);
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          return realExec.getExecOutput(program, args, opts);
+        },
+        exec: realExec.exec,
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      const result = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "promisor-recover-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // The rebase was attempted twice (initial failure + post-recovery retry).
+      expect(rebaseAttempts).toBe(2);
+      // The recovery fetched a bounded set of exact commit SHAs (anchors), not
+      // an unshallow / deepen of the whole history.
+      expect(backfillTargets).not.toBeNull();
+      expect(backfillTargets.length).toBeGreaterThan(0);
+      expect(backfillTargets.every(sha => /^[0-9a-f]{40}$/i.test(sha))).toBe(true);
+      // The signed-commit GraphQL replay proceeded after recovery.
+      expect(githubClient.graphql).toHaveBeenCalled();
+      expect(result).toBeDefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("backfilling object content"));
+    });
+
+    it("should not attempt history backfill for a genuine merge conflict", async () => {
+      // Base branch starts with shared file.
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add shared file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges and edits shared.txt.
+      execGit(["checkout", "-b", "conflict-no-backfill-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit shared"], { cwd: workDir });
+
+      // Base branch advances with a conflicting edit.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "upstream change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit shared"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "conflict-no-backfill-branch"], { cwd: workDir });
+
+      const realExec = makeRealExec(workDir);
+      let backfillAttempted = false;
+      global.exec = {
+        getExecOutput: async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "fetch" && (args.includes("--no-filter") || args.includes("--unshallow") || args.some(arg => String(arg).startsWith("--deepen")))) {
+            backfillAttempted = true;
+          }
+          return realExec.getExecOutput(program, args, opts);
+        },
+        exec: realExec.exec,
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "conflict-no-backfill-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+        })
+      ).rejects.toThrow("failed to rebase commit range onto current GraphQL parent");
+
+      // A genuine merge conflict must not trigger the partial-clone backfill path.
+      expect(backfillAttempted).toBe(false);
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+    });
+
     it("should enforce protected-files policy against synthesized GraphQL payload", async () => {
       execGit(["checkout", "-b", "protected-payload-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "CODEOWNERS"), "* @octocat\n");
