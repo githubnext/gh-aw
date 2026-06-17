@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
@@ -217,20 +219,64 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 
 	const authMethodPAT = "pat"
 
+	// Detect org Copilot CLI billing status before building the form.
+	// c.RepoOverride is in "owner/repo" format; we need just the org login.
+	// When no org login is available the result is inconclusive (same as a
+	// non-200 response) so the user still sees the info note.
+	copilotRequestsLabel := "Use copilot-requests (org's Copilot billing, no PAT)"
+
+	var probe orgCopilotBillingProbeResult
+	if orgLogin, _, found := strings.Cut(c.RepoOverride, "/"); found && orgLogin != "" {
+		probe = probeCopilotBillingForOrg(c.Ctx, orgLogin)
+	} else {
+		probe = orgCopilotBillingProbeResult{
+			InfoNote: copilotBillingInconclusiveNote,
+		}
+	}
+	c.copilotCLIBillingStatus = probe.BillingStatus
+	copilotRequestsLabel += probe.LabelSuffix
+	if probe.InfoNote != "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
+	}
+
 	fmt.Fprintln(os.Stderr, "")
 
+	// Build select options.
+	// When billing is confirmed enabled, copilot-requests is listed first (pre-selected).
+	// When billing is disabled or inconclusive, PAT is listed first (default selection).
+	// The copilot-requests option is always shown; when disabled a validation guard
+	// prevents it from being submitted.
+	patOpt := huh.NewOption("Use a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN", authMethodPAT)
+	copilotRequestsOpt := huh.NewOption(copilotRequestsLabel, authMethodCopilotRequests)
+
+	var options []huh.Option[string]
+	switch probe.BillingStatus {
+	case "enabled":
+		// copilot-requests pre-selected
+		options = []huh.Option[string]{copilotRequestsOpt.Selected(true), patOpt}
+	default:
+		// PAT is default (first) for disabled or inconclusive
+		options = []huh.Option[string]{patOpt, copilotRequestsOpt}
+	}
+
 	var authMethod string
+	selectField := huh.NewSelect[string]().
+		Title("How would you like Copilot workflows to authenticate?").
+		Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN (requires repo write access to configure).").
+		Options(options...).
+		Value(&authMethod)
+
+	if probe.Disabled {
+		selectField = selectField.Validate(func(v string) error {
+			if v == authMethodCopilotRequests {
+				return errors.New("org Copilot CLI billing is disabled — please choose PAT")
+			}
+			return nil
+		})
+	}
+
 	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("How would you like Copilot workflows to authenticate?").
-				Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN (requires repo write access to configure).").
-				Options(
-					huh.NewOption("Use copilot-requests (org's Copilot billing, no PAT) [recommended for orgs]", authMethodCopilotRequests),
-					huh.NewOption("Use a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN", authMethodPAT),
-				).
-				Value(&authMethod),
-		),
+		huh.NewGroup(selectField),
 	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(c.Ctx); err != nil {

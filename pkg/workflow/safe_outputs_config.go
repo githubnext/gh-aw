@@ -613,11 +613,37 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Handle report-failure-as-issue flag
+			// Handle report-failure-as-issue flag or array of categories
 			if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
+				// Support both bool (legacy) and []any (new with categories filter)
 				if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
-					config.ReportFailureAsIssue = &reportFailureAsIssueBool
+					config.ReportFailureAsIssue = reportFailureAsIssueBool
 					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
+				} else if categoriesList, ok := reportFailureAsIssue.([]any); ok {
+					// Parse as array of category strings, separating included (no prefix) and excluded (! prefix)
+					includedCategories := make([]string, 0, len(categoriesList))
+					excludedCategories := make([]string, 0, len(categoriesList))
+					for _, cat := range categoriesList {
+						if catStr, ok := cat.(string); ok {
+							if category, found := strings.CutPrefix(catStr, "!"); found {
+								// Excluded category: "!" prefix was found and removed
+								excludedCategories = append(excludedCategories, category)
+							} else {
+								// Included category: no prefix
+								includedCategories = append(includedCategories, catStr)
+							}
+						}
+					}
+					config.ReportFailureAsIssue = reportFailureAsIssue // Preserve original value for proper serialization
+					config.ReportFailureAsIssueCategories = includedCategories
+					config.ReportFailureAsIssueExcludedCategories = excludedCategories
+					if len(includedCategories) > 0 && len(excludedCategories) > 0 {
+						safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v, exclude filter: %v", includedCategories, excludedCategories)
+					} else if len(includedCategories) > 0 {
+						safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v", includedCategories)
+					} else if len(excludedCategories) > 0 {
+						safeOutputsConfigLog.Printf("Report failure as issue with exclude filter: %v", excludedCategories)
+					}
 				}
 			}
 

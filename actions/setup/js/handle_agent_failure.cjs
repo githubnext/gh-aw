@@ -2505,6 +2505,40 @@ async function main() {
     const unknownModelAICredits = unknownModelAICreditsFromAudit || (unknownModelAICreditsFromOutput && agentConclusion === "failure");
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
+    // Parse included categories filter for report-failure-as-issue (optional JSON array of category strings)
+    const failureCategoriesFilterRaw = process.env.GH_AW_FAILURE_CATEGORIES_FILTER || "";
+    let failureCategoriesFilter = null;
+    if (failureCategoriesFilterRaw) {
+      try {
+        failureCategoriesFilter = JSON.parse(failureCategoriesFilterRaw);
+        if (!Array.isArray(failureCategoriesFilter)) {
+          core.warning(`GH_AW_FAILURE_CATEGORIES_FILTER is not an array, ignoring: ${failureCategoriesFilterRaw}`);
+          failureCategoriesFilter = null;
+        } else {
+          core.info(`Failure categories include filter enabled: ${failureCategoriesFilter.join(", ")}`);
+        }
+      } catch (parseError) {
+        core.warning(`Failed to parse GH_AW_FAILURE_CATEGORIES_FILTER, ignoring: ${getErrorMessage(parseError)}`);
+        failureCategoriesFilter = null;
+      }
+    }
+    // Parse excluded categories filter for report-failure-as-issue (optional JSON array of category strings)
+    const failureExcludedCategoriesFilterRaw = process.env.GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER || "";
+    let failureExcludedCategoriesFilter = null;
+    if (failureExcludedCategoriesFilterRaw) {
+      try {
+        failureExcludedCategoriesFilter = JSON.parse(failureExcludedCategoriesFilterRaw);
+        if (!Array.isArray(failureExcludedCategoriesFilter)) {
+          core.warning(`GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER is not an array, ignoring: ${failureExcludedCategoriesFilterRaw}`);
+          failureExcludedCategoriesFilter = null;
+        } else {
+          core.info(`Failure categories exclude filter enabled: ${failureExcludedCategoriesFilter.join(", ")}`);
+        }
+      } catch (parseError) {
+        core.warning(`Failed to parse GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER, ignoring: ${getErrorMessage(parseError)}`);
+        failureExcludedCategoriesFilter = null;
+      }
+    }
     // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
     // Defaults to true (new behavior); set to false to restore pre-2026 behavior where these signals
     // are only shown in output footers / separate issues without activating the failure code path.
@@ -2879,6 +2913,53 @@ async function main() {
       fs.writeFileSync(FAILURE_CATEGORIES_PATH, JSON.stringify(failureCategories));
     } catch (writeError) {
       core.warning(`Failed to write failure categories: ${getErrorMessage(writeError)}`);
+    }
+
+    // Check if failure categories match the filter (if configured)
+    // Logic:
+    // 1. If only excluded categories are specified: report all EXCEPT those categories
+    // 2. If only included categories are specified: report ONLY those categories
+    // 3. If both are specified: report categories that are included AND not excluded
+    if (failureCategoriesFilter || failureExcludedCategoriesFilter) {
+      const includeCategories = Array.isArray(failureCategoriesFilter) ? failureCategoriesFilter : [];
+      const excludeCategories = Array.isArray(failureExcludedCategoriesFilter) ? failureExcludedCategoriesFilter : [];
+      const hasIncludeFilter = includeCategories.length > 0;
+      const hasExcludeFilter = excludeCategories.length > 0;
+
+      let shouldCreateIssue = false;
+
+      if (hasIncludeFilter && hasExcludeFilter) {
+        // Both filters: must match include AND not match exclude
+        const hasIncludedCategory = failureCategories.some(cat => includeCategories.includes(cat));
+        const hasExcludedCategory = failureCategories.some(cat => excludeCategories.includes(cat));
+        shouldCreateIssue = hasIncludedCategory && !hasExcludedCategory;
+        if (!shouldCreateIssue) {
+          core.info(`Skipping failure issue creation: categories don't match filters. Categories: [${failureCategories.join(", ")}], Include: [${includeCategories.join(", ")}], Exclude: [${excludeCategories.join(", ")}]`);
+        } else {
+          core.info(`Failure categories match filters, proceeding with issue creation. Include: [${includeCategories.join(", ")}], Exclude: [${excludeCategories.join(", ")}]`);
+        }
+      } else if (hasIncludeFilter) {
+        // Only include filter: must match at least one included category
+        shouldCreateIssue = failureCategories.some(cat => includeCategories.includes(cat));
+        if (!shouldCreateIssue) {
+          core.info(`Skipping failure issue creation: no failure categories match include filter. Categories: [${failureCategories.join(", ")}], Include: [${includeCategories.join(", ")}]`);
+        } else {
+          core.info(`Failure categories match include filter, proceeding with issue creation. Matching categories: [${failureCategories.filter(cat => includeCategories.includes(cat)).join(", ")}]`);
+        }
+      } else if (hasExcludeFilter) {
+        // Only exclude filter: must NOT match any excluded category
+        const hasExcludedCategory = failureCategories.some(cat => excludeCategories.includes(cat));
+        shouldCreateIssue = !hasExcludedCategory;
+        if (!shouldCreateIssue) {
+          core.info(`Skipping failure issue creation: failure categories match exclude filter. Categories: [${failureCategories.join(", ")}], Exclude: [${excludeCategories.join(", ")}]`);
+        } else {
+          core.info(`Failure categories don't match exclude filter, proceeding with issue creation. Categories: [${failureCategories.join(", ")}]`);
+        }
+      }
+
+      if (!shouldCreateIssue) {
+        return;
+      }
     }
 
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);

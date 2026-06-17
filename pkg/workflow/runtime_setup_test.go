@@ -281,7 +281,33 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 					t.Errorf("Expected runtime %s to be detected", expectedID)
 				}
 			}
+
 		})
+	}
+}
+
+func TestDetectFromMCPScripts(t *testing.T) {
+	requirements := make(map[string]*RuntimeRequirement)
+	detectFromMCPScripts(&MCPScriptsConfig{
+		Tools: map[string]*MCPScriptToolConfig{
+			"js-tool": {Script: "return { ok: true }"},
+			"py-tool": {Py: "print('ok')"},
+			"go-tool": {Go: `fmt.Println("ok")`},
+			"sh-tool": {Run: "echo ok"},
+		},
+	}, requirements)
+
+	if _, ok := requirements["node"]; !ok {
+		t.Fatal("expected node runtime for script tool")
+	}
+	if _, ok := requirements["python"]; !ok {
+		t.Fatal("expected python runtime for py tool")
+	}
+	if _, ok := requirements["go"]; !ok {
+		t.Fatal("expected go runtime for go tool")
+	}
+	if _, ok := requirements["shell"]; ok {
+		t.Fatal("did not expect shell runtime requirement")
 	}
 }
 

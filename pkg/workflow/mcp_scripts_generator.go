@@ -15,12 +15,13 @@ var mcpScriptsGeneratorLog = logger.New("workflow:mcp_scripts_generator")
 
 // MCPScriptsToolJSON represents a tool configuration for the tools.json file
 type MCPScriptsToolJSON struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	InputSchema map[string]any    `json:"inputSchema"`
-	Handler     string            `json:"handler,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
-	Timeout     int               `json:"timeout,omitempty"`
+	Name         string            `json:"name"`
+	Description  string            `json:"description"`
+	InputSchema  map[string]any    `json:"inputSchema"`
+	Handler      string            `json:"handler,omitempty"`
+	Dependencies []string          `json:"dependencies,omitempty"`
+	Env          map[string]string `json:"env,omitempty"`
+	Timeout      int               `json:"timeout,omitempty"`
 }
 
 // MCPScriptsConfigJSON represents the tools.json configuration file structure
@@ -124,13 +125,20 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 			}
 		}
 
+		var dependencies []string
+		if len(toolConfig.Dependencies) > 0 {
+			dependencies = append([]string(nil), toolConfig.Dependencies...)
+			sort.Strings(dependencies)
+		}
+
 		config.Tools = append(config.Tools, MCPScriptsToolJSON{
-			Name:        toolName,
-			Description: toolConfig.Description,
-			InputSchema: inputSchema,
-			Handler:     handler,
-			Env:         envRefs,
-			Timeout:     toolConfig.Timeout,
+			Name:         toolName,
+			Description:  toolConfig.Description,
+			InputSchema:  inputSchema,
+			Handler:      handler,
+			Dependencies: dependencies,
+			Env:          envRefs,
+			Timeout:      toolConfig.Timeout,
 		})
 	}
 

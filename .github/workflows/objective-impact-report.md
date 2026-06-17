@@ -59,7 +59,9 @@ Use these deterministic files first:
 - /tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl
 - /tmp/gh-aw/agent/objective-impact-report/safe-output-issue-summary.json
 
-Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, fails JSON parsing, or the manifest explicitly identifies a required live fallback for a missing field.
+`safe-output-issue-evaluations.jsonl` provides deterministic outcome status and workflow attribution, but it does **not** include precomputed objective attribution fields. If optional `*-with-objective.json` files exist and are non-empty, use them; otherwise compute objective mapping from linked/root issue labels.
+
+Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, or fails JSON parsing.
 
 ## Goal
 
@@ -117,38 +119,39 @@ Exclude all other outcome types (direct issue outcomes, comments, discussions, e
 
 ## Objective value mapping
 
-For each outcome, find the associated objective first, then compute `Objective Value`.
+Objective values should be resolved from deterministic inputs whenever available.
 
-Use the repository objective mapping as the source of truth:
+For pull request outcomes, use:
 
-```text
-.github/objective-mapping.json
-or OBJECTIVE_MAPPING_JSON when explicitly provided
-```
+- `/tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json`
+- `/tmp/gh-aw/agent/objective-impact-report/closed-unmerged-prs-linked.json`
 
-Treat labels on the traced root object as the input to the mapping.
-The mapping is label-based and already defines both value and multi-label behavior.
+If optional `/tmp/gh-aw/agent/objective-impact-report/merged-prs-with-objective.json` and `/tmp/gh-aw/agent/objective-impact-report/closed-unmerged-prs-with-objective.json` exist and are non-empty, use their precomputed `objective_value`, `objective_labels`, `root_issue_numbers`, `root_issue_labels`, and `attribution_source` fields directly.
 
-```text
-Objective Value = mapping.ComputeObjectiveValue(root_labels)
-Objective Labels = mapping.GetObjectiveLabels(root_labels)
-```
+For safe-output issue outcomes, use outcome identity and status from:
 
-Do not invent fallback scoring rules such as milestone bonuses, project bonuses, or priority-to-points heuristics when the mapping file is present.
+- `/tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl`
 
-If a traced root object has no labels that exist in the mapping, mark the outcome as `unmapped`.
+The mapping uses the `outcome/` root-level resolver (mirrors `intent.Resolver.ResolvePullRequest` in Go):
+- For PRs with exactly one closing issue (`attribution_source: "closing_issue"`): objective computed from the closing issue's labels.
+- For PRs with no closing issue (`attribution_source: "artifact_labels"` or `"none"`): **exclude from analysis** — do not fall back to PR labels.
+- For safe-output issues (`attribution_source: "issue_labels"`): objective computed from the issue's own labels fetched from the issue record.
+
+If `objective_value` is `0` and the entry has root/issue labels present, mark the outcome as `unmapped` (no matching label in the mapping). If there are no root labels at all, mark it as excluded.
+
+Do not invent fallback scoring rules such as milestone bonuses, project bonuses, or priority-to-points heuristics.
 
 ## Outcome association rules
 
-For each in-scope outcome, follow the implemented root-tracing behavior:
+For each in-scope outcome, use the precomputed root-tracing results:
 
-1. For pull-request outcomes, trace the PR to its linked closing issue (`Closes #N`) and use that root issue's labels.
-2. If PR root tracing fails (no linked closing issue found), **exclude the PR from analysis entirely**. Do not fall back to PR labels. Count it in the "PRs excluded (no linked issue)" total.
-3. For safe-output issue outcomes, use the precomputed records in /tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl as the primary source for outcome state, workflow attribution, and issue identity, then use labels on the safe-output issue itself.
-4. Record the traced root URL when one is found so the report preserves an audit trail.
-5. If no mapped objective labels can be found after tracing, mark the outcome as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
-
-Use `/tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json` and `/tmp/gh-aw/agent/objective-impact-report/closed-unmerged-prs-linked.json` as the primary deterministic PR dataset for discovering linked closing issues before making any live GitHub queries.
+1. For pull-request outcomes, start from `linked_issue_numbers` in `merged-prs-linked.json` / `closed-unmerged-prs-linked.json`.
+2. If an optional `*-with-objective.json` dataset exists and is non-empty, use its `attribution_source`, `root_issue_numbers`, `root_issue_labels`, `objective_value`, and `objective_labels` fields directly.
+3. Otherwise, if `linked_issue_numbers` is empty, **exclude the PR from analysis entirely**. Do not fall back to PR labels. Count it in the "PRs excluded (no linked issue)" total.
+4. Otherwise, resolve root issue labels from the linked issues (deterministic cache first; live issue lookup only when labels are missing), then compute objective mapping from those root labels.
+5. For safe-output issue outcomes, use `/tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl` as the primary source for outcome state, workflow attribution, and issue identity; fetch issue labels to compute objective mapping.
+6. Record traced issue numbers (`root_issue_numbers` when present, otherwise `linked_issue_numbers`) in the report as the audit trail.
+7. If `objective_value` is `0` and labels are present, mark the outcome as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
 
 ## Computation
 
@@ -312,7 +315,7 @@ This section is independent of AIC and the agentic efficiency analysis above. It
 
 Identify merged PRs from `/tmp/gh-aw/agent/objective-impact-report/merged-prs-linked.json` that have **no** matching run in `/tmp/gh-aw/agent/objective-impact-report/workflow-logs.json` (i.e., PRs whose author or head branch cannot be linked to any workflow run that produced an outcome). Treat these as human-authored contributions for reporting, but explicitly note that missing log coverage or attribution gaps can inflate this count.
 
-For each human-authored merged PR that has a linked closing issue, resolve objective labels from that root issue using the same objective mapping. Group results by objective category and report:
+For each human-authored merged PR that has a linked closing issue (non-empty `linked_issue_numbers`), use precomputed objective fields from `merged-prs-with-objective.json` when available; otherwise resolve issue labels from linked issues and apply `objective-mapping.json`. Group results by objective category (highest-value mapped label) and report:
 
 - Objective category name and its mapping value
 - Number of human-authored merged PRs in this category

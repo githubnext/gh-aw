@@ -34,12 +34,15 @@ tools:
     target-repo: "owner/repository"
     create-orphan: true     # default
     allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
+    format-json: true       # Pretty-print .json files (default: false)
 ---
 ```
 
 **Branch Prefix**: Use `branch-prefix` to customize the branch name prefix (default is `memory`). The prefix must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be `copilot`. When set, branches are created as `{branch-prefix}/{id}` instead of `memory/{id}`.
 
 **File Type Restrictions**: Use `allowed-extensions` to restrict which file types can be stored (default: empty/all files allowed). When specified, only files with listed extensions (e.g., `[".json", ".txt", ".md"]`) can be saved. Files with disallowed extensions will trigger validation failures.
+
+**JSON Formatting**: Use `format-json: true` to automatically pretty-print all `.json` files (2-space indent, trailing newline) before they are committed. This makes JSON memory files human-readable in the repository and easier to review and edit manually. Invalid JSON files are skipped with a warning. This option has no effect on `.jsonl` or other file types.
 
 **Patch Size Limit**: Use `max-patch-size` to limit the total size of changes in a single push (default: 10KB, max: 1MB). The total size of the git diff (all staged changes combined) must not exceed this value. If it does, the push is rejected with an error. Use this to prevent large unintentional memory updates.
 

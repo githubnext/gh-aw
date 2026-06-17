@@ -4178,4 +4178,173 @@ describe("handle_agent_failure", () => {
       await expect(detectAndHandleFailureCascade("owner", "repo", 999)).resolves.toBeUndefined();
     });
   });
+
+  describe("failure categories generation", () => {
+    let buildFailureMatchCategories;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ buildFailureMatchCategories } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("returns expected categories for agent failure", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        isTimedOut: false,
+      });
+      expect(categories).toContain("agent_failure");
+      expect(categories.length).toBeGreaterThan(0);
+    });
+
+    it("returns timed_out category", () => {
+      const categories = buildFailureMatchCategories({
+        isTimedOut: true,
+      });
+      expect(categories).toContain("timed_out");
+    });
+
+    it("returns missing_safe_outputs category", () => {
+      const categories = buildFailureMatchCategories({
+        hasMissingSafeOutputs: true,
+      });
+      expect(categories).toContain("missing_safe_outputs");
+    });
+
+    it("returns report_incomplete category", () => {
+      const categories = buildFailureMatchCategories({
+        hasReportIncomplete: true,
+      });
+      expect(categories).toContain("report_incomplete");
+    });
+
+    it("returns sorted categories", () => {
+      const categories = buildFailureMatchCategories({
+        hasMissingSafeOutputs: true,
+        isTimedOut: true,
+        hasReportIncomplete: true,
+      });
+      // Should be sorted alphabetically
+      for (let i = 1; i < categories.length; i++) {
+        expect(categories[i] >= categories[i - 1]).toBe(true);
+      }
+    });
+  });
+
+  describe("failure categories filter behavior", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    const setupGithubMock = () => {
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" },
+      }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: vi.fn(),
+            getLabel: vi.fn(),
+            addLabels: vi.fn(),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      return { createIssueMock };
+    };
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-failure-filter-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_issue.md"), "Daily cap rollup issue body cap={cap} window={window_hours}");
+      fs.writeFileSync(path.join(promptsDir, "daily_cap_rollup_comment.md"), "Failure suppressed workflow={workflow_name} run={run_url} categories={summary} cap={cap} window={window_hours}h");
+      fs.writeFileSync(path.join(promptsDir, "optimize_token_consumption_context.md"), "OPTIMIZE CONTEXT guardrail={guardrail_name} run={run_url}");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GITHUB_HEAD_REF = "feature/test";
+      process.env.GITHUB_WORKSPACE = tmpDir;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GITHUB_HEAD_REF;
+      delete process.env.GITHUB_WORKSPACE;
+      delete process.env.GH_AW_FAILURE_CATEGORIES_FILTER;
+      delete process.env.GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER;
+
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it.each([
+      {
+        name: "include-only filter creates issue when category matches",
+        includeFilter: ["agent_failure"],
+        excludeFilter: null,
+        shouldCreateIssue: true,
+      },
+      {
+        name: "include-only filter skips issue when category does not match",
+        includeFilter: ["missing_safe_outputs"],
+        excludeFilter: null,
+        shouldCreateIssue: false,
+      },
+      {
+        name: "exclude-only filter skips issue when category is excluded",
+        includeFilter: null,
+        excludeFilter: ["agent_failure"],
+        shouldCreateIssue: false,
+      },
+      {
+        name: "mixed include+exclude filter skips issue when excluded category is present",
+        includeFilter: ["agent_failure"],
+        excludeFilter: ["agent_failure"],
+        shouldCreateIssue: false,
+      },
+    ])("$name", async ({ includeFilter, excludeFilter, shouldCreateIssue }) => {
+      const { createIssueMock } = setupGithubMock();
+      if (includeFilter) {
+        process.env.GH_AW_FAILURE_CATEGORIES_FILTER = JSON.stringify(includeFilter);
+      }
+      if (excludeFilter) {
+        process.env.GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER = JSON.stringify(excludeFilter);
+      }
+
+      await main();
+
+      if (shouldCreateIssue) {
+        expect(createIssueMock).toHaveBeenCalledOnce();
+      } else {
+        expect(createIssueMock).not.toHaveBeenCalled();
+      }
+    });
+  });
 });

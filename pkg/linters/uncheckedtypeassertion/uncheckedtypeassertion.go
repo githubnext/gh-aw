@@ -74,10 +74,8 @@ func inspectTypeAssertExpr(pass *analysis.Pass, noLintLinesByFile map[string]map
 
 	// Skip the safe two-value form:  v, ok := x.(T)  or  v, ok = x.(T)
 	if parents != nil {
-		if assign, ok := parents[typeAssert].(*ast.AssignStmt); ok {
-			if isSafeTwoValueAssertion(assign) {
-				return
-			}
+		if isSafeTwoValueAssertion(typeAssert, parents) {
+			return
 		}
 	}
 
@@ -96,8 +94,24 @@ func inspectTypeAssertExpr(pass *analysis.Pass, noLintLinesByFile map[string]map
 	)
 }
 
-func isSafeTwoValueAssertion(assign *ast.AssignStmt) bool {
-	return len(assign.Lhs) == 2 && len(assign.Rhs) == 1
+func isSafeTwoValueAssertion(typeAssert *ast.TypeAssertExpr, parents map[ast.Node]ast.Node) bool {
+	parent := parents[typeAssert]
+	for parent != nil {
+		paren, ok := parent.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		parent = parents[paren]
+	}
+
+	switch p := parent.(type) {
+	case *ast.AssignStmt:
+		return len(p.Lhs) == 2 && len(p.Rhs) == 1
+	case *ast.ValueSpec:
+		return len(p.Names) == 2 && len(p.Values) == 1
+	default:
+		return false
+	}
 }
 
 // buildParentMap constructs a map from each AST node to its direct parent node.
