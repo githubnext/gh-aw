@@ -37,9 +37,14 @@ func TestCompileDependabotIntegration(t *testing.T) {
 	}
 
 	// Change to temp directory
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to chdir to temp dir: %v", err)
+	}
 
 	// Initialize git repo
 	initGitRepo(t, tempDir)
@@ -429,6 +434,152 @@ steps:
 	// Verify we still have both entries and no duplicates
 	if len(dependabotConfig.Updates) != 2 {
 		t.Errorf("expected 2 update entries (npm and pip), got %d", len(dependabotConfig.Updates))
+	}
+}
+
+// TestCompileWithoutDependabotFlagDoesNotTouchDependabotYML verifies that compiling
+// without --dependabot does not modify an existing dependabot.yml file.
+func TestCompileWithoutDependabotFlagDoesNotTouchDependabotYML(t *testing.T) {
+	// Create temp directory for test
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	githubDir := filepath.Join(tempDir, ".github")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("failed to create workflows directory: %v", err)
+	}
+
+	// Change to temp directory
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir(tempDir)
+
+	// Initialize git repo
+	initGitRepo(t, tempDir)
+
+	// Write a dependabot.yml with comments that should be preserved
+	dependabotContent := `# This comment must be preserved.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+`
+	dependabotPath := filepath.Join(githubDir, "dependabot.yml")
+	if err := os.WriteFile(dependabotPath, []byte(dependabotContent), 0644); err != nil {
+		t.Fatalf("failed to write existing dependabot.yml: %v", err)
+	}
+
+	// Create a minimal workflow file
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+---
+
+# Test Workflow
+`
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	// Compile WITHOUT the Dependabot flag
+	config := CompileConfig{
+		MarkdownFiles:  nil,
+		Verbose:        false,
+		Validate:       false,
+		WorkflowDir:    ".github/workflows",
+		Dependabot:     false,
+		ForceOverwrite: false,
+		Strict:         false,
+	}
+
+	_, err := CompileWorkflows(context.Background(), config)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	// Verify dependabot.yml was not modified
+	actual, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read dependabot.yml: %v", err)
+	}
+
+	if string(actual) != dependabotContent {
+		t.Errorf("dependabot.yml was modified without --dependabot flag:\ngot:\n%s\nwant:\n%s", string(actual), dependabotContent)
+	}
+}
+
+// TestCompileSpecificMarkdownWithoutDependabotFlagDoesNotTouchDependabotYML verifies
+// the specific-file compilation path also leaves dependabot.yml unchanged without --dependabot.
+func TestCompileSpecificMarkdownWithoutDependabotFlagDoesNotTouchDependabotYML(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	githubDir := filepath.Join(tempDir, ".github")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("failed to create workflows directory: %v", err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to chdir to temp dir: %v", err)
+	}
+
+	initGitRepo(t, tempDir)
+
+	dependabotContent := `# This comment must be preserved.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+`
+	dependabotPath := filepath.Join(githubDir, "dependabot.yml")
+	if err := os.WriteFile(dependabotPath, []byte(dependabotContent), 0644); err != nil {
+		t.Fatalf("failed to write existing dependabot.yml: %v", err)
+	}
+
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+---
+
+# Test Workflow
+`
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	config := CompileConfig{
+		MarkdownFiles:  []string{workflowPath},
+		Verbose:        false,
+		Validate:       false,
+		WorkflowDir:    ".github/workflows",
+		Dependabot:     false,
+		ForceOverwrite: false,
+		Strict:         false,
+	}
+
+	_, err = CompileWorkflows(context.Background(), config)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	actual, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read dependabot.yml: %v", err)
+	}
+
+	if string(actual) != dependabotContent {
+		t.Errorf("dependabot.yml was modified without --dependabot flag:\ngot:\n%s\nwant:\n%s", string(actual), dependabotContent)
 	}
 }
 
