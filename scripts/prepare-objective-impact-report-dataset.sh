@@ -219,15 +219,12 @@ jq -n \
     aic_by_workflow_source: ($aic_by_workflow[0].source // "none"),
     aic_by_workflow_snapshot_count: $aic_snapshot_count,
     aic_by_workflow_total: ($aic_by_workflow[0].total_aic // 0),
-    safe_output_precompute_note: "Objective values for safe-output issues and PRs are precomputed via the root-level resolver (outcome/ resolver) and objective mapping.",
-    precomputed_objective_files: [
-      "merged-prs-with-objective.json",
-      "closed-unmerged-prs-with-objective.json",
-      "safe-output-issue-evaluations.jsonl",
-      "safe-output-issue-summary.json"
+    safe_output_precompute_note: "Safe-output issue resolution may still require live lookups unless workflow log data already contains the needed identifiers.",
+    required_live_fallbacks: [
+      "safe-output issue state or label gaps not present in precomputed files",
+      "root-issue label fetches for traced linked issues"
     ]
   }
 ' > "$DATA_DIR/dataset-manifest.json"
 
 node scripts/prepare-objective-impact-safe-output-evaluations.cjs
-node scripts/prepare-objective-impact-pr-objective.cjs
