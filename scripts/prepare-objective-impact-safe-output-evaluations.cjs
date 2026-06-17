@@ -58,6 +58,15 @@ function loadObjectiveMapping(filePath) {
 }
 
 /**
+ * @param {string} label
+ * @param {{ label_to_value: Record<string, number> }} mapping
+ * @returns {boolean}
+ */
+function hasObjectiveLabel(label, mapping) {
+  return Object.prototype.hasOwnProperty.call(mapping.label_to_value || {}, String(label).toLowerCase().trim());
+}
+
+/**
  * Compute the objective value for a set of issue labels using the mapping.
  * Mirrors the logic in pkg/github/label_objective_mapping.go ComputeObjectiveValue.
  * @param {string[]} labels
@@ -89,8 +98,7 @@ function computeObjectiveValue(labels, mapping) {
  */
 function getObjectiveLabels(labels, mapping) {
   if (!Array.isArray(labels) || labels.length === 0) return [];
-  const lv = mapping.label_to_value || {};
-  return labels.filter(label => Object.prototype.hasOwnProperty.call(lv, String(label).toLowerCase().trim()));
+  return labels.filter(label => hasObjectiveLabel(label, mapping));
 }
 
 /**

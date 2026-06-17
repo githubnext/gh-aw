@@ -86,6 +86,15 @@ function loadObjectiveMapping(filePath) {
 }
 
 /**
+ * @param {string} label
+ * @param {{ label_to_value: Record<string, number> }} mapping
+ * @returns {boolean}
+ */
+function hasObjectiveLabel(label, mapping) {
+  return Object.prototype.hasOwnProperty.call(mapping.label_to_value || {}, String(label).toLowerCase().trim());
+}
+
+/**
  * Compute the objective value for a set of labels.
  * Mirrors pkg/github/label_objective_mapping.go ComputeObjectiveValue.
  * @param {string[]} labels
@@ -116,8 +125,7 @@ function computeObjectiveValue(labels, mapping) {
  */
 function getObjectiveLabels(labels, mapping) {
   if (!Array.isArray(labels) || labels.length === 0) return [];
-  const lv = mapping.label_to_value || {};
-  return labels.filter(label => Object.prototype.hasOwnProperty.call(lv, String(label).toLowerCase().trim()));
+  return labels.filter(label => hasObjectiveLabel(label, mapping));
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +171,19 @@ function resolveLinkedIssueNumbers(pr) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Escape a string for safe embedding inside a GraphQL string literal.
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeGraphQLString(value) {
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r");
+}
+
+/**
  * Build a batch GraphQL query to fetch labels for multiple issues in one call.
  * Uses field aliases (i${number}) to avoid conflicts.
  * @param {string} owner
@@ -171,8 +192,8 @@ function resolveLinkedIssueNumbers(pr) {
  * @returns {string}
  */
 function buildBatchLabelQuery(owner, repoName, issueNumbers) {
-  const escapedOwner = owner.replace(/"/g, '\\"');
-  const escapedRepo = repoName.replace(/"/g, '\\"');
+  const escapedOwner = escapeGraphQLString(owner);
+  const escapedRepo = escapeGraphQLString(repoName);
   const fields = issueNumbers
     .map(num => `  i${num}: issue(number: ${num}) { labels(first: 20) { nodes { name } } }`)
     .join("\n");
@@ -306,18 +327,19 @@ function enrichPRsWithObjective(prs, repoSlug, mapping) {
       return { ...pr, objective_value: 0, objective_labels: [], root_issue_labels: [], root_issue_numbers: [], attribution_source: "none" };
     }
 
-    // Aggregate labels across all linked root issues (union).
-    const allRootLabels = [];
+    // Aggregate labels across all linked root issues (union), using a Set for O(1) dedup.
+    const rootLabelSet = new Set();
     const resolvedNums = [];
     for (const num of linkedNums) {
       const labels = labelMap.get(num);
       if (labels && labels.length > 0) {
         for (const label of labels) {
-          if (!allRootLabels.includes(label)) allRootLabels.push(label);
+          rootLabelSet.add(label);
         }
         resolvedNums.push(num);
       }
     }
+    const allRootLabels = [...rootLabelSet];
 
     const objectiveValue = computeObjectiveValue(allRootLabels, mapping);
     const objectiveLabels = getObjectiveLabels(allRootLabels, mapping);
