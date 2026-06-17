@@ -35,6 +35,8 @@ const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
 const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
 const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
 const ELLIPSIS = "…";
+// Keep review retries bounded so safe-outputs can recover from short installation-token
+// quota stalls without spending most of the workflow timeout waiting for a reset.
 const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
   ...RATE_LIMIT_RETRY_CONFIG,
   maxRetries: 1,
@@ -534,6 +536,8 @@ function createReviewBuffer() {
     }
 
     async function fetchAfterStateIfAvailable() {
+      // Only fetch after-state when before-state capture succeeded; otherwise we are
+      // already in degraded mode and avoid spending another API call on metadata.
       return beforeState ? fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
     }
 
