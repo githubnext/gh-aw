@@ -367,6 +367,7 @@ export default defineConfig({
 						{ label: 'Authentication (Projects)', link: '/reference/auth-projects/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
 						{ label: 'Measuring Impact', link: '/reference/measuring-impact/' },
+						{ label: 'Billing', link: '/reference/billing/' },
 						{ label: 'Cost Management', link: '/reference/cost-management/' },
 						{ label: 'Cost Management (Rate Limiting)', link: '/reference/rate-limiting-controls/' },
 						{ label: 'Cost Management (Model Tables)', link: '/reference/model-tables/' },
