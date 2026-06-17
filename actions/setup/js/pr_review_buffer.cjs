@@ -41,7 +41,7 @@ const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
   ...RATE_LIMIT_RETRY_CONFIG,
   maxRetries: 1,
   initialDelayMs: 1000,
-  jitterMs: 0,
+  jitterMs: 200,
   maxDelayMs: 60000,
 };
 

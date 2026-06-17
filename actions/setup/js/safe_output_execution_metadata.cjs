@@ -204,6 +204,8 @@ function extractReviewStateFromData(pullRequest, reviews) {
 }
 
 async function fetchPullRequestReviewState(github, repoParts, pullRequestNumber) {
+  // Fetch sequentially so pulls.get failures (including rate limits) bail early and
+  // avoid spending a second API call for listReviews in degraded mode.
   const { data: pullRequest } = await github.rest.pulls.get({
     owner: repoParts.owner,
     repo: repoParts.repo,
