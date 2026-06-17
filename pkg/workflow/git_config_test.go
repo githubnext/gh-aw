@@ -68,7 +68,7 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitConfigurationSteps()
 
-	// Verify we get expected number of lines (6 lines: name, env, REPO_NAME, SERVER_URL, GITHUB_TOKEN, run)
+	// Verify we get expected number of lines (6 lines: name, env, GITHUB_REPOSITORY, GIT_SERVER_URL, GITHUB_TOKEN, run)
 	if len(steps) != 6 {
 		t.Errorf("Expected 6 lines in git configuration steps, got %d", len(steps))
 	}
@@ -77,7 +77,7 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 	expectedContents := []string{
 		"Configure Git credentials",
 		"env:",
-		"REPO_NAME:",
+		"GITHUB_REPOSITORY:",
 		"GITHUB_TOKEN:",
 		"configure_git_credentials.sh",
 	}

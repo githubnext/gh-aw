@@ -232,19 +232,19 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Step 2: Configure Git credentials with conditional execution
 	// Security: Pass GitHub token through environment variable to prevent template injection
 
-	// Determine REPO_NAME value based on target repository
+	// Determine GITHUB_REPOSITORY value based on target repository
 	repoNameValue := "${{ github.repository }}"
 	if targetRepoSlug != "" {
 		repoNameValue = fmt.Sprintf("%q", targetRepoSlug)
-		consolidatedSafeOutputsStepsLog.Printf("Using target repo for REPO_NAME: %s", targetRepoSlug)
+		consolidatedSafeOutputsStepsLog.Printf("Using target repo for GITHUB_REPOSITORY: %s", targetRepoSlug)
 	}
 
 	gitConfigSteps := []string{
 		"      - name: Configure Git credentials\n",
 		fmt.Sprintf("        if: %s\n", RenderCondition(condition)),
 		"        env:\n",
-		fmt.Sprintf("          REPO_NAME: %s\n", repoNameValue),
-		"          SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", repoNameValue),
+		"          GIT_SERVER_URL: ${{ github.server_url }}\n",
 		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 	}
@@ -365,8 +365,8 @@ func (c *Compiler) buildMultiRepoCheckoutSteps(data *WorkflowData, checkoutMgr *
 			"      - name: Configure Git credentials\n",
 			fmt.Sprintf("        if: %s\n", conditionStr),
 			"        env:\n",
-			"          REPO_NAME: ${{ github.repository }}\n",
-			"          SERVER_URL: ${{ github.server_url }}\n",
+			"          GITHUB_REPOSITORY: ${{ github.repository }}\n",
+			"          GIT_SERVER_URL: ${{ github.server_url }}\n",
 			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 		}
@@ -376,17 +376,17 @@ func (c *Compiler) buildMultiRepoCheckoutSteps(data *WorkflowData, checkoutMgr *
 			"      - name: Configure Git credentials\n",
 			fmt.Sprintf("        if: %s\n", conditionStr),
 			"        env:\n",
-			"          REPO_NAME: ${{ github.repository }}\n",
-			"          SERVER_URL: ${{ github.server_url }}\n",
+			"          GITHUB_REPOSITORY: ${{ github.repository }}\n",
+			"          GIT_SERVER_URL: ${{ github.server_url }}\n",
 			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 			"        run: |\n",
 			"          bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
-			"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+			"          GIT_SERVER_URL_STRIPPED=\"${GIT_SERVER_URL#https://}\"\n",
 		}
 		for _, cfg := range subRepoConfigs {
 			gitConfigSteps = append(gitConfigSteps,
 				fmt.Sprintf("          # Re-authenticate git for %s\n", cfg.Repository),
-				fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/%s.git\"\n", cfg.Path, cfg.Repository),
+				fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/%s.git\"\n", cfg.Path, cfg.Repository),
 			)
 		}
 		gitConfigSteps = append(gitConfigSteps,

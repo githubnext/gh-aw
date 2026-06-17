@@ -37,8 +37,8 @@ func (c *Compiler) generateGitConfigurationStepsWithToken(token string, targetRe
 	return []string{
 		"      - name: Configure Git credentials\n",
 		"        env:\n",
-		fmt.Sprintf("          REPO_NAME: %s\n", repoNameValue),
-		"          SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", repoNameValue),
+		"          GIT_SERVER_URL: ${{ github.server_url }}\n",
 		// SECURITY: token moved to env mapping so the shell treats it as data,
 		// not syntax. Prevents shell injection if token value contains metacharacters.
 		fmt.Sprintf("          GITHUB_TOKEN: %s\n", token),

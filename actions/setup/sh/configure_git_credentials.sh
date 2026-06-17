@@ -12,8 +12,8 @@ set +o histexpand
 #   GITHUB_WORKSPACE     - Workspace directory path (for safe.directory)
 #
 # Optional environment variables for remote authentication:
-#   REPO_NAME            - Repository slug (e.g., "org/repo"); falls back to GITHUB_REPOSITORY
-#   SERVER_URL           - GitHub server URL; falls back to GITHUB_SERVER_URL
+#   GITHUB_REPOSITORY    - Repository slug (e.g., "org/repo")
+#   GIT_SERVER_URL       - GitHub server URL (with or without https:// prefix); falls back to GITHUB_SERVER_URL
 #   GITHUB_TOKEN         - Authentication token; falls back to GIT_TOKEN
 #
 # Exit codes:
@@ -34,8 +34,8 @@ if [ -n "${GITHUB_WORKSPACE:-}" ]; then
 fi
 
 # Configure remote URL authentication when credentials are provided
-REPO="${REPO_NAME:-${GITHUB_REPOSITORY:-}}"
-URL="${SERVER_URL:-${GITHUB_SERVER_URL:-}}"
+REPO="${GITHUB_REPOSITORY:-}"
+URL="${GIT_SERVER_URL:-${GITHUB_SERVER_URL:-}}"
 TOKEN="${GITHUB_TOKEN:-${GIT_TOKEN:-}}"
 
 if [ -n "${REPO}" ] && [ -n "${URL}" ] && [ -n "${TOKEN}" ]; then
