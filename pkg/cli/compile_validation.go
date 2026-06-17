@@ -228,6 +228,8 @@ func validateActionModeConfig(actionMode string) error {
 
 	mode := workflow.ActionMode(actionMode)
 	if !mode.IsValid() {
+		// ActionModeScript is intentionally excluded from this user-facing error:
+		// it remains internal and is not advertised as a CLI-supported mode.
 		return fmt.Errorf("invalid action mode '%s'. Must be 'dev', 'release', or 'action'", actionMode)
 	}
 

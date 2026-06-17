@@ -196,10 +196,10 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 }
 
 // setupActionMode configures how gh-aw action scripts are referenced in compiled workflows.
-// Priority order when both actionTag and actionMode are provided (after --gh-aw-ref resolution):
-//   - actionTag != ""  → pin to that SHA/tag; use ActionModeRelease unless actionMode is explicitly "action"
-//   - actionMode != "" → honour the explicit mode
-//   - neither set      → auto-detect from the binary build type via DetectActionMode
+// Priority order (after --gh-aw-ref resolution):
+//   - actionTag != ""                  → pin to that SHA/tag; use ActionModeRelease unless actionMode is explicitly "action"
+//   - actionTag == "" && actionMode != "" → honour the explicit mode
+//   - neither set                      → auto-detect from the binary build type via DetectActionMode
 func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag string) {
 	compileCompilerSetupLog.Printf("Setting up action mode: %s, actionTag: %s", actionMode, actionTag)
 

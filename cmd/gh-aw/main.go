@@ -250,7 +250,8 @@ The --dependabot flag generates dependency manifests when dependencies are detec
   - Only processes workflows in the default .github/workflows directory
 
 Action mode controls how gh-aw action scripts are referenced in compiled workflows.
-Three flags govern this and only one should be used at a time:
+Three flags govern this. --gh-aw-ref is mutually exclusive with the other two;
+--action-tag and --action-mode may be combined (e.g. --action-mode action --action-tag v1.2.3):
 
   --action-mode <mode>
     Explicit mode selection. Values:
@@ -262,7 +263,7 @@ Three flags govern this and only one should be used at a time:
     Auto-detected from the binary build type when not set.
 
   --action-tag <sha-or-tag>
-    Pin to a specific SHA or version tag (e.g. v1, v1.2.3, abc123...).
+    Pin to a specific SHA or version tag (e.g. v1, v1.2.3, <full-sha>).
     Implies --action-mode release unless --action-mode action is also specified.
     The value is used as-is; branch names are not resolved. Use --gh-aw-ref to
     pin to a branch by resolving it to its current commit SHA first.
@@ -726,7 +727,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	compileCmd.Flags().String("action-mode", "", "How gh-aw action scripts are referenced in compiled workflows: 'dev' uses local paths (for developing gh-aw itself), 'release' emits SHA-pinned remote refs from github/gh-aw, 'action' uses the github/gh-aw-actions repository. Auto-detected from the binary build type if not specified")
-	compileCmd.Flags().String("action-tag", "", "Pin compiled workflows to a specific version of gh-aw actions. Accepts a full 40-character commit SHA or a version tag (e.g. v1, v1.2.3). Sets --action-mode to 'release' unless --action-mode action is also specified. Cannot be combined with --gh-aw-ref; use --gh-aw-ref when you want to resolve a branch or tag name to its current SHA")
+	compileCmd.Flags().String("action-tag", "", "Pin compiled workflows to a specific version of gh-aw actions. Accepts a full commit SHA or a version tag (e.g. v1, v1.2.3). Sets --action-mode to 'release' unless --action-mode action is also specified. Cannot be combined with --gh-aw-ref; use --gh-aw-ref when you want to resolve a branch or tag name to its current SHA")
 	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions)")
 	compileCmd.Flags().String("gh-aw-ref", "", "Pin compiled workflows to a specific branch, tag, or commit SHA of github/gh-aw (e.g. main, my-feature, abc123). Branch and tag names are resolved to their full commit SHA at compile time so the baked-in ref is immutable. Equivalent to --action-mode release --action-tag <resolved-sha>. Cannot be combined with --action-tag or --action-mode. Use this to E2E-test workflows against a specific gh-aw revision")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
