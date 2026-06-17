@@ -3345,3 +3345,71 @@ func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
 	assert.NotContains(t, stepsContent, "target_checkout_ref",
 		"dispatch target-ref must NOT use target_checkout_ref (commit SHA)")
 }
+
+// TestReportFailureAsIssueWithCategoriesFilter tests that report-failure-as-issue
+// parsing supports both bool (legacy) and object with categories filter
+func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
+	tests := []struct {
+		name               string
+		reportValue        any
+		expectBool         *bool
+		expectCategories   []string
+		expectConfigNotNil bool
+	}{
+		{
+			name:        "boolean true",
+			reportValue: true,
+			expectBool:  boolPtr(true),
+		},
+		{
+			name:        "boolean false",
+			reportValue: false,
+			expectBool:  boolPtr(false),
+		},
+		{
+			name: "object with categories filter",
+			reportValue: map[string]any{
+				"categories": []any{"agent_failure", "missing_safe_outputs"},
+			},
+			expectCategories:   []string{"agent_failure", "missing_safe_outputs"},
+			expectConfigNotNil: true,
+		},
+		{
+			name: "object with empty categories",
+			reportValue: map[string]any{
+				"categories": []any{},
+			},
+			expectCategories:   []string{},
+			expectConfigNotNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			// Simulate the parsing by calling extractSafeOutputsConfig
+			frontmatter := map[string]any{
+				"safe-outputs": map[string]any{
+					"report-failure-as-issue": tt.reportValue,
+					"create-issue":            nil, // Enable safe outputs
+				},
+			}
+
+			config := compiler.extractSafeOutputsConfig(frontmatter)
+			require.NotNil(t, config, "SafeOutputsConfig should be created")
+
+			if tt.expectBool != nil {
+				reportBool, ok := config.ReportFailureAsIssue.(bool)
+				require.True(t, ok, "ReportFailureAsIssue should be bool")
+				assert.Equal(t, *tt.expectBool, reportBool, "Boolean value should match")
+			}
+
+			if tt.expectConfigNotNil {
+				require.NotNil(t, config.ReportFailureAsIssueConfig, "ReportFailureAsIssueConfig should be set")
+				assert.Equal(t, tt.expectCategories, config.ReportFailureAsIssueConfig.Categories, "Categories should match")
+			}
+		})
+	}
+}
+

@@ -2505,6 +2505,23 @@ async function main() {
     const unknownModelAICredits = unknownModelAICreditsFromAudit || (unknownModelAICreditsFromOutput && agentConclusion === "failure");
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
+    // Parse categories filter for report-failure-as-issue (optional JSON array of category strings)
+    const failureCategoriesFilterRaw = process.env.GH_AW_FAILURE_CATEGORIES_FILTER || "";
+    let failureCategoriesFilter = null;
+    if (failureCategoriesFilterRaw) {
+      try {
+        failureCategoriesFilter = JSON.parse(failureCategoriesFilterRaw);
+        if (!Array.isArray(failureCategoriesFilter)) {
+          core.warning(`GH_AW_FAILURE_CATEGORIES_FILTER is not an array, ignoring: ${failureCategoriesFilterRaw}`);
+          failureCategoriesFilter = null;
+        } else {
+          core.info(`Failure categories filter enabled: ${failureCategoriesFilter.join(", ")}`);
+        }
+      } catch (parseError) {
+        core.warning(`Failed to parse GH_AW_FAILURE_CATEGORIES_FILTER, ignoring: ${getErrorMessage(parseError)}`);
+        failureCategoriesFilter = null;
+      }
+    }
     // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
     // Defaults to true (new behavior); set to false to restore pre-2026 behavior where these signals
     // are only shown in output footers / separate issues without activating the failure code path.
@@ -2879,6 +2896,16 @@ async function main() {
       fs.writeFileSync(FAILURE_CATEGORIES_PATH, JSON.stringify(failureCategories));
     } catch (writeError) {
       core.warning(`Failed to write failure categories: ${getErrorMessage(writeError)}`);
+    }
+
+    // Check if failure categories match the filter (if configured)
+    if (failureCategoriesFilter && Array.isArray(failureCategoriesFilter) && failureCategoriesFilter.length > 0) {
+      const hasMatchingCategory = failureCategories.some(cat => failureCategoriesFilter.includes(cat));
+      if (!hasMatchingCategory) {
+        core.info(`Skipping failure issue creation: no failure categories match filter. Categories: [${failureCategories.join(", ")}], Filter: [${failureCategoriesFilter.join(", ")}]`);
+        return;
+      }
+      core.info(`Failure categories match filter, proceeding with issue creation. Matching categories: [${failureCategories.filter(cat => failureCategoriesFilter.includes(cat)).join(", ")}]`);
     }
 
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);

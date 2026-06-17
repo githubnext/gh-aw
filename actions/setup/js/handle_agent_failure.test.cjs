@@ -4178,4 +4178,55 @@ describe("handle_agent_failure", () => {
       await expect(detectAndHandleFailureCascade("owner", "repo", 999)).resolves.toBeUndefined();
     });
   });
+
+  describe("failure categories filter", () => {
+    let buildFailureMatchCategories;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ buildFailureMatchCategories } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("returns expected categories for agent failure", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        isTimedOut: false,
+      });
+      expect(categories).toContain("agent_failure");
+      expect(categories.length).toBeGreaterThan(0);
+    });
+
+    it("returns timed_out category", () => {
+      const categories = buildFailureMatchCategories({
+        isTimedOut: true,
+      });
+      expect(categories).toContain("timed_out");
+    });
+
+    it("returns missing_safe_outputs category", () => {
+      const categories = buildFailureMatchCategories({
+        hasMissingSafeOutputs: true,
+      });
+      expect(categories).toContain("missing_safe_outputs");
+    });
+
+    it("returns report_incomplete category", () => {
+      const categories = buildFailureMatchCategories({
+        hasReportIncomplete: true,
+      });
+      expect(categories).toContain("report_incomplete");
+    });
+
+    it("returns sorted categories", () => {
+      const categories = buildFailureMatchCategories({
+        hasMissingSafeOutputs: true,
+        isTimedOut: true,
+        hasReportIncomplete: true,
+      });
+      // Should be sorted alphabetically
+      for (let i = 1; i < categories.length; i++) {
+        expect(categories[i] >= categories[i - 1]).toBe(true);
+      }
+    });
+  });
 });

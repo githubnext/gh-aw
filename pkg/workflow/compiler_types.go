@@ -706,7 +706,8 @@ type SafeOutputsConfig struct {
 	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`                     // Configuration for @mention filtering in safe outputs
 	Footer                          *bool                                  `yaml:"footer,omitempty"`                       // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
 	GroupReports                    bool                                   `yaml:"group-reports,omitempty"`                // If true, create parent "Failed runs" issue for agent failures (default: false)
-	ReportFailureAsIssue            *bool                                  `yaml:"report-failure-as-issue,omitempty"`      // If false, disables creating failure tracking issues when workflows fail (default: true)
+	ReportFailureAsIssue            any                                    `yaml:"report-failure-as-issue,omitempty"`      // Controls failure issue creation: bool (true/false) or ReportFailureAsIssueConfig for category filtering. Default: true
+	ReportFailureAsIssueConfig      *ReportFailureAsIssueConfig            `yaml:"-"`                                      // Parsed configuration for report-failure-as-issue (internal use only)
 	FailureIssueRepo                string                                 `yaml:"failure-issue-repo,omitempty"`           // Repository to create failure issues in (format: "owner/repo"), defaults to current repo
 	MaxBotMentions                  *string                                `yaml:"max-bot-mentions,omitempty"`             // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
 	Steps                           []any                                  `yaml:"steps,omitempty"`                        // User-provided steps injected after setup/checkout and before safe-output code
@@ -739,6 +740,17 @@ type SafeOutputMessagesConfig struct {
 	AgentFailureIssue              string `yaml:"agent-failure-issue,omitempty" json:"agentFailureIssue,omitempty"`                            // Custom footer template for agent failure tracking issues
 	AgentFailureComment            string `yaml:"agent-failure-comment,omitempty" json:"agentFailureComment,omitempty"`                        // Custom footer template for comments on agent failure tracking issues
 	BodyHeader                     string `yaml:"body-header,omitempty" json:"bodyHeader,omitempty"`                                           // Custom header text prepended to every message body (issues, comments, PRs, discussions). Placeholders: {workflow_name}, {run_url}
+}
+
+// ReportFailureAsIssueConfig holds configuration for failure issue reporting with optional category filtering
+type ReportFailureAsIssueConfig struct {
+	// Categories filters which failure types trigger issue creation.
+	// If nil or empty, all failures trigger issues (default behavior).
+	// If specified, only failures matching these categories create issues.
+	// Valid categories: agent_failure, timed_out, missing_safe_outputs, report_incomplete,
+	// missing_tool, missing_data, cache_miss_misconfiguration, inference_access_error,
+	// mcp_policy_error, ai_credits_rate_limit_error, max_ai_credits_exceeded, etc.
+	Categories []string `yaml:"categories,omitempty"`
 }
 
 // MentionsConfig holds configuration for @mention filtering in safe outputs
