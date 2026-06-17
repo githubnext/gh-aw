@@ -10,6 +10,10 @@ ARG DOCKERFILE_HASH=""
 
 RUN apk add --no-cache git
 
+# Configure git to trust all directories to avoid "dubious ownership" errors
+# when the container runs with mounted volumes owned by different users
+RUN git config --global --add safe.directory '*'
+
 LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
       org.opencontainers.image.description="Node LTS Alpine with git for the local safe-outputs MCP runtime" \
       org.opencontainers.image.base.name="${NODE_IMAGE}" \
