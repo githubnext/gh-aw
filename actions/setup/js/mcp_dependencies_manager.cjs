@@ -11,7 +11,7 @@ const perToolInstallPromises = new Map();
 let execFileSyncRunner = execFileSync;
 
 /**
- * Emit dependency-install logs to both MCP logger and core shim logs.
+ * Emit dependency-install logs via the provided MCP logger.
  * @param {Object} logger
  * @param {string} level
  * @param {string} message
@@ -22,9 +22,6 @@ function logWithCore(logger, level, message) {
     if (typeof logMethod === "function") {
       logMethod(message);
     }
-  }
-  if (global.core && typeof global.core[level] === "function") {
-    global.core[level](`[mcp-scripts.dependencies] ${message}`);
   }
 }
 
