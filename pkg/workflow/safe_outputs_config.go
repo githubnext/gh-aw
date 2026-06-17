@@ -620,16 +620,30 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.ReportFailureAsIssue = reportFailureAsIssueBool
 					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
 				} else if categoriesList, ok := reportFailureAsIssue.([]any); ok {
-					// Parse as array of category strings
-					categories := make([]string, 0, len(categoriesList))
+					// Parse as array of category strings, separating included (no prefix) and excluded (! prefix)
+					includedCategories := make([]string, 0, len(categoriesList))
+					excludedCategories := make([]string, 0, len(categoriesList))
 					for _, cat := range categoriesList {
 						if catStr, ok := cat.(string); ok {
-							categories = append(categories, catStr)
+							if strings.HasPrefix(catStr, "!") {
+								// Excluded category: strip the "!" prefix
+								excludedCategories = append(excludedCategories, strings.TrimPrefix(catStr, "!"))
+							} else {
+								// Included category
+								includedCategories = append(includedCategories, catStr)
+							}
 						}
 					}
 					config.ReportFailureAsIssue = reportFailureAsIssue // Preserve original value for proper serialization
-					config.ReportFailureAsIssueCategories = categories
-					safeOutputsConfigLog.Printf("Report failure as issue with category filter: %v", categories)
+					config.ReportFailureAsIssueCategories = includedCategories
+					config.ReportFailureAsIssueExcludedCategories = excludedCategories
+					if len(includedCategories) > 0 && len(excludedCategories) > 0 {
+						safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v, exclude filter: %v", includedCategories, excludedCategories)
+					} else if len(includedCategories) > 0 {
+						safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v", includedCategories)
+					} else if len(excludedCategories) > 0 {
+						safeOutputsConfigLog.Printf("Report failure as issue with exclude filter: %v", excludedCategories)
+					}
 				}
 			}
 
