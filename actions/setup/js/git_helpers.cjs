@@ -540,7 +540,10 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
   }
   const fetchOptions = { ...options, ignoreReturnCode: true };
   try {
-    const { exitCode } = await execApi.getExecOutput("git", ["fetch", "--no-filter", "origin", ...targets], fetchOptions);
+    const { exitCode, stderr } = await execApi.getExecOutput("git", ["fetch", "--no-filter", "origin", ...targets], fetchOptions);
+    if (exitCode !== 0) {
+      core.warning(`backfillCommitObjects: targeted fetch exited with code ${exitCode}: ${String(stderr || "").trim()}`);
+    }
     return exitCode === 0;
   } catch (error) {
     core.warning(`backfillCommitObjects: targeted fetch failed: ${getErrorMessage(error)}`);
