@@ -261,10 +261,10 @@ func appendCacheMemoryTools(allowedTools []string, cacheMemoryConfig *CacheMemor
 	for _, cache := range cacheMemoryConfig.Caches {
 		cacheDir := cacheMemoryDirFor(cache.ID)
 		cacheDirPattern := cacheDir + "/*"
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
 		allowedTools = appendCacheMemoryBashTools(allowedTools, cacheDir)
 	}
 	return allowedTools
@@ -282,10 +282,10 @@ func appendCacheMemoryBashTools(allowedTools []string, cacheDir string) []string
 		fmt.Sprintf("Bash(mv %s)", cacheDirSlash),
 	}
 	for _, bashTool := range bashCacheTools {
-		allowedTools = appendIfMissing(allowedTools, bashTool)
+		allowedTools = sliceutil.MergeUnique(allowedTools, bashTool)
 	}
-	allowedTools = appendIfMissing(allowedTools, "BashOutput")
-	allowedTools = appendIfMissing(allowedTools, "KillBash")
+	allowedTools = sliceutil.MergeUnique(allowedTools, "BashOutput")
+	allowedTools = sliceutil.MergeUnique(allowedTools, "KillBash")
 	return allowedTools
 }
 
@@ -371,10 +371,10 @@ func appendSandboxWritableTools(allowedTools []string, sandboxConfig *SandboxCon
 			continue
 		}
 		seenPatterns[pattern] = struct{}{}
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Read(%s)", pattern))
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Write(%s)", pattern))
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Edit(%s)", pattern))
-		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("MultiEdit(%s)", pattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Read(%s)", pattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Write(%s)", pattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Edit(%s)", pattern))
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("MultiEdit(%s)", pattern))
 	}
 	return allowedTools
 }
@@ -413,13 +413,6 @@ func appendMCPScriptsTools(allowedTools []string, mcpScripts *MCPScriptsConfig) 
 
 func dedupeAllowedTools(allowedTools []string) []string {
 	return sliceutil.Deduplicate(allowedTools)
-}
-
-func appendIfMissing(items []string, item string) []string {
-	if slices.Contains(items, item) {
-		return items
-	}
-	return append(items, item)
 }
 
 // generateAllowedToolsComment generates a multi-line comment showing each allowed tool

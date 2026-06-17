@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // ErrorSummary contains aggregated error/warning statistics
@@ -16,14 +18,6 @@ type ErrorSummary struct {
 	RunURL       string `json:"run_url" console:"-"`
 	WorkflowName string `json:"workflow_name,omitempty" console:"-"`
 	PatternID    string `json:"pattern_id,omitempty" console:"-"`
-}
-
-// addUniqueWorkflow adds a workflow to the list if it's not already present
-func addUniqueWorkflow(workflows []string, workflow string) []string {
-	if slices.Contains(workflows, workflow) {
-		return workflows
-	}
-	return append(workflows, workflow)
 }
 
 // aggregateSummaryItems is a generic helper that aggregates items from processed runs into summaries
@@ -93,7 +87,7 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 		// updateSummary: update existing summary with new occurrence
 		func(summary *MissingToolSummary, tool MissingToolReport) {
 			summary.Count++
-			summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
+			summary.Workflows = sliceutil.MergeUnique(summary.Workflows, tool.WorkflowName)
 			summary.RunIDs = append(summary.RunIDs, tool.RunID)
 		},
 		// finalizeSummary: populate display fields for console rendering
@@ -137,7 +131,7 @@ func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary 
 		// updateSummary: update existing summary with new occurrence
 		func(summary *MissingDataSummary, data MissingDataReport) {
 			summary.Count++
-			summary.Workflows = addUniqueWorkflow(summary.Workflows, data.WorkflowName)
+			summary.Workflows = sliceutil.MergeUnique(summary.Workflows, data.WorkflowName)
 			summary.RunIDs = append(summary.RunIDs, data.RunID)
 		},
 		// finalizeSummary: populate display fields for console rendering

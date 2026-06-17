@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -34,7 +35,7 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 		// updateSummary: update existing summary with new occurrence
 		func(summary *MCPFailureSummary, failure MCPFailureReport) {
 			summary.Count++
-			summary.Workflows = addUniqueWorkflow(summary.Workflows, failure.WorkflowName)
+			summary.Workflows = sliceutil.MergeUnique(summary.Workflows, failure.WorkflowName)
 			summary.RunIDs = append(summary.RunIDs, failure.RunID)
 		},
 		// finalizeSummary: populate display fields for console rendering

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var centralSlashCommandWorkflowLog = logger.New("workflow:central_slash_command_workflow")
@@ -121,7 +122,8 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 		}
 
 		routeEvents := GetCommentEventNames(filteredEvents)
-		routeEvents = uniqueSorted(routeEvents)
+		routeEvents = sliceutil.Deduplicate(routeEvents)
+		sort.Strings(routeEvents)
 		if len(routeEvents) == 0 {
 			continue
 		}
@@ -187,7 +189,8 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 		}
 
 		filteredEvents := FilterLabelCommandEvents(wd.LabelCommandEvents)
-		routeEvents := uniqueSorted(filteredEvents)
+		routeEvents := sliceutil.Deduplicate(filteredEvents)
+		sort.Strings(routeEvents)
 		if len(routeEvents) == 0 {
 			continue
 		}
@@ -550,17 +553,4 @@ func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map
 		b.WriteString("  " + eventName + ":\n")
 		b.WriteString("    types: [" + strings.Join(types, ", ") + "]\n")
 	}
-}
-
-func uniqueSorted(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	for _, v := range values {
-		seen[v] = true
-	}
-	result := make([]string, 0, len(seen))
-	for v := range seen {
-		result = append(result, v)
-	}
-	sort.Strings(result)
-	return result
 }
