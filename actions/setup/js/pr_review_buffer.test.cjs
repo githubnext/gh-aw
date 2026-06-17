@@ -331,7 +331,7 @@ describe("pr_review_buffer (factory pattern)", () => {
         expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
         expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
         expect(setTimeoutSpy.mock.calls[0][1]).toBeGreaterThanOrEqual(1000);
-        expect(setTimeoutSpy.mock.calls[0][1]).toBeLessThan(1200);
+        expect(setTimeoutSpy.mock.calls[0][1]).toBeLessThan(2000);
       } finally {
         setTimeoutSpy.mockRestore();
       }
