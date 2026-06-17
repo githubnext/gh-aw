@@ -218,3 +218,25 @@ func TestResolveExactHardcodedPin_BySHA(t *testing.T) {
 	require.True(t, ok, "Expected exact SHA match to resolve")
 	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
 }
+
+func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
+	t.Run("returns false immediately when SkipHardcodedFallback is set", func(t *testing.T) {
+		ctx := &PinContext{SkipHardcodedFallback: true, Warnings: make(map[string]bool)}
+
+		// actions/checkout has hardcoded pins, but SkipHardcodedFallback should prevent use
+		result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v4", false, ctx)
+
+		assert.False(t, ok, "Expected SkipHardcodedFallback to prevent hardcoded pin lookup")
+		assert.Empty(t, result, "Expected no pinned result when SkipHardcodedFallback is set")
+	})
+
+	t.Run("allows hardcoded pins when SkipHardcodedFallback is not set", func(t *testing.T) {
+		ctx := &PinContext{SkipHardcodedFallback: false, Warnings: make(map[string]bool)}
+
+		// actions/checkout has hardcoded pins and should resolve
+		result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v4", false, ctx)
+
+		assert.True(t, ok, "Expected hardcoded pins to be consulted when SkipHardcodedFallback is false")
+		assert.NotEmpty(t, result, "Expected a pinned result when SkipHardcodedFallback is not set")
+	})
+}

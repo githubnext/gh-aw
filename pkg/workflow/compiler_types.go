@@ -628,6 +628,13 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	if d.ActionResolver != nil {
 		pinCtx.Resolver = d.ActionResolver
 	}
+	// When GH_HOST is set to a non-github.com host (GHES/GHEC), the action
+	// resolver targets that host and fails to resolve actions/* repos which live
+	// on github.com.  Silently falling back to bundled hardcoded pins in that
+	// case produces unverified SHA pins, so disable the fallback.
+	if ghHost := os.Getenv("GH_HOST"); ghHost != "" && ghHost != "github.com" {
+		pinCtx.SkipHardcodedFallback = true
+	}
 	return pinCtx
 }
 
