@@ -8,10 +8,15 @@ set +o histexpand
 # container. Always configures git identity and safe.directory trust. Optionally configures
 # the remote URL for authentication when credentials are provided.
 #
+# Usage:
+#   configure_git_credentials.sh [--no-auth]
+#
+#   --no-auth   Skip remote URL authentication (identity and safe.directory are still configured)
+#
 # Required environment variables:
 #   GITHUB_WORKSPACE     - Workspace directory path (for safe.directory)
 #
-# Optional environment variables for remote authentication:
+# Optional environment variables for remote authentication (ignored when --no-auth is passed):
 #   GITHUB_REPOSITORY    - Repository slug (e.g., "org/repo")
 #   GITHUB_SERVER_URL    - GitHub server URL (with or without https:// prefix)
 #   GITHUB_TOKEN         - Authentication token; falls back to GIT_TOKEN
@@ -21,6 +26,13 @@ set +o histexpand
 #   1 - Error
 
 set -euo pipefail
+
+NO_AUTH=false
+for arg in "$@"; do
+  case "${arg}" in
+    --no-auth) NO_AUTH=true ;;
+  esac
+done
 
 # Configure git identity
 git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -33,14 +45,16 @@ if [ -n "${GITHUB_WORKSPACE:-}" ]; then
   git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 fi
 
-# Configure remote URL authentication when credentials are provided
-REPO="${GITHUB_REPOSITORY:-}"
-URL="${GITHUB_SERVER_URL:-}"
-TOKEN="${GITHUB_TOKEN:-${GIT_TOKEN:-}}"
+# Configure remote URL authentication when credentials are provided (skipped with --no-auth)
+if [ "${NO_AUTH}" = false ]; then
+  REPO="${GITHUB_REPOSITORY:-}"
+  URL="${GITHUB_SERVER_URL:-}"
+  TOKEN="${GITHUB_TOKEN:-${GIT_TOKEN:-}}"
 
-if [ -n "${REPO}" ] && [ -n "${URL}" ] && [ -n "${TOKEN}" ]; then
-  URL_STRIPPED="${URL#https://}"
-  git remote set-url origin "https://x-access-token:${TOKEN}@${URL_STRIPPED}/${REPO}.git"
+  if [ -n "${REPO}" ] && [ -n "${URL}" ] && [ -n "${TOKEN}" ]; then
+    URL_STRIPPED="${URL#https://}"
+    git remote set-url origin "https://x-access-token:${TOKEN}@${URL_STRIPPED}/${REPO}.git"
+  fi
 fi
 
 echo "Git configured with standard GitHub Actions identity"
