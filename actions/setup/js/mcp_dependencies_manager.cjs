@@ -1,5 +1,7 @@
 // @ts-check
 
+require("./shim.cjs");
+
 const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -7,6 +9,21 @@ const path = require("path");
 const installedDependencyPromises = new Map();
 const perToolInstallPromises = new Map();
 let execFileSyncRunner = execFileSync;
+
+/**
+ * Emit dependency-install logs to both MCP logger and core shim logs.
+ * @param {Object} logger
+ * @param {string} level
+ * @param {string} message
+ */
+function logWithCore(logger, level, message) {
+  if (logger && typeof logger.debug === "function") {
+    logger.debug(message);
+  }
+  if (global.core && typeof global.core[level] === "function") {
+    global.core[level](`[mcp-scripts.dependencies] ${message}`);
+  }
+}
 
 function inferDependencyManager(handlerPath) {
   const ext = path.extname(handlerPath).toLowerCase();
@@ -47,13 +64,13 @@ function executeInstallWithRetry(logger, toolName, dependency, command, args, cw
   const maxRetries = 2;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      logger.debug(`  [${toolName}] Installing dependency '${dependency}' with: ${command} ${args.join(" ")}`);
+      logWithCore(logger, "debug", `  [${toolName}] Installing dependency '${dependency}' with: ${command} ${args.join(" ")}`);
       execFileSyncRunner(command, args, {
         cwd,
         stdio: "pipe",
         env: process.env,
       });
-      logger.debug(`  [${toolName}] Installed dependency '${dependency}'`);
+      logWithCore(logger, "info", `  [${toolName}] Installed dependency '${dependency}'`);
       return;
     } catch (error) {
       const stderr = error && error.stderr ? String(error.stderr) : "";
@@ -61,12 +78,16 @@ function executeInstallWithRetry(logger, toolName, dependency, command, args, cw
       const details = [stderr.trim(), stdout.trim(), error && error.message ? String(error.message) : ""].filter(Boolean).join("\n");
 
       if (isDeterministicInstallFailure(details)) {
+        logWithCore(logger, "error", `  [${toolName}] Deterministic dependency install failure for '${dependency}'`);
         throw new Error(`Dependency installation failed for '${dependency}': ${details || "deterministic failure"}`);
       }
 
       if (!isTransientInstallFailure(details) || attempt === maxRetries) {
+        logWithCore(logger, "error", `  [${toolName}] Dependency install failed after ${attempt + 1} attempt(s) for '${dependency}'`);
         throw new Error(`Dependency installation failed for '${dependency}' after ${attempt + 1} attempt(s): ${details || "unknown error"}`);
       }
+
+      logWithCore(logger, "warning", `  [${toolName}] Transient dependency install failure for '${dependency}', retrying (${attempt + 1}/${maxRetries + 1})`);
     }
   }
 }
@@ -119,20 +140,26 @@ function createDependencyInstallGate(logger, toolName, handlerPath, dependencies
 
   return async () => {
     if (perToolInstallPromises.has(toolKey)) {
+      logWithCore(logger, "debug", `  [${toolName}] Reusing dependency install gate for ${toolKey}`);
       return perToolInstallPromises.get(toolKey);
     }
 
     const installPromise = (async () => {
+      logWithCore(logger, "debug", `  [${toolName}] Starting dependency install gate (${depList.length} dependency item(s))`);
       for (const dependency of depList) {
         const key = `${manager}:${dependency}`;
         if (!installedDependencyPromises.has(key)) {
+          logWithCore(logger, "debug", `  [${toolName}] No existing install promise for '${dependency}', creating one`);
           installedDependencyPromises.set(
             key,
             Promise.resolve().then(() => installDependency(logger, toolName, dependency, manager, basePath))
           );
+        } else {
+          logWithCore(logger, "debug", `  [${toolName}] Reusing existing install promise for '${dependency}'`);
         }
         await installedDependencyPromises.get(key);
       }
+      logWithCore(logger, "debug", `  [${toolName}] Dependency install gate completed`);
     })();
 
     perToolInstallPromises.set(toolKey, installPromise);
