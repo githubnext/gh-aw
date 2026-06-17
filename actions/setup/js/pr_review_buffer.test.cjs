@@ -292,7 +292,12 @@ describe("pr_review_buffer (factory pattern)", () => {
     });
 
     it("should retry createReview once on rate-limit errors", async () => {
-      vi.useFakeTimers();
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
+        if (typeof handler === "function") {
+          handler();
+        }
+        return 0;
+      });
       try {
         buffer.setReviewMetadata("Looks good", "COMMENT");
         buffer.setReviewContext({
@@ -317,14 +322,12 @@ describe("pr_review_buffer (factory pattern)", () => {
           },
         });
 
-        const submitPromise = buffer.submitReview();
-        await vi.advanceTimersByTimeAsync(1000);
-        const result = await submitPromise;
+        const result = await buffer.submitReview();
 
         expect(result.success).toBe(true);
         expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
       } finally {
-        vi.useRealTimers();
+        setTimeoutSpy.mockRestore();
       }
     });
 

@@ -530,11 +530,7 @@ function createReviewBuffer() {
     }
 
     async function createReviewWithRetry(params) {
-      return withRetry(
-        () => github.rest.pulls.createReview(params),
-        REVIEW_RATE_LIMIT_RETRY_CONFIG,
-        `pulls.createReview ${repo}#${pullRequestNumber}`
-      );
+      return withRetry(() => github.rest.pulls.createReview(params), REVIEW_RATE_LIMIT_RETRY_CONFIG, `pulls.createReview ${repo}#${pullRequestNumber}`);
     }
 
     try {
