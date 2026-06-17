@@ -331,5 +331,16 @@ else
     exit 1
 fi
 
+# Test 12: Verify no-color gate for CI environments
+echo ""
+echo "Test 12: Verify no-color gate"
+if grep -q 'NO_COLOR+set' "$PROJECT_ROOT/install-gh-aw.sh" && \
+   grep -q 'RED=""' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: No-color gate present and spec-compliant"
+else
+    echo "  ✗ FAIL: No-color gate missing or not spec-compliant"
+    exit 1
+fi
+
 echo ""
 echo "=== All tests passed ==="

@@ -93,8 +93,16 @@ permissions:
 			}
 
 			const tipText = "Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference"
+			const tipLink = "https://github.github.com/gh-aw/reference/billing/"
+			const tipOrgNote = "requires that your organization has centralized Copilot billing enabled and may not be available"
 			if tt.expectTip && !strings.Contains(stderrOutput, tipText) {
 				t.Fatalf("Expected copilot-requests tip in stderr, got:\n%s", stderrOutput)
+			}
+			if tt.expectTip && !strings.Contains(stderrOutput, tipLink) {
+				t.Fatalf("Expected billing link in copilot-requests tip, got:\n%s", stderrOutput)
+			}
+			if tt.expectTip && !strings.Contains(stderrOutput, tipOrgNote) {
+				t.Fatalf("Expected org billing note in copilot-requests tip, got:\n%s", stderrOutput)
 			}
 			if !tt.expectTip && strings.Contains(stderrOutput, tipText) {
 				t.Fatalf("Did not expect copilot-requests tip in stderr, got:\n%s", stderrOutput)
