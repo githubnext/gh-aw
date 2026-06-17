@@ -133,9 +133,9 @@ For safe-output issue outcomes, use the `objective_value`, `objective_labels`, a
 - `/tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl`
 
 The mapping uses the `outcome/` root-level resolver (mirrors `intent.Resolver.ResolvePullRequest` in Go):
-- For PRs with a closing issue (`attribution_source: "closing_issue"`): objective computed from the closing issue's labels.
-- For PRs with no closing issue (attribution_source: "none"): **exclude from analysis** — do not fall back to PR labels.
-- For safe-output issues: objective computed from the issue's own labels.
+- For PRs with exactly one closing issue (`attribution_source: "closing_issue"`): objective computed from the closing issue's labels.
+- For PRs with no closing issue (`attribution_source: "artifact_labels"` or `"none"`): **exclude from analysis** — do not fall back to PR labels.
+- For safe-output issues (`attribution_source: "issue_labels"`): objective computed from the issue's own labels.
 
 If `objective_value` is `0` and the entry has `root_issue_labels` or `labels` present, mark the outcome as `unmapped` (no matching label in the mapping). If there are no root labels at all, mark it as excluded.
 
