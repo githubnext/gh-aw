@@ -26,10 +26,9 @@ There are two billing paths for the Copilot engine (`engine: copilot`, the defau
 1. The organization has centralized billing enabled for Copilot requests in its Copilot policies (see [Authentication](/gh-aw/reference/auth/#copilot-requests-write-permission)).
 2. The workflow declares `copilot_requests: true` under `permissions`:
 
-   ```aw
-   permissions:
-     copilot_requests: true
-   ```
+    permissions:
+      contents: read
+      copilot-requests: write
 
 3. The workflow has been compiled (`gh aw compile`) and the updated `.lock.yml` committed to the repository.
 
