@@ -74,7 +74,7 @@ Test safe outputs workflow with MCP server integration.
 	if !strings.Contains(yamlStr, `"entrypoint": "sh"`) {
 		t.Error("Expected safeoutputs MCP server to override container entrypoint to sh")
 	}
-	if !strings.Contains(yamlStr, `"entrypointArgs": ["${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`) {
+	if !strings.Contains(yamlStr, `"entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`) {
 		t.Error("Expected safeoutputs MCP server entrypointArgs to run the stdio MCP server script")
 	}
 
@@ -220,7 +220,7 @@ Test safe outputs workflow with Codex engine.
 	if !strings.Contains(yamlStr, `entrypoint = "sh"`) {
 		t.Error("Expected safeoutputs TOML MCP server to override container entrypoint to sh")
 	}
-	if !strings.Contains(yamlStr, `entrypointArgs = ["${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`) {
+	if !strings.Contains(yamlStr, `entrypointArgs = ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`) {
 		t.Error("Expected safeoutputs TOML MCP server entrypointArgs to run the stdio MCP server script")
 	}
 
