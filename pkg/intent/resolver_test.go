@@ -113,6 +113,6 @@ func TestResolverResolveIssueMapped(t *testing.T) {
 	assert.Equal(t, AttributionMapped, intent.Status)
 	assert.Equal(t, SourceIssueLabels, intent.Source)
 	assert.Equal(t, "issue_label_fallback", intent.Rule)
-	assert.Equal(t, "artifact", intent.RootType)
+	assert.Equal(t, "issue", intent.RootType)
 	assert.Equal(t, []string{"documentation"}, intent.Labels)
 }
