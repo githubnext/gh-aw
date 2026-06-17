@@ -36,7 +36,7 @@ function resolveShellPackageManager() {
 }
 
 function isTransientInstallFailure(message) {
-  return /(timed out|timeout|temporar|network|econnreset|econnrefused|eai_again|etimedout|429|502|503|504)/i.test(message);
+  return /(timed out|timeout|temporary|network|econnreset|econnrefused|eai_again|etimedout|429|502|503|504)/i.test(message);
 }
 
 function isDeterministicInstallFailure(message) {
@@ -86,7 +86,7 @@ function installDependency(logger, toolName, dependency, manager, basePath) {
     const goModPath = path.join(basePath, "go.mod");
     if (!fs.existsSync(goModPath)) {
       try {
-        execFileSyncRunner("go", ["mod", "init", "ghaw/mcp-scripts"], { cwd: basePath, stdio: "pipe", env: process.env });
+        execFileSyncRunner("go", ["mod", "init", "example.com/mcp-scripts"], { cwd: basePath, stdio: "pipe", env: process.env });
       } catch {
         // go.mod may have been created concurrently
       }
