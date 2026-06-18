@@ -83,11 +83,7 @@ func reportDiscardedJSONCall(pass *analysis.Pass, call *ast.CallExpr, noLintLine
 	if nolint.HasDirective(position, noLintLinesByFile) {
 		return
 	}
-	pass.Report(analysis.Diagnostic{
-		Pos:     call.Pos(),
-		End:     call.End(),
-		Message: message,
-	})
+	pass.ReportRangef(call, "%s", message)
 }
 
 func isJSONFunc(pass *analysis.Pass, call *ast.CallExpr, name string) bool {
