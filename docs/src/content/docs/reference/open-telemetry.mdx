@@ -29,8 +29,8 @@ Resource attributes identify the workflow run, repository, runner, and gh-aw env
     <tr><td><code>gh-aw.repository</code></td><td>GitHub repository in <code>owner/repo</code> form.</td></tr>
     <tr><td><code>gh-aw.run.id</code></td><td>GitHub Actions run ID.</td></tr>
     <tr><td><code>gh-aw.engine.id</code></td><td>Raw gh-aw engine identifier when available.</td></tr>
-    <tr><td><code>github.run_id</code></td><td>Standardized GitHub run ID resource attribute.</td></tr>
-    <tr><td><code>github.repository</code></td><td>Standardized GitHub repository resource attribute.</td></tr>
+    <tr><td><code>github.run_id</code></td><td>GitHub run ID compatibility resource attribute.</td></tr>
+    <tr><td><code>github.repository</code></td><td>GitHub repository compatibility resource attribute.</td></tr>
     <tr><td><code>github.run_attempt</code></td><td>GitHub Actions run attempt.</td></tr>
     <tr><td><code>github.event_name</code></td><td>Triggering GitHub event name.</td></tr>
     <tr><td><code>github.ref</code></td><td>Git ref for the run.</td></tr>
@@ -121,7 +121,7 @@ These attributes carry model, token, and stop-reason data on built-in agent span
     </tr>
   </thead>
   <tbody>
-    <tr><td><code>gen_ai.system</code></td><td>Standardized OpenTelemetry GenAI system name.</td></tr>
+    <tr><td><code>gen_ai.system</code></td><td>Compatibility GenAI system/provider name used by existing gh-aw dashboards and backends.</td></tr>
     <tr><td><code>gh-aw.engine.id</code></td><td>Raw gh-aw engine identifier.</td></tr>
     <tr><td><code>gen_ai.request.model</code></td><td>Requested model name.</td></tr>
     <tr><td><code>gen_ai.operation.name</code></td><td>Always <code>chat</code> for built-in agent spans.</td></tr>

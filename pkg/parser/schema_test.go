@@ -1189,6 +1189,31 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppImpli
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPCustomAttributes(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP custom attributes config",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"attributes": map[string]any{
+					"langfuse.session.id": "{{ gh-aw.episode.id }}",
+					"langfuse.user.id":    "{{ github.actor }}",
+					"deployment.stage":    "production",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-custom-attributes-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected observability.otlp.attributes to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPResourceAttributes(t *testing.T) {
 	frontmatter := map[string]any{
 		"name": "OTLP resource attributes config",

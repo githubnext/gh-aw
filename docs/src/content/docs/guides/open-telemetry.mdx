@@ -69,15 +69,17 @@ observability:
       Authorization: ${{ secrets.OTLP_TOKEN }}
     attributes:
       deployment.environment: production
-      langfuse.session.id: ${{ github.run_id }}
-      langfuse.user.id: ${{ github.actor }}
+      langfuse.session.id: "{{ gh-aw.episode.id }}"
+      langfuse.user.id: "{{ github.actor }}"
 ```
 
-Values are plain strings. GitHub Actions expressions also work here, so you can populate attributes from run metadata, variables, or secrets. Empty values are omitted, and non-empty values are masked in runner logs.
+    Values are plain strings. Template expressions such as `{{ gh-aw.episode.id }}` or `{{ github.actor }}` are resolved from attributes already computed for the span. Empty values are omitted, and non-empty values are masked in runner logs.
 
 ## Built-in telemetry emitted by gh-aw
 
 gh-aw emits a small set of built-in spans and trace artifacts once OTLP is configured.
+
+These fields are a compatibility contract. gh-aw may add OpenTelemetry-standard aliases over time, but existing span names, environment variables, JSONL shape, and documented attributes remain available for dashboards and customer backends.
 
 The built-in agent span uses OpenTelemetry [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) for standard model, token, and finish-reason fields. gh-aw also adds a small number of gh-aw-specific fields.
 

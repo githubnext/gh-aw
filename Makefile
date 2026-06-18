@@ -830,6 +830,16 @@ validate-registry:
 	@echo "Validating model_multipliers.json (R-REG-007: no placeholder or null multipliers)..."
 	@go test ./pkg/cli/... -run TestModelMultipliersNoPlaceholders -count=1
 
+# Validate the gh-aw OpenTelemetry compatibility contract from specs/otel-observability-spec.md.
+# This is intentionally focused and isolated: schema/frontmatter acceptance, compiler env plumbing,
+# raw OTLP JSONL mirrors, and shipped GenAI compatibility attributes.
+.PHONY: validate-otel-contract
+validate-otel-contract:
+	@echo "Validating gh-aw OpenTelemetry compatibility contract..."
+	@go test ./pkg/parser ./pkg/workflow -run 'TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLP(CustomAttributes|ResourceAttributes|GitHubAppImplicitOIDC)|TestInjectOTLPConfig|TestApplyTraceContextEnvToMap' -count=1
+	@cd actions/setup/js && npm run test:js -- otel_contract.test.cjs send_otlp_span.test.cjs --no-file-parallelism >/dev/null
+	@echo "✓ OpenTelemetry compatibility contract validated"
+
 MODELS_DEV_MODELS_JSON_URL ?= https://models.dev/catalog.json
 
 .PHONY: refresh-models-json
@@ -1034,7 +1044,7 @@ sbom:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build build-wasm test-all fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
+agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
 	@echo "Agent finished tasks successfully."
 
 # Lightweight pre-PR gate — run before every report_progress / create_pull_request call.
@@ -1101,6 +1111,7 @@ help:
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in actions/setup/js"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
+	@echo "  validate-otel-contract - Validate the gh-aw OpenTelemetry compatibility contract"
 	@echo "  lint-action-sh   - Lint action shell scripts for python/python3 invocations"
 	@echo "  check-file-sizes - Check Go file sizes and function counts (informational)"
 	@echo "  check-validator-sizes - Check *_validation.go files against the 768-line hard limit"

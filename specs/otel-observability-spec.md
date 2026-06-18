@@ -1,1053 +1,935 @@
 ---
-title: OpenTelemetry Specification
-version: 0.3.0
+title: gh-aw OpenTelemetry Observability Specification
+description: Formal W3C-style specification for observability contract for GitHub Agentic Workflows using OpenTelemetry traces, metrics, logs, and OTLP export.
+version: 0.4.0
 status: Working Draft
-date: 2026-05-19
-last_updated: 2026-06-15
+date: 2026-06-18
+last_updated: 2026-06-18
 editors:
   - GitHub gh-aw Team
 ---
 
-# OpenTelemetry Specification
+# gh-aw OpenTelemetry Observability Specification
 
-**Version**: 0.3.0  
+**Version**: 0.4.0
 **Status**: Working Draft  
+**Publication Date**: June 18, 2026
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/otel-observability-spec.md  
+**Previous Version**: 0.3.0
 **Editors**: GitHub gh-aw Team
-
-This specification defines the normative OpenTelemetry contract for GitHub Agentic Workflows (`gh-aw`). It covers the current OTLP runtime contract and version 1.0.0 of the new `cicd.automation.*` semantic-convention standard for autonomous work inside CI/CD systems.
-
-This document is the repository-level source of truth for both `observability.otlp` behavior in `gh-aw` and the `cicd.automation.*` standard adopted by this repository.
-
-## Abstract
-
-This specification has two normative parts: the current `gh-aw` OTLP observability contract, and version 1.0.0 of a new `cicd.automation.*` semantic-convention standard for autonomous work in CI/CD. It exists so compiler behavior, runtime telemetry, schema generation, and validation stay synchronized.
-
-## Status of This Document
-
-This is a Working Draft specification. It may be revised as `gh-aw` observability evolves, especially around multi-endpoint fan-out, helper APIs, and artifact-level telemetry reconciliation.
-
-Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing, the telemetry mirror contract, or the `cicd.automation.*` semantic conventions SHOULD update this specification in the same change set.
-
-**Publication Date**: June 15, 2026  
-**Governance**: This specification is maintained by the GitHub gh-aw Team as the normative OpenTelemetry contract for this repository.
-
-## Table of Contents
-
-1. [Purpose and Scope](#1-purpose-and-scope)
-2. [Conformance](#2-conformance)
-3. [Definitions](#3-definitions)
-4. [Configuration Model](#4-configuration-model)
-5. [Runtime Environment Contract](#5-runtime-environment-contract)
-6. [Export and Gateway Integration](#6-export-and-gateway-integration)
-7. [Local Mirrors and Artifacts](#7-local-mirrors-and-artifacts)
-8. [Security and Privacy Requirements](#8-security-and-privacy-requirements)
-9. [Trace Model](#9-trace-model)
-10. [Span Attribute Contract](#10-span-attribute-contract)
-    - [10.6 MCP Gateway Span Attribute Contract](#106-mcp-gateway-span-attribute-contract)
-11. [Resource Attributes](#11-resource-attributes)
-12. [Trace ID Propagation and Lookup](#12-trace-id-propagation-and-lookup)
-13. [Implementation Mapping](#13-implementation-mapping)
-14. [Compliance Testing](#14-compliance-testing)
-15. [References](#15-references)
-16. [New `cicd.automation.*` Standard](#16-new-cicdautomation-standard)
-17. [Change Log](#17-change-log)
 
 ---
 
-## 1. Purpose and Scope
+## Abstract
+
+This specification defines the compatibility-first OpenTelemetry observability contract for GitHub Agentic Workflows (`gh-aw`). It specifies the existing `observability.otlp` configuration surface, OTLP export behavior, trace-context compatibility variables, resource identity, built-in span attributes, local telemetry mirrors, security controls, and conformance obligations. Version 0.4.0 preserves the contract already used by workflows, dashboards, and artifacts, and treats additional OpenTelemetry alignment as additive evolution rather than a replacement standard.
+
+## Status of This Document
+
+This document is a **Working Draft** maintained by the GitHub `gh-aw` Team. It may be changed, replaced, or made obsolete by subsequent versions.
+
+Version 0.4.0 is a non-breaking compatibility revision of the draft telemetry model in version 0.3.0. It clarifies which fields and files are stable, keeps the existing direct-export and local-mirror behavior, keeps already documented GenAI attributes, and identifies future OpenTelemetry-native improvements that MAY be added as aliases or extra records. Implementations MUST NOT remove, rename, or structurally replace the shipped contract solely to satisfy a newer OpenTelemetry convention.
+
+Sections explicitly marked **Informative** are non-normative. All other sections are normative unless stated otherwise.
+
+Implementation mapping, validation requirements, and compatibility test expectations are defined in this specification so version 0.4.0 has one authoritative contract.
+
+Implementations claiming conformance MUST identify the version and conformance classes they implement. A conformance claim for version 0.4.0 is a compatibility claim: it MUST preserve externally observable behavior documented by this specification unless a later specification explicitly defines a migration period and compatibility alias.
+
+## Table of Contents
+
+1. [Introduction](#1-introduction)
+2. [Conformance](#2-conformance)
+3. [Terminology](#3-terminology)
+4. [Observability Architecture](#4-observability-architecture)
+5. [Configuration Model](#5-configuration-model)
+6. [Runtime Environment and Export](#6-runtime-environment-and-export)
+7. [Context Propagation](#7-context-propagation)
+8. [Resource and Instrumentation Identity](#8-resource-and-instrumentation-identity)
+9. [Trace Model](#9-trace-model)
+10. [Span and Event Contracts](#10-span-and-event-contracts)
+11. [Metrics Contract](#11-metrics-contract)
+12. [Logs Contract](#12-logs-contract)
+13. [Outcome Evaluation](#13-outcome-evaluation)
+14. [Local Mirrors and Artifacts](#14-local-mirrors-and-artifacts)
+15. [Security and Privacy](#15-security-and-privacy)
+16. [Reliability and Failure Handling](#16-reliability-and-failure-handling)
+17. [Compliance Testing](#17-compliance-testing)
+18. [References](#18-references)
+19. [Change Log](#19-change-log)
+
+---
+
+## 1. Introduction
 
 ### 1.1 Purpose
 
-This specification exists to ensure that `gh-aw` observability behavior is specification-first, testable, and safe by default.
+This specification ensures that `gh-aw` observability is interoperable, testable, safe by default, and aligned with OpenTelemetry conventions.
 
-It defines what a conforming `gh-aw` implementation MUST do when a workflow declares `observability.otlp`, when runtime trace context is present, and when telemetry export partially fails.
+A conforming implementation enables operators to answer the following questions:
+
+- **Metrics**: Is workflow or AI behavior unhealthy, slow, expensive, or unreliable at aggregate scale?
+- **Traces**: Which job, model request, tool execution, gateway operation, or external dependency caused a specific run to fail or become slow?
+- **Logs and events**: What exact diagnostic, policy, exception, or exporter condition occurred?
 
 ### 1.2 Scope
 
 This specification covers:
 
-- the `observability.otlp` frontmatter model;
-- normalization of OTLP endpoint and header forms;
-- workflow-level environment variable injection for OTLP export;
-- OTLP multi-endpoint fan-out metadata;
-- MCP gateway OpenTelemetry configuration derived from workflow observability settings;
-- runtime trace-context variables used by helper libraries and gateway wiring;
-- local JSONL telemetry mirrors written under `/tmp/gh-aw/`; and
-- minimum implementation mapping and conformance tests.
+- `observability.otlp` workflow configuration;
+- endpoint and header normalization;
+- direct-export and Collector-mediated export modes;
+- W3C Trace Context propagation across jobs, child workflows, containers, HTTP, JSON-RPC, and MCP;
+- CI/CD, GenAI, MCP, HTTP, RPC, and repository-specific telemetry attributes;
+- trace, metric, log, and local-mirror contracts;
+- outcome evaluation and long-lived correlation;
+- security, privacy, cardinality, and reliability requirements.
 
-This specification does not cover:
+This specification does not define vendor-specific dashboards, retention policies, model-quality algorithms, backend pricing formulas, or a requirement to use a particular OpenTelemetry backend.
 
-- vendor-specific dashboard design in Grafana, Datadog, Sentry, or other backends;
-- downstream telemetry analysis workflows;
-- general OpenTelemetry semantic conventions beyond the attributes explicitly required by `gh-aw`; or
-- backend-specific retention, indexing, or alerting behavior.
+### 1.3 Design Goals
 
-### 1.3 Informative Documents
+The design goals are:
 
-The following documents are informative companions and do not override this specification:
-
-- [docs/src/content/docs/reference/open-telemetry.md](../docs/src/content/docs/reference/open-telemetry.md)
-- [docs/src/content/docs/reference/frontmatter.md](../docs/src/content/docs/reference/frontmatter.md)
-- [docs/src/content/docs/reference/mcp-gateway.md](../docs/src/content/docs/reference/mcp-gateway.md)
+1. **Standards first**: Reuse applicable OpenTelemetry conventions before defining custom attributes.
+2. **Compatibility first**: Preserve the telemetry fields, files, and environment variables already documented for users.
+3. **Additive standards alignment**: Add standard OpenTelemetry aliases when useful, without replacing shipped `gh-aw` fields or GenAI attributes.
+4. **Correct temporal containment**: New parent-child relationships SHOULD contain the operations represented by their child spans.
+5. **Safe defaults**: Do not capture prompts, responses, credentials, or unbounded payloads by default.
+6. **Graceful degradation**: Observability failure SHOULD NOT fail useful workflow execution.
+7. **Portable correlation**: Support W3C `traceparent` while preserving `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` as stable compatibility variables.
+8. **Bounded cardinality**: Unique run, commit, item, or user identifiers MUST NOT be metric dimensions by default.
 
 ---
 
 ## 2. Conformance
 
-An implementation conforms to this specification if it satisfies all MUST and MUST NOT requirements applicable to its conformance class in Sections 4 through 16.
-
-### 2.1 Conformance Classes
-
-This specification defines the following conformance classes:
-
-| Class | Description |
-|---|---|
-| Compiler | Parses workflow configuration and emits the runtime observability contract described in Sections 4 and 5. |
-| Runtime Emitter | Emits spans, resource attributes, local mirrors, and trace context as described in Sections 6 through 12. |
-| Schema Producer | Defines or publishes the `cicd.automation.*` semantic-convention surface described in Section 16. |
-| Validator | Verifies compiler output, runtime telemetry, and conformance-test coverage against this specification. |
+### 2.1 Requirements Notation
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
-### 2.2 Compliance Levels
+### 2.2 Conformance Classes
 
-This specification defines three compliance levels:
+This specification defines the following conformance classes:
 
-| Level | Requirements |
+| Class | Responsibility |
 |---|---|
-| **Level 1 - Config** | Correct parsing and normalization of `observability.otlp` and workflow environment injection as defined in Sections 4 and 5. |
-| **Level 2 - Runtime** | Level 1 plus MCP gateway integration and degraded-mode export behavior from Section 6. |
-| **Level 3 - Complete** | Level 2 plus local mirror, artifact, trace model, span attribute contract, resource attributes, trace ID propagation, implementation-mapping, and compliance obligations in Sections 7 through 12. |
+| **Compiler** | Parses workflow observability configuration, validates it, and emits the runtime contract. |
+| **Runtime Instrumentation** | Creates resources, built-in spans, optional metrics/logs/events/links, and local mirrors. |
+| **Exporter** | Sends telemetry through direct OTLP export or an OpenTelemetry Collector and implements retry and fan-out behavior. |
+| **Gateway Instrumentation** | Propagates context and instruments MCP, JSON-RPC, HTTP, proxy, and backend operations. |
+| **Artifact Producer** | Persists local telemetry mirrors and associated manifests as workflow artifacts. |
+| **Validator** | Verifies emitted telemetry and implementation behavior against this specification. |
 
-### 2.3 Conformance Statement
+An implementation MAY conform to one or more classes. It MUST state each claimed class.
 
-A conforming implementation SHOULD document:
+### 2.3 Compliance Levels
 
-- which conformance class or classes it satisfies;
-- its compliance level;
-- any intentionally unsupported OPTIONAL behavior; and
-- any repository-specific extensions emitted outside the contract defined here.
+| Level | Name | Requirements |
+|---|---|---|
+| **Level 1** | Stable Configuration and Export | Compiler configuration, validation, endpoint/header normalization, compatibility runtime variables, direct OTLP export, and secret-safe setup in Sections 5 and 6. |
+| **Level 2** | Compatible Correlation | Level 1 plus resource identity, stable trace IDs, W3C `TRACEPARENT` compatibility, built-in setup/conclusion/agent spans, MCP gateway correlation, local mirrors, and artifact safety. |
+| **Level 3** | Extended Observability | Level 2 plus optional OpenTelemetry-native root/job spans, metrics, structured logs, outcome links, Collector mode, and other additive records. |
+
+A claim of a compliance level MUST satisfy every MUST and MUST NOT requirement applicable to the implementation's conformance classes at that level. Level 3 features MUST be additive: they MUST NOT remove or rename Level 1 or Level 2 fields, files, environment variables, or span attributes.
+
+An implementation that does not satisfy every applicable requirement MAY describe itself as **partially implemented**, but MUST NOT claim conformance at that level.
+
+### 2.4 Extension Conformance
+
+Repository-specific attributes and instruments MAY be added. An extension:
+
+- MUST NOT change the meaning of a standard OpenTelemetry attribute;
+- MUST NOT reuse a standard name with an incompatible type;
+- MUST use a documented namespace;
+- MUST document stability and cardinality expectations;
+- MUST NOT claim to be an OpenTelemetry standard unless accepted by the relevant OpenTelemetry specification process.
 
 ---
 
-## 3. Definitions
+## 3. Terminology
 
 | Term | Definition |
 |---|---|
-| **OTLP entry** | A normalized `{url, headers}` endpoint record derived from workflow frontmatter. |
-| **Primary OTLP endpoint** | The first normalized OTLP entry. This endpoint is used for backward-compatible single-endpoint environment variables. |
-| **Fan-out endpoint set** | The ordered list of all normalized OTLP entries. |
-| **Top-level headers** | The `observability.otlp.headers` field that only applies when `endpoint` is declared as a plain string. |
-| **Per-endpoint headers** | The `headers` field nested inside an object or array entry in `observability.otlp.endpoint`. |
-| **If-missing mode** | The `observability.otlp.if-missing` runtime behavior selector with values `error`, `warn`, or `ignore`. |
-| **Telemetry mirror** | A local NDJSON or JSONL file written under `/tmp/gh-aw/` so spans remain inspectable even when OTLP export fails or is absent. |
-| **Trace context variables** | Runtime variables such as `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` used to correlate spans across steps and jobs. |
+| **Workflow run** | One execution of a GitHub Actions workflow. |
+| **Pipeline root span** | The real root span representing the complete workflow run. |
+| **Job span** | A child span representing one GitHub Actions job for its complete measured lifetime. |
+| **Agent invocation** | Execution of an AI agent or agent framework, potentially containing several model and tool operations. |
+| **Model operation** | One logical request to a generative model, including automatic retries observed by the caller. |
+| **Tool operation** | Execution of one tool, function, command, API operation, or MCP method. |
+| **OTLP entry** | A normalized endpoint record containing a URL and optional exporter-only headers. |
+| **Primary endpoint** | The first endpoint after normalization, used for single-endpoint compatibility. |
+| **Collector mode** | Export through a local or remote OpenTelemetry Collector. |
+| **Direct mode** | Export directly from `gh-aw` instrumentation to a vendor OTLP endpoint. |
+| **Telemetry mirror** | A local JSON Lines representation of telemetry records produced independently of remote export success. |
+| **Span link** | A non-parental relationship from one span to another span context, used for delayed or asynchronous correlation. |
+| **Sensitive content** | Prompts, model output, tool arguments, tool results, source snippets, credentials, personal data, private repository data, or equivalent content. |
+| **High-cardinality value** | A value with a large or unbounded number of distinct values, including run IDs, commit SHAs, item URLs, user IDs, and arbitrary text. |
 
 ---
 
-## 4. Configuration Model
+## 4. Observability Architecture
 
-### 4.1 Frontmatter Declaration
+### 4.1 Signal Responsibilities
 
-1. Workflows MAY declare an `observability.otlp` object.
-2. When `observability.otlp` is absent, the compiler MUST NOT inject OTLP endpoint variables or gateway OTLP configuration.
-3. The `observability.otlp` object MAY contain `endpoint`, `headers`, and `if-missing` fields.
+A conforming Level 3 implementation MUST support the following signal model:
 
-### 4.2 Endpoint Forms
+| Signal | Purpose |
+|---|---|
+| **Traces** | Explain the structure and latency of one workflow run. |
+| **Metrics** | Monitor aggregate behavior across runs. |
+| **Logs** | Preserve detailed diagnostics and audit-relevant events. |
+
+A metric MUST NOT be represented only as a fleet-summary span when the value is intended for aggregation across multiple runs.
+
+### 4.2 Component Model
+
+Collector mode is RECOMMENDED for production because it separates exporter credentials from agent execution and provides centralized batching, retry, filtering, and fan-out.
+
+Direct mode is part of the stable compatibility contract and MUST remain available for existing workflows.
+
+### 4.3 Trust Boundaries
+
+The compiler, telemetry helper, and Collector are trusted observability components.
+
+Agent commands, generated code, tool processes, checked-out repository content, and externally supplied issue or pull-request content MUST be treated as potentially untrusted.
+
+Exporter credentials MUST be made available only to trusted observability components. They MUST NOT be exposed to an untrusted agent process unless no supported isolation mechanism exists and the deployment explicitly accepts that risk.
+
+### 4.4 Time Model
+
+All timestamps MUST use Unix epoch nanoseconds in OTLP records.
+
+Custom duration metrics defined by this specification MUST use seconds (`s`).
+
+Clock comparisons across jobs SHOULD tolerate runner clock skew. Implementations SHOULD derive job duration from timestamps captured on the same runner whenever possible.
+
+---
+
+## 5. Configuration Model
+
+### 5.1 Frontmatter Declaration
+
+A workflow MAY declare an `observability.otlp` object.
+
+When `observability.otlp` is absent:
+
+- the compiler MUST NOT configure remote OTLP export;
+- the runtime MAY still produce local telemetry mirrors;
+- the runtime MAY still propagate trace context for local correlation.
+
+The stable object contains `endpoint`, `headers`, `if-missing`, `attributes`, `resource-attributes`, and `github-app`. Future fields such as `mode`, `signals`, or `capture-content` MAY be added only after they are implemented, documented, and accepted by the frontmatter schema. Until then, a strict schema MAY reject those future fields.
+
+### 5.2 Endpoint Forms
 
 The `endpoint` field MUST accept exactly these forms:
 
-1. **String form**: a single URL string.
-2. **Object form**: a single object with `url` and optional `headers`.
-3. **Array form**: an ordered array of objects, each with `url` and optional `headers`.
+1. a URL string;
+2. an object containing `url` and optional `headers`;
+3. an ordered array of objects containing `url` and optional `headers`.
 
-A conforming implementation MUST normalize all accepted endpoint forms into an ordered list of OTLP entries.
+The compiler MUST normalize accepted forms into an ordered list of OTLP entries.
 
-If the normalized list is empty, the implementation MUST behave as though OTLP export is disabled.
+An entry without a non-empty URL MUST be discarded with a diagnostic.
 
-### 4.3 Header Forms
+If no valid entry remains, remote export MUST be treated as disabled and `if-missing` behavior MUST apply.
 
-1. Top-level `observability.otlp.headers` MUST apply only to the string endpoint form.
-2. Object and array endpoint entries MUST carry their own headers via per-endpoint `headers` fields.
-3. Header declarations MUST accept either:
-   - a map of header name to string value; or
-   - a comma-separated raw `key=value` string.
-4. Map-form headers MUST be normalized into a deterministic comma-separated `key=value` string sorted by header name.
-5. Empty header maps or empty header strings MUST normalize to the empty string.
+### 5.3 Headers
 
-### 4.4 Endpoint-Specific Header Rewriting
+Header declarations MAY be a map from header name to string value or a comma-separated `key=value` string compatible with the selected exporter.
 
-When the resolved endpoint is a Sentry endpoint, a conforming implementation MUST rewrite the header name `Authorization` to `x-sentry-auth` during OTLP header normalization.
+Map-form headers MUST be serialized deterministically by ascending header name.
 
-This rewrite applies to both map-form and string-form header declarations.
+Top-level `headers` MUST apply only to the string endpoint form. Object and array forms MUST use per-entry headers.
 
-### 4.5 `if-missing`
+Headers MUST be classified as secrets unless explicitly documented otherwise.
 
-1. The `if-missing` field MAY be `error`, `warn`, or `ignore`.
-2. The default behavior when the field is absent or invalid MUST be `error`.
-3. Invalid `if-missing` values SHOULD be ignored with a debug or diagnostic log message.
-4. The `if-missing` mode governs runtime behavior for OTLP-dependent gateway setup and MUST NOT suppress normal workflow-level OTEL environment injection.
+Headers MUST NOT be included in generated gateway JSON, job summaries, logs, span attributes, metric attributes, or telemetry mirrors.
 
-### 4.6 Static Endpoint Allowlisting
+For compatibility with existing multi-endpoint fan-out, trusted exporter variables such as `OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ALL_HEADERS`, or `GH_AW_OTLP_ENDPOINTS` MAY carry endpoint-local header material. When they do, implementations MUST mask the values before diagnostics and MUST NOT pass them to untrusted agent commands, generated code, or backend tool processes unless explicitly documented by that runtime boundary.
 
-When an OTLP endpoint URL is statically resolvable at compile time, the compiler MUST extract its hostname and append that hostname to the workflow network allowlist.
+### 5.4 Sentry Compatibility
 
-GitHub Actions expressions such as `${{ secrets.OTLP_ENDPOINT }}` are not statically resolvable and MUST NOT produce compile-time allowlist entries.
+For a statically identifiable Sentry OTLP endpoint, the compiler MAY rewrite an `Authorization` header to `x-sentry-auth` when required by the supported Sentry ingestion contract.
+
+Such rewriting MUST be documented as vendor-specific compatibility behavior and MUST NOT change headers for non-Sentry endpoints.
+
+### 5.5 Missing-Value Policy
+
+`if-missing` MUST accept `error`, `warn`, and `ignore`. The default MUST be `error`.
+
+Invalid values MUST cause compile-time validation failure when statically known. If an invalid value can only be detected at runtime, it MUST be treated as `error` and a structured diagnostic MUST be emitted.
+
+The policy applies to required exporter setup values, not to ordinary telemetry delivery failure after valid setup.
+
+### 5.6 Reserved Extension Fields
+
+`mode`, `signals`, and `capture-content` are reserved extension fields. They are not part of the Level 1 or Level 2 compatibility contract in version 0.4.0.
+
+If an implementation adds `mode`, it SHOULD accept `collector`, `direct`, and `auto`, and direct export MUST remain available for existing workflows.
+
+If an implementation adds `signals`, it SHOULD allow a subset of `traces`, `metrics`, and `logs`, but traces MUST remain the default for compatibility with current workflows.
+
+If an implementation adds `capture-content`, its default MUST be `none`. `metadata` MAY record sizes, counts, MIME types, hashes, and classification labels, but MUST NOT record raw prompts, model responses, tool arguments, or tool results. `full` MUST require explicit opt-in and MUST be rejected unless the implementation has an active redaction policy and the workflow is authorized to export sensitive content.
+
+### 5.7 Static Endpoint Allowlisting
+
+When an endpoint URL is statically resolvable, the compiler MUST extract its hostname and add it to the network allowlist required by the workflow sandbox.
+
+Expressions such as `${{ secrets.OTLP_ENDPOINT }}` MUST NOT produce a compile-time hostname allowlist entry.
 
 ---
 
-## 5. Runtime Environment Contract
+## 6. Runtime Environment and Export
 
-When at least one OTLP entry exists after normalization, the workflow-level environment block MUST include the following runtime contract.
+### 6.1 Stable Runtime Variables
 
-### 5.1 Required Variables
+When observability is enabled, the compiler MUST make the following non-secret variables available to trusted runtime instrumentation:
 
-| Variable | Required behavior |
+| Variable | Requirement |
 |---|---|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | MUST be set to the primary OTLP endpoint URL. |
-| `OTEL_SERVICE_NAME` | MUST be `gh-aw.<sanitized-workflow-id-or-name>` when a sanitized identifier is available; otherwise `gh-aw`. |
-| `GH_AW_OTLP_ENDPOINTS` | MUST contain a compact JSON array of all normalized OTLP entries. |
-| `OTEL_EXPORTER_OTLP_HEADERS` | MUST be set to the primary OTLP entry headers when the primary entry has non-empty headers. |
-| `GH_AW_OTLP_ALL_HEADERS` | MUST contain the comma-joined headers for all configured endpoints when more than one endpoint exists and at least one endpoint has headers. |
-| `GH_AW_OTLP_IF_MISSING` | MUST be set only when `if-missing` is `warn` or `ignore`. |
+| `OTEL_SERVICE_NAME` | MUST be `gh-aw.<sanitized-workflow-id>` or `gh-aw` when no identifier is available. |
+| `OTEL_RESOURCE_ATTRIBUTES` | SHOULD contain stable gh-aw resource attributes when OTLP is configured. |
+| `GITHUB_AW_OTEL_TRACE_ID` | MUST contain the active gh-aw trace ID when a trace has been created. |
+| `GITHUB_AW_OTEL_PARENT_SPAN_ID` | MUST contain the active setup or parent span ID when available. |
+| `TRACEPARENT` | SHOULD be emitted or forwarded where child tools can consume W3C Trace Context. |
+| `GH_AW_OTLP_ENDPOINTS` | SHOULD contain a compact JSON array for multi-endpoint fan-out when more than one endpoint or endpoint-local header set is configured. |
+| `GH_AW_OTLP_IF_MISSING` | SHOULD contain the resolved policy when runtime setup needs it. |
 
-### 5.2 Service Name Contract
+Future variables such as `GH_AW_OTLP_MODE`, `GH_AW_OTEL_SIGNALS`, and `GH_AW_OTEL_CAPTURE_CONTENT` MAY be added only as additive extensions.
 
-1. The service name MUST use `WorkflowID` when available.
-2. If `WorkflowID` is absent, the implementation MUST fall back to the workflow display name.
-3. The service-name suffix MUST be sanitized into a backend-safe lowercase token.
-4. If no usable workflow identifier exists after sanitization, the service name MUST be `gh-aw`.
+### 6.2 OTLP Export Compatibility Variables
 
-### 5.3 Backward Compatibility
+The trusted exporter process MAY receive `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, and signal-specific OTLP endpoint or header variables.
 
-The primary endpoint variables `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` exist for backward compatibility and legacy consumers. A conforming implementation MUST preserve the first-entry semantics for those variables even when multiple endpoints are configured.
+The first normalized endpoint MUST remain the primary endpoint for compatibility variables.
 
----
+Compatibility variables containing credentials MUST NOT be injected into the environment of the agent command, arbitrary shell steps, generated code, or untrusted tool processes.
 
-## 6. Export and Gateway Integration
+### 6.3 Collector Mode (Optional)
 
-### 6.1 Multi-Endpoint Fan-Out
+Collector mode is RECOMMENDED for deployments that want centralized batching, retry, redaction, and credential isolation, but direct export is part of the stable compatibility contract. In Collector mode:
 
-1. A conforming implementation MUST preserve the declared endpoint order when normalizing array-form endpoint entries.
-2. The fan-out endpoint set encoded in `GH_AW_OTLP_ENDPOINTS` MUST include every valid normalized endpoint.
-3. Failure to export to one endpoint SHOULD NOT prevent attempts to export to remaining endpoints.
+1. Application instrumentation MUST export to the configured Collector endpoint.
+2. Vendor credentials SHOULD be held by the Collector rather than the workflow-wide environment.
+3. Multi-endpoint fan-out SHOULD be performed by Collector exporters.
+4. The Collector SHOULD enable batching and queued retry.
+5. The Collector SHOULD apply redaction and attribute filtering before external export.
 
-### 6.2 MCP Gateway OpenTelemetry Configuration
+### 6.4 Direct Mode
 
-When OTLP export is configured for the workflow, the MCP gateway runtime configuration MUST include an `opentelemetry` object with:
+In direct mode:
 
-- `endpoint` set from `${OTEL_EXPORTER_OTLP_ENDPOINT}`
-- `traceId` set from `${GITHUB_AW_OTEL_TRACE_ID}`
-- `spanId` set from `${GITHUB_AW_OTEL_PARENT_SPAN_ID}`
+1. Exporter headers MUST be scoped to the trusted exporter helper.
+2. Each configured endpoint MUST be attempted independently.
+3. A failure at one endpoint MUST NOT suppress an attempt to another endpoint.
+4. Export retry MUST be bounded by duration and attempt count.
+5. Export failure MUST be reported through a structured diagnostic and `gh_aw.otlp.export.failures` when metrics are enabled.
 
-The gateway JSON configuration MUST NOT embed OTLP authentication headers directly.
+### 6.5 Gateway Export
 
-### 6.3 Gateway Container Environment
+The MCP gateway SHOULD export to the local Collector rather than directly to an external vendor.
 
-When MCP gateway tracing is enabled, the gateway container invocation MUST receive:
+The gateway configuration MUST NOT embed exporter authentication headers.
 
-- `GITHUB_AW_OTEL_TRACE_ID`
-- `GITHUB_AW_OTEL_PARENT_SPAN_ID`
-- `OTEL_EXPORTER_OTLP_HEADERS`
+When direct gateway export is explicitly configured, credentials MUST be scoped to the gateway process and MUST NOT be inherited by backend tool processes.
 
-Passing `OTEL_EXPORTER_OTLP_HEADERS` through the environment is REQUIRED so credentials do not transit the stdin JSON configuration pipe.
+### 6.6 Flush and Shutdown
 
-### 6.4 Missing-Value Behavior
+At job completion, instrumentation MUST attempt to flush buffered telemetry within a bounded timeout.
 
-1. `if-missing: error` MUST treat unresolved runtime OTLP values as fatal for OTLP-dependent gateway setup.
-2. `if-missing: warn` MUST emit a warning and skip gateway OTLP configuration.
-3. `if-missing: ignore` MUST skip gateway OTLP configuration without warning.
-4. In all modes, normal workflow-level OTEL environment injection MAY still occur when values are declared.
-
-### 6.5 Trace Context Variables
-
-The runtime setup layer SHOULD provide valid `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` values to downstream helpers and gateway consumers when a valid trace and parent span exist for the job.
-
-### 6.6 Fan-Out Operations Flow and Partial Failure Handling
-
-For multi-endpoint OTLP export, a conforming implementation MUST execute this operations flow:
-
-1. Normalize configured endpoints into ordered OTLP entries (Section 4) and select index `0` as primary compatibility endpoint.
-2. Emit the local mirror event first (or in a non-blocking parallel path) so telemetry survives remote exporter failure.
-3. Attempt export to each endpoint in declared order, recording per-endpoint status (`success`, `transient_failure`, `permanent_failure`).
-4. On transient failure (`5xx`, timeout, transport reset, `429`), continue fan-out to remaining endpoints and schedule retry for failed endpoints only.
-5. On permanent failure (`4xx` non-rate-limit, invalid auth format), continue fan-out to remaining endpoints and record a non-retriable error.
-6. Complete the workflow step without making observability export globally fatal unless an explicit `if-missing: error` setup policy requires fail-fast behavior for missing mandatory configuration.
-
-Partial endpoint failure MUST NOT suppress successful exports to other endpoints, and MUST remain visible through local mirror artifacts and warning telemetry.
+Failure to flush MUST NOT replace the workflow's functional result. It MUST produce an exporter diagnostic and SHOULD increment the exporter-failure metric.
 
 ---
 
-## 7. Local Mirrors and Artifacts
+## 7. Context Propagation
 
-### 7.1 Local Telemetry Mirror
+### 7.1 Required Compatibility Context
 
-1. Helper-driven span emission MUST append a JSON line to `/tmp/gh-aw/otel.jsonl` even when no OTLP endpoint is configured.
-2. Helper-driven span emission MUST append a JSON line to `/tmp/gh-aw/otel.jsonl` even when OTLP export fails after retries.
-3. Local mirror writes MUST occur before or independently of remote exporter success so telemetry is recoverable under degraded backend conditions.
+A conforming Level 2 or Level 3 implementation MUST preserve the gh-aw compatibility context variables `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID`.
 
-### 7.2 Artifact Expectations
+It SHOULD also support W3C Trace Context by injecting or forwarding `traceparent` when present and valid. It MAY support `tracestate` and W3C Baggage through `baggage`.
 
-When workflow observability artifacts are collected, implementations SHOULD include local OTEL mirror files such as `otel.jsonl` and runtime-specific companion files such as `copilot-otel.jsonl` when present.
+### 7.2 Environment Carriers
 
-### 7.3 Non-Fatal Helper Behavior
+Across GitHub Actions steps and jobs, the stable gh-aw carriers are `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID`.
 
-The JavaScript OTLP helper layer SHOULD remain non-fatal:
+The implementation SHOULD emit `TRACEPARENT` where child tools can consume W3C Trace Context. It MAY also emit `TRACESTATE` when non-empty and `BAGGAGE` when non-empty.
 
-- export failures SHOULD surface as warnings rather than hard failures; and
-- missing or invalid runtime trace context SHOULD skip span emission rather than crash the workflow step.
+When both gh-aw carriers and W3C carriers are present, they MUST describe the same active trace context. New W3C carriers MUST NOT replace or suppress the gh-aw carriers in version 0.4.0.
+
+### 7.3 Workflow Root Context
+
+The workflow orchestration layer SHOULD create or resolve a valid root `SpanContext` before additive full-duration job spans are created.
+
+When a root context is created for an additive pipeline root span, it SHOULD contain a 16-byte trace ID, an 8-byte span ID for the pipeline root span, trace flags, and optional trace state.
+
+The corresponding pipeline root span MAY be exported as an additive Level 3 feature. A trace that uses the existing gh-aw setup/conclusion span model is still conforming at Level 1 or Level 2.
+
+### 7.4 Cross-Job Propagation
+
+Each job MUST receive enough context to correlate built-in spans for the workflow run.
+
+A full-duration job span MAY be created as a child of a pipeline root span as an additive Level 3 feature.
+
+The compiler SHOULD propagate `TRACEPARENT` when possible and MUST preserve the existing `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` propagation path.
+
+### 7.5 Intra-Job Propagation
+
+After an additive full-duration job span is started, downstream steps that create child operations SHOULD receive the current job span context.
+
+A setup child span MUST NOT be used as the parent of the entire job unless the setup child span actually remains open for the entire job duration.
+
+### 7.6 Child Workflows and Dispatch
+
+A dispatched or reusable child workflow SHOULD continue the trace when the parent invocation causally waits for or coordinates the child.
+
+The parent SHOULD pass `traceparent`, and MAY pass `tracestate` and `baggage`, through the supported workflow-call context.
+
+If the child is asynchronous and the parent operation does not remain active, the child workflow root SHOULD start a new trace with a span link to the parent context.
+
+### 7.7 HTTP, JSON-RPC, and MCP
+
+W3C Trace Context SHOULD be injected into HTTP requests when transport permits.
+
+MCP over Streamable HTTP SHOULD use the HTTP carrier.
+
+MCP over stdio or another non-HTTP transport SHOULD use a documented protocol carrier or process-level context handoff that preserves the complete span context.
+
+An MCP client span and MCP server span SHOULD have a valid parent-child or link relationship according to the active transport conventions.
+
+### 7.8 Invalid Context
+
+An invalid incoming `traceparent` MUST be ignored and MUST NOT be partially reused.
+
+The implementation SHOULD emit a structured warning without including the full invalid header value.
 
 ---
 
-## 8. Security and Privacy Requirements
+## 8. Resource and Instrumentation Identity
 
-1. OTLP authentication headers MUST be masked before they can appear in runner logs.
-2. OTLP authentication headers MUST NOT be embedded in generated gateway JSON configuration.
-3. Telemetry helper layers SHOULD redact or sanitize sensitive attribute values before writing local mirrors or sending OTLP payloads.
-4. Observability failures MUST be treated as degraded-mode conditions and SHOULD NOT become workflow-fatal unless the active `if-missing` policy explicitly requires failure for setup correctness.
-5. Implementations SHOULD avoid emitting raw prompt text, secrets, or credential material as span attributes.
+### 8.1 Required Resource Attributes
+
+Level 1 and Level 2 `gh-aw` telemetry MUST preserve the stable gh-aw resource attributes already emitted by the compiler and JavaScript helpers. Standard OpenTelemetry resource attributes MAY be added as aliases.
+
+Stable resource attributes include:
+
+| Attribute | Type | Requirement |
+|---|---|---|
+| `service.name` | string | REQUIRED. `gh-aw.<workflow-id>` or `gh-aw`. |
+| `service.version` | string | REQUIRED when the CLI version or commit is known. |
+| `gh-aw.workflow.name` | string | REQUIRED when the workflow name is known; otherwise SHOULD be `unknown`. |
+| `gh-aw.repository` | string | REQUIRED when repository identity is available. |
+| `gh-aw.run.id` | string | REQUIRED for traces and logs. MUST be opt-in for metrics. |
+| `github.run_id` | string | REQUIRED when GitHub run ID is available. |
+| `gh-aw.engine.id` | string | RECOMMENDED when an engine ID is known. |
+
+Additive standard aliases MAY include `cicd.pipeline.name`, `cicd.pipeline.run.id`, `cicd.pipeline.run.url.full`, `vcs.repository.url.full`, and `deployment.environment.name`.
+
+### 8.2 GitHub Compatibility Attributes
+
+Custom GitHub attributes MAY be emitted for compatibility, including repository, run ID, run attempt, run URL, event name, ref, SHA, workflow ref, actor ID, runner OS, runner architecture, runner name, and runner environment.
+
+Where a standard OpenTelemetry attribute exists, the standard attribute MAY be emitted as an alias. The existing `gh-aw.*` or `github.*` attribute MUST remain available during version 0.4.x.
+
+### 8.3 Metric Resource Cardinality
+
+A metric provider MUST NOT attach the per-run `cicd.pipeline.run` entity or equivalent unique run attributes by default.
+
+Workflow run IDs, job run IDs, trace IDs, span IDs, commit SHAs, pull-request or issue numbers, actor IDs, item URLs, and conversation IDs MUST NOT be metric resource attributes or metric dimensions by default.
+
+### 8.4 Instrumentation Scope
+
+Telemetry emitted by the core runtime MUST use instrumentation scope name `gh-aw` and scope version equal to the `gh-aw` version or commit identifier.
+
+Gateway telemetry SHOULD use a gateway-specific scope such as `gh-aw-mcpg`.
 
 ---
 
 ## 9. Trace Model
 
-### 9.1 Overview
+### 9.1 General Rule
 
-gh-aw emits OpenTelemetry trace spans directly to configured OTLP-compatible vendor endpoints. gh-aw does **not** require or run an OpenTelemetry Collector. All transformation, batching, retry, endpoint selection, and authentication happens in-process before sending to the vendor OTLP endpoint.
+One GitHub Actions workflow run SHOULD be represented as one trace when the run is synchronously coordinated as one execution.
 
-Tracing is best-effort. Export failures MUST NOT fail the workflow.
+The trace MAY contain a recorded pipeline root span as an additive Level 3 feature. It is conforming for Level 1 and Level 2 implementations to use the existing setup, conclusion, agent, and custom-span model without a separate recorded root span.
 
-### 9.2 Span Naming Convention
+### 9.2 Compatibility Hierarchy and Additive Root Model
 
-All gh-aw span names MUST follow the pattern: `gh-aw.<job-name>.<operation>`.
+The stable compatibility model includes built-in setup and conclusion spans for jobs, optional agent spans, MCP gateway spans when configured, and custom spans emitted through `otlp.cjs` or `send_otlp_span.cjs`.
 
-When no job name is available, the fallback `job` MUST be used, yielding names such as `gh-aw.job.setup`.
-
-### 9.3 Span Hierarchy
-
-A single trace ID is shared across all jobs in a workflow run. All setup spans share a global parent span ID so they render as siblings in OTLP backends.
+An implementation MAY add the following OpenTelemetry-native hierarchy as a Level 3 extension:
 
 ```text
-Single Trace: trace_id (32-char hex, shared across all jobs in a run)
-├── Root Setup Parent: parent_span_id (global, shared across all jobs)
-│
-├── Activation Job
-│   ├── gh-aw.activation.setup        (parent: root setup parent)
-│   └── gh-aw.activation.conclusion   (parent: activation setup span)
-│
-├── Agent Job
-│   ├── gh-aw.agent.setup             (parent: root setup parent)
-│   ├── gh-aw.agent.conclusion         (parent: agent setup span)
-│   │   └── gh-aw.agent.agent          (parent: agent conclusion span)
-│   │       [dedicated AI latency measurement]
-│   │
-│   └── MCP Gateway (service: mcp-gateway)
-│       ├── gateway.request            (parent: agent setup span)
-│       │   └── mcp.tool_call          (parent: gateway.request)
-│       │       └── gateway.backend.execute  (parent: mcp.tool_call)
-│       ├── gateway.request            (repeated per MCP request)
-│       │   └── ...
-│       └── API Proxy (when DIFC active)
-│           ├── proxy.difc_pipeline    (parent: gateway.request)
-│           │   └── proxy.backend.forward  (parent: proxy.difc_pipeline)
-│           └── ...
-│
-└── Other Jobs
-    ├── gh-aw.<job-name>.setup         (parent: root setup parent)
-    └── gh-aw.<job-name>.conclusion    (parent: job setup span)
+RUN <workflow>                                  SERVER
+├── <job: activation>                          INTERNAL
+│   ├── gh-aw.job.setup                        INTERNAL
+│   ├── activation work                        INTERNAL
+│   └── gh-aw.job.finalize                     INTERNAL
+├── <job: agent>                               INTERNAL
+│   ├── gh-aw.job.setup                        INTERNAL
+│   ├── invoke_agent <agent>                   INTERNAL
+│   │   ├── chat <model>                       CLIENT
+│   │   └── execute_tool <tool>                INTERNAL or CLIENT
+│   └── gh-aw.job.finalize                     INTERNAL
+└── <job: outcome-collector>                   INTERNAL
+    ├── evaluate outcome                       INTERNAL
+    └── gh-aw.job.finalize                     INTERNAL
 ```
 
-### 9.4 Span Kinds
+Setup and finalization MAY remain represented by the existing setup and conclusion spans. They MAY be represented as span events on future job spans when their duration is negligible or not independently useful.
 
-Span kind assignments MUST follow these rules:
+A finalization span or event SHOULD occur after the operations it summarizes. New finalization spans or events MUST NOT be the parent of an earlier agent or model operation.
 
-| Span | OTLP `kind` | Rationale |
-|---|---|---|
-| `gh-aw.*.setup` | `SPAN_KIND_INTERNAL` (1) | Internal job lifecycle |
-| `gh-aw.*.conclusion` | `SPAN_KIND_INTERNAL` (1) | Internal job lifecycle |
-| `gh-aw.*.agent` | `SPAN_KIND_CLIENT` (3) | Outbound AI model request |
-| `gateway.request` | `SPAN_KIND_SERVER` (2) | MCP gateway HTTP handler |
-| `mcp.tool_call` | `SPAN_KIND_INTERNAL` (1) | MCP tool call lifecycle |
-| `gateway.backend.execute` | `SPAN_KIND_CLIENT` (3) | Backend MCP server invocation |
-| `proxy.difc_pipeline` | `SPAN_KIND_INTERNAL` (1) | API proxy DIFC evaluation |
-| `proxy.backend.forward` | `SPAN_KIND_CLIENT` (3) | API proxy upstream request |
+### 9.3 Pipeline Root Span
 
-### 9.5 Span Status
+A pipeline root span, when emitted, SHOULD cover the workflow-run interval known to the implementation, SHOULD use span kind `SERVER`, SHOULD be named `RUN <pipeline-name>` when the name is low cardinality, and SHOULD set `cicd.pipeline.result` when the result is known.
 
-Conclusion spans MUST set `status.code` based on the job outcome:
+An additive pipeline root span SHOULD set `ERROR` status and `error.type` when the pipeline fails due to an error. It SHOULD leave status `UNSET` on success rather than setting `OK` solely to restate success.
 
-| Outcome | `status.code` |
-|---|---|
-| `success` | `OK` (1) |
-| `failure`, `timeout`, `cancelled` | `ERROR` (2) |
+### 9.4 Job Spans
 
-### 9.6 Exception Events
+Each additive GitHub Actions job span SHOULD cover the measured job lifetime, SHOULD use span kind `INTERNAL`, and SHOULD be a child of the pipeline root span or an explicitly documented orchestration span.
 
-When errors are present in `agent_output.json`, the conclusion span MUST emit OTel exception events:
+Each additive job span SHOULD include `cicd.pipeline.task.name`, `cicd.pipeline.task.run.id`, `cicd.pipeline.task.run.result` when known, and `cicd.pipeline.task.run.url.full` when available.
 
-```json
-{
-  "timeUnixNano": "...",
-  "name": "exception",
-  "attributes": [
-    {"key": "exception.type", "value": {"stringValue": "gh-aw.<ErrorType>"}},
-    {"key": "exception.message", "value": {"stringValue": "Error description"}}
-  ]
-}
-```
+Each additive job span SHOULD set `ERROR` status and `error.type` when the task fails due to an error.
 
-Exception type resolution:
+### 9.5 Agent Invocation Spans
 
-1. If the error message matches the format `type:message`, use `gh-aw.<type>` as the exception type.
-2. Otherwise, derive the type from the run status: `gh-aw.AgentError`, `gh-aw.AgentFailed`, `gh-aw.AgentTimedOut`, or `gh-aw.AgentCancelled`.
+An in-process agent invocation, when emitted as a new dedicated span:
+
+- SHOULD use `gen_ai.operation.name = "invoke_agent"`;
+- SHOULD use span kind `INTERNAL`;
+- SHOULD be named `invoke_agent <agent-name>` when a low-cardinality name is available;
+- SHOULD include `gen_ai.agent.name` and `gen_ai.agent.version` when available;
+- SHOULD contain child spans for model, retrieval, planning, memory, and tool operations.
+
+A remote hosted-agent invocation SHOULD use span kind `CLIENT` according to the applicable GenAI agent semantic convention.
+
+Existing gh-aw built-in agent spans MAY continue to use `gen_ai.operation.name = "chat"` for compatibility with deployed dashboards. A future dedicated `invoke_agent` span MUST be additive and MUST NOT remove the existing documented attributes without a migration plan.
+
+### 9.6 Model Operation Spans
+
+Each additive logical model operation span SHOULD be a separate child span of the agent or workflow operation, SHOULD use span kind `CLIENT`, and SHOULD set the applicable `gen_ai.operation.name`, such as `chat`, `generate_content`, `embeddings`, or `text_completion`.
+
+Each model operation span SHOULD set `gen_ai.provider.name` when the operation calls a GenAI provider, SHOULD include `gen_ai.request.model` when known, SHOULD include `gen_ai.response.model` when returned, and SHOULD include input and output token attributes when provided by the provider.
+
+For compatibility, built-in gh-aw spans MAY continue to emit `gen_ai.system` and `gen_ai.usage.total_tokens`. New standard aliases such as `gen_ai.provider.name` MAY be emitted in addition to, not instead of, the compatibility attributes.
+
+### 9.7 Tool and MCP Spans
+
+A tool executed directly in the agent process SHOULD use span name `execute_tool <tool-name>`, `gen_ai.operation.name = "execute_tool"`, `gen_ai.tool.name`, and span kind `INTERNAL`.
+
+An MCP client tool call SHOULD use `mcp.method.name`, `gen_ai.operation.name = "execute_tool"`, `gen_ai.tool.name` when known, and span kind `CLIENT`.
+
+The corresponding MCP server span SHOULD use span kind `SERVER`.
+
+When an existing GenAI tool span can be reliably enriched with MCP attributes, instrumentation SHOULD avoid creating a duplicate logical tool span.
+
+### 9.8 HTTP and Backend Spans
+
+HTTP client and server operations SHOULD follow applicable OpenTelemetry HTTP semantic conventions.
+
+A gateway backend invocation SHOULD use `CLIENT` span kind when it represents an outbound request.
+
+Internal policy evaluation, routing, filtering, and DIFC processing SHOULD use `INTERNAL` spans or events.
+
+### 9.9 Span Names and Links
+
+Span names MUST be low cardinality and MUST NOT contain run IDs, commit SHAs, issue or pull-request numbers, user input, prompt text, URLs with unbounded paths or query strings, or error messages.
+
+Span links SHOULD be used instead of parent-child relationships when outcome evaluation occurs substantially after the originating run, an asynchronous child workflow starts after the parent span has ended, one operation is causally related to several originating operations, or preserving the original parent would create false temporal containment.
 
 ---
 
-## 10. Span Attribute Contract
+## 10. Span and Event Contracts
 
-This section defines the attributes each span type MUST or MAY carry.
+### 10.1 Pipeline Root Attributes
 
-### 10.1 Setup Span Attributes
-
-**Required attributes** (MUST be present on every setup span):
-
-| Attribute | Type | Description |
+| Attribute | Type | Requirement |
 |---|---|---|
-| `gh-aw.job.name` | string | Job name from action input |
-| `gh-aw.workflow.name` | string | Workflow name or ID |
-| `gh-aw.run.id` | string | GitHub Actions run ID |
-| `gh-aw.run.attempt` | string | Run attempt number |
-| `gh-aw.run.actor` | string | User or bot initiating the run |
-| `gh-aw.repository` | string | `owner/repo` |
-| `gh-aw.staged` | boolean | Whether this is a staging deployment |
+| `cicd.pipeline.result` | string | RECOMMENDED when known for additive pipeline root spans. |
+| `cicd.pipeline.action.name` | string | RECOMMENDED; use `RUN`. |
+| `gh-aw.run.attempt` | int | RECOMMENDED. |
+| `gh-aw.run.actor` | string | OPTIONAL; MUST NOT be a metric dimension. |
+| `gh-aw.event_name` | string | RECOMMENDED when known. |
+| `gh-aw.staged` | boolean | RECOMMENDED when applicable. |
 
-**Conditional attributes** (MUST be present when the value is available):
+### 10.2 Job Attributes
 
-| Attribute | Type | Description |
+| Attribute | Type | Requirement |
 |---|---|---|
-| `gen_ai.system` | string | Mapped AI system name (e.g., `github_models`, `anthropic`, `openai`) |
-| `gh-aw.engine.id` | string | Raw engine identifier (`copilot`, `claude`, `codex`, `gemini`, custom) |
-| `gh-aw.event_name` | string | GitHub event type |
-| `gh-aw.trigger.item_type` | string | Triggering item (`issue`, `pull_request`, `discussion`, etc.) |
-| `gh-aw.trigger.item_number` | string | Triggering item ID/number |
-| `gh-aw.trigger.label` | string | Label on triggering item |
-| `gh-aw.trigger.comment_id` | string | Comment ID on triggering item |
-| `gh-aw.episode.id` | string | Episode/session ID for cross-run correlation |
-| `gh-aw.episode.kind` | string | `run` or `workflow_call` |
-| `gh-aw.hop.id` | string | Current workflow invocation ID |
-| `gh-aw.hop.parent_id` | string | Parent workflow invocation ID |
-| `gh-aw.origin.event` | string | Origin event type |
-| `gh-aw.root.repo` | string | Root repository (for dispatched workflows) |
-| `gh-aw.root.workflow_id` | string | Root workflow ID |
-| `gh-aw.frontmatter.source` | string | Frontmatter source type |
-| `gh-aw.frontmatter.emoji` | string | Frontmatter emoji |
-| `gh-aw.frontmatter.body_modified` | boolean | Whether body was edited |
-| `gh-aw.experiment.<name>` | string | Per-experiment variant assignment |
-| `gh-aw.experiments` | string | Compact JSON of all experiment assignments |
-| `gh-aw.deployment.state` | string | Deployment status |
-| `gh-aw.workflow_run.conclusion` | string | Workflow-level outcome |
+| `cicd.pipeline.task.name` | string | RECOMMENDED for additive full-duration job spans. |
+| `cicd.pipeline.task.run.id` | string | RECOMMENDED for additive full-duration job spans. |
+| `cicd.pipeline.task.run.result` | string | RECOMMENDED when known. |
+| `cicd.pipeline.task.run.url.full` | string | RECOMMENDED when available. |
+| `gh-aw.job.name` | string | REQUIRED when a built-in gh-aw job span knows the job name. |
+| `gh-aw.error.count` | int | RECOMMENDED at job completion. |
+| `gh-aw.warning.count` | int | RECOMMENDED at job completion. |
+| `gh-aw.output.item_count` | int | RECOMMENDED at job completion. |
+| `gh-aw.engine.id` | string | RECOMMENDED for agent jobs. |
 
-### 10.2 Conclusion Span Attributes
+### 10.3 Model Attributes
 
-**Required attributes** (MUST be present on every conclusion span):
-
-| Attribute | Type | Description |
+| Attribute | Type | Requirement |
 |---|---|---|
-| `gh-aw.workflow.name` | string | Workflow name |
-| `gh-aw.run.id` | string | Run ID |
-| `gh-aw.run.attempt` | string | Attempt number |
-| `gh-aw.run.actor` | string | Actor |
-| `gh-aw.repository` | string | Repository |
-| `gh-aw.run.status` | string | Run outcome (`success`, `failure`, `timeout`, `cancelled`) |
-| `gh-aw.error_count` | int | Number of errors |
-| `gh-aw.warning_count` | int | Number of warnings |
-| `gh-aw.action_minutes` | double | Duration in minutes |
-| `gh-aw.output.item_count` | int | Safe output items produced |
-| `gh-aw.otlp.export_errors` | int | Count of OTLP export failures during this run |
+| `gen_ai.operation.name` | string | REQUIRED. |
+| `gen_ai.system` | string | REQUIRED on built-in gh-aw agent spans when the engine/provider mapping is known. |
+| `gen_ai.provider.name` | string | RECOMMENDED additive alias when a provider is known. |
+| `gen_ai.request.model` | string | CONDITIONALLY REQUIRED when available. |
+| `gen_ai.response.model` | string | RECOMMENDED when returned. |
+| `gen_ai.response.finish_reasons` | string[] | RECOMMENDED when returned. |
+| `gen_ai.usage.input_tokens` | int | RECOMMENDED when returned. |
+| `gen_ai.usage.output_tokens` | int | RECOMMENDED when returned. |
+| `gen_ai.usage.cache_read.input_tokens` | int | RECOMMENDED when applicable. |
+| `gen_ai.usage.cache_creation.input_tokens` | int | RECOMMENDED when applicable. |
+| `gen_ai.usage.total_tokens` | int | RECOMMENDED compatibility attribute for built-in gh-aw spans when input or output token counts are available. |
+| `gen_ai.usage.reasoning.output_tokens` | int | RECOMMENDED when applicable. |
 
-**Conditional attributes** (MUST be present when the value is available):
+### 10.4 Tool and MCP Attributes
 
-| Attribute | Type | Description |
+| Attribute | Type | Requirement |
 |---|---|---|
-| `gh-aw.job.name` | string | Job name |
-| `gen_ai.system` | string | AI system |
-| `gh-aw.engine.id` | string | Engine ID |
-| `gen_ai.request.model` | string | Requested model name |
-| `gh-aw.tracker.id` | string | Tracker identifier |
-| `gh-aw.event_name` | string | Event type |
-| `gh-aw.staged` | boolean | Staging flag |
-| `gh-aw.trigger.*` | string | Trigger context (same fields as setup span) |
-| `gh-aw.frontmatter.*` | string | Frontmatter metadata (same fields as setup span) |
-| `gh-aw.aic` | double | AI credits consumed (AIC); always emitted as a numeric attribute on agent and detection conclusion spans (0 when no usage data is available, so Sentry EAP and Tempo index the field as numeric from first emission). |
-| `gh-aw.max_ai_credits` | double | Configured max AI credits budget for the run when a valid numeric value is available. |
-| `gh-aw.max_ai_credits_exceeded` | boolean | True when a max-AI-credits hard-limit exceedance signal is detected for the run. |
-| `gh-aw.ai_credits_rate_limit_error` | boolean | True when an AI-credits-related rate-limit or budget-exhaustion signal is detected. |
-| `gh-aw.turns` | int | Number of agent turns |
-| `gh-aw.agent.conclusion` | string | Agent job outcome |
-| `gh-aw.detection.conclusion` | string | Threat detection outcome |
-| `gh-aw.detection.reason` | string | Detection reasoning |
-| `gh-aw.otlp.export_error_details` | string | Export failure details |
-| `gh-aw.error.count` | int | Output error count |
-| `gh-aw.error.messages` | string | Error messages joined by ` \| ` |
-| `gh-aw.output.item_types` | string | Comma-separated types of safe output items |
-| `gh-aw.github.rate_limit.remaining` | int | API rate limit remaining |
-| `gh-aw.github.rate_limit.limit` | int | API rate limit total |
-| `gh-aw.github.rate_limit.used` | int | API rate limit used |
-| `gh-aw.github.rate_limit.resource` | string | Rate limit resource category |
-| `gh-aw.github.rate_limit.reset` | string | ISO 8601 rate limit reset time |
-| `gh-aw.outcome.total` | int | Total outcomes |
-| `gh-aw.outcome.accepted` | int | Accepted outcomes |
-| `gh-aw.outcome.rejected` | int | Rejected outcomes |
-| `gh-aw.outcome.pending` | int | Pending outcomes |
-| `gh-aw.outcome.ignored` | int | Ignored outcomes |
-| `gh-aw.outcome.acceptance_rate` | double | Acceptance rate |
-| `gh-aw.outcome.waste_rate` | double | Waste rate |
+| `gen_ai.operation.name` | string | REQUIRED for tool spans; use `execute_tool`. |
+| `gen_ai.tool.name` | string | REQUIRED when known. |
+| `mcp.method.name` | string | REQUIRED on MCP spans. |
+| `mcp.session.id` | string | RECOMMENDED when present; MUST NOT be a metric dimension. |
+| `mcp.protocol.version` | string | RECOMMENDED when known. |
+| `jsonrpc.request.id` | string | OPTIONAL; MUST NOT be captured when omitted or null. |
+| `rpc.response.status_code` | int | RECOMMENDED when present. |
+| `http.request.method` | string | REQUIRED on HTTP spans when applicable. |
+| `http.response.status_code` | int | CONDITIONALLY REQUIRED when a response is received. |
 
-### 10.3 Agent Span Attributes
+Tool arguments and results are opt-in sensitive content and MUST follow Section 15.
 
-The dedicated agent span (`gh-aw.*.agent`) follows OpenTelemetry [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).
+### 10.5 Error Recording
 
-**Required attributes** (MUST be present when available from the AI engine):
+When an operation ends in error, the span MUST set status `ERROR`, `error.type` MUST contain a predictable low-cardinality type, and an exception event SHOULD be recorded when an exception object is available.
 
-| Attribute | Type | Description |
-|---|---|---|
-| `gen_ai.system` | string | Mapped AI system name |
-| `gen_ai.request.model` | string | Requested model |
-| `gen_ai.response.model` | string | Resolved runtime model |
-| `gen_ai.operation.name` | string | Always `"chat"` |
-| `gen_ai.workflow.name` | string | Workflow name |
-| `gen_ai.usage.input_tokens` | int | Input tokens consumed |
-| `gen_ai.usage.output_tokens` | int | Output tokens generated |
-| `gen_ai.usage.total_tokens` | int | Total tokens (input + output, excluding cache) |
-| `gen_ai.response.finish_reasons` | string[] | Stop reasons (e.g., `["stop"]`, `["length"]`, `["timeout"]`) |
+Exception messages MUST be redacted before export. Stack traces MAY be recorded in logs or exception events when authorized.
 
-**Optional attributes** (MAY be present):
+Successful operations SHOULD leave span status `UNSET` unless an applicable semantic convention requires otherwise.
 
-| Attribute | Type | Description |
-|---|---|---|
-| `gen_ai.usage.cache_read.input_tokens` | int | Cache read tokens |
-| `gen_ai.usage.cache_creation.input_tokens` | int | Cache write tokens |
+### 10.6 Lifecycle Events
 
-### 10.4 Outcome Evaluation Span Attributes
+The following span events MAY be used on job or agent spans: `gh_aw.job.setup.completed`, `gh_aw.job.finalization.started`, `gh_aw.agent.retry`, `gh_aw.model.retry`, `gh_aw.policy.decision`, and `gh_aw.export.failure`.
 
-Per-item outcome evaluation spans (`gh-aw.outcome.evaluation`) are emitted by the outcome-collector workflow. Each span represents one safe output item evaluated against the GitHub API.
+Event attributes MUST comply with the same privacy and cardinality rules as span attributes.
 
-| Attribute | Type | Condition | Description |
+### 10.7 Content Attributes
+
+`gen_ai.input.messages`, `gen_ai.output.messages`, `gen_ai.system_instructions`, `gen_ai.tool.call.arguments`, and `gen_ai.tool.call.result` MUST NOT be emitted by default.
+
+When full content capture is enabled, content attributes MUST use the schemas required by the applicable GenAI convention, MUST be redacted before export, SHOULD be truncated according to a documented limit, MUST NOT contain credentials, and MUST NOT be copied into metric attributes.
+
+---
+
+## 11. Metrics Contract
+
+### 11.1 General Requirements
+
+Metrics SHOULD be used for aggregate monitoring across runs when a Level 3 implementation adds metrics.
+
+Metric dimensions MUST be bounded and operationally useful.
+
+An implementation MUST NOT use trace IDs, span IDs, run IDs, job IDs, commit SHAs, actor IDs, issue numbers, pull-request numbers, conversation IDs, raw model responses, error messages, or URLs as metric dimensions by default.
+
+Derived rates such as acceptance rate, waste rate, failure rate, and zero-touch rate SHOULD be computed by the backend from counters rather than emitted as per-run span attributes or gauges.
+
+### 11.2 Standard Metrics
+
+A Level 3 implementation SHOULD emit applicable standard CI/CD metrics, including `cicd.pipeline.run.duration`, `cicd.pipeline.run.active`, `cicd.pipeline.run.errors`, and `cicd.worker.count` when worker inventory is observable.
+
+A Level 3 implementation SHOULD emit `gen_ai.client.operation.duration` for instrumented model-client operations.
+
+A Level 3 implementation SHOULD emit `gen_ai.client.token.usage` when input or output token counts are available. `gen_ai.client.token.usage` MUST distinguish input and output tokens with `gen_ai.token.type`.
+
+### 11.3 gh-aw Metrics
+
+A Level 3 implementation SHOULD emit the following custom metrics:
+
+| Metric | Instrument | Unit | Description |
 |---|---|---|---|
-| `gh-aw.outcome.type` | string | Required | Safe output type (e.g., `create_pull_request`, `create_issue`) |
-| `gh-aw.outcome.result` | string | Required | `accepted`, `rejected`, `pending`, `ignored`, `noop` |
-| `gh-aw.outcome.workflow` | string | Required | Source workflow name |
-| `gh-aw.outcome.run_id` | int | Required | Source run ID |
-| `gh-aw.outcome.repo` | string | Required | Repository |
-| `gh-aw.outcome.url` | string | When available | URL to the created object |
-| `gh-aw.outcome.detail` | string | When available | Result detail (e.g., `merged`, `closed`, `open`) |
-| `gh-aw.outcome.created_at` | string | When available | Item creation timestamp |
-| `gh-aw.outcome.event` | string | When available | Triggering event type |
-| `gh-aw.outcome.resolution_sec` | int | When resolved | Seconds from creation to resolution |
-| `gh-aw.outcome.pending_age_sec` | int | When pending | Seconds since creation |
-| `gh-aw.outcome.review_comments` | int | PRs only | Number of review comments |
-| `gh-aw.outcome.comments` | int | When available | Number of issue-level comments |
-| `gh-aw.outcome.changed_files` | int | PRs only | Files changed |
-| `gh-aw.outcome.additions` | int | PRs only | Lines added |
-| `gh-aw.outcome.deletions` | int | PRs only | Lines deleted |
-| `gh-aw.outcome.reactions_total` | int | When available | Total reaction count |
-| `gh-aw.outcome.reactions_positive` | int | When available | Positive reactions (+1, heart, hooray, rocket) |
-| `gh-aw.outcome.reactions_negative` | int | When available | Negative reactions (-1, confused) |
-| `gh-aw.outcome.zero_touch` | boolean | When true | Accepted with no human review comments or issue comments |
+| `gh_aw.agent.turns` | Histogram | `{turn}` | Agent turns per completed agent invocation. |
+| `gh_aw.workflow.output.items` | Counter | `{item}` | Safe output items produced. |
+| `gh_aw.outcome.evaluations` | Counter | `{evaluation}` | Outcome evaluations grouped by bounded result and item type. |
+| `gh_aw.outcome.resolution.duration` | Histogram | `s` | Time from item creation to terminal resolution. |
+| `gh_aw.outcome.zero_touch` | Counter | `{item}` | Accepted items requiring no recorded human interaction. |
+| `gh_aw.otlp.export.failures` | Counter | `{failure}` | Failed export attempts grouped by endpoint class and failure class. |
+| `gh_aw.ai.credits.usage` | Counter | `{credit}` | AI credits consumed when a stable credit definition exists. |
 
-### 10.5 Outcome Summary Span Attributes
+### 11.4 Metric Dimensions and Exemplars
 
-The fleet summary span (`gh-aw.outcome.summary`) aggregates all evaluated outcomes into a single span with economics metrics.
+Custom metric dimensions MAY include workflow name, job category, engine ID, GenAI provider, requested model, operation name, pipeline result, outcome result, safe-output type, deployment environment, error type, and endpoint class.
 
-| Attribute | Type | Description |
-|---|---|---|
-| `gh-aw.outcome.runs_checked` | int | Number of runs evaluated |
-| `gh-aw.outcome.total` | int | Total actionable outcomes |
-| `gh-aw.outcome.accepted` | int | Accepted outcomes |
-| `gh-aw.outcome.rejected` | int | Rejected outcomes |
-| `gh-aw.outcome.ignored` | int | Ignored outcomes |
-| `gh-aw.outcome.pending` | int | Pending outcomes |
-| `gh-aw.outcome.noop` | int | Noop outcomes |
-| `gh-aw.outcome.acceptance_rate` | double | Accepted / (accepted + rejected) |
-| `gh-aw.outcome.waste_rate` | double | Rejected / total |
-| `gh-aw.outcome.noop_rate` | double | Noop / (total + noop) |
-| `gh-aw.outcome.zero_touch_count` | int | Count of zero-touch accepted outcomes |
-| `gh-aw.outcome.zero_touch_rate` | double | Zero-touch / accepted |
-| `gh-aw.outcome.median_resolution_sec` | int | Median seconds from creation to resolution |
-| `gh-aw.outcome.item_count` | int | Number of per-item spans emitted |
-| `gh-aw.outcome.date` | string | Evaluation date (YYYY-MM-DD) |
-| `gh-aw.outcome.events` | string | Comma-separated distinct trigger events |
-| `gh-aw.outcome.workflows` | string | Comma-separated distinct workflow names |
-| `gh-aw.outcome.types` | string | Comma-separated distinct outcome types |
+Values MUST be normalized and bounded.
 
-### 10.6 MCP Gateway Span Attribute Contract
-
-This section defines the attributes emitted by the MCP gateway (`gh-aw-mcpg`). These spans are emitted under the `mcp-gateway` service but share the workflow's trace ID (linked via `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` passed to the gateway container per §6.3).
-
-The canonical reference for gateway span attributes is [`gh-aw-mcpg/docs/otel-sentry.md`](https://github.com/github/gh-aw-mcpg/blob/main/docs/otel-sentry.md). This section summarizes the contract for cross-referencing with workflow-level spans.
-
-#### 10.6.1 `gateway.request` Span
-
-Emitted once per MCP JSON-RPC request received by the gateway.
-
-| Attribute | Type | Description |
-|---|---|---|
-| `http.request.method` | string | HTTP method (always `POST`) |
-| `http.response.status_code` | int | Response status code |
-| `url.path` | string | Request path (e.g., `/mcp`) |
-| `gen_ai.conversation.id` | string | Truncated session ID for correlation |
-| `gateway.tag` | string | Handler log tag (e.g., `unified`, `routed:<backendID>`) |
-
-#### 10.6.2 `mcp.tool_call` Span
-
-Emitted once per tool call lifecycle. This is the key span for per-tool-call granularity.
-
-| Attribute | Type | Description |
-|---|---|---|
-| `gen_ai.tool.name` | string | Tool name (e.g., `search_code`, `get_file_contents`, `create_issue`) |
-| `gen_ai.agent.id` | string | Backend MCP server ID (e.g., `github`, `slack`, `playwright`) |
-| `mcp.method` | string | JSON-RPC method (always `tools/call`) |
-| `http.response.status_code` | int | Response status code (success or error) |
-
-This span covers phases 0–6 of the tool call pipeline: parse, guard, route, execute, filter, respond.
-
-#### 10.6.3 `gateway.backend.execute` Span
-
-Emitted for each backend MCP server invocation.
-
-| Attribute | Type | Description |
-|---|---|---|
-| `gen_ai.tool.name` | string | Tool name being executed |
-| `gen_ai.agent.id` | string | Backend MCP server ID |
-| `rate_limit.hit` | boolean | Whether a rate limit was triggered during execution |
-
-Transport errors are recorded via `span.RecordError()` with a generic message (`"tool execution failed"`) to avoid leaking internal details.
-
-#### 10.6.4 `proxy.difc_pipeline` Span
-
-Emitted when the API proxy (DIFC enforcement) evaluates an outbound request.
-
-| Attribute | Type | Description |
-|---|---|---|
-| `gen_ai.tool.name` | string | Tool name associated with the proxied request |
-| `url.path` | string | Upstream API path |
-
-#### 10.6.5 `proxy.backend.forward` Span
-
-Emitted for each upstream GitHub API request forwarded through the proxy.
-
-| Attribute | Type | Description |
-|---|---|---|
-| `gen_ai.tool.name` | string | Tool name associated with the forwarded request |
-| `url.path` | string | Upstream API endpoint path |
+Metric implementations SHOULD attach exemplars containing trace and span context when supported by the SDK and backend.
 
 ---
 
-## 11. Resource Attributes
+## 12. Logs Contract
 
-Resource attributes are applied to all OTLP spans and describe the service and execution environment.
+### 12.1 Structured Logs
 
-### 11.1 Required Resource Attributes
+Exported logs, when added as a Level 3 feature, SHOULD be structured OpenTelemetry log records or records that can be losslessly transformed into them.
 
-A conforming implementation MUST include these resource attributes on every exported span:
+Each log SHOULD include timestamp, observed timestamp when applicable, severity, event name or stable body template, resource attributes, instrumentation scope, trace ID and span ID when a current span exists, and bounded structured attributes.
 
-| Attribute | Type | Description | Example |
-|---|---|---|---|
-| `service.name` | string | `gh-aw.<workflow-id>` or `gh-aw` | `gh-aw.daily-report` |
-| `service.version` | string | gh-aw CLI version or commit SHA | `v0.23.4` |
-| `github.repository` | string | `owner/repo` | `github/gh-aw` |
-| `github.run_id` | string | GitHub Actions run ID | `12345678` |
-| `github.run_attempt` | string | Run attempt number | `1` |
-| `github.actions.run_url` | string | URL to the run | `https://github.com/owner/repo/actions/runs/123` |
+### 12.2 Required Log Categories
 
-### 11.2 Conditional Resource Attributes
+A Level 3 implementation SHOULD produce structured logs for exporter failures and retries, invalid or missing trace context, model-client errors, malformed model or tool output, policy and guardrail decisions, MCP protocol errors, artifact and mirror write failures, and outcome-evaluation diagnostics.
 
-These resource attributes MUST be included when the corresponding value is available:
+Recommended event names include `gh_aw.export.failure`, `gh_aw.export.retry`, `gh_aw.context.invalid`, `gh_aw.agent.error`, `gh_aw.model.error`, `gh_aw.tool.error`, `gh_aw.policy.decision`, `gh_aw.outcome.evaluation`, and `gh_aw.mirror.write_failure`.
 
-| Attribute | Type | Description |
-|---|---|---|
-| `github.event_name` | string | Event type (e.g., `push`, `pull_request`) |
-| `github.ref` | string | Git ref (branch/tag) |
-| `github.ref_name` | string | Ref name |
-| `github.head_ref` | string | Head ref (for PRs) |
-| `github.sha` | string | Commit SHA |
-| `github.job` | string | Job name |
-| `github.workflow_ref` | string | Workflow ref |
-| `github.actor_id` | string | Actor ID |
-| `runner.os` | string | Runner OS (`Linux`, `Windows`, `macOS`) |
-| `runner.arch` | string | Runner architecture (`X64`, `ARM64`) |
-| `runner.name` | string | Runner name/label |
-| `runner.environment` | string | Runner environment |
-| `gh-aw.awf.version` | string | Agentic Workflows Framework version |
-| `gh-aw.awmg.version` | string | Agentic Workflows Manager version |
-| `deployment.environment` | string | `staging` or `production` |
+### 12.3 Correlation
 
-### 11.3 Instrumentation Scope
+A log emitted during a traced operation SHOULD include the active trace ID and span ID when the logging API supports correlation.
 
-All gh-aw spans MUST be emitted under an instrumentation scope with:
+A standalone log related to a previous workflow run SHOULD include the source run ID as a log attribute and MAY include a span link representation supported by the backend. It MUST NOT fabricate an active parent-child relationship.
 
-| Field | Value |
+### 12.4 Sensitive Logs
+
+Log bodies and attributes MUST NOT contain OTLP headers, tokens, credentials, complete prompts or responses without explicit authorization, complete tool arguments or results without explicit authorization, unredacted private source code, or unbounded stack traces or payloads.
+
+Log messages SHOULD use stable templates, with variable data placed in structured attributes after redaction.
+
+---
+
+## 13. Outcome Evaluation
+
+### 13.1 Separate Evaluation Execution
+
+An outcome collector that evaluates pull requests, issues, discussions, or other durable outputs after the source workflow has completed SHOULD create its own trace when it emits OpenTelemetry records.
+
+It MUST NOT extend the original workflow trace across hours or days when doing so would create false temporal containment.
+
+### 13.2 Source Correlation
+
+Each outcome-evaluation span SHOULD contain a span link to the originating workflow root context when that context was persisted.
+
+When a full span context is unavailable, the evaluation span SHOULD include `gh-aw.outcome.source_run_id`, `gh-aw.outcome.source_workflow`, and `gh-aw.outcome.repository`.
+
+### 13.3 Evaluation Span and Metrics
+
+The span SHOULD be named `gh-aw.outcome.evaluate` and use `INTERNAL` span kind.
+
+It SHOULD include `gh-aw.outcome.type`, `gh-aw.outcome.result`, `gh-aw.outcome.source_run_id`, `gh-aw.outcome.source_workflow`, and `gh-aw.outcome.repository`.
+
+URLs and item identifiers MUST NOT be metric dimensions.
+
+The implementation MAY emit aggregate outcome values as metrics described in Section 11.3.
+
+A daily or fleet summary span MAY exist as a traceable batch-processing operation. If metrics are implemented, aggregate counts and rates SHOULD be emitted as metrics rather than relying only on summary spans.
+
+---
+
+## 14. Local Mirrors and Artifacts
+
+### 14.1 Mirror Requirement
+
+A Level 2 Runtime Instrumentation implementation MUST preserve the local telemetry mirror behavior for built-in gh-aw JavaScript span exporters.
+
+The default path MUST be `/tmp/gh-aw/otel.jsonl`.
+
+### 14.2 Mirror Record Format
+
+Each line of `/tmp/gh-aw/otel.jsonl` MUST remain one complete JSON object containing the raw OTLP/HTTP JSON export fragment currently emitted by gh-aw helpers, including `resourceSpans` for trace payloads.
+
+A versioned envelope for traces, metrics, logs, or diagnostics MAY be added only as an additive companion format. It MUST either use a separate file or support both the raw OTLP/JSON line format and the envelope format during a documented migration period.
+
+### 14.3 Write and Artifact Safety
+
+Mirror writes MUST occur before remote export success is assumed.
+
+A remote export failure MUST NOT delete or truncate previously written mirror data.
+
+Mirror-write failure MUST produce a structured diagnostic but SHOULD NOT fail the functional workflow.
+
+The mirror writer MUST create parent directories with restrictive permissions, MUST use append-safe writes, SHOULD tolerate concurrent writers, MUST NOT write exporter credentials, MUST apply the same content-capture and redaction policy as remote export, and SHOULD rotate or bound file size.
+
+When telemetry artifacts are uploaded, the artifact SHOULD contain `otel.jsonl`, runtime-specific companion files such as `copilot-otel.jsonl` when present, and no secret headers or credentials. A manifest containing schema version, signal counts, byte sizes, and redaction mode MAY be added as an optional companion file.
+
+---
+
+## 15. Security and Privacy
+
+### 15.1 Secret Handling
+
+Exporter headers and credentials MUST be masked before any diagnostic output; MUST NOT appear in telemetry records, artifacts, generated gateway JSON, or job summaries; SHOULD be short-lived and least-privilege; and SHOULD be held by a Collector or trusted exporter helper rather than workflow-global environment variables.
+
+### 15.2 Content Defaults and Redaction
+
+Raw prompts, model responses, system instructions, retrieved documents, source code, tool arguments, and tool results MUST NOT be captured by default.
+
+Hashes, lengths, counts, content types, and classification labels MAY be captured when they cannot be used to reconstruct sensitive content.
+
+A Level 3 implementation MUST provide a redaction stage before remote export and artifact upload. Redaction MUST cover known secret formats, authorization headers, bearer tokens, GitHub tokens, private keys, passwords, connection strings, and configured repository-specific patterns.
+
+### 15.3 Attribute Limits
+
+The implementation MUST define and enforce limits for attribute count per record, attribute value length, event count per span, link count per span, log-body size, captured content size, and local mirror size.
+
+Truncation SHOULD be indicated with a boolean or count attribute that does not reveal the removed content.
+
+### 15.4 User, Repository, and Untrusted Values
+
+User IDs, actor names, repository names, and item identifiers MAY be recorded in traces and logs when operationally necessary and authorized. They MUST NOT be metric dimensions by default.
+
+Untrusted input MUST NOT control span names, metric names, metric dimension keys, exporter endpoints without policy validation, exporter headers, resource attribute keys, or log event names.
+
+Untrusted values MAY be recorded only after validation, redaction, and bounded-length enforcement.
+
+---
+
+## 16. Reliability and Failure Handling
+
+### 16.1 Non-Fatal Observability
+
+Once valid configuration has been established, telemetry export failure SHOULD NOT change a successful functional workflow into a failed workflow.
+
+`if-missing: error` applies to missing mandatory setup values, not transient delivery failure.
+
+### 16.2 Retry and Queueing
+
+Transient failures SHOULD use exponential backoff with jitter.
+
+Retry MUST be bounded by maximum attempts, maximum elapsed time, and workflow shutdown deadline.
+
+Permanent failures MUST NOT be retried indefinitely.
+
+Collector mode SHOULD use a sending queue when implemented. Queue overflow SHOULD be observable through Collector or `gh-aw` internal telemetry.
+
+### 16.3 Partial Fan-Out Failure
+
+For N configured endpoints, the exporter MUST attempt each eligible endpoint independently.
+
+Partial success MUST be represented in diagnostics and metrics without discarding successful deliveries.
+
+### 16.4 Sampling
+
+Sampling decisions SHOULD be propagated through W3C trace flags when W3C Trace Context is present.
+
+Child instrumentation MUST honor the parent sampling decision unless an explicitly documented OpenTelemetry sampling policy applies.
+
+Metrics and critical security logs SHOULD remain available even when traces are sampled out.
+
+### 16.5 Shutdown Ordering
+
+Job finalization SHOULD finish functional work, record result attributes and events, end built-in child spans, write local mirror records, flush exporters within a bounded timeout, and emit final exporter diagnostics.
+
+When an additive pipeline root span is emitted, it SHOULD end only after the workflow result and all known job results are available.
+
+---
+
+## 17. Compliance Testing
+
+A conforming implementation MUST provide automated tests for every applicable REQUIRED compatibility behavior.
+
+Tests MUST validate semantic output rather than only source-code structure.
+
+OTLP tests SHOULD decode exported payloads and assert resource, scope, span, attribute, status, event, and context fields that are implemented by the claimed conformance level.
+
+### 17.1 Required Compatibility Tests
+
+Level 1 and Level 2 compatibility validation MUST cover the following behaviors:
+
+| Area | Required coverage |
 |---|---|
-| `scope.name` | `gh-aw` |
-| `scope.version` | The gh-aw CLI version |
+| Frontmatter schema | `observability.otlp.endpoint`, `headers`, `if-missing`, `attributes`, `resource-attributes`, and `github-app` are accepted or rejected according to Section 5. |
+| Compiler environment | The compiler emits `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS` when configured, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `GH_AW_OTLP_ENDPOINTS`, `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, and `TRACEPARENT` according to Sections 6 and 7. |
+| Header secrecy | OTLP headers are masked before diagnostics and are absent from generated gateway JSON, job summaries, telemetry records, and artifacts. |
+| Endpoint fan-out | Multiple endpoints are preserved in declaration order, first endpoint compatibility is retained, and one endpoint failure does not suppress attempts to other endpoints. |
+| Local mirror | `/tmp/gh-aw/otel.jsonl` remains raw OTLP/HTTP JSON lines with `resourceSpans`; it is not replaced by an envelope-only format. |
+| Built-in spans | Setup, conclusion, and built-in agent spans preserve shipped names and stable `gh-aw.*`, `github.*`, and GenAI attributes. |
+| GenAI compatibility | Built-in gh-aw spans continue to emit `gen_ai.system` and `gen_ai.usage.total_tokens` when the underlying values are available. |
+| Privacy defaults | Raw prompts, model responses, system instructions, source content, tool arguments, and tool results are not captured by default. |
+| Non-fatal export | Telemetry export and mirror failures do not replace the workflow's functional result after valid setup. |
 
----
+The repository enforcement entry point for these checks is `make validate-otel-contract`. This target MUST remain focused on the customer-facing compatibility contract rather than all possible OTEL-related tests.
 
-## 12. Trace ID Propagation and Lookup
+### 17.2 Optional Extension Tests
 
-### 12.1 Trace ID Format
+An implementation claiming Level 3 MUST add automated tests for every Level 3 feature it enables, including any OpenTelemetry-native root spans, full-duration job spans, metrics, structured logs, outcome span links, Collector mode, or versioned mirror companion files.
 
-The OTLP trace ID is a 32-character lowercase hexadecimal string (16 random bytes). The span ID is a 16-character lowercase hexadecimal string (8 random bytes).
+Level 3 extension tests MUST prove that the extension is additive. They MUST NOT require removal or renaming of Level 1 or Level 2 fields, files, environment variables, span names, or compatibility attributes.
 
-Do **not** confuse the OTLP trace ID with `workflow_call_id`, which is derived from the GitHub run ID and attempt number. The OTLP trace ID is the value to search for in vendor backends (Sentry, Honeycomb, Datadog, Grafana Tempo, etc.).
+### 17.3 Implementation Map
 
-### 12.2 Trace ID Resolution Order
+The following implementation areas are authoritative for version 0.4.0 compatibility:
 
-The setup span MUST resolve the trace ID using the following priority order:
-
-1. **Explicit option** — `options.traceId` passed to the setup function (used for activation job reuse).
-2. **Action input** — `INPUT_TRACE_ID` environment variable (from `trace-id` action input, used for cross-job propagation).
-3. **Parent context** — `aw_info.context.otel_trace_id` (propagated from parent workflow via `aw_context`).
-4. **Generate new** — 32-character random hex string via `randomBytes(16).toString("hex")`.
-
-The conclusion span MUST resolve the trace ID using:
-
-1. **Job environment** — `GITHUB_AW_OTEL_TRACE_ID` (set by this job's setup step).
-2. **Parent context** — `aw_info.context.otel_trace_id` (inherited from parent).
-3. **Legacy fallback** — `aw_info.context.workflow_call_id` (converted to hex).
-4. **Generate new** — 32-character random hex string.
-
-### 12.3 Trace ID Storage
-
-After generating or resolving a trace ID, the setup step MUST:
-
-1. **Write to `$GITHUB_OUTPUT`** so downstream jobs can access:
-   - `trace-id` — 32-char hex trace ID
-   - `span-id` — 16-char hex setup span ID
-   - `parent-span-id` — 16-char hex global parent span ID
-
-2. **Write to `$GITHUB_ENV`** so downstream steps in the same job can access:
-   - `GITHUB_AW_OTEL_TRACE_ID` — Trace ID
-   - `GITHUB_AW_OTEL_PARENT_SPAN_ID` — Setup span ID (parent for conclusion span)
-   - `GITHUB_AW_OTEL_JOB_START_MS` — Epoch milliseconds when setup completed
-
-### 12.4 Cross-Job Propagation
-
-The compiler MUST wire setup outputs through the job dependency graph so all jobs in a run share a single trace ID. Downstream jobs receive `needs.<setup-job>.outputs.trace-id` and `needs.<setup-job>.outputs.parent-span-id` as action inputs.
-
-### 12.5 Dispatch and Composite Action Propagation
-
-When a workflow dispatches a child workflow or composite action, parent trace context MUST be passed via `aw_context`:
-
-- `aw_context.otel_trace_id` → child inherits parent trace ID
-- `aw_context.otel_parent_span_id` → child setup span parents under parent's setup span
-
-This context is written to `/tmp/gh-aw/aw_info.json` and propagated through action inputs.
-
-### 12.6 Trace ID Lookup
-
-To find a trace in an OTLP backend:
-
-1. Locate the OTLP trace ID from the GitHub Actions job summary or the `trace-id` output.
-2. Search the backend by trace ID (32-char hex string).
-3. For local debugging, query the JSONL mirror:
-
-```bash
-jq '.resourceSpans[].scopeSpans[].spans[] | {name, traceId, spanId, status}' /tmp/gh-aw/otel.jsonl
-```
-
----
-
-## 13. Implementation Mapping
-
-This section maps the normative behavior in this specification to the current `gh-aw` implementation. These mappings MUST be kept in sync when behavior changes.
-
-| Section | Title | Primary implementation files |
-|---|---|---|
-| §4 | Configuration Model | `pkg/workflow/frontmatter_types.go`, `pkg/parser/schemas/main_workflow_schema.json`, `pkg/workflow/observability_otlp.go` |
-| §5 | Runtime Environment Contract | `pkg/workflow/observability_otlp.go`, `pkg/workflow/compiler_types.go` |
-| §6.1 | Multi-Endpoint Fan-Out | `pkg/workflow/observability_otlp.go`, `actions/setup/js/send_otlp_span.cjs` |
-| §6.2-§6.4 | Export and Gateway Integration | `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `pkg/workflow/schemas/mcp-gateway-config.schema.json` |
-| §6.5 | Trace Context Variables | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/aw_context.cjs` |
-| §7 | Local Mirrors and Artifacts | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/constants.cjs`, `actions/setup/post.js` |
-| §8 | Security and Privacy Requirements | `pkg/workflow/observability_otlp.go`, `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `actions/setup/js/send_otlp_span.cjs` |
-| §9 | Trace Model | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs` |
-| §10 | Span Attribute Contract | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/evaluate_outcomes.cjs`, `actions/setup/js/emit_outcome_spans.cjs` |
-| §10.6 | MCP Gateway Span Attribute Contract | `gh-aw-mcpg` tracing package, `gh-aw-mcpg/docs/otel-sentry.md` |
-| §11 | Resource Attributes | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs` |
-| §12 | Trace ID Propagation | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/aw_context.cjs`, `pkg/workflow/compiler_yaml.go` |
-
-When behavior changes in any mapped file, this table SHOULD be updated in the same change set.
-
----
-
-## 14. Compliance Testing
-
-A conforming implementation MUST include automated coverage for the following behaviors.
-
-| Test ID | Requirement | Expected result | Primary current tests |
-|---|---|---|---|
-| `T-OTEL-OBS-001` | String endpoint form | Compiler injects `OTEL_EXPORTER_OTLP_ENDPOINT` and normalizes top-level headers. | `pkg/workflow/observability_otlp_test.go` |
-| `T-OTEL-OBS-002` | Object endpoint form | Compiler accepts `{url, headers}` object form and injects primary env vars. | `pkg/workflow/observability_otlp_test.go` |
-| `T-OTEL-OBS-003` | Array endpoint form | Compiler preserves first endpoint as primary and injects `GH_AW_OTLP_ENDPOINTS`. | `pkg/workflow/observability_otlp_test.go`, `pkg/workflow/observability_job_summary_test.go` |
-| `T-OTEL-OBS-004` | Sentry header rewrite | `Authorization` is normalized to `x-sentry-auth` for Sentry endpoints. | `pkg/workflow/observability_otlp_test.go` |
-| `T-OTEL-OBS-005` | Static allowlisting | Static endpoint hostnames are appended to network allowlist. | `pkg/workflow/observability_otlp_test.go` |
-| `T-OTEL-OBS-006` | Gateway JSON contract | Gateway config includes `opentelemetry.endpoint`, `traceId`, and `spanId`, but not OTLP headers. | `pkg/workflow/mcp_renderer_test.go` |
-| `T-OTEL-OBS-007` | Gateway container env contract | Gateway container receives `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, and `OTEL_EXPORTER_OTLP_HEADERS`. | `pkg/workflow/mcp_setup_generator_test.go` |
-| `T-OTEL-OBS-008` | Local mirror persistence | Helper emission writes `/tmp/gh-aw/otel.jsonl` even when OTLP export fails or is absent. | `actions/setup/js/send_otlp_span.test.cjs` |
-| `T-OTEL-OBS-009` | Trace context propagation | Setup writes valid trace and parent span IDs into runtime environment. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/otlp.test.cjs` |
-| `T-OTEL-OBS-010` | Artifact inclusion | Observability artifacts include the OTEL JSONL mirror when artifact collection is enabled. | `pkg/workflow/compiled_lock_files_test.go` |
-| `T-OTEL-OBS-011` | Span naming convention | All emitted span names follow `gh-aw.<job-name>.<operation>` pattern. | `actions/setup/js/send_otlp_span.test.cjs` |
-| `T-OTEL-OBS-012` | Span hierarchy | Setup spans share a global parent span ID; conclusion spans parent under the setup span. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/action_conclusion_otlp.test.cjs` |
-| `T-OTEL-OBS-013` | Span attribute contract | Setup and conclusion spans contain all required attributes from §10. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/action_conclusion_otlp.test.cjs` |
-| `T-OTEL-OBS-014` | Resource attributes | All exported spans include required resource attributes from §11. | `actions/setup/js/send_otlp_span.test.cjs` |
-| `T-OTEL-OBS-015` | Trace ID resolution order | Trace ID follows the priority chain: explicit option → action input → parent context → generate new. | `actions/setup/js/action_setup_otlp.test.cjs` |
-| `T-OTEL-OBS-016` | Gateway span linkage | Gateway spans (`gateway.request`, `mcp.tool_call`, `gateway.backend.execute`) appear as children of the agent job's setup span in the same trace. | `gh-aw-mcpg` integration tests |
-| `T-OTEL-OBS-017` | Gateway tool name attribute | Every `mcp.tool_call` span includes `gen_ai.tool.name` identifying the tool invoked. | `gh-aw-mcpg` integration tests |
-| `T-OTEL-OBS-018` | Gateway rate limit attribute | `gateway.backend.execute` spans include `rate_limit.hit` when a rate limit is triggered. | `gh-aw-mcpg` integration tests |
-| `T-OTEL-OBS-019` | Proxy DIFC span emission | When API proxy is active, `proxy.difc_pipeline` and `proxy.backend.forward` spans are emitted. | `gh-aw-mcpg` integration tests |
-
-Additional tests SHOULD be added when new helper APIs, new OTLP normalization rules, or new runtime sinks become normative.
-
-### 14.1 Runtime Conformance Workflows
-
-The following agentic workflows provide runtime conformance validation:
-
-| Workflow | Purpose | Coverage |
-|---|---|---|
-| [`smoke-otel-backends.md`](../.github/workflows/smoke-otel-backends.md) | End-to-end OTLP smoke test | Local mirror + Sentry/Grafana/Datadog visibility |
-| [`daily-otel-instrumentation-advisor.md`](../.github/workflows/daily-otel-instrumentation-advisor.md) | Daily code review + live data validation | Sentry + Grafana backend data |
-| [`daily-grafana-otel-instrumentation-advisor.md`](../.github/workflows/daily-grafana-otel-instrumentation-advisor.md) | Grafana-only variant | Grafana Tempo data |
-| [`otlp-data-quality-validator.md`](../.github/workflows/otlp-data-quality-validator.md) | OTLP data quality validation | JSONL + vendor traces + attribute contract |
-
----
-
-## 15. References
-
-### Normative References
-
-- **[RFC 2119]** S. Bradner. Key words for use in RFCs to Indicate Requirement Levels. March 1997. [https://www.ietf.org/rfc/rfc2119.txt](https://www.ietf.org/rfc/rfc2119.txt)
-- **[OpenTelemetry]** OpenTelemetry specification and semantic conventions. [https://opentelemetry.io/docs/specs/](https://opentelemetry.io/docs/specs/)
-- **[OTLP]** OpenTelemetry Protocol specification. [https://opentelemetry.io/docs/specs/otlp/](https://opentelemetry.io/docs/specs/otlp/)
-
-### Informative References
-
-- [docs/src/content/docs/reference/open-telemetry.md](../docs/src/content/docs/reference/open-telemetry.md)
-- [docs/src/content/docs/reference/mcp-gateway.md](../docs/src/content/docs/reference/mcp-gateway.md)
-- [specs/aw-harness.md](./aw-harness.md)
-- [specs/safe-output-outcome-evaluation.md](./safe-output-outcome-evaluation.md)
-
-### Runtime Conformance Workflows
-
-- [.github/workflows/smoke-otel-backends.md](../.github/workflows/smoke-otel-backends.md) — End-to-end OTLP smoke test
-- [.github/workflows/daily-otel-instrumentation-advisor.md](../.github/workflows/daily-otel-instrumentation-advisor.md) — Daily code review + live data validation
-- [.github/workflows/daily-grafana-otel-instrumentation-advisor.md](../.github/workflows/daily-grafana-otel-instrumentation-advisor.md) — Grafana-only variant
-- [.github/workflows/otlp-data-quality-validator.md](../.github/workflows/otlp-data-quality-validator.md) — OTLP data quality validation
-
----
-
-## 16. New `cicd.automation.*` Standard
-
-This section is normative.
-
-This section defines version 1.0.0 of a new `cicd.automation.*` semantic-convention standard for autonomous work performed inside CI/CD systems. The purpose of the standard is to represent automation runs, tasks, steps, approvals, mutations, and durable outcomes without colliding with adjacent OpenTelemetry domains.
-
-### 16.1 Scope
-
-The `cicd.automation.*` semantic-convention layer exists to make autonomous-work telemetry portable, composable, and testable.
-
-This standard covers:
-
-- logical automation runs inside a CI/CD execution;
-- automation tasks and their execution intent;
-- concrete automation-layer steps;
-- approval gates between autonomy and external control;
-- state-changing mutations; and
-- durable artifacts and terminal outcomes.
-
-This standard does not cover:
-
-- pipeline structure already modeled by `cicd.*`;
-- model, provider, token, or workflow-invocation semantics already modeled by `gen_ai.*`;
-- MCP request, session, transport, or JSON-RPC semantics already modeled by `mcp.*`; and
-- product-specific implementation details that remain specific to `gh-aw.*` or other vendor namespaces.
-
-### 16.2 Namespace and Boundaries
-
-The namespace defined by this section is `cicd.automation.*`.
-
-Implementations MUST use this namespace for schema elements defined by this section. Implementations MUST NOT remap these attributes into a top-level `workflow.*` namespace while claiming conformance to this specification.
-
-The following boundary rules are normative:
-
-1. A `cicd.automation.*` span or attribute MUST NOT replace a `cicd.*` span or attribute when the operation is fundamentally a pipeline run, pipeline task, job, worker, or similar CI/CD execution primitive.
-2. A `cicd.automation.*` span or attribute MUST NOT replace a `gen_ai.*` span or attribute when the operation is fundamentally a model invocation, agent invocation, workflow invocation, tool execution, token accounting, or model result event.
-3. A `cicd.automation.*` span or attribute MUST NOT replace an `mcp.*` span or attribute when the operation is fundamentally an MCP request, session, transport, or protocol boundary.
-4. Product-specific identifiers, feature flags, and implementation metadata SHOULD remain in implementation-specific namespaces such as `gh-aw.*` unless they are shown to be portable across implementations.
-5. When both this section and an adjacent domain apply, telemetry SHOULD compose by sharing the same trace rather than by normalizing one domain into another.
-
-### 16.3 Core Model
-
-This standard defines six core entities:
-
-1. Automation Run
-2. Automation Task
-3. Automation Step
-4. Approval Gate
-5. Mutation
-6. Artifact Outcome
-
-An automation run MUST support these attributes:
-
-- `cicd.automation.run.id`
-- `cicd.automation.run.kind`
-- `cicd.automation.run.mode`
-- `cicd.automation.level`
-- `cicd.automation.outcome`
-
-An automation task MUST support these attributes:
-
-- `cicd.automation.task.id`
-- `cicd.automation.task.kind`
-- `cicd.automation.task.intent`
-
-An automation step MUST support these attributes:
-
-- `cicd.automation.step.id`
-- `cicd.automation.step.kind`
-- `cicd.automation.step.outcome`
-
-An approval gate MUST support these attributes:
-
-- `cicd.automation.approval.required`
-- `cicd.automation.approval.result`
-
-A mutation MUST support these attributes:
-
-- `cicd.automation.mutation.performed`
-- `cicd.automation.mutation.scope`
-
-An artifact outcome MUST support these attributes:
-
-- `cicd.automation.artifact.kind`
-- `cicd.automation.artifact.produced`
-
-### 16.4 Span Model
-
-This section defines the following automation span *types*:
-
-- `cicd.automation.run`
-- `cicd.automation.task`
-- `cicd.automation.step`
-- `cicd.automation.approval`
-- `cicd.automation.mutation`
-- `cicd.automation.outcome`
-
-All spans defined by this section MUST use OpenTelemetry `INTERNAL` span kind because they describe logical automation operations within a broader CI/CD execution rather than a network, RPC, messaging, or transport boundary.
-
-Implementations SHOULD use low-cardinality span names derived from the relevant `*.kind` attribute when those values are stable and bounded. When low-cardinality naming is not available, implementations SHOULD use the fallback names `automation.run`, `automation.task`, `automation.step`, `automation.approval`, `automation.mutation`, and `automation.outcome`. Implementations with an existing span naming convention MAY continue to use it while still emitting the `cicd.automation.*` attributes defined by this standard.
-
-### 16.5 Vocabulary and Requirement Levels
-
-The initial version 1.0.0 attribute vocabulary is:
-
-- `cicd.automation.run.id`
-- `cicd.automation.run.kind`
-- `cicd.automation.run.mode`
-- `cicd.automation.level`
-- `cicd.automation.outcome`
-- `cicd.automation.task.id`
-- `cicd.automation.task.kind`
-- `cicd.automation.task.intent`
-- `cicd.automation.step.id`
-- `cicd.automation.step.kind`
-- `cicd.automation.step.outcome`
-- `cicd.automation.approval.required`
-- `cicd.automation.approval.result`
-- `cicd.automation.mutation.performed`
-- `cicd.automation.mutation.scope`
-- `cicd.automation.artifact.kind`
-- `cicd.automation.artifact.produced`
-
-The normative requirement levels for the current generated registry are:
-
-| Attribute | Requirement level |
+| Contract area | Implementation and tests |
 |---|---|
-| `cicd.automation.run.id` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.run` |
-| `cicd.automation.run.kind` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.run` |
-| `cicd.automation.run.mode` | RECOMMENDED |
-| `cicd.automation.level` | RECOMMENDED |
-| `cicd.automation.outcome` | RECOMMENDED |
-| `cicd.automation.task.id` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.task` |
-| `cicd.automation.task.kind` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.task` |
-| `cicd.automation.task.intent` | RECOMMENDED |
-| `cicd.automation.step.id` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.step` |
-| `cicd.automation.step.kind` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.step` |
-| `cicd.automation.step.outcome` | RECOMMENDED |
-| `cicd.automation.approval.required` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.approval` |
-| `cicd.automation.approval.result` | RECOMMENDED globally; conditionally REQUIRED when approval is required |
-| `cicd.automation.mutation.performed` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.mutation` |
-| `cicd.automation.mutation.scope` | RECOMMENDED globally; conditionally REQUIRED when mutation is performed |
-| `cicd.automation.artifact.kind` | RECOMMENDED; conditionally REQUIRED when an artifact is produced |
-| `cicd.automation.artifact.produced` | RECOMMENDED globally; REQUIRED on `span.cicd.automation.outcome` |
+| Frontmatter schema | `pkg/parser/schemas/main_workflow_schema.json`, `pkg/parser/schema_test.go` |
+| Compiler normalization and env injection | `pkg/workflow/observability_otlp.go`, `pkg/workflow/observability_otlp_test.go`, `pkg/workflow/safe_output_helpers_test.go` |
+| Gateway credential scoping | `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `pkg/workflow/mcp_renderer_test.go` |
+| Runtime setup/conclusion spans and JSONL mirror | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/send_otlp_span.test.cjs`, `actions/setup/js/otel_contract.test.cjs` |
+| Header and attribute masking | `actions/setup/sh/mask_otlp_headers.sh`, `actions/setup/sh/mask_otlp_attributes.sh`, `pkg/workflow/observability_otlp_mask_script_test.go` |
+| Local validation target | `Makefile` target `validate-otel-contract` |
 
-Implementations SHOULD use low-cardinality values for `*.kind`, `*.mode`, `*.level`, and `*.outcome` attributes. Implementations MUST NOT use unbounded, free-form prose in attributes intended to act as stable dimensions.
+Any change that alters a listed compatibility surface MUST update the corresponding tests in the same change.
 
-### 16.6 Registry and Versioning
+---
 
-The canonical semantic-convention source for this standard is not yet implemented in this repository.
+## 18. References
 
-When implemented, the canonical source SHOULD live in `pkg/semconv/cicd_automation.go` and the machine-readable registries SHOULD be materialized in:
+### 18.1 Normative References
 
-- `registry/cicd-automation-attributes.yaml`
-- `registry/cicd-automation-spans.yaml`
-Schema producers MUST treat the canonical source and generated registries as a single normative set. A generated registry that no longer matches the canonical source is non-conforming.
+- **[RFC 2119]** S. Bradner. *Key words for use in RFCs to Indicate Requirement Levels*. March 1997. https://www.ietf.org/rfc/rfc2119.txt
+- **[W3C Trace Context Level 2]** W3C Distributed Tracing Working Group. *Trace Context Level 2*. https://www.w3.org/TR/trace-context-2/
+- **[OpenTelemetry Specification]** OpenTelemetry Authors. https://opentelemetry.io/docs/specs/otel/
+- **[OTLP]** OpenTelemetry Authors. *OpenTelemetry Protocol Specification*. https://opentelemetry.io/docs/specs/otlp/
+- **[OpenTelemetry Semantic Conventions]** OpenTelemetry Authors. https://opentelemetry.io/docs/specs/semconv/
+- **[CI/CD Spans]** OpenTelemetry Authors. *Semantic conventions for CI/CD spans*. https://opentelemetry.io/docs/specs/semconv/cicd/cicd-spans/
+- **[CI/CD Metrics]** OpenTelemetry Authors. *Semantic conventions for CI/CD metrics*. https://opentelemetry.io/docs/specs/semconv/cicd/cicd-metrics/
+- **[CI/CD Resources]** OpenTelemetry Authors. *CI/CD resource semantic conventions*. https://opentelemetry.io/docs/specs/semconv/resource/cicd/
+- **[GenAI Spans]** OpenTelemetry GenAI SIG. *Semantic conventions for generative AI spans*. https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md
+- **[GenAI Agent Spans]** OpenTelemetry GenAI SIG. *Semantic conventions for GenAI agent and framework spans*. https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md
+- **[GenAI Metrics]** OpenTelemetry GenAI SIG. *Semantic conventions for generative AI metrics*. https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-metrics.md
+- **[MCP Semantic Conventions]** OpenTelemetry GenAI SIG. *Semantic conventions for Model Context Protocol*. https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/mcp.md
 
-This section defines version 1.0.0 of the `cicd.automation.*` standard.
+### 18.2 Informative References
 
-The current generated registry marks this schema as `development`. That stability marker MUST be reflected consistently in generated artifacts until explicitly changed.
+- **[Collector Resiliency]** OpenTelemetry Authors. https://opentelemetry.io/docs/collector/resiliency/
+- **[Collector Internal Telemetry]** OpenTelemetry Authors. https://opentelemetry.io/docs/collector/internal-telemetry/
+- `docs/src/content/docs/reference/open-telemetry.mdx`
+- `docs/src/content/docs/reference/frontmatter.md`
+- `docs/src/content/docs/reference/mcp-gateway.md`
+- `specs/aw-harness.md`
+- `specs/safe-output-outcome-evaluation.md`
 
-Breaking semantic changes to existing attribute meaning, requirement levels, or span roles MUST increment the major version. Backward-compatible additions MAY increment the minor version. Editorial clarifications with no schema effect SHOULD increment the patch version.
+---
 
-The presence of `cicd.automation.semconv.version` as a compatibility marker, where implemented, MUST NOT be interpreted as claiming a real OpenTelemetry `schema_url`. This specification does not define or require OpenTelemetry `schema_url` emission.
+## 19. Change Log
 
-Implementations SHOULD add `cicd.automation.*` alongside existing `gh-aw.*`, `gen_ai.*`, and `mcp.*` telemetry rather than replacing those namespaces prematurely.
+### Version 0.4.0 (Working Draft, June 18, 2026)
 
-## 17. Change Log
+- **Changed**: Reframed 0.4.0 as a non-breaking compatibility revision rather than a replacement telemetry standard.
+- **Preserved**: `observability.otlp`, direct OTLP export, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, `TRACEPARENT` compatibility, built-in setup/conclusion spans, `gen_ai.system`, `gen_ai.usage.total_tokens`, and raw OTLP JSONL mirror behavior.
+- **Clarified**: Standard OpenTelemetry attributes such as `gen_ai.provider.name` and CI/CD attributes may be emitted as additive aliases, not replacements for existing fields.
+- **Clarified**: Pipeline root spans, full-duration job spans, Collector mode, metrics, structured logs, and outcome links are future or Level 3 extensions unless already implemented.
+- **Clarified**: A versioned mirror envelope may be added only as an additive format; `/tmp/gh-aw/otel.jsonl` remains raw OTLP/JSON lines for compatibility.
+- **Added**: Metric cardinality, privacy, redaction, and secret-handling guidance while preserving existing artifacts and query surfaces.
+- **Added**: Inlined compatibility validation requirements, optional extension tests, and the implementation map so this document is self-contained.
 
-### Version 0.3.0 (Working Draft, revised 2026-06-15)
+### Version 0.3.0 (Working Draft, June 15, 2026)
 
-- Consolidated OpenTelemetry behavior and `cicd.automation.*` semantic conventions into a single normative specification.
-- Removed the separate overview and semantic-conventions specification split in favor of one authoritative document.
-- Added Section 16 as the normative definition of the new `cicd.automation.*` standard.
-- Shortened the document and made the new-standard framing explicit.
-
-### Version 0.3.0 (Working Draft)
-
-- Extended §9.3 span hierarchy to include MCP gateway and API proxy spans
-- Extended §9.4 span kinds table with gateway span types (`gateway.request`, `mcp.tool_call`, `gateway.backend.execute`, `proxy.difc_pipeline`, `proxy.backend.forward`)
-- Added §10.6 MCP Gateway Span Attribute Contract: attribute tables for `gateway.request`, `mcp.tool_call`, `gateway.backend.execute`, `proxy.difc_pipeline`, `proxy.backend.forward`
-- Added compliance tests T-OTEL-OBS-016 through T-OTEL-OBS-019 for gateway span linkage, tool names, rate limits, and proxy spans
-- Source: [gh-aw-mcpg OTEL Sentry docs](https://github.com/github/gh-aw-mcpg/blob/main/docs/otel-sentry.md)
+- Consolidated OTLP behavior and `cicd.automation.*` conventions into one repository specification.
+- Added MCP gateway and API proxy spans.
+- Added initial trace, attribute, resource, propagation, outcome, and conformance sections.
 
 ### Version 0.2.0 (Working Draft)
 
-Contributors SHOULD update the canonical schema first and then regenerate any machine-readable registry artifacts using the repository's available generation tooling.
-
-- Added §9 Trace Model: span naming, hierarchy, kinds, status, exception events
-- Added §10 Span Attribute Contract: required and conditional attributes for setup, conclusion, and agent spans
-- Added §10.4 Outcome Evaluation Span Attributes: reactions, zero-touch, comments
-- Added §10.5 Outcome Summary Span Attributes: zero-touch rate, median resolution, economics metrics
-- Added §11 Resource Attributes: required and conditional resource attributes, instrumentation scope
-- Added §12 Trace ID Propagation and Lookup: resolution order, storage, cross-job and dispatch propagation
-- Added §14.1 Runtime Conformance Workflows
-- Added compliance tests T-OTEL-OBS-011 through T-OTEL-OBS-015
-- Updated implementation mapping table with §9–§12 entries
-- Renumbered §9–§12 to §13–§16
+- Added the initial trace model, span attributes, outcome spans, resource attributes, and trace-ID propagation.
 
 ### Version 0.1.0 (Working Draft)
 
-- Initial repository-level OTel observability specification
-- Defined the normative `observability.otlp` contract for compiler and runtime behavior
-- Added gateway-integration, local-mirror, implementation-mapping, and conformance-test sections
+- Defined the initial `observability.otlp` compiler and runtime contract.
+
+---
+
+## License
+
+Copyright (c) 2026 GitHub, Inc.
+This specification is provided under the MIT License.

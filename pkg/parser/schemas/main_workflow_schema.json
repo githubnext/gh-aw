@@ -10637,6 +10637,13 @@
               "default": "error",
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
             },
+            "attributes": {
+              "type": "object",
+              "description": "Additional custom span attributes to attach to OTLP spans emitted by this workflow. Values may be static strings or template expressions resolved from existing span attributes, such as '{{ gh-aw.episode.id }}' or '{{ github.actor }}'. Values are exported to tracing backends and masked in runner logs.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
             "resource-attributes": {
               "type": "object",
               "description": "Additional OTEL_RESOURCE_ATTRIBUTES entries to append to the standard gh-aw/GitHub resource attributes. Values may be static strings or GitHub Actions expressions such as '${{ github.repository }}'. Do not use secrets.* or vars.* expressions here: resource attributes are exported to external tracing backends and are not treated as secret values.",
