@@ -180,7 +180,7 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 
 	cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
 	effectiveToken := getEffectiveGitHubToken("")
-	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+	actionRepo := GitHubActionsOrgRepo + "/setup-cli"
 	installStep, err := generateGhAwSetupStep(ghAwSetupStepConfig{
 		actionMode:           c.actionMode,
 		cliVersion:           cliVersion,

@@ -23,7 +23,7 @@ var copilotSetupLog = logger.New("cli:copilot_setup")
 func getActionRef(ctx context.Context, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
 	if actionMode.IsRelease() && version != "" && version != "dev" {
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(ctx, "github/gh-aw/actions/setup-cli", version)
+			sha, err := resolver.ResolveSHA(ctx, "github/gh-aw-actions/setup-cli", version)
 			if err == nil && sha != "" {
 				return fmt.Sprintf("@%s # %s", sha, version)
 			}
@@ -51,10 +51,7 @@ func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.Acti
 
 	if actionMode.IsRelease() || actionMode.IsAction() {
 		// Determine the action repo based on mode
-		actionRepo := "github/gh-aw/actions/setup-cli"
-		if actionMode.IsAction() {
-			actionRepo = "github/gh-aw-actions/setup-cli"
-		}
+		actionRepo := "github/gh-aw-actions/setup-cli"
 		return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
@@ -274,10 +271,7 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 	actionRef := getActionRef(ctx, actionMode, version, resolver)
 
 	if actionMode.IsRelease() || actionMode.IsAction() {
-		actionRepo := "github/gh-aw/actions/setup-cli"
-		if actionMode.IsAction() {
-			actionRepo = "github/gh-aw-actions/setup-cli"
-		}
+		actionRepo := "github/gh-aw-actions/setup-cli"
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
 		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
 		fmt.Fprintf(os.Stderr, "      - name: Install gh-aw extension\n")
@@ -341,10 +335,7 @@ func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, action
 	}
 
 	actionRef := getActionRef(ctx, actionMode, version, resolver)
-	actionRepo := "github/gh-aw/actions/setup-cli"
-	if actionMode.IsAction() {
-		actionRepo = "github/gh-aw-actions/setup-cli"
-	}
+	actionRepo := "github/gh-aw-actions/setup-cli"
 	newUses := actionRepo + actionRef
 
 	// Replace the uses: line, stripping any surrounding quotes in the process.

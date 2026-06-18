@@ -52,8 +52,8 @@ func generateInstallCLISteps(ctx context.Context, actionMode ActionMode, version
 `
 	}
 
-	// Release mode: use setup-cli action (consistent with copilot-setup-steps.yml)
-	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+	// Release mode: use setup-cli action from external gh-aw-actions repository
+	actionRepo := GitHubActionsOrgRepo + "/setup-cli"
 	ref := resolveActionRef(ctx, actionRepo, cliTag, resolver)
 	return `      - name: Install gh-aw
         uses: ` + ref + `
