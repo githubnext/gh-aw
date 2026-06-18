@@ -21,6 +21,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
       close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching (uses gh-aw-close-key marker)
       deduplicate-by-title: true      # Optional: skip creating an issue when one with the same title exists; integer N allows fuzzy matches up to edit distance N (default: off)
+      normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in body text
       footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
       target-repo: "owner/repo"       # Optional: cross-repository
       allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
@@ -125,6 +126,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       required-title-prefix: "[bot]" # Optional: issue/PR title must start with this prefix
       hide-older-comments: true       # Optional: minimize previous comments from same workflow
       allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
+      normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in body text
       discussions: true               # Optional: opt-in to discussions:write permission for discussion comments/replies (default: false)
       issues: true                    # Optional: set false to exclude issues:write permission (default: true)
       pull-requests: true             # Optional: set false to exclude pull-requests:write permission (default: true)
@@ -182,6 +184,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       fallback-labels: [needs-review] # Optional: labels for fallback issues (defaults to PR labels)
       fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
       auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
+      normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in PR body text
       target-repo: "owner/repo"       # Optional: cross-repository
       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
       allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope

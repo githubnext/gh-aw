@@ -153,6 +153,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       - OIDC mode is used when `github-app` is configured without credentials (`app-id`/`client-id` + `private-key`).
       - OIDC mode requires `permissions.id-token: write` on the workflow/job.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
+    - `resource-attributes:` - Optional map of additional OTEL resource attributes appended to gh-aw/GitHub defaults. Values may be static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` here because resource attributes are exported to external observability backends and are not treated as secret values.
   - Example:
 
     ```yaml

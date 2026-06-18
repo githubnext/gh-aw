@@ -48,6 +48,7 @@ safe-outputs:
       - release/*
     fallback-as-issue: false      # disable issue fallback (default: true)
     auto-close-issue: false       # don't auto-add "Fixes #N" to PR description (default: true)
+    normalize-closing-keywords: true # strip backticks around recognized issue-closing keywords in PR body text
     preserve-branch-name: true    # omit random salt suffix from branch name (default: false)
     recreate-ref: true            # force-recreate remote branch when it already exists (requires preserve-branch-name; default: false)
     excluded-files:               # strip these files from the patch entirely
@@ -81,6 +82,7 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 
 - `draft` is a **policy**, not a default — the agent cannot override it at runtime.
 - `auto-close-issue` (default `true`) appends `Fixes #N` to the PR description when the workflow is triggered from an issue. Set to `false` for partial-work or multi-PR flows.
+- `normalize-closing-keywords` strips wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`).
 - When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 - PRs do not trigger CI by default. See [Triggering CI](/gh-aw/reference/triggering-ci/).
 

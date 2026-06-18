@@ -3324,6 +3324,11 @@ tools:
     allowed-extensions: []
       # Array of strings
 
+    # When true, all .json files are pretty-printed (2-space indent) before being
+    # committed, making them human-readable in the repository (default: false)
+    # (optional)
+    format-json: true
+
   # Format 4: Array of repo-memory configurations for multiple memory locations
   repo-memory: []
     # Array items: object
@@ -3568,6 +3573,11 @@ safe-outputs:
     # Format 2: object
     samples:
       {}
+
+    # When true, strip backticks from recognized issue-closing keywords (e.g. `Closes
+    # #1` → Closes #1) in body fields for this output type.
+    # (optional)
+    normalize-closing-keywords: true
 
   # Format 2: Enable issue creation with default configuration
   create-issue: null
@@ -4096,6 +4106,12 @@ safe-outputs:
     # style (lowercase alphanumeric, dashes, underscores).
     # (optional)
     close-older-key: "example-value"
+
+    # Required category for matching when close-older-discussions is enabled. Only
+    # discussions in this category will be considered when searching for older
+    # discussions to close.
+    # (optional)
+    required-category: "example-value"
 
     # When true (default), fallback to creating an issue if discussion creation fails
     # due to permissions. The fallback issue will include a note indicating it was
@@ -4699,6 +4715,11 @@ safe-outputs:
     samples:
       {}
 
+    # When true, strip backticks from recognized issue-closing keywords (e.g. `Closes
+    # #1` → Closes #1) in body fields for this output type.
+    # (optional)
+    normalize-closing-keywords: true
+
   # Format 2: Enable issue comment creation with default configuration
   add-comment: null
 
@@ -4912,7 +4933,7 @@ safe-outputs:
 
     # Maximum allowed size for git patches in kilobytes (KB) for create-pull-request
     # only. Overrides safe-outputs max-patch-size for this output type. Defaults to
-    # 4096 KB (4 MB) when unset.
+    # 1024 KB (1 MB) when unset.
     # (optional)
     max-patch-size: 1
 
@@ -5103,6 +5124,11 @@ safe-outputs:
     # GitHub App-only permission and cannot be granted via GITHUB_TOKEN.
     # (optional)
     allow-workflows: true
+
+    # When true, strip backticks from recognized issue-closing keywords (e.g. `Closes
+    # #1` → Closes #1) in body fields for this output type.
+    # (optional)
+    normalize-closing-keywords: true
 
   # Format 2: Enable pull request creation with default configuration
   create-pull-request: null
@@ -6839,6 +6865,22 @@ safe-outputs:
     allowed-branches: []
       # Array of strings
 
+    # Target for merging: 'triggering' (default, current PR), or '*' (any PR with
+    # pull_request_number field)
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository operations. Takes
+    # precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that pull requests can be
+    # merged in. The target repository is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
@@ -6848,6 +6890,24 @@ safe-outputs:
     # merge API call.
     # (optional)
     staged: true
+
+    # Internal hidden feature. Optional list of declarative sample payloads that
+    # exercise this safe-output handler. Used by the hidden `gh aw compile
+    # --use-samples` flag to replace the agentic step with a deterministic replay
+    # through the safe-outputs MCP server. Each entry should conform to the
+    # corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch`
+    # for create-pull-request and push-to-pull-request-branch) are stripped before
+    # schema validation and consumed by the replay driver.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
 
     # The target item's title must start with this prefix for this operation to
     # proceed
@@ -6925,7 +6985,7 @@ safe-outputs:
 
     # Maximum allowed size for git patches in kilobytes (KB) for
     # push-to-pull-request-branch only. Overrides safe-outputs max-patch-size for this
-    # output type. Defaults to 4096 KB (4 MB) when unset.
+    # output type. Defaults to 1024 KB (1 MB) when unset.
     # (optional)
     max-patch-size: 1
 
@@ -8117,7 +8177,7 @@ safe-outputs:
       # (optional)
       workflows: "read"
 
-  # Maximum allowed size for git patches in kilobytes (KB). Defaults to 4096 KB (4
+  # Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1
   # MB). If patch exceeds this size, the job will fail.
   # (optional)
   max-patch-size: 1
@@ -8425,11 +8485,24 @@ safe-outputs:
   # (optional)
   group-reports: true
 
-  # When false, disables creating failure tracking issues when workflows fail.
-  # Useful for workflows where failures are expected or handled elsewhere. Defaults
-  # to true.
   # (optional)
+  # Accepted formats:
+
+  # Format 1: When false, disables creating failure tracking issues when workflows
+  # fail. When true, all failures trigger issues. Defaults to true.
   report-failure-as-issue: true
+
+  # Format 2: List of failure categories that should trigger issue creation.
+  # Categories can be prefixed with '!' to exclude them (e.g.,
+  # '!inference_access_error'). If only non-prefixed categories are specified, only
+  # those categories trigger issues. If only prefixed (excluded) categories are
+  # specified, all categories except those trigger issues. If both are specified,
+  # categories must match included AND not match excluded. Common categories:
+  # agent_failure, timed_out, missing_safe_outputs, report_incomplete, missing_tool,
+  # missing_data, inference_access_error, mcp_policy_error,
+  # ai_credits_rate_limit_error, max_ai_credits_exceeded.
+  report-failure-as-issue: []
+    # Array items: string
 
   # Repository to create failure tracking issues in, in the format 'owner/repo'.
   # Useful when the current repository has issues disabled. Defaults to the current
@@ -8699,6 +8772,15 @@ observability:
     # workflow-level OTEL_* environment variables are still injected.
     # (optional)
     if-missing: "error"
+
+    # Additional OTEL_RESOURCE_ATTRIBUTES entries to append to the standard
+    # gh-aw/GitHub resource attributes. Values may be static strings or GitHub Actions
+    # expressions such as '${{ github.repository }}'. Do not use secrets.* or vars.*
+    # expressions here: resource attributes are exported to external tracing backends
+    # and are not treated as secret values.
+    # (optional)
+    resource-attributes:
+      {}
 
     # Optional runtime authentication for OTLP export. Supports GitHub App credentials
     # (client-id/app-id + private-key) for token minting, or implicit GitHub OIDC mode

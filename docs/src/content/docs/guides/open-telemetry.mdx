@@ -75,6 +75,21 @@ observability:
 
 Values are plain strings. GitHub Actions expressions also work here, so you can populate attributes from run metadata, variables, or secrets. Empty values are omitted, and non-empty values are masked in runner logs.
 
+## Custom resource attributes
+
+`observability.otlp.resource-attributes` appends additional resource attributes to the standard gh-aw and GitHub resource attribute set:
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    resource-attributes:
+      service.namespace: platform-automation
+      deployment.environment: ${{ github.ref_name }}
+```
+
+Use static strings or GitHub Actions expressions. Do **not** use `secrets.*` or `vars.*` values in `resource-attributes` because resource attributes are exported to external observability backends and are not treated as secret values.
+
 ## Built-in telemetry emitted by gh-aw
 
 gh-aw emits a small set of built-in spans and trace artifacts once OTLP is configured.

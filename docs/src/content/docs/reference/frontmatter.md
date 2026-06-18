@@ -335,7 +335,7 @@ observability:
       X-Tenant: my-org
 ```
 
-`endpoint` accepts a string, a `{url, headers}` object, or an array of endpoint objects for fan-out; `headers` accepts a map or comma-separated `key=value` string; `if-missing` supports `error` (default), `warn`, and `ignore`; and `attributes` is an optional map of custom span attributes (values support GitHub Actions expressions). See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/) for setup and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/) for emitted fields.
+`endpoint` accepts a string, a `{url, headers}` object, or an array of endpoint objects for fan-out; `headers` accepts a map or comma-separated `key=value` string; `if-missing` supports `error` (default), `warn`, and `ignore`; `attributes` is an optional map of custom span attributes (values support GitHub Actions expressions); and `resource-attributes` appends custom OTel resource attributes to the built-in gh-aw/GitHub set. Use static strings or GitHub Actions expressions for `resource-attributes`, but do not use `secrets.*` or `vars.*` values because resource attributes are exported to external observability backends and are not treated as secret values. See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/) for setup and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/) for emitted fields.
 
 ### Resources (`resources:`)
 
