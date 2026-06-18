@@ -11,6 +11,15 @@ set -e
 # Get PID from command line argument (passed from step output)
 GATEWAY_PID="$1"
 
+# Stop the named gateway container first — this is more reliable than killing the
+# docker run wrapper PID because it asks the Docker daemon to stop the container
+# directly.  This ensures the host port is freed even on persistent self-hosted
+# runners where a prior kill of the wrapper process left the container running.
+# This runs unconditionally (even when GATEWAY_PID is empty) so that partially
+# started containers are cleaned up if the start step failed before capturing PID.
+echo "Stopping awmg-mcpg container..."
+docker stop awmg-mcpg 2>/dev/null || docker rm -f awmg-mcpg 2>/dev/null || true
+
 if [ -z "$GATEWAY_PID" ]; then
   echo "Gateway PID not provided"
   echo "Gateway may not have been started or PID was not captured"

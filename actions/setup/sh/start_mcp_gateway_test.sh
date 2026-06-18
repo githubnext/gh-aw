@@ -298,6 +298,13 @@ test_validation_functions_exist() {
   else
     print_result "Health check exponential backoff configuration missing" "FAIL"
   fi
+
+  # Check for stale container cleanup before gateway start
+  if grep -q "awmg-mcpg" "$SCRIPT_PATH" && grep -q "docker rm -f awmg-mcpg" "$SCRIPT_PATH"; then
+    print_result "Stale awmg-mcpg container cleanup exists" "PASS"
+  else
+    print_result "Stale awmg-mcpg container cleanup missing" "FAIL"
+  fi
 }
 
 # Run all tests

@@ -412,6 +412,20 @@ async function main() {
   const outputPath = path.join(configDir, "gateway-output.json");
   const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
+  // Clean up any stale gateway container from a previous run on this runner.
+  // On persistent self-hosted runners a prior job's gateway container may still
+  // be running and holding the host port, causing "bind: address already in use"
+  // when we try to start the new one.  Force-removing by the well-known container
+  // name is idempotent and safe: if no such container exists Docker exits 0.
+  core.info("Cleaning up any stale awmg-mcpg container from a previous run...");
+  try {
+    execSync("docker rm -f awmg-mcpg 2>/dev/null && echo 'Removed stale awmg-mcpg container' || true", { stdio: "inherit" });
+  } catch {
+    // Non-fatal: proceed even if the cleanup command itself fails
+    core.info("Could not remove stale awmg-mcpg container (may not exist)");
+  }
+  core.info("");
+
   core.info(`Starting gateway with container: ${dockerCommand}`);
   core.info(`Full docker command: ${dockerCommand}`);
   core.info("");
