@@ -259,7 +259,35 @@ func TestActionResolverGetUsedCacheKeysReturnsCopy(t *testing.T) {
 	}
 }
 
-// TestForceGHHostEnvSetsGitHubCom verifies that ForceGHHostEnv always sets
+// TestForceGHHostEnvWithPresetCmdEnv verifies the non-nil cmd.Env branch of
+// ForceGHHostEnv: a stale GH_HOST in a pre-populated cmd.Env is replaced,
+// other env entries are preserved, and there is exactly one GH_HOST entry.
+func TestForceGHHostEnvWithPresetCmdEnv(t *testing.T) {
+	cmd := ExecGHContext(context.Background(), "api", "/test")
+	cmd.Env = []string{"GH_HOST=stale.ghe.com", "OTHER=value"}
+
+	ForceGHHostEnv(cmd, "github.com")
+
+	var ghHostEntries []string
+	preservedOther := false
+	for _, e := range cmd.Env {
+		if strings.HasPrefix(e, "GH_HOST=") {
+			ghHostEntries = append(ghHostEntries, e)
+		}
+		if e == "OTHER=value" {
+			preservedOther = true
+		}
+	}
+	if len(ghHostEntries) != 1 {
+		t.Errorf("expected exactly one GH_HOST entry, got: %v", ghHostEntries)
+	} else if ghHostEntries[0] != "GH_HOST=github.com" {
+		t.Errorf("expected GH_HOST=github.com, got %q", ghHostEntries[0])
+	}
+	if !preservedOther {
+		t.Error("expected OTHER=value to be preserved in cmd.Env")
+	}
+}
+
 // GH_HOST=github.com on the command environment regardless of the process-level
 // GH_HOST setting, including when GH_HOST is unset, set to a GHE host, or already
 // set to github.com.
