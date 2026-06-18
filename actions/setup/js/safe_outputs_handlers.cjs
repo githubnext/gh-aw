@@ -26,6 +26,23 @@ const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } 
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+
+/** PR event names used for target:triggering context validation across all safe-output handlers. */
+const PR_EVENT_NAMES = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+
+/**
+ * Resolve effective event name and payload from an invocation context,
+ * falling back to the raw GitHub Actions context.
+ * @param {ReturnType<typeof resolveInvocationContext> | null | undefined} invocationContext
+ * @param {any} rawContext
+ */
+function resolveEffectiveContext(invocationContext, rawContext) {
+  return {
+    effectiveEventName: invocationContext?.eventName || rawContext.eventName,
+    effectivePayload: invocationContext?.eventPayload || rawContext.payload,
+  };
+}
+
 /**
  * Read and parse a JSON file.
  * @param {string} filePath
@@ -1647,19 +1664,21 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const effectiveAddCommentTarget = addCommentConfig.target || "triggering";
     const hasExplicitItemNumber = args?.item_number != null || args?.issue_number != null || args?.["pr-number"] != null;
     if (effectiveAddCommentTarget === "triggering" && !hasExplicitItemNumber) {
-      let invocationContext;
+      let invocationContext = null;
       try {
         invocationContext = resolveInvocationContext(context);
-      } catch {
-        // Context resolution failed; skip validation and let downstream handle gracefully
+      } catch (err) {
+        // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
+        if (err?.message?.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(err.message);
+        }
+        // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
-      if (invocationContext !== undefined) {
-        const effectiveEventName = invocationContext?.eventName || context.eventName;
-        const effectivePayload = invocationContext?.eventPayload || context.payload;
-        const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+      if (invocationContext != null) {
+        const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
         const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
         const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
-        const isPRContext = prEventNames.has(effectiveEventName) || isIssueCommentOnPR;
+        const isPRContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
         const isDiscussionContext = effectiveEventName === "discussion" || effectiveEventName === "discussion_comment";
         if (!isIssueContext && !isPRContext && !isDiscussionContext) {
           return buildIntentErrorResponse(
@@ -1907,12 +1926,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       let invocationContext;
       try {
         invocationContext = resolveInvocationContext(context);
-      } catch {
-        // If context resolution fails fall through and let the downstream handler deal with it.
+      } catch (err) {
+        // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
+        if (err?.message?.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(err.message);
+        }
+        // Unexpected structural error: fall through and let the downstream handler deal with it.
         return defaultHandler("update_issue")(args || {});
       }
-      const effectiveEventName = invocationContext?.eventName || context.eventName;
-      const effectivePayload = invocationContext?.eventPayload || context.payload;
+      const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
       const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
       const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
 
@@ -1954,15 +1976,17 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       let invocationContext;
       try {
         invocationContext = resolveInvocationContext(context);
-      } catch {
-        // If context resolution fails fall through and let the downstream handler deal with it.
+      } catch (err) {
+        // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
+        if (err?.message?.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(err.message);
+        }
+        // Unexpected structural error: fall through and let the downstream handler deal with it.
         return defaultHandler("update_pull_request")(args || {});
       }
-      const effectiveEventName = invocationContext?.eventName || context.eventName;
-      const effectivePayload = invocationContext?.eventPayload || context.payload;
-      const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+      const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
       const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
-      const isPRContext = prEventNames.has(effectiveEventName) || isIssueCommentOnPR;
+      const isPRContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
 
       if (!isPRContext) {
         return buildIntentErrorResponse(

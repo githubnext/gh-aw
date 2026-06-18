@@ -1862,16 +1862,39 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should write entry when issue_comment fires on a PR (valid PR context for add_comment)", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "issue_comment",
+        payload: { issue: { number: 7, pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/7" } } },
+      };
+      try {
+        const result = handlers.addCommentHandler({ body: "A real comment body for this PR comment thread" });
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
     it("should write entry when explicit item_number bypasses context check in non-issue/PR event", () => {
-      // push context but explicit item_number provided — downstream handles it directly
-      const result = handlers.addCommentHandler({
-        body: "A real comment body that is substantive enough",
-        item_number: 42,
-      });
-      expect(result.isError).toBeUndefined();
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment", item_number: 42 }));
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "push", payload: {} };
+      try {
+        const result = handlers.addCommentHandler({
+          body: "A real comment body that is substantive enough",
+          item_number: 42,
+        });
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment", item_number: 42 }));
+      } finally {
+        global.context = savedContext;
+      }
     });
 
     it("should write entry on workflow_dispatch with issue aw_context", () => {
@@ -1896,6 +1919,25 @@ describe("safe_outputs_handlers", () => {
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error on workflow_dispatch with no event_name override", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "workflow_dispatch",
+        payload: { inputs: {} }, // no event_name, no aw_context
+      };
+      try {
+        const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain('"workflow_dispatch"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
       } finally {
         global.context = savedContext;
       }
@@ -2534,6 +2576,43 @@ describe("safe_outputs_handlers", () => {
         global.context = savedContext;
       }
     });
+
+    it("should return intent error on workflow_dispatch with no event_name override", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "workflow_dispatch",
+        payload: { inputs: {} }, // no event_name, no aw_context
+      };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "No context title" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain('"workflow_dispatch"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when issue_comment fires on a PR (PR context for update_pull_request)", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "issue_comment",
+        payload: { issue: { number: 7, pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/7" } } },
+      };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "PR update from issue_comment" });
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
   });
 
   describe("updateIssueHandler", () => {
@@ -2612,6 +2691,44 @@ describe("safe_outputs_handlers", () => {
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_issue" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error for issue_comment on a PR (not issue context)", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "issue_comment",
+        payload: { issue: { number: 7, pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/7" } } },
+      };
+      try {
+        const result = handlers.updateIssueHandler({ body: "Update body" });
+        expect(result.isError).toBe(true);
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("error");
+        expect(data.error).toContain("issue context");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error on workflow_dispatch with no event_name override", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "workflow_dispatch",
+        payload: { inputs: {} }, // no event_name, no aw_context
+      };
+      try {
+        const result = handlers.updateIssueHandler({ body: "Issue update no context" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain('"workflow_dispatch"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
       } finally {
         global.context = savedContext;
       }
