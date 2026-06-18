@@ -74,6 +74,7 @@ if [ -n "${GITHUB_WORKSPACE:-}" ] && [ -n "${MANIFEST_PATH}" ] && [ -f "${MANIFE
           if (seen.has(resolved)) continue;
           seen.add(resolved);
           process.stdout.write(resolved + "\n");
+        }
       }
     } catch (_e) {
       /* ignore missing or malformed manifest */
