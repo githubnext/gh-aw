@@ -586,22 +586,15 @@ func (e *CodexEngine) expandNeutralToolsToCodexToolsFromMap(tools map[string]any
 
 func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpTools []string) []string {
 	// Collect all environment variables needed by MCP servers
-	envVars := make(map[string]struct {
-	})
+	envVars := make(map[string]struct{})
 
 	// Always include core environment variables
-	envVars["PATH"] = struct {
-	}{}
-	envVars["HOME"] = struct {
-	}{
+	envVars["PATH"] = struct{}{}
+	envVars["HOME"] = struct{}{}
 
-		// Add CODEX_API_KEY for authentication
-	}
-
-	envVars["CODEX_API_KEY"] = struct {
-	}{}
-	envVars["OPENAI_API_KEY"] = struct { // Fallback for CODEX_API_KEY
-	}{}
+	// Add CODEX_API_KEY for authentication
+	envVars["CODEX_API_KEY"] = struct{}{}
+	envVars["OPENAI_API_KEY"] = struct{}{} // Fallback for CODEX_API_KEY
 
 	// Check each MCP tool for required environment variables
 	for _, toolName := range mcpTools {

@@ -47,12 +47,9 @@ func dfsForCycle(current, target string, cycleNodes map[string]struct {
 }, path *[]string, isFirst bool) bool {
 	// Add current node to path
 	*path = append(*path, current)
-	visited[current] = struct {
-	}{
+	visited[current] = struct{}{}
 
-		// Get dependencies of current node, sorted for determinism
-	}
-
+	// Get dependencies of current node, sorted for determinism
 	deps := dependencies[current]
 	sortedDeps := make([]string, 0, len(deps))
 	for _, dep := range deps {

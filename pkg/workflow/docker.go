@@ -17,8 +17,7 @@ var dockerLog = logger.New("workflow:docker")
 // deterministic and supply-chain-safe image pulls.
 func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actionMode ActionMode) []string {
 	var images []string
-	imageSet := make(map[string]struct { // Use a set to avoid duplicates
-	})
+	imageSet := make(map[string]struct{}) // Use a set to avoid duplicates
 
 	// Check for GitHub tool (uses Docker image)
 	if rawGithubTool, hasGitHub := tools["github"]; hasGitHub {

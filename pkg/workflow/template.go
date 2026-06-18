@@ -121,17 +121,14 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 	}
 
 	// Add environment variables for extracted expressions (deduplicated by EnvVar)
-	seen := make(map[string]struct {
-	})
+	seen := make(map[string]struct{})
 	for _, mapping := range expressionMappings {
 		if hasStringKey(seen, mapping.EnvVar) {
 			continue
 		}
-		seen[mapping.EnvVar] = struct {
-		}{
-			// Write the environment variable with the original GitHub expression
-		}
+		seen[mapping.EnvVar] = struct{}{}
 
+		// Write the environment variable with the original GitHub expression
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}
 

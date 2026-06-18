@@ -550,12 +550,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	return nil
 }
 
-func (c *Compiler) getCustomJobDependencySets(data *WorkflowData) (map[string]struct {
-}, map[string]struct {
+func (c *Compiler) getCustomJobDependencySets(data *WorkflowData) (map[string]struct{}, map[string]struct{}) {
 	// Pre-compute jobs referenced in the markdown body with no explicit needs.
 	// These run before activation (not after), so we must not auto-add activation to them.
-}) {
-
 	promptReferencedJobsSlice := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
 	promptReferencedJobs := make(map[string]struct {
 	}, len(promptReferencedJobsSlice))
