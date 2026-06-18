@@ -88,7 +88,10 @@ function buildCheckoutManifest(entries, options = {}) {
   const runGit = options.runGit;
   const runGH = options.runGH;
 
-  const manifestDir = path.join(runnerTemp, "gh-aw");
+  // Write under safeoutputs/ because that subdirectory is the only part of
+  // $RUNNER_TEMP/gh-aw that is bind-mounted into the containerized safe-outputs
+  // MCP server, which is where the manifest is read by findRepoCheckout.
+  const manifestDir = path.join(runnerTemp, "gh-aw", "safeoutputs");
   fs.mkdirSync(manifestDir, { recursive: true });
   const manifestPath = path.join(manifestDir, "checkout-manifest.json");
   const manifest = {};

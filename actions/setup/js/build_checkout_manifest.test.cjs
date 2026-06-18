@@ -121,7 +121,7 @@ describe("build_checkout_manifest.cjs", () => {
       }
     );
 
-    expect(manifestPath).toBe(path.join(runnerTemp, "gh-aw", "checkout-manifest.json"));
+    expect(manifestPath).toBe(path.join(runnerTemp, "gh-aw", "safeoutputs", "checkout-manifest.json"));
     expect(manifest).toEqual({
       "owner/repo": {
         repository: "Owner/Repo",

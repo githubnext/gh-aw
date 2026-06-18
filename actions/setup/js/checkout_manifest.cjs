@@ -19,9 +19,12 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * authoritative source for resolving the on-disk checkout path and base branch
  * of cross-repo checkouts without any network access.
  *
- * The default location is $RUNNER_TEMP/gh-aw/checkout-manifest.json. Override
- * with GH_AW_CHECKOUT_MANIFEST when running outside of a GitHub Actions runner
- * (tests, local dev).
+ * The default location is $RUNNER_TEMP/gh-aw/safeoutputs/checkout-manifest.json.
+ * It lives under safeoutputs/ specifically because that subdirectory is the only
+ * part of $RUNNER_TEMP/gh-aw that is bind-mounted into the containerized
+ * safe-outputs MCP server; a sibling file at $RUNNER_TEMP/gh-aw/ would be
+ * invisible inside the container. Override with GH_AW_CHECKOUT_MANIFEST when
+ * running outside of a GitHub Actions runner (tests, local dev).
  */
 
 let cached = null;
@@ -35,7 +38,7 @@ function resolveManifestPath() {
   if (!runnerTemp || runnerTemp.trim() === "") {
     return null;
   }
-  return path.join(runnerTemp, "gh-aw", "checkout-manifest.json");
+  return path.join(runnerTemp, "gh-aw", "safeoutputs", "checkout-manifest.json");
 }
 
 function loadManifest() {

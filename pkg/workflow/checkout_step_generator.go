@@ -73,8 +73,9 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 // so the safe-outputs MCP server (which runs without credentials) can look up the
 // base branch without making any network calls.
 //
-// The manifest file lives at $RUNNER_TEMP/gh-aw/checkout-manifest.json. The default
-// branch is resolved at runtime via:
+// The manifest file lives at $RUNNER_TEMP/gh-aw/safeoutputs/checkout-manifest.json
+// (under safeoutputs/ so it is bind-mounted into the containerized safe-outputs MCP
+// server). The default branch is resolved at runtime via:
 //  1. `git symbolic-ref --short refs/remotes/origin/HEAD` on the local checkout
 //     (works when actions/checkout left the remote HEAD set, typical for fetch-depth: 0)
 //  2. `gh api repos/<owner>/<repo> --jq .default_branch` as a credentialed fallback
