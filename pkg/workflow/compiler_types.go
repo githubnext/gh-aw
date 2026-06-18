@@ -643,8 +643,8 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	// case produces unverified SHA pins, so disable the fallback.
 	// When GH_HOST is unset, fall back to the programmatic default host (set
 	// for example from auto-detected git remotes).  Mirror setupGHCommand's
-	// precedence: GH_HOST wins when present; default host is only consulted
-	// when GH_HOST is absent.
+	// (github_cli.go) precedence: GH_HOST wins when present; default host is
+	// only consulted when GH_HOST is absent.
 	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
 		if ghHost != "github.com" {
 			pinCtx.SkipHardcodedFallback = true

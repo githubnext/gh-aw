@@ -39,6 +39,7 @@ func TestWorkflowData_PinContext_SkipHardcodedFallback(t *testing.T) {
 	t.Run("GH_HOST=github.com wins over non-github.com default host", func(t *testing.T) {
 		t.Setenv("GH_HOST", "github.com")
 		SetDefaultGHHost("myorg.ghe.com")
+		t.Cleanup(func() { SetDefaultGHHost("") })
 
 		d := &WorkflowData{}
 		ctx := d.PinContext()
