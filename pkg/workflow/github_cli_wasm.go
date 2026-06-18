@@ -42,3 +42,9 @@ func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
 }
+
+// SetDefaultGHHost is a no-op in Wasm builds; GH CLI is unavailable.
+func SetDefaultGHHost(_ string) {}
+
+// getDefaultGHHost always returns "" in Wasm builds.
+func getDefaultGHHost() string { return "" }

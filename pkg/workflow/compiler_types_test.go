@@ -36,6 +36,17 @@ func TestWorkflowData_PinContext_SkipHardcodedFallback(t *testing.T) {
 		assert.False(t, ctx.SkipHardcodedFallback, "Expected SkipHardcodedFallback to be false when GH_HOST is github.com")
 	})
 
+	t.Run("GH_HOST=github.com wins over non-github.com default host", func(t *testing.T) {
+		t.Setenv("GH_HOST", "github.com")
+		SetDefaultGHHost("myorg.ghe.com")
+
+		d := &WorkflowData{}
+		ctx := d.PinContext()
+
+		require.NotNil(t, ctx)
+		assert.False(t, ctx.SkipHardcodedFallback, "Expected SkipHardcodedFallback to be false when GH_HOST=github.com even if default host is GHE")
+	})
+
 	t.Run("does not set SkipHardcodedFallback when GH_HOST is not set", func(t *testing.T) {
 		require.NoError(t, os.Unsetenv("GH_HOST"))
 		SetDefaultGHHost("")
