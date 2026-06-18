@@ -64,15 +64,16 @@ if [ -n "${GITHUB_WORKSPACE:-}" ] && [ -n "${MANIFEST_PATH}" ] && [ -f "${MANIFE
           if (!entry || typeof entry !== "object") continue;
           const p = typeof entry.path === "string" ? entry.path : "";
           if (!p) continue;
+          if (/[\r\n\0]/.test(p)) continue;
           // Only trust paths that resolve to a location inside the workspace,
           // guarding against path traversal in a malformed/hostile manifest.
           const resolved = path.resolve(ws, p);
+          if (/[\r\n\0]/.test(resolved)) continue;
           const rel = path.relative(ws, resolved);
           if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) continue;
           if (seen.has(resolved)) continue;
           seen.add(resolved);
           process.stdout.write(resolved + "\n");
-        }
       }
     } catch (_e) {
       /* ignore missing or malformed manifest */
