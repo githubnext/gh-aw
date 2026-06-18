@@ -54,6 +54,20 @@ func runCompileWorkflowsHostDetectionCheck(t *testing.T, remoteURL string) {
 	tempDir := testutil.TempDir(t, "compile-gh-host-*")
 	require.NoError(t, initTestGitRepo(tempDir))
 	require.NoError(t, addOriginRemoteToTestRepo(tempDir, remoteURL))
+	require.NoError(t, os.MkdirAll(filepath.Join(tempDir, ".github", "workflows"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, ".github", "workflows", "host-test.md"), []byte(`---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
+
+# Host Detection Test
+
+Verify compile host detection.
+`), 0644))
 
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
@@ -63,10 +77,10 @@ func runCompileWorkflowsHostDetectionCheck(t *testing.T, remoteURL string) {
 	})
 
 	_, err = CompileWorkflows(context.Background(), CompileConfig{
-		WorkflowDir: filepath.Join(tempDir, ".github", "workflows"),
+		MarkdownFiles: []string{"host-test"},
+		NoEmit:        true,
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--dir must be a relative path")
+	require.NoError(t, err)
 }
 
 func addOriginRemoteToTestRepo(dir string, remoteURL string) error {
