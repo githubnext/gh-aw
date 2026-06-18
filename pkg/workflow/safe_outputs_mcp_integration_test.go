@@ -68,7 +68,7 @@ Test safe outputs workflow with MCP server integration.
 	if !strings.Contains(yamlStr, `"container": "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container")
 	}
-	if !strings.Contains(yamlStr, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"]`) {
+	if !strings.Contains(yamlStr, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]`) {
 		t.Error("Expected safeoutputs MCP server mounts for workspace, runtime files, and logs")
 	}
 	if !strings.Contains(yamlStr, `"entrypoint": "sh"`) {
@@ -214,7 +214,7 @@ Test safe outputs workflow with Codex engine.
 	if !strings.Contains(yamlStr, `container = "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected safeoutputs MCP server to run in the gh-aw node container in TOML")
 	}
-	if !strings.Contains(yamlStr, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"]`) {
+	if !strings.Contains(yamlStr, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]`) {
 		t.Error("Expected safeoutputs TOML MCP configuration to mount workspace, runtime files, and logs")
 	}
 	if !strings.Contains(yamlStr, `entrypoint = "sh"`) {
