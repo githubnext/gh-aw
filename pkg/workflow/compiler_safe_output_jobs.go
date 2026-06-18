@@ -164,9 +164,9 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - has an `if:` that checks needs.safe_outputs.outputs.call_workflow_name
 //   - uses: the relative path to the worker's .lock.yml (or .yml)
 //   - forwards declared workflow_call inputs in `with:` so worker steps can reference inputs.<name> directly:
-//     - non-payload inputs: `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<name>`
-//     - `payload` is forwarded as the raw transport only when the worker declares it
-//       (GitHub Actions rejects undeclared inputs)
+//   - non-payload inputs: `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<name>`
+//   - `payload` is forwarded as the raw transport only when the worker declares it
+//     (GitHub Actions rejects undeclared inputs)
 //   - inherits all caller secrets via `secrets: inherit`
 //   - includes a job-level `permissions:` block that is the union of all the
 //     worker's job-level permissions, so GitHub allows the nested jobs to run
