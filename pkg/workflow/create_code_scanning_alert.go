@@ -143,7 +143,7 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	// Step: Upload SARIF file to GitHub Code Scanning.
 	steps = append(steps, "      - name: Upload SARIF to GitHub Code Scanning\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.UploadCodeScanningJobName))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("github/codeql-action/upload-sarif")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", c.getActionPin("github/codeql-action/upload-sarif")))
 	steps = append(steps, "        with:\n")
 	// NOTE: github/codeql-action/upload-sarif uses 'token' as the input name, not 'github-token'
 	// Pass restoreToken as the fallback so GitHub App-minted tokens flow through consistently.

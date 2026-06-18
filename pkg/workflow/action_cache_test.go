@@ -970,7 +970,7 @@ func TestPruneOrphanedEntries_AllOrphaned(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 
-	cache.Set("actions/checkout", "v4", "sha1")
+	cache.Set("microsoft/apm-action", "v1.7.2", "sha1")
 	cache.Set("actions/setup-node", "v4", "sha2")
 
 	// Referenced set is non-empty but contains neither of the cached entries.
@@ -984,5 +984,47 @@ func TestPruneOrphanedEntries_AllOrphaned(t *testing.T) {
 	}
 	if len(cache.Entries) != 0 {
 		t.Errorf("Expected 0 entries after pruning all orphans, got %d", len(cache.Entries))
+	}
+}
+
+// TestPruneOrphanedEntries_PreservesCompilerGenerated verifies that compiler-generated
+// actions are never pruned, even when not in the referenced set.
+func TestPruneOrphanedEntries_PreservesCompilerGenerated(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Add compiler-generated actions and a regular action
+	cache.Set("actions/cache/save", "v4", "sha_cache_save")
+	cache.Set("actions/checkout", "v4", "sha_checkout")
+	cache.Set("github/codeql-action/upload-sarif", "v4", "sha_codeql")
+	cache.Set("microsoft/apm-action", "v1.7.2", "sha_old")
+
+	if len(cache.Entries) != 4 {
+		t.Fatalf("Expected 4 entries before pruning, got %d", len(cache.Entries))
+	}
+
+	// Only reference microsoft/apm-action, but not the compiler-generated ones
+	referenced := map[string]bool{
+		"microsoft/apm-action@v1.7.2": true,
+	}
+	pruned := cache.PruneOrphanedEntries(referenced)
+
+	// Should not prune compiler-generated actions
+	if pruned != 0 {
+		t.Errorf("Expected 0 pruned entries (compiler-generated actions preserved), got %d", pruned)
+	}
+	if len(cache.Entries) != 4 {
+		t.Errorf("Expected 4 entries after pruning (all preserved), got %d", len(cache.Entries))
+	}
+
+	// Verify compiler-generated actions are preserved
+	if _, exists := cache.Entries["actions/cache/save@v4"]; !exists {
+		t.Error("Expected compiler-generated actions/cache/save@v4 to be preserved")
+	}
+	if _, exists := cache.Entries["actions/checkout@v4"]; !exists {
+		t.Error("Expected compiler-generated actions/checkout@v4 to be preserved")
+	}
+	if _, exists := cache.Entries["github/codeql-action/upload-sarif@v4"]; !exists {
+		t.Error("Expected compiler-generated github/codeql-action/upload-sarif@v4 to be preserved")
 	}
 }

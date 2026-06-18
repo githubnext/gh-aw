@@ -530,6 +530,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
+	// Mark compiler-generated actions as used to prevent pruning.
+	// This handles actions that are hardcoded in code generators (cache.go,
+	// checkout_step_generator.go, etc.) rather than resolved from markdown workflows.
+	if resolver := c.GetSharedActionResolver(); resolver != nil {
+		resolver.MarkCompilerGeneratedActionsAsUsed()
+	}
+
 	// Write output
 	if err := c.writeWorkflowOutput(lockFile, yamlContent, markdownPath); err != nil {
 		return err

@@ -85,6 +85,10 @@ func getActionPin(repo string) string {
 //
 // This is the preferred call site for code running inside a Compiler method, since it
 // automatically honours the per-compilation GHES compat flag without any global state.
+//
+// If the compiler has an action cache and resolver, this method will check the cache for
+// any existing entry and mark it as "used" for orphan pruning. This ensures compiler-generated
+// action references (e.g., actions/cache/save in notify steps) are tracked.
 func (c *Compiler) getActionPin(repo string) string {
 	if c.ghesArtifactCompat {
 		if pin, ok := ghesArtifactCompatPins[repo]; ok {
@@ -92,6 +96,22 @@ func (c *Compiler) getActionPin(repo string) string {
 			return actionpins.FormatPinnedActionReference(repo, pin.sha, pin.version)
 		}
 	}
+
+	// Check the cache for any existing entry for this repo (regardless of version).
+	// Compiler-generated actions don't specify versions, so we use any cached entry we have.
+	cache := c.GetSharedActionCache()
+	resolver := c.GetSharedActionResolver()
+	if cache != nil {
+		if cacheKey, entry, found := cache.FindAnyEntryForRepo(repo); found {
+			// Mark this cache key as used so it won't be pruned as orphaned
+			if resolver != nil {
+				resolver.MarkCacheKeyAsUsed(cacheKey)
+			}
+			return actionpins.FormatPinnedActionReference(repo, entry.SHA, entry.Version)
+		}
+	}
+
+	// Fall back to embedded pins if no cache entry exists
 	return getActionPin(repo)
 }
 
