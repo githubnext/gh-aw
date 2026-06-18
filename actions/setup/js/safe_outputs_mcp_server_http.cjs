@@ -189,9 +189,10 @@ function createMCPServer(options = {}) {
       const result = await Promise.resolve(toolHandler(args));
       logger.debug(`Handler returned for tool: ${tool.name}`);
 
-      // Normalize result to MCP format
+      // Normalize result to MCP format; preserve isError from the handler result
       const content = result && result.content ? result.content : [];
-      return { content, isError: false };
+      const isError = !!(result && result.isError);
+      return { content, isError };
     });
 
     registeredCount++;
@@ -226,9 +227,10 @@ function createMCPServer(options = {}) {
         const result = await Promise.resolve(defaultHandler({ toolName, ...args }));
         logger.debug(`Handler returned for dynamic tool: ${toolName}`);
 
-        // Normalize result to MCP format
+        // Normalize result to MCP format; preserve isError from the handler result
         const content = result && result.content ? result.content : [];
-        return { content, isError: false };
+        const isError = !!(result && result.isError);
+        return { content, isError };
       });
 
       registeredCount++;

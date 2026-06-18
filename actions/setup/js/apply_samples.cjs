@@ -393,6 +393,30 @@ function resolveMcpServerPath() {
 }
 
 /**
+ * Return true when an MCP tool-call result carries an application-level error
+ * payload, regardless of whether the transport-level `isError` flag was set.
+ *
+ * Safe-output handlers encode errors as `{"result":"error", ...}` inside the
+ * first content text item.  This helper provides a defense-in-depth check so
+ * that the driver fails even when an older server version did not set `isError`.
+ *
+ * @param {any} result - The `result` object from a JSON-RPC tools/call response.
+ * @returns {boolean}
+ */
+function sampleResultIsError(result) {
+  if (!result) return false;
+  if (result.isError) return true;
+  const text = result.content && result.content[0] && result.content[0].text;
+  if (!text) return false;
+  try {
+    const parsed = JSON.parse(text);
+    return !!(parsed && parsed.result === "error");
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Append a synthetic terminal_reason: completed marker to the engine stdio log
  * so downstream parsers / handle_agent_failure recognize the replay as a
  * successful agent run.
@@ -489,8 +513,8 @@ async function main() {
         continue;
       }
       const result = callRsp.result;
-      if (result && result.isError) {
-        const text = result.content && result.content[0] && result.content[0].text;
+      if (sampleResultIsError(result)) {
+        const text = result && result.content && result.content[0] && result.content[0].text;
         failures.push(`sample[${i}] (tool=${sample.tool}): ${text || JSON.stringify(result)}`);
       } else {
         core.info(`apply_samples: sample[${i}] (tool=${sample.tool}) ok`);
@@ -543,4 +567,6 @@ module.exports = {
   // Exported for unit testing of the 3-tier PR head ref resolution logic.
   derivePrHeadRef,
   fetchPullRequestHeadRef,
+  // Exported for unit testing of the defense-in-depth error detection.
+  sampleResultIsError,
 };

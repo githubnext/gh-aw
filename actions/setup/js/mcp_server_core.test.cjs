@@ -187,6 +187,50 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].result.isError).toBe(false);
     });
 
+    it("should propagate isError:true from handler result to MCP response", async () => {
+      const { createServer, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+      results = [];
+
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      server = createServer({ name: "test-server", version: "1.0.0" });
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => {
+        if (id === undefined || id === null) return;
+        results.push({ jsonrpc: "2.0", id, result });
+      };
+      server.replyError = (id, code, message) => {
+        if (id === undefined || id === null) return;
+        results.push({ jsonrpc: "2.0", id, error: { code, message } });
+      };
+
+      registerTool(server, {
+        name: "failing_tool",
+        description: "A tool that returns an application-level error",
+        inputSchema: {
+          type: "object",
+          properties: { input: { type: "string", description: "Input" } },
+          required: ["input"],
+        },
+        handler: () => ({
+          content: [{ type: "text", text: JSON.stringify({ result: "error", error: "something went wrong" }) }],
+          isError: true,
+        }),
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 42,
+        method: "tools/call",
+        params: { name: "failing_tool", arguments: { input: "test" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.isError).toBe(true);
+      expect(results[0].result.content[0].text).toContain('"result":"error"');
+    });
+
     it("should normalize tool arguments before required-field validation", async () => {
       const { createServer, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
       results = [];
