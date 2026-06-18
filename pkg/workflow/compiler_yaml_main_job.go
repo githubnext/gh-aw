@@ -96,15 +96,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	// within the same job, just like the github-mcp-app-token pattern.
 	if checkoutMgr.HasAppAuth() {
 		compilerYamlLog.Print("Generating checkout app token minting steps in agent job")
-		var checkoutPermissions *Permissions
-		if data.CachedPermissions != nil {
-			checkoutPermissions = data.CachedPermissions
-		} else if data.Permissions != "" {
-			checkoutPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
-		} else {
-			checkoutPermissions = NewPermissions()
-		}
-		for _, step := range checkoutMgr.GenerateCheckoutAppTokenSteps(c, checkoutPermissions) {
+		for _, step := range checkoutMgr.GenerateCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data)) {
 			yaml.WriteString(step)
 		}
 	}

@@ -24,25 +24,28 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 		checkNotContains []string
 	}{
 		{
-			name: "create pull request only",
+			name: "create pull request only mirrors agent default checkout",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"name: Checkout repository (trusted default branch for comment events)",
-				"ref: ${{ github.event.repository.default_branch }}",
-				"github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment'",
 				"name: Checkout repository",
 				"uses: actions/checkout@",
-				"token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				"persist-credentials: false",
-				"fetch-depth: 1",
 				"name: Configure Git credentials",
 				"configure_git_credentials.sh",
+				"GITHUB_REPOSITORY: ${{ github.repository }}",
+			},
+			checkNotContains: []string{
+				// No checkout-time base ref or trusted-default-branch guard anymore;
+				// the JS handler resolves the base branch at apply time.
+				"trusted default branch for comment events",
+				"ref: ${{ github.event.repository.default_branch }}",
+				"steps.extract-base-branch.outputs.base-branch",
 			},
 		},
 		{
-			name: "uses custom checkout fetch-depth",
+			name: "uses custom default checkout fetch-depth",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
@@ -52,42 +55,22 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			checkContains: []string{
 				"fetch-depth: 0",
 			},
-			checkNotContains: []string{
-				"fetch-depth: 1",
-			},
 		},
 		{
-			name: "push to PR branch only",
+			name: "default checkout with GitHub App token mints checkout app token",
 			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
-			},
-			checkContains: []string{
-				"name: Checkout repository",
-				"name: Configure Git credentials",
-			},
-		},
-		{
-			name: "both create PR and push to PR branch",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests:      &CreatePullRequestsConfig{},
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
-			},
-			checkContains: []string{
-				"name: Checkout repository",
-				"name: Configure Git credentials",
-			},
-		},
-		{
-			name: "with GitHub App token",
-			safeOutputs: &SafeOutputsConfig{
-				GitHubApp: &GitHubAppConfig{
-					AppID:      "12345",
-					PrivateKey: "test-key",
-				},
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "12345",
+						PrivateKey: "test-key",
+					},
+				},
+			},
 			checkContains: []string{
-				"token: ${{ steps.safe-outputs-app-token.outputs.token }}",
+				"token: ${{ steps.checkout-app-token-0.outputs.token }}",
 			},
 		},
 		{
@@ -102,7 +85,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "with per-config github-token",
+			name: "create-pr per-config github-token flows into git credentials",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -111,83 +94,21 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 			},
 		},
 		{
-			name: "with safe-outputs github-token",
+			name: "safe-outputs github-token flows into git credentials",
 			safeOutputs: &SafeOutputsConfig{
 				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 				"GIT_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 			},
 		},
 		{
-			name: "cross-repo with custom token",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.GH_AW_CROSS_REPO_PAT }}",
-					},
-					TargetRepoSlug: "org/target-repo",
-				},
-			},
-			checkContains: []string{
-				"repository: org/target-repo",
-				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
-				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
-				`GITHUB_REPOSITORY: "org/target-repo"`,
-				// Cross-repo checkout must not use github.ref_name
-				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
-			},
-			checkNotContains: []string{
-				"name: Checkout repository (trusted default branch for comment events)",
-			},
-		},
-		{
-			name: "cross-repo without base-branch uses safe ref omitting github.ref_name",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/other-repo",
-				},
-			},
-			checkContains: []string{
-				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
-			},
-			checkNotContains: []string{
-				"github.ref_name",
-			},
-		},
-		{
-			name:      "trial mode cross-repo omits github.ref_name from checkout ref",
-			trialMode: true,
-			trialRepo: "org/trial-repo",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{},
-			},
-			checkContains: []string{
-				"repository: org/trial-repo",
-				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
-			},
-		},
-		{
-			name: "cross-repo with explicit base-branch uses base-branch not cross-repo fallback",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/other-repo",
-					BaseBranch:     "develop",
-				},
-			},
-			checkContains: []string{
-				"ref: develop",
-			},
-		},
-		{
-			name: "push-to-pull-request-branch with per-config token",
+			name: "push-to-pull-request-branch per-config token flows into git credentials",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -196,7 +117,6 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"token: ${{ secrets.PUSH_BRANCH_PAT }}",
 				"GIT_TOKEN: ${{ secrets.PUSH_BRANCH_PAT }}",
 			},
 		},
@@ -215,319 +135,98 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"token: ${{ secrets.CREATE_PR_PAT }}",
 				"GIT_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
 			},
 		},
 		{
-			name: "default checkout ref uses steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch",
+			name: "default checkout config ref is honored",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
-			checkContains: []string{
-				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}",
-			},
-		},
-		{
-			name: "checkout ref uses custom base-branch",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseBranch: "develop",
-				},
+			checkoutConfigs: []*CheckoutConfig{
+				{Ref: "develop"},
 			},
 			checkContains: []string{
 				"ref: develop",
 			},
 		},
 		{
-			name: "checkout ref with release branch base-branch",
+			// Issue #40121: a cross-repo target checked out into a subdirectory mirrors the
+			// agent layout (workflow repo at root + target at its configured path) instead of
+			// collapsing to a single checkout of the target at the workspace root.
+			name: "cross-repo checkout into subdirectory mirrors agent layout",
 			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseBranch: "release/v2.0",
-				},
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{Repository: "org/a", Path: "a"},
 			},
 			checkContains: []string{
-				"ref: release/v2.0",
+				"name: Checkout org/a into a",
+				"repository: org/a",
+				"path: a",
+				// Root workflow checkout is still present (the agent default checkout).
+				"name: Checkout repository",
+				// Subdirectory checkout is re-authenticated so the handler can push to it.
+				`git -C "a" remote set-url origin`,
 			},
 		},
 		{
-			name: "push-to-pull-request-branch with target-repo and no create-pull-request",
+			name: "two cross-repo checkouts check out both at their paths",
 			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					TargetRepoSlug: "microsoft/vscode",
-				},
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{Repository: "org/a", Path: "a"},
+				{Repository: "org/b", Path: "b"},
 			},
 			checkContains: []string{
-				"repository: microsoft/vscode",
-				`GITHUB_REPOSITORY: "microsoft/vscode"`,
-				// Cross-repo checkout must not use github.ref_name
-				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
-			},
-			checkNotContains: []string{
-				"github.ref_name",
+				"name: Checkout org/a into a",
+				"path: a",
+				"name: Checkout org/b into b",
+				"path: b",
 			},
 		},
 		{
-			name: "update-pull-request target-repo does not affect shared git checkout (API-only operation)",
+			// Issue #40121: a subdirectory cross-repo checkout that uses sparse-checkout
+			// must emit the non-empty blob filter and the partial-clone-marker reset, just
+			// like the agent job, so the later fetch does not fail on a credential-dependent
+			// partial clone.
+			name: "subdirectory cross-repo sparse checkout mirrors agent filter and partial-clone reset",
 			safeOutputs: &SafeOutputsConfig{
-				UpdatePullRequests: &UpdatePullRequestsConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "microsoft/vscode"},
-					},
-				},
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
-			// update-pull-request is API-only; its target-repo must NOT set repository:/GITHUB_REPOSITORY
-			checkNotContains: []string{
-				"repository: microsoft/vscode",
-				`GITHUB_REPOSITORY: "microsoft/vscode"`,
-			},
-		},
-		{
-			name: "push-to-pull-request-branch target-repo takes precedence over update-pull-request target-repo",
-			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					TargetRepoSlug: "org/push-branch-target",
-				},
-				UpdatePullRequests: &UpdatePullRequestsConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/update-pr-target"},
-					},
-				},
+			checkoutConfigs: []*CheckoutConfig{
+				{Repository: "org/a", Path: "a", SparseCheckout: ".github\nsrc"},
 			},
 			checkContains: []string{
-				"repository: org/push-branch-target",
-				`GITHUB_REPOSITORY: "org/push-branch-target"`,
+				"name: Checkout org/a into a",
+				"filter: 'blob:limit=1073741824'",
+				"name: Clear partial clone markers after sparse checkout",
 			},
 			checkNotContains: []string{
-				"org/update-pr-target",
+				"--filter=blob:none",
 			},
 		},
 		{
-			name: "create-pull-request target-repo takes precedence over push-to-pull-request-branch target-repo",
+			name: "cross-repo checkout with fetch refs emits fetch step",
 			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/create-pr-target",
-				},
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					TargetRepoSlug: "org/push-branch-target",
-				},
-			},
-			checkContains: []string{
-				"repository: org/create-pr-target",
-				`GITHUB_REPOSITORY: "org/create-pr-target"`,
-			},
-			checkNotContains: []string{
-				"org/push-branch-target",
-			},
-		},
-		{
-			name: "cross-repo with matching checkout fetch refs emits fetch step",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_PAT }}",
-					},
-					TargetRepoSlug: "org/target-repo",
-					BaseBranch:     "master",
-				},
+				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkoutConfigs: []*CheckoutConfig{
 				{
 					Repository: "org/target-repo",
+					Path:       "target-repo",
 					FetchDepth: func() *int { d := 1; return &d }(),
 					Fetch:      []string{"master", "my/branch/*"},
 				},
 			},
 			checkContains: []string{
-				"name: Fetch additional refs for org/target-repo",
-				"GH_AW_FETCH_TOKEN: ${{ secrets.CROSS_PAT }}",
 				"+refs/heads/master:refs/remotes/origin/master",
 				"+refs/heads/my/branch/*:refs/remotes/origin/my/branch/*",
-				// Fetch step must carry same condition as the checkout step
-				"contains(needs.agent.outputs.output_types, 'create_pull_request')",
-				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
-				"--depth=1",
 			},
 			checkNotContains: []string{
 				"--filter=blob:none",
-			},
-		},
-		{
-			name: "cross-repo checkout without fetch refs does not emit fetch step",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/target-repo",
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					Repository: "org/target-repo",
-					FetchDepth: func() *int { d := 1; return &d }(),
-					// No Fetch field
-				},
-			},
-			checkNotContains: []string{
-				"name: Fetch additional refs for org/target-repo",
-				"GH_AW_FETCH_TOKEN",
-			},
-		},
-		{
-			name: "cross-repo target with no matching checkout config does not emit fetch step",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/target-repo",
-				},
-			},
-			// checkoutConfigs is nil — no matching entry
-			checkNotContains: []string{
-				"name: Fetch additional refs for org/target-repo",
-				"GH_AW_FETCH_TOKEN",
-			},
-		},
-		{
-			name: "push-to-pull-request-branch cross-repo with checkout fetch refs emits fetch step",
-			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.PUSH_PAT }}",
-					},
-					TargetRepoSlug: "org/push-target",
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					Repository: "org/push-target",
-					Fetch:      []string{"main", "feature/*"},
-				},
-			},
-			checkContains: []string{
-				"name: Fetch additional refs for org/push-target",
-				"GH_AW_FETCH_TOKEN: ${{ secrets.PUSH_PAT }}",
-				"+refs/heads/main:refs/remotes/origin/main",
-				"+refs/heads/feature/*:refs/remotes/origin/feature/*",
-				// Condition tied to push_to_pull_request_branch
-				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
-				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
-				"--depth=1",
-			},
-			checkNotContains: []string{
-				"--filter=blob:none",
-			},
-		},
-		{
-			name: "cross-repo fetch refs omits blob filter even for full clone",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_PAT }}",
-					},
-					TargetRepoSlug: "org/target-repo",
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					Repository: "org/target-repo",
-					FetchDepth: func() *int { d := 0; return &d }(),
-					Fetch:      []string{"main"},
-				},
-			},
-			checkContains: []string{
-				"name: Fetch additional refs for org/target-repo",
-				"+refs/heads/main:refs/remotes/origin/main",
-			},
-			checkNotContains: []string{
-				"--filter=blob:none",
-				// Full clone: no depth restriction
-				"--depth=",
-			},
-		},
-		{
-			name: "cross-repo with sparse-checkout patterns propagates them to safe_outputs checkout",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_PAT }}",
-					},
-					TargetRepoSlug: "org/monorepo",
-					BaseBranch:     "main",
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					Repository:     "org/monorepo",
-					SparseCheckout: ".github\nscripts\ntest",
-				},
-			},
-			checkContains: []string{
-				"sparse-checkout: |",
-				"            .github",
-				"            scripts",
-				"            test",
-			},
-		},
-		{
-			name: "cross-repo without sparse-checkout does not emit sparse-checkout block",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/full-repo",
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					Repository: "org/full-repo",
-				},
-			},
-			checkNotContains: []string{
-				"sparse-checkout:",
-			},
-		},
-		{
-			name: "cross-repo fetch-depth is read from checkout config for target repo, not default override",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/target",
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					// The "default" checkout (empty repo/path) has a different fetch-depth.
-					// The cross-repo entry's fetch-depth should win for the safe_outputs checkout.
-					FetchDepth: func() *int { d := 0; return &d }(),
-				},
-				{
-					Repository: "org/target",
-					FetchDepth: func() *int { d := 10; return &d }(),
-				},
-			},
-			checkContains: []string{
-				"fetch-depth: 10",
-			},
-			checkNotContains: []string{
-				"fetch-depth: 0",
-			},
-		},
-		{
-			name: "same-repo sparse-checkout from default checkout override propagates to safe_outputs",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.GITHUB_TOKEN }}",
-					},
-					// No TargetRepoSlug: same-repo operation
-				},
-			},
-			checkoutConfigs: []*CheckoutConfig{
-				{
-					// Default workspace-root checkout with sparse patterns
-					SparseCheckout: ".github\napp\nlib",
-				},
-			},
-			checkContains: []string{
-				"sparse-checkout: |",
-				"            .github",
-				"            app",
-				"            lib",
 			},
 		},
 	}
@@ -826,7 +525,6 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	setupPos := strings.Index(stepsContent, "name: Setup Scripts")
 	downloadPos := strings.Index(stepsContent, "name: Download agent output")
 	patchPos := strings.Index(stepsContent, "name: Download patch artifact")
-	extractBranchPos := strings.Index(stepsContent, "name: Extract base branch from agent output")
 	checkoutPos := strings.Index(stepsContent, "name: Checkout repository")
 	gitConfigPos := strings.Index(stepsContent, "name: Configure Git credentials")
 	handlerPos := strings.Index(stepsContent, "name: Process Safe Outputs")
@@ -838,11 +536,8 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	if downloadPos != -1 && patchPos != -1 {
 		assert.Less(t, downloadPos, patchPos, "Agent output download should come before patch download")
 	}
-	if patchPos != -1 && extractBranchPos != -1 {
-		assert.Less(t, patchPos, extractBranchPos, "Patch download should come before extract base branch")
-	}
-	if extractBranchPos != -1 && checkoutPos != -1 {
-		assert.Less(t, extractBranchPos, checkoutPos, "Extract base branch should come before checkout")
+	if patchPos != -1 && checkoutPos != -1 {
+		assert.Less(t, patchPos, checkoutPos, "Patch download should come before checkout")
 	}
 	if checkoutPos != -1 && gitConfigPos != -1 {
 		assert.Less(t, checkoutPos, gitConfigPos, "Checkout should come before git config")
@@ -850,21 +545,4 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	if gitConfigPos != -1 && handlerPos != -1 {
 		assert.Less(t, gitConfigPos, handlerPos, "Git config should come before handler")
 	}
-}
-
-// TestBuildExtractBaseBranchStep tests that the extract-base-branch step is correctly generated
-func TestBuildExtractBaseBranchStep(t *testing.T) {
-	steps := buildExtractBaseBranchStep()
-
-	require.NotEmpty(t, steps)
-
-	stepsContent := strings.Join(steps, "")
-
-	assert.Contains(t, stepsContent, "name: Extract base branch from agent output")
-	assert.Contains(t, stepsContent, "id: extract-base-branch")
-	assert.Contains(t, stepsContent, "steps.download-agent-output.outcome == 'success'")
-	assert.Contains(t, stepsContent, "uses: "+getActionPin("actions/github-script"))
-	assert.Contains(t, stepsContent, "setup_globals.cjs")
-	assert.Contains(t, stepsContent, "extract_base_branch_from_agent_output.cjs")
-	assert.Contains(t, stepsContent, "await main()")
 }

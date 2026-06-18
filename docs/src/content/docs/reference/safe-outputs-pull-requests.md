@@ -100,7 +100,7 @@ If the base branch advances between agent start and `safe_outputs` apply, the PR
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 
 :::note[Cross-repo targets]
-When `target-repo` names a specific repository, `safe_outputs` checks out and applies changes to that single repository. When `target-repo: "*"` is used, the agent chooses the target repository at runtime and the `safe_outputs` job checks out **all** repositories listed in `checkout:` frontmatter into subdirectories (mirroring the agent job layout), enabling pull requests to multiple repositories in a single run.
+The `safe_outputs` job always mirrors the agent job's checkout layout. When a `checkout:` entry places a repository in a subdirectory (a `path:` is set), `safe_outputs` checks out **every** repository to the same location the agent used — the workflow repository at the workspace root plus each cross-repo checkout at its `path:` — regardless of whether `target-repo` names a specific repository or the wildcard `"*"`. This lets a specific `target-repo` (and the two-or-more cross-repo case) operate against an identical layout. When the target repository is checked out at the workspace root (no `path:`), it is checked out there in both jobs.
 :::
 
 ## Pull Request Updates (`update-pull-request:`)

@@ -54,3 +54,22 @@ func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 		result)
 	return result
 }
+
+// buildPRCheckoutCondition builds the `if:` condition gating the safe_outputs job's
+// checkout and git-configuration steps. The steps should run only when a create_pull_request
+// or push_to_pull_request_branch output will actually be processed, so the condition is the
+// OR of whichever of those two safe outputs are configured. Callers should only invoke this
+// when at least one of the two is configured (the default branch assumes push_to_pull_request_branch).
+func buildPRCheckoutCondition(safeOutputs *SafeOutputsConfig) ConditionNode {
+	switch {
+	case safeOutputs.CreatePullRequests != nil && safeOutputs.PushToPullRequestBranch != nil:
+		return BuildOr(
+			BuildSafeOutputType("create_pull_request"),
+			BuildSafeOutputType("push_to_pull_request_branch"),
+		)
+	case safeOutputs.CreatePullRequests != nil:
+		return BuildSafeOutputType("create_pull_request")
+	default:
+		return BuildSafeOutputType("push_to_pull_request_branch")
+	}
+}
