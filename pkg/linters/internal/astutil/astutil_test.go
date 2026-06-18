@@ -3,7 +3,10 @@ package astutil
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"testing"
+
+	"golang.org/x/tools/go/analysis"
 )
 
 func TestRhsExprForIndex(t *testing.T) {
@@ -60,5 +63,84 @@ func TestNodeText(t *testing.T) {
 	got := NodeText(fset, node)
 	if got != "myVar" {
 		t.Fatalf("NodeText = %q, want %q", got, "myVar")
+	}
+}
+
+func TestIsStdPkgSelector(t *testing.T) {
+	t.Parallel()
+
+	makePass := func(ident *ast.Ident, obj types.Object) *analysis.Pass {
+		return &analysis.Pass{
+			TypesInfo: &types.Info{
+				Uses: map[*ast.Ident]types.Object{
+					ident: obj,
+				},
+			},
+		}
+	}
+
+	logIdent := ast.NewIdent("log")
+	aliasIdent := ast.NewIdent("applog")
+	localIdent := ast.NewIdent("log")
+
+	logPkg := types.NewPackage("log", "log")
+
+	tests := []struct {
+		name    string
+		pass    *analysis.Pass
+		sel     *ast.SelectorExpr
+		pkgPath string
+		want    bool
+	}{
+		{
+			name: "direct import name",
+			pass: makePass(logIdent, types.NewPkgName(token.NoPos, nil, "log", logPkg)),
+			sel: &ast.SelectorExpr{
+				X:   logIdent,
+				Sel: ast.NewIdent("Printf"),
+			},
+			pkgPath: "log",
+			want:    true,
+		},
+		{
+			name: "aliased import name",
+			pass: makePass(aliasIdent, types.NewPkgName(token.NoPos, nil, "applog", logPkg)),
+			sel: &ast.SelectorExpr{
+				X:   aliasIdent,
+				Sel: ast.NewIdent("Fatal"),
+			},
+			pkgPath: "log",
+			want:    true,
+		},
+		{
+			name: "local shadowed identifier",
+			pass: makePass(localIdent, types.NewVar(token.NoPos, nil, "log", types.Typ[types.String])),
+			sel: &ast.SelectorExpr{
+				X:   localIdent,
+				Sel: ast.NewIdent("Printf"),
+			},
+			pkgPath: "log",
+			want:    false,
+		},
+		{
+			name: "nil pass",
+			pass: nil,
+			sel: &ast.SelectorExpr{
+				X:   logIdent,
+				Sel: ast.NewIdent("Printf"),
+			},
+			pkgPath: "log",
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := IsStdPkgSelector(tt.pass, tt.sel, tt.pkgPath)
+			if got != tt.want {
+				t.Fatalf("IsStdPkgSelector() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

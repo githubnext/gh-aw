@@ -4,7 +4,6 @@ package rawloginlib
 
 import (
 	"go/ast"
-	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -56,16 +55,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		ident, ok := sel.X.(*ast.Ident)
-		if !ok {
-			return
-		}
-		obj := pass.TypesInfo.ObjectOf(ident)
-		if obj == nil {
-			return
-		}
-		pkgName, ok := obj.(*types.PkgName)
-		if !ok || pkgName.Imported() == nil || pkgName.Imported().Path() != "log" {
+		if !astutil.IsStdPkgSelector(pass, sel, "log") {
 			return
 		}
 		if !rawLogFuncs[sel.Sel.Name] {

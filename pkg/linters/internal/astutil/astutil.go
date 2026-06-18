@@ -72,6 +72,27 @@ func IsFmtErrorf(pass *analysis.Pass, call *ast.CallExpr) bool {
 	return pkgName.Imported().Path() == "fmt"
 }
 
+// IsStdPkgSelector reports whether sel is a selector on an imported package
+// with the given import path.
+func IsStdPkgSelector(pass *analysis.Pass, sel *ast.SelectorExpr, pkgPath string) bool {
+	if pass == nil || pass.TypesInfo == nil || sel == nil {
+		return false
+	}
+	pkgIdent, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	obj := pass.TypesInfo.ObjectOf(pkgIdent)
+	if obj == nil {
+		return false
+	}
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok || pkgName.Imported() == nil {
+		return false
+	}
+	return pkgName.Imported().Path() == pkgPath
+}
+
 // Inspector extracts the *inspector.Inspector from pass.ResultOf.
 // It returns an error if the result has an unexpected type.
 func Inspector(pass *analysis.Pass) (*inspector.Inspector, error) {
