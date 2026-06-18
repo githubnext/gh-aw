@@ -498,9 +498,11 @@ describe("apply_samples.cjs sampleResultIsError", () => {
     expect(sampleResultIsError(result)).toBe(false);
   });
 
-  it("returns true when isError is true on the result", () => {
+  it("returns true when isError is true on the result (flag takes precedence)", () => {
     const result = {
-      content: [{ type: "text", text: JSON.stringify({ result: "error", error: "something failed" }) }],
+      // Content is a success payload — proves the early-return on the isError flag,
+      // not the content-text fallback path.
+      content: [{ type: "text", text: JSON.stringify({ result: "success", id: 1 }) }],
       isError: true,
     };
     expect(sampleResultIsError(result)).toBe(true);

@@ -50,6 +50,20 @@ const { normalizeSafeOutputToolArguments, stripInternalSafeOutputSchemaMetadata 
 moduleLogger.debug("All modules loaded successfully");
 
 /**
+ * Normalize a handler result into the MCP tool-call response shape, preserving
+ * the handler-provided `isError` flag (e.g. safe-output handlers return
+ * `isError: true` on error). Hardcoding `isError: false` here would mask
+ * application-level errors from clients such as the samples replay driver.
+ * @param {any} result - Raw result returned by a tool handler.
+ * @returns {{ content: any[], isError: boolean }}
+ */
+function normalizeMcpToolResult(result) {
+  const content = result && result.content ? result.content : [];
+  const isError = !!(result && result.isError);
+  return { content, isError };
+}
+
+/**
  * Create and configure the MCP server with tools
  * @param {Object} [options] - Additional options
  * @param {string} [options.logDir] - Override log directory from config
@@ -190,9 +204,7 @@ function createMCPServer(options = {}) {
       logger.debug(`Handler returned for tool: ${tool.name}`);
 
       // Normalize result to MCP format; preserve isError from the handler result
-      const content = result && result.content ? result.content : [];
-      const isError = !!(result && result.isError);
-      return { content, isError };
+      return normalizeMcpToolResult(result);
     });
 
     registeredCount++;
@@ -228,9 +240,7 @@ function createMCPServer(options = {}) {
         logger.debug(`Handler returned for dynamic tool: ${toolName}`);
 
         // Normalize result to MCP format; preserve isError from the handler result
-        const content = result && result.content ? result.content : [];
-        const isError = !!(result && result.isError);
-        return { content, isError };
+        return normalizeMcpToolResult(result);
       });
 
       registeredCount++;
@@ -348,4 +358,5 @@ if (require.main === module) {
 module.exports = {
   startHttpServer,
   createMCPServer,
+  normalizeMcpToolResult,
 };
