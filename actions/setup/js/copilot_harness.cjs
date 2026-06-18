@@ -315,7 +315,7 @@ function extractOutputTail(output, options) {
  *   hasOutput: boolean,
  *   isAuthErr?: boolean,
  *   isAuthenticationFailed?: boolean,
- *   isCAPIError?: boolean,
+ *   isTransientCAPIError?: boolean,
  *   isMCPGatewayShutdown?: boolean,
  *   isMCPPolicy?: boolean,
  *   isModelNotSupported?: boolean,
@@ -336,7 +336,7 @@ function classifyCopilotFailure(detection) {
   if (detection.hasNumerousPermissionDenied) return "permission_denied";
   if (detection.isSDKSessionIdleTimeout) return "sdk_session_idle_timeout";
   if (detection.isMCPGatewayShutdown) return "mcp_gateway_shutdown";
-  if (detection.isCAPIError) return "capi_error_400";
+  if (detection.isTransientCAPIError) return "capi_error_400";
   return detection.hasOutput ? "partial_execution" : "no_output";
 }
 
@@ -802,7 +802,7 @@ async function main() {
           hasOutput: result.hasOutput,
           isAuthErr,
           isAuthenticationFailed,
-          isCAPIError,
+          isTransientCAPIError: isCAPIError,
           isMCPGatewayShutdown,
           isMCPPolicy,
           isModelNotSupported,

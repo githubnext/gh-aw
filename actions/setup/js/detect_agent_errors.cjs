@@ -58,7 +58,9 @@ const MODEL_NOT_SUPPORTED_PATTERN =
   /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable))/i;
 
 // Pattern: Copilot/CAPI quota exhaustion.
-// Matches the observed error: "CAPIError: 429 429 quota exceeded".
+// Matches observed errors:
+//   - "CAPIError: 429 429 quota exceeded"
+//   - "CAPIError: Too Many Requests"
 // Quota exhaustion is a persistent, non-retryable condition.
 const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)/i;
 
