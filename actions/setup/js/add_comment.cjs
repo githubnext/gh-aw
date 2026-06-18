@@ -330,6 +330,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowIds, i
  * @returns {boolean}
  */
 function isDiscussionIntegrationAccessError(error) {
+  // Lowercase for case-insensitive comparison via .toLowerCase()
   const fragment = "resource not accessible by integration";
   /** @type {string[]} */
   const messages = [getErrorMessage(error)];

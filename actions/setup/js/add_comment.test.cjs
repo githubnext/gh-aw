@@ -2094,7 +2094,7 @@ describe("add_comment", () => {
       // Mock REST API to return 404 (not found as issue/PR)
       mockGithub.rest.issues.createComment = async () => {
         const error = new Error("Not Found");
-        // @ts-ignore
+        // @ts-ignore -- Error type does not include status, but octokit adds it at runtime
         error.status = 404;
         throw error;
       };
@@ -2176,7 +2176,7 @@ describe("add_comment", () => {
 
         if (query.includes("mutation") && query.includes("addDiscussionComment")) {
           const err = new Error("Request failed");
-          // @ts-ignore
+          // @ts-ignore -- Error type does not include errors, but GraphQL errors surface this way at runtime
           err.errors = [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }];
           throw err;
         }
