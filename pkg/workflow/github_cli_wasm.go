@@ -42,3 +42,7 @@ func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
 }
+
+func ForceGHHostEnv(cmd *exec.Cmd, host string) {
+	// no-op in Wasm: gh CLI subprocesses are not run
+}

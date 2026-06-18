@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -254,5 +255,62 @@ func TestActionResolverGetUsedCacheKeysReturnsCopy(t *testing.T) {
 
 	if !resolver.GetUsedCacheKeys()["owner/action-a@v1"] {
 		t.Error("Expected resolver used cache keys to be immutable via returned map")
+	}
+}
+
+// TestResolveFromGitHubForcesGitHubComHost verifies that the commands created by
+// resolveFromGitHub always have GH_HOST=github.com in their environment, regardless
+// of the process-level GH_HOST setting. This ensures that action SHA lookups always
+// target github.com even when the user has GH_HOST set to a GHE instance.
+func TestResolveFromGitHubForcesGitHubComHost(t *testing.T) {
+	tests := []struct {
+		name   string
+		ghHost string
+	}{
+		{
+			name:   "GH_HOST unset",
+			ghHost: "",
+		},
+		{
+			name:   "GH_HOST set to GHE host",
+			ghHost: "myorg.ghe.com",
+		},
+		{
+			name:   "GH_HOST already set to github.com",
+			ghHost: "github.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.ghHost != "" {
+				t.Setenv("GH_HOST", tt.ghHost)
+			} else {
+				t.Setenv("GH_HOST", "")
+			}
+
+			cmd := ExecGHContext(context.Background(), "api", "/repos/actions/checkout/git/ref/tags/v4", "--jq", "[.object.sha, .object.type] | @tsv")
+			ForceGHHostEnv(cmd, "github.com")
+
+			// The command env must contain exactly GH_HOST=github.com and not
+			// any other GH_HOST value.
+			if cmd.Env == nil {
+				t.Fatal("expected cmd.Env to be set after ForceGHHostEnv, got nil")
+			}
+
+			found := slices.ContainsFunc(cmd.Env, func(e string) bool {
+				return e == "GH_HOST=github.com"
+			})
+			if !found {
+				t.Errorf("expected GH_HOST=github.com in cmd.Env, got: %v", cmd.Env)
+			}
+
+			// Verify that no other GH_HOST value is present (i.e. GHE host is not inherited).
+			for _, e := range cmd.Env {
+				if strings.HasPrefix(e, "GH_HOST=") && e != "GH_HOST=github.com" {
+					t.Errorf("unexpected GH_HOST entry in cmd.Env: %q (process GH_HOST was %q)", e, tt.ghHost)
+				}
+			}
+		})
 	}
 }
