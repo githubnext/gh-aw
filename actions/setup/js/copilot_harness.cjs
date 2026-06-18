@@ -299,7 +299,7 @@ function extractOutputTail(output, options) {
   const maxLines = options?.maxLines ?? OUTPUT_TAIL_MAX_LINES;
   const normalized = output.replace(/\0/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
   if (!normalized) return "";
-  // filter(Boolean) removes blank lines; maxLines therefore counts non-empty lines.
+  // filter(Boolean) removes empty strings from blank lines after trimEnd(); maxLines therefore counts non-empty lines.
   const tailLines = normalized
     .split("\n")
     .map(line => line.trimEnd())
