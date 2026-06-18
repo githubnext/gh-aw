@@ -87,6 +87,8 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 - Use `agentic-workflows` `logs` and `audit` results as live evidence and include links to referenced issues/PRs.
 - If a chart image is available, include it in the post.
 - The `create_pull_request` patch must contain only text changes under `docs/src/content/docs/**`; never include binary assets in the PR patch — use `upload-asset` for those.
+- Use only the enabled tools in this workflow (`bash`, `edit`, `agentic-workflows`, and safe-outputs). Do not call unsupported `read`/`shell` tools.
+- Do not run git branch/stage/commit commands in `bash` (`git checkout -b`, `git add`, `git commit`, `git push`); `create_pull_request` handles branching and commit creation automatically.
 
 ## Process
 
@@ -173,6 +175,7 @@ PR body must include:
 - Summary of highlighted workflow and why it was chosen.
 - Links used as evidence (issues/PRs/log/audit references).
 - File path of the created blog post.
+- Call `create_pull_request` directly after writing the file; do not run git commands first.
 
 ### 7) No-action rule
 
