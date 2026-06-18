@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"context"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -254,5 +256,103 @@ func TestActionResolverGetUsedCacheKeysReturnsCopy(t *testing.T) {
 
 	if !resolver.GetUsedCacheKeys()["owner/action-a@v1"] {
 		t.Error("Expected resolver used cache keys to be immutable via returned map")
+	}
+}
+
+// TestForceGHHostEnvWithPresetCmdEnv verifies the non-nil cmd.Env branch of
+// ForceGHHostEnv: a stale GH_HOST in a pre-populated cmd.Env is replaced,
+// other env entries are preserved, and there is exactly one GH_HOST entry.
+func TestForceGHHostEnvWithPresetCmdEnv(t *testing.T) {
+	cmd := ExecGHContext(context.Background(), "api", "/test")
+	cmd.Env = []string{"GH_HOST=stale.ghe.com", "OTHER=value"}
+
+	ForceGHHostEnv(cmd, "github.com")
+
+	var ghHostEntries []string
+	preservedOther := false
+	for _, e := range cmd.Env {
+		if strings.HasPrefix(e, "GH_HOST=") {
+			ghHostEntries = append(ghHostEntries, e)
+		}
+		if e == "OTHER=value" {
+			preservedOther = true
+		}
+	}
+	if len(ghHostEntries) != 1 {
+		t.Errorf("expected exactly one GH_HOST entry, got: %v", ghHostEntries)
+	} else if ghHostEntries[0] != "GH_HOST=github.com" {
+		t.Errorf("expected GH_HOST=github.com, got %q", ghHostEntries[0])
+	}
+	if !preservedOther {
+		t.Error("expected OTHER=value to be preserved in cmd.Env")
+	}
+}
+
+// GH_HOST=github.com on the command environment regardless of the process-level
+// GH_HOST setting, including when GH_HOST is unset, set to a GHE host, or already
+// set to github.com.
+func TestForceGHHostEnvSetsGitHubCom(t *testing.T) {
+	tests := []struct {
+		name    string
+		ghHost  string
+		unsetIt bool
+	}{
+		{
+			name:    "GH_HOST unset",
+			unsetIt: true,
+		},
+		{
+			name:   "GH_HOST set to GHE host",
+			ghHost: "myorg.ghe.com",
+		},
+		{
+			name:   "GH_HOST already set to github.com",
+			ghHost: "github.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.unsetIt {
+				// Truly unset GH_HOST and restore the original value (or re-unset)
+				// after the subtest so the env does not leak to subsequent tests.
+				original, wasSet := os.LookupEnv("GH_HOST")
+				if err := os.Unsetenv("GH_HOST"); err != nil {
+					t.Fatalf("failed to unset GH_HOST: %v", err)
+				}
+				t.Cleanup(func() {
+					if wasSet {
+						os.Setenv("GH_HOST", original) //nolint:errcheck
+					} else {
+						os.Unsetenv("GH_HOST") //nolint:errcheck
+					}
+				})
+			} else {
+				t.Setenv("GH_HOST", tt.ghHost)
+			}
+
+			cmd := ExecGHContext(context.Background(), "api", "/repos/actions/checkout/git/ref/tags/v4", "--jq", "[.object.sha, .object.type] | @tsv")
+			ForceGHHostEnv(cmd, "github.com")
+
+			// The command env must contain exactly GH_HOST=github.com and not
+			// any other GH_HOST value.
+			if cmd.Env == nil {
+				t.Fatal("expected cmd.Env to be set after ForceGHHostEnv, got nil")
+			}
+
+			found := slices.ContainsFunc(cmd.Env, func(e string) bool {
+				return e == "GH_HOST=github.com"
+			})
+			if !found {
+				t.Errorf("expected GH_HOST=github.com in cmd.Env, got: %v", cmd.Env)
+			}
+
+			// Verify that no other GH_HOST value is present (i.e. GHE host is not inherited).
+			for _, e := range cmd.Env {
+				if strings.HasPrefix(e, "GH_HOST=") && e != "GH_HOST=github.com" {
+					t.Errorf("unexpected GH_HOST entry in cmd.Env: %q", e)
+				}
+			}
+		})
 	}
 }
