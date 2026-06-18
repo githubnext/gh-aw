@@ -504,6 +504,9 @@ function scanForToolErrors(logContent) {
  * @returns {Map<string, string>} Map from tool_call_id to tool output content string
  */
 function extractWireRequestToolResults(lines) {
+  // Maximum number of lines to look ahead within a tool entry for tool_call_id / content
+  const MAX_TOOL_RESULT_SCAN_LINES = 5;
+
   const toolResultMap = new Map();
   let inWireBlock = false;
 
@@ -529,15 +532,27 @@ function extractWireRequestToolResults(lines) {
         let contentValue = null;
 
         // The next few lines contain tool_call_id and content in order
-        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+        for (let j = i + 1; j < Math.min(i + MAX_TOOL_RESULT_SCAN_LINES, lines.length); j++) {
           const nextLine = lines[j];
 
           // Stop if we hit a timestamp line (end of wire block)
           if (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /.test(nextLine)) break;
 
           if (toolCallId === null) {
-            const idMatch = nextLine.match(/"tool_call_id":\s*"([^"\\]*)"/);
-            if (idMatch) toolCallId = idMatch[1];
+            const toolCallIdIdx = nextLine.indexOf('"tool_call_id":');
+            if (toolCallIdIdx >= 0) {
+              // Use JSON.parse to correctly handle any escape sequences in the ID value
+              const rest = nextLine
+                .slice(toolCallIdIdx + '"tool_call_id":'.length)
+                .trim()
+                .replace(/,\s*$/, "");
+              try {
+                const parsed = JSON.parse(rest);
+                if (typeof parsed === "string") toolCallId = parsed;
+              } catch (e) {
+                // Skip unparseable ID
+              }
+            }
           }
 
           if (contentValue === null) {
