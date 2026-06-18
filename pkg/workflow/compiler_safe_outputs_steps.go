@@ -31,6 +31,13 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Build the same CheckoutManager the agent job builds from the workflow's checkout: config.
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
+	// Unlike the agent job, the safe_outputs job performs git fetch/push against the
+	// checked-out repositories (create_pull_request, push_to_pull_request_branch), so its
+	// checkouts must retain credentials (persist-credentials: true) instead of stripping
+	// them. This keeps the push-capable token on disk for the handlers; the trusted
+	// safe_outputs handler code (not the untrusted agent) is the only consumer.
+	checkoutMgr.SetKeepCredentialsForPush(true)
+
 	// Combined condition: run the checkout/git-config steps only when a create_pull_request
 	// or push_to_pull_request_branch output will be processed.
 	condition := buildPRCheckoutCondition(data.SafeOutputs)

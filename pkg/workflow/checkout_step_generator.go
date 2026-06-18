@@ -61,7 +61,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 		if entry.key.path == "" && entry.key.repository == "" {
 			continue
 		}
-		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, getActionPin)...)
+		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, cm.keepCredentialsForPush, getActionPin)...)
 	}
 	checkoutManagerLog.Printf("Generated %d additional checkout step(s)", len(lines))
 	return lines
@@ -290,7 +290,11 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	sb.WriteString("        with:\n")
 
 	cleanCreds := override != nil && override.cleanCreds
-	if cleanCreds {
+	if cm.keepCredentialsForPush {
+		// safe_outputs job: retain credentials so later git fetch/push can authenticate
+		// using the push-capable token installed at checkout time.
+		sb.WriteString("          persist-credentials: true\n")
+	} else if cleanCreds {
 		sb.WriteString("          persist-credentials: true\n")
 	} else {
 		// Security: default behavior disables credential persistence so the agent cannot
@@ -367,7 +371,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	if override != nil && len(override.sparsePatterns) > 0 {
 		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(""))
 	}
-	if cleanCreds {
+	if cleanCreds && !cm.keepCredentialsForPush {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
 
@@ -390,7 +394,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 // generateCheckoutStepLines generates YAML step lines for a single non-default checkout.
 // The index parameter identifies the checkout's position in the ordered list, used to
 // reference the correct app token minting step when app authentication is configured.
-func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin func(string) string) []string {
+// When keepCredentialsForPush is true (safe_outputs job), credentials are retained
+// (persist-credentials: true) and the post-checkout cleanup step is suppressed so a later
+// git fetch/push can authenticate.
+func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentialsForPush bool, getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating checkout step lines: index=%d, repo=%q, path=%q, ref=%q, appAuth=%v",
 		index, entry.key.repository, entry.key.path, entry.ref, entry.githubApp != nil)
 	name := "Checkout " + checkoutStepName(entry.key)
@@ -399,7 +406,10 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
 
-	if entry.cleanCreds {
+	if keepCredentialsForPush {
+		// safe_outputs job: retain credentials so later git fetch/push can authenticate.
+		sb.WriteString("          persist-credentials: true\n")
+	} else if entry.cleanCreds {
 		sb.WriteString("          persist-credentials: true\n")
 	} else {
 		// Security: default behavior disables credential persistence
@@ -451,7 +461,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	if len(entry.sparsePatterns) > 0 {
 		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(entry.key.path))
 	}
-	if entry.cleanCreds {
+	if entry.cleanCreds && !keepCredentialsForPush {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
 	if fetchStep := generateFetchStepLines(entry, index); fetchStep != "" {
