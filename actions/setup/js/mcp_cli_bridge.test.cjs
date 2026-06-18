@@ -586,8 +586,10 @@ describe("mcp_cli_bridge.cjs", () => {
 
       try {
         const writePromise = writeStdoutAndFlush("data\n");
+        // Verify the error callback was registered before firing it
+        expect(errorCb).not.toBeNull();
         // Fire the error event asynchronously (simulates broken pipe)
-        Promise.resolve().then(() => errorCb?.(error));
+        Promise.resolve().then(() => errorCb(error));
         await expect(writePromise).rejects.toThrow("EPIPE");
       } finally {
         onceStub.mockRestore();
