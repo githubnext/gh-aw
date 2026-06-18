@@ -129,6 +129,9 @@ func validateSafeOutputsTarget(config *SafeOutputsConfig) error {
 	if config.PushToPullRequestBranch != nil {
 		configs = append(configs, targetConfig{"push-to-pull-request-branch", config.PushToPullRequestBranch.Target})
 	}
+	if config.MergePullRequest != nil {
+		configs = append(configs, targetConfig{"merge-pull-request", config.MergePullRequest.Target})
+	}
 	// Validate each target field
 	for _, cfg := range configs {
 		if err := validateTargetValue(cfg.name, cfg.target); err != nil {

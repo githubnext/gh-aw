@@ -257,13 +257,13 @@ func TestMergePullRequestConfigTargetRepo(t *testing.T) {
 				"merge-pull-request": map[string]any{
 					"target":        "*",
 					"target-repo":   "githubnext/gh-aw-side-repo",
-					"allowed-repos": []any{"githubnext/gh-aw-side-repo"},
+					"allowed-repos": []any{"githubnext/gh-aw-side-repo", "github/docs"},
 					"github-token":  "${{ secrets.TEMP_USER_PAT }}",
 				},
 			},
 			expectedTarget: "*",
 			expectedRepo:   "githubnext/gh-aw-side-repo",
-			expectedRepos:  []string{"githubnext/gh-aw-side-repo"},
+			expectedRepos:  []string{"githubnext/gh-aw-side-repo", "github/docs"},
 			expectedToken:  "${{ secrets.TEMP_USER_PAT }}",
 		},
 		{
@@ -532,6 +532,7 @@ func TestMergePullRequestCrossRepoInHandlerConfig(t *testing.T) {
 					GitHubToken: "${{ secrets.TEMP_USER_PAT }}",
 				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
 					TargetRepoSlug: "githubnext/gh-aw-side-repo",
 					AllowedRepos:   []string{"githubnext/gh-aw-side-repo"},
 				},
@@ -547,6 +548,8 @@ func TestMergePullRequestCrossRepoInHandlerConfig(t *testing.T) {
 
 	mergePR, ok := handlerConfig["merge_pull_request"]
 	require.True(t, ok, "merge_pull_request config should be present")
+
+	assert.Equal(t, "*", mergePR["target"], "target should be in handler config")
 
 	assert.Equal(t, "githubnext/gh-aw-side-repo", mergePR["target-repo"], "target-repo should be in handler config")
 
