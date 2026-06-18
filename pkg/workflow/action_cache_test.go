@@ -970,8 +970,9 @@ func TestPruneOrphanedEntries_AllOrphaned(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 
+	// Use actions that are NOT runtime-managed or compiler-generated
 	cache.Set("microsoft/apm-action", "v1.7.2", "sha1")
-	cache.Set("actions/setup-node", "v4", "sha2")
+	cache.Set("cli/gh-extension-precompile", "v2.1.0", "sha2")
 
 	// Referenced set is non-empty but contains neither of the cached entries.
 	referenced := map[string]bool{
@@ -979,6 +980,7 @@ func TestPruneOrphanedEntries_AllOrphaned(t *testing.T) {
 	}
 	pruned := cache.PruneOrphanedEntries(referenced)
 
+	// Both entries should be pruned (neither is compiler-generated or runtime-managed)
 	if pruned != 2 {
 		t.Errorf("Expected 2 pruned entries, got %d", pruned)
 	}
@@ -993,28 +995,31 @@ func TestPruneOrphanedEntries_PreservesCompilerGenerated(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 
-	// Add compiler-generated actions and a regular action
+	// Add compiler-generated actions, runtime-managed actions, and a regular action
 	cache.Set("actions/cache/save", "v4", "sha_cache_save")
 	cache.Set("actions/checkout", "v4", "sha_checkout")
 	cache.Set("github/codeql-action/upload-sarif", "v4", "sha_codeql")
+	cache.Set("actions/setup-node", "v6", "sha_node")     // runtime-managed
+	cache.Set("actions/setup-python", "v5", "sha_python") // runtime-managed
+	cache.Set("ruby/setup-ruby", "v1", "sha_ruby")        // runtime-managed
 	cache.Set("microsoft/apm-action", "v1.7.2", "sha_old")
 
-	if len(cache.Entries) != 4 {
-		t.Fatalf("Expected 4 entries before pruning, got %d", len(cache.Entries))
+	if len(cache.Entries) != 7 {
+		t.Fatalf("Expected 7 entries before pruning, got %d", len(cache.Entries))
 	}
 
-	// Only reference microsoft/apm-action, but not the compiler-generated ones
+	// Only reference microsoft/apm-action, but not the compiler-generated or runtime-managed ones
 	referenced := map[string]bool{
 		"microsoft/apm-action@v1.7.2": true,
 	}
 	pruned := cache.PruneOrphanedEntries(referenced)
 
-	// Should not prune compiler-generated actions
+	// Should not prune compiler-generated or runtime-managed actions
 	if pruned != 0 {
-		t.Errorf("Expected 0 pruned entries (compiler-generated actions preserved), got %d", pruned)
+		t.Errorf("Expected 0 pruned entries (compiler-generated and runtime-managed actions preserved), got %d", pruned)
 	}
-	if len(cache.Entries) != 4 {
-		t.Errorf("Expected 4 entries after pruning (all preserved), got %d", len(cache.Entries))
+	if len(cache.Entries) != 7 {
+		t.Errorf("Expected 7 entries after pruning (all preserved), got %d", len(cache.Entries))
 	}
 
 	// Verify compiler-generated actions are preserved
@@ -1026,5 +1031,16 @@ func TestPruneOrphanedEntries_PreservesCompilerGenerated(t *testing.T) {
 	}
 	if _, exists := cache.Entries["github/codeql-action/upload-sarif@v4"]; !exists {
 		t.Error("Expected compiler-generated github/codeql-action/upload-sarif@v4 to be preserved")
+	}
+
+	// Verify runtime-managed actions are preserved
+	if _, exists := cache.Entries["actions/setup-node@v6"]; !exists {
+		t.Error("Expected runtime-managed actions/setup-node@v6 to be preserved")
+	}
+	if _, exists := cache.Entries["actions/setup-python@v5"]; !exists {
+		t.Error("Expected runtime-managed actions/setup-python@v5 to be preserved")
+	}
+	if _, exists := cache.Entries["ruby/setup-ruby@v1"]; !exists {
+		t.Error("Expected runtime-managed ruby/setup-ruby@v1 to be preserved")
 	}
 }

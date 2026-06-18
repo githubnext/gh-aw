@@ -106,13 +106,23 @@ func (c *ActionCache) PruneOrphanedEntries(referencedKeys map[string]bool) int {
 		return 0
 	}
 
-	// Compiler-generated actions that should never be pruned
-	// These are embedded in Go code rather than markdown workflows
+	// Compiler-generated actions that should never be pruned.
+	// These are embedded in Go code rather than markdown workflows and include:
+	// - Core workflow actions (cache, checkout, github-script)
+	// - Runtime setup actions (from runtime_definitions.go)
+	// - Security scanning actions (CodeQL)
 	compilerGeneratedRepos := []string{
 		"actions/cache/",
 		"actions/checkout",
 		"actions/github-script",
 		"github/codeql-action/upload-sarif",
+	}
+
+	// Add all runtime-managed actions from runtime_definitions.go
+	for _, runtime := range knownRuntimes {
+		if runtime.ActionRepo != "" {
+			compilerGeneratedRepos = append(compilerGeneratedRepos, runtime.ActionRepo)
+		}
 	}
 
 	isCompilerGenerated := func(cacheKey string) bool {
