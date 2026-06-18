@@ -258,12 +258,20 @@ function readConfiguredTargetRepo(tool) {
   if (!configPath || !configPath.trim()) {
     return "";
   }
+
+  const toolKey = typeof tool === "string" ? tool.replace(/-/g, "_") : "";
+
   try {
     const raw = fs.readFileSync(configPath, "utf8");
-    const config = JSON.parse(raw);
-    const toolConfig = config && typeof config === "object" ? config[tool] : null;
-    if (toolConfig && typeof toolConfig === "object" && typeof toolConfig["target-repo"] === "string") {
-      return toolConfig["target-repo"].trim();
+    const parsed = JSON.parse(raw);
+
+    // Mirror safe_outputs_config.cjs behavior: normalize top-level keys by replacing '-' with '_'.
+    const config = parsed && typeof parsed === "object" ? Object.fromEntries(Object.entries(parsed).map(([k, v]) => [String(k).replace(/-/g, "_"), v])) : {};
+
+    const toolConfig = toolKey && config && typeof config === "object" ? config[toolKey] : null;
+    const target = toolConfig && typeof toolConfig === "object" ? toolConfig["target-repo"] || toolConfig["target_repo"] : null;
+    if (typeof target === "string") {
+      return target.trim();
     }
   } catch (err) {
     core.debug(`apply_samples: could not read target-repo from ${configPath}: ${getErrorMessage(err)}`);
