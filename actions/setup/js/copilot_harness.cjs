@@ -403,6 +403,18 @@ function detectCopilotAuthFailureStage(output) {
 }
 
 /**
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function envFlagEnabled(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+/**
  * Build a more actionable Copilot auth diagnostic when a 401/403 came from the gh-aw API proxy.
  * @param {string} output
  * @param {NodeJS.ProcessEnv} [env]
@@ -416,7 +428,7 @@ function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
 
   const selectedModel = typeof env.COPILOT_MODEL === "string" && env.COPILOT_MODEL.trim() ? env.COPILOT_MODEL.trim() : "(unset)";
   const stage = detectCopilotAuthFailureStage(output);
-  if (authFailure.statusCode === "403" && env.S2STOKENS === "true") {
+  if (authFailure.statusCode === "403" && envFlagEnabled(env.S2STOKENS)) {
     return (
       `Copilot requests authentication failed through the gh-aw API proxy (HTTP 403, model=${selectedModel}, stage=${stage}). ` +
       "This workflow is using permissions.copilot-requests: write, so Copilot requests must be allowed through your organization's centralized Copilot billing configuration. " +

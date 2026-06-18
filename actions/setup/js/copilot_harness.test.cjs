@@ -986,6 +986,15 @@ describe("copilot_harness.cjs", () => {
       expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
     });
 
+    it("treats truthy S2STOKENS values as copilot-requests mode for 403 guidance", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+        S2STOKENS: " YES ",
+      });
+
+      expect(diagnostic).toContain("Copilot requests authentication failed");
+    });
+
     it("reports token-validation stage when present in the output", () => {
       const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Validating token with provider.\nAuthentication failed with provider at http://localhost:10002 (HTTP 401).", { COPILOT_MODEL: "gpt-4.1" });
 
