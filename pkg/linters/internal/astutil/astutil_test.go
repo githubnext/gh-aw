@@ -66,7 +66,7 @@ func TestNodeText(t *testing.T) {
 	}
 }
 
-func TestIsStdPkgSelector(t *testing.T) {
+func TestIsPkgSelector(t *testing.T) {
 	t.Parallel()
 
 	makePass := func(ident *ast.Ident, obj types.Object) *analysis.Pass {
@@ -84,6 +84,11 @@ func TestIsStdPkgSelector(t *testing.T) {
 	localIdent := ast.NewIdent("log")
 
 	logPkg := types.NewPackage("log", "log")
+	customType := types.NewNamed(
+		types.NewTypeName(token.NoPos, nil, "customLogger", nil),
+		types.NewStruct(nil, nil),
+		nil,
+	)
 
 	tests := []struct {
 		name    string
@@ -114,7 +119,7 @@ func TestIsStdPkgSelector(t *testing.T) {
 		},
 		{
 			name: "local shadowed identifier",
-			pass: makePass(localIdent, types.NewVar(token.NoPos, nil, "log", types.Typ[types.String])),
+			pass: makePass(localIdent, types.NewVar(token.NoPos, nil, "log", types.NewPointer(customType))),
 			sel: &ast.SelectorExpr{
 				X:   localIdent,
 				Sel: ast.NewIdent("Printf"),
@@ -137,9 +142,9 @@ func TestIsStdPkgSelector(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := IsStdPkgSelector(tt.pass, tt.sel, tt.pkgPath)
+			got := IsPkgSelector(tt.pass, tt.sel, tt.pkgPath)
 			if got != tt.want {
-				t.Fatalf("IsStdPkgSelector() = %v, want %v", got, tt.want)
+				t.Fatalf("IsPkgSelector() = %v, want %v", got, tt.want)
 			}
 		})
 	}

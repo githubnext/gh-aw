@@ -55,7 +55,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if !astutil.IsStdPkgSelector(pass, sel, "log") {
+		if !astutil.IsPkgSelector(pass, sel, "log") {
 			return
 		}
 		if !rawLogFuncs[sel.Sel.Name] {
