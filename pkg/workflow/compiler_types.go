@@ -644,6 +644,11 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	if ghHost := os.Getenv("GH_HOST"); ghHost != "" && ghHost != "github.com" {
 		pinCtx.SkipHardcodedFallback = true
 	}
+	// Also disable fallback when a non-github.com default host has been set
+	// programmatically (for example from auto-detected git remotes).
+	if defaultHost := getDefaultGHHost(); defaultHost != "" && defaultHost != "github.com" {
+		pinCtx.SkipHardcodedFallback = true
+	}
 	return pinCtx
 }
 
