@@ -4,7 +4,7 @@ import path from "path";
 
 describe("parse_copilot_log.cjs", () => {
   let mockCore, originalConsole, originalProcess;
-  let main, parseCopilotLog;
+  let main, parseCopilotLog, extractWireRequestToolResults;
 
   beforeEach(async () => {
     originalConsole = global.console;
@@ -45,6 +45,7 @@ describe("parse_copilot_log.cjs", () => {
     const module = await import("./parse_copilot_log.cjs?" + Date.now());
     main = module.main;
     parseCopilotLog = module.parseCopilotLog;
+    extractWireRequestToolResults = module.extractWireRequestToolResults;
   });
 
   afterEach(() => {
@@ -500,6 +501,128 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("github::list_issues");
       expect(result.markdown).toContain("github::create_pull_request");
       expect(result.markdown).toContain("safe_outputs::create_issue");
+    });
+  });
+
+  describe("extractWireRequestToolResults function", () => {
+    it("should extract tool results from Wire request blocks", () => {
+      const lines = [
+        "2026-06-18T16:00:00.000Z [DEBUG] Wire request: {",
+        '  "messages": [',
+        '    { "role": "user", "content": "list files" },',
+        "    {",
+        '      "role": "tool",',
+        '      "tool_call_id": "tooluse_abc123",',
+        '      "content": "file1.txt\\nfile2.txt\\nfile3.txt"',
+        "    }",
+        "  ]",
+        "}",
+        "2026-06-18T16:00:01.000Z [INFO] Done",
+      ];
+      const result = extractWireRequestToolResults(lines);
+      expect(result.get("tooluse_abc123")).toBe("file1.txt\nfile2.txt\nfile3.txt");
+    });
+
+    it("should skip non-string content values (e.g. null)", () => {
+      const lines = [
+        "2026-06-18T16:00:00.000Z [DEBUG] Wire request: {",
+        '  "messages": [',
+        "    {",
+        '      "role": "tool",',
+        '      "tool_call_id": "tooluse_nullcontent",',
+        '      "content": null',
+        "    }",
+        "  ]",
+        "}",
+        "2026-06-18T16:00:01.000Z [INFO] Done",
+      ];
+      const result = extractWireRequestToolResults(lines);
+      expect(result.has("tooluse_nullcontent")).toBe(false);
+    });
+
+    it("should only store the first occurrence of a tool_call_id (from earlier Wire request)", () => {
+      const lines = [
+        // First Wire request: only tool A
+        "2026-06-18T16:00:00.000Z [DEBUG] Wire request: {",
+        '  "messages": [',
+        "    {",
+        '      "role": "tool",',
+        '      "tool_call_id": "tooluse_A",',
+        '      "content": "result A"',
+        "    }",
+        "  ]",
+        "}",
+        // Second Wire request: tool A repeated plus tool B
+        "2026-06-18T16:00:01.000Z [DEBUG] Wire request: {",
+        '  "messages": [',
+        "    {",
+        '      "role": "tool",',
+        '      "tool_call_id": "tooluse_A",',
+        '      "content": "result A again"',
+        "    },",
+        "    {",
+        '      "role": "tool",',
+        '      "tool_call_id": "tooluse_B",',
+        '      "content": "result B"',
+        "    }",
+        "  ]",
+        "}",
+        "2026-06-18T16:00:02.000Z [INFO] Done",
+      ];
+      const result = extractWireRequestToolResults(lines);
+      expect(result.get("tooluse_A")).toBe("result A");
+      expect(result.get("tooluse_B")).toBe("result B");
+    });
+
+    it("should return an empty map when no Wire request blocks are present", () => {
+      const lines = ["2026-06-18T16:00:00.000Z [DEBUG] data:", "2026-06-18T16:00:00.001Z [DEBUG] {", '  "choices": []', "}", "2026-06-18T16:00:01.000Z [INFO] Done"];
+      const result = extractWireRequestToolResults(lines);
+      expect(result.size).toBe(0);
+    });
+  });
+
+  describe("debug log format tool result previews", () => {
+    it("should show tool output preview lines from Wire request blocks", () => {
+      const debugLog = [
+        "2026-06-18T16:00:00.000Z [INFO] Starting Copilot CLI: 0.0.412",
+        "2026-06-18T16:00:01.000Z [DEBUG] data:",
+        "2026-06-18T16:00:01.001Z [DEBUG] {",
+        '  "model": "claude-sonnet-4.6",',
+        '  "usage": { "prompt_tokens": 100, "completion_tokens": 50 },',
+        '  "choices": [',
+        "    {",
+        '      "message": {',
+        '        "content": null,',
+        '        "tool_calls": [',
+        "          {",
+        '            "id": "tooluse_abc123",',
+        '            "type": "function",',
+        '            "function": { "name": "bash", "arguments": "{\\"command\\": \\"ls /tmp\\"}" }',
+        "          }",
+        "        ]",
+        "      }",
+        "    }",
+        "  ]",
+        "}",
+        "2026-06-18T16:00:02.000Z [DEBUG] Wire request: {",
+        '  "messages": [',
+        "    {",
+        '      "role": "tool",',
+        '      "tool_call_id": "tooluse_abc123",',
+        '      "content": "file1.txt\\nfile2.txt\\nfile3.txt"',
+        "    }",
+        "  ]",
+        "}",
+        "2026-06-18T16:00:03.000Z [INFO] Done",
+      ].join("\n");
+
+      const result = parseCopilotLog(debugLog);
+
+      // Tool call should be shown
+      expect(result.markdown).toContain("ls /tmp");
+      // Preview lines from Wire request should be shown
+      expect(result.markdown).toContain("file1.txt");
+      expect(result.markdown).toContain("file2.txt");
     });
   });
 });
