@@ -431,10 +431,14 @@ function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
   const selectedModel = typeof env.COPILOT_MODEL === "string" && env.COPILOT_MODEL.trim() ? env.COPILOT_MODEL.trim() : "(unset)";
   const stage = detectCopilotAuthFailureStage(output);
   if (authFailure.statusCode === "403" && envFlagEnabled(env.S2STOKENS)) {
-    return renderTemplateFromFile(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH, {
-      selected_model: selectedModel,
-      stage,
-    });
+    try {
+      return renderTemplateFromFile(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH, {
+        selected_model: selectedModel,
+        stage,
+      });
+    } catch {
+      return `Copilot requests authentication failed through the gh-aw API proxy (HTTP 403, model=${selectedModel}, stage=${stage}). ` + "Verify that copilot-requests: write is granted and that Copilot org billing is enabled.";
+    }
   }
   if (authFailure.statusCode !== "401") {
     return "";
@@ -1028,6 +1032,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchAWFReflect,
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
+    envFlagEnabled,
     generateCopilotConnectionToken,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,

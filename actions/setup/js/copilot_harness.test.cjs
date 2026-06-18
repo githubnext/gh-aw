@@ -17,6 +17,7 @@ const {
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
+  envFlagEnabled,
   buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
   detectCopilotErrors,
@@ -980,6 +981,8 @@ describe("copilot_harness.cjs", () => {
 
       expect(diagnostic).toContain("Copilot requests authentication failed");
       expect(diagnostic).toContain("HTTP 403");
+      expect(diagnostic).toContain("model=claude-sonnet-4.5");
+      expect(diagnostic).toContain("stage=starting the Copilot CLI request");
       expect(diagnostic).toContain("permissions.copilot-requests: write");
       expect(diagnostic).toContain("centralized Copilot billing");
       expect(diagnostic).toContain("https://github.github.com/gh-aw/reference/billing/");
@@ -993,6 +996,34 @@ describe("copilot_harness.cjs", () => {
       });
 
       expect(diagnostic).toContain("Copilot requests authentication failed");
+      expect(diagnostic).toContain("https://github.github.com/gh-aw/reference/billing/");
+      expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
+    });
+
+    it("returns empty string for proxy 403 when S2STOKENS is not set (BYOK mode)", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+      });
+
+      expect(diagnostic).toBe("");
+    });
+
+    it("returns empty string for proxy 403 when S2STOKENS is falsy", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+        S2STOKENS: "false",
+      });
+
+      expect(diagnostic).toBe("");
+    });
+
+    it("returns empty string for non-proxy 403 even when S2STOKENS is true", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at (api.anthropic.com/redacted) (HTTP 403).", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+        S2STOKENS: "true",
+      });
+
+      expect(diagnostic).toBe("");
     });
 
     it("reports token-validation stage when present in the output", () => {
@@ -1017,6 +1048,20 @@ describe("copilot_harness.cjs", () => {
       const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://host.docker.internal:11434/v1 (HTTP 401).", { COPILOT_MODEL: "qwen2.5:0.5b" });
 
       expect(diagnostic).toBe("");
+    });
+  });
+
+  describe("envFlagEnabled", () => {
+    it.each(["true", "TRUE", "True", "1", "yes", " YES "])("returns true for '%s'", v => {
+      expect(envFlagEnabled(v)).toBe(true);
+    });
+
+    it.each(["false", "FALSE", "0", "no", "", "  "])("returns false for '%s'", v => {
+      expect(envFlagEnabled(v)).toBe(false);
+    });
+
+    it("returns false for undefined", () => {
+      expect(envFlagEnabled(undefined)).toBe(false);
     });
   });
 
