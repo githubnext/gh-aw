@@ -928,8 +928,12 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
           output = data.output;
         } else if (typeof data.result === "string") {
           output = data.result;
+        } else if (data.result && typeof data.result.content === "string") {
+          // Native Copilot CLI events.jsonl format: result.content is the concise
+          // tool result text sent to the LLM (may be truncated for token efficiency).
+          output = data.result.content;
         } else if (data.error) {
-          output = String(data.error);
+          output = typeof data.error === "object" && typeof data.error.message === "string" ? data.error.message : String(data.error);
         } else if (success) {
           output = "success";
         } else {

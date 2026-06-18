@@ -496,97 +496,6 @@ function scanForToolErrors(logContent) {
 }
 
 /**
- * Extracts actual tool output content from Wire request blocks in Copilot CLI debug logs.
- * Each Wire request contains the full conversation history up to that point, including
- * tool call results from prior turns. Parsing these allows us to populate tool result
- * previews instead of showing empty content.
- * @param {string[]} lines - Log lines (pre-split)
- * @returns {Map<string, string>} Map from tool_call_id to tool output content string
- */
-function extractWireRequestToolResults(lines) {
-  // Maximum number of lines to look ahead within a tool entry for tool_call_id / content
-  const MAX_TOOL_RESULT_SCAN_LINES = 5;
-
-  const toolResultMap = new Map();
-  let inWireBlock = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Wire request starts: a timestamped line containing "[DEBUG] Wire request:"
-    if (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] Wire request:/.test(line)) {
-      inWireBlock = true;
-      continue;
-    }
-
-    if (inWireBlock) {
-      // Wire request body lines have no timestamp prefix; a new timestamped line ends the block
-      if (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /.test(line)) {
-        inWireBlock = false;
-        continue;
-      }
-
-      // Detect tool result entries by role
-      if (line.includes('"role": "tool"')) {
-        let toolCallId = null;
-        let contentValue = null;
-
-        // The next few lines contain tool_call_id and content in order
-        for (let j = i + 1; j < Math.min(i + MAX_TOOL_RESULT_SCAN_LINES, lines.length); j++) {
-          const nextLine = lines[j];
-
-          // Stop if we hit a timestamp line (end of wire block)
-          if (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /.test(nextLine)) break;
-
-          if (toolCallId === null) {
-            const toolCallIdIdx = nextLine.indexOf('"tool_call_id":');
-            if (toolCallIdIdx >= 0) {
-              // Use JSON.parse to correctly handle any escape sequences in the ID value
-              const rest = nextLine
-                .slice(toolCallIdIdx + '"tool_call_id":'.length)
-                .trim()
-                .replace(/,\s*$/, "");
-              try {
-                const parsed = JSON.parse(rest);
-                if (typeof parsed === "string") toolCallId = parsed;
-              } catch (e) {
-                // Skip unparseable ID
-              }
-            }
-          }
-
-          if (contentValue === null) {
-            const contentIdx = nextLine.indexOf('"content":');
-            if (contentIdx >= 0) {
-              // Parse the JSON string value to correctly handle escape sequences
-              const rest = nextLine
-                .slice(contentIdx + '"content":'.length)
-                .trim()
-                .replace(/,\s*$/, "");
-              try {
-                const parsed = JSON.parse(rest);
-                if (typeof parsed === "string") contentValue = parsed;
-              } catch (e) {
-                // Skip non-string content (e.g. null or array)
-              }
-            }
-          }
-
-          if (toolCallId !== null && contentValue !== null) break;
-        }
-
-        // Wire requests repeat history across turns; only store the first occurrence of each ID
-        if (toolCallId !== null && contentValue !== null && !toolResultMap.has(toolCallId)) {
-          toolResultMap.set(toolCallId, contentValue);
-        }
-      }
-    }
-  }
-
-  return toolResultMap;
-}
-
-/**
  * Parses Copilot CLI debug log format and reconstructs the conversation flow
  * @param {string} logContent - Raw debug log content
  * @returns {Array} Array of log entries in structured format
@@ -1053,22 +962,6 @@ function parseDebugLogFormat(logContent) {
     }
   }
 
-  // Populate tool result content from Wire request blocks.
-  // Wire requests contain the full conversation history including actual tool outputs,
-  // which we use to fill in the preview lines for each tool call.
-  const wireToolResults = extractWireRequestToolResults(lines);
-  if (wireToolResults.size > 0) {
-    for (const entry of entries) {
-      if (entry.type === "user" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_result" && !content.is_error && wireToolResults.has(content.tool_use_id)) {
-            content.content = wireToolResults.get(content.tool_use_id);
-          }
-        }
-      }
-    }
-  }
-
   // Add system init entry at the beginning if we have entries
   if (entries.length > 0) {
     const initEntry = {
@@ -1105,6 +998,5 @@ if (typeof module !== "undefined" && module.exports) {
     main,
     parseCopilotLog,
     parsePrettyPrintFormat,
-    extractWireRequestToolResults,
   };
 }
