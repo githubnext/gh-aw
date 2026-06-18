@@ -337,6 +337,21 @@ func (cm *CheckoutManager) HasAppAuth() bool {
 	return false
 }
 
+// resolveCheckoutPermissions determines the permissions used when minting checkout
+// GitHub App tokens. Both the agent job and the safe_outputs job resolve them the same
+// way: explicit cached permissions take precedence, then parsed frontmatter permissions,
+// then the default permission set.
+func resolveCheckoutPermissions(data *WorkflowData) *Permissions {
+	switch {
+	case data.CachedPermissions != nil:
+		return data.CachedPermissions
+	case data.Permissions != "":
+		return NewPermissionsParser(data.Permissions).ToPermissions()
+	default:
+		return NewPermissions()
+	}
+}
+
 // GetCurrentRepository returns the repository slug for the checkout marked
 // current:true. Returns an empty string when no current checkout is configured
 // or when the current checkout targets the workflow repository.

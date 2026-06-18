@@ -1909,32 +1909,19 @@ jobs:
         with:
           name: agent
           path: /tmp/gh-aw/
-      - name: Extract base branch from agent output
-        id: extract-base-branch
-        if: steps.download-agent-output.outcome == 'success'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/extract_base_branch_from_agent_output.cjs');
-            await main();
       - name: Checkout repository
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          repository: github/gh-aw-side-repo
-          ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}
-          token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
           persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
+      - name: Checkout github/gh-aw-side-repo
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')
-        env:
-          GITHUB_REPOSITORY: "github/gh-aw-side-repo"
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GIT_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+          repository: github/gh-aw-side-repo
+          token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+          fetch-depth: 0
       - name: Fetch additional refs for github/gh-aw-side-repo
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')
         env:
@@ -1942,6 +1929,13 @@ jobs:
         run: |
           header=$(printf "x-access-token:%s" "${GH_AW_FETCH_TOKEN}" | base64 -w 0)
           git -c "http.extraheader=Authorization: Basic ${header}" fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
+      - name: Configure Git credentials
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GIT_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
         shell: bash

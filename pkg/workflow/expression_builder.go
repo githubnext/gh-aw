@@ -457,3 +457,27 @@ func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent 
 		yaml.WriteString(indent + line + "\n")
 	}
 }
+
+// injectStepCondition inserts an `if:` line into each generated step, immediately after
+// the step's `- name:` line. Each element of steps is expected to be a complete YAML step
+// beginning with a "      - name: ...\n" line. When condition is nil the steps are returned
+// unchanged.
+//
+// This lets a job reuse step generators verbatim while gating every emitted step on a
+// shared condition (for example, whether a particular safe output will be processed).
+func injectStepCondition(steps []string, condition ConditionNode) []string {
+	if condition == nil {
+		return steps
+	}
+	ifLine := fmt.Sprintf("        if: %s\n", RenderCondition(condition))
+	out := make([]string, 0, len(steps))
+	for _, step := range steps {
+		nl := strings.IndexByte(step, '\n')
+		if nl < 0 {
+			out = append(out, step)
+			continue
+		}
+		out = append(out, step[:nl+1]+ifLine+step[nl+1:])
+	}
+	return out
+}
