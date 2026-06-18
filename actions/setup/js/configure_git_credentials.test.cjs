@@ -117,11 +117,7 @@ describe("configure_git_credentials.sh checkout manifest trust", () => {
     fs.mkdirSync(home, { recursive: true });
     fs.mkdirSync(workspace, { recursive: true });
     const manifestPath = path.join(root, "custom-manifest.json");
-    fs.writeFileSync(
-      manifestPath,
-      JSON.stringify({ "owner/repo": { repository: "owner/repo", path: "sub", default_branch: "main" } }),
-      "utf8"
-    );
+    fs.writeFileSync(manifestPath, JSON.stringify({ "owner/repo": { repository: "owner/repo", path: "sub", default_branch: "main" } }), "utf8");
 
     const result = runScript({ HOME: home, GITHUB_WORKSPACE: workspace, GH_AW_CHECKOUT_MANIFEST: manifestPath });
     expect(result.status).toBe(0);
