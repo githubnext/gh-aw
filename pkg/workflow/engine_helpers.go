@@ -309,9 +309,11 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 	engineHelpersLog.Printf("Filtering environment variables: total=%d, allowed=%d", len(env), len(allowedNamesAndKeys))
 
 	// Create a set for fast lookup — entries may be secret names or env var keys.
-	allowedSet := make(map[string]bool)
+	allowedSet := make(map[string]struct {
+	})
 	for _, entry := range allowedNamesAndKeys {
-		allowedSet[entry] = true
+		allowedSet[entry] = struct {
+		}{}
 	}
 
 	filtered := make(map[string]string)
@@ -324,7 +326,7 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 			// Format: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || ... }}
 			secretName := ExtractSecretName(value)
 			// Allow the secret if the secret name OR the env var key is in the allowed set.
-			if secretName != "" && !allowedSet[secretName] && !allowedSet[key] {
+			if secretName != "" && !hasStringKey(allowedSet, secretName) && !hasStringKey(allowedSet, key) {
 				engineHelpersLog.Printf("Removing unauthorized secret from env: %s (secret: %s)", key, secretName)
 				secretsRemoved++
 				continue

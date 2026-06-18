@@ -34,7 +34,8 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 
 	toolsets := strings.Split(toolsetsStr, ",")
 	var expanded []string
-	seenToolsets := make(map[string]bool)
+	seenToolsets := make(map[string]struct {
+	})
 
 	for _, toolset := range toolsets {
 		toolset = strings.TrimSpace(toolset)
@@ -47,42 +48,48 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			// Add default toolsets
 			toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
 			for _, dt := range DefaultGitHubToolsets {
-				if !seenToolsets[dt] {
+				if !hasStringKey(seenToolsets, dt) {
 					expanded = append(expanded, dt)
-					seenToolsets[dt] = true
+					seenToolsets[dt] = struct {
+					}{}
 				}
 			}
 		case "action-friendly":
 			// Add action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
 			toolsetsLog.Printf("Expanding 'action-friendly' to %d toolsets", len(ActionFriendlyGitHubToolsets))
 			for _, dt := range ActionFriendlyGitHubToolsets {
-				if !seenToolsets[dt] {
+				if !hasStringKey(seenToolsets, dt) {
 					expanded = append(expanded, dt)
-					seenToolsets[dt] = true
+					seenToolsets[dt] = struct {
+					}{}
 				}
 			}
 		case "all":
 			// Add all toolsets from the toolset permissions map, excluding those that
 			// require GitHub App-only permissions (see GitHubToolsetsExcludedFromAll).
 			toolsetsLog.Printf("Expanding 'all' to toolsets from permissions map (excluding %v)", GitHubToolsetsExcludedFromAll)
-			excludedMap := make(map[string]bool, len(GitHubToolsetsExcludedFromAll))
+			excludedMap := make(map[string]struct {
+			}, len(GitHubToolsetsExcludedFromAll))
 			for _, ex := range GitHubToolsetsExcludedFromAll {
-				excludedMap[ex] = true
+				excludedMap[ex] = struct {
+				}{}
 			}
 			for t := range toolsetPermissionsMap {
-				if excludedMap[t] {
+				if hasStringKey(excludedMap, t) {
 					continue
 				}
-				if !seenToolsets[t] {
+				if !hasStringKey(seenToolsets, t) {
 					expanded = append(expanded, t)
-					seenToolsets[t] = true
+					seenToolsets[t] = struct {
+					}{}
 				}
 			}
 		default:
 			// Add individual toolset
-			if !seenToolsets[toolset] {
+			if !hasStringKey(seenToolsets, toolset) {
 				expanded = append(expanded, toolset)
-				seenToolsets[toolset] = true
+				seenToolsets[toolset] = struct {
+				}{}
 			}
 		}
 	}

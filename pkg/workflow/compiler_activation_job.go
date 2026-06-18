@@ -136,12 +136,12 @@ func addActivationInteractionPermissionsMap(
 		return
 	}
 
-	hasIssuesEvent := eventSet["issues"]
-	hasIssueCommentEvent := eventSet["issue_comment"]
-	hasPullRequestEvent := eventSet["pull_request"]
-	hasPullRequestReviewCommentEvent := eventSet["pull_request_review_comment"]
-	hasDiscussionEvent := eventSet["discussion"]
-	hasDiscussionCommentEvent := eventSet["discussion_comment"]
+	hasIssuesEvent := hasStringKey(eventSet, "issues")
+	hasIssueCommentEvent := hasStringKey(eventSet, "issue_comment")
+	hasPullRequestEvent := hasStringKey(eventSet, "pull_request")
+	hasPullRequestReviewCommentEvent := hasStringKey(eventSet, "pull_request_review_comment")
+	hasDiscussionEvent := hasStringKey(eventSet, "discussion")
+	hasDiscussionCommentEvent := hasStringKey(eventSet, "discussion_comment")
 
 	if options.hasReaction {
 		// Reactions on issues, issue comments, and pull requests use issues endpoints.
@@ -241,8 +241,10 @@ func shouldIncludeDiscussionStatusComments(data *WorkflowData) bool {
 	return *data.StatusCommentDiscussions
 }
 
-func activationEventSet(onSection string) (map[string]bool, bool) {
-	events := make(map[string]bool)
+func activationEventSet(onSection string) (map[string]struct {
+}, bool) {
+	events := make(map[string]struct {
+	})
 	var onData map[string]any
 	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {
 		compilerActivationJobLog.Printf("Failed to parse on section for activation permission scoping: %v", err)
@@ -257,11 +259,13 @@ func activationEventSet(onSection string) (map[string]bool, bool) {
 
 	switch v := onValue.(type) {
 	case string:
-		events[v] = true
+		events[v] = struct {
+		}{}
 	case []any:
 		for _, item := range v {
 			if eventName, ok := item.(string); ok {
-				events[eventName] = true
+				events[eventName] = struct {
+				}{}
 			}
 		}
 	case map[string]any:
@@ -269,7 +273,8 @@ func activationEventSet(onSection string) (map[string]bool, bool) {
 			if isActivationMetadataTriggerField(eventName) {
 				continue
 			}
-			events[eventName] = true
+			events[eventName] = struct {
+			}{}
 		}
 	default:
 		compilerActivationJobLog.Printf("Unsupported on section type for activation permission scoping: %T", onValue)
@@ -291,9 +296,11 @@ func isActivationMetadataTriggerField(eventName string) bool {
 func buildCentralizedCommandOnSection(commandEvents []string) string {
 	filteredEvents := FilterCommentEvents(commandEvents)
 	// Map to actual GitHub event names and deduplicate.
-	eventSet := make(map[string]bool)
+	eventSet := make(map[string]struct {
+	})
 	for _, mapping := range filteredEvents {
-		eventSet[GetActualGitHubEventName(mapping.EventName)] = true
+		eventSet[GetActualGitHubEventName(mapping.EventName)] = struct {
+		}{}
 	}
 	if len(eventSet) == 0 {
 		return ""
@@ -301,11 +308,13 @@ func buildCentralizedCommandOnSection(commandEvents []string) string {
 	var b strings.Builder
 	b.WriteString("on:\n")
 	// Derive ordering from GetAllCommentEvents to stay consistent with the rest of the codebase.
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	for _, mapping := range GetAllCommentEvents() {
 		name := GetActualGitHubEventName(mapping.EventName)
-		if eventSet[name] && !seen[name] {
-			seen[name] = true
+		if hasStringKey(eventSet, name) && !hasStringKey(seen, name) {
+			seen[name] = struct {
+			}{}
 			b.WriteString("  " + name + ":\n    types: [created]\n")
 		}
 	}
@@ -406,10 +415,11 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
 	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are excluded — they are not needed
 	// during activation and are omitted to keep the shallow checkout minimal.
-	defaultSparseCheckoutDirs := map[string]bool{".github": true, ".agents": true}
+	defaultSparseCheckoutDirs := map[string]struct {
+	}{".github": {}, ".agents": {}}
 	registry := GetGlobalEngineRegistry()
 	for _, folder := range registry.GetAllAgentManifestFolders() {
-		if !defaultSparseCheckoutDirs[folder] {
+		if !hasStringKey(defaultSparseCheckoutDirs, folder) {
 			extraPaths = append(extraPaths, folder)
 		}
 	}

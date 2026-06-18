@@ -316,7 +316,8 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 
 	ruleHitMap := make(map[string]int)
 	var deniedRequests []EnrichedRequest
-	uniqueDomains := make(map[string]bool)
+	uniqueDomains := make(map[string]struct {
+	})
 	allowedCount := 0
 	deniedCount := 0
 
@@ -336,7 +337,8 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 		if idx := strings.LastIndex(host, ":"); idx != -1 {
 			domain = host[:idx]
 		}
-		uniqueDomains[strings.ToLower(domain)] = true
+		uniqueDomains[strings.ToLower(domain)] = struct {
+		}{}
 
 		rule := findMatchingRule(entry, manifest.Rules)
 

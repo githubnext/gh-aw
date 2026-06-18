@@ -71,12 +71,14 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	secrets := make([]string, 0, len(secretNames))
 	for _, name := range secretNames {
 		full := normalizeSecretName(name)
-		if !seen[full] {
-			seen[full] = true
+		if !hasStringKey(seen, full) {
+			seen[full] = struct {
+			}{}
 			secrets = append(secrets, full)
 		}
 	}
@@ -86,11 +88,13 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 	resolutionFailures := normalizeResolutionFailures(failures)
 
 	// Deduplicate container entries by image name and sort for deterministic output.
-	seenContainers := make(map[string]bool, len(containers))
+	seenContainers := make(map[string]struct {
+	}, len(containers))
 	sortedContainers := make([]GHAWManifestContainer, 0, len(containers))
 	for _, c := range containers {
-		if c.Image != "" && !seenContainers[c.Image] {
-			seenContainers[c.Image] = true
+		if c.Image != "" && !hasStringKey(seenContainers, c.Image) {
+			seenContainers[c.Image] = struct {
+			}{}
 			sortedContainers = append(sortedContainers, c)
 		}
 	}
@@ -134,7 +138,8 @@ func normalizeSecretName(name string) string {
 //	"actions/checkout@abc1234 # v4"   → repo=actions/checkout, sha=abc1234, version=v4
 //	"actions/checkout@v4"             → repo=actions/checkout, sha=v4, version=v4
 func parseActionRefs(refs []string) []GHAWManifestAction {
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	actions := make([]GHAWManifestAction, 0, len(refs))
 
 	for _, raw := range refs {
@@ -160,10 +165,11 @@ func parseActionRefs(refs []string) []GHAWManifestAction {
 		}
 
 		key := repo + "@" + sha
-		if seen[key] {
+		if hasStringKey(seen, key) {
 			continue
 		}
-		seen[key] = true
+		seen[key] = struct {
+		}{}
 
 		actions = append(actions, GHAWManifestAction{
 			Repo:    repo,

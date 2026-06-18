@@ -31,8 +31,10 @@ func getSafeOutputRequireTitlePrefixCodemod() Codemod {
 	}
 }
 
-func safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter map[string]any) map[string]bool {
-	result := map[string]bool{}
+func safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter map[string]any) map[string]struct {
+} {
+	result := map[string]struct {
+	}{}
 	safeOutputsAny, ok := frontmatter["safe-outputs"]
 	if !ok {
 		return result
@@ -76,14 +78,16 @@ func safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter map[string]any) 
 		}
 
 		if needsTitlePrefixRename || needsRequiredLabelsRename {
-			result[handler] = true
+			result[handler] = struct {
+			}{}
 		}
 	}
 
 	return result
 }
 
-func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map[string]bool) ([]string, bool) {
+func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map[string]struct {
+}) ([]string, bool) {
 	result := make([]string, 0, len(lines))
 	modified := false
 
@@ -136,7 +140,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 				continue
 			}
 			key := strings.TrimSuffix(trimmed, ":")
-			if handlersToRename[key] {
+			if hasStringKey(handlersToRename, key) {
 				activeHandler = key
 				activeHandlerIndent = indent
 				handlerChildIndent = ""

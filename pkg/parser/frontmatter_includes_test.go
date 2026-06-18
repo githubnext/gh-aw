@@ -35,7 +35,7 @@ This is a shared configuration file.`
 	}
 
 	// Process the included file - should not generate warnings for name and description
-	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]struct{}))
 	if err != nil {
 		t.Fatalf("processIncludedFileWithVisited() error = %v", err)
 	}
@@ -74,7 +74,7 @@ This file only has name and description in frontmatter.`
 	}
 
 	// Process the included file - should not generate warnings
-	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]struct{}))
 	if err != nil {
 		t.Fatalf("processIncludedFileWithVisited() error = %v", err)
 	}
@@ -128,7 +128,7 @@ This agent removes feature flags from the codebase.`
 
 	// Process the included file - should not generate validation errors
 	// because custom agent files use a different tools format (array vs object)
-	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]struct{}))
 	if err != nil {
 		t.Fatalf("processIncludedFileWithVisited() error = %v, want nil", err)
 	}
@@ -138,7 +138,7 @@ This agent removes feature flags from the codebase.`
 	}
 
 	// Also test that tools extraction skips agent files and returns empty object
-	toolsResult, err := processIncludedFileWithVisited(testFile, "", true, make(map[string]bool))
+	toolsResult, err := processIncludedFileWithVisited(testFile, "", true, make(map[string]struct{}))
 	if err != nil {
 		t.Fatalf("processIncludedFileWithVisited(extractTools=true) error = %v, want nil", err)
 	}
@@ -178,7 +178,7 @@ This is a shared engine configuration with custom command.`
 	}
 
 	// Process the included file - should not generate validation errors
-	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]struct{}))
 	if err != nil {
 		t.Fatalf("processIncludedFileWithVisited() error = %v, want nil", err)
 	}
@@ -188,7 +188,7 @@ This is a shared engine configuration with custom command.`
 	}
 
 	// Also test that tools extraction works correctly
-	toolsResult, err := processIncludedFileWithVisited(testFile, "", true, make(map[string]bool))
+	toolsResult, err := processIncludedFileWithVisited(testFile, "", true, make(map[string]struct{}))
 	if err != nil {
 		t.Fatalf("processIncludedFileWithVisited(extractTools=true) error = %v, want nil", err)
 	}

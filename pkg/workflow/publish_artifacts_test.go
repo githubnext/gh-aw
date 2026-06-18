@@ -213,7 +213,7 @@ func TestComputeEnabledToolNamesIncludesUploadArtifact(t *testing.T) {
 		},
 	}
 	tools := computeEnabledToolNames(data)
-	assert.True(t, tools["upload_artifact"], "upload_artifact should be in enabled tools")
+	assert.True(t, hasStringKey(tools, "upload_artifact"), "upload_artifact should be in enabled tools")
 }
 
 func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {

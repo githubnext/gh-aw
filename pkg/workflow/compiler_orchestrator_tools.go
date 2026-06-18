@@ -380,12 +380,15 @@ func (c *Compiler) resolveMarkdownArtifacts(
 }
 
 func mergeAndSortIncludedFiles(files1 []string, files2 []string) []string {
-	allIncludedFilesMap := make(map[string]bool)
+	allIncludedFilesMap := make(map[string]struct {
+	})
 	for _, file := range files1 {
-		allIncludedFilesMap[file] = true
+		allIncludedFilesMap[file] = struct {
+		}{}
 	}
 	for _, file := range files2 {
-		allIncludedFilesMap[file] = true
+		allIncludedFilesMap[file] = struct {
+		}{}
 	}
 	allIncludedFiles := make([]string, 0, len(allIncludedFilesMap))
 	for file := range allIncludedFilesMap {
@@ -466,20 +469,21 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 	// Note: "issues", "pull_request", and "discussion" are included here, which also covers
 	// workflows using "labeled"/"unlabeled" activity types on those events — any trigger that
 	// declares one of these events as a map key is treated as having content context.
-	contentEventKeys := map[string]bool{
-		"issues":                      true,
-		"pull_request":                true,
-		"pull_request_target":         true,
-		"issue_comment":               true,
-		"pull_request_review_comment": true,
-		"pull_request_review":         true,
-		"discussion":                  true,
-		"discussion_comment":          true,
-		"slash_command":               true,
+	contentEventKeys := map[string]struct {
+	}{
+		"issues":                      {},
+		"pull_request":                {},
+		"pull_request_target":         {},
+		"issue_comment":               {},
+		"pull_request_review_comment": {},
+		"pull_request_review":         {},
+		"discussion":                  {},
+		"discussion_comment":          {},
+		"slash_command":               {},
 	}
 
 	for eventName := range onMap {
-		if contentEventKeys[eventName] {
+		if hasStringKey(contentEventKeys, eventName) {
 			orchestratorToolsLog.Printf("Detected content context: workflow triggered by %s", eventName)
 			return true
 		}

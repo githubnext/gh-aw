@@ -470,16 +470,19 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	}
 
 	// Build a set of already-listed needs for O(1) lookup
-	currentNeeds := make(map[string]bool, len(conclusionJob.Needs))
+	currentNeeds := make(map[string]struct {
+	}, len(conclusionJob.Needs))
 	for _, need := range conclusionJob.Needs {
-		currentNeeds[need] = true
+		currentNeeds[need] = struct {
+		}{}
 	}
 
 	// Jobs that must never appear in conclusion's needs
-	exclude := map[string]bool{
-		"conclusion":                           true,
-		string(constants.PreActivationJobName): true,
-		"pre-activation":                       true,
+	exclude := map[string]struct {
+	}{
+		"conclusion":                           {},
+		string(constants.PreActivationJobName): {},
+		"pre-activation":                       {},
 	}
 
 	// Iterate over all jobs in alphabetical order for deterministic output
@@ -491,7 +494,7 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	sort.Strings(jobNames)
 
 	for _, jobName := range jobNames {
-		if exclude[jobName] || currentNeeds[jobName] {
+		if hasStringKey(exclude, jobName) || hasStringKey(currentNeeds, jobName) {
 			continue
 		}
 		conclusionJob.Needs = append(conclusionJob.Needs, jobName)
@@ -547,18 +550,25 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	return nil
 }
 
-func (c *Compiler) getCustomJobDependencySets(data *WorkflowData) (map[string]bool, map[string]bool) {
+func (c *Compiler) getCustomJobDependencySets(data *WorkflowData) (map[string]struct {
+}, map[string]struct {
 	// Pre-compute jobs referenced in the markdown body with no explicit needs.
 	// These run before activation (not after), so we must not auto-add activation to them.
+}) {
+
 	promptReferencedJobsSlice := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
-	promptReferencedJobs := make(map[string]bool, len(promptReferencedJobsSlice))
+	promptReferencedJobs := make(map[string]struct {
+	}, len(promptReferencedJobsSlice))
 	for _, j := range promptReferencedJobsSlice {
-		promptReferencedJobs[j] = true
+		promptReferencedJobs[j] = struct {
+		}{}
 	}
 
-	onNeedsJobs := make(map[string]bool, len(data.OnNeeds))
+	onNeedsJobs := make(map[string]struct {
+	}, len(data.OnNeeds))
 	for _, j := range data.OnNeeds {
-		onNeedsJobs[j] = true
+		onNeedsJobs[j] = struct {
+		}{}
 	}
 
 	return promptReferencedJobs, onNeedsJobs
@@ -586,9 +596,9 @@ func (c *Compiler) buildCustomJob(
 	configMap map[string]any,
 	data *WorkflowData,
 	activationJobCreated bool,
-	promptReferencedJobs map[string]bool,
-	onNeedsJobs map[string]bool,
-) (*Job, error) {
+	promptReferencedJobs map[string]struct {
+	}, onNeedsJobs map[string]struct {
+	}) (*Job, error) {
 	job := &Job{Name: jobName}
 
 	hasExplicitNeeds := extractCustomJobNeeds(job, configMap)
@@ -630,15 +640,15 @@ func (c *Compiler) applyAutomaticActivationDependency(
 	jobName string,
 	hasExplicitNeeds bool,
 	activationJobCreated bool,
-	promptReferencedJobs map[string]bool,
-	onNeedsJobs map[string]bool,
-) {
+	promptReferencedJobs map[string]struct {
+	}, onNeedsJobs map[string]struct {
+	}) {
 	// If no explicit needs and activation job exists, automatically add activation as dependency
 	// This ensures custom jobs wait for workflow validation before executing.
 	// Exception: jobs whose outputs are referenced in the markdown body run before activation
 	// (so the activation job can include their outputs in the prompt).
-	isReferencedInMarkdown := promptReferencedJobs[jobName]
-	isOnNeedsDependency := onNeedsJobs[jobName]
+	isReferencedInMarkdown := hasStringKey(promptReferencedJobs, jobName)
+	isOnNeedsDependency := hasStringKey(onNeedsJobs, jobName)
 
 	if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown && !isOnNeedsDependency {
 		job.Needs = append(job.Needs, string(constants.ActivationJobName))

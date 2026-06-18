@@ -355,12 +355,14 @@ func buildAnomalyReasons(anomalies []struct {
 	report *agentdrain.AnomalyReport
 }) string {
 	reasons := make([]string, 0, len(anomalies))
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	for _, a := range anomalies {
 		r := fmt.Sprintf("stage=%s score=%.2f: %s", a.evt.Stage, a.report.AnomalyScore, a.report.Reason)
-		if !seen[r] {
+		if !hasStringKey(seen, r) {
 			reasons = append(reasons, r)
-			seen[r] = true
+			seen[r] = struct {
+			}{}
 		}
 		if len(reasons) >= 5 {
 			break

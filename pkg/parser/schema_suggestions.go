@@ -433,23 +433,27 @@ func generateObjectExample(schema map[string]any) any {
 	return result
 }
 
-func collectRequiredFields(schema map[string]any) map[string]bool {
-	requiredFields := make(map[string]bool)
+func collectRequiredFields(schema map[string]any) map[string]struct {
+} {
+	requiredFields := make(map[string]struct {
+	})
 	required, ok := schema["required"].([]any)
 	if !ok {
 		return requiredFields
 	}
 	for _, field := range required {
 		if fieldName, ok := field.(string); ok {
-			requiredFields[fieldName] = true
+			requiredFields[fieldName] = struct {
+			}{}
 		}
 	}
 	return requiredFields
 }
 
-func addObjectExamples(result map[string]any, properties map[string]any, requiredFields map[string]bool, includeRequired bool, count int) int {
+func addObjectExamples(result map[string]any, properties map[string]any, requiredFields map[string]struct {
+}, includeRequired bool, count int) int {
 	for propName, propSchema := range properties {
-		if requiredFields[propName] != includeRequired || count >= maxExampleFields {
+		if hasStringKey(requiredFields, propName) != includeRequired || count >= maxExampleFields {
 			continue
 		}
 		propSchemaMap, ok := propSchema.(map[string]any)
@@ -650,7 +654,8 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 	allLocations := collectSchemaPropertyPaths(schemaDoc, "", 0)
 	targetLower := strings.ToLower(targetField)
 
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 
 	// Collect exact matches first
 	var exactMatches []schemaFieldLocation
@@ -659,10 +664,11 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 			continue
 		}
 		key := loc.FieldName + "|" + loc.SchemaPath
-		if seen[key] {
+		if hasStringKey(seen, key) {
 			continue
 		}
-		seen[key] = true
+		seen[key] = struct {
+		}{}
 
 		if strings.EqualFold(loc.FieldName, targetField) {
 			loc.Distance = 0
@@ -676,17 +682,19 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 	}
 
 	// Fall back to fuzzy matching with a stricter distance threshold for high confidence
-	seenFuzzy := make(map[string]bool)
+	seenFuzzy := make(map[string]struct {
+	})
 	var fuzzyMatches []schemaFieldLocation
 	for _, loc := range allLocations {
 		if loc.SchemaPath == currentPath {
 			continue
 		}
 		key := loc.FieldName + "|" + loc.SchemaPath
-		if seenFuzzy[key] {
+		if hasStringKey(seenFuzzy, key) {
 			continue
 		}
-		seenFuzzy[key] = true
+		seenFuzzy[key] = struct {
+		}{}
 
 		dist := LevenshteinDistance(targetLower, strings.ToLower(loc.FieldName))
 		if dist > 0 && dist <= maxPathSearchDistance {
@@ -748,11 +756,13 @@ func generatePathLocationSuggestion(invalidProps []string, schemaDoc any, curren
 		// Collect unique path display names; track the actual field name for fuzzy matches
 		actualFieldName := locations[0].FieldName
 		var pathNames []string
-		seenPaths := make(map[string]bool)
+		seenPaths := make(map[string]struct {
+		})
 		for _, loc := range locations {
 			display := "'" + formatSchemaPathForDisplay(loc.SchemaPath) + "'"
-			if !seenPaths[display] {
-				seenPaths[display] = true
+			if !hasStringKey(seenPaths, display) {
+				seenPaths[display] = struct {
+				}{}
 				pathNames = append(pathNames, display)
 			}
 		}

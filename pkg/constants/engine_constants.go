@@ -172,18 +172,21 @@ func GetEngineOption(engineValue string) *EngineOption {
 // This includes primary secrets, alternative secrets, and system-level secrets.
 // The returned slice contains no duplicates.
 func GetAllEngineSecretNames() []string {
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	var secrets []string
 
 	// Add primary and alternative secrets from all engines
 	for _, opt := range EngineOptions {
-		if opt.SecretName != "" && !seen[opt.SecretName] {
-			seen[opt.SecretName] = true
+		if opt.SecretName != "" && !hasStringKey(seen, opt.SecretName) {
+			seen[opt.SecretName] = struct {
+			}{}
 			secrets = append(secrets, opt.SecretName)
 		}
 		for _, alt := range opt.AlternativeSecrets {
-			if alt != "" && !seen[alt] {
-				seen[alt] = true
+			if alt != "" && !hasStringKey(seen, alt) {
+				seen[alt] = struct {
+				}{}
 				secrets = append(secrets, alt)
 			}
 		}
@@ -191,8 +194,9 @@ func GetAllEngineSecretNames() []string {
 
 	// Add system-level secrets from SystemSecrets
 	for _, s := range SystemSecrets {
-		if s.Name != "" && !seen[s.Name] {
-			seen[s.Name] = true
+		if s.Name != "" && !hasStringKey(seen, s.Name) {
+			seen[s.Name] = struct {
+			}{}
 			secrets = append(secrets, s.Name)
 		}
 	}

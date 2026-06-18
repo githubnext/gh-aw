@@ -156,7 +156,8 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 	}
 
 	// Track visited includes to prevent cycles
-	visited := make(map[string]bool)
+	visited := make(map[string]struct {
+	})
 
 	// Use a queue to process files iteratively instead of recursion
 	queue := []string{}
@@ -198,8 +199,9 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
 					result.WriteString(line + "\n")
 					// Add file to queue for processing nested includes (first visit only)
-					if !visited[filePath] {
-						visited[filePath] = true
+					if !hasStringKey(visited, filePath) {
+						visited[filePath] = struct {
+						}{}
 						queue = append(queue, filePath)
 					}
 					continue
@@ -221,8 +223,9 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			writeImportDirective(&result, workflowSpec, isOptional)
 
 			// Only enqueue for nested-include processing on the first visit to prevent cycles
-			if !visited[filePath] {
-				visited[filePath] = true
+			if !hasStringKey(visited, filePath) {
+				visited[filePath] = struct {
+				}{}
 				queue = append(queue, filePath)
 			}
 		} else {
@@ -276,7 +279,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				nestedFilePath, _ := splitImportPath(includePath)
 
 				// Check for cycle detection
-				if visited[nestedFilePath] {
+				if hasStringKey(visited, nestedFilePath) {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", nestedFilePath)))
 					}
@@ -284,7 +287,8 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				}
 
 				// Mark as visited and add to queue
-				visited[nestedFilePath] = true
+				visited[nestedFilePath] = struct {
+				}{}
 				queue = append(queue, nestedFilePath)
 			}
 		}

@@ -154,7 +154,8 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		existingSecrets, err := getExistingSecretsInRepo(hostRepoSlug)
 		if err != nil {
 			trialLog.Printf("Warning: could not check existing secrets: %v", err)
-			existingSecrets = make(map[string]bool)
+			existingSecrets = make(map[string]struct {
+			})
 		}
 
 		// Ensure the required engine secret is available (prompts interactively if needed)

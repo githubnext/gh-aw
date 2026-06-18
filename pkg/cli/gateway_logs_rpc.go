@@ -285,7 +285,8 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 	// Second pass: build MCPToolCall records.
 	// Declared before first pass so requests without IDs can be appended immediately.
 	var toolCalls []MCPToolCall
-	processedKeys := make(map[string]bool)
+	processedKeys := make(map[string]struct {
+	})
 
 	// First pass: index outgoing tool-call requests by (serverID, id)
 	for i := range entries {
@@ -343,7 +344,8 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 			if !ok {
 				continue
 			}
-			processedKeys[key] = true
+			processedKeys[key] = struct {
+			}{}
 
 			call := MCPToolCall{
 				Timestamp:  p.timestamp.Format(time.RFC3339Nano),
@@ -367,7 +369,7 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 
 	// Emit any requests that never received a response
 	for key, p := range pending {
-		if !processedKeys[key] {
+		if !hasStringKey(processedKeys, key) {
 			toolCalls = append(toolCalls, MCPToolCall{
 				Timestamp:  p.timestamp.Format(time.RFC3339Nano),
 				ServerName: p.serverID,

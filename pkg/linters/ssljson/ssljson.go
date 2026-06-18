@@ -93,17 +93,21 @@ var stepTerminals = map[string]bool{"YIELD_SUCCESS": true, "YIELD_FAIL": true}
 func ValidateDoc(doc SSLDoc) []string {
 	var msgs []string
 
-	sceneIDs := make(map[string]bool, len(doc.Scenes))
+	sceneIDs := make(map[string]struct {
+	}, len(doc.Scenes))
 	for _, s := range doc.Scenes {
-		sceneIDs[s.ID] = true
+		sceneIDs[s.ID] = struct {
+		}{}
 	}
-	stepIDs := make(map[string]bool, len(doc.LogicSteps))
+	stepIDs := make(map[string]struct {
+	}, len(doc.LogicSteps))
 	for _, ls := range doc.LogicSteps {
-		stepIDs[ls.ID] = true
+		stepIDs[ls.ID] = struct {
+		}{}
 	}
 
 	// Rule 1: entry_scene must reference an existing scene.
-	if doc.Scheduling.EntryScene != "" && !sceneIDs[doc.Scheduling.EntryScene] {
+	if doc.Scheduling.EntryScene != "" && !hasStringKey(sceneIDs, doc.Scheduling.EntryScene) {
 		msgs = append(msgs, fmt.Sprintf("entry_scene %q not found in scenes", doc.Scheduling.EntryScene))
 	}
 
@@ -113,12 +117,12 @@ func ValidateDoc(doc SSLDoc) []string {
 			msgs = append(msgs, fmt.Sprintf("scene %q has invalid type %q", scene.ID, scene.Type))
 		}
 		// Rule 3: entry_logic_step must reference an existing logic step.
-		if scene.EntryLogicStep != "" && !stepIDs[scene.EntryLogicStep] {
+		if scene.EntryLogicStep != "" && !hasStringKey(stepIDs, scene.EntryLogicStep) {
 			msgs = append(msgs, fmt.Sprintf("scene %q entry_logic_step %q not found in logic_steps", scene.ID, scene.EntryLogicStep))
 		}
 		// Rule 4: scene transition targets must resolve to a scene ID or terminal.
 		for _, rule := range scene.NextSceneRules {
-			if !sceneIDs[rule.Target] && !sceneTerminals[rule.Target] {
+			if !hasStringKey(sceneIDs, rule.Target) && !sceneTerminals[rule.Target] {
 				msgs = append(msgs, fmt.Sprintf(
 					"scene %q transition target %q is not a scene ID or END_SUCCESS/END_FAIL",
 					scene.ID, rule.Target,
@@ -137,7 +141,7 @@ func ValidateDoc(doc SSLDoc) []string {
 			msgs = append(msgs, fmt.Sprintf("logic step %q has invalid resource_scope %q", step.ID, step.ResourceScope))
 		}
 		// Rule 7: logic-step next must be a step ID or a terminal target.
-		if !stepIDs[step.Next] && !stepTerminals[step.Next] {
+		if !hasStringKey(stepIDs, step.Next) && !stepTerminals[step.Next] {
 			msgs = append(msgs, fmt.Sprintf(
 				"logic step %q next %q is not a step ID or YIELD_SUCCESS/YIELD_FAIL",
 				step.ID, step.Next,

@@ -68,7 +68,8 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	}
 
 	// Track which runtimes to filter from requirements (user has custom setup)
-	filteredRuntimeIDs := make(map[string]bool)
+	filteredRuntimeIDs := make(map[string]struct {
+	})
 
 	// Filter out steps that use runtime setup actions
 	// BUT: Preserve steps that have user-specified customizations
@@ -156,7 +157,8 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 						if hasCustomization {
 							// User has truly customized the setup action - preserve it
 							shouldPreserve = true
-							filteredRuntimeIDs[req.Runtime.ID] = true
+							filteredRuntimeIDs[req.Runtime.ID] = struct {
+							}{}
 							runtimeDeduplicationLog.Printf("  Preserving user-customized runtime setup step: %s", usesStr)
 							preservedCount++
 							break
@@ -206,7 +208,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	// Filter runtime requirements to exclude those with user-customized setup actions
 	var filteredRequirements []RuntimeRequirement
 	for _, req := range runtimeRequirements {
-		if !filteredRuntimeIDs[req.Runtime.ID] {
+		if !hasStringKey(filteredRuntimeIDs, req.Runtime.ID) {
 			filteredRequirements = append(filteredRequirements, req)
 		} else {
 			runtimeDeduplicationLog.Printf("  Excluding runtime %s from generated setup steps (user has custom setup)", req.Runtime.ID)

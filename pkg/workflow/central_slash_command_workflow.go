@@ -440,19 +440,22 @@ func needsPullRequestsPermission(mergedEvents map[string]map[string]bool) bool {
 
 func buildCommandsHeaderMetadata(slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute) commandsHeaderMetadata {
 	commands := make([]string, 0, len(slashRoutesByCommand))
-	workflowSet := make(map[string]bool)
+	workflowSet := make(map[string]struct {
+	})
 	for command, routes := range slashRoutesByCommand {
 		commands = append(commands, command)
 		for _, route := range routes {
 			if route.Workflow != "" {
-				workflowSet[route.Workflow] = true
+				workflowSet[route.Workflow] = struct {
+				}{}
 			}
 		}
 	}
 	for _, routes := range labelRoutesByCommand {
 		for _, route := range routes {
 			if route.Workflow != "" {
-				workflowSet[route.Workflow] = true
+				workflowSet[route.Workflow] = struct {
+				}{}
 			}
 		}
 	}

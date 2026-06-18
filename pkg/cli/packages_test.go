@@ -118,7 +118,8 @@ on: push
 
 			// Collect includes
 			var dependencies []IncludeDependency
-			seen := make(map[string]bool)
+			seen := make(map[string]struct {
+			})
 			err := collectLocalIncludeDependenciesRecursive(tt.content, tmpDir, &dependencies, seen, false)
 
 			// Check error expectation
@@ -135,9 +136,11 @@ on: push
 			}
 
 			// Check paths
-			foundPaths := make(map[string]bool)
+			foundPaths := make(map[string]struct {
+			})
 			for _, dep := range dependencies {
-				foundPaths[dep.TargetPath] = true
+				foundPaths[dep.TargetPath] = struct {
+				}{}
 			}
 			for _, expectedPath := range tt.expectedPaths {
 				if _, ok := foundPaths[expectedPath]; !ok {
@@ -167,7 +170,7 @@ func TestCollectPackageIncludesRecursive_CircularReference(t *testing.T) {
 
 	// Collect includes starting from a.md
 	var dependencies []IncludeDependency
-	seen := make(map[string]bool)
+	seen := make(map[string]struct{})
 	err := collectLocalIncludeDependenciesRecursive(aContent, tmpDir, &dependencies, seen, false)
 
 	if err != nil {

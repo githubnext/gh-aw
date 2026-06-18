@@ -44,10 +44,13 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	return result, nil
 }
 
-func toImportSet(imports []string) map[string]bool {
-	allImportsSet := make(map[string]bool, len(imports))
+func toImportSet(imports []string) map[string]struct {
+} {
+	allImportsSet := make(map[string]struct {
+	}, len(imports))
 	for _, imp := range imports {
-		allImportsSet[imp] = true
+		allImportsSet[imp] = struct {
+		}{}
 	}
 	return allImportsSet
 }
@@ -108,7 +111,8 @@ func extractFrontmatterForTopologicalSort(fullPath string, content []byte) (map[
 	return result.Frontmatter, nil
 }
 
-func calculateInDegree(imports []string, dependencies map[string][]string, allImportsSet map[string]bool) map[string]int {
+func calculateInDegree(imports []string, dependencies map[string][]string, allImportsSet map[string]struct {
+}) map[string]int {
 	inDegree := make(map[string]int, len(imports))
 	for _, imp := range imports {
 		inDegree[imp] = 0
@@ -116,7 +120,7 @@ func calculateInDegree(imports []string, dependencies map[string][]string, allIm
 	sortedImports := sortedDependencyKeys(dependencies)
 	for _, imp := range sortedImports {
 		for _, dep := range dependencies[imp] {
-			if allImportsSet[dep] {
+			if hasStringKey(allImportsSet, dep) {
 				inDegree[imp]++
 			}
 		}
@@ -147,8 +151,8 @@ func collectRootImports(imports []string, inDegree map[string]int) []string {
 func runKahnTopologicalSort(
 	imports []string,
 	dependencies map[string][]string,
-	allImportsSet map[string]bool,
-	inDegree map[string]int,
+	allImportsSet map[string]struct {
+	}, inDegree map[string]int,
 	queue []string,
 ) []string {
 	result := make([]string, 0, len(imports))
@@ -168,13 +172,13 @@ func reduceDependentInDegrees(
 	current string,
 	sortedImports []string,
 	dependencies map[string][]string,
-	allImportsSet map[string]bool,
-	inDegree map[string]int,
+	allImportsSet map[string]struct {
+	}, inDegree map[string]int,
 	queue []string,
 ) []string {
 	for _, imp := range sortedImports {
 		for _, dep := range dependencies[imp] {
-			if dep == current && allImportsSet[imp] {
+			if dep == current && hasStringKey(allImportsSet, imp) {
 				inDegree[imp]--
 				importLog.Printf("Reduced in-degree of %s to %d (resolved dependency on %s)", imp, inDegree[imp], current)
 				if inDegree[imp] == 0 {
@@ -187,11 +191,14 @@ func reduceDependentInDegrees(
 	return queue
 }
 
-func findCycleNodes(imports, result []string) map[string]bool {
-	cycleNodes := make(map[string]bool)
+func findCycleNodes(imports, result []string) map[string]struct {
+} {
+	cycleNodes := make(map[string]struct {
+	})
 	for _, imp := range imports {
 		if !slices.Contains(result, imp) {
-			cycleNodes[imp] = true
+			cycleNodes[imp] = struct {
+			}{}
 		}
 	}
 	return cycleNodes

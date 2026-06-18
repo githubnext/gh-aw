@@ -31,8 +31,8 @@ type FirewallLogSummary struct {
 
 // domainAggregation holds the result of aggregating domain statistics
 type domainAggregation struct {
-	allAllowedDomains map[string]bool
-	allBlockedDomains map[string]bool
+	allAllowedDomains map[string]struct{}
+	allBlockedDomains map[string]struct{}
 	totalRequests     int
 	allowedCount      int
 	blockedCount      int
@@ -43,8 +43,8 @@ type domainAggregation struct {
 func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*ProcessedRun) (allowedDomains, blockedDomains []string, totalRequests, allowedCount, blockedCount int, exists bool)) *domainAggregation {
 	firewallReportLog.Printf("Aggregating domain stats across %d runs", len(processedRuns))
 	agg := &domainAggregation{
-		allAllowedDomains: make(map[string]bool),
-		allBlockedDomains: make(map[string]bool),
+		allAllowedDomains: make(map[string]struct{}),
+		allBlockedDomains: make(map[string]struct{}),
 	}
 
 	for i := range processedRuns {
@@ -58,10 +58,10 @@ func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*Proces
 		agg.blockedCount += blockedCount
 
 		for _, domain := range allowedDomains {
-			agg.allAllowedDomains[domain] = true
+			agg.allAllowedDomains[domain] = struct{}{}
 		}
 		for _, domain := range blockedDomains {
-			agg.allBlockedDomains[domain] = true
+			agg.allBlockedDomains[domain] = struct{}{}
 		}
 	}
 
@@ -71,7 +71,7 @@ func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*Proces
 }
 
 // convertDomainsToSortedSlices converts domain maps to sorted slices
-func convertDomainsToSortedSlices(allowedMap, blockedMap map[string]bool) (allowed, blocked []string) {
+func convertDomainsToSortedSlices(allowedMap, blockedMap map[string]struct{}) (allowed, blocked []string) {
 	for domain := range allowedMap {
 		allowed = append(allowed, domain)
 	}
@@ -166,7 +166,8 @@ func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
 
 // buildRedactedDomainsSummary aggregates redacted domains data across all runs
 func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsLogSummary {
-	allDomainsSet := make(map[string]bool)
+	allDomainsSet := make(map[string]struct {
+	})
 	byWorkflow := make(map[string]*RedactedDomainsAnalysis)
 	hasData := false
 
@@ -179,7 +180,8 @@ func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsL
 
 		// Collect all unique domains
 		for _, domain := range pr.RedactedDomainsAnalysis.Domains {
-			allDomainsSet[domain] = true
+			allDomainsSet[domain] = struct {
+			}{}
 		}
 	}
 

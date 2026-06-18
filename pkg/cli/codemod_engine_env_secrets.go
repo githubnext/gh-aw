@@ -85,8 +85,10 @@ func extractEngineIDForCodemod(frontmatter map[string]any, engineMap map[string]
 	return ""
 }
 
-func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
-	allowed := make(map[string]bool)
+func allowedEngineEnvSecretKeys(engineID string) map[string]struct {
+} {
+	allowed := make(map[string]struct {
+	})
 	// Keep only required, engine-specific secret names here.
 	// We intentionally exclude system secrets (for example GH_AW_GITHUB_TOKEN)
 	// and optional secrets so this codemod only
@@ -96,7 +98,8 @@ func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 		false, // includeSystemSecrets
 		false, // includeOptional
 	) {
-		allowed[req.Name] = true
+		allowed[req.Name] = struct {
+		}{}
 	}
 	// Also include all secrets returned by the engine's GetRequiredSecretNames so that
 	// BYOK credentials (e.g. COPILOT_PROVIDER_API_KEY) are treated the same way as they
@@ -114,7 +117,8 @@ func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 				ParsedTools: &workflow.ToolsConfig{},
 			}
 			for _, name := range engine.GetRequiredSecretNames(minimalData) {
-				allowed[name] = true
+				allowed[name] = struct {
+				}{}
 			}
 		} else {
 			engineEnvSecretsCodemodLog.Printf("Could not look up engine '%s' for allowlist expansion: %v", engineID, err)
@@ -123,10 +127,13 @@ func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 	return allowed
 }
 
-func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]bool) map[string]bool {
-	unsafe := make(map[string]bool)
+func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]struct {
+}) map[string]struct {
+} {
+	unsafe := make(map[string]struct {
+	})
 	for key, value := range envMap {
-		if allowed[key] {
+		if hasStringKey(allowed, key) {
 			continue
 		}
 		strVal, ok := value.(string)
@@ -134,14 +141,16 @@ func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]boo
 			continue
 		}
 		if len(workflow.ExtractSecretsFromMap(map[string]string{key: strVal})) > 0 {
-			unsafe[key] = true
+			unsafe[key] = struct {
+			}{}
 		}
 	}
 	engineEnvSecretsCodemodLog.Printf("Found %d unsafe engine.env secret keys out of %d total keys", len(unsafe), len(envMap))
 	return unsafe
 }
 
-func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]bool) ([]string, bool) {
+func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
+}) ([]string, bool) {
 	result := make([]string, 0, len(lines))
 	modified := false
 
@@ -199,7 +208,7 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]bool) ([]st
 
 		if inEnv && !removingKey && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && len(indent) > len(envIndent) {
 			key := parseYAMLMapKey(trimmed)
-			if key != "" && unsafeKeys[key] {
+			if key != "" && hasStringKey(unsafeKeys, key) {
 				modified = true
 				removingKey = true
 				removingKeyIndent = indent
@@ -276,12 +285,14 @@ func getTopLevelEnvSecretsGuidedErrorCodemod() Codemod {
 			}
 
 			var secretRefs []string
-			seenExpressions := make(map[string]bool)
+			seenExpressions := make(map[string]struct {
+			})
 			for _, expr := range secretExpressions {
-				if seenExpressions[expr] {
+				if hasStringKey(seenExpressions, expr) {
 					continue
 				}
-				seenExpressions[expr] = true
+				seenExpressions[expr] = struct {
+				}{}
 				secretRefs = append(secretRefs, expr)
 			}
 			sort.Strings(secretRefs)

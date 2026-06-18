@@ -184,7 +184,8 @@ func cleanupOrphanedIncludes(verbose bool) error {
 	}
 
 	// Collect all include dependencies from remaining workflows
-	usedIncludes := make(map[string]bool)
+	usedIncludes := make(map[string]struct {
+	})
 
 	for _, mdFile := range mdFiles {
 		content, err := os.ReadFile(mdFile)
@@ -205,7 +206,8 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		}
 
 		for _, include := range includes {
-			usedIncludes[include] = true
+			usedIncludes[include] = struct {
+			}{}
 		}
 	}
 
@@ -242,7 +244,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 
 	// Remove unused includes
 	for _, include := range allIncludes {
-		if !usedIncludes[include] {
+		if !hasStringKey(usedIncludes, include) {
 			includePath := filepath.Join(workflowsDir, include)
 			if err := os.Remove(includePath); err != nil {
 				if verbose {
@@ -266,15 +268,17 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 	}
 
 	// Create a map of files to remove for quick lookup
-	removeMap := make(map[string]bool)
+	removeMap := make(map[string]struct {
+	})
 	for _, file := range filesToRemove {
-		removeMap[file] = true
+		removeMap[file] = struct {
+		}{}
 	}
 
 	// Get the files that would remain after removal
 	var remainingFiles []string
 	for _, file := range allMdFiles {
-		if !removeMap[file] {
+		if !hasStringKey(removeMap, file) {
 			remainingFiles = append(remainingFiles, file)
 		}
 	}
@@ -285,7 +289,8 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 	}
 
 	// Collect all include dependencies from remaining workflows
-	usedIncludes := make(map[string]bool)
+	usedIncludes := make(map[string]struct {
+	})
 
 	for _, mdFile := range remainingFiles {
 		content, err := os.ReadFile(mdFile)
@@ -306,7 +311,8 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 		}
 
 		for _, include := range includes {
-			usedIncludes[include] = true
+			usedIncludes[include] = struct {
+			}{}
 		}
 	}
 
@@ -318,7 +324,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 
 	var orphanedIncludes []string
 	for _, include := range allIncludes {
-		if !usedIncludes[include] {
+		if !hasStringKey(usedIncludes, include) {
 			orphanedIncludes = append(orphanedIncludes, include)
 		}
 	}

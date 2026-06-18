@@ -242,7 +242,8 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 
 	// visited tracks keys for which all DFS descendants have been fully explored
 	// (no cycle detected from that key).
-	visited := map[string]bool{}
+	visited := map[string]struct {
+	}{}
 
 	// Iterate keys in deterministic order for reproducible error messages.
 	keys := make([]string, 0, len(aliasMap))
@@ -252,7 +253,7 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		if visited[key] {
+		if hasStringKey(visited, key) {
 			continue
 		}
 		path := []string{} // current DFS path (ordered)
@@ -276,8 +277,8 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 func dfsCycleCheck(
 	start string,
 	aliasMap map[string][]string,
-	visited map[string]bool,
-	path []string,
+	visited map[string]struct {
+	}, path []string,
 ) []string {
 	state := &dfsState{
 		aliasMap: aliasMap,
@@ -291,13 +292,13 @@ func dfsCycleCheck(
 // dfsState holds the mutable state for a single DFS traversal.
 type dfsState struct {
 	aliasMap map[string][]string
-	visited  map[string]bool
+	visited  map[string]struct{}
 	onPath   map[string]bool
 	path     []string
 }
 
 func (s *dfsState) dfs(node string) []string {
-	if s.visited[node] {
+	if hasStringKey(s.visited, node) {
 		return nil
 	}
 	if s.onPath[node] {
@@ -324,7 +325,7 @@ func (s *dfsState) dfs(node string) []string {
 
 	s.path = s.path[:len(s.path)-1]
 	s.onPath[node] = false
-	s.visited[node] = true
+	s.visited[node] = struct{}{}
 	return nil
 }
 

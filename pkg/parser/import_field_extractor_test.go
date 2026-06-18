@@ -323,7 +323,7 @@ engine: claude
 		sectionName: "",
 		inputs:      nil,
 	}
-	visited := map[string]bool{builtinPath: true}
+	visited := map[string]struct{}{builtinPath: {}}
 
 	err = acc.extractAllImportFields(content, item, visited)
 	require.NoError(t, err, "extractAllImportFields should succeed for builtin file without inputs")
@@ -361,7 +361,7 @@ engine: copilot
 		sectionName: "",
 		inputs:      map[string]any{"key": "value"},
 	}
-	visited := map[string]bool{builtinPath: true}
+	visited := map[string]struct{}{builtinPath: {}}
 
 	err = acc.extractAllImportFields(content, item, visited)
 	require.NoError(t, err, "extractAllImportFields should succeed for builtin file with inputs")

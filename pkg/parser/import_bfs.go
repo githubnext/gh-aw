@@ -55,7 +55,7 @@ type nestedImportEntry struct {
 
 type importBFSState struct {
 	queue          []importQueueItem
-	visited        map[string]bool
+	visited        map[string]struct{}
 	visitedInputs  map[string]map[string]any
 	processedOrder []string
 	acc            *importAccumulator
@@ -63,7 +63,7 @@ type importBFSState struct {
 
 func newImportBFSState() *importBFSState {
 	return &importBFSState{
-		visited:       make(map[string]bool),
+		visited:       make(map[string]struct{}),
 		visitedInputs: make(map[string]map[string]any),
 		acc:           newImportAccumulator(),
 	}
@@ -193,8 +193,8 @@ func detectRemoteImportOrigin(filePath string) *remoteImportOrigin {
 }
 
 func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin) error {
-	if !state.visited[fullPath] {
-		state.visited[fullPath] = true
+	if !hasStringKey(state.visited, fullPath) {
+		state.visited[fullPath] = struct{}{}
 		state.visitedInputs[fullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{
 			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: origin,
@@ -464,8 +464,8 @@ func canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir strin
 }
 
 func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, nestedRemoteOrigin *remoteImportOrigin) error {
-	if !state.visited[nestedFullPath] {
-		state.visited[nestedFullPath] = true
+	if !hasStringKey(state.visited, nestedFullPath) {
+		state.visited[nestedFullPath] = struct{}{}
 		state.visitedInputs[nestedFullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{
 			importPath: nestedImportPath, fullPath: nestedFullPath, sectionName: nestedSectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: nestedRemoteOrigin,

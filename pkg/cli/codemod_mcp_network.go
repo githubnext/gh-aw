@@ -32,7 +32,8 @@ func getMCPNetworkMigrationCodemod() Codemod {
 
 			// Collect all network.allowed domains from MCP servers
 			var allAllowedDomains []string
-			serversWithNetwork := make(map[string]bool)
+			serversWithNetwork := make(map[string]struct {
+			})
 
 			for serverName, serverValue := range mcpServersMap {
 				serverConfig, ok := serverValue.(map[string]any)
@@ -67,13 +68,15 @@ func getMCPNetworkMigrationCodemod() Codemod {
 					}
 					// Only mark server as having network if it has domains
 					if len(allowed) > 0 {
-						serversWithNetwork[serverName] = true
+						serversWithNetwork[serverName] = struct {
+						}{}
 					}
 				case []string:
 					allAllowedDomains = append(allAllowedDomains, allowed...)
 					// Only mark server as having network if it has domains
 					if len(allowed) > 0 {
-						serversWithNetwork[serverName] = true
+						serversWithNetwork[serverName] = struct {
+						}{}
 					}
 				}
 			}

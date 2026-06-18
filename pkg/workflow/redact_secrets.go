@@ -30,7 +30,8 @@ func escapeSingleQuoteBackslash(s string) string {
 // This scans for patterns like ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
 func CollectSecretReferences(yamlContent string) []string {
 	secretMaskingLog.Printf("Scanning workflow YAML (%d bytes) for secret references", len(yamlContent))
-	secretsMap := make(map[string]bool)
+	secretsMap := make(map[string]struct {
+	})
 
 	// Walk through the content looking for every occurrence of "secrets."
 	// followed by an uppercase identifier [A-Z][A-Z0-9_]*.
@@ -58,7 +59,8 @@ func CollectSecretReferences(yamlContent string) []string {
 				break
 			}
 		}
-		secretsMap[rest[:end]] = true
+		secretsMap[rest[:end]] = struct {
+		}{}
 		rest = rest[end:]
 	}
 
@@ -82,7 +84,8 @@ func CollectSecretReferences(yamlContent string) []string {
 // Each entry includes the inline tag comment when present (e.g., "actions/checkout@sha # v4").
 func CollectActionReferences(yamlContent string) []string {
 	secretMaskingLog.Printf("Scanning workflow YAML (%d bytes) for action references", len(yamlContent))
-	actionsMap := make(map[string]bool)
+	actionsMap := make(map[string]struct {
+	})
 
 	for line := range strings.SplitSeq(yamlContent, "\n") {
 		// Quick check: line must contain "uses:" to avoid scanning every character
@@ -134,7 +137,8 @@ func CollectActionReferences(yamlContent string) []string {
 		if comment != "" {
 			entry = ref + " # " + comment
 		}
-		actionsMap[entry] = true
+		actionsMap[entry] = struct {
+		}{}
 	}
 
 	actions := make([]string, 0, len(actionsMap))

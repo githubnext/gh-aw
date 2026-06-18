@@ -581,17 +581,20 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		needs = append(needs, "unlock")
 		consolidatedSafeOutputsJobLog.Print("Added unlock job dependency to safe_outputs job")
 	}
-	seenNeeds := make(map[string]bool, len(needs))
+	seenNeeds := make(map[string]struct {
+	}, len(needs))
 	for _, need := range needs {
-		seenNeeds[need] = true
+		seenNeeds[need] = struct {
+		}{}
 	}
 	if data.SafeOutputs != nil {
 		for _, need := range data.SafeOutputs.Needs {
-			if seenNeeds[need] {
+			if hasStringKey(seenNeeds, need) {
 				continue
 			}
 			needs = append(needs, need)
-			seenNeeds[need] = true
+			seenNeeds[need] = struct {
+			}{}
 			consolidatedSafeOutputsJobLog.Printf("Added explicit safe-outputs needs dependency to safe_outputs job: %s", need)
 		}
 	}

@@ -92,9 +92,11 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 // previous manifest) and are not among the always-allowed secrets (GITHUB_TOKEN and
 // gh-aw-internal secrets automatically injected by the compiler).
 func collectSecretViolations(manifest *GHAWManifest, secretNames []string) []string {
-	known := make(map[string]bool, len(manifest.Secrets))
+	known := make(map[string]struct {
+	}, len(manifest.Secrets))
 	for _, s := range manifest.Secrets {
-		known[s] = true
+		known[s] = struct {
+		}{}
 	}
 
 	var violations []string
@@ -106,7 +108,7 @@ func collectSecretViolations(manifest *GHAWManifest, secretNames []string) []str
 		if ghAwInternalSecrets[full] {
 			continue
 		}
-		if known[full] {
+		if hasStringKey(known, full) {
 			continue
 		}
 		violations = append(violations, full)
@@ -164,16 +166,20 @@ func isTrustedActionRepo(repo string) bool {
 // runtime manager repos are always trusted and never flagged.
 func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added []string, removed []string) {
 	// Build known repo set from previous manifest.
-	knownRepos := make(map[string]bool, len(manifest.Actions))
+	knownRepos := make(map[string]struct {
+	}, len(manifest.Actions))
 	for _, a := range manifest.Actions {
-		knownRepos[a.Repo] = true
+		knownRepos[a.Repo] = struct {
+		}{}
 	}
 
 	// Build new repo set from the freshly compiled action refs.
 	newActions := parseActionRefs(actionRefs)
-	newRepos := make(map[string]bool, len(newActions))
+	newRepos := make(map[string]struct {
+	}, len(newActions))
 	for _, a := range newActions {
-		newRepos[a.Repo] = true
+		newRepos[a.Repo] = struct {
+		}{}
 	}
 
 	// Find additions: repos present in the new compilation but absent from the manifest.
@@ -182,7 +188,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 		if isTrustedActionRepo(repo) {
 			continue
 		}
-		if !knownRepos[repo] {
+		if !hasStringKey(knownRepos, repo) {
 			added = append(added, repo)
 		}
 	}
@@ -193,7 +199,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 		if isTrustedActionRepo(repo) {
 			continue
 		}
-		if !newRepos[repo] {
+		if !hasStringKey(newRepos, repo) {
 			removed = append(removed, repo)
 		}
 	}

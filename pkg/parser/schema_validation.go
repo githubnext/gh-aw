@@ -34,10 +34,13 @@ var sharedWorkflowAllowedOnFields = map[string]struct{}{
 }
 
 // buildForbiddenFieldsMap converts the SharedWorkflowForbiddenFields slice to a map for efficient lookup
-func buildForbiddenFieldsMap() map[string]bool {
-	forbiddenMap := make(map[string]bool)
+func buildForbiddenFieldsMap() map[string]struct {
+} {
+	forbiddenMap := make(map[string]struct {
+	})
 	for _, field := range constants.SharedWorkflowForbiddenFields {
-		forbiddenMap[field] = true
+		forbiddenMap[field] = struct {
+		}{}
 	}
 	return forbiddenMap
 }
@@ -54,7 +57,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 			}
 			continue
 		}
-		if sharedWorkflowForbiddenFields[key] {
+		if hasStringKey(sharedWorkflowForbiddenFields, key) {
 			forbiddenFound = append(forbiddenFound, key)
 		}
 	}

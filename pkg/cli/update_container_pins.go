@@ -90,9 +90,11 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 
 	// Build a set of images currently referenced in the compiled lock files so
 	// that stale entries (e.g. superseded AWF versions) can be pruned.
-	imageSet := make(map[string]bool, len(images))
+	imageSet := make(map[string]struct {
+	}, len(images))
 	for _, img := range images {
-		imageSet[img] = true
+		imageSet[img] = struct {
+		}{}
 	}
 
 	// Remove any container pin entries that are no longer referenced by the
@@ -200,7 +202,8 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 		return nil, err
 	}
 
-	imageSet := make(map[string]bool)
+	imageSet := make(map[string]struct {
+	})
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".lock.yml") {
@@ -220,7 +223,8 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 			}
 			for img := range strings.FieldsSeq(matches[1]) {
 				if img != "" {
-					imageSet[img] = true
+					imageSet[img] = struct {
+					}{}
 				}
 			}
 		}

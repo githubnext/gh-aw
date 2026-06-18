@@ -29,8 +29,10 @@ var runPushLog = logger.New("cli:run_push")
 func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool, approve bool) ([]string, error) {
 	runPushLog.Printf("Collecting files for workflow: %s", workflowPath)
 
-	files := make(map[string]bool) // Use map to avoid duplicates
-	visited := make(map[string]bool)
+	files := make(map[string]struct { // Use map to avoid duplicates
+	})
+	visited := make(map[string]struct {
+	})
 
 	// Get absolute path for the workflow
 	absWorkflowPath, err := filepath.Abs(workflowPath)
@@ -48,7 +50,8 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 	}
 
 	// Add the workflow .md file
-	files[absWorkflowPath] = true
+	files[absWorkflowPath] = struct {
+	}{}
 	runPushLog.Printf("Added workflow file: %s", absWorkflowPath)
 
 	// Check lock file and log hash status for observability
@@ -100,7 +103,8 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 
 	// Add the corresponding .lock.yml file
 	if _, err := os.Stat(lockFilePath); err == nil {
-		files[lockFilePath] = true
+		files[lockFilePath] = struct {
+		}{}
 		runPushLog.Printf("Added lock file: %s", lockFilePath)
 	} else if verbose {
 		runPushLog.Printf("Lock file not found after compilation: %s", lockFilePath)
@@ -225,13 +229,16 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 }
 
 // collectImports recursively collects all imported files (transitive closure)
-func collectImports(workflowPath string, files map[string]bool, visited map[string]bool, verbose bool) error {
+func collectImports(workflowPath string, files map[string]struct {
+}, visited map[string]struct {
+}, verbose bool) error {
 	// Avoid processing the same file multiple times
-	if visited[workflowPath] {
+	if hasStringKey(visited, workflowPath) {
 		runPushLog.Printf("Skipping already visited file: %s", workflowPath)
 		return nil
 	}
-	visited[workflowPath] = true
+	visited[workflowPath] = struct {
+	}{}
 
 	runPushLog.Printf("Processing imports for: %s", workflowPath)
 
@@ -354,7 +361,8 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 		runPushLog.Printf("Import file exists: %s", absImportPath)
 
 		// Add the import file
-		files[absImportPath] = true
+		files[absImportPath] = struct {
+		}{}
 		runPushLog.Printf("Added import file: %s", absImportPath)
 
 		// Recursively collect imports from this file
@@ -447,7 +455,8 @@ func pushWorkflowFiles(ctx context.Context, workflowName string, files []string,
 	// Check if there are staged files beyond what we just staged
 	// Convert our files list to a map for quick lookup
 	runPushLog.Printf("Building map of our files for comparison")
-	ourFiles := make(map[string]bool)
+	ourFiles := make(map[string]struct {
+	})
 	for _, file := range files {
 		// Normalize the path
 		absPath, err := filepath.Abs(file)
@@ -455,7 +464,8 @@ func pushWorkflowFiles(ctx context.Context, workflowName string, files []string,
 			// Validate the absolute path
 			validPath, validErr := fileutil.ValidateAbsolutePath(absPath)
 			if validErr == nil {
-				ourFiles[validPath] = true
+				ourFiles[validPath] = struct {
+				}{}
 				runPushLog.Printf("Added to our files map: %s (absolute: %s)", file, validPath)
 			} else {
 				runPushLog.Printf("Failed to validate path for %s: %v", absPath, validErr)
@@ -463,7 +473,8 @@ func pushWorkflowFiles(ctx context.Context, workflowName string, files []string,
 		} else {
 			runPushLog.Printf("Failed to get absolute path for %s: %v", file, err)
 		}
-		ourFiles[file] = true
+		ourFiles[file] = struct {
+		}{}
 		runPushLog.Printf("Added to our files map: %s", file)
 	}
 
@@ -477,12 +488,12 @@ func pushWorkflowFiles(ctx context.Context, workflowName string, files []string,
 		if err == nil {
 			// Validate the staged path
 			validPath, validErr := fileutil.ValidateAbsolutePath(absStagedPath)
-			if validErr == nil && ourFiles[validPath] {
+			if validErr == nil && hasStringKey(ourFiles, validPath) {
 				runPushLog.Printf("Staged file %s matches our file %s (absolute)", stagedFile, validPath)
 				continue
 			}
 		}
-		if ourFiles[stagedFile] {
+		if hasStringKey(ourFiles, stagedFile) {
 			runPushLog.Printf("Staged file %s matches our file (relative)", stagedFile)
 			continue
 		}

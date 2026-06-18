@@ -72,7 +72,8 @@ func runTokensBootstrap(engine, repo string, nonInteractive bool) error {
 		// If we can't check existing secrets (e.g., no gh auth), continue with empty map
 		tokensBootstrapLog.Printf("Could not check existing secrets: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Unable to check existing repository secrets. Will assume all secrets need to be configured."))
-		existingSecrets = make(map[string]bool)
+		existingSecrets = make(map[string]struct {
+		})
 	}
 
 	// Filter to only required secrets that are missing

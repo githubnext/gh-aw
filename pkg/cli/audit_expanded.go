@@ -473,9 +473,11 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 	health := &MCPServerHealth{}
 
 	// Track failed servers from MCPFailures
-	failedServers := make(map[string]bool)
+	failedServers := make(map[string]struct {
+	})
 	for _, failure := range mcpFailures {
-		failedServers[failure.ServerName] = true
+		failedServers[failure.ServerName] = struct {
+		}{}
 	}
 	health.FailedSvrs = len(failedServers)
 

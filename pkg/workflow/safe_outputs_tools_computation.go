@@ -7,137 +7,180 @@ var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_com
 // computeEnabledToolNames returns the set of predefined tool names that are enabled
 // by the workflow's SafeOutputsConfig. Dynamic tools (dispatch-workflow, custom jobs,
 // call-workflow) are excluded because they are generated separately.
-func computeEnabledToolNames(data *WorkflowData) map[string]bool {
-	enabledTools := make(map[string]bool)
+func computeEnabledToolNames(data *WorkflowData) map[string]struct {
+} {
+	enabledTools := make(map[string]struct {
+	})
 	if data.SafeOutputs == nil {
 		safeOutputsToolsComputationLog.Print("No safe outputs configuration, returning empty tool set")
 		return enabledTools
 	}
 
 	if data.SafeOutputs.CreateIssues != nil {
-		enabledTools["create_issue"] = true
+		enabledTools["create_issue"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreateAgentSessions != nil {
-		enabledTools["create_agent_session"] = true
+		enabledTools["create_agent_session"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
-		enabledTools["create_discussion"] = true
+		enabledTools["create_discussion"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UpdateDiscussions != nil {
-		enabledTools["update_discussion"] = true
+		enabledTools["update_discussion"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CloseDiscussions != nil {
-		enabledTools["close_discussion"] = true
+		enabledTools["close_discussion"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CloseIssues != nil {
-		enabledTools["close_issue"] = true
+		enabledTools["close_issue"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.ClosePullRequests != nil {
-		enabledTools["close_pull_request"] = true
+		enabledTools["close_pull_request"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
-		enabledTools["mark_pull_request_as_ready_for_review"] = true
+		enabledTools["mark_pull_request_as_ready_for_review"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AddComments != nil {
-		enabledTools["add_comment"] = true
+		enabledTools["add_comment"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreatePullRequests != nil {
-		enabledTools["create_pull_request"] = true
+		enabledTools["create_pull_request"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		enabledTools["create_pull_request_review_comment"] = true
+		enabledTools["create_pull_request_review_comment"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.SubmitPullRequestReview != nil {
-		enabledTools["submit_pull_request_review"] = true
+		enabledTools["submit_pull_request_review"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.ReplyToPullRequestReviewComment != nil {
-		enabledTools["reply_to_pull_request_review_comment"] = true
+		enabledTools["reply_to_pull_request_review_comment"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.ResolvePullRequestReviewThread != nil {
-		enabledTools["resolve_pull_request_review_thread"] = true
+		enabledTools["resolve_pull_request_review_thread"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		enabledTools["create_code_scanning_alert"] = true
+		enabledTools["create_code_scanning_alert"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
-		enabledTools["autofix_code_scanning_alert"] = true
+		enabledTools["autofix_code_scanning_alert"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreateCheckRun != nil {
-		enabledTools["create_check_run"] = true
+		enabledTools["create_check_run"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AddLabels != nil {
-		enabledTools["add_labels"] = true
+		enabledTools["add_labels"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.RemoveLabels != nil {
-		enabledTools["remove_labels"] = true
+		enabledTools["remove_labels"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AddReviewer != nil {
-		enabledTools["add_reviewer"] = true
+		enabledTools["add_reviewer"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AssignMilestone != nil {
-		enabledTools["assign_milestone"] = true
+		enabledTools["assign_milestone"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AssignToAgent != nil {
-		enabledTools["assign_to_agent"] = true
+		enabledTools["assign_to_agent"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.AssignToUser != nil {
-		enabledTools["assign_to_user"] = true
+		enabledTools["assign_to_user"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UnassignFromUser != nil {
-		enabledTools["unassign_from_user"] = true
+		enabledTools["unassign_from_user"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
-		enabledTools["update_issue"] = true
+		enabledTools["update_issue"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UpdatePullRequests != nil {
-		enabledTools["update_pull_request"] = true
+		enabledTools["update_pull_request"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		enabledTools["push_to_pull_request_branch"] = true
+		enabledTools["push_to_pull_request_branch"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UploadAssets != nil {
-		enabledTools["upload_asset"] = true
+		enabledTools["upload_asset"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UploadArtifact != nil {
-		enabledTools["upload_artifact"] = true
+		enabledTools["upload_artifact"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.MissingTool != nil {
-		enabledTools["missing_tool"] = true
+		enabledTools["missing_tool"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.MissingData != nil {
-		enabledTools["missing_data"] = true
+		enabledTools["missing_data"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UpdateRelease != nil {
-		enabledTools["update_release"] = true
+		enabledTools["update_release"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.NoOp != nil {
-		enabledTools["noop"] = true
+		enabledTools["noop"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.LinkSubIssue != nil {
-		enabledTools["link_sub_issue"] = true
+		enabledTools["link_sub_issue"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.HideComment != nil {
-		enabledTools["hide_comment"] = true
+		enabledTools["hide_comment"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.SetIssueType != nil {
-		enabledTools["set_issue_type"] = true
+		enabledTools["set_issue_type"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.SetIssueField != nil {
-		enabledTools["set_issue_field"] = true
+		enabledTools["set_issue_field"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.UpdateProjects != nil {
-		enabledTools["update_project"] = true
+		enabledTools["update_project"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
-		enabledTools["create_project_status_update"] = true
+		enabledTools["create_project_status_update"] = struct {
+		}{}
 	}
 	if data.SafeOutputs.CreateProjects != nil {
-		enabledTools["create_project"] = true
+		enabledTools["create_project"] = struct {
+		}{}
 	}
 
 	// Add push_repo_memory tool if repo-memory is configured
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
-		enabledTools["push_repo_memory"] = true
+		enabledTools["push_repo_memory"] = struct {
+		}{}
 	}
 
 	safeOutputsToolsComputationLog.Printf("Computed %d enabled safe output tool names", len(enabledTools))

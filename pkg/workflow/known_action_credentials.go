@@ -117,8 +117,10 @@ var knownCredentialLeakingActions = []knownCredentialLeakingAction{
 // map of environment variable names to true for each known credential-leaking action
 // found. The returned map is used to generate the cleanup step env block.
 // Returns nil when no known actions are detected.
-func DetectKnownCredentialLeakingActions(steps []any) map[string]bool {
-	detected := map[string]bool{}
+func DetectKnownCredentialLeakingActions(steps []any) map[string]struct {
+} {
+	detected := map[string]struct {
+	}{}
 
 	for _, step := range steps {
 		stepMap, ok := step.(map[string]any)
@@ -144,7 +146,8 @@ func DetectKnownCredentialLeakingActions(steps []any) map[string]bool {
 			if known.extraCheck != nil && !known.extraCheck(stepMap) {
 				continue
 			}
-			detected[known.envVar] = true
+			detected[known.envVar] = struct {
+			}{}
 			knownActionCredentialsLog.Printf(
 				"Detected known credential-leaking action: %s → will clean %s",
 				actionRef, known.credentialPaths,
@@ -162,7 +165,8 @@ func DetectKnownCredentialLeakingActions(steps []any) map[string]bool {
 // to DetectKnownCredentialLeakingActions. The YAML string may use a "steps:" wrapper
 // (as produced by processAndMergeSteps) or be a bare sequence. Returns nil if no
 // known actions are detected or if the YAML cannot be parsed.
-func detectKnownCredentialLeakingActionsFromYAML(stepsYAML string) map[string]bool {
+func detectKnownCredentialLeakingActionsFromYAML(stepsYAML string) map[string]struct {
+} {
 	if stepsYAML == "" {
 		return nil
 	}
@@ -188,11 +192,14 @@ func detectKnownCredentialLeakingActionsFromYAML(stepsYAML string) map[string]bo
 
 // mergeKnownActionEnvVars merges two env-var maps into a single map.
 // Either argument may be nil.
-func mergeKnownActionEnvVars(a, b map[string]bool) map[string]bool {
+func mergeKnownActionEnvVars(a, b map[string]struct {
+}) map[string]struct {
+} {
 	if len(a) == 0 && len(b) == 0 {
 		return nil
 	}
-	merged := make(map[string]bool, safeAllocationCapacity(len(a), len(b)))
+	merged := make(map[string]struct {
+	}, safeAllocationCapacity(len(a), len(b)))
 	maps.Copy(merged, a)
 	maps.Copy(merged, b)
 	return merged
@@ -202,7 +209,8 @@ func mergeKnownActionEnvVars(a, b map[string]bool) map[string]bool {
 // workflowData (custom steps, pre-steps, pre-agent-steps) and returns the merged set
 // of environment variables required for the known-action credentials cleanup step.
 // Returns nil when no known credential-leaking actions are found.
-func DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData *WorkflowData) map[string]bool {
+func DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData *WorkflowData) map[string]struct {
+} {
 	result := mergeKnownActionEnvVars(
 		detectKnownCredentialLeakingActionsFromYAML(workflowData.CustomSteps),
 		mergeKnownActionEnvVars(

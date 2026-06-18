@@ -287,7 +287,7 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 			RepoSlug:             "owner/repo",
 			Engine:               "copilot",
 			Verbose:              true,
-			ExistingSecrets:      map[string]bool{"SECRET1": true},
+			ExistingSecrets:      map[string]struct{}{"SECRET1": {}},
 			IncludeSystemSecrets: true,
 			IncludeOptional:      false,
 		}
@@ -295,7 +295,7 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 		assert.Equal(t, "owner/repo", config.RepoSlug)
 		assert.Equal(t, "copilot", config.Engine)
 		assert.True(t, config.Verbose)
-		assert.True(t, config.ExistingSecrets["SECRET1"])
+		assert.True(t, hasStringKey(config.ExistingSecrets, "SECRET1"))
 		assert.True(t, config.IncludeSystemSecrets)
 		assert.False(t, config.IncludeOptional)
 	})
@@ -331,8 +331,9 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 	}()
 
 	t.Run("secret exists in repository", func(t *testing.T) {
-		existingSecrets := map[string]bool{
-			"COPILOT_GITHUB_TOKEN": true,
+		existingSecrets := map[string]struct {
+		}{
+			"COPILOT_GITHUB_TOKEN": {},
 		}
 
 		name, value, existsInRepo, err := GetEngineSecretNameAndValue("copilot", existingSecrets)
@@ -347,7 +348,8 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		os.Setenv("ANTHROPIC_API_KEY", "test-api-key-12345")
 		defer os.Unsetenv("ANTHROPIC_API_KEY")
 
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
 
@@ -361,7 +363,8 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		os.Unsetenv("OPENAI_API_KEY")
 		os.Unsetenv("CODEX_API_KEY")
 
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		name, value, existsInRepo, err := GetEngineSecretNameAndValue("codex", existingSecrets)
 
@@ -372,7 +375,8 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 	})
 
 	t.Run("unknown engine returns error", func(t *testing.T) {
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		_, _, _, err := GetEngineSecretNameAndValue("unknown-engine", existingSecrets)
 
@@ -381,7 +385,8 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 	})
 
 	t.Run("no alternative secret in repo", func(t *testing.T) {
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
 
@@ -395,8 +400,9 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		os.Setenv("COPILOT_GITHUB_TOKEN", "test-token-from-env")
 		defer os.Unsetenv("COPILOT_GITHUB_TOKEN")
 
-		existingSecrets := map[string]bool{
-			"COPILOT_GITHUB_TOKEN": true,
+		existingSecrets := map[string]struct {
+		}{
+			"COPILOT_GITHUB_TOKEN": {},
 		}
 
 		name, value, existsInRepo, err := GetEngineSecretNameAndValue("copilot", existingSecrets)
@@ -415,7 +421,8 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 			{Name: "SECRET2", Optional: false},
 			{Name: "SECRET3", Optional: false},
 		}
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
 
@@ -430,9 +437,10 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 			{Name: "SECRET1", Optional: false},
 			{Name: "SECRET2", Optional: false},
 		}
-		existingSecrets := map[string]bool{
-			"SECRET1": true,
-			"SECRET2": true,
+		existingSecrets := map[string]struct {
+		}{
+			"SECRET1": {},
+			"SECRET2": {},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
@@ -446,8 +454,9 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 			{Name: "SECRET2", Optional: false},
 			{Name: "SECRET3", Optional: false},
 		}
-		existingSecrets := map[string]bool{
-			"SECRET1": true,
+		existingSecrets := map[string]struct {
+		}{
+			"SECRET1": {},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
@@ -464,7 +473,8 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 			{Name: "REQUIRED2", Optional: false},
 			{Name: "OPTIONAL2", Optional: true},
 		}
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
 
@@ -482,8 +492,10 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 			},
 			{Name: "OTHER_SECRET", Optional: false},
 		}
-		existingSecrets := map[string]bool{
-			"ALT_SECRET1": true, // Alternative exists
+		existingSecrets := map[string]struct {
+		}{
+			"ALT_SECRET1": { // Alternative exists
+			},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
@@ -500,8 +512,10 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 				AlternativeEnvVars: []string{"ALT_SECRET1", "ALT_SECRET2"},
 			},
 		}
-		existingSecrets := map[string]bool{
-			"ALT_SECRET2": true, // Second alternative exists
+		existingSecrets := map[string]struct {
+		}{
+			"ALT_SECRET2": { // Second alternative exists
+			},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
@@ -517,9 +531,10 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 				AlternativeEnvVars: []string{"ALT_SECRET"},
 			},
 		}
-		existingSecrets := map[string]bool{
-			"PRIMARY_SECRET": true,
-			"ALT_SECRET":     true,
+		existingSecrets := map[string]struct {
+		}{
+			"PRIMARY_SECRET": {},
+			"ALT_SECRET":     {},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
@@ -529,8 +544,9 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 
 	t.Run("empty requirements list", func(t *testing.T) {
 		requirements := []SecretRequirement{}
-		existingSecrets := map[string]bool{
-			"SECRET1": true,
+		existingSecrets := map[string]struct {
+		}{
+			"SECRET1": {},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
@@ -543,7 +559,8 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 			{Name: "SECRET1", Optional: false},
 			{Name: "SECRET2", Optional: false},
 		}
-		existingSecrets := map[string]bool{}
+		existingSecrets := map[string]struct {
+		}{}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
 
@@ -554,7 +571,8 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 		requirements := []SecretRequirement{
 			{Name: "SECRET1", Optional: false},
 		}
-		var existingSecrets map[string]bool // nil map
+		var existingSecrets map[string]struct { // nil map
+		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)
 
@@ -580,8 +598,10 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 				AlternativeEnvVars: []string{"CLAUDE_API_KEY"},
 			},
 		}
-		existingSecrets := map[string]bool{
-			"GITHUB_TOKEN": true, // Alternative for COPILOT_GITHUB_TOKEN
+		existingSecrets := map[string]struct {
+		}{
+			"GITHUB_TOKEN": { // Alternative for COPILOT_GITHUB_TOKEN
+			},
 		}
 
 		missing := getMissingRequiredSecrets(requirements, existingSecrets)

@@ -182,15 +182,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			builtinNames = append(builtinNames, name)
 		}
 		sort.Strings(builtinNames)
-		builtinsWarned := make(map[string]bool)
+		builtinsWarned := make(map[string]struct {
+		})
 		for _, builtinJobName := range builtinNames {
 			// Skip built-ins that are already direct dependencies (e.g., activation) —
 			// their outputs are accessible and the expression is valid.
 			if slices.Contains(depends, builtinJobName) {
 				continue
 			}
-			if !builtinsWarned[builtinJobName] && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
-				builtinsWarned[builtinJobName] = true
+			if !hasStringKey(builtinsWarned, builtinJobName) && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+				builtinsWarned[builtinJobName] = struct {
+				}{}
 				warningMsg := fmt.Sprintf(
 					"engine.env references built-in job '%s' in a needs expression. "+
 						"Built-in jobs are managed by the compiler and cannot be added as direct agent dependencies; "+

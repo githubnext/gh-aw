@@ -52,7 +52,7 @@ type AddInteractiveConfig struct {
 
 	// existingSecrets tracks which secrets already exist in the repository
 	// This is populated by checkExistingSecrets() before engine selection
-	existingSecrets map[string]bool
+	existingSecrets map[string]struct{}
 
 	// addResult holds the result from AddWorkflows, including HasWorkflowDispatch
 	addResult *AddWorkflowsResult

@@ -119,9 +119,11 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 	}
 
 	// Track domains to avoid duplicates
-	domainSet := make(map[string]bool)
+	domainSet := make(map[string]struct {
+	})
 	for _, domain := range result.Allowed {
-		domainSet[domain] = true
+		domainSet[domain] = struct {
+		}{}
 	}
 
 	// Split by newlines to handle multiple JSON objects from different imports
@@ -142,9 +144,10 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 
 		// Merge allowed domains from imported network
 		for _, domain := range importedNetwork.Allowed {
-			if !domainSet[domain] {
+			if !hasStringKey(domainSet, domain) {
 				result.Allowed = append(result.Allowed, domain)
-				domainSet[domain] = true
+				domainSet[domain] = struct {
+				}{}
 			}
 		}
 	}
@@ -199,22 +202,26 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 	// When topRawSafeOutputs is provided (from raw frontmatter), use only keys that are
 	// explicitly present in the raw map to avoid counting auto-defaults as user-defined types.
 	// When nil, fall back to inspecting the processed config struct (legacy/test behaviour).
-	topDefinedTypes := make(map[string]bool)
+	topDefinedTypes := make(map[string]struct {
+	})
 	if topSafeOutputs != nil {
 		for _, key := range typeKeys {
 			if topRawSafeOutputs != nil {
 				if _, exists := topRawSafeOutputs[key]; exists {
-					topDefinedTypes[key] = true
+					topDefinedTypes[key] = struct {
+					}{}
 				}
 			} else if hasSafeOutputType(topSafeOutputs, key) {
-				topDefinedTypes[key] = true
+				topDefinedTypes[key] = struct {
+				}{}
 			}
 		}
 	}
 	importsLog.Printf("Top-level safe-outputs defines %d types", len(topDefinedTypes))
 
 	// Track types defined in imported configs for conflict detection
-	importedDefinedTypes := make(map[string]bool)
+	importedDefinedTypes := make(map[string]struct {
+	})
 
 	// Collect all imported configs. This includes configs with only meta fields (like allowed-domains,
 	// staged, env, github-token, max-patch-size, runs-on) as well as those defining safe output types.
@@ -242,7 +249,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		// exclude lists from imported configs are merged as a set into the result.
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
-				if topDefinedTypes[key] {
+				if hasStringKey(topDefinedTypes, key) {
 					// Main workflow overrides imported definition — extract protected-files
 					// exclude lists before removing the type entry.
 					if handlerCfg, ok := config[key].(map[string]any); ok {
@@ -257,10 +264,11 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 					delete(config, key)
 					continue
 				}
-				if importedDefinedTypes[key] {
+				if hasStringKey(importedDefinedTypes, key) {
 					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)
 				}
-				importedDefinedTypes[key] = true
+				importedDefinedTypes[key] = struct {
+				}{}
 			}
 		}
 
@@ -348,17 +356,18 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 
 	// Merge each safe output type (only set if nil in result).
 	// Types with custom merge semantics are handled below.
-	specialMergeFields := map[string]bool{
-		"CreatePullRequests":      true,
-		"PushToPullRequestBranch": true,
-		"MissingTool":             true,
-		"MissingData":             true,
-		"NoOp":                    true,
-		"ReportIncomplete":        true,
-		"ThreatDetection":         true,
+	specialMergeFields := map[string]struct {
+	}{
+		"CreatePullRequests":      {},
+		"PushToPullRequestBranch": {},
+		"MissingTool":             {},
+		"MissingData":             {},
+		"NoOp":                    {},
+		"ReportIncomplete":        {},
+		"ThreatDetection":         {},
 	}
 	for _, handler := range safeOutputHandlers {
-		if specialMergeFields[handler.StructField] {
+		if hasStringKey(specialMergeFields, handler.StructField) {
 			continue
 		}
 		mergeSafeOutputFieldIfNil(result, importedConfig, handler.StructField)

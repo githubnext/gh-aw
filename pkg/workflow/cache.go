@@ -861,10 +861,12 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 	if allSame {
 		extsUnion = config.Caches[0].AllowedExtensions
 	} else {
-		extensionSet := make(map[string]bool)
+		extensionSet := make(map[string]struct {
+		})
 		for _, cache := range config.Caches {
 			for _, ext := range cache.AllowedExtensions {
-				extensionSet[ext] = true
+				extensionSet[ext] = struct {
+				}{}
 			}
 		}
 		for ext := range extensionSet {

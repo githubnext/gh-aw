@@ -20,9 +20,11 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 	}
 
 	// Create a set of enabled toolsets for fast lookup
-	enabledSet := make(map[string]bool)
+	enabledSet := make(map[string]struct {
+	})
 	for _, toolset := range enabledToolsets {
-		enabledSet[toolset] = true
+		enabledSet[toolset] = struct {
+		}{}
 	}
 	githubToolToToolsetLog.Printf("Enabled toolsets: %v", enabledToolsets)
 
@@ -65,7 +67,7 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 			continue
 		}
 
-		if !enabledSet[requiredToolset] {
+		if !hasStringKey(enabledSet, requiredToolset) {
 			githubToolToToolsetLog.Printf("Tool %s requires missing toolset: %s", tool, requiredToolset)
 			missingToolsets[requiredToolset] = append(missingToolsets[requiredToolset], tool)
 		}

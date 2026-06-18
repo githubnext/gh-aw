@@ -552,7 +552,8 @@ func (r *EngineRegistry) GetAllAgentManifestFolders() []string {
 // computeAllAgentManifestFolders computes the manifest folders list from the registered engines.
 // Called once during NewEngineRegistry to populate cachedManifestFolders.
 func (r *EngineRegistry) computeAllAgentManifestFolders() []string {
-	seen := map[string]bool{}
+	seen := map[string]struct {
+	}{}
 	var result []string
 	for _, engine := range r.engines {
 		provider, ok := engine.(AgentFileProvider)
@@ -561,15 +562,16 @@ func (r *EngineRegistry) computeAllAgentManifestFolders() []string {
 		}
 		for _, prefix := range provider.GetAgentManifestPathPrefixes() {
 			folder := strings.TrimSuffix(prefix, "/")
-			if folder != "" && !seen[folder] {
-				seen[folder] = true
+			if folder != "" && !hasStringKey(seen, folder) {
+				seen[folder] = struct {
+				}{}
 				result = append(result, folder)
 			}
 		}
 	}
 	// Always include .agents — the gh-aw platform agent directory.
 	// It is not owned by any specific engine but must always be snapshotted.
-	if !seen[".agents"] {
+	if !hasStringKey(seen, ".agents") {
 		result = append(result, ".agents")
 	}
 	sort.Strings(result)
@@ -593,7 +595,8 @@ func (r *EngineRegistry) GetAllAgentManifestFiles() []string {
 // computeAllAgentManifestFiles computes the manifest files list from the registered engines.
 // Called once during NewEngineRegistry to populate cachedManifestFiles.
 func (r *EngineRegistry) computeAllAgentManifestFiles() []string {
-	seen := map[string]bool{}
+	seen := map[string]struct {
+	}{}
 	var result []string
 	for _, engine := range r.engines {
 		provider, ok := engine.(AgentFileProvider)
@@ -601,8 +604,9 @@ func (r *EngineRegistry) computeAllAgentManifestFiles() []string {
 			continue
 		}
 		for _, file := range provider.GetAgentManifestFiles() {
-			if !seen[file] {
-				seen[file] = true
+			if !hasStringKey(seen, file) {
+				seen[file] = struct {
+				}{}
 				result = append(result, file)
 			}
 		}

@@ -217,7 +217,8 @@ func expandDefaultToolset(toolsetsStr string) string {
 	// Split by comma and check if "default" or "action-friendly" is present
 	toolsets := strings.Split(toolsetsStr, ",")
 	var result []string
-	seenToolsets := make(map[string]bool)
+	seenToolsets := make(map[string]struct {
+	})
 
 	for _, toolset := range toolsets {
 		toolset = strings.TrimSpace(toolset)
@@ -229,16 +230,18 @@ func expandDefaultToolset(toolsetsStr string) string {
 			githubConfigLog.Printf("Expanding %q keyword to action-friendly toolsets", toolset)
 			// Expand "default" or "action-friendly" to action-friendly toolsets (excludes "users")
 			for _, dt := range ActionFriendlyGitHubToolsets {
-				if !seenToolsets[dt] {
+				if !hasStringKey(seenToolsets, dt) {
 					result = append(result, dt)
-					seenToolsets[dt] = true
+					seenToolsets[dt] = struct {
+					}{}
 				}
 			}
 		} else {
 			// Keep other toolsets as-is (including "all", individual toolsets, etc.)
-			if !seenToolsets[toolset] {
+			if !hasStringKey(seenToolsets, toolset) {
 				result = append(result, toolset)
-				seenToolsets[toolset] = true
+				seenToolsets[toolset] = struct {
+				}{}
 			}
 		}
 	}

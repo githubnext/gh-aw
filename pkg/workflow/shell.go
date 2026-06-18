@@ -180,7 +180,8 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 // single-quoted strings — they should NOT be broken out as shell variables.
 func findExpandableVars(s string) []string {
 	var vars []string
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	for {
 		start := strings.Index(s, "${")
 		if start < 0 {
@@ -197,8 +198,9 @@ func findExpandableVars(s string) []string {
 			break
 		}
 		varRef := s[start : start+end+1]
-		if !seen[varRef] {
-			seen[varRef] = true
+		if !hasStringKey(seen, varRef) {
+			seen[varRef] = struct {
+			}{}
 			vars = append(vars, varRef)
 		}
 		s = s[start+end+1:]

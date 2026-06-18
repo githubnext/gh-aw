@@ -73,8 +73,10 @@ func aggregateLogFiles[T MutableLogAnalysis](
 	aggregated := newAnalysis()
 
 	// Track unique domains across all files
-	allAllowedDomains := make(map[string]bool)
-	allBlockedDomains := make(map[string]bool)
+	allAllowedDomains := make(map[string]struct {
+	})
+	allBlockedDomains := make(map[string]struct {
+	})
 
 	// Parse each file and aggregate results
 	for _, file := range files {
@@ -95,10 +97,12 @@ func aggregateLogFiles[T MutableLogAnalysis](
 
 		// Collect unique domains
 		for _, domain := range analysis.GetAllowedDomains() {
-			allAllowedDomains[domain] = true
+			allAllowedDomains[domain] = struct {
+			}{}
 		}
 		for _, domain := range analysis.GetBlockedDomains() {
-			allBlockedDomains[domain] = true
+			allBlockedDomains[domain] = struct {
+			}{}
 		}
 	}
 

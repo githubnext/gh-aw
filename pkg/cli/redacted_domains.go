@@ -44,7 +44,8 @@ func parseRedactedDomainsLog(logPath string, verbose bool) (*RedactedDomainsAnal
 	}
 	defer file.Close()
 
-	domainsSet := make(map[string]bool)
+	domainsSet := make(map[string]struct {
+	})
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -52,7 +53,8 @@ func parseRedactedDomainsLog(logPath string, verbose bool) (*RedactedDomainsAnal
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		domainsSet[line] = true
+		domainsSet[line] = struct {
+		}{}
 	}
 
 	if err := scanner.Err(); err != nil {

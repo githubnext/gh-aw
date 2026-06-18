@@ -199,7 +199,7 @@ func TestCredentialsCleanerStepsHelper(t *testing.T) {
 	})
 
 	t.Run("with known actions - both scripts in run block", func(t *testing.T) {
-		steps := compiler.generateCredentialsCleanerStep(map[string]bool{"GH_AW_CLEAN_AWS": true})
+		steps := compiler.generateCredentialsCleanerStep(map[string]struct{}{"GH_AW_CLEAN_AWS": {}})
 
 		fullContent := strings.Join(steps, "")
 

@@ -222,7 +222,7 @@ jobs:
 	cache := workflow.NewActionCache(tmpDir)
 	require.NoError(t, cache.Load())
 
-	imageSet := map[string]bool{"ghcr.io/github/gh-aw-firewall/agent:0.27.2": true}
+	imageSet := map[string]struct{}{"ghcr.io/github/gh-aw-firewall/agent:0.27.2": {}}
 	pruned := cache.PruneStaleContainerPins(imageSet)
 	assert.Equal(t, 1, pruned, "stale 0.27.0 entry should be pruned")
 

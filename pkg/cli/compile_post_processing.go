@@ -151,9 +151,11 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 	}
 
 	// Build a set of expected lock files
-	expectedLockFileSet := make(map[string]bool)
+	expectedLockFileSet := make(map[string]struct {
+	})
 	for _, expected := range expectedLockFiles {
-		expectedLockFileSet[expected] = true
+		expectedLockFileSet[expected] = struct {
+		}{}
 	}
 
 	// Find lock files that should be deleted (exist but aren't expected)
@@ -163,7 +165,7 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 		if strings.HasSuffix(existing, ".campaign.lock.yml") {
 			continue
 		}
-		if !expectedLockFileSet[existing] {
+		if !hasStringKey(expectedLockFileSet, existing) {
 			orphanedFiles = append(orphanedFiles, existing)
 		}
 	}

@@ -76,7 +76,8 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 		metrics := ExtractLogMetricsFromRun(pr)
 
 		// Track which runs use each tool
-		toolRunTracker := make(map[string]bool)
+		toolRunTracker := make(map[string]struct {
+		})
 
 		for _, toolCall := range metrics.ToolCalls {
 			displayKey := workflow.PrettifyToolName(toolCall.Name)
@@ -86,7 +87,8 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 				continue
 			}
 
-			toolRunTracker[displayKey] = true
+			toolRunTracker[displayKey] = struct {
+			}{}
 
 			if existing, exists := toolStats[displayKey]; exists {
 				existing.TotalCalls += toolCall.CallCount

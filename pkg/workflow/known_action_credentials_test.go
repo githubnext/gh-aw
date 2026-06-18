@@ -20,7 +20,7 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 	tests := []struct {
 		name     string
 		steps    []any
-		expected map[string]bool
+		expected map[string]struct{}
 	}{
 		{
 			name:     "no steps",
@@ -39,28 +39,28 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 			steps: []any{
 				map[string]any{"uses": "google-github-actions/auth@v2"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_GCP": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_GCP": {}},
 		},
 		{
 			name: "aws-actions/configure-aws-credentials detected",
 			steps: []any{
 				map[string]any{"uses": "aws-actions/configure-aws-credentials@v4"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_AWS": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_AWS": {}},
 		},
 		{
 			name: "azure/login detected",
 			steps: []any{
 				map[string]any{"uses": "azure/login@v2"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_AZURE": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_AZURE": {}},
 		},
 		{
 			name: "docker/login-action detected",
 			steps: []any{
 				map[string]any{"uses": "docker/login-action@v3"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_DOCKER": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_DOCKER": {}},
 		},
 		{
 			name: "actions/checkout without ssh-key not detected",
@@ -77,7 +77,7 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 					"with": map[string]any{"ssh-key": "${{ secrets.DEPLOY_KEY }}"},
 				},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_SSH": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_SSH": {}},
 		},
 		{
 			name: "actions/checkout with empty ssh-key not detected",
@@ -105,9 +105,9 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 				map[string]any{"uses": "aws-actions/configure-aws-credentials@v4"},
 				map[string]any{"uses": "docker/login-action@v3"},
 			},
-			expected: map[string]bool{
-				"GH_AW_CLEAN_AWS":    true,
-				"GH_AW_CLEAN_DOCKER": true,
+			expected: map[string]struct{}{
+				"GH_AW_CLEAN_AWS":    {},
+				"GH_AW_CLEAN_DOCKER": {},
 			},
 		},
 		{
@@ -122,12 +122,12 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 					"with": map[string]any{"ssh-key": "${{ secrets.DEPLOY_KEY }}"},
 				},
 			},
-			expected: map[string]bool{
-				"GH_AW_CLEAN_GCP":    true,
-				"GH_AW_CLEAN_AWS":    true,
-				"GH_AW_CLEAN_AZURE":  true,
-				"GH_AW_CLEAN_DOCKER": true,
-				"GH_AW_CLEAN_SSH":    true,
+			expected: map[string]struct{}{
+				"GH_AW_CLEAN_GCP":    {},
+				"GH_AW_CLEAN_AWS":    {},
+				"GH_AW_CLEAN_AZURE":  {},
+				"GH_AW_CLEAN_DOCKER": {},
+				"GH_AW_CLEAN_SSH":    {},
 			},
 		},
 		{
@@ -135,21 +135,21 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 			steps: []any{
 				map[string]any{"uses": "azure/login"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_AZURE": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_AZURE": {}},
 		},
 		{
 			name: "action with commit SHA matches",
 			steps: []any{
 				map[string]any{"uses": "aws-actions/configure-aws-credentials@abc1234def5678"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_AWS": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_AWS": {}},
 		},
 		{
 			name: "action with inline comment stripped",
 			steps: []any{
 				map[string]any{"uses": "docker/login-action@abc1234 # v3"},
 			},
-			expected: map[string]bool{"GH_AW_CLEAN_DOCKER": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_DOCKER": {}},
 		},
 		{
 			name: "run step (no uses) ignored",
@@ -180,7 +180,7 @@ func TestDetectKnownCredentialLeakingActionsFromYAML(t *testing.T) {
 	tests := []struct {
 		name     string
 		yaml     string
-		expected map[string]bool
+		expected map[string]struct{}
 	}{
 		{
 			name:     "empty string",
@@ -190,12 +190,12 @@ func TestDetectKnownCredentialLeakingActionsFromYAML(t *testing.T) {
 		{
 			name:     "wrapped steps YAML with known action",
 			yaml:     "steps:\n  - uses: aws-actions/configure-aws-credentials@v4\n",
-			expected: map[string]bool{"GH_AW_CLEAN_AWS": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_AWS": {}},
 		},
 		{
 			name:     "bare sequence YAML with known action",
 			yaml:     "- uses: google-github-actions/auth@v2\n",
-			expected: map[string]bool{"GH_AW_CLEAN_GCP": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_GCP": {}},
 		},
 		{
 			name:     "wrapped steps YAML with no known actions",
@@ -229,7 +229,7 @@ func TestGenerateCredentialsCleanerStep(t *testing.T) {
 	})
 
 	t.Run("empty map - same as nil", func(t *testing.T) {
-		steps := compiler.generateCredentialsCleanerStep(map[string]bool{})
+		steps := compiler.generateCredentialsCleanerStep(map[string]struct{}{})
 		require.NotNil(t, steps, "expected non-nil steps")
 
 		content := strings.Join(steps, "")
@@ -238,8 +238,8 @@ func TestGenerateCredentialsCleanerStep(t *testing.T) {
 	})
 
 	t.Run("generates merged step for single known action", func(t *testing.T) {
-		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
-			"GH_AW_CLEAN_AWS": true,
+		steps := compiler.generateCredentialsCleanerStep(map[string]struct{}{
+			"GH_AW_CLEAN_AWS": {},
 		})
 		require.NotNil(t, steps, "expected non-nil steps")
 
@@ -253,9 +253,9 @@ func TestGenerateCredentialsCleanerStep(t *testing.T) {
 	})
 
 	t.Run("generates merged step for multiple known actions", func(t *testing.T) {
-		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
-			"GH_AW_CLEAN_GCP":    true,
-			"GH_AW_CLEAN_DOCKER": true,
+		steps := compiler.generateCredentialsCleanerStep(map[string]struct{}{
+			"GH_AW_CLEAN_GCP":    {},
+			"GH_AW_CLEAN_DOCKER": {},
 		})
 		require.NotNil(t, steps, "expected non-nil steps")
 
@@ -266,12 +266,12 @@ func TestGenerateCredentialsCleanerStep(t *testing.T) {
 	})
 
 	t.Run("env vars are in deterministic order", func(t *testing.T) {
-		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
-			"GH_AW_CLEAN_SSH":    true,
-			"GH_AW_CLEAN_GCP":    true,
-			"GH_AW_CLEAN_DOCKER": true,
-			"GH_AW_CLEAN_AWS":    true,
-			"GH_AW_CLEAN_AZURE":  true,
+		steps := compiler.generateCredentialsCleanerStep(map[string]struct{}{
+			"GH_AW_CLEAN_SSH":    {},
+			"GH_AW_CLEAN_GCP":    {},
+			"GH_AW_CLEAN_DOCKER": {},
+			"GH_AW_CLEAN_AWS":    {},
+			"GH_AW_CLEAN_AZURE":  {},
 		})
 		require.NotNil(t, steps, "expected non-nil steps")
 
@@ -290,8 +290,8 @@ func TestGenerateCredentialsCleanerStep(t *testing.T) {
 	})
 
 	t.Run("proper YAML indentation for job step level", func(t *testing.T) {
-		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
-			"GH_AW_CLEAN_GCP": true,
+		steps := compiler.generateCredentialsCleanerStep(map[string]struct{}{
+			"GH_AW_CLEAN_GCP": {},
 		})
 		require.NotNil(t, steps, "expected non-nil steps")
 		assert.True(t, strings.HasPrefix(steps[0], "      - name:"),
@@ -510,9 +510,9 @@ Test workflow.
 func TestMergeKnownActionEnvVars(t *testing.T) {
 	tests := []struct {
 		name     string
-		a        map[string]bool
-		b        map[string]bool
-		expected map[string]bool
+		a        map[string]struct{}
+		b        map[string]struct{}
+		expected map[string]struct{}
 	}{
 		{
 			name:     "both nil",
@@ -522,21 +522,21 @@ func TestMergeKnownActionEnvVars(t *testing.T) {
 		},
 		{
 			name:     "one nil",
-			a:        map[string]bool{"GH_AW_CLEAN_GCP": true},
+			a:        map[string]struct{}{"GH_AW_CLEAN_GCP": {}},
 			b:        nil,
-			expected: map[string]bool{"GH_AW_CLEAN_GCP": true},
+			expected: map[string]struct{}{"GH_AW_CLEAN_GCP": {}},
 		},
 		{
 			name:     "both populated, no overlap",
-			a:        map[string]bool{"GH_AW_CLEAN_GCP": true},
-			b:        map[string]bool{"GH_AW_CLEAN_AWS": true},
-			expected: map[string]bool{"GH_AW_CLEAN_GCP": true, "GH_AW_CLEAN_AWS": true},
+			a:        map[string]struct{}{"GH_AW_CLEAN_GCP": {}},
+			b:        map[string]struct{}{"GH_AW_CLEAN_AWS": {}},
+			expected: map[string]struct{}{"GH_AW_CLEAN_GCP": {}, "GH_AW_CLEAN_AWS": {}},
 		},
 		{
 			name:     "both populated, with overlap",
-			a:        map[string]bool{"GH_AW_CLEAN_GCP": true, "GH_AW_CLEAN_AWS": true},
-			b:        map[string]bool{"GH_AW_CLEAN_AWS": true, "GH_AW_CLEAN_AZURE": true},
-			expected: map[string]bool{"GH_AW_CLEAN_GCP": true, "GH_AW_CLEAN_AWS": true, "GH_AW_CLEAN_AZURE": true},
+			a:        map[string]struct{}{"GH_AW_CLEAN_GCP": {}, "GH_AW_CLEAN_AWS": {}},
+			b:        map[string]struct{}{"GH_AW_CLEAN_AWS": {}, "GH_AW_CLEAN_AZURE": {}},
+			expected: map[string]struct{}{"GH_AW_CLEAN_GCP": {}, "GH_AW_CLEAN_AWS": {}, "GH_AW_CLEAN_AZURE": {}},
 		},
 	}
 

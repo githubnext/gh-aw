@@ -18,7 +18,7 @@ func TestAddInteractiveConfig_resolveEngineApiKeyCredential(t *testing.T) {
 	tests := []struct {
 		name            string
 		engineOverride  string
-		existingSecrets map[string]bool
+		existingSecrets map[string]struct{}
 		envVars         map[string]string
 		wantName        string
 		wantValueEmpty  bool
@@ -37,8 +37,8 @@ func TestAddInteractiveConfig_resolveEngineApiKeyCredential(t *testing.T) {
 		{
 			name:           "copilot secret already exists",
 			engineOverride: "copilot",
-			existingSecrets: map[string]bool{
-				"COPILOT_GITHUB_TOKEN": true,
+			existingSecrets: map[string]struct{}{
+				"COPILOT_GITHUB_TOKEN": {},
 			},
 			wantName:       "COPILOT_GITHUB_TOKEN",
 			wantValueEmpty: true,
@@ -80,7 +80,7 @@ func TestAddInteractiveConfig_resolveEngineApiKeyCredential(t *testing.T) {
 			}
 
 			if config.existingSecrets == nil {
-				config.existingSecrets = make(map[string]bool)
+				config.existingSecrets = make(map[string]struct{})
 			}
 
 			name, value, err := config.resolveEngineApiKeyCredential()
@@ -125,7 +125,7 @@ func TestAddInteractiveConfig_configureEngineAPISecret_noWriteAccess(t *testing.
 				EngineOverride:  tt.engine,
 				RepoOverride:    "owner/repo",
 				hasWriteAccess:  false,
-				existingSecrets: make(map[string]bool),
+				existingSecrets: make(map[string]struct{}),
 			}
 
 			// When the user doesn't have write access, configureEngineAPISecret should
@@ -162,7 +162,7 @@ func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) 
 				RepoOverride:    "owner/repo",
 				hasWriteAccess:  true,
 				SkipSecret:      true,
-				existingSecrets: make(map[string]bool),
+				existingSecrets: make(map[string]struct{}),
 			}
 
 			// When SkipSecret is true, configureEngineAPISecret should return nil without

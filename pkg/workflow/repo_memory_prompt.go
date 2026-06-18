@@ -138,10 +138,12 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 	// If not all the same, build a union of all extensions
 	if !allSame {
 		repoMemoryPromptLog.Print("Memories have different allowed extensions, building union set")
-		extensionSet := make(map[string]bool)
+		extensionSet := make(map[string]struct {
+		})
 		for _, mem := range config.Memories {
 			for _, ext := range mem.AllowedExtensions {
-				extensionSet[ext] = true
+				extensionSet[ext] = struct {
+				}{}
 			}
 		}
 		// Convert set to sorted slice for consistent output

@@ -538,15 +538,17 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 // displayToolAllowanceHint shows helpful information about how to allow tools in workflow frontmatter
 func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 	// Create a map for quick lookup of allowed tools
-	allowedMap := make(map[string]bool)
+	allowedMap := make(map[string]struct {
+	})
 	for _, allowed := range info.Config.Allowed {
-		allowedMap[allowed] = true
+		allowedMap[allowed] = struct {
+		}{}
 	}
 
 	// Count blocked tools and collect their names
 	var blockedTools []string
 	for _, tool := range info.Tools {
-		if len(info.Config.Allowed) > 0 && !allowedMap[tool.Name] {
+		if len(info.Config.Allowed) > 0 && !hasStringKey(allowedMap, tool.Name) {
 			blockedTools = append(blockedTools, tool.Name)
 		}
 	}

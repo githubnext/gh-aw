@@ -40,12 +40,14 @@ func validateOnNeedsTargets(data *WorkflowData) error {
 		return nil
 	}
 
-	customJobs := make(map[string]bool, len(data.Jobs))
+	customJobs := make(map[string]struct {
+	}, len(data.Jobs))
 	for jobName := range data.Jobs {
 		if isReservedOnNeedsTarget(jobName) {
 			continue
 		}
-		customJobs[jobName] = true
+		customJobs[jobName] = struct {
+		}{}
 	}
 
 	for _, need := range data.OnNeeds {
@@ -55,7 +57,7 @@ func validateOnNeedsTargets(data *WorkflowData) error {
 				need,
 			)
 		}
-		if !customJobs[need] {
+		if !hasStringKey(customJobs, need) {
 			return fmt.Errorf(
 				"on.needs: unknown job %q. Expected one of the workflow's custom jobs. Example: on.needs: [secrets_fetcher]",
 				need,
@@ -81,15 +83,19 @@ func (c *Compiler) validateOnGitHubAppNeedsExpressions(data *WorkflowData) error
 		return nil
 	}
 
-	allowed := make(map[string]bool, len(data.OnNeeds))
+	allowed := make(map[string]struct {
+	}, len(data.OnNeeds))
 	for _, j := range data.OnNeeds {
-		allowed[j] = true
+		allowed[j] = struct {
+		}{}
 	}
 	for _, j := range c.getCustomJobsDependingOnPreActivation(data.Jobs) {
-		allowed[j] = true
+		allowed[j] = struct {
+		}{}
 	}
 	for _, j := range c.getCustomJobsReferencedInPromptWithNoActivationDep(data) {
-		allowed[j] = true
+		allowed[j] = struct {
+		}{}
 	}
 
 	onNeedsValidationLog.Printf("Validating on.github-app needs expressions against %d allowed pre-activation job(s)", len(allowed))
@@ -111,7 +117,7 @@ func (c *Compiler) validateOnGitHubAppNeedsExpressions(data *WorkflowData) error
 		if _, exists := data.Jobs[jobName]; !exists {
 			return fmt.Errorf("on.github-app.%s: unknown job %q in needs expression", fieldName, jobName)
 		}
-		if !allowed[jobName] {
+		if !hasStringKey(allowed, jobName) {
 			return fmt.Errorf(
 				"on.github-app.%s references needs.%s.outputs.* but job %q is not available before activation. Add it to on.needs (example: on.needs: [%s])",
 				fieldName,
@@ -130,20 +136,26 @@ func (c *Compiler) validateOnNeedsDependencyChains(data *WorkflowData) error {
 		return nil
 	}
 
-	onNeedsSet := make(map[string]bool, len(data.OnNeeds))
+	onNeedsSet := make(map[string]struct {
+	}, len(data.OnNeeds))
 	for _, job := range data.OnNeeds {
-		onNeedsSet[job] = true
+		onNeedsSet[job] = struct {
+		}{}
 	}
 
-	promptReferencedSet := make(map[string]bool)
+	promptReferencedSet := make(map[string]struct {
+	})
 	for _, job := range c.getCustomJobsReferencedInPromptWithNoActivationDep(data) {
-		promptReferencedSet[job] = true
+		promptReferencedSet[job] = struct {
+		}{}
 	}
 
 	onNeedsValidationLog.Printf("Validating on.needs dependency chains for %d root job(s)", len(data.OnNeeds))
 
-	visited := make(map[string]bool, len(data.Jobs))
-	visiting := make(map[string]bool, len(data.Jobs))
+	visited := make(map[string]struct {
+	}, len(data.Jobs))
+	visiting := make(map[string]struct {
+	}, len(data.Jobs))
 	for _, root := range data.OnNeeds {
 		if err := validateOnNeedsDependencyChain(root, root, data.Jobs, onNeedsSet, promptReferencedSet, visiting, visited); err != nil {
 			return err
@@ -157,15 +169,15 @@ func validateOnNeedsDependencyChain(
 	root string,
 	current string,
 	allJobs map[string]any,
-	onNeedsSet map[string]bool,
-	promptReferencedSet map[string]bool,
-	visiting map[string]bool,
-	visited map[string]bool,
-) error {
-	if visited[current] {
+	onNeedsSet map[string]struct {
+	}, promptReferencedSet map[string]struct {
+	}, visiting map[string]struct {
+	}, visited map[string]struct {
+	}) error {
+	if hasStringKey(visited, current) {
 		return nil
 	}
-	if visiting[current] {
+	if hasStringKey(visiting, current) {
 		return fmt.Errorf("on.needs: cycle detected while validating dependency chain for %q", root)
 	}
 
@@ -179,7 +191,8 @@ func validateOnNeedsDependencyChain(
 		return nil
 	}
 
-	visiting[current] = true
+	visiting[current] = struct {
+	}{}
 	defer delete(visiting, current)
 
 	for _, dep := range parseNeedsField(jobConfig["needs"]) {
@@ -202,7 +215,7 @@ func validateOnNeedsDependencyChain(
 		}
 
 		_, depHasExplicitNeeds := depConfig["needs"]
-		if !depHasExplicitNeeds && !onNeedsSet[dep] && !promptReferencedSet[dep] {
+		if !depHasExplicitNeeds && !hasStringKey(onNeedsSet, dep) && !hasStringKey(promptReferencedSet, dep) {
 			return fmt.Errorf(
 				"on.needs: job %q depends on %q, but %q has no explicit needs and is not in on.needs. It may get an implicit needs: activation and create a cycle. Add %q to on.needs or give %q explicit needs that run before activation",
 				current,
@@ -218,7 +231,8 @@ func validateOnNeedsDependencyChain(
 		}
 	}
 
-	visited[current] = true
+	visited[current] = struct {
+	}{}
 	return nil
 }
 

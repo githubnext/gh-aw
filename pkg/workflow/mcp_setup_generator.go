@@ -829,7 +829,7 @@ func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workfl
 	addedEnvVars := buildAddedGatewayEnvVarSet(workflowData, gatewayConfig, hasGitHub, githubTool, tools, engine)
 	var envVarNames []string
 	for envVarName := range mcpEnvVars {
-		if !addedEnvVars[envVarName] {
+		if !hasStringKey(addedEnvVars, envVarName) {
 			envVarNames = append(envVarNames, envVarName)
 		}
 	}
@@ -842,8 +842,10 @@ func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workfl
 	}
 }
 
-func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) map[string]bool {
-	addedEnvVars := make(map[string]bool)
+func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) map[string]struct {
+} {
+	addedEnvVars := make(map[string]struct {
+	})
 	standardEnvVars := []string{
 		"MCP_GATEWAY_PORT", "MCP_GATEWAY_DOMAIN", "MCP_GATEWAY_API_KEY", "MCP_GATEWAY_PAYLOAD_DIR", "DEBUG",
 		"MCP_GATEWAY_LOG_DIR", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS",
@@ -859,26 +861,36 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 		"GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "GITHUB_HEAD_REF", "GITHUB_BASE_REF",
 	}
 	for _, envVar := range standardEnvVars {
-		addedEnvVars[envVar] = true
+		addedEnvVars[envVar] = struct {
+		}{}
 	}
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
-		addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = true
+		addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = struct {
+		}{}
 	}
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
-		addedEnvVars["GH_AW_MCP_SCRIPTS_PORT"] = true
-		addedEnvVars["GH_AW_MCP_SCRIPTS_API_KEY"] = true
+		addedEnvVars["GH_AW_MCP_SCRIPTS_PORT"] = struct {
+		}{}
+		addedEnvVars["GH_AW_MCP_SCRIPTS_API_KEY"] = struct {
+		}{}
 	}
 	if workflowData.OTLPEndpoint != "" {
-		addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = true
-		addedEnvVars["GITHUB_AW_OTEL_PARENT_SPAN_ID"] = true
-		addedEnvVars["OTEL_EXPORTER_OTLP_HEADERS"] = true
+		addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = struct {
+		}{}
+		addedEnvVars["GITHUB_AW_OTEL_PARENT_SPAN_ID"] = struct {
+		}{}
+		addedEnvVars["OTEL_EXPORTER_OTLP_HEADERS"] = struct {
+		}{}
 	}
 	if hasGitHubOIDCAuthInTools(tools) {
-		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_URL"] = true
-		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_TOKEN"] = true
+		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_URL"] = struct {
+		}{}
+		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_TOKEN"] = struct {
+		}{}
 	}
 	for envVarName := range gatewayConfig.Env {
-		addedEnvVars[envVarName] = true
+		addedEnvVars[envVarName] = struct {
+		}{}
 	}
 	return addedEnvVars
 }

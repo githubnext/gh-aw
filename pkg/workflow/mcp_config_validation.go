@@ -155,31 +155,34 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
 
 	// List of all known tool config fields (not just MCP)
-	knownToolFields := map[string]bool{
-		"type":            true,
-		"url":             true,
-		"command":         true,
-		"container":       true,
-		"env":             true,
-		"headers":         true,
-		"auth":            true, // upstream OIDC authentication (HTTP servers only)
-		"version":         true,
-		"args":            true,
-		"entrypoint":      true,
-		"entrypointArgs":  true,
-		"mounts":          true,
-		"proxy-args":      true,
-		"registry":        true,
-		"allowed":         true,
-		"mode":            true, // for github tool: prompt/runtime mode (cli) or legacy MCP transport (local/remote)
-		"github-token":    true, // for github tool
-		"read-only":       true, // for github tool
-		"toolsets":        true, // for github tool
-		"integrity-proxy": true, // for github tool
-		"id":              true, // for cache-memory (array notation)
-		"key":             true, // for cache-memory
-		"description":     true, // for cache-memory
-		"retention-days":  true, // for cache-memory
+	knownToolFields := map[string]struct {
+	}{
+		"type":            {},
+		"url":             {},
+		"command":         {},
+		"container":       {},
+		"env":             {},
+		"headers":         {},
+		"auth":            {}, // upstream OIDC authentication (HTTP servers only)
+		"version":         {},
+		"args":            {},
+		"entrypoint":      {},
+		"entrypointArgs":  {},
+		"mounts":          {},
+		"proxy-args":      {},
+		"registry":        {},
+		"allowed":         {},
+		"mode":            {}, // for github tool: prompt/runtime mode (cli) or legacy MCP transport (local/remote)
+		"github-token":    {}, // for github tool
+		"read-only":       {}, // for github tool
+		"toolsets":        {}, // for github tool
+		"integrity-proxy": {   // for github tool
+		},
+		"id":             {}, // for cache-memory (array notation)
+		"key":            {}, // for cache-memory
+		"description":    {}, // for cache-memory
+		"retention-days": {   // for cache-memory
+		},
 	}
 
 	// Check new format: direct fields in tool config
@@ -191,7 +194,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 
 	// Check for unknown fields that might be typos or deprecated (like "network")
 	for field := range toolConfig {
-		if !knownToolFields[field] {
+		if !hasStringKey(knownToolFields, field) {
 			// Build list of valid fields for the error message
 			validFields := []string{}
 			for k := range knownToolFields {

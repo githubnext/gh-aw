@@ -148,7 +148,8 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 
 	// Use dependency graph to determine what needs to be recompiled
 	var workflowsToCompile []string
-	uniqueWorkflows := make(map[string]bool)
+	uniqueWorkflows := make(map[string]struct {
+	})
 
 	for _, modifiedFile := range files {
 		compileHelpersLog.Printf("Processing modified file: %s", modifiedFile)
@@ -164,8 +165,9 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 
 		// Add to unique set
 		for _, workflow := range affected {
-			if !uniqueWorkflows[workflow] {
-				uniqueWorkflows[workflow] = true
+			if !hasStringKey(uniqueWorkflows, workflow) {
+				uniqueWorkflows[workflow] = struct {
+				}{}
 				workflowsToCompile = append(workflowsToCompile, workflow)
 			}
 		}

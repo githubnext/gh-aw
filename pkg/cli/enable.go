@@ -302,12 +302,16 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 	}
 
 	// Create a set of workflows to keep enabled
-	keepEnabled := make(map[string]bool)
+	keepEnabled := make(map[string]struct {
+	})
 	for _, workflowName := range exceptWorkflows {
 		// Add both .md and .lock.yml variants
-		keepEnabled[workflowName+".md"] = true
-		keepEnabled[workflowName+".lock.yml"] = true
-		keepEnabled[workflowName] = true // In case the full filename is provided
+		keepEnabled[workflowName+".md"] = struct {
+		}{}
+		keepEnabled[workflowName+".lock.yml"] = struct {
+		}{}
+		keepEnabled[workflowName] = struct { // In case the full filename is provided
+		}{}
 	}
 
 	// Filter to find workflows to disable
@@ -317,7 +321,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 		base := filepath.Base(yamlFile)
 
 		// Skip if it's in the keep-enabled set
-		if keepEnabled[base] {
+		if hasStringKey(keepEnabled, base) {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
 			}
@@ -326,7 +330,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 
 		// Check if the base name without extension matches
 		nameWithoutExt := strings.TrimSuffix(base, filepath.Ext(base))
-		if keepEnabled[nameWithoutExt] {
+		if hasStringKey(keepEnabled, nameWithoutExt) {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
 			}

@@ -154,7 +154,8 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	// seen is keyed by fully-resolved remote file path. It is shared across all recursion
 	// levels so that every import (at any depth) is downloaded at most once and import
 	// cycles (A imports B, B imports A) are broken without infinite recursion.
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	fetchFrontmatterImportsRecursive(content, workflowBaseDir, frontmatterImportsOpts{
 		owner:           owner,
 		repo:            repo,
@@ -180,7 +181,7 @@ type frontmatterImportsOpts struct {
 	verbose         bool
 	force           bool
 	tracker         *FileTracker
-	seen            map[string]bool
+	seen            map[string]struct{}
 }
 
 // fetchFrontmatterImportsRecursive is the internal worker for fetchAndSaveRemoteFrontmatterImports.
@@ -301,11 +302,11 @@ func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts front
 		}
 
 		// Cycle/duplicate prevention: use the fully-resolved remote path as the key.
-		if opts.seen[remoteFilePath] {
+		if hasStringKey(opts.seen, remoteFilePath) {
 			remoteWorkflowLog.Printf("Skipping already-seen import: %s", remoteFilePath)
 			continue
 		}
-		opts.seen[remoteFilePath] = true
+		opts.seen[remoteFilePath] = struct{}{}
 
 		// Derive the local path relative to targetDir by stripping the original base-dir
 		// prefix from the remote path. This ensures that imports in nested files resolve
@@ -410,7 +411,8 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 
 	// Parse the workflow content to find @include directives
 	scanner := bufio.NewScanner(strings.NewReader(content))
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -429,10 +431,11 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 
 		// Skip if already processed
-		if seen[filePath] {
+		if hasStringKey(seen, filePath) {
 			continue
 		}
-		seen[filePath] = true
+		seen[filePath] = struct {
+		}{}
 
 		// Fetch the include file
 		includeContent, _, err := FetchIncludeFromSource(includePath, spec, verbose)

@@ -106,7 +106,7 @@ func newImportAccumulator() *importAccumulator {
 // mcp-scripts, steps, runtimes, services, network, permissions, secret-masking, bots,
 // skip-roles, skip-bots, pre-steps, pre-agent-steps, post-steps, labels, cache, and features.
 // The work is delegated to focused helper methods, each handling one logical phase.
-func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
+func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]struct{}) error {
 	parserLog.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
 	// Phase 1: Parse, apply defaults, substitute inputs, extract tools and markdown.
@@ -156,7 +156,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 // Returns: origFm (parsed from unsubstituted content, used for schema validation),
 // fm (parsed from possibly-substituted content, used for all field extraction), and
 // any error that should abort processing for this import.
-func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueueItem, visited map[string]bool) (origFm, fm map[string]any, err error) {
+func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueueItem, visited map[string]struct{}) (origFm, fm map[string]any, err error) {
 	origContent := string(content)
 	origParsed, origParseErr := parseOriginalFrontmatter(content, item.fullPath, origContent)
 	origFm = frontmatterMapOrEmpty(origParsed, origParseErr)
@@ -220,7 +220,7 @@ func validateSubAgentFrontmatterWarnings(bodyForValidation, rawContent string) [
 	return ValidateInlineSubAgentsFrontmatter(rawContent)
 }
 
-func (acc *importAccumulator) extractToolsContent(rawContent string, item importQueueItem, visited map[string]bool, wasSubstituted bool) (string, error) {
+func (acc *importAccumulator) extractToolsContent(rawContent string, item importQueueItem, visited map[string]struct{}, wasSubstituted bool) (string, error) {
 	if wasSubstituted {
 		toolsContent, err := extractToolsFromContent(rawContent)
 		if err != nil {
@@ -827,7 +827,8 @@ func extractOTLPEndpointsFromObsMap(obs map[string]any) []observabilityImportEnd
 // attributes are also merged across imports (first occurrence wins per key).
 // Returns "" when no valid endpoints or attributes are found.
 func mergeObservabilityConfigs(configs []string) string {
-	seen := make(map[string]bool)
+	seen := make(map[string]struct {
+	})
 	var allEndpoints []observabilityImportEndpoint
 	mergedAttrs := make(map[string]string)
 	var mergedGitHubApp map[string]any
@@ -842,8 +843,9 @@ func mergeObservabilityConfigs(configs []string) string {
 			continue
 		}
 		for _, e := range extractOTLPEndpointsFromObsMap(obs) {
-			if !seen[e.URL] {
-				seen[e.URL] = true
+			if !hasStringKey(seen, e.URL) {
+				seen[e.URL] = struct {
+				}{}
 				allEndpoints = append(allEndpoints, e)
 			}
 		}
