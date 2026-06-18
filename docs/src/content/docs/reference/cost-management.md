@@ -137,21 +137,21 @@ for the emitted fields.
 
 The primary cost lever for most workflows is how often they run. Some events are inherently high-frequency:
 
-#### High Risk
+### High Risk
 
 - **`push`** — Every commit to any matching branch fires the workflow
 - **`check_run`**, **`check_suite`** — Can fire many times per push in busy repositories
 
-#### Medium–High Risk
+### Medium–High Risk
 
 - **`pull_request`** — Fires on open, sync, re-open, label, and other subtypes
 - **`issues`** — Fires on open, close, label, edit, and other subtypes
 
-#### Medium Risk
+### Medium Risk
 
 - **`issue_comment`**, **`pull_request_review_comment`** — Scales with comment activity
 
-#### Low / Predictable Risk
+### Low / Predictable Risk
 
 - **`schedule`** — Fires at a fixed cadence; easy to budget
 - **`workflow_dispatch`** — Human-initiated; naturally rate-limited
@@ -545,25 +545,25 @@ The [githubnext/agentic-ops](https://github.com/githubnext/agentic-ops) reposito
 
 These are rough estimates to help with budgeting. Actual costs vary by prompt size, tool usage, model, and provider pricing.
 
-#### Weekly digest (schedule, 1 repo)
+### Weekly digest (schedule, 1 repo)
 
 - **Frequency:** 4×/month
 - **Actions minutes/month:** ~1 min
 - **Inference/month:** Varies by model and prompt size
 
-#### Issue triage (issues opened, 20/month)
+### Issue triage (issues opened, 20/month)
 
 - **Frequency:** 20×/month
 - **Actions minutes/month:** ~10 min
 - **Inference/month:** Varies by model and prompt size
 
-#### PR review on every push (busy repo, 100 pushes/month)
+### PR review on every push (busy repo, 100 pushes/month)
 
 - **Frequency:** 100×/month
 - **Actions minutes/month:** ~100 min
 - **Inference/month:** Varies by model and prompt size
 
-#### On-demand via slash command
+### On-demand via slash command
 
 - **Frequency:** User-controlled
 - **Actions minutes/month:** Varies
