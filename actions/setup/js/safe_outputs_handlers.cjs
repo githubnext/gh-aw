@@ -1625,6 +1625,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    // Refuse discussion-specific requests when discussions are not enabled in config.
+    // reply_to_id is a discussion-only field; its presence unambiguously means the
+    // agent is targeting a GitHub Discussion.  Guard here (MCP phase) so the agent
+    // gets immediate, actionable feedback rather than a late failure at execution time.
+    const addCommentConfig = getSafeOutputsToolConfig(config, "add_comment");
+    const discussionsEnabled = addCommentConfig.discussions === true;
+    const hasReplyToId = args?.reply_to_id != null && String(args.reply_to_id).trim() !== "";
+    if (hasReplyToId && !discussionsEnabled) {
+      return buildIntentErrorResponse(
+        "add_comment with reply_to_id targets a GitHub Discussion, but discussion comments are not enabled for this workflow. " +
+          "Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request discussions:write permission."
+      );
+    }
+
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
