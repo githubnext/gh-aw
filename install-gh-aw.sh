@@ -1,7 +1,7 @@
 #!/bin/bash
 set +o histexpand
 
-# Canonical source: install-gh-aw.sh. Keep actions/setup-cli/install.sh in sync by copying from this file.
+# Canonical source: install-gh-aw.sh. Keep actions/setup-cli/install.sh synced from the canonical source.
 
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
