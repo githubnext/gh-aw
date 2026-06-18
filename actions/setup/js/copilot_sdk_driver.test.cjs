@@ -9,13 +9,16 @@ const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./co
 
 describe("copilot_sdk_driver.cjs", () => {
   let testSessionStateDir;
+  let prevSessionStateDir;
   beforeAll(() => {
+    prevSessionStateDir = process.env.GH_AW_SESSION_STATE_BASE_DIR;
     testSessionStateDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-session-state-"));
     process.env.GH_AW_SESSION_STATE_BASE_DIR = testSessionStateDir;
   });
   afterAll(() => {
-    delete process.env.GH_AW_SESSION_STATE_BASE_DIR;
-    fs.rmSync(testSessionStateDir, { recursive: true, force: true });
+    if (prevSessionStateDir === undefined) delete process.env.GH_AW_SESSION_STATE_BASE_DIR;
+    else process.env.GH_AW_SESSION_STATE_BASE_DIR = prevSessionStateDir;
+    if (testSessionStateDir) fs.rmSync(testSessionStateDir, { recursive: true, force: true });
   });
 
   describe("runWithCopilotSDK", () => {
