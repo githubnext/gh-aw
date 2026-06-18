@@ -17,10 +17,13 @@ function readRequiredEnv(name) {
 
 function parseSendTimeoutMs() {
   const raw = process.env.COPILOT_SDK_SEND_TIMEOUT_MS;
-  if (raw) {
-    const parsed = parseInt(raw, 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isSafeInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
     }
   }
   return DEFAULT_SEND_TIMEOUT_MS;
