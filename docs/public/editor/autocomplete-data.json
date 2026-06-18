@@ -544,7 +544,13 @@
     },
     "models": {
       "type": "object",
-      "desc": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF."
+      "desc": "Custom model pricing data in the same structure as models.json.",
+      "children": {
+        "providers": {
+          "type": "object",
+          "desc": "Provider-keyed map of model pricing data."
+        }
+      }
     },
     "experiments": {
       "type": "object",
@@ -901,7 +907,7 @@
         },
         "max-turns": {
           "type": "integer|string",
-          "desc": "Maximum number of chat iterations per run.",
+          "desc": "Deprecated: use the top-level 'max-turns' field instead.",
           "leaf": true
         },
         "max-continuations": {
@@ -1030,7 +1036,7 @@
         },
         "token-weights": {
           "type": "object",
-          "desc": "Custom model token weights for effective token computation.",
+          "desc": "Custom model token weights for AI Credits cost ratio adjustment.",
           "children": {
             "multipliers": {
               "type": "object",
@@ -1101,31 +1107,37 @@
           "desc": "Enables the experimental GitHub Copilot SDK integration (copilot engine only).",
           "enum": [true, false],
           "leaf": true
+        },
+        "copilot-sdk-driver": {
+          "type": "string",
+          "desc": "Custom Copilot SDK driver script or command (copilot engine only).",
+          "leaf": true
         }
       }
     },
-    "max-effective-tokens": {
+    "max-turns": {
       "type": "integer|string",
-      "desc": "OBSOLETE: Use `max-ai-credits` instead. Legacy ET budget control for firewall cost enforcement.",
-      "deprecated": true,
+      "desc": "AWF turn cap (`max_turns`) applied consistently across all agentic engines.",
+      "leaf": true
+    },
+    "max-tool-denials": {
+      "type": "integer|string",
+      "desc": "Copilot SDK safeguard threshold for repeated tool denials before stopping inference.",
       "leaf": true
     },
     "max-ai-credits": {
       "type": "integer|string",
-      "desc": "Per-run AI credits budget control for firewall cost enforcement. Enabled by default at 1000 (1k) when omitted. Set to -1 to disable both budget enforcement and token steering.",
+      "desc": "Per-run AI Credits budget control for firewall cost enforcement.",
       "leaf": true
     },
-    "max-daily-effective-tokens": {
+    "max-daily-ai-credits": {
       "type": "integer|string",
-      "desc": "OBSOLETE: Use `max-daily-ai-credits` instead. Legacy 24-hour ET guardrail.",
-      "deprecated": true,
+      "desc": "24-hour AI Credits guardrail for runs triggered by the same user.",
       "leaf": true
     },
     "max-runs": {
       "type": "integer|string",
-      "desc": "DEPRECATED: Use `max-turns` instead. Legacy alias for AWF invocation cap (`apiProxy.maxRuns`).",
-      "deprecated": true,
-      "x-deprecation-message": "'max-runs' is deprecated. Use top-level 'max-turns' instead. Run 'gh aw fix' to automatically migrate.",
+      "desc": "Deprecated legacy alias for AWF invocation cap (`apiProxy.maxRuns`).",
       "leaf": true
     },
     "mcp-servers": {
@@ -1236,6 +1248,8 @@
               "type": "string|array",
               "desc": "Deprecated.",
               "enum": ["all", "public", "${{ github.repository }}"],
+              "deprecated": true,
+              "x-deprecation-message": "'tools.github.repos' is deprecated. Use 'tools.github.allowed-repos' instead. Run 'gh aw fix' to automatically migrate.",
               "leaf": true,
               "array": true
             },
@@ -1347,6 +1361,8 @@
         "grep": {
           "type": "null|boolean|object",
           "desc": "DEPRECATED: grep is always available as part of default bash tools.",
+          "deprecated": true,
+          "x-deprecation-message": "grep is always available as part of default bash tools (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date, yq). Remove this field and use bash tool instead.",
           "leaf": true
         },
         "edit": {
@@ -1370,7 +1386,7 @@
             },
             "mode": {
               "type": "string",
-              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use play...",
+              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use play...",
               "enum": ["cli", "mcp"],
               "leaf": true
             }
@@ -1465,6 +1481,11 @@
               "desc": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
               "enum": [true, false],
               "leaf": true
+            },
+            "samples": {
+              "type": "array|object",
+              "desc": "Internal hidden feature.",
+              "array": true
             }
           }
         },
@@ -1485,7 +1506,9 @@
           "leaf": true
         },
         "serena": {
-          "desc": "REMOVED: Built-in support for Serena has been removed."
+          "desc": "REMOVED: Built-in support for Serena has been removed.",
+          "deprecated": true,
+          "x-deprecation-message": "Built-in support for Serena has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]"
         },
         "repo-memory": {
           "type": "boolean|null|object|array",
@@ -1548,6 +1571,12 @@
               "type": "array",
               "desc": "List of allowed file extensions (e.g., [\".json\", \".txt\"]).",
               "array": true
+            },
+            "format-json": {
+              "type": "boolean",
+              "desc": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in ...",
+              "enum": [true, false],
+              "leaf": true
             }
           },
           "array": true
@@ -1701,7 +1730,7 @@
         },
         "resolve-pull-request-review-thread": {
           "type": "object|null",
-          "desc": "Enable AI agents to resolve review threads on the triggering pull request after addressing feedback.",
+          "desc": "Enable AI agents to resolve review threads on pull requests after addressing feedback.",
           "leaf": true
         },
         "create-code-scanning-alert": {
@@ -1907,10 +1936,9 @@
           "leaf": true
         },
         "report-failure-as-issue": {
-          "type": "boolean",
-          "desc": "When false, disables creating failure tracking issues when workflows fail.",
-          "enum": [true, false],
-          "leaf": true
+          "type": "boolean|array",
+          "leaf": true,
+          "array": true
         },
         "failure-issue-repo": {
           "type": "string",
@@ -1933,6 +1961,11 @@
           "desc": "Concurrency group for the safe-outputs job.",
           "leaf": true
         },
+        "timeout-minutes": {
+          "type": "integer",
+          "desc": "Timeout for the safe_outputs job in minutes.",
+          "leaf": true
+        },
         "needs": {
           "type": "array",
           "desc": "Explicit additional custom workflow jobs that the consolidated safe_outputs job should depend on.",
@@ -1946,18 +1979,7 @@
         "runs-on": {
           "type": "string|array|object",
           "desc": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.).",
-          "children": {
-            "group": {
-              "type": "string",
-              "desc": "Runner group name for self-hosted runners or GitHub-hosted runner groups",
-              "leaf": true
-            },
-            "labels": {
-              "type": "array",
-              "desc": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
-              "array": true
-            }
-          },
+          "leaf": true,
           "array": true
         },
         "steps": {
@@ -2021,6 +2043,10 @@
               "desc": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets).",
               "enum": ["error", "warn", "ignore"],
               "leaf": true
+            },
+            "resource-attributes": {
+              "type": "object",
+              "desc": "Additional OTEL_RESOURCE_ATTRIBUTES entries to append to the standard gh-aw/GitHub resource attributes."
             },
             "github-app": {
               "type": "object",
