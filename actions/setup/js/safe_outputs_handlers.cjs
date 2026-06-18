@@ -1640,6 +1640,38 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       );
     }
 
+    // Reject target:triggering early when no explicit item number and no issue/PR/discussion context.
+    // Per Safe Outputs Specification MCE1: provides actionable feedback before writing to NDJSON.
+    // Mirrors update_issue validation; explicit item_number bypasses this check because the
+    // downstream handler resolves explicit numbers before falling back to triggering context.
+    const effectiveAddCommentTarget = addCommentConfig.target || "triggering";
+    const hasExplicitItemNumber = args?.item_number != null || args?.issue_number != null || args?.["pr-number"] != null;
+    if (effectiveAddCommentTarget === "triggering" && !hasExplicitItemNumber) {
+      let addCommentInvocationContext;
+      try {
+        addCommentInvocationContext = resolveInvocationContext(context);
+      } catch {
+        // Context resolution failed; skip validation and let downstream handle gracefully
+      }
+      if (addCommentInvocationContext !== undefined) {
+        const effectiveEventName = addCommentInvocationContext?.eventName || context.eventName;
+        const effectivePayload = addCommentInvocationContext?.eventPayload || context.payload;
+        const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+        const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+        const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+        const isPRContext = prEventNames.has(effectiveEventName) || isIssueCommentOnPR;
+        const isDiscussionContext = effectiveEventName === "discussion" || effectiveEventName === "discussion_comment";
+        if (!isIssueContext && !isPRContext && !isDiscussionContext) {
+          return buildIntentErrorResponse(
+            `add_comment requires an issue, pull request, or discussion context but the workflow is running on a "${effectiveEventName}" event. ` +
+              `The add-comment handler uses target: triggering which only applies when an issue, pull request, or discussion triggered the workflow. ` +
+              `To report results from this workflow, use create_discussion or create_issue instead. ` +
+              `If you need to comment on a specific item, provide an explicit item_number.`
+          );
+        }
+      }
+    }
+
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
@@ -1904,6 +1936,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * to provide immediate feedback to the LLM before recording to NDJSON.
    * Uses hasUpdatePullRequestFields to validate that at least one of 'title', 'body',
    * or 'update_branch' is provided before recording to NDJSON.
+   * Rejects `target: triggering` (the default) when the workflow has no pull request context
+   * (e.g. on schedule or push events), so the agent receives an actionable error
+   * instead of a downstream Process Safe Outputs failure.
    */
   const updatePullRequestHandler = args => {
     if (!hasUpdatePullRequestFields(args)) {
@@ -1911,6 +1946,32 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         code: -32602,
         message: `${ERR_VALIDATION}: update_pull_request requires at least one of: 'title', 'body', 'update_branch' fields`,
       };
+    }
+
+    const updatePRConfig = getSafeOutputsToolConfig(config, "update_pull_request");
+    const effectivePRTarget = updatePRConfig.target || "triggering";
+    if (effectivePRTarget === "triggering") {
+      let invocationContext;
+      try {
+        invocationContext = resolveInvocationContext(context);
+      } catch {
+        // If context resolution fails fall through and let the downstream handler deal with it.
+        return defaultHandler("update_pull_request")(args || {});
+      }
+      const effectiveEventName = invocationContext?.eventName || context.eventName;
+      const effectivePayload = invocationContext?.eventPayload || context.payload;
+      const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+      const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+      const isPRContext = prEventNames.has(effectiveEventName) || isIssueCommentOnPR;
+
+      if (!isPRContext) {
+        return buildIntentErrorResponse(
+          `update_pull_request requires a pull request context but the workflow is running on a "${effectiveEventName}" event. ` +
+            `The update-pull-request handler uses target: triggering which only applies when a pull request triggered the workflow. ` +
+            `To report results from this workflow, use create_discussion or create_issue instead. ` +
+            `If you need to update a specific pull request, the workflow must configure update-pull-request: target: '*' and you must supply pull_request_number.`
+        );
+      }
     }
 
     return defaultHandler("update_pull_request")(args || {});
