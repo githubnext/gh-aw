@@ -4,6 +4,7 @@ package rawloginlib
 
 import (
 	"go/ast"
+	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -59,13 +60,22 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if ident.Name == "log" && rawLogFuncs[sel.Sel.Name] {
-			position := pass.Fset.PositionFor(call.Pos(), false)
-			if nolint.HasDirective(position, noLintLinesByFile) {
-				return
-			}
-			pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
+		obj := pass.TypesInfo.ObjectOf(ident)
+		if obj == nil {
+			return
 		}
+		pkgName, ok := obj.(*types.PkgName)
+		if !ok || pkgName.Imported() == nil || pkgName.Imported().Path() != "log" {
+			return
+		}
+		if !rawLogFuncs[sel.Sel.Name] {
+			return
+		}
+		position := pass.Fset.PositionFor(call.Pos(), false)
+		if nolint.HasDirective(position, noLintLinesByFile) {
+			return
+		}
+		pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
 	})
 
 	return nil, nil
