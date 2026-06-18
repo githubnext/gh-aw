@@ -56,7 +56,7 @@ Insert a `gh api` call into the workflow itself (before checkout) to fetch the P
 ### Workflow Extraction Step
 
 1. Every compiled workflow job that performs a safe-outputs checkout **MUST** include an `extract-base-branch` step that runs after the agent artifact download and before the checkout step.
-2. The extraction step **MUST** validate the extracted branch name against the pattern `^[a-zA-Z0-9/_.-]+$` and enforce a maximum length of 255 characters before writing to `GITHUB_OUTPUT`.
+2. The extraction step **MUST** validate the extracted branch name using `git check-ref-format --branch` semantics and enforce a maximum length of 255 characters before writing to `GITHUB_OUTPUT`.
 3. The extraction step **MUST NOT** fail the workflow if `agent_output.json` is absent or if no matching safe-output entry contains `base_branch`; it **MUST** exit successfully (silently) in those cases.
 4. Checkout steps **MUST** lead the `ref` expression with `steps.extract-base-branch.outputs.base-branch` and **SHOULD** retain event-context fallbacks (`github.base_ref`, `github.event.pull_request.base.ref`, etc.) for backward compatibility.
 
