@@ -6,11 +6,12 @@ var mergePullRequestLog = logger.New("workflow:merge_pull_request")
 
 // MergePullRequestConfig holds configuration for merging pull requests with policy checks.
 type MergePullRequestConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	RequiredLabels       []string `yaml:"required-labels,omitempty"`       // Labels that must ALL be present on the PR
-	AllowedBranches      []string `yaml:"allowed-branches,omitempty"`      // Glob patterns for source branch names; PR branch must match one
-	RequiredTitlePrefix  string   `yaml:"required-title-prefix,omitempty"` // Title prefix the PR must have
-	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`        // Deprecated: use required-labels
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	RequiredLabels         []string `yaml:"required-labels,omitempty"`       // Labels that must ALL be present on the PR
+	AllowedBranches        []string `yaml:"allowed-branches,omitempty"`      // Glob patterns for source branch names; PR branch must match one
+	RequiredTitlePrefix    string   `yaml:"required-title-prefix,omitempty"` // Title prefix the PR must have
+	AllowedLabels          []string `yaml:"allowed-labels,omitempty"`        // Deprecated: use required-labels
 }
 
 // parseMergePullRequestConfig handles merge-pull-request configuration.
@@ -28,6 +29,8 @@ func (c *Compiler) parseMergePullRequestConfig(outputMap map[string]any) *MergeP
 			// Deprecated: allowed-labels is migrated to required-labels by the codemod
 			cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "allowed-labels", mergePullRequestLog)
 		}
+		targetConfig, _ := ParseTargetConfig(configMap)
+		cfg.SafeOutputTargetConfig = targetConfig
 		cfg.AllowedBranches = ParseStringArrayFromConfig(configMap, "allowed-branches", mergePullRequestLog)
 		cfg.RequiredTitlePrefix = extractStringFromMap(configMap, "required-title-prefix", mergePullRequestLog)
 		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 1)

@@ -324,6 +324,29 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowIds, i
 }
 
 /**
+ * Check whether an error from a GitHub GraphQL or REST call indicates that the
+ * integration token lacks the permissions required to write to a discussion.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isDiscussionIntegrationAccessError(error) {
+  // Lowercase for case-insensitive comparison via .toLowerCase()
+  const fragment = "resource not accessible by integration";
+  /** @type {string[]} */
+  const messages = [getErrorMessage(error)];
+
+  if (error && typeof error === "object" && "errors" in error && Array.isArray(/** @type {any} */ error.errors)) {
+    for (const graphQLError of /** @type {any} */ error.errors) {
+      if (typeof graphQLError?.message === "string") {
+        messages.push(graphQLError.message);
+      }
+    }
+  }
+
+  return messages.some(message => message.toLowerCase().includes(fragment));
+}
+
+/**
  * Comment on a GitHub Discussion using GraphQL
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
@@ -915,6 +938,7 @@ async function main(config = {}) {
         } catch (discussionError) {
           const discussionErrorMessage = getErrorMessage(discussionError);
           const isDiscussion404 = discussionError?.status === 404 || discussionErrorMessage.toLowerCase().includes("not found");
+          const isIntegrationAccessError = isDiscussionIntegrationAccessError(discussionError);
 
           if (isDiscussion404) {
             // Neither issue/PR nor discussion found - truly doesn't exist
@@ -923,6 +947,21 @@ async function main(config = {}) {
               success: true,
               warning: `Target not found: ${discussionErrorMessage}`,
               skipped: true,
+            };
+          }
+
+          if (isIntegrationAccessError) {
+            // The integration token lacks discussions:write scope — surface as a configuration
+            // warning (skip) rather than failing the entire safe-outputs job.
+            const warningMessage =
+              `Skipping add_comment for discussion #${itemNumber}: configuration mismatch ` +
+              `(GitHub integration token cannot add comments to discussions: Resource not accessible by integration). ` +
+              `Use safe-outputs.add-comment.github-token with a token that has discussions:write scope.`;
+            core.warning(warningMessage);
+            return {
+              success: false,
+              skipped: true,
+              error: warningMessage,
             };
           }
 
@@ -972,4 +1011,5 @@ module.exports = {
   MAX_MENTIONS,
   MAX_LINKS,
   enforceCommentLimits,
+  isDiscussionIntegrationAccessError,
 };
