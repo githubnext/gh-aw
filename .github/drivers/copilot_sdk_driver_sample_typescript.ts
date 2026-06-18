@@ -1,12 +1,30 @@
 import { readFileSync } from "node:fs";
 import { CopilotClient, RuntimeConnection, approveAll } from "@github/copilot-sdk";
 
+// Default timeout for a single sendAndWait call: 10 minutes.
+// Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
+const DEFAULT_SEND_TIMEOUT_MS = 10 * 60 * 1000;
+
 function readRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`${name} is not set`);
   }
   return value;
+}
+
+function parseSendTimeoutMs(): number {
+  const raw = process.env.COPILOT_SDK_SEND_TIMEOUT_MS;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isSafeInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return DEFAULT_SEND_TIMEOUT_MS;
 }
 
 function extractAssistantContent(message: unknown): string {
@@ -44,7 +62,7 @@ async function main(): Promise<void> {
       model,
     });
 
-    const response = await session.sendAndWait({ prompt });
+    const response = await session.sendAndWait({ prompt }, parseSendTimeoutMs());
     const content = extractAssistantContent(response);
     if (content) {
       process.stdout.write(content.endsWith("\n") ? content : `${content}\n`);

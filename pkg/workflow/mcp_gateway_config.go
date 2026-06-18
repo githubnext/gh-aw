@@ -46,11 +46,15 @@
 package workflow
 
 import (
+	"slices"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var mcpGatewayConfigLog = logger.New("workflow:mcp_gateway_config")
+
+const safeOutputsMount = "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"
 
 // ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
 // The MCP gateway is mandatory and defaults to github/gh-aw-mcpg
@@ -93,7 +97,16 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 			"/opt:/opt:ro",
 			"/tmp:/tmp:rw",
 			"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
+			safeOutputsMount,
 		}
+	}
+
+	// Ensure safeoutputs mount is present whenever upload assets is configured,
+	// even when users provide custom mounts.
+	if workflowData.SafeOutputs != nil &&
+		workflowData.SafeOutputs.UploadAssets != nil &&
+		!slices.Contains(workflowData.SandboxConfig.MCP.Mounts, safeOutputsMount) {
+		workflowData.SandboxConfig.MCP.Mounts = append(workflowData.SandboxConfig.MCP.Mounts, safeOutputsMount)
 	}
 
 	// Ensure default payloadDir is set if not provided

@@ -270,6 +270,21 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 			},
 		},
 		{
+			name: "merge-pull-request with target, target-repo, and samples",
+			safeOutputs: map[string]any{
+				"merge-pull-request": map[string]any{
+					"target":        "*",
+					"target-repo":   "github/github",
+					"allowed-repos": []any{"github/docs"},
+					"samples": []any{
+						map[string]any{
+							"merge_method": "squash",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "dispatch-workflow with target-repo and allowed-repos",
 			safeOutputs: map[string]any{
 				"dispatch-workflow": map[string]any{

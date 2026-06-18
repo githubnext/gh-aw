@@ -91,7 +91,7 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 			// If it's a relative path starting with shared/, it's relative to .github/
 			var fullPath string
 			if strings.HasPrefix(filePath, "shared/") {
-				fullPath = ".github/" + filePath
+				fullPath = constants.GithubDir + filePath
 			} else {
 				// Otherwise, resolve relative to the workflow path directory
 				baseDir := getParentDir(baseSpec.WorkflowPath)

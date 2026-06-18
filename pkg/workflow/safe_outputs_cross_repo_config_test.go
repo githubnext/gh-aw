@@ -238,6 +238,61 @@ func TestPushToPullRequestBranchConfigTargetRepo(t *testing.T) {
 	}
 }
 
+// TestMergePullRequestConfigTargetRepo verifies that merge-pull-request
+// correctly parses target-repo and allowed-repos fields.
+func TestMergePullRequestConfigTargetRepo(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		configMap      map[string]any
+		expectedRepo   string
+		expectedRepos  []string
+		expectedToken  string
+		expectedTarget string
+	}{
+		{
+			name: "target, target-repo and allowed-repos configured",
+			configMap: map[string]any{
+				"merge-pull-request": map[string]any{
+					"target":        "*",
+					"target-repo":   "githubnext/gh-aw-side-repo",
+					"allowed-repos": []any{"githubnext/gh-aw-side-repo", "github/docs"},
+					"github-token":  "${{ secrets.TEMP_USER_PAT }}",
+				},
+			},
+			expectedTarget: "*",
+			expectedRepo:   "githubnext/gh-aw-side-repo",
+			expectedRepos:  []string{"githubnext/gh-aw-side-repo", "github/docs"},
+			expectedToken:  "${{ secrets.TEMP_USER_PAT }}",
+		},
+		{
+			name: "no cross-repo config",
+			configMap: map[string]any{
+				"merge-pull-request": map[string]any{
+					"required-labels": []any{"safe-to-merge"},
+				},
+			},
+			expectedTarget: "",
+			expectedRepo:   "",
+			expectedRepos:  nil,
+			expectedToken:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := compiler.parseMergePullRequestConfig(tt.configMap)
+
+			require.NotNil(t, cfg, "config should not be nil")
+			assert.Equal(t, tt.expectedTarget, cfg.Target, "Target mismatch")
+			assert.Equal(t, tt.expectedRepo, cfg.TargetRepoSlug, "TargetRepoSlug mismatch")
+			assert.Equal(t, tt.expectedRepos, cfg.AllowedRepos, "AllowedRepos mismatch")
+			assert.Equal(t, tt.expectedToken, cfg.GitHubToken, "GitHubToken mismatch")
+		})
+	}
+}
+
 // TestUpdateIssueConfigGitHubToken verifies that update-issue correctly parses the github-token field.
 func TestUpdateIssueConfigGitHubToken(t *testing.T) {
 	compiler := NewCompiler()
@@ -460,6 +515,45 @@ func TestUpdateIssueGitHubTokenInHandlerConfig(t *testing.T) {
 	assert.Equal(t, "githubnext/gh-aw-side-repo", updateIssue["target-repo"], "target-repo should be in handler config")
 
 	allowedRepos, ok := updateIssue["allowed_repos"]
+	require.True(t, ok, "allowed_repos should be present")
+	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
+}
+
+// TestMergePullRequestCrossRepoInHandlerConfig verifies that target-repo and allowed-repos
+// are included in the handler manager config JSON for merge-pull-request.
+func TestMergePullRequestCrossRepoInHandlerConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test",
+		SafeOutputs: &SafeOutputsConfig{
+			MergePullRequest: &MergePullRequestConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubToken: "${{ secrets.TEMP_USER_PAT }}",
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "githubnext/gh-aw-side-repo",
+					AllowedRepos:   []string{"githubnext/gh-aw-side-repo"},
+				},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	require.NotEmpty(t, steps)
+	handlerConfig := extractHandlerConfig(t, strings.Join(steps, ""))
+
+	mergePR, ok := handlerConfig["merge_pull_request"]
+	require.True(t, ok, "merge_pull_request config should be present")
+
+	assert.Equal(t, "*", mergePR["target"], "target should be in handler config")
+
+	assert.Equal(t, "githubnext/gh-aw-side-repo", mergePR["target-repo"], "target-repo should be in handler config")
+
+	allowedRepos, ok := mergePR["allowed_repos"]
 	require.True(t, ok, "allowed_repos should be present")
 	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
 }

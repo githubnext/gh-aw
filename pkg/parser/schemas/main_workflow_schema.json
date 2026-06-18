@@ -8507,6 +8507,21 @@
                   },
                   "description": "Glob patterns for allowed source branch names (pull request head ref). The PR's branch must match at least one pattern."
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for merging: 'triggering' (default, current PR), or '*' (any PR with pull_request_number field)"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be merged in. The target repository is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -8515,6 +8530,22 @@
                   "type": "boolean",
                   "description": "If true, evaluate merge gates and emit preview results without executing the merge API call.",
                   "examples": [true, false]
+                },
+                "samples": {
+                  "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  ]
                 },
                 "required-title-prefix": {
                   "type": "string",

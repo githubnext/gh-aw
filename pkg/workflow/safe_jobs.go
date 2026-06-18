@@ -241,7 +241,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 		downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
-			DownloadPath: "${{ runner.temp }}/gh-aw/safe-jobs/",
+			DownloadPath: SafeJobsDownloadDirExpr,
 			SetupEnvStep: false, // We'll handle env vars separately to add job-specific ones
 			StepName:     "Download agent output artifact",
 		}, c.getActionPin)
@@ -255,7 +255,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			// GH_AW_AGENT_OUTPUT uses the runner.temp Actions expression so the path is
 			// resolved by the runner without requiring a $GITHUB_OUTPUT write.
 			setupEnvVars := map[string]string{
-				"GH_AW_AGENT_OUTPUT": "${{ runner.temp }}/gh-aw/safe-jobs/" + constants.AgentOutputFilename,
+				"GH_AW_AGENT_OUTPUT": SafeJobsDownloadDirExpr + constants.AgentOutputFilename,
 			}
 			// All job-specific env vars (literal or expression-based) are injected with
 			// their original values. Nothing goes through $GITHUB_OUTPUT.

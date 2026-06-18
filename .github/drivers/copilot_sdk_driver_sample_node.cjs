@@ -3,12 +3,30 @@
 
 const fs = require("node:fs");
 
+// Default timeout for a single sendAndWait call: 10 minutes.
+// Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
+const DEFAULT_SEND_TIMEOUT_MS = 10 * 60 * 1000;
+
 function readRequiredEnv(name) {
   const value = process.env[name];
   if (!value) {
     throw new Error(`${name} is not set`);
   }
   return value;
+}
+
+function parseSendTimeoutMs() {
+  const raw = process.env.COPILOT_SDK_SEND_TIMEOUT_MS;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isSafeInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return DEFAULT_SEND_TIMEOUT_MS;
 }
 
 function extractAssistantContent(message) {
@@ -56,7 +74,7 @@ async function main() {
   await client.start();
   try {
     session = await client.createSession(buildSessionConfig(model, approveAll));
-    const response = await session.sendAndWait({ prompt });
+    const response = await session.sendAndWait({ prompt }, parseSendTimeoutMs());
     const content = extractAssistantContent(response);
     if (content) {
       process.stdout.write(content.endsWith("\n") ? content : `${content}\n`);

@@ -86,7 +86,9 @@ async function main() {
 
   core.info(`Found ${uploadItems.length} upload-asset item(s)`);
 
+  const assetsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "assets");
   let uploadCount = 0;
+  let missingAssetCount = 0;
   let hasChanges = false;
 
   try {
@@ -123,10 +125,11 @@ async function main() {
       }
 
       // Check if file exists in artifacts
-      const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+      const assetSourcePath = path.join(assetsDir, fileName);
       if (!fs.existsSync(assetSourcePath)) {
-        core.setFailed(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath}`);
-        return;
+        core.warning(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath} — skipping`);
+        missingAssetCount++;
+        continue;
       }
 
       // Verify SHA matches
@@ -159,6 +162,11 @@ async function main() {
         core.setFailed(`${ERR_API}: Failed to process asset ${fileName}: ${getErrorMessage(error)}`);
         return;
       }
+    }
+
+    if (uploadCount === 0 && missingAssetCount > 0 && missingAssetCount === uploadItems.length) {
+      core.setFailed(`All ${missingAssetCount} declared assets were missing; no assets published.`);
+      return;
     }
 
     // Commit and push if there are changes (skip if staged)

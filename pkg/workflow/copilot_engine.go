@@ -137,7 +137,7 @@ func (e *CopilotEngine) GetAgentManifestFiles() []string {
 // The .github/ directory contains copilot-instructions.md, path-specific instruction
 // files, and copilot-setup-steps.yml — any of which can alter agent behaviour.
 func (e *CopilotEngine) GetAgentManifestPathPrefixes() []string {
-	return []string{".github/"}
+	return []string{constants.GithubDir}
 }
 
 // GetHarnessScriptName returns the filename of the JavaScript harness script that wraps

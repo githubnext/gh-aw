@@ -30,7 +30,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"type": "stdio"`,
 				`"container": "` + pinnedGhAwNodeImage + `"`,
 				`"${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`,
-				`"/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"`,
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,
 				`"entrypoint": "sh"`,
 				`"entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`,
 				`"env": {`,
@@ -49,6 +49,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"container": "` + pinnedGhAwNodeImage + `"`,
+				`"${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`,
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,
 				`"args": ["-w", "\${GITHUB_WORKSPACE}"]`,
 				`"entrypoint": "sh"`,
 				`"entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`,
@@ -228,7 +230,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	expectedContent := []string{
 		`[mcp_servers.safeoutputs]`,
 		`container = "` + resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil) + `"`,
-		`mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`,
+		`mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]`,
 		`args = ["-w", "$GITHUB_WORKSPACE"]`,
 		`entrypoint = "sh"`,
 		`entrypointArgs = ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`,
@@ -298,7 +300,7 @@ func TestRenderSafeOutputsMCPConfigTOMLStableAcrossSandboxModes(t *testing.T) {
 			if !strings.Contains(result, `container = "`+resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, tt.workflowData)+`"`) {
 				t.Errorf("Expected gh-aw node container not found in output:\n%s", result)
 			}
-			if !strings.Contains(result, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
+			if !strings.Contains(result, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]`) {
 				t.Errorf("Expected stable safe-outputs mounts not found in output:\n%s", result)
 			}
 			if strings.Contains(result, "host.docker.internal") || strings.Contains(result, "localhost") {

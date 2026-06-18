@@ -145,7 +145,7 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
 		if brewPrefix == "" {
 			// Try common locations
-			for _, prefix := range []string{"/opt/homebrew", "/usr/local"} {
+			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
 				if _, err := os.Stat(filepath.Join(prefix, "etc", "bash_completion.d")); err == nil {
 					brewPrefix = prefix
 					break
@@ -159,8 +159,8 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 		}
 	} else {
 		// Linux
-		if _, err := os.Stat("/etc/bash_completion.d"); err == nil {
-			completionPath = "/etc/bash_completion.d/gh-aw"
+		if _, err := os.Stat(constants.BashCompletionDir); err == nil {
+			completionPath = constants.BashCompletionGhAwPath
 		} else {
 			completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
 		}
@@ -426,7 +426,7 @@ func uninstallBashCompletion(verbose bool) error {
 	if runtime.GOOS == "darwin" {
 		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
 		if brewPrefix == "" {
-			for _, prefix := range []string{"/opt/homebrew", "/usr/local"} {
+			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
 				if _, err := os.Stat(filepath.Join(prefix, "etc", "bash_completion.d")); err == nil {
 					possiblePaths = append(possiblePaths, filepath.Join(prefix, "etc", "bash_completion.d", "gh-aw"))
 				}
@@ -438,7 +438,7 @@ func uninstallBashCompletion(verbose bool) error {
 
 	// System-wide installations (Linux)
 	if runtime.GOOS == "linux" {
-		possiblePaths = append(possiblePaths, "/etc/bash_completion.d/gh-aw")
+		possiblePaths = append(possiblePaths, constants.BashCompletionGhAwPath)
 	}
 
 	removed := false

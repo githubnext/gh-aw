@@ -54,9 +54,9 @@ func (r constRef) String() string {
 // ".github", or "${RUNNER_TEMP}" alone are not flagged.
 var pathPrefixes = []string{
 	"/tmp/",
-	"${RUNNER_TEMP}/",
-	"${{ runner.temp }}/",
-	".github/",
+	"${RUNNER_TEMP}/",     //nolint:hardcodedfilepath
+	"${{ runner.temp }}/", //nolint:hardcodedfilepath
+	".github/",            //nolint:hardcodedfilepath
 	"/opt/",
 	"/usr/",
 	"/var/",

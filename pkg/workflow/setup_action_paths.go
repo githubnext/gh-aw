@@ -26,3 +26,11 @@ const GhAwBinaryPath = constants.GhAwRootDirShell + "/gh-aw"
 
 // SafeJobsDownloadDir is the directory for safe job files on the runner
 const SafeJobsDownloadDir = constants.GhAwRootDirShell + "/safe-jobs/"
+
+// SafeJobsDownloadDirExpr is SafeJobsDownloadDir in Actions expression form.
+// Use in YAML `with:` fields and `env:` values that need GitHub Actions expression resolution.
+const SafeJobsDownloadDirExpr = constants.GhAwRootDir + "/safe-jobs/"
+
+// SafeOutputsUploadArtifactsDir is the upload-artifacts staging directory in shell env var form.
+// Used as a read-write container mount for safe_outputs upload_artifact configurations.
+const SafeOutputsUploadArtifactsDir = SafeOutputsDirShell + "/upload-artifacts"

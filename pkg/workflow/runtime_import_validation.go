@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
@@ -104,8 +105,8 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 	for _, filePath := range paths {
 		// Normalize the path to be relative to .github folder
 		normalizedPath := filePath
-		if strings.HasPrefix(normalizedPath, ".github/") {
-			normalizedPath = normalizedPath[8:] // Remove ".github/"
+		if strings.HasPrefix(normalizedPath, constants.GithubDir) {
+			normalizedPath = normalizedPath[len(constants.GithubDir):] // Remove ".github/"
 		} else if strings.HasPrefix(normalizedPath, ".github\\") {
 			normalizedPath = normalizedPath[8:] // Remove ".github\" (Windows)
 		}

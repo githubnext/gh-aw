@@ -313,14 +313,14 @@ func getRepositorySlugFromRemoteForPath(path string) string {
 func stageWorkflowChanges() {
 	// Find git root and add .github/workflows relative to it
 	if gitRoot, err := gitutil.FindGitRoot(); err == nil {
-		workflowsPath := filepath.Join(gitRoot, ".github/workflows/")
+		workflowsPath := filepath.Join(gitRoot, constants.WorkflowsDirSlash)
 		_ = exec.Command("git", "-C", gitRoot, "add", workflowsPath).Run()
 
 		// Also stage .gitattributes if it was modified
 		_ = stageGitAttributesIfChanged()
 	} else {
 		// Fallback to relative path if git root can't be found
-		_ = exec.Command("git", "add", ".github/workflows/").Run()
+		_ = exec.Command("git", "add", constants.WorkflowsDirSlash).Run()
 		_ = exec.Command("git", "add", ".gitattributes").Run()
 	}
 }
@@ -335,7 +335,7 @@ func ensureGitAttributes() (bool, error) {
 	}
 
 	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
-	lockYmlEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
+	lockYmlEntry := constants.WorkflowsLockYmlGitAttributesEntry
 	requiredEntries := []string{lockYmlEntry}
 
 	// Read existing .gitattributes file if it exists
@@ -357,7 +357,7 @@ func ensureGitAttributes() (bool, error) {
 				break
 			}
 			// Check for old format entries that need updating
-			if strings.HasPrefix(trimmedLine, ".github/workflows/*.lock.yml") && required == lockYmlEntry {
+			if strings.HasPrefix(trimmedLine, constants.WorkflowsLockYmlGlob) && required == lockYmlEntry {
 				gitLog.Print("Updating old .gitattributes entry format")
 				lines[i] = lockYmlEntry
 				found = true
@@ -414,7 +414,7 @@ func ensureLogsGitignore() error {
 
 	// Check if .gitignore already exists
 	if _, err := os.Stat(gitignorePath); err == nil {
-		gitLog.Print(".github/aw/logs/.gitignore already exists")
+		gitLog.Print(".github/aw/logs/.gitignore already exists") //nolint:hardcodedfilepath
 		return nil
 	}
 

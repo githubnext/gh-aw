@@ -672,7 +672,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			// Extract everything from ".github/" onwards (inclusive)
 			// +1 to skip the leading slash, so we get ".github/workflows/..." not "/.github/workflows/..."
 			workflowFilePath = normalizedPath[githubIndex+1:]
-		} else if strings.HasPrefix(normalizedPath, ".github/") {
+		} else if strings.HasPrefix(normalizedPath, constants.GithubDir) {
 			// Relative path already starting with ".github/" — use as-is.
 			// This can happen when the compiler is invoked with a relative markdown path
 			// (e.g. ".github/workflows/test.md") rather than an absolute one.
@@ -1077,7 +1077,7 @@ func resolveWorkspaceRoot(markdownPath string) string {
 		// Absolute or non-root-relative path: strip everything from "/.github/" onward.
 		return filepath.FromSlash(before)
 	}
-	if strings.HasPrefix(normalized, ".github/") {
+	if strings.HasPrefix(normalized, constants.GithubDir) {
 		// Path already starts at the workspace root.
 		return "."
 	}

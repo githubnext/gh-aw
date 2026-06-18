@@ -316,7 +316,7 @@ func proxyEnvVars() map[string]string {
 		"GH_REPO":             "${{ github.repository }}",
 		"GITHUB_API_URL":      "https://localhost:18443/api/v3",
 		"GITHUB_GRAPHQL_URL":  "https://localhost:18443/api/graphql",
-		"NODE_EXTRA_CA_CERTS": "/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
+		"NODE_EXTRA_CA_CERTS": constants.TmpProxyTLSCACert,
 	}
 }
 
@@ -558,7 +558,7 @@ func difcProxyLogPaths(data *WorkflowData) []string {
 	// Exclude proxy-tls/ to avoid uploading TLS material (mcp-logs/ is already
 	// collected as part of standard MCP logging).
 	return []string{
-		"/tmp/gh-aw/proxy-logs/",
-		"!/tmp/gh-aw/proxy-logs/proxy-tls/",
+		constants.TmpProxyLogsDir,
+		"!" + constants.TmpProxyTLSDir,
 	}
 }

@@ -132,7 +132,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	// Return the Codex log directory for artifact collection.
 	return []string{
-		"/tmp/gh-aw/mcp-config/logs/",
+		constants.TmpMcpConfigLogsDir,
 	}
 }
 
@@ -384,14 +384,14 @@ mkdir -p "$CODEX_HOME/logs"
 		// we create this file before the agent starts and append it to the real
 		// $GITHUB_STEP_SUMMARY after secret redaction.
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
-		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":        constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
-		"GH_AW_MCP_CONFIG": "${{ runner.temp }}/gh-aw/mcp-config/config.toml",
+		"GH_AW_MCP_CONFIG": constants.CodexMcpConfigTomlPath,
 		// Keep Codex runtime state in /tmp/gh-aw because ${RUNNER_TEMP}/gh-aw is
 		// mounted read-only inside the AWF chroot sandbox.
-		"CODEX_HOME": "/tmp/gh-aw/mcp-config",
+		"CODEX_HOME": constants.TmpMcpConfigDir,
 		// Enable verbose RUST_LOG only in debug mode (runner.debug == 1); default to warn to avoid noisy output.
 		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,

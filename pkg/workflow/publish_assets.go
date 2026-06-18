@@ -247,7 +247,7 @@ func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *Wor
 	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          name: %ssafe-outputs-assets\n", prefix)
-	builder.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
+	builder.WriteString("          path: ${{ runner.temp }}/gh-aw/safeoutputs/assets/\n")
 	builder.WriteString("          retention-days: 1\n")
 	builder.WriteString("          if-no-files-found: ignore\n")
 }

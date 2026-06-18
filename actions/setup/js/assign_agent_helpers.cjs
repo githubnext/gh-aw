@@ -49,7 +49,7 @@ async function getAvailableAgentLogins(owner, repo, githubClient = github) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
-        suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+        suggestedActors(first: 100, capabilities: [CAN_BE_ASSIGNED]) {
           nodes { ... on Bot { login __typename } }
         }
       }
@@ -80,7 +80,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
-        suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+        suggestedActors(first: 100, capabilities: [CAN_BE_ASSIGNED]) {
           nodes {
             ... on Bot {
               id
@@ -467,7 +467,54 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
       // Attempt fallback mutation addAssigneesToAssignable when replaceActorsForAssignable is forbidden
       core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
       try {
-        const fallbackMutation = `
+        // Build agentAssignment for fallback mutation (same parameters as primary)
+        const fallbackAgentAssignmentFields = [];
+        const fallbackAgentAssignmentParams = [];
+        const fallbackVariables = { assignableId, assigneeIds: [agentId] };
+
+        if (pullRequestRepoId) {
+          fallbackAgentAssignmentFields.push("targetRepositoryId: $targetRepoId");
+          fallbackAgentAssignmentParams.push("$targetRepoId: ID!");
+          fallbackVariables.targetRepoId = pullRequestRepoId;
+        }
+        if (model) {
+          fallbackAgentAssignmentFields.push("model: $model");
+          fallbackAgentAssignmentParams.push("$model: String!");
+          fallbackVariables.model = model;
+        }
+        if (customAgent) {
+          fallbackAgentAssignmentFields.push("customAgent: $customAgent");
+          fallbackAgentAssignmentParams.push("$customAgent: String!");
+          fallbackVariables.customAgent = customAgent;
+        }
+        if (customInstructions) {
+          fallbackAgentAssignmentFields.push("customInstructions: $customInstructions");
+          fallbackAgentAssignmentParams.push("$customInstructions: String!");
+          fallbackVariables.customInstructions = customInstructions;
+        }
+        if (baseBranch) {
+          fallbackAgentAssignmentFields.push("baseRef: $baseRef");
+          fallbackAgentAssignmentParams.push("$baseRef: String!");
+          fallbackVariables.baseRef = baseBranch;
+        }
+
+        const hasFallbackAgentAssignment = fallbackAgentAssignmentFields.length > 0;
+        const fallbackBaseParams = ["$assignableId: ID!", "$assigneeIds: [ID!]!", ...fallbackAgentAssignmentParams].join(", ");
+        const fallbackMutation = hasFallbackAgentAssignment
+          ? `
+          mutation(${fallbackBaseParams}) {
+            addAssigneesToAssignable(input: {
+              assignableId: $assignableId,
+              assigneeIds: $assigneeIds,
+              agentAssignment: {
+                ${fallbackAgentAssignmentFields.join("\n                ")}
+              }
+            }) {
+              clientMutationId
+            }
+          }
+        `
+          : `
           mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
             addAssigneesToAssignable(input: {
               assignableId: $assignableId,
@@ -480,8 +527,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
         core.info("Executing fallback agent assignment GraphQL mutation");
         core.debug(`Fallback GraphQL mutation with variables: assignableId=${assignableId}, assigneeIds=[${agentId}]`);
         const fallbackResp = await githubClient.graphql(fallbackMutation, {
-          assignableId,
-          assigneeIds: [agentId],
+          ...fallbackVariables,
           headers: {
             "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
           },

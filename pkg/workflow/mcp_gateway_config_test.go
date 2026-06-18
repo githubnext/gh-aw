@@ -33,7 +33,7 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 				assert.Equal(t, string(constants.DefaultMCPGatewayVersion), wd.SandboxConfig.MCP.Version, "Version should be default")
 				assert.Equal(t, int(DefaultMCPGatewayPort), wd.SandboxConfig.MCP.Port, "Port should be default")
 				assert.Equal(t, constants.DefaultMCPGatewayPayloadDir, wd.SandboxConfig.MCP.PayloadDir, "PayloadDir should be default")
-				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 3, "Should have 3 default mounts")
+				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 4, "Should have 4 default mounts")
 			},
 		},
 		{
@@ -111,10 +111,11 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 				},
 			},
 			validate: func(t *testing.T, wd *WorkflowData) {
-				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 3, "Should have 3 default mounts")
+				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 4, "Should have 4 default mounts")
 				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, "/opt:/opt:ro", "Should have /opt mount")
 				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, "/tmp:/tmp:rw", "Should have /tmp mount")
 				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw", "Should have GITHUB_WORKSPACE mount")
+				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "Should have safeoutputs mount")
 			},
 		},
 		{
@@ -132,6 +133,27 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 			validate: func(t *testing.T, wd *WorkflowData) {
 				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 1, "Should preserve custom mounts")
 				assert.Equal(t, "/custom:/mount:ro", wd.SandboxConfig.MCP.Mounts[0], "Custom mount should be preserved")
+			},
+		},
+		{
+			name: "adds safeoutputs mount to custom mounts when upload assets enabled",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Container: "custom-container",
+						Version:   "v1.0.0",
+						Port:      8080,
+						Mounts:    []string{"/custom:/mount:ro"},
+					},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					UploadAssets: &UploadAssetsConfig{},
+				},
+			},
+			validate: func(t *testing.T, wd *WorkflowData) {
+				assert.Len(t, wd.SandboxConfig.MCP.Mounts, 2, "Should preserve custom mount and add safeoutputs mount")
+				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, "/custom:/mount:ro", "Custom mount should be preserved")
+				assert.Contains(t, wd.SandboxConfig.MCP.Mounts, safeOutputsMount, "Safeoutputs mount should be present")
 			},
 		},
 		{

@@ -210,6 +210,25 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("uploadAssetHandler", () => {
+    let testRunnerTemp;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      testRunnerTemp = `/tmp/test-runner-temp-${testId}`;
+      process.env.RUNNER_TEMP = testRunnerTemp;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      try {
+        if (fs.existsSync(testRunnerTemp)) {
+          fs.rmSync(testRunnerTemp, { recursive: true, force: true });
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
     it("should generate blob URL with raw=true for github.com", () => {
       process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GITHUB_SERVER_URL = "https://github.com";
@@ -263,6 +282,19 @@ describe("safe_outputs_handlers", () => {
       expect(result.content[0].type).toBe("text");
       const resultData = JSON.parse(result.content[0].text);
       expect(resultData.result).toContain("https://");
+    });
+
+    it("should stage asset file under RUNNER_TEMP not /tmp", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+
+      const testFile = path.join(testWorkspaceDir, "chart.png");
+      fs.writeFileSync(testFile, "chart content");
+
+      handlers.uploadAssetHandler({ path: testFile });
+
+      // File must be staged under RUNNER_TEMP, not hardcoded /tmp
+      const expectedDir = path.join(testRunnerTemp, "gh-aw", "safeoutputs", "assets");
+      expect(fs.existsSync(path.join(expectedDir, "chart.png"))).toBe(true);
     });
 
     it("should throw error if GH_AW_ASSETS_BRANCH not set", () => {
@@ -1708,6 +1740,43 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("requires item_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should refuse reply_to_id when discussions are not enabled in config", () => {
+      // Default handlers have no discussions: true in config
+      const result = handlers.addCommentHandler({
+        body: "Reply to a discussion thread",
+        reply_to_id: "DC_kwDOABcD1M4AaBbC",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("discussion comments are not enabled");
+      expect(responseData.error).toContain("discussions: true");
+      expect(responseData.error).toContain("safe-outputs.add-comment");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should allow reply_to_id when discussions are enabled in config", () => {
+      const discussionHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        "add-comment": { enabled: true, discussions: true },
+      });
+
+      const result = discussionHandlers.addCommentHandler({
+        body: "Reply to a discussion thread with real content that is not a test placeholder",
+        reply_to_id: "DC_kwDOABcD1M4AaBbC",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "add_comment",
+          reply_to_id: "DC_kwDOABcD1M4AaBbC",
+        })
+      );
     });
   });
 

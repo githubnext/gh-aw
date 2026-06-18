@@ -343,7 +343,7 @@ func buildPlaywrightBuiltinConfig(toolValue any) RegistryMCPServerConfig {
 			Command: "docker",
 			Args: []string{
 				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-				"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
+				"-v", constants.TmpMcpLogsMount,
 				"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 			},
 			Env: make(map[string]string),

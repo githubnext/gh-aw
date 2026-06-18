@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -110,7 +111,7 @@ func (e *AntigravityEngine) GetLogParserScriptId() string {
 
 // GetLogFileForParsing returns the log file path for parsing
 func (e *AntigravityEngine) GetLogFileForParsing() string {
-	return "/tmp/gh-aw/agent-stdio.log"
+	return constants.AgentStdioLogPath
 }
 
 // GetDefaultDetectionModel returns the default model for threat detection

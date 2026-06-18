@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -462,5 +463,5 @@ func (e *CopilotEngine) GetErrorDetectionScriptId() string {
 // GetLogFileForParsing returns the log directory for Copilot CLI logs
 // Copilot writes detailed debug logs to /tmp/gh-aw/sandbox/agent/logs/
 func (e *CopilotEngine) GetLogFileForParsing() string {
-	return "/tmp/gh-aw/sandbox/agent/logs/"
+	return constants.TmpSandboxAgentLogsDir
 }

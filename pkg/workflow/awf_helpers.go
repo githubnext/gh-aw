@@ -286,7 +286,7 @@ fi`,
 	// Build the expandable args string for args that need shell variable expansion.
 	// These MUST be appended as raw (unescaped) strings because single-quoting would
 	// prevent the runner's shell from expanding ${GITHUB_WORKSPACE} and ${RUNNER_TEMP}.
-	ghAwDir := "${RUNNER_TEMP}/gh-aw"
+	ghAwDir := constants.GhAwRootDirShell
 	expandableArgs := fmt.Sprintf(
 		`--container-workdir "${GITHUB_WORKSPACE}" --mount "%s:%s:ro" --mount "%s:/host%s:ro"`,
 		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
@@ -380,7 +380,7 @@ fi`,
 	// is mounted :ro above; this child mount overrides access for the staging subdirectory only.
 	// The staging directory must already exist on the host (created in Generate Safe Outputs Config step).
 	if config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
-		stagingDir := "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
+		stagingDir := SafeOutputsUploadArtifactsDir
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
 	}
@@ -644,7 +644,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	if isGitHubCLIModeEnabled(config.WorkflowData) {
 		if awfSupportsCliProxy(firewallConfig) {
 			awfArgs = append(awfArgs, "--difc-proxy-host", "host.docker.internal:18443")
-			awfArgs = append(awfArgs, "--difc-proxy-ca-cert", "/tmp/gh-aw/difc-proxy-tls/ca.crt")
+			awfArgs = append(awfArgs, "--difc-proxy-ca-cert", constants.TmpDIFCProxyTLSCACert)
 			awfHelpersLog.Print("Added --difc-proxy-host and --difc-proxy-ca-cert for CLI proxy sidecar")
 		} else {
 			awfHelpersLog.Printf("Skipping CLI proxy flags: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
