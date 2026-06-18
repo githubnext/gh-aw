@@ -130,6 +130,7 @@ function attachHandlers(tools, handlers, logger) {
     add_comment: handlers.addCommentHandler,
     create_pull_request_review_comment: handlers.createPullRequestReviewCommentHandler,
     submit_pull_request_review: handlers.submitPullRequestReviewHandler,
+    update_issue: handlers.updateIssueHandler,
     update_pull_request: handlers.updatePullRequestHandler,
   };
 

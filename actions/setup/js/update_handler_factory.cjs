@@ -72,7 +72,7 @@ function createStandardResolveNumber(config) {
     });
 
     if (!targetResult.success) {
-      return { success: false, error: targetResult.error };
+      return { success: false, shouldFail: targetResult.shouldFail, error: targetResult.error };
     }
 
     return { success: true, number: targetResult.number };
@@ -195,6 +195,17 @@ function createUpdateHandlerFactory(handlerConfig) {
       const itemNumberResult = resolveItemNumber(item, updateTarget, effectiveContext, resolvedTemporaryIds);
 
       if (!itemNumberResult.success) {
+        // shouldFail:false means the target cannot be resolved in this context but it is not
+        // an error (e.g. target:triggering on a schedule run has no triggering issue).
+        // Treat it as a soft skip so it does not count toward fatal failures.
+        if (itemNumberResult.shouldFail === false) {
+          core.info(itemNumberResult.error);
+          return {
+            success: false,
+            skipped: true,
+            error: itemNumberResult.error,
+          };
+        }
         core.warning(itemNumberResult.error);
         return {
           success: false,

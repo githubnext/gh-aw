@@ -481,6 +481,23 @@ describe("update_handler_factory.cjs", () => {
       expect(result.error).toBeDefined();
     });
 
+    it("should propagate shouldFail:false when not in issue context (schedule event)", async () => {
+      const resolveNumber = factoryModule.createStandardResolveNumber({
+        itemType: "update_issue",
+        itemNumberField: "issue_number",
+        supportsPR: false,
+        supportsIssue: true,
+      });
+
+      // schedule event — no issue context, resolveTarget returns shouldFail:false
+      const scheduleContext = { ...mockContext, eventName: "schedule", payload: {} };
+      const result = resolveNumber({}, "triggering", scheduleContext);
+
+      expect(result.success).toBe(false);
+      expect(result.shouldFail).toBe(false);
+      expect(result.error).toContain("issue context");
+    });
+
     it("should resolve temporary ID in issue_number field", async () => {
       const resolveNumber = factoryModule.createStandardResolveNumber({
         itemType: "update_issue",
@@ -882,6 +899,35 @@ describe("update_handler_factory.cjs", () => {
       expect(result.deferred).toBe(true);
       expect(result.error).toContain("aw_pending");
       expect(mockExecuteUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should return skipped result when resolveItemNumber returns shouldFail:false", async () => {
+      const mockExecuteUpdate = vi.fn();
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({
+          success: false,
+          shouldFail: false,
+          error: 'Target is "triggering" but not running in issue context, skipping update_issue',
+        }),
+        buildUpdateData: vi.fn(),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn(),
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ body: "Report body" });
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("issue context");
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
+      // Should be logged as info (not error/warning)
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("issue context"));
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("issue context"));
     });
 
     it("should call itemFilter and skip update when filter returns a result", async () => {

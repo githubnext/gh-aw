@@ -25,6 +25,7 @@ const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 /**
  * Read and parse a JSON file.
  * @param {string} filePath
@@ -1858,6 +1859,45 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Handler for update_issue tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §update_issue.
+   * Per Safe Outputs Specification MCE1: Enforces context constraints during tool invocation
+   * to provide immediate feedback to the LLM before recording to NDJSON.
+   * Rejects `target: triggering` (the default) when the workflow has no issue context
+   * (e.g. on schedule or push events), so the agent receives an actionable error
+   * instead of a downstream Process Safe Outputs failure.
+   */
+  const updateIssueHandler = args => {
+    const updateIssueConfig = getSafeOutputsToolConfig(config, "update_issue");
+    const effectiveTarget = updateIssueConfig.target || "triggering";
+
+    if (effectiveTarget === "triggering") {
+      let invocationContext;
+      try {
+        invocationContext = resolveInvocationContext(context);
+      } catch {
+        // If context resolution fails fall through and let the downstream handler deal with it.
+        return defaultHandler("update_issue")(args || {});
+      }
+      const effectiveEventName = invocationContext?.eventName || context.eventName;
+      const effectivePayload = invocationContext?.eventPayload || context.payload;
+      const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+      const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+
+      if (!isIssueContext) {
+        return buildIntentErrorResponse(
+          `update_issue requires an issue context but the workflow is running on a "${effectiveEventName}" event. ` +
+            `The update-issue handler uses target: triggering which only applies when an issue triggered the workflow. ` +
+            `To report results from this workflow, use create_discussion or create_issue instead. ` +
+            `If you need to update a specific issue, the workflow must configure update-issue: target: '*' and you must supply issue_number.`
+        );
+      }
+    }
+
+    return defaultHandler("update_issue")(args || {});
+  };
+
+  /**
    * Handler for update_pull_request tool
    * Spec cross-reference: Safe Output Outcome Evaluation §update_pull_request.
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
@@ -1888,6 +1928,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     addCommentHandler,
     createPullRequestReviewCommentHandler,
     submitPullRequestReviewHandler,
+    updateIssueHandler,
     updatePullRequestHandler,
   };
 }

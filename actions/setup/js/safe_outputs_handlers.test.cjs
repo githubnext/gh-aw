@@ -2318,6 +2318,88 @@ describe("safe_outputs_handlers", () => {
       }
     });
   });
+
+  describe("updateIssueHandler", () => {
+    it("should return intent error when target is triggering (default) and not in issue context", () => {
+      // global.context has eventName: "push" (not an issue context)
+      const result = handlers.updateIssueHandler({ body: "Updated body" });
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("update_issue");
+      expect(responseData.error).toContain('"push"');
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should return intent error on schedule event with default target", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.updateIssueHandler({ body: "Report" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain('"schedule"');
+        expect(responseData.error).toContain("create_discussion");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry and return success when in issue context with default target", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "issues", payload: { issue: { number: 42 } } };
+      try {
+        const result = handlers.updateIssueHandler({ body: "Updated body" });
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_issue", body: "Updated body" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry and return success when target is '*' regardless of non-issue context", () => {
+      // global.context has eventName: "push" (not an issue context) but target is '*'
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        "update-issue": { target: "*" },
+      });
+      const result = wildcardHandlers.updateIssueHandler({ issue_number: 42, body: "Updated body" });
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_issue", issue_number: 42, body: "Updated body" }));
+    });
+
+    it("should write entry and return success on workflow_dispatch with issue aw_context", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "workflow_dispatch",
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: 99,
+              repo: "test-owner/test-repo",
+            }),
+          },
+        },
+      };
+      try {
+        const result = handlers.updateIssueHandler({ body: "Issue update from dispatch" });
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_issue" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
 });
 
 describe("hasUpdatePullRequestFields", () => {
