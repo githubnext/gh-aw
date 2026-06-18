@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔍"
 description: Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports
 name: Stale Repository Identifier

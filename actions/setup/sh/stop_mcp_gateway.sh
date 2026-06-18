@@ -11,6 +11,18 @@ set -e
 # Get PID from command line argument (passed from step output)
 GATEWAY_PID="$1"
 
+# Register an EXIT trap to ensure the named gateway container is always removed,
+# regardless of the exit path (missing PID, process already gone, successful /close,
+# kill fallback, etc.).  Using a trap means the graceful /close path is still
+# attempted first when the gateway is running and reachable, while still
+# guaranteeing that the host port is freed on every exit — including the case
+# where the start step never captured a PID.
+cleanup_container() {
+  echo "Cleaning up awmg-mcpg container..."
+  docker stop awmg-mcpg 2>/dev/null || docker rm -f awmg-mcpg 2>/dev/null || true
+}
+trap cleanup_container EXIT
+
 if [ -z "$GATEWAY_PID" ]; then
   echo "Gateway PID not provided"
   echo "Gateway may not have been started or PID was not captured"

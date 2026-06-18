@@ -1,4 +1,5 @@
 ---
+private: true
 name: Copilot Centralization Drilldown
 description: Expands one mined centralization candidate into a concrete draft workflow or reusable prompt template.
 on:

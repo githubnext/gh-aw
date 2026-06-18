@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🦙"
 description: Daily test of the Copilot BYOK endpoint using a local Ollama instance with a small model
 on:

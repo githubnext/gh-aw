@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🌫️"
 name: Daily Ambient Context Optimizer
 description: Samples recent agentic workflow runs, inspects the first DLLM request from API proxy event logs, and recommends prompt, skill, and agent changes to shrink ambient context

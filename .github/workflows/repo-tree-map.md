@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🌳"
 description: Generates ASCII tree map visualization of repository file structure weekly
 on:

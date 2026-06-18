@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔒"
 description: Tests network firewall functionality and validates security rules for workflow network access
 on:

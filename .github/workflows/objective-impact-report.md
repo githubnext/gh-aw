@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: 📊
 description: Executive impact efficiency report from workflow outcomes tied to tracked objectives.
 on:

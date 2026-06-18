@@ -417,6 +417,10 @@ A safe output capability for setting one issue field value on existing issues. T
 
 A pattern for `workflow_call` reuse where safe-output policy and list fields accept GitHub Actions expression strings (e.g., `${{ inputs.protected-files-policy }}`) in addition to literal values. At compile time the compiler detects the `${{...}}` form and passes it through unchanged; GitHub Actions evaluates the expression at runtime before the handler executes. Enum-valued policy fields such as `protected-files` and `patch-format` validate literal values at compile time but defer expression-based values to runtime (failing closed on unrecognized input). List-valued fields such as `labels`, `allowed-repos`, and `allowed-base-branches` accept either a YAML array or a single expression string. This enables a single reusable workflow to serve callers with different constraint configurations without duplicating files. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#parameterizing-policy-fields-in-reusable-workflows).
 
+### Normalize Closing Keywords (`normalize-closing-keywords:`)
+
+A field available on `create-issue:`, `add-comment:`, and `create-pull-request:` safe outputs that strips wrapping backticks from recognized GitHub issue-closing keywords in body text. For example, `` `Closes #123` `` becomes `Closes #123` so GitHub can process it as a closing reference. Useful when AI-generated body text inadvertently wraps closing keywords in inline code formatting. Set `normalize-closing-keywords: true` to enable. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#normalize-closing-keywords) and [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
 ## Workflow Components
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
@@ -650,6 +654,14 @@ setup, runtime variables, and span semantics.
 ### OTLP If-Missing (`observability.otlp.if-missing`)
 
 Controls behavior when OTLP endpoint or header values resolve to empty at runtime. Accepts `error` (default — fails startup), `warn` (logs a warning and skips MCP gateway OTLP configuration), or `ignore` (silently skips MCP gateway OTLP configuration). Useful in shared imports where OTLP secrets may be absent in some repositories — set to `ignore` to make observability opt-in without breaking workflows that lack the secrets. See [Frontmatter](/gh-aw/reference/frontmatter/#observability-observability).
+
+### OTLP Resource Attributes (`observability.otlp.resource-attributes`)
+
+A frontmatter option that appends custom key/value pairs to the standard gh-aw and GitHub resource attribute set exported with each OTLP trace. Use static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` values because resource attributes are sent to external observability backends and are not treated as secret values. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-resource-attributes).
+
+### Custom Span (`logSpan`)
+
+A telemetry API provided by the `otlp.cjs` helper that lets shared workflow imports emit their own OTLP spans alongside built-in gh-aw telemetry. Call `otlp.logSpan(toolName, attributes, options)` inside a `github-script` step to attach domain-specific measurements to the same distributed trace as the workflow run. The function is non-fatal and never throws — export failures are surfaced as warnings. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-spans-from-shared-imports).
 
 ### Setup-Steps (`jobs.<job-id>.setup-steps`)
 

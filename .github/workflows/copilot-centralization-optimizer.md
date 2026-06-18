@@ -1,4 +1,5 @@
 ---
+private: true
 name: Copilot Centralization Optimizer
 description: Finds repeated cross-user prompt patterns that should become centralized workflows, tools, deterministic steps, shared prompts, or other automations.
 on:

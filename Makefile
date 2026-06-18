@@ -221,8 +221,7 @@ security-gosec:
 .PHONY: security-govulncheck
 security-govulncheck:
 	@echo "Running govulncheck..."
-	@command -v govulncheck >/dev/null || go install golang.org/x/vuln/cmd/govulncheck@latest
-	govulncheck ./...
+	go run golang.org/x/vuln/cmd/govulncheck ./...
 	@echo "✓ Govulncheck complete"
 
 # Test JavaScript files
@@ -574,7 +573,6 @@ tools: ## Install build-time tools from tools.go
 	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
 	@go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 	@go install golang.org/x/tools/gopls@v0.21.1
-	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@echo "✓ Tools installed successfully"
 
 # Install golangci-lint binary (avoiding GPL dependencies in go.mod)

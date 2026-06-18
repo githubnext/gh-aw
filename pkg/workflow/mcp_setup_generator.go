@@ -716,6 +716,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	// 2048 bytes upfront covers the common case without overcommitting.
 	containerCmd.Grow(2048)
 	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString(" --name awmg-mcpg")
 	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")

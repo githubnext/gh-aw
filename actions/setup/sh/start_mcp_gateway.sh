@@ -150,6 +150,16 @@ echo ""
 # Set MCP_GATEWAY_LOG_DIR environment variable for use by the gateway
 export MCP_GATEWAY_LOG_DIR="/tmp/gh-aw/mcp-logs/"
 
+# Clean up any stale gh-aw gateway container from a previous run on this runner.
+# On persistent self-hosted runners a prior job's gateway container may still be
+# running and holding the host port, causing "bind: address already in use" when
+# we try to start the new one.  Force-removing by the well-known container name
+# is idempotent: docker rm -f exits non-zero when the container doesn't exist,
+# but the trailing || true (and 2>/dev/null) make the overall command succeed.
+echo "Cleaning up any stale awmg-mcpg container from a previous run..."
+docker rm -f awmg-mcpg 2>/dev/null && echo "Removed stale awmg-mcpg container" || true
+echo ""
+
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"

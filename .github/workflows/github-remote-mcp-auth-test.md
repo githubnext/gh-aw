@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: Daily test of GitHub remote MCP authentication with GitHub Actions token
 on:

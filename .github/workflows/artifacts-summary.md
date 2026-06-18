@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📦"
 description: Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
 on:

@@ -5,4 +5,4 @@ self-hosted-runner:
 paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:
-      - '"copilot-requests" is not expected'
+      - 'unknown permission scope "copilot-requests"'

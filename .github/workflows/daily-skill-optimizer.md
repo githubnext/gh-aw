@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "⚡"
 name: Daily Skill Optimizer Improvements
 description: Runs fastxyz/skill-optimizer daily, packages results as an artifact, and creates one issue with 3 improvements

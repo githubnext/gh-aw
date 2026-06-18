@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 on:
   slash_command:

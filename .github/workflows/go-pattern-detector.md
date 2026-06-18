@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔍"
 name: Go Pattern Detector
 description: Detects common Go code patterns and anti-patterns to maintain code quality and consistency

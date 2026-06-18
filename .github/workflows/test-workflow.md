@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 name: Test Workflow
 on:

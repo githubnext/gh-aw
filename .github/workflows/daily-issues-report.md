@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📅"
 description: Daily report analyzing repository issues with clustering, metrics, and trend charts
 on: daily

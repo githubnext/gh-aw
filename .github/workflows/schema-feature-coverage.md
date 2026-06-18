@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 description: Ensures 100% schema feature coverage across existing agentic workflows by creating PRs for any uncovered fields
 on:

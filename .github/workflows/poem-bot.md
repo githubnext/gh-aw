@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🎭"
 description: Generates creative poems on specified themes when invoked with /poem-bot command
 # Custom triggers: command with events filter, workflow_dispatch

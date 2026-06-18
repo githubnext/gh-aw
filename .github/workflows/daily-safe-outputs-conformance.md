@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "✅"
 description: Daily automated conformance check for Safe Outputs specification implementation, analyzing critical/high/medium/low issues and creating agentic tasks for Copilot
 on:

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "✍️"
 name: Weekly Blog Post Writer
 description: Generates a weekly blog post summarizing gh-aw releases, changelogs, and highlights from the past week, then opens a pull request for review

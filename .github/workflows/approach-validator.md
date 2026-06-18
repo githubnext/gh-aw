@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "✅"
 name: Approach Validator
 description: Validates proposed technical approaches before implementation begins using a sequential multi-agent panel of Devil's Advocate, Alternatives Scout, Implementation Estimator, and Dead End Detector

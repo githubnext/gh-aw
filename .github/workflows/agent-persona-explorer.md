@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🎭"
 description: Explores agentic-workflows custom agent behavior by generating software personas and analyzing responses to common automation tasks
 on: daily

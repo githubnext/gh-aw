@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp } from "./mcp_cli_bridge.cjs";
+import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -172,8 +172,8 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
-  it("treats MCP result envelopes with isError=true as errors", () => {
-    formatResponse(
+  it("treats MCP result envelopes with isError=true as errors", async () => {
+    await formatResponse(
       {
         result: {
           isError: true,
@@ -188,24 +188,24 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it("prints progress notifications to stderr and final text result to stdout for SSE responses", () => {
+  it("prints progress notifications to stderr and final text result to stdout for SSE responses", async () => {
     const sseBody = [
       'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"abc","progress":1,"total":3,"message":"Step 1/3"}}',
       'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"done"}]}}',
       "",
     ].join("\n");
 
-    formatResponse(sseBody, "agenticworkflows");
+    await formatResponse(sseBody, "agenticworkflows");
 
     expect(stderrChunks.join("")).toContain("Step 1/3");
     expect(stdoutChunks.join("")).toBe("done\n");
     expect(process.exitCode).toBe(0);
   });
 
-  it("prints numeric progress to stderr when progress notification has no message", () => {
+  it("prints numeric progress to stderr when progress notification has no message", async () => {
     const sseBody = ['data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"abc","progress":2,"total":5}}', 'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}]}}', ""].join("\n");
 
-    formatResponse(sseBody, "agenticworkflows");
+    await formatResponse(sseBody, "agenticworkflows");
 
     expect(stderrChunks.join("")).toContain("Progress: 2/5");
     expect(stdoutChunks.join("")).toBe("ok\n");
@@ -518,6 +518,133 @@ describe("mcp_cli_bridge.cjs", () => {
       const { args } = parseToolArgs(["."], schemaProperties, stdinContent);
 
       expect(args).toEqual({ body: "### Title\n\nLine one.\n\nLine two." });
+    });
+  });
+
+  describe("writeStdoutAndFlush", () => {
+    it("resolves immediately when stdout.write returns true (no backpressure)", async () => {
+      // The beforeEach mock captures chunks and returns true (no backpressure).
+      // writeStdoutAndFlush should resolve synchronously in this case.
+      await writeStdoutAndFlush("hello world\n");
+
+      expect(stdoutChunks[0]).toBe("hello world\n");
+    });
+
+    it("waits for drain event when stdout.write returns false (pipe buffer full)", async () => {
+      // Arrange: stdout.write returns false (simulates full pipe buffer like a ~64KiB payload)
+      let drainCb = null;
+      stdoutSpy.mockImplementation(chunk => {
+        stdoutChunks.push(String(chunk));
+        return false; // signal backpressure
+      });
+      const onceStub = vi.spyOn(process.stdout, "once").mockImplementation((event, cb) => {
+        if (event === "drain") {
+          drainCb = cb;
+        }
+        return process.stdout;
+      });
+
+      try {
+        const writePromise = writeStdoutAndFlush("large payload\n");
+
+        // Drain callback not yet called — promise should still be pending
+        let resolved = false;
+        writePromise.then(() => {
+          resolved = true;
+        });
+
+        // Let microtasks run; drain hasn't fired yet so still pending
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+        expect(drainCb).not.toBeNull();
+
+        // Fire the drain event
+        drainCb();
+
+        await writePromise;
+        expect(resolved).toBe(true);
+        expect(stdoutChunks).toContain("large payload\n");
+      } finally {
+        onceStub.mockRestore();
+      }
+    });
+
+    it("rejects when stdout emits error while waiting for drain (EPIPE)", async () => {
+      // Arrange: stdout.write returns false, then stdout emits an error
+      stdoutSpy.mockImplementation(chunk => {
+        stdoutChunks.push(String(chunk));
+        return false; // signal backpressure
+      });
+      const error = new Error("EPIPE");
+      let errorCb = null;
+      const onceStub = vi.spyOn(process.stdout, "once").mockImplementation((event, cb) => {
+        if (event === "error") {
+          errorCb = cb;
+        }
+        return process.stdout;
+      });
+
+      try {
+        const writePromise = writeStdoutAndFlush("data\n");
+        // Verify the error callback was registered before firing it
+        expect(errorCb).not.toBeNull();
+        // Fire the error event asynchronously (simulates broken pipe)
+        Promise.resolve().then(() => errorCb(error));
+        await expect(writePromise).rejects.toThrow("EPIPE");
+      } finally {
+        onceStub.mockRestore();
+      }
+    });
+
+    it("formatResponse awaits stdout drain before writing to stderr (no interleaving)", async () => {
+      // This test verifies that core.info (→ stderr) is NOT called until after
+      // stdout has been fully drained. Before the fix, process.stdout.write()
+      // returning false would allow subsequent core.info calls to reach stderr
+      // while stdout was still buffering, corrupting combined output.
+      const callOrder = [];
+      let drainCb = null;
+
+      stdoutSpy.mockImplementation(chunk => {
+        callOrder.push({ stream: "stdout", data: String(chunk) });
+        return false; // simulate pipe buffer full
+      });
+      const onceStub = vi.spyOn(process.stdout, "once").mockImplementation((event, cb) => {
+        if (event === "drain") {
+          drainCb = cb;
+        }
+        return process.stdout;
+      });
+      global.core.info = vi.fn(msg => {
+        callOrder.push({ stream: "stderr-info", data: String(msg) });
+      });
+
+      const body = {
+        result: {
+          content: [{ type: "text", text: "large json output" }],
+        },
+      };
+
+      try {
+        const formatPromise = formatResponse(body, "agenticworkflows");
+
+        // Yield to microtasks — stdout write is queued, drain not yet fired
+        await Promise.resolve();
+
+        // core.info should NOT have been called yet (stdout hasn't drained)
+        expect(callOrder.filter(e => e.stream === "stderr-info")).toHaveLength(0);
+
+        // Now fire the drain event
+        if (drainCb) drainCb();
+        await formatPromise;
+
+        // After drain: stdout write AND then core.info (order preserved)
+        const stdoutIdx = callOrder.findIndex(e => e.stream === "stdout");
+        const infoIdx = callOrder.findIndex(e => e.stream === "stderr-info");
+        expect(stdoutIdx).toBeGreaterThanOrEqual(0);
+        expect(infoIdx).toBeGreaterThan(stdoutIdx);
+      } finally {
+        onceStub.mockRestore();
+      }
     });
   });
 });

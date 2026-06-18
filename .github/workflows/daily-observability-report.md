@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 description: Daily observability report analyzing logging and telemetry coverage for AWF firewall and MCP Gateway across workflow runs
 on: daily

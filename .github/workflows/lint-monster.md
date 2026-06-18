@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧌"
 name: LintMonster
 description: Daily workflow that runs custom linters, groups findings, and launches up to three Copilot agent sessions to fix lint issues

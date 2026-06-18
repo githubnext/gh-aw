@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔍"
 description: Inspects MCP (Model Context Protocol) server configurations and validates their functionality
 on:

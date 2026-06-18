@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔍"
 description: Runs Markdown quality checks using Super Linter and creates issues for violations
 on:

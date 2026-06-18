@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔬"
 name: Copilot PR Conversation NLP Analysis
 description: Performs natural language processing analysis on Copilot PR conversations to extract insights and patterns from user interactions

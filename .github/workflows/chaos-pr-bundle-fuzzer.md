@@ -1,4 +1,5 @@
 ---
+private: true
 name: "Chaos PR Bundle Fuzzer"
 description: Stress-tests safe-output create-pull-request git patch/bundle handling with randomized small-change personas
 on:

@@ -10,6 +10,7 @@ This page is the primary reference for pull-request-focused safe outputs:
 - [`create-pull-request`](#pull-request-creation-create-pull-request)
 - [`update-pull-request`](#pull-request-updates-update-pull-request)
 - [`close-pull-request`](#close-pull-request-close-pull-request)
+- [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental)
 - [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment)
 - [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review)
 - [`reply-to-pull-request-review-comment`](#reply-to-pr-review-comment-reply-to-pull-request-review-comment)
@@ -145,6 +146,38 @@ safe-outputs:
     target-repo: "owner/repo"         # cross-repository
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+## Merge Pull Request (`merge-pull-request:`)
+
+:::caution[Experimental]
+`merge-pull-request` is an experimental safe output. `gh aw compile` emits an experimental feature warning when a workflow uses it. The merge is blocked unless every configured policy gate passes; merges to the repository default branch are always refused.
+:::
+
+Merges a pull request only after configured policy gates pass — status checks, review decision, unresolved review threads, label and branch constraints, and GitHub mergeability.
+
+```yaml wrap
+safe-outputs:
+  merge-pull-request:
+    max: 1                            # max merges per run (default: 1, range: 1-10)
+    required-labels: [ready-to-merge] # ALL listed labels must be present on the PR
+    required-title-prefix: "[bot] "   # only merge PRs whose title starts with this prefix
+    allowed-branches: ["feature/*"]   # glob patterns for the PR's source branch
+    target: "triggering"              # "triggering" (default, current PR) or "*" (any PR with pull_request_number)
+    target-repo: "owner/repo"         # cross-repository target
+    allowed-repos: ["org/other-repo"] # additional repositories the agent can merge into
+    staged: false                     # if true, evaluate gates and emit preview results without performing the merge
+    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+```
+
+**Target**: `"triggering"` (requires a PR event) or `"*"` (the agent supplies `pull_request_number` in the tool call). When `target: "*"` is used with cross-repository configuration, the agent may also supply `repo` (in `owner/repo` format); the value must match `target-repo` or appear in `allowed-repos`.
+
+**Merge method**: The agent selects `merge`, `squash`, or `rebase` per tool call. The base branch is taken from the pull request; merges to the repository default branch are refused by this safe output type.
+
+**Gate semantics**: The handler validates mergeability (not draft, no conflicts), required status checks, the GitHub review decision, unresolved review thread gating, `required-labels`, `required-title-prefix`, and `allowed-branches`. If any gate fails, the merge is skipped and the reason is reported. Idempotent: already-merged PRs return success.
+
+**Staged mode**: Setting `staged: true` runs all gate checks and emits a preview result without calling the GitHub merge API. Use this to validate policy in dry-run scenarios.
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `target-repo`, `allowed-repos`, and authentication configuration. See the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/#type-merge_pull_request) for the complete schema and operational semantics.
 
 ## PR Review Comments (`create-pull-request-review-comment:`)
 

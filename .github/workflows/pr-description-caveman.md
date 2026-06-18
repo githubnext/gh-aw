@@ -1,4 +1,5 @@
 ---
+private: true
 name: PR Description Updater
 description: Rewrites a merged PR description with a structured, considered summary optimised for downstream agentic analysis. Processes the full diff in chunks using sub-agents. Ignores lock files and auto-generated code.
 on:

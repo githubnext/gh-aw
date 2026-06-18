@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📝"
 name: Multi-Device Docs Tester
 description: Tests documentation site functionality and responsive design across multiple device form factors

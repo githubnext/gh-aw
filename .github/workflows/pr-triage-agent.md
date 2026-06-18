@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 description: Automates PR categorization, risk assessment, and prioritization for agent-created pull requests
 on:

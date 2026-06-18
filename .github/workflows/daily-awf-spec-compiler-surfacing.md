@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧭"
 name: Daily AWF Spec Compiler Surfacing Review
 description: Reviews AWF specification and compiler updates (starting with the main JSON schema) to detect new AWF features that should be surfaced in gh-aw.

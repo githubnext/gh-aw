@@ -98,6 +98,48 @@ function auditLog(serverName, entry) {
 }
 
 // ---------------------------------------------------------------------------
+// I/O helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Write data to process.stdout and return a Promise that resolves only after
+ * the data has been fully flushed to the OS.
+ *
+ * When stdout is a pipe and the payload exceeds the OS pipe buffer (~64 KiB on
+ * Linux), `process.stdout.write()` returns `false` — the first chunk is written
+ * to the OS immediately but the remainder is queued in Node.js's internal
+ * buffer.  Any synchronous write to process.stderr that follows (e.g. a
+ * `core.info` call) will reach the OS *before* the buffered stdout tail is
+ * flushed, which corrupts the output when the caller captures both streams
+ * together (e.g. `2>&1`).
+ *
+ * Awaiting the `drain` event ensures stdout is fully drained before any
+ * subsequent diagnostic logging.
+ *
+ * @param {string} data
+ * @returns {Promise<void>}
+ */
+function writeStdoutAndFlush(data) {
+  return new Promise((resolve, reject) => {
+    const flushed = process.stdout.write(data);
+    if (flushed) {
+      resolve();
+    } else {
+      const onDrain = () => {
+        process.stdout.removeListener("error", onError);
+        resolve();
+      };
+      const onError = err => {
+        process.stdout.removeListener("drain", onDrain);
+        reject(err);
+      };
+      process.stdout.once("drain", onDrain);
+      process.stdout.once("error", onError);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // HTTP helpers
 // ---------------------------------------------------------------------------
 
@@ -1014,8 +1056,9 @@ function isResultMessage(message) {
  *
  * @param {unknown} responseBody - Parsed JSON-RPC response body
  * @param {string} serverName - Server name (for logging)
+ * @returns {Promise<void>}
  */
-function formatResponse(responseBody, serverName) {
+async function formatResponse(responseBody, serverName) {
   const core = global.core;
   const messages = extractJSONRPCMessages(responseBody);
   renderProgressMessages(messages);
@@ -1058,7 +1101,7 @@ function formatResponse(responseBody, serverName) {
         auditLog(serverName, { event: "tool_error", error: output });
         process.exitCode = 1;
       } else {
-        process.stdout.write(output + "\n");
+        await writeStdoutAndFlush(output + "\n");
         core.info(`[${serverName}] Tool output: ${output.length} chars`);
       }
       return;
@@ -1071,14 +1114,14 @@ function formatResponse(responseBody, serverName) {
       auditLog(serverName, { event: "tool_error", error: resultStr });
       process.exitCode = 1;
     } else {
-      process.stdout.write(resultStr + "\n");
+      await writeStdoutAndFlush(resultStr + "\n");
     }
     return;
   }
 
   // Fallback: print raw response
   const rawStr = typeof resp === "string" ? resp : JSON.stringify(resp);
-  process.stdout.write(rawStr + "\n");
+  await writeStdoutAndFlush(rawStr + "\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -1149,15 +1192,25 @@ async function main() {
     stopKeepalive = startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName);
     const resp = await mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, serverName);
 
+    // Stop keepalive BEFORE writing any output.  When stdout is a pipe and the
+    // response payload exceeds the OS pipe buffer (~64 KiB on Linux),
+    // process.stdout.write() buffers the overflow and flushes it later via the
+    // event loop.  If the keepalive timer fires in that window its core.info()
+    // call writes to stderr; callers that capture both streams (e.g. 2>&1) see
+    // the [info] line interleaved inside the JSON, corrupting it.  Stopping the
+    // timer here ensures no further log lines reach stderr during the write.
+    stopKeepalive?.();
+    stopKeepalive = null;
+
     const totalMs = Date.now() - callStartMs;
     core.info(`[${serverName}] Tool call complete: total=${totalMs}ms`);
     auditLog(serverName, { event: "call_complete", tool: toolName, totalElapsedMs: totalMs });
 
     if (jsonOutput) {
       // --json: print the raw JSON-RPC response body
-      process.stdout.write(JSON.stringify(resp.body, null, 2) + "\n");
+      await writeStdoutAndFlush(JSON.stringify(resp.body, null, 2) + "\n");
     } else {
-      formatResponse(resp.body, serverName);
+      await formatResponse(resp.body, serverName);
     }
   } catch (err) {
     const totalMs = Date.now() - callStartMs;
@@ -1191,6 +1244,7 @@ module.exports = {
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
+  writeStdoutAndFlush,
   showHelp,
   showToolHelp,
   hasStdinJsonPayload,

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔬"
 description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
 on:

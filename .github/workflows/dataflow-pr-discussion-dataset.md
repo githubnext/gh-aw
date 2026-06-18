@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🌊"
 name: DataFlow PR & Discussion Dataset Builder
 description: Builds cleaned, deduplicated, quality-scored datasets from GitHub discussions and PRs using OpenDCAI/DataFlow text processing pipelines

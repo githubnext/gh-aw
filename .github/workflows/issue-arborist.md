@@ -1,4 +1,5 @@
 ---
+private: true
 description: Daily workflow that analyzes recent issues and links related issues as sub-issues
 name: Issue Arborist
 on:

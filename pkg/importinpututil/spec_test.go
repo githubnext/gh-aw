@@ -164,6 +164,32 @@ func TestSpec_PublicAPI_FormatResolvedValue_TypedCollections(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_FormatResolvedValue_MarshalFailure validates the documented
+// failure path of FormatResolvedValue.
+//
+// Specification:
+//   - Returns ("", false) if JSON marshalling fails.
+//
+// A collection value containing an unmarshalable element (a channel cannot be
+// JSON-encoded) must therefore yield the documented ("", false) result.
+func TestSpec_PublicAPI_FormatResolvedValue_MarshalFailure(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "documented: []any containing an unmarshalable channel", value: []any{make(chan int)}},
+		{name: "documented: map[string]any containing an unmarshalable channel", value: map[string]any{"ch": make(chan int)}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, ok := importinpututil.FormatResolvedValue(tt.value)
+			assert.False(t, ok, "FormatResolvedValue should return ok=false when JSON marshalling fails: %s", tt.name)
+			assert.Equal(t, "", s, "FormatResolvedValue should return empty string when JSON marshalling fails: %s", tt.name)
+		})
+	}
+}
+
 // TestSpec_DesignDecision_FormatResolvedValue_DeterministicMapKeyOrder validates
 // the documented guarantee that map keys are sorted lexicographically.
 //

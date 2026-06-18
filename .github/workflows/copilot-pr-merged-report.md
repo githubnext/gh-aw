@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 name: Daily Copilot PR Merged Report
 description: Generates a daily report analyzing Copilot pull requests merged in the last 24 hours, tracking code generation, tests, and token usage

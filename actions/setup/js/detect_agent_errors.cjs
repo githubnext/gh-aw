@@ -17,7 +17,10 @@
  *     for the selected engine/account (for example unknown model name, model not
  *     found, or model unavailable for the plan).
  *   - capi_quota_exceeded_error: The Copilot CAPI quota has been exhausted
- *     (e.g., "CAPIError: 429 429 quota exceeded").
+ *     or rate-limited (e.g., "CAPIError: 429 429 quota exceeded",
+ *     "CAPIError: Too Many Requests"). All matched forms are treated as
+ *     non-retryable because the Copilot SDK has already retried internally
+ *     before surfacing the error.
  *
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
@@ -57,10 +60,14 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 const MODEL_NOT_SUPPORTED_PATTERN =
   /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable))/i;
 
-// Pattern: Copilot/CAPI quota exhaustion.
-// Matches the observed error: "CAPIError: 429 429 quota exceeded".
-// Quota exhaustion is a persistent, non-retryable condition.
-const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
+// Pattern: Copilot/CAPI quota exhaustion and rate-limit responses.
+// Matches all observed forms:
+//   "CAPIError: 429 429 quota exceeded"  (original observed form)
+//   "CAPIError: 429 Too Many Requests"   (HTTP 429 form)
+//   "CAPIError: Too Many Requests"       (no status code in message)
+// All forms are treated as non-retryable; the Copilot SDK has already retried
+// internally before surfacing this error (evidenced by "retried 5 times" context).
+const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)/i;
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "⚠️"
 description: Example workflow demonstrating proper permission provisioning and security best practices
 timeout-minutes: 5

@@ -201,6 +201,7 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 	// Annotated tags have type "tag" and their SHA points to the tag object,
 	// not the underlying commit. We must peel to get the commit SHA.
 	cmd := ExecGHContext(callCtx, "api", apiPath, "--jq", "[.object.sha, .object.type] | @tsv")
+	ForceGHHostEnv(cmd, "github.com")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
@@ -226,8 +227,8 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 		// caller context (ctx), not from callCtx, so we don't accidentally shrink
 		// the budget for subsequent peels.
 		peelCtx, peelCancel := context.WithTimeout(ctx, 30*time.Second)
-		defer peelCancel()
 		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
+		ForceGHHostEnv(cmd2, "github.com")
 		output2, peelErr := cmd2.Output()
 		peelCancel()
 		if peelErr != nil {

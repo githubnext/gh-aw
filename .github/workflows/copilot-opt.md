@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "⚡"
 name: Copilot Opt
 description: Analyze Copilot sessions from the last 14 days and create three optimization issues with evidence-backed recommendations

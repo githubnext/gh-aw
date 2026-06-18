@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔒"
 name: The Great Escapi
 description: Security testing to find escape paths in the AWF (Agent Workflow Firewall)

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧹"
 description: Daily JavaScript unbloater that cleans one .cjs file per day, prioritizing files with @ts-nocheck to enable type checking
 on:

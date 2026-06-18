@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🦸"
 name: Avenger
 description: Hourly CI fixer — merges origin/main, runs recompile/fmt/lint/test/wasm-golden and creates a PR for any fixable issues. Skips if CI is passing.

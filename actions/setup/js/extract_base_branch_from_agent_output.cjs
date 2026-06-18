@@ -2,9 +2,10 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const { spawnSync } = require("child_process");
 
 const AGENT_OUTPUT_PATH = "/tmp/gh-aw/agent_output.json";
-const SAFE_BRANCH_NAME_REGEX = /^[a-zA-Z0-9/_.-]+$/;
+const MAX_BRANCH_NAME_LENGTH = 255;
 
 /**
  * @param {string} itemRepo
@@ -49,9 +50,26 @@ function extractBaseBranchFromAgentOutput(opts = {}) {
 async function main() {
   const baseBranch = extractBaseBranchFromAgentOutput();
   if (!baseBranch) return;
-  if (!SAFE_BRANCH_NAME_REGEX.test(baseBranch) || baseBranch.length > 255) return;
+  if (!isValidBaseBranchName(baseBranch)) return;
   core.setOutput("base-branch", baseBranch);
   core.info(`Extracted base branch from safe output: ${baseBranch}`);
 }
 
-module.exports = { extractBaseBranchFromAgentOutput, isSameWorkflowRepo, main };
+/**
+ * @param {string} branchName
+ * @returns {boolean}
+ */
+function isValidBaseBranchName(branchName) {
+  if (!branchName || branchName.length > MAX_BRANCH_NAME_LENGTH) {
+    return false;
+  }
+
+  // Use refs/heads/<name> to validate as a literal ref, not a branch expression.
+  // --branch also accepts @{-N} git expressions; refs/heads/ form correctly rejects them.
+  // Fail-closed: if git is unavailable (ENOENT) or times out (ETIMEDOUT), result.error is set
+  // and we return false, safely dropping the base branch rather than passing an invalid value.
+  const result = spawnSync("git", ["check-ref-format", `refs/heads/${branchName}`], { stdio: "ignore", timeout: 5000 });
+  return !result.error && result.status === 0;
+}
+
+module.exports = { extractBaseBranchFromAgentOutput, isSameWorkflowRepo, isValidBaseBranchName, main };

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🚨"
 name: Daily Reliability Review
 description: Daily reliability review of agentic workflow failures and regressions using Sentry traces

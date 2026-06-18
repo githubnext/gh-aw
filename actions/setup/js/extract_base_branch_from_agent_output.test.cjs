@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { extractBaseBranchFromAgentOutput, isSameWorkflowRepo } from "./extract_base_branch_from_agent_output.cjs";
+import { extractBaseBranchFromAgentOutput, isSameWorkflowRepo, isValidBaseBranchName } from "./extract_base_branch_from_agent_output.cjs";
 
 describe("extract_base_branch_from_agent_output", () => {
   it("matches fully-qualified repos", () => {
@@ -69,5 +69,29 @@ describe("extract_base_branch_from_agent_output", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+
+  it("accepts valid git branch names used in safe outputs", () => {
+    expect(isValidBaseBranchName("feature/x")).toBe(true);
+    expect(isValidBaseBranchName("release/v1.2+hotfix")).toBe(true);
+  });
+
+  it("rejects invalid git branch names even if they look regex-safe", () => {
+    expect(isValidBaseBranchName("foo..bar")).toBe(false);
+    expect(isValidBaseBranchName("main.lock")).toBe(false);
+    expect(isValidBaseBranchName(".foo")).toBe(false);
+    expect(isValidBaseBranchName("foo/.bar")).toBe(false);
+  });
+
+  it("rejects git branch expressions (@{-N} notation)", () => {
+    expect(isValidBaseBranchName("@{-1}")).toBe(false);
+    expect(isValidBaseBranchName("@{-2}")).toBe(false);
+  });
+
+  it("enforces the 255-character length limit", () => {
+    const atLimit = "a".repeat(255);
+    const overLimit = "a".repeat(256);
+    expect(isValidBaseBranchName(atLimit)).toBe(true);
+    expect(isValidBaseBranchName(overLimit)).toBe(false);
   });
 });

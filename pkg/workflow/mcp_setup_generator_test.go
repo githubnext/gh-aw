@@ -524,6 +524,7 @@ tools:
 	socketPathUnixSnippet := `unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
 	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')`
 	dockerHostEnvSnippet := `-e DOCKER_HOST=unix:///var/run/docker.sock`
+	containerNameSnippet := `--name awmg-mcpg`
 	require.Contains(t, yamlStr, defaultGatewayPortSnippet,
 		"Default MCP gateway port should be exported as 8080")
 	require.Contains(t, yamlStr, uidComputeSnippet,
@@ -546,6 +547,8 @@ tools:
 		"Docker command should mount the resolved Docker socket path")
 	require.Contains(t, yamlStr, dockerHostEnvSnippet,
 		"Docker command should set DOCKER_HOST to the fixed mount destination inside the gateway")
+	require.Contains(t, yamlStr, containerNameSnippet,
+		"Docker command should assign a well-known name to the gateway container for cleanup")
 	require.Less(t, strings.Index(yamlStr, uidComputeSnippet), strings.Index(yamlStr, userSnippet),
 		"MCP_GATEWAY_UID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, runnerGIDComputeSnippet), strings.Index(yamlStr, userSnippet),

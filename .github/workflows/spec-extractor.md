@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📋"
 name: Package Specification Extractor
 description: Extracts and maintains README.md specifications for each Go package under pkg/ using round-robin scheduling and cache-memory

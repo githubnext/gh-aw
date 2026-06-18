@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "⚡"
 description: Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
 on: daily

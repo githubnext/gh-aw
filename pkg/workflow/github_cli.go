@@ -223,3 +223,24 @@ func SetGHHostEnv(cmd *exec.Cmd, host string) {
 		cmd.Env = append(cmd.Env, "GH_HOST="+host)
 	}
 }
+
+// ForceGHHostEnv forces GH_HOST=<host> on the command's environment, overriding
+// any GH_HOST already present in the process environment or cmd.Env.
+// Unlike SetGHHostEnv, this always sets GH_HOST — including for "github.com" —
+// so that a GHE host in the process environment cannot be inherited by the subprocess.
+func ForceGHHostEnv(cmd *exec.Cmd, host string) {
+	if host == "" {
+		return
+	}
+	base := cmd.Env
+	if base == nil {
+		base = os.Environ()
+	}
+	filtered := make([]string, 0, len(base)+1)
+	for _, e := range base {
+		if !strings.HasPrefix(e, "GH_HOST=") {
+			filtered = append(filtered, e)
+		}
+	}
+	cmd.Env = append(filtered, "GH_HOST="+host)
+}

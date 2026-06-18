@@ -1,4 +1,5 @@
 ---
+private: true
 name: UK AI Operational Resilience
 description: Applies UK public-sector AI open-code and vulnerability-risk guidance using recent-change governance, risk scoring, and remediation orchestration
 on:

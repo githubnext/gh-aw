@@ -1,4 +1,5 @@
 ---
+private: true
 on:
   schedule:
   - cron: weekly
