@@ -211,12 +211,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: {
-            assignees: {
-              nodes: [{ login: "copilot-swe-agent" }],
-            },
-          },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
@@ -251,8 +247,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       })
       .mockResolvedValueOnce({
@@ -261,8 +257,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
@@ -305,8 +301,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
@@ -354,8 +350,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
@@ -947,8 +943,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       })
       .mockResolvedValueOnce({
@@ -957,8 +953,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
@@ -1098,12 +1094,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: {
-            assignees: {
-              nodes: [{ login: "copilot-swe-agent" }],
-            },
-          },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
@@ -1631,8 +1623,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       })
       .mockResolvedValueOnce({
@@ -1641,8 +1633,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       })
       .mockResolvedValueOnce({
@@ -1651,8 +1643,8 @@ describe("assign_to_agent", () => {
         },
       })
       .mockResolvedValueOnce({
-        addAssigneesToAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
