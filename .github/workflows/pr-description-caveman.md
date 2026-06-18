@@ -63,6 +63,7 @@ safe-outputs:
     body: true
     title: false
     operation: replace
+    target: '*'
     max: 1
   noop:
 timeout-minutes: 15
@@ -85,10 +86,8 @@ Write in a clear, considered tone. Be accurate, concise, and machine-friendly. A
 ### Step 1 — Check for meaningful changes
 
 ```bash
-cat /tmp/gh-aw/agent/diff-stat.txt
-cat /tmp/gh-aw/agent/commits.txt
-cat /tmp/gh-aw/agent/chunk-count.txt
-cat /tmp/gh-aw/agent/chunk-manifest.txt
+cat /tmp/gh-aw/agent/diff-stat.txt /tmp/gh-aw/agent/commits.txt \
+    /tmp/gh-aw/agent/chunk-count.txt /tmp/gh-aw/agent/chunk-manifest.txt
 ```
 
 If `diff-stat.txt` is empty (no non-generated files changed), call `noop` with reason "No non-generated changes found" and stop.
@@ -101,7 +100,7 @@ Read the chunk manifest:
 cat /tmp/gh-aw/agent/chunk-manifest.txt
 ```
 
-For **each chunk filename** listed in `chunk-manifest.txt`, invoke the inline sub-agent `chunk-analyzer` and collect its output. Process all chunks before proceeding.
+For **each chunk filename** listed in `chunk-manifest.txt`, invoke the inline sub-agent `chunk-analyzer` and collect its output. If the chunk count exceeds 10, process only the first 10 chunks and append a note to the synthesis input: "Diff truncated at 10 chunks (~4000 lines); remaining files not analysed." Process all selected chunks before proceeding.
 
 Each call to `chunk-analyzer`:
 1. Read the chunk: `cat /tmp/gh-aw/agent/chunks/<chunk_file>`
@@ -119,10 +118,14 @@ Do not invoke `skill(description-synthesizer)` — use the inline sub-agent name
 
 ### Step 4 — Update the PR
 
-Call `update_pull_request` with the synthesised description body exactly once.
-`operation` is `replace` — it overwrites the existing description entirely.
-If your client requires JSON stdin, write the payload to `/tmp/gh-aw/agent/pr-body.json` and pipe that file as stdin. Do not use a `printf`-pipe retry pattern.
-Do not retry unless the tool returns an explicit error.
+Write the synthesised body to `/tmp/gh-aw/agent/pr-body.json` as `{"body": "..."}`, then:
+
+```bash
+safeoutputs update_pull_request . < /tmp/gh-aw/agent/pr-body.json
+```
+
+Do NOT pass `item_number`, `pr_number`, or any other PR identifier — the runtime infers the PR from the event context automatically.
+Call `update_pull_request` at most once. Do not retry unless the tool returns an explicit, recoverable error.
 
 If there are no meaningful changes, call `noop` instead.
 
