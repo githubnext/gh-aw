@@ -161,21 +161,50 @@ function extractReadablePathPatternsFromShellRule(shellRule) {
 /**
  * @param {string | undefined} requestedPath
  * @param {string[]} allowedPathPatterns
+ * @param {string | undefined} [workspaceRoot] - Optional workspace root for relative pattern matching.
+ *   When provided, absolute paths under this root are also matched against relative patterns by
+ *   stripping the workspace prefix first.  This allows shell rules such as `cat pkg/**\/*.go` to
+ *   permit `view` tool requests that arrive as absolute paths (e.g.
+ *   `/home/runner/work/gh-aw/gh-aw/pkg/workflow/file.go`).
  * @returns {boolean}
  */
-function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
+function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns, workspaceRoot) {
   if (typeof requestedPath !== "string" || requestedPath.trim().length === 0) {
     return false;
   }
 
   const normalizedRequestedPath = normalizePermissionPath(requestedPath);
 
+  // Pre-compute the workspace-relative path once when the requested path is
+  // absolute and a workspace root is available.  Used below as a fallback when
+  // the pattern is relative.
+  let relativeRequestedPath;
+  if (workspaceRoot && normalizedRequestedPath.startsWith("/")) {
+    const normalizedWorkspace = normalizePermissionPath(workspaceRoot);
+    if (normalizedRequestedPath.startsWith(normalizedWorkspace + "/")) {
+      relativeRequestedPath = normalizedRequestedPath.slice(normalizedWorkspace.length + 1);
+    }
+  }
+
   return allowedPathPatterns.some(pattern => {
     const normalizedPattern = normalizePermissionPath(pattern);
     if (normalizedRequestedPath === normalizedPattern) {
       return true;
     }
-    return path.posix.matchesGlob(normalizedRequestedPath, normalizedPattern);
+    if (path.posix.matchesGlob(normalizedRequestedPath, normalizedPattern)) {
+      return true;
+    }
+    // If the pattern is relative (does not start with "/") and we have a
+    // workspace-relative path, try matching the relative portion against the
+    // pattern.  This lets `cat pkg/**\/*.go` permit reads of workspace files
+    // that the SDK delivers as absolute paths to the permission handler.
+    if (relativeRequestedPath !== undefined && !normalizedPattern.startsWith("/")) {
+      if (relativeRequestedPath === normalizedPattern) {
+        return true;
+      }
+      return path.posix.matchesGlob(relativeRequestedPath, normalizedPattern);
+    }
+    return false;
   });
 }
 
@@ -186,7 +215,7 @@ function isReadPathAllowedByShellRules(requestedPath, allowedPathPatterns) {
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
- * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void, onDenied?: (requestSummary: string) => void}=} logOptions
+ * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void, onDenied?: (requestSummary: string) => void, workspaceRoot?: string}=} logOptions
  * @returns {import("@github/copilot-sdk").PermissionHandler}
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptions) {
@@ -322,7 +351,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
         return allowedToolEntries.has("write");
       case "read":
         // Any read grant (read, read(...), read:*) is path-agnostic in Copilot SDK.
-        return hasReadGrant || allowedToolEntries.has("shell") || isReadPathAllowedByShellRules(request.path, readablePathPatterns);
+        return hasReadGrant || allowedToolEntries.has("shell") || isReadPathAllowedByShellRules(request.path, readablePathPatterns, logOptions?.workspaceRoot);
       case "url":
         return allowedToolEntries.has("web_fetch");
       case "mcp":

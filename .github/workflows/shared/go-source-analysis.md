@@ -12,6 +12,7 @@ tools:
   - head -n * pkg/**/*.go
   - grep -r "func " pkg --include="*.go"
   - cat pkg/**/*.go
+  - awk
 ---
 ## Go Source Code Analysis Setup
 

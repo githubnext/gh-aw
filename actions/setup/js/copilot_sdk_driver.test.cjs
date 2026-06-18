@@ -398,6 +398,75 @@ describe("copilot_sdk_driver.cjs", () => {
       });
     });
 
+    it("allows read requests when absolute path matches a workspace-relative shell pattern", async () => {
+      // Simulates the daily-compiler-quality failure where the agent calls view() with
+      // an absolute path like /home/runner/work/gh-aw/gh-aw/pkg/workflow/file.go but
+      // the workflow only grants shell(cat pkg/**/*.go) (a relative glob pattern).
+      const prevWorkspace = process.env.GITHUB_WORKSPACE;
+      process.env.GITHUB_WORKSPACE = "/home/runner/work/gh-aw/gh-aw";
+      try {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-workspace-relative-read",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(cat pkg/**/*.go)", "shell(grep)", "shell(wc)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+
+        // Absolute paths within the workspace must be allowed via the relative pattern.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/pkg/workflow/compiler_activation_job_builder.go", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/pkg/workflow/compiler_pre_activation_job.go", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/pkg/workflow/compiler_types.go", intention: "" })).toEqual({ kind: "approve-once" });
+
+        // Relative paths that match the pattern must still work.
+        expect(onPermissionRequest({ kind: "read", path: "pkg/workflow/compiler.go", intention: "" })).toEqual({ kind: "approve-once" });
+
+        // Files outside pkg/ or outside the workspace root must be denied.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        // A path outside the workspace that contains /pkg/ must not be permitted.
+        expect(onPermissionRequest({ kind: "read", path: "/other/workspace/pkg/workflow/file.go", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+      } finally {
+        if (prevWorkspace === undefined) {
+          delete process.env.GITHUB_WORKSPACE;
+        } else {
+          process.env.GITHUB_WORKSPACE = prevWorkspace;
+        }
+      }
+    });
+
     it("logs permission-denied SDK requests as core warnings", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);

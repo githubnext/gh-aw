@@ -193,6 +193,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       coreLogger,
       logger: log,
       onDenied: requestSummary => recordToolDenial(`permission denied: ${requestSummary}`),
+      workspaceRoot: process.env.GITHUB_WORKSPACE,
     });
 
     /** @type {import("@github/copilot-sdk").SessionConfig} */
