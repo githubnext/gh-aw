@@ -191,9 +191,7 @@ describe("mcp_server_core.cjs", () => {
       const { createServer, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
       results = [];
 
-      // Suppress stderr output during tests
-      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-
+      // Stderr is already mocked in this describe's beforeEach.
       server = createServer({ name: "test-server", version: "1.0.0" });
       server.writeMessage = msg => results.push(msg);
       server.replyResult = (id, result) => {
