@@ -264,9 +264,6 @@ const DefaultWorkspaceMount = "\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw"
 // (config.json, tools.json, outputs.jsonl, upload-artifacts/) in the runner temp directory.
 const DefaultSafeOutputsMount = GhAwRootDirShell + "/safeoutputs:" + GhAwRootDirShell + "/safeoutputs:rw"
 
-// DefaultSafeOutputsLogMount is the mount path for the safe-outputs MCP server log directory.
-const DefaultSafeOutputsLogMount = "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"
-
 // Timeout constants using time.Duration for type safety and clear units
 
 // DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution

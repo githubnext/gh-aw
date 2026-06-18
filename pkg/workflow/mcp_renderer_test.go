@@ -90,8 +90,8 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"container": "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected gh-aw node container image")
 	}
-	if !strings.Contains(output, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
-		t.Error("Expected workspace, safe-outputs, and log mounts")
+	if !strings.Contains(output, `"mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]`) {
+		t.Error("Expected workspace, safe-outputs, log, and tmp mounts")
 	}
 	if !strings.Contains(output, `"args": ["-w", "\${GITHUB_WORKSPACE}"]`) {
 		t.Error("Expected working directory args")
@@ -177,7 +177,7 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 	if !strings.Contains(output, `container = "`+pinnedGhAwNodeImage+`"`) {
 		t.Error("Expected gh-aw node container image")
 	}
-	if !strings.Contains(output, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw/mcp-logs/safeoutputs:/tmp/gh-aw/mcp-logs/safeoutputs:rw"]`) {
+	if !strings.Contains(output, `mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]`) {
 		t.Error("Expected TOML mounts")
 	}
 	if !strings.Contains(output, `args = ["-w", "$GITHUB_WORKSPACE"]`) {
