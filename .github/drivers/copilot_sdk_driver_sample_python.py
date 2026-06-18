@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 import asyncio
+import json
 import os
 import sys
+from datetime import datetime, timezone
 
 from copilot import CopilotClient, RuntimeConnection
 from copilot.session import PermissionHandler
+from copilot.session_events import (
+    AssistantMessageData,
+    SessionEventType,
+    ToolExecutionCompleteData,
+    ToolExecutionStartData,
+)
 
 
 def read_required_env(name: str) -> str:
@@ -25,6 +33,16 @@ def extract_assistant_content(message: object) -> str:
     return ""
 
 
+def _format_timestamp(ts: datetime | None = None) -> str:
+    now = ts or datetime.now(timezone.utc)
+    return now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def write_event(event_type: str, data: dict, timestamp: datetime | None = None) -> None:
+    entry = {"type": event_type, "timestamp": _format_timestamp(timestamp), "data": data}
+    sys.stderr.write(json.dumps(entry) + "\n")
+
+
 async def main() -> int:
     prompt_path = read_required_env("GH_AW_PROMPT")
     sdk_uri = read_required_env("COPILOT_SDK_URI")
@@ -43,6 +61,44 @@ async def main() -> int:
     session = None
     try:
         session = await client.create_session(on_permission_request=PermissionHandler.approve_all, model=model)
+
+        pending_tool_calls: dict[str, dict[str, str]] = {}
+
+        def handle_event(event) -> None:
+            if event.ephemeral:
+                return
+
+            match event.type:
+                case SessionEventType.USER_MESSAGE:
+                    write_event("user.message", {}, event.timestamp)
+
+                case SessionEventType.TOOL_EXECUTION_START:
+                    data = event.data
+                    if isinstance(data, ToolExecutionStartData):
+                        tool_name = data.tool_name or "unknown"
+                        mcp_server_name = data.mcp_server_name or ""
+                        if data.tool_call_id:
+                            pending_tool_calls[data.tool_call_id] = {"toolName": tool_name, "mcpServerName": mcp_server_name}
+                        write_event("tool.execution_start", {"toolName": tool_name, "mcpServerName": mcp_server_name}, event.timestamp)
+
+                case SessionEventType.TOOL_EXECUTION_COMPLETE:
+                    data = event.data
+                    if isinstance(data, ToolExecutionCompleteData):
+                        pending = pending_tool_calls.pop(data.tool_call_id, None) if data.tool_call_id else None
+                        tool_name = pending.get("toolName") if pending else None
+                        if not tool_name:
+                            tool_name = data.tool_description.name if data.tool_description else None
+                        tool_name = tool_name or "unknown"
+                        mcp_server_name = pending.get("mcpServerName", "") if pending else ""
+                        write_event("tool.execution_complete", {"toolName": tool_name, "mcpServerName": mcp_server_name, "success": data.success}, event.timestamp)
+
+                case SessionEventType.ASSISTANT_MESSAGE:
+                    data = event.data
+                    if isinstance(data, AssistantMessageData):
+                        write_event("assistant.message", {"content": data.content}, event.timestamp)
+
+        session.on(handle_event)
+
         response = await session.send_and_wait(prompt)
         content = extract_assistant_content(response)
         if content:
