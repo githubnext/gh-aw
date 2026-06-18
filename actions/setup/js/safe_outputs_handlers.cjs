@@ -1923,7 +1923,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const effectiveTarget = updateIssueConfig.target || "triggering";
 
     if (effectiveTarget === "triggering") {
-      let invocationContext;
+      let invocationContext = null;
       try {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
@@ -1931,20 +1931,21 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         if (err?.message?.startsWith(ERR_VALIDATION)) {
           return buildIntentErrorResponse(err.message);
         }
-        // Unexpected structural error: fall through and let the downstream handler deal with it.
-        return defaultHandler("update_issue")(args || {});
+        // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
-      const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
-      const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
-      const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+      if (invocationContext != null) {
+        const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
+        const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+        const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
 
-      if (!isIssueContext) {
-        return buildIntentErrorResponse(
-          `update_issue requires an issue context but the workflow is running on a "${effectiveEventName}" event. ` +
-            `The update-issue handler uses target: triggering which only applies when an issue triggered the workflow. ` +
-            `To report results from this workflow, use create_discussion or create_issue instead. ` +
-            `If you need to update a specific issue, the workflow must configure update-issue: target: '*' and you must supply issue_number.`
-        );
+        if (!isIssueContext) {
+          return buildIntentErrorResponse(
+            `update_issue requires an issue context but the workflow is running on a "${effectiveEventName}" event. ` +
+              `The update-issue handler uses target: triggering which only applies when an issue triggered the workflow. ` +
+              `To report results from this workflow, use create_discussion or create_issue instead. ` +
+              `If you need to update a specific issue, the workflow must configure update-issue: target: '*' and you must supply issue_number.`
+          );
+        }
       }
     }
 
@@ -1973,7 +1974,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const updatePRConfig = getSafeOutputsToolConfig(config, "update_pull_request");
     const effectivePRTarget = updatePRConfig.target || "triggering";
     if (effectivePRTarget === "triggering") {
-      let invocationContext;
+      let invocationContext = null;
       try {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
@@ -1981,20 +1982,21 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         if (err?.message?.startsWith(ERR_VALIDATION)) {
           return buildIntentErrorResponse(err.message);
         }
-        // Unexpected structural error: fall through and let the downstream handler deal with it.
-        return defaultHandler("update_pull_request")(args || {});
+        // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
-      const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
-      const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
-      const isPRContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+      if (invocationContext != null) {
+        const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
+        const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+        const isPRContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
 
-      if (!isPRContext) {
-        return buildIntentErrorResponse(
-          `update_pull_request requires a pull request context but the workflow is running on a "${effectiveEventName}" event. ` +
-            `The update-pull-request handler uses target: triggering which only applies when a pull request triggered the workflow. ` +
-            `To report results from this workflow, use create_discussion or create_issue instead. ` +
-            `If you need to update a specific pull request, the workflow must configure update-pull-request: target: '*' and you must supply pull_request_number.`
-        );
+        if (!isPRContext) {
+          return buildIntentErrorResponse(
+            `update_pull_request requires a pull request context but the workflow is running on a "${effectiveEventName}" event. ` +
+              `The update-pull-request handler uses target: triggering which only applies when a pull request triggered the workflow. ` +
+              `To report results from this workflow, use create_discussion or create_issue instead. ` +
+              `If you need to update a specific pull request, the workflow must configure update-pull-request: target: '*' and you must supply pull_request_number.`
+          );
+        }
       }
     }
 
