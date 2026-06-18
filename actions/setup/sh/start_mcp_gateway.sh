@@ -154,7 +154,8 @@ export MCP_GATEWAY_LOG_DIR="/tmp/gh-aw/mcp-logs/"
 # On persistent self-hosted runners a prior job's gateway container may still be
 # running and holding the host port, causing "bind: address already in use" when
 # we try to start the new one.  Force-removing by the well-known container name
-# is idempotent and safe: if no such container exists the command exits 0.
+# is idempotent: docker rm -f exits non-zero when the container doesn't exist,
+# but the trailing || true (and 2>/dev/null) make the overall command succeed.
 echo "Cleaning up any stale awmg-mcpg container from a previous run..."
 docker rm -f awmg-mcpg 2>/dev/null && echo "Removed stale awmg-mcpg container" || true
 echo ""

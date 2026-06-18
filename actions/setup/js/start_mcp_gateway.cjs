@@ -416,7 +416,8 @@ async function main() {
   // On persistent self-hosted runners a prior job's gateway container may still
   // be running and holding the host port, causing "bind: address already in use"
   // when we try to start the new one.  Force-removing by the well-known container
-  // name is idempotent and safe: if no such container exists Docker exits 0.
+  // name is idempotent: docker rm -f exits non-zero when the container doesn't
+  // exist, but the trailing || true (and 2>/dev/null) make the command succeed.
   core.info("Cleaning up any stale awmg-mcpg container from a previous run...");
   try {
     execSync("docker rm -f awmg-mcpg 2>/dev/null && echo 'Removed stale awmg-mcpg container' || true", { stdio: "inherit" });

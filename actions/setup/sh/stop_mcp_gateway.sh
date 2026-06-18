@@ -11,14 +11,17 @@ set -e
 # Get PID from command line argument (passed from step output)
 GATEWAY_PID="$1"
 
-# Stop the named gateway container first — this is more reliable than killing the
-# docker run wrapper PID because it asks the Docker daemon to stop the container
-# directly.  This ensures the host port is freed even on persistent self-hosted
-# runners where a prior kill of the wrapper process left the container running.
-# This runs unconditionally (even when GATEWAY_PID is empty) so that partially
-# started containers are cleaned up if the start step failed before capturing PID.
-echo "Stopping awmg-mcpg container..."
-docker stop awmg-mcpg 2>/dev/null || docker rm -f awmg-mcpg 2>/dev/null || true
+# Register an EXIT trap to ensure the named gateway container is always removed,
+# regardless of the exit path (missing PID, process already gone, successful /close,
+# kill fallback, etc.).  Using a trap means the graceful /close path is still
+# attempted first when the gateway is running and reachable, while still
+# guaranteeing that the host port is freed on every exit — including the case
+# where the start step never captured a PID.
+cleanup_container() {
+  echo "Cleaning up awmg-mcpg container..."
+  docker stop awmg-mcpg 2>/dev/null || docker rm -f awmg-mcpg 2>/dev/null || true
+}
+trap cleanup_container EXIT
 
 if [ -z "$GATEWAY_PID" ]; then
   echo "Gateway PID not provided"
