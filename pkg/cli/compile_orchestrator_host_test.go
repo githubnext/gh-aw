@@ -19,6 +19,11 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 	t.Run("sets default host from GHE origin when GH_HOST is unset", func(t *testing.T) {
 		workflow.SetDefaultGHHost("")
 		t.Cleanup(func() { workflow.SetDefaultGHHost("") })
+		if prev, ok := os.LookupEnv("GH_HOST"); ok {
+			t.Cleanup(func() { _ = os.Setenv("GH_HOST", prev) })
+		} else {
+			t.Cleanup(func() { _ = os.Unsetenv("GH_HOST") })
+		}
 		require.NoError(t, os.Unsetenv("GH_HOST"))
 
 		runCompileWorkflowsHostDetectionCheck(t, "https://ghes.example.com/owner/repo.git")
@@ -33,18 +38,42 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 
 		runCompileWorkflowsHostDetectionCheck(t, "https://ghes.example.com/owner/repo.git")
 
+		// Unset GH_HOST so that ExecGH reads defaultGHHost via getDefaultGHHost rather than
+		// the env var, which would shadow the in-process default in the command Environ().
 		require.NoError(t, os.Unsetenv("GH_HOST"))
 		assert.Equal(t, "existing.default.test", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
 	})
 
-	t.Run("does not change behavior for github.com remotes", func(t *testing.T) {
+	t.Run("resets default host to empty for github.com remotes", func(t *testing.T) {
 		workflow.SetDefaultGHHost("existing.default.test")
 		t.Cleanup(func() { workflow.SetDefaultGHHost("") })
+		if prev, ok := os.LookupEnv("GH_HOST"); ok {
+			t.Cleanup(func() { _ = os.Setenv("GH_HOST", prev) })
+		} else {
+			t.Cleanup(func() { _ = os.Unsetenv("GH_HOST") })
+		}
 		require.NoError(t, os.Unsetenv("GH_HOST"))
 
 		runCompileWorkflowsHostDetectionCheck(t, "https://github.com/owner/repo.git")
 
-		assert.Equal(t, "existing.default.test", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+		// For github.com remotes, compile resets defaultGHHost to "" so that repeated
+		// calls in watch mode do not inherit a stale GHES host from a previous invocation.
+		assert.Empty(t, getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+	})
+
+	t.Run("sets default host from GHE origin (SSH remote) when GH_HOST is unset", func(t *testing.T) {
+		workflow.SetDefaultGHHost("")
+		t.Cleanup(func() { workflow.SetDefaultGHHost("") })
+		if prev, ok := os.LookupEnv("GH_HOST"); ok {
+			t.Cleanup(func() { _ = os.Setenv("GH_HOST", prev) })
+		} else {
+			t.Cleanup(func() { _ = os.Unsetenv("GH_HOST") })
+		}
+		require.NoError(t, os.Unsetenv("GH_HOST"))
+
+		runCompileWorkflowsHostDetectionCheck(t, "git@ghes.example.com:owner/repo.git")
+
+		assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
 	})
 }
 
@@ -69,14 +98,9 @@ permissions:
 Verify compile host detection.
 `), 0644))
 
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tempDir))
-	t.Cleanup(func() {
-		require.NoError(t, os.Chdir(originalDir))
-	})
+	t.Chdir(tempDir)
 
-	_, err = CompileWorkflows(context.Background(), CompileConfig{
+	_, err := CompileWorkflows(context.Background(), CompileConfig{
 		MarkdownFiles: []string{"host-test"},
 		NoEmit:        true,
 	})

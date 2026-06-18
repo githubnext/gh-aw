@@ -28,9 +28,11 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	}
 
 	if os.Getenv("GH_HOST") == "" {
-		if detectedHost := getHostFromOriginRemote(); detectedHost != "github.com" && detectedHost != "" {
+		if detectedHost := getHostFromOriginRemote(); detectedHost != "github.com" {
 			compileOrchestratorLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
 			workflow.SetDefaultGHHost(detectedHost)
+		} else {
+			workflow.SetDefaultGHHost("")
 		}
 	}
 
