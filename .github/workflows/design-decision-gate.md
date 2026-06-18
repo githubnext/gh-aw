@@ -119,7 +119,7 @@ steps:
         --arg pr_number "$PR_NUMBER" \
         --arg threshold "100" \
         --argjson file_count "$FILE_COUNT" \
-        --argjson diff_available "$([ "$FILE_COUNT" -le 300 ] && echo 'true' || echo 'false')" \
+        --argjson diff_available "$(jq -n --argjson fc "$FILE_COUNT" 'if $fc <= 300 then true else false end')" \
         '{
           pr_number: ($pr_number | tonumber),
           threshold: ($threshold | tonumber),
