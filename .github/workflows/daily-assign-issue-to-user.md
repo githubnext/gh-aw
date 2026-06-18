@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 timeout-minutes: 10
 strict: true

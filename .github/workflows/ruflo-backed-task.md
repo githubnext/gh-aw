@@ -1,4 +1,5 @@
 ---
+private: true
 name: Ruflo-backed Task
 description: Runs a repository task inside GitHub Agentic Workflows while delegating inner planning and coordination to Ruflo
 on:

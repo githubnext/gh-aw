@@ -1,4 +1,5 @@
 ---
+private: true
 name: Linter Miner
 description: Daily workflow that mines GitHub Discussions, issues, and the Go codebase to identify new custom linter ideas and generates them as pull requests in pkg/linters
 on:

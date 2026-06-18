@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: "Guard policy smoke test: repos=all, min-integrity=none (most permissive)"
 on:

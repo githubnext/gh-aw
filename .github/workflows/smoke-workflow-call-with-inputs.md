@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 name: Smoke Workflow Call with Inputs
 description: Reusable workflow with inputs - used to test that multiple callers don't clash on artifact names

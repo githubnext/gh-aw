@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🪟"
 name: Daily Windows Terminal Integration Builder
 description: Daily agent that maintains a Windows-focused CLI integration workflow with Ubuntu build, Windows test, and failure issue reporting

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 name: Dependabot Worker
 description: Reusable worker that bundles open Dependabot PRs for generated workflow manifests by editing source workflow markdown and recompiling once

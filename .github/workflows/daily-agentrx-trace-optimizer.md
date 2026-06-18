@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "⚡"
 description: Daily session-driven workflow optimization using AgentRx trajectory diagnostics
 on:

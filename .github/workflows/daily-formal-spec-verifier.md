@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔬"
 name: Daily Formal Spec Verifier
 description: >

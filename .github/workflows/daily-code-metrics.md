@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 description: Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
 on:

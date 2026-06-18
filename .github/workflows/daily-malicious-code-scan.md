@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔒"
 description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 on:

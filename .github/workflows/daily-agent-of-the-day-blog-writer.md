@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "✍️"
 name: Daily Agent of the Day Blog Writer
 description: Generates a daily "Agent of the Day" blog entry with varied narrative style, SEO metadata, and live workflow evidence

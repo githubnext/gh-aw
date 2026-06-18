@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: Smoke test to validate common development tools are available in the agent container
 on: 

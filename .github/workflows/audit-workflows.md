@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔍"
 description: Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
 on:

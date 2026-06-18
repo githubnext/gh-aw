@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: "⚠️ INTENTIONALLY FAILS — Tests that max-ai-credits: 1 is enforced by the AWF firewall and that the per-run budget guardrail cuts off the agent."
 on:

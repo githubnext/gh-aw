@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📅"
 name: Weekly Issue Summary
 description: Creates weekly summary of issue activity including trends, charts, and insights every Monday

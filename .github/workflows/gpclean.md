@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧹"
 description: Reviews go.mod dependencies daily to detect and remove GPL-licensed transitive dependencies
 on:

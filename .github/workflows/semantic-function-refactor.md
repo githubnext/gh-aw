@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 name: Semantic Function Refactoring
 description: Analyzes Go codebase daily to identify opportunities for semantic function extraction and refactoring

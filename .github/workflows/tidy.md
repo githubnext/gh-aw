@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧹"
 name: Tidy
 description: Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command

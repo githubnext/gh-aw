@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 description: Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design
 on:

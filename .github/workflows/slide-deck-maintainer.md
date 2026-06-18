@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 name: Slide Deck Maintainer
 description: Maintains the gh-aw slide deck by scanning repository content and detecting layout issues using Playwright

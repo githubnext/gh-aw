@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: Smoke test workflow that validates Antigravity engine functionality twice daily
 on:

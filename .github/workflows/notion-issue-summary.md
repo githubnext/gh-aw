@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📝"
 description: Creates issue summaries and syncs them to Notion for project management and tracking
 timeout-minutes: 5

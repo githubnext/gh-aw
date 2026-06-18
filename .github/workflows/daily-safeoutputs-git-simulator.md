@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: Daily synthetic tester that exhaustively explores the space of git configurations for create-pull-request and push-to-pull-request-branch safe outputs, using Z3-style constraint enumeration, repo-memory persistence, and parallel inline sub-agents to detect systematic issues related to repo size, history depth, and file count.
 on:

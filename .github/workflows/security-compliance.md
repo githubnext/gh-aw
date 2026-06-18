@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔒"
 name: Security Compliance Campaign
 description: Fix critical vulnerabilities before audit deadline with full tracking and reporting

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 description: Daily codebase quality report using sentrux — tracks architecture health, quality signal, and structural trends
 name: Daily Sentrux Report

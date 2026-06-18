@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 description: Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry from Sentry and Grafana
 on:

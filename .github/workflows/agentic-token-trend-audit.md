@@ -1,4 +1,5 @@
 ---
+private: true
 description: On-demand AIC audit for a user-specified date range
 on:
   workflow_dispatch:

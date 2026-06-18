@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 name: Commit Changes Analyzer
 description: Analyzes and provides a comprehensive developer-focused report of all changes in the repository since a specified commit

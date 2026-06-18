@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: "Guard policy smoke test: repos=[github/gh-aw, github/*], min-integrity=approved (scoped patterns)"
 on:

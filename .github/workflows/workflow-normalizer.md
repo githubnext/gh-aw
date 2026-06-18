@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 description: Daily review of agentic workflow prompts to ensure consistent markdown style and progressive disclosure formatting in reports
 on:

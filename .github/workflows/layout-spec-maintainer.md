@@ -1,4 +1,5 @@
 ---
+private: true
 on:
   schedule:
   - cron: weekly on monday around 7:00

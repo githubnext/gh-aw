@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🏗️"
 description: Enforces Architecture Decision Records (ADRs) before implementation work can merge, detecting missing design decisions and generating draft ADRs using AI analysis
 on:

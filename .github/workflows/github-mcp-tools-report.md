@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 description: Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration
 on:

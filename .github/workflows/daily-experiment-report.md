@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: Daily statistical report that uses the experiments CLI command to list active experiments and the experiments analyze tool to get per-variant statistics and statistical significance, then computes per-variant success rates and durations from run artifacts, renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation; notifies tracking issues when experiments reach statistical significance or min_samples
 name: daily-experiment-report

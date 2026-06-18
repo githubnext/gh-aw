@@ -1,4 +1,5 @@
 ---
+private: true
 name: Example Failure Category Filter
 on:
   workflow_dispatch:

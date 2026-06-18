@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔧"
 name: Auto-Triage Issues
 description: Automatically labels new and existing unlabeled issues to improve discoverability and triage efficiency

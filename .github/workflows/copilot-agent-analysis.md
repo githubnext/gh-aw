@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📊"
 name: Copilot Agent PR Analysis
 description: Analyzes GitHub Copilot coding agent usage patterns in pull requests to provide insights on agent effectiveness and behavior

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "📄"
 description: pdf summarizer
 on:

@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🔥"
 on: weekly
 timeout-minutes: 20

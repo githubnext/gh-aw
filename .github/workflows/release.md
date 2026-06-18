@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🚀"
 name: Release
 description: Build, test, and release gh-aw extension, then generate and prepend release highlights

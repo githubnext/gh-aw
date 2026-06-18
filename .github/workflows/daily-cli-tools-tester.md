@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "🧪"
 description: Daily exploratory testing of audit, logs, and compile tools in gh-aw CLI
 on:

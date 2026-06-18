@@ -1,4 +1,5 @@
 ---
+private: true
 emoji: "✨"
 description: Aligns code style with repository conventions, detects security issues, and improves tests
 on: pull_request labeled refine
