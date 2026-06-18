@@ -24,7 +24,7 @@ function removeDir(dir) {
 function runScript(env) {
   return spawnSync("sh", [SCRIPT_PATH], {
     encoding: "utf8",
-    env: { ...env },
+    env: { ...process.env, ...env },
   });
 }
 
