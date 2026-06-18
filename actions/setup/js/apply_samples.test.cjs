@@ -326,6 +326,79 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     expect(diff).toContain("+hello from a deterministic sample");
   });
 
+  it("stages the patch in the cross-repo checkout subdirectory (path: github) (issue #40086)", async () => {
+    // Reproduce the failing layout: a main repo at the workspace root and a
+    // side-repo checked out into a `github/` subdirectory. The checkout manifest
+    // maps the target repo to path "github", so preStagePatch must create the
+    // branch + commit inside ${workspace}/github — not the main repo root —
+    // otherwise the safe-outputs MCP server cannot pin the branch.
+    const workspace = makeTempDir("gh-aw-prestage-subdir-");
+    initRepo(workspace, "main");
+
+    const subdir = path.join(workspace, "github");
+    fs.mkdirSync(subdir);
+    initRepo(subdir, "main");
+
+    const manifestPath = path.join(workspace, "checkout-manifest.json");
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        "githubnext/gh-aw-side-repo": {
+          repository: "githubnext/gh-aw-side-repo",
+          path: "github",
+          default_branch: "main",
+        },
+      })
+    );
+
+    const configPath = path.join(workspace, "config.json");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        create_pull_request: { "target-repo": "githubnext/gh-aw-side-repo" },
+      })
+    );
+
+    const branchName = "gh-aw-sample-copilot-siderepo-subdir-pr";
+    const fileToAdd = "subdir-notes.md";
+    const entry = {
+      tool: "create_pull_request",
+      arguments: { title: "Subdir PR", body: "body", branch: branchName },
+      sidecars: { patch: newFileDiff(fileToAdd, "side repo content\n") },
+    };
+
+    // Reset the checkout-manifest module cache so our manifest is loaded fresh.
+    require("./checkout_manifest.cjs")._resetCache();
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevManifest = process.env.GH_AW_CHECKOUT_MANIFEST;
+    const prevConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GH_AW_CHECKOUT_MANIFEST = manifestPath;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    try {
+      await preStagePatch(entry, 0, workspace);
+    } finally {
+      require("./checkout_manifest.cjs")._resetCache();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevManifest === undefined) delete process.env.GH_AW_CHECKOUT_MANIFEST;
+      else process.env.GH_AW_CHECKOUT_MANIFEST = prevManifest;
+      if (prevConfig === undefined) delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+      else process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = prevConfig;
+    }
+
+    // The branch + commit + file land in the side-repo subdirectory...
+    expect(git(["rev-parse", "--abbrev-ref", "HEAD"], subdir).trim()).toBe(branchName);
+    expect(git(["branch", "--list", branchName], subdir)).toContain(branchName);
+    expect(fs.existsSync(path.join(subdir, fileToAdd))).toBe(true);
+
+    // ...and NOT in the main repo root (which stays on its seed branch).
+    expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe("main");
+    expect(git(["branch", "--list", branchName], workspace).trim()).toBe("");
+    expect(fs.existsSync(path.join(workspace, fileToAdd))).toBe(false);
+  });
+
   it("derives push_to_pull_request_branch branch from pull_request event payload", async () => {
     const workspace = makeTempDir("gh-aw-prestage-push-pr-");
     initRepo(workspace, "main");

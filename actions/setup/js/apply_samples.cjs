@@ -23,6 +23,8 @@
 //   GH_AW_SAMPLES        — JSON array of replay entries (required)
 //   GH_AW_AGENT_STDIO_LOG     — path where the synthetic stdio log is written
 //   GH_AW_SAFE_OUTPUTS_CONFIG_PATH — path to the MCP server's config.json
+//                               (also read to resolve the per-tool target-repo so
+//                               cross-repo patches are staged in the right checkout)
 //   GH_AW_SAFE_OUTPUTS        — path to the MCP server's outputs.jsonl
 //   GITHUB_WORKSPACE          — git working directory for pre-staging (optional;
 //                               falls back to cwd)
@@ -35,6 +37,7 @@ const path = require("path");
 const os = require("os");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION, ERR_PARSE, ERR_SYSTEM, ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
+const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
@@ -244,6 +247,76 @@ async function derivePrHeadRef(entry) {
 }
 
 /**
+ * Read the configured `target-repo` for a given safe-output tool from the
+ * safe-outputs config file (GH_AW_SAFE_OUTPUTS_CONFIG_PATH). Returns an empty
+ * string when no config is available or no target-repo is configured.
+ * @param {string} tool
+ * @returns {string}
+ */
+function readConfiguredTargetRepo(tool) {
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+  if (!configPath || !configPath.trim()) {
+    return "";
+  }
+  try {
+    const raw = fs.readFileSync(configPath, "utf8");
+    const config = JSON.parse(raw);
+    const toolConfig = config && typeof config === "object" ? config[tool] : null;
+    if (toolConfig && typeof toolConfig === "object" && typeof toolConfig["target-repo"] === "string") {
+      return toolConfig["target-repo"].trim();
+    }
+  } catch (err) {
+    core.debug(`apply_samples: could not read target-repo from ${configPath}: ${getErrorMessage(err)}`);
+  }
+  return "";
+}
+
+/**
+ * Resolve the on-disk working directory in which a sample's patch should be
+ * staged (branch created + patch committed).
+ *
+ * For cross-repo checkouts placed in a subdirectory (e.g. `path: github`), the
+ * branch and commit must be created inside that subdirectory so the safe-outputs
+ * MCP handler — which resolves the same checkout via the checkout manifest — can
+ * find the branch. Staging in the main workspace root instead leaves the branch
+ * invisible to the MCP server, producing "fatal: Needed a single revision" when
+ * it tries to pin the branch (issue #40086).
+ *
+ * Resolution mirrors the MCP handler: the target repo comes from the sample's
+ * `arguments.repo` override or the configured `target-repo`, and the checkout
+ * directory is resolved via the manifest-first `findRepoCheckout`. Falls back to
+ * the workspace root when no target repo is set or the checkout cannot be located.
+ *
+ * @param {SampleEntry} entry
+ * @param {string} workspace
+ * @returns {string}
+ */
+function resolvePatchWorkspace(entry, workspace) {
+  let targetRepo = "";
+  if (entry.arguments && typeof entry.arguments.repo === "string" && entry.arguments.repo.trim()) {
+    targetRepo = entry.arguments.repo.trim();
+  } else {
+    targetRepo = readConfiguredTargetRepo(entry.tool);
+  }
+  if (!targetRepo) {
+    return workspace;
+  }
+  try {
+    const result = findRepoCheckout(targetRepo, workspace);
+    if (result && result.success && result.path) {
+      if (path.resolve(result.path) !== path.resolve(workspace)) {
+        core.info(`apply_samples: staging patch for ${targetRepo} in checkout subdirectory ${result.path}`);
+      }
+      return result.path;
+    }
+    core.debug(`apply_samples: findRepoCheckout(${targetRepo}) did not locate a checkout; using workspace root`);
+  } catch (err) {
+    core.debug(`apply_samples: findRepoCheckout(${targetRepo}) failed: ${getErrorMessage(err)}; using workspace root`);
+  }
+  return workspace;
+}
+
+/**
  * Pre-stage a branch + patch for samples whose tool reads the workspace diff.
  *
  * - For `create_pull_request`, the sample creates a brand-new branch, so we
@@ -263,6 +336,11 @@ async function preStagePatch(entry, index, workspace) {
   if (typeof patch !== "string" || !patch.trim()) {
     return;
   }
+
+  // Resolve the directory in which to create the branch and commit the patch.
+  // For cross-repo checkouts in a subdirectory this is the checkout subdir, not
+  // the main workspace root (issue #40086).
+  const repoCwd = resolvePatchWorkspace(entry, workspace);
 
   let branch;
   if (entry.tool === "push_to_pull_request_branch") {
@@ -286,36 +364,36 @@ async function preStagePatch(entry, index, workspace) {
     entry.arguments.branch = branch;
   }
 
-  ensureGitIdentity(workspace);
+  ensureGitIdentity(repoCwd);
 
   // Start from the base branch so the diff is meaningful. Tolerate the case
   // where the base ref doesn't exist locally — fall back to HEAD.
   try {
-    runGit(["checkout", DEFAULT_BASE_BRANCH], workspace);
+    runGit(["checkout", DEFAULT_BASE_BRANCH], repoCwd);
   } catch (err) {
     core.warning(`apply_samples: could not check out base branch ${DEFAULT_BASE_BRANCH}: ${getErrorMessage(err)}; staying on current HEAD`);
   }
 
   // Create the branch (or check it out if it already exists from a previous sample).
   try {
-    runGit(["checkout", "-b", branch], workspace);
+    runGit(["checkout", "-b", branch], repoCwd);
   } catch {
-    runGit(["checkout", branch], workspace);
+    runGit(["checkout", branch], repoCwd);
   }
 
   // Write patch to a temp file and apply it.
   const tmpPatch = path.join(os.tmpdir(), `gh-aw-sample-${index + 1}.patch`);
   fs.writeFileSync(tmpPatch, patch.endsWith("\n") ? patch : patch + "\n");
   try {
-    runGit(["apply", "--whitespace=nowarn", tmpPatch], workspace);
+    runGit(["apply", "--whitespace=nowarn", tmpPatch], repoCwd);
   } catch (err) {
     // Fall back to --3way for patches that don't apply cleanly on top of an
     // empty working tree (uncommon but possible for synthetic samples).
-    runGit(["apply", "--3way", "--whitespace=nowarn", tmpPatch], workspace);
+    runGit(["apply", "--3way", "--whitespace=nowarn", tmpPatch], repoCwd);
   }
 
-  runGit(["add", "-A"], workspace);
-  runGit(["commit", "-m", `gh-aw sample ${index + 1}: ${entry.tool}`, "--allow-empty"], workspace);
+  runGit(["add", "-A"], repoCwd);
+  runGit(["commit", "-m", `gh-aw sample ${index + 1}: ${entry.tool}`, "--allow-empty"], repoCwd);
 }
 
 /**
@@ -561,6 +639,8 @@ module.exports = {
   main,
   loadSamples,
   preStagePatch,
+  resolvePatchWorkspace,
+  readConfiguredTargetRepo,
   resolveMcpServerPath,
   selectTokenForRepo,
   sendJsonRpc,
