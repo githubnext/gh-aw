@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"context"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -286,7 +287,12 @@ func TestResolveFromGitHubForcesGitHubComHost(t *testing.T) {
 			if tt.ghHost != "" {
 				t.Setenv("GH_HOST", tt.ghHost)
 			} else {
-				t.Setenv("GH_HOST", "")
+				// Truly unset GH_HOST (t.Setenv("GH_HOST", "") sets to empty string,
+				// which is not the same as unset; use os.Unsetenv with cleanup instead).
+				if err := os.Unsetenv("GH_HOST"); err != nil {
+					t.Fatalf("failed to unset GH_HOST: %v", err)
+				}
+				t.Cleanup(func() { os.Unsetenv("GH_HOST") }) //nolint:errcheck
 			}
 
 			cmd := ExecGHContext(context.Background(), "api", "/repos/actions/checkout/git/ref/tags/v4", "--jq", "[.object.sha, .object.type] | @tsv")
