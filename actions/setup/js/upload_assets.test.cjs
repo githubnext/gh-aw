@@ -181,6 +181,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
             process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
             // Stage the asset under a RUNNER_TEMP-based directory, NOT under the
             // agent-output directory (tempBase), to simulate a path-prefix mismatch.
+            const prevRunnerTemp = process.env.RUNNER_TEMP;
             const runnerTempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-rt-"));
             process.env.RUNNER_TEMP = runnerTempBase;
             const runnerAssetsDir = path.join(runnerTempBase, "gh-aw", "safeoutputs", "assets");
@@ -198,14 +199,17 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
               if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
               return 0;
             });
-            await executeScript();
-            expect(mockCore.setFailed).not.toHaveBeenCalled();
-            const uploadCountCall = mockCore.setOutput.mock.calls.find(call => "upload_count" === call[0]);
-            expect(uploadCountCall).toBeDefined();
-            uploadCountCall && expect(uploadCountCall[1]).toBe("1");
-            delete process.env.RUNNER_TEMP;
-            fs.existsSync(runnerTempBase) && fs.rmSync(runnerTempBase, { recursive: !0, force: !0 });
-            fs.existsSync(path.join(process.cwd(), targetFile)) && fs.unlinkSync(path.join(process.cwd(), targetFile));
+            try {
+              await executeScript();
+              expect(mockCore.setFailed).not.toHaveBeenCalled();
+              const uploadCountCall = mockCore.setOutput.mock.calls.find(call => "upload_count" === call[0]);
+              expect(uploadCountCall).toBeDefined();
+              uploadCountCall && expect(uploadCountCall[1]).toBe("1");
+            } finally {
+              void 0 === prevRunnerTemp ? delete process.env.RUNNER_TEMP : (process.env.RUNNER_TEMP = prevRunnerTemp);
+              fs.existsSync(runnerTempBase) && fs.rmSync(runnerTempBase, { recursive: !0, force: !0 });
+              fs.existsSync(path.join(process.cwd(), targetFile)) && fs.unlinkSync(path.join(process.cwd(), targetFile));
+            }
           });
         });
       }));
