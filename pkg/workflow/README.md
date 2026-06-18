@@ -192,6 +192,8 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `EditToolConfig` | struct | File edit tool config |
 | `AgenticWorkflowsToolConfig` | struct | Nested agentic workflows tool config |
 | `CacheMemoryToolConfig` | struct | Cache-memory persistence tool config |
+| `CommentMemoryToolConfig` | struct | Comment-memory tool config wrapper (raw value dispatched to `comment_memory.go`) |
+| `RepoMemoryToolConfig` | struct | Repository-memory tool config wrapper (raw value dispatched to `repo_memory.go`) |
 | `MCPServerConfig` | struct | Generic MCP server configuration |
 | `MCPGatewayRuntimeConfig` | struct | MCP Gateway runtime configuration |
 | `GitHubToolName` | string alias | Named GitHub MCP tool (e.g., `"issue_read"`) |
@@ -228,6 +230,65 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `ParseTargetConfig` | `func(map[string]any) (SafeOutputTargetConfig, bool)` | Parses a target configuration block |
 | `ParseFilterConfig` | `func(map[string]any) SafeOutputFilterConfig` | Parses a filter configuration block |
 | `SafeOutputsConfigFromKeys` | `func([]string) *SafeOutputsConfig` | Creates a config from a list of type keys |
+
+#### Safe Output Tool Configuration Types
+
+Each safe-output tool type has its own configuration struct parsed from the `safe-outputs:` frontmatter block. All embed `BaseSafeOutputConfig` (which provides the `max` field) and many also embed `SafeOutputTargetConfig` or `SafeOutputFilterConfig`.
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `AddCommentsConfig` | struct | Configuration for creating issue/PR/discussion comments |
+| `AddCommentConfig` | type alias | Deprecated alias for `AddCommentsConfig` |
+| `AddLabelsConfig` | struct | Configuration for adding labels to issues/PRs |
+| `AddReviewerConfig` | struct | Configuration for adding reviewers to PRs |
+| `AssignMilestoneConfig` | struct | Configuration for assigning milestones to issues |
+| `AssignToAgentConfig` | struct | Configuration for assigning Copilot coding agents to issues |
+| `AssignToUserConfig` | struct | Configuration for assigning users to issues |
+| `AutofixCodeScanningAlertConfig` | struct | Configuration for adding autofixes to code scanning alerts |
+| `CloseEntityType` | string alias | Identifies the entity type to close (`issue`, `pull_request`, `discussion`) |
+| `CloseEntityConfig` | struct | Shared configuration for close-entity operations |
+| `CloseEntityJobParams` | struct | Internal job parameters for close-entity operations |
+| `CloseIssuesConfig` | type alias | `= CloseEntityConfig` — close issues |
+| `ClosePullRequestsConfig` | type alias | `= CloseEntityConfig` — close pull requests |
+| `CloseDiscussionsConfig` | type alias | `= CloseEntityConfig` — close discussions |
+| `CommentMemoryConfig` | struct | Configuration for the `comment_memory` safe output (persistent comment-based memory) |
+| `CreateAgentSessionConfig` | struct | Configuration for creating GitHub Copilot coding agent sessions |
+| `CreateCheckRunOutputConfig` | struct | Static defaults for check run output fields (title, summary, text) |
+| `CreateCheckRunConfig` | struct | Configuration for creating GitHub check runs |
+| `CreateDiscussionsConfig` | struct | Configuration for creating GitHub discussions |
+| `CreateIssuesConfig` | struct | Configuration for creating GitHub issues |
+| `CreatePullRequestReviewCommentsConfig` | struct | Configuration for creating PR review comments |
+| `CreateProjectsConfig` | struct | Configuration for creating GitHub Projects v2 |
+| `CreateProjectStatusUpdateConfig` | struct | Configuration for creating GitHub project status updates |
+| `CreatePullRequestsConfig` | struct | Configuration for creating GitHub pull requests |
+| `DispatchRepositoryToolConfig` | struct | Single named tool within a `dispatch_repository` configuration |
+| `DispatchRepositoryConfig` | struct | Configuration for dispatching `repository_dispatch` events |
+| `DispatchWorkflowConfig` | struct | Configuration for dispatching GitHub Actions workflows |
+| `HideCommentConfig` | struct | Configuration for hiding/minimizing GitHub comments |
+| `IssueReportingConfig` | struct | Shared configuration base for `missing_data`, `missing_tool`, and `report_incomplete` safe outputs |
+| `MissingDataConfig` | type alias | `= IssueReportingConfig` for the `missing_data` safe output |
+| `MissingToolConfig` | type alias | `= IssueReportingConfig` for the `missing_tool` safe output |
+| `ReportIncompleteConfig` | type alias | `= IssueReportingConfig` for the `report_incomplete` safe output |
+| `LinkSubIssueConfig` | struct | Configuration for linking issues as sub-issues |
+| `MarkPullRequestAsReadyForReviewConfig` | struct | Configuration for marking draft PRs as ready for review |
+| `MergePullRequestConfig` | struct | Configuration for merging pull requests |
+| `PushToPullRequestBranchConfig` | struct | Configuration for pushing agent-generated changes to a PR branch |
+| `RemoveLabelsConfig` | struct | Configuration for removing labels from issues/PRs |
+| `ReplyToPullRequestReviewCommentConfig` | struct | Configuration for replying to PR review comments |
+| `RepoMemoryConfig` | struct | Configuration for the `repo_memory` safe output (repository-scoped persistent memory) |
+| `RepoMemoryEntry` | struct | A single key/value entry in repository memory |
+| `ResolvePullRequestReviewThreadConfig` | struct | Configuration for resolving PR review threads |
+| `SetIssueFieldConfig` | struct | Configuration for setting a single issue field |
+| `SetIssueTypeConfig` | struct | Configuration for setting an issue's type |
+| `SubmitPullRequestReviewConfig` | struct | Configuration for submitting PR reviews (approve, request changes, comment) |
+| `UnassignFromUserConfig` | struct | Configuration for removing assignees from issues |
+| `UpdateDiscussionsConfig` | struct | Configuration for updating GitHub discussions |
+| `UpdateIssuesConfig` | struct | Configuration for updating GitHub issues |
+| `ProjectView` | struct | GitHub Projects v2 view configuration |
+| `ProjectFieldDefinition` | struct | A field definition for a GitHub Projects v2 board |
+| `UpdateProjectConfig` | struct | Configuration for updating GitHub Projects v2 boards |
+| `UpdatePullRequestsConfig` | struct | Configuration for updating GitHub pull requests |
+| `UpdateReleaseConfig` | struct | Configuration for updating GitHub releases |
 
 ### Sandbox Configuration
 
