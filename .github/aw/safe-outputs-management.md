@@ -40,6 +40,9 @@ description: Safe-output reference for update, label, milestone, project, releas
     merge-pull-request:
       required-labels: [ready-to-merge]   # Optional: ALL listed labels must be present on the PR
       allowed-branches: ["feature/*"]    # Optional: glob patterns for allowed source branch names
+      target: "triggering"                # Optional: "triggering" (default, current PR) or "*" (any PR with pull_request_number)
+      target-repo: "owner/repo"           # Optional: cross-repository
+      allowed-repos: [owner/other]        # Optional: additional repos the agent can merge in
       max: 1                              # Optional: max merges (default: 1)
   ```
 

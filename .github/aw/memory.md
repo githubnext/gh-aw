@@ -250,6 +250,7 @@ tools:
     branch-name: memory/agent-notes   # Optional: custom branch name
     target-repo: owner/other-repo     # Optional: store in another repo
     allowed-extensions: [".json", ".md"]
+    format-json: true                 # Optional: pretty-print committed .json files (2-space indent) for readable diffs (default: false)
     max-file-size: 10240              # bytes
     max-file-count: 100
 ```
