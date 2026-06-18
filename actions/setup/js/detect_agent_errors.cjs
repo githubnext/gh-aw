@@ -60,7 +60,7 @@ const MODEL_NOT_SUPPORTED_PATTERN =
 // Pattern: Copilot/CAPI quota exhaustion.
 // Matches the observed error: "CAPIError: 429 429 quota exceeded".
 // Quota exhaustion is a persistent, non-retryable condition.
-const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*429\s+429\s+quota exceeded/i;
+const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)/i;
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.

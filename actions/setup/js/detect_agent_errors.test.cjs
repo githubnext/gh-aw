@@ -146,8 +146,9 @@ describe("detect_agent_errors.cjs", () => {
       expect(isCAPIQuotaExceededError("CAPIError: 429 429 QUOTA EXCEEDED")).toBe(true);
     });
 
-    it("does not match other CAPIError 429 messages", () => {
-      expect(isCAPIQuotaExceededError("CAPIError: 429 Too Many Requests")).toBe(false);
+    it("matches Copilot/CAPI Too Many Requests output", () => {
+      expect(isCAPIQuotaExceededError("CAPIError: 429 Too Many Requests")).toBe(true);
+      expect(isCAPIQuotaExceededError("Last error: CAPIError: Too Many Requests")).toBe(true);
     });
 
     it("does not match CAPIError 400", () => {

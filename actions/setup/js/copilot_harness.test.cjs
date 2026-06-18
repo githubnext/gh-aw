@@ -13,6 +13,7 @@ const { buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cj
 const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
+  classifyCopilotFailure,
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
@@ -21,6 +22,7 @@ const {
   detectCopilotErrors,
   emitInfrastructureIncomplete,
   emitMissingToolPermissionIssue,
+  extractOutputTail,
   extractDeniedCommands,
   hasNumerousPermissionDeniedIssues,
   hasNoopInSafeOutputs,
@@ -28,6 +30,7 @@ const {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
   resolveCopilotSDKCustomProviderFromReflect,
@@ -38,6 +41,7 @@ const {
   generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   isCAPIQuotaExceededError,
+  isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   writeCopilotOutputs,
@@ -81,8 +85,9 @@ describe("copilot_harness.cjs", () => {
         expect(isCAPIQuotaExceededError("CAPIError: 400 Bad Request")).toBe(false);
       });
 
-      it("does not match generic 429 output without the observed quota-exceeded message", () => {
-        expect(isCAPIQuotaExceededError("CAPIError: 429 Too Many Requests")).toBe(false);
+      it("matches Copilot/CAPI 429 Too Many Requests output", () => {
+        expect(isCAPIQuotaExceededError("CAPIError: 429 Too Many Requests")).toBe(true);
+        expect(isCAPIQuotaExceededError("Last error: CAPIError: Too Many Requests")).toBe(true);
       });
 
       it("does not match unrelated errors", () => {
@@ -199,6 +204,16 @@ describe("copilot_harness.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
+    it("does not retry Copilot/CAPI Too Many Requests output", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: Too Many Requests",
+      };
+
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
     it("still retries generic partial-execution errors with output", () => {
       const result = {
         exitCode: 1,
@@ -237,6 +252,30 @@ describe("copilot_harness.cjs", () => {
       const result = { exitCode: 2, hasOutput: false };
       expect(shouldRetry(result, 0, true, 0)).toBe(true);
       expect(shouldRetry(result, 1, true, 1)).toBe(false);
+    });
+
+    describe("failure classification helpers", () => {
+      it("classifies Copilot SDK session.idle timeouts distinctly", () => {
+        const output = "[copilot-sdk-driver] Timeout after 60000ms waiting for session.idle";
+        expect(isSDKSessionIdleTimeoutError(output)).toBe(true);
+        expect(classifyCopilotFailure({ hasOutput: true, isSDKSessionIdleTimeout: true })).toBe("sdk_session_idle_timeout");
+      });
+
+      it("classifies MCP gateway shutdown distinctly when present in output", () => {
+        const output = 'Response: {"message":"Gateway shutdown initiated","serversTerminated":2,"status":"closed"}';
+        expect(isMCPGatewayShutdownError(output)).toBe(true);
+        expect(classifyCopilotFailure({ hasOutput: true, isMCPGatewayShutdown: true })).toBe("mcp_gateway_shutdown");
+      });
+
+      it("extracts a compact tail preview from large output", () => {
+        const tail = extractOutputTail(["line 1", "line 2", "line 3", "line 4"].join("\n"), { maxLines: 2, maxChars: 20 });
+        expect(tail).toBe("line 3\nline 4");
+      });
+
+      it("truncates very large output tails from the front", () => {
+        const tail = extractOutputTail(`prefix\n${"x".repeat(40)}`, { maxLines: 5, maxChars: 16 });
+        expect(tail).toBe(`…${"x".repeat(15)}`);
+      });
     });
 
     it("does not claim a retry when already at max retry attempt", () => {
