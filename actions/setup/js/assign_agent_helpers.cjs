@@ -87,11 +87,6 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
               login
               __typename
             }
-            ... on User {
-              id
-              login
-              __typename
-            }
           }
         }
       }
