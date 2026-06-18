@@ -115,6 +115,7 @@ func TestContainerPinMarshalSortedOutput(t *testing.T) {
 	cache := NewActionCache(tmpDir)
 	cache.Set("actions/checkout", "v5", "sha1")
 	cache.SetContainerPin("z-image:latest", "sha256:zzz", "z-image:latest@sha256:zzz")
+	cache.SetContainerPin("m-image:v2", "sha256:mmm", "m-image:v2@sha256:mmm")
 	cache.SetContainerPin("a-image:latest", "sha256:aaa", "a-image:latest@sha256:aaa")
 
 	require.NoError(t, cache.Save())
@@ -122,10 +123,29 @@ func TestContainerPinMarshalSortedOutput(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join(tmpDir, ".github", "aw", CacheFileName))
 	require.NoError(t, err)
 
-	// Both container images should appear in the JSON.
 	contentStr := string(content)
-	assert.Contains(t, contentStr, `"a-image:latest"`, "a-image pin in output")
-	assert.Contains(t, contentStr, `"z-image:latest"`, "z-image pin in output")
+
+	// Verify that entries appear in alphabetical order by checking their positions
+	containers := []string{
+		"a-image:latest",
+		"m-image:v2",
+		"z-image:latest",
+	}
+
+	lastPos := -1
+	for _, container := range containers {
+		pos := indexOf(contentStr, `"`+container+`"`)
+		if pos == -1 {
+			t.Errorf("Container %s not found in cache file", container)
+			continue
+		}
+		if pos < lastPos {
+			t.Errorf("Container %s appears before previous container (not sorted)", container)
+		}
+		lastPos = pos
+	}
+
+	// Verify containers section is present
 	assert.Contains(t, contentStr, `"containers"`, "containers section present")
 
 	// Reload and verify round-trip.
@@ -134,6 +154,9 @@ func TestContainerPinMarshalSortedOutput(t *testing.T) {
 	pin, ok := cache2.GetContainerPin("a-image:latest")
 	require.True(t, ok)
 	assert.Equal(t, "sha256:aaa", pin.Digest)
+	pin, ok = cache2.GetContainerPin("m-image:v2")
+	require.True(t, ok)
+	assert.Equal(t, "sha256:mmm", pin.Digest)
 	pin, ok = cache2.GetContainerPin("z-image:latest")
 	require.True(t, ok)
 	assert.Equal(t, "sha256:zzz", pin.Digest)
