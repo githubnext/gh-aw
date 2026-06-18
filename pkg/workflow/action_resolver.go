@@ -227,7 +227,6 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 		// caller context (ctx), not from callCtx, so we don't accidentally shrink
 		// the budget for subsequent peels.
 		peelCtx, peelCancel := context.WithTimeout(ctx, 30*time.Second)
-		defer peelCancel()
 		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
 		ForceGHHostEnv(cmd2, "github.com")
 		output2, peelErr := cmd2.Output()

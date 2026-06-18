@@ -259,18 +259,19 @@ func TestActionResolverGetUsedCacheKeysReturnsCopy(t *testing.T) {
 	}
 }
 
-// TestResolveFromGitHubForcesGitHubComHost verifies that the commands created by
-// resolveFromGitHub always have GH_HOST=github.com in their environment, regardless
-// of the process-level GH_HOST setting. This ensures that action SHA lookups always
-// target github.com even when the user has GH_HOST set to a GHE instance.
-func TestResolveFromGitHubForcesGitHubComHost(t *testing.T) {
+// TestForceGHHostEnvSetsGitHubCom verifies that ForceGHHostEnv always sets
+// GH_HOST=github.com on the command environment regardless of the process-level
+// GH_HOST setting, including when GH_HOST is unset, set to a GHE host, or already
+// set to github.com.
+func TestForceGHHostEnvSetsGitHubCom(t *testing.T) {
 	tests := []struct {
-		name   string
-		ghHost string
+		name    string
+		ghHost  string
+		unsetIt bool
 	}{
 		{
-			name:   "GH_HOST unset",
-			ghHost: "",
+			name:    "GH_HOST unset",
+			unsetIt: true,
 		},
 		{
 			name:   "GH_HOST set to GHE host",
@@ -284,15 +285,22 @@ func TestResolveFromGitHubForcesGitHubComHost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.ghHost != "" {
-				t.Setenv("GH_HOST", tt.ghHost)
-			} else {
-				// Truly unset GH_HOST (t.Setenv("GH_HOST", "") sets to empty string,
-				// which is not the same as unset; use os.Unsetenv with cleanup instead).
+			if tt.unsetIt {
+				// Truly unset GH_HOST and restore the original value (or re-unset)
+				// after the subtest so the env does not leak to subsequent tests.
+				original, wasSet := os.LookupEnv("GH_HOST")
 				if err := os.Unsetenv("GH_HOST"); err != nil {
 					t.Fatalf("failed to unset GH_HOST: %v", err)
 				}
-				t.Cleanup(func() { os.Unsetenv("GH_HOST") }) //nolint:errcheck
+				t.Cleanup(func() {
+					if wasSet {
+						os.Setenv("GH_HOST", original) //nolint:errcheck
+					} else {
+						os.Unsetenv("GH_HOST") //nolint:errcheck
+					}
+				})
+			} else {
+				t.Setenv("GH_HOST", tt.ghHost)
 			}
 
 			cmd := ExecGHContext(context.Background(), "api", "/repos/actions/checkout/git/ref/tags/v4", "--jq", "[.object.sha, .object.type] | @tsv")
@@ -314,7 +322,7 @@ func TestResolveFromGitHubForcesGitHubComHost(t *testing.T) {
 			// Verify that no other GH_HOST value is present (i.e. GHE host is not inherited).
 			for _, e := range cmd.Env {
 				if strings.HasPrefix(e, "GH_HOST=") && e != "GH_HOST=github.com" {
-					t.Errorf("unexpected GH_HOST entry in cmd.Env: %q (process GH_HOST was %q)", e, tt.ghHost)
+					t.Errorf("unexpected GH_HOST entry in cmd.Env: %q", e)
 				}
 			}
 		})
