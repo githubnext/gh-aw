@@ -82,10 +82,11 @@ function extractPromptFromArgs(args) {
  *     RuntimeConnection: typeof import("@github/copilot-sdk").RuntimeConnection,
  *     approveAll: typeof import("@github/copilot-sdk").approveAll
  *   },
+ *   sessionStateBaseDir?: string,
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolDenials, permissionConfig, coreLogger, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolDenials, permissionConfig, coreLogger, sdkModule, sessionStateBaseDir }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -106,7 +107,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
   // Session state directory — mirrors the target path used by unified_timeline.cjs.
   // /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
-  const sessionStateBase = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
+  // GH_AW_SESSION_STATE_BASE_DIR may be set in tests to redirect writes to an isolated directory.
+  const defaultSessionStateBase = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
+  const sessionStateBase = sessionStateBaseDir ?? process.env.GH_AW_SESSION_STATE_BASE_DIR ?? defaultSessionStateBase;
 
   /** @type {ReadonlyArray<NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>>} */
   const VALID_LOG_LEVELS = ["none", "error", "warning", "info", "debug", "all"];

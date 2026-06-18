@@ -1,10 +1,23 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { createRequire } from "module";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 const require = createRequire(import.meta.url);
 const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
+  let testSessionStateDir;
+  beforeAll(() => {
+    testSessionStateDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-session-state-"));
+    process.env.GH_AW_SESSION_STATE_BASE_DIR = testSessionStateDir;
+  });
+  afterAll(() => {
+    delete process.env.GH_AW_SESSION_STATE_BASE_DIR;
+    fs.rmSync(testSessionStateDir, { recursive: true, force: true });
+  });
+
   describe("runWithCopilotSDK", () => {
     it("disconnects session and stops client on success", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
