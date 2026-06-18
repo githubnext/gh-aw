@@ -469,15 +469,39 @@ func injectStepCondition(steps []string, condition ConditionNode) []string {
 	if condition == nil {
 		return steps
 	}
-	ifLine := fmt.Sprintf("        if: %s\n", RenderCondition(condition))
+
+	gate := RenderCondition(condition)
+	insertLine := fmt.Sprintf("        if: %s\n", gate)
+
 	out := make([]string, 0, len(steps))
 	for _, step := range steps {
+		// If the step already has an inline `if: ...` line, combine it instead of emitting
+		// duplicate YAML keys.
+		ifPrefix := "\n        if: "
+		ifIdx := strings.Index(step, ifPrefix)
+		if ifIdx >= 0 {
+			condStart := ifIdx + len(ifPrefix)
+			condEndRel := strings.IndexByte(step[condStart:], '\n')
+			if condEndRel >= 0 {
+				condEnd := condStart + condEndRel
+				existingCond := strings.TrimSpace(step[condStart:condEnd])
+				// `if: |` is a block scalar; don't try to rewrite it here.
+				if existingCond != "|" {
+					combined := fmt.Sprintf("        if: %s && (%s)\n", gate, existingCond)
+					out = append(out, step[:ifIdx+1]+combined+step[condEnd+1:])
+					continue
+				}
+			}
+			out = append(out, step)
+			continue
+		}
+
 		nl := strings.IndexByte(step, '\n')
 		if nl < 0 {
 			out = append(out, step)
 			continue
 		}
-		out = append(out, step[:nl+1]+ifLine+step[nl+1:])
+		out = append(out, step[:nl+1]+insertLine+step[nl+1:])
 	}
 	return out
 }
