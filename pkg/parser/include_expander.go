@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -192,7 +193,7 @@ func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 		// Convert relative paths to workspace-root-relative.
 		// Paths already starting with ".github/" are workspace-root-relative.
 		// Absolute paths are used as-is.
-		if !strings.HasPrefix(importPath, ".github/") && !filepath.IsAbs(importPath) {
+		if !strings.HasPrefix(importPath, constants.GithubDir) && !filepath.IsAbs(importPath) {
 			if repoRoot != "" {
 				fullPath := filepath.Join(baseDir, importPath)
 				if rel, err := filepath.Rel(repoRoot, fullPath); err == nil && !strings.HasPrefix(rel, "..") {

@@ -105,7 +105,7 @@ func (e *AntigravityEngine) GetInstallationSteps(workflowData *WorkflowData) []G
 // ancestor under /tmp/gh-aw/ and the actions/upload-artifact LCA calculation stays correct.
 func (e *AntigravityEngine) GetDeclaredOutputFiles() []string {
 	return []string{
-		"/tmp/gh-aw/antigravity-client-error-*.json",
+		constants.TmpAntigravityClientErrorGlob,
 	}
 }
 
@@ -237,7 +237,7 @@ touch %s
 	// Build environment variables
 	env := map[string]string{
 		"ANTIGRAVITY_API_KEY": "${{ secrets.ANTIGRAVITY_API_KEY }}",
-		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":        constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",

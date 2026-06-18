@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -181,7 +182,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 		for _, memory := range data.RepoMemoryConfig.Memories {
 			memories = append(memories, map[string]any{
 				"id":             memory.ID,
-				"dir":            "/tmp/gh-aw/repo-memory/" + memory.ID,
+				"dir":            constants.TmpRepoMemoryDir + memory.ID,
 				"max_file_size":  memory.MaxFileSize,
 				"max_patch_size": memory.MaxPatchSize,
 				"max_file_count": memory.MaxFileCount,

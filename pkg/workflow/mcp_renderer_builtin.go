@@ -191,7 +191,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 		mounts = []string{constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
 	} else {
 		// Release mode: Use minimal Alpine image with mounted binaries
-		entrypoint = "${RUNNER_TEMP}/gh-aw/gh-aw"
+		entrypoint = GhAwBinaryPath
 		entrypointArgs = []string{"mcp-server", "--validate-actor"}
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
@@ -352,7 +352,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		// Release mode: Use minimal Alpine image with mounted binaries
 		// The gh-aw binary is mounted from ${RUNNER_TEMP}/gh-aw and executed directly
 		// Pass --validate-actor flag to enable role-based access control
-		entrypoint = "${RUNNER_TEMP}/gh-aw/gh-aw"
+		entrypoint = GhAwBinaryPath
 		entrypointArgs = []string{"mcp-server", "--validate-actor"}
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}

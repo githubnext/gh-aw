@@ -301,7 +301,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
-		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
+		env["GH_AW_MCP_LOG_DIR"] = constants.TmpMcpLogsSafeOutputsDir
 
 		// Note: GH_AW_SAFE_OUTPUTS, GH_AW_SAFE_OUTPUTS_CONFIG_PATH, and
 		// GH_AW_SAFE_OUTPUTS_TOOLS_PATH are set via a run step (see generateSetRuntimePathsStep)

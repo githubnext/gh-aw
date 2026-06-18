@@ -379,7 +379,7 @@ touch %s
 	// vars; routing is instead handled through models.json (firewall case) or by Pi's
 	// native provider (no-firewall case).
 	env := map[string]string{
-		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":        constants.AwPromptsFile,
 		"GITHUB_AW":           "true",
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
@@ -404,7 +404,7 @@ touch %s
 
 	// When the models.json gateway approach is used, tell Pi where to find it.
 	if piModelsJSONSetup != "" {
-		env["PI_CODING_AGENT_DIR"] = "/tmp/gh-aw/pi-agent-dir"
+		env["PI_CODING_AGENT_DIR"] = constants.TmpPiAgentDir
 		piLog.Printf("Pi: setting PI_CODING_AGENT_DIR for models.json gateway config")
 	}
 

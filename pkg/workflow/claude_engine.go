@@ -357,7 +357,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// "Fast mode unavailable: Fast mode is not available in the Agent SDK",
 		// which crashes the agent mid-session on every API call.
 		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
-		"GH_AW_PROMPT":                  "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":                  constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW": "true",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
@@ -384,7 +384,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json"
+		env["GH_AW_MCP_CONFIG"] = constants.McpServersJsonPathExpr
 	}
 
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit

@@ -531,7 +531,7 @@ func inferWorkflowPathFromDisplayName(displayName string) string {
 	if slug == "" {
 		return ""
 	}
-	return ".github/workflows/" + slug + ".lock.yml"
+	return constants.WorkflowsDirSlash + slug + ".lock.yml"
 }
 
 // runHasDifcFilteredItems checks if a run's gateway logs contain any DIFC_FILTERED events.

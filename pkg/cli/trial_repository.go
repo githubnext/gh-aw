@@ -312,7 +312,7 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 
 	// Compile the workflow with trial modifications
 	config := CompileConfig{
-		MarkdownFiles:        []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
+		MarkdownFiles:        []string{constants.WorkflowsDirSlash + parsedSpec.WorkflowName + ".md"},
 		Verbose:              opts.Verbose,
 		EngineOverride:       opts.EngineOverride,
 		Validate:             true,

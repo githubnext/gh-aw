@@ -203,7 +203,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	env := map[string]string{
-		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
 		"NO_PROXY":         "localhost,127.0.0.1",

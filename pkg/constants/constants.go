@@ -364,6 +364,169 @@ var SharedWorkflowForbiddenFields = []string{
 	"tracker-id",      // Tracker ID
 }
 
+// Repository directory path constants
+//
+// These constants define the conventional repository-relative directory paths
+// used by gh-aw for GitHub Actions workflows, agents, and related configuration.
+
+// GithubDir is the root .github directory prefix (with trailing slash).
+// Use this for path prefix comparisons against workspace-relative paths.
+const GithubDir = ".github/"
+
+// WorkflowsDir is the GitHub Actions workflow directory path (without trailing slash).
+// This is the canonical location for workflow markdown and compiled lock YAML files.
+const WorkflowsDir = ".github/workflows"
+
+// WorkflowsDirSlash is WorkflowsDir with a trailing slash.
+// Use this for path prefix matching (e.g. strings.HasPrefix or strings.Contains).
+const WorkflowsDirSlash = WorkflowsDir + "/"
+
+// AgentsDir is the custom GitHub Copilot agent definitions directory (with trailing slash).
+const AgentsDir = ".github/agents/"
+
+// WorkflowsLockYmlGlob is the glob pattern for compiled workflow lock YAML files.
+const WorkflowsLockYmlGlob = WorkflowsDirSlash + "*.lock.yml"
+
+// WorkflowsLockYmlGitAttributesEntry is the .gitattributes entry that marks lock YAML
+// files as generated and sets the merge strategy.
+const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"
+
+// Temporary runtime directory constants (/tmp/gh-aw tree)
+//
+// These constants define the /tmp/gh-aw directory layout used by the agent
+// and engine harnesses during workflow execution. Paths here are always
+// in the /tmp/gh-aw tree regardless of whether the runner uses RUNNER_TEMP.
+// See also GhAwRootDir / GhAwRootDirShell for the host-side RUNNER_TEMP paths.
+
+// TmpGhAwDir is the root /tmp/gh-aw directory (without trailing slash).
+const TmpGhAwDir = "/tmp/gh-aw"
+
+// TmpGhAwDirSlash is TmpGhAwDir with a trailing slash.
+// Use for path prefix comparisons (e.g. strings.HasPrefix).
+const TmpGhAwDirSlash = TmpGhAwDir + "/"
+
+// TmpGhAwAgentDir is the agent working directory in the /tmp/gh-aw tree.
+const TmpGhAwAgentDir = TmpGhAwDir + "/agent/"
+
+// AgentStdioLogPath is the path for capturing agent standard I/O log output.
+const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"
+
+// AwPromptsFile is the runtime prompt file path populated by the setup action.
+// Engine harnesses read this file to pass the compiled prompt to the AI engine.
+const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"
+
+// TmpMcpConfigDir is the mcp-config directory in the /tmp/gh-aw tree.
+// Engines that require a writable MCP config directory (e.g. Codex) use this path.
+const TmpMcpConfigDir = TmpGhAwDir + "/mcp-config"
+
+// TmpMcpServersJsonPath is the MCP servers JSON config file in the /tmp tree.
+// Used by engines that resolve the config through the writable /tmp path.
+const TmpMcpServersJsonPath = TmpMcpConfigDir + "/mcp-servers.json"
+
+// TmpMcpConfigLogsDir is the MCP config server log directory.
+const TmpMcpConfigLogsDir = TmpMcpConfigDir + "/logs/"
+
+// TmpMcpLogsDir is the MCP server logs root directory (with trailing slash).
+const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"
+
+// TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory.
+const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"
+
+// TmpMcpLogsPlaywrightDir is the Playwright MCP server log directory.
+const TmpMcpLogsPlaywrightDir = TmpGhAwDir + "/mcp-logs/playwright"
+
+// TmpMcpLogsMount is the Docker volume mount spec for the MCP logs directory.
+const TmpMcpLogsMount = TmpGhAwDir + "/mcp-logs:" + TmpGhAwDir + "/mcp-logs"
+
+// TmpMcpScriptsLogsDir is the mcp-scripts server log directory (with trailing slash).
+const TmpMcpScriptsLogsDir = TmpGhAwDir + "/mcp-scripts/logs/"
+
+// TmpRepoMemoryDir is the repo-memory data directory (with trailing slash).
+const TmpRepoMemoryDir = TmpGhAwDir + "/repo-memory/"
+
+// TmpCommentMemoryDir is the comment-memory data directory (with trailing slash).
+const TmpCommentMemoryDir = TmpGhAwDir + "/comment-memory/"
+
+// TmpAwBundleGlob is the glob pattern for bundle files produced by the agent.
+const TmpAwBundleGlob = TmpGhAwDir + "/aw-*.bundle"
+
+// TmpAwPatchGlob is the glob pattern for patch files produced by the agent.
+const TmpAwPatchGlob = TmpGhAwDir + "/aw-*.patch"
+
+// TmpGeminiClientErrorGlob is the glob for Gemini client error JSON diagnostic files.
+const TmpGeminiClientErrorGlob = TmpGhAwDir + "/gemini-client-error-*.json"
+
+// TmpAntigravityClientErrorGlob is the glob for Antigravity client error JSON diagnostic files.
+const TmpAntigravityClientErrorGlob = TmpGhAwDir + "/antigravity-client-error-*.json"
+
+// TmpPiAgentDir is the Pi engine agent working directory.
+const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"
+
+// ThreatDetectionLogPath is the threat detection engine log file path.
+const ThreatDetectionLogPath = TmpGhAwDir + "/threat-detection/detection.log"
+
+// TmpProxyLogsDir is the DIFC proxy logs directory (with trailing slash).
+const TmpProxyLogsDir = TmpGhAwDir + "/proxy-logs/"
+
+// TmpProxyTLSDir is the proxy TLS certificates sub-directory (with trailing slash).
+const TmpProxyTLSDir = TmpGhAwDir + "/proxy-logs/proxy-tls/"
+
+// TmpProxyTLSCACert is the proxy TLS CA certificate file path.
+const TmpProxyTLSCACert = TmpGhAwDir + "/proxy-logs/proxy-tls/ca.crt"
+
+// TmpDIFCProxyTLSCACert is the DIFC proxy TLS CA certificate file path.
+const TmpDIFCProxyTLSCACert = TmpGhAwDir + "/difc-proxy-tls/ca.crt"
+
+// TmpAwMcpLogsDir is the aw-mcp server logs directory.
+const TmpAwMcpLogsDir = TmpGhAwDir + "/aw-mcp/logs"
+
+// TmpSandboxAgentLogsDir is the sandbox agent logs directory (with trailing slash).
+const TmpSandboxAgentLogsDir = TmpGhAwDir + "/sandbox/agent/logs/"
+
+// Shell and Actions expression form path constants
+//
+// These complement GhAwRootDirShell and GhAwRootDir for sub-paths commonly
+// referenced in both shell run: blocks and GitHub Actions expression contexts.
+
+// GhAwRootDirShellSlash is GhAwRootDirShell with a trailing slash.
+// Use for path prefix matching in shell expressions (e.g. ${RUNNER_TEMP}/gh-aw/).
+const GhAwRootDirShellSlash = GhAwRootDirShell + "/"
+
+// ShellMcpConfigDir is the mcp-config directory in shell environment variable form.
+const ShellMcpConfigDir = GhAwRootDirShell + "/mcp-config"
+
+// ShellMcpServersJsonPath is the MCP servers JSON config file path in shell form.
+// Used by engines that resolve the config via the host RUNNER_TEMP path.
+const ShellMcpServersJsonPath = GhAwRootDirShell + "/mcp-config/mcp-servers.json"
+
+// GhAwRootDirSlash is GhAwRootDir with a trailing slash (Actions expression form).
+const GhAwRootDirSlash = GhAwRootDir + "/"
+
+// McpServersJsonPathExpr is the MCP servers JSON config path in Actions expression form.
+const McpServersJsonPathExpr = GhAwRootDir + "/mcp-config/mcp-servers.json"
+
+// CodexMcpConfigTomlPath is the Codex MCP config TOML file path in Actions expression form.
+const CodexMcpConfigTomlPath = GhAwRootDir + "/mcp-config/config.toml"
+
+// System path constants
+//
+// Well-known host system paths used by CLI tools and shell completion.
+
+// CopilotBinaryPath is the path to the Copilot CLI binary inside AWF containers.
+const CopilotBinaryPath = "/usr/local/bin/copilot"
+
+// BashCompletionDir is the system-wide bash completion directory.
+const BashCompletionDir = "/etc/bash_completion.d"
+
+// BashCompletionGhAwPath is the gh-aw bash completion file path.
+const BashCompletionGhAwPath = BashCompletionDir + "/gh-aw"
+
+// HomebrewPrefix is the default Homebrew installation prefix on macOS.
+const HomebrewPrefix = "/opt/homebrew"
+
+// UsrLocalPrefix is the standard /usr/local installation prefix.
+const UsrLocalPrefix = "/usr/local"
+
 // GetWorkflowDir returns the workflows directory path.
 // Always uses forward slashes, which are required for git/GitHub paths.
 // GH_AW_WORKFLOWS_DIR overrides the default; any OS-specific separators are normalized.
@@ -371,7 +534,7 @@ func GetWorkflowDir() string {
 	if dir := os.Getenv("GH_AW_WORKFLOWS_DIR"); dir != "" {
 		return filepath.ToSlash(dir)
 	}
-	return ".github/workflows"
+	return WorkflowsDir
 }
 
 // MaxSymlinkDepth limits recursive symlink resolution when fetching remote files.

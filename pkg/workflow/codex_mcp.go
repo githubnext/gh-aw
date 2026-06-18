@@ -117,7 +117,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		tools:        tools,
 		mcpTools:     mcpTools,
 		workflowData: workflowData,
-		configPath:   "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json",
+		configPath:   constants.ShellMcpServersJsonPath,
 		renderCustom: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		},

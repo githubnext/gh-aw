@@ -744,7 +744,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		}
 	}
 
-	logFile := "/tmp/gh-aw/threat-detection/detection.log"
+	logFile := constants.ThreatDetectionLogPath
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
 		for i, line := range step {

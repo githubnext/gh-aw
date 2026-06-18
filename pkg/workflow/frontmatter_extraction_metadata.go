@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
@@ -189,7 +190,7 @@ func buildLocalWorkflowSourceURL(markdownPath string) string {
 	if idx != -1 {
 		// Skip the leading slash to get ".github/workflows/...".
 		relPath = normalised[idx+1:]
-	} else if strings.HasPrefix(normalised, ".github/") {
+	} else if strings.HasPrefix(normalised, constants.GithubDir) {
 		// Already a relative path starting with ".github/".
 		relPath = normalised
 	} else {

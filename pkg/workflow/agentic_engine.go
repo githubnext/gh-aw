@@ -345,7 +345,7 @@ func (e *BaseEngine) GetModelEnvVarName() string {
 // Engines can override this to use engine-specific log files
 func (e *BaseEngine) GetLogFileForParsing() string {
 	// Default to agent-stdio.log which contains stdout/stderr
-	return "/tmp/gh-aw/agent-stdio.log"
+	return constants.AgentStdioLogPath
 }
 
 // GetRequiredSecretNames returns an empty list by default

@@ -265,7 +265,7 @@ func buildAgentOutputDownloadSteps(prefix string, pinAction func(string) string)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName:     prefix + constants.AgentArtifactName, // Unified agent artifact (prefixed in workflow_call)
 		ArtifactFilename: constants.AgentOutputFilename,        // Filename inside the artifact directory
-		DownloadPath:     "/tmp/gh-aw/",
+		DownloadPath:     constants.TmpGhAwDirSlash,
 		SetupEnvStep:     true,
 		EnvVarName:       "GH_AW_AGENT_OUTPUT",
 		StepName:         "Download agent output artifact",

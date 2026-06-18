@@ -462,9 +462,9 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, needsGitConfig bool) ([]string, string, error) {
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
-	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-prompts/prompt.txt")
+	artifactPaths = append(artifactPaths, constants.AwPromptsFile)
 
-	logFileFull := "/tmp/gh-aw/agent-stdio.log"
+	logFileFull := constants.AgentStdioLogPath
 
 	// Clean credentials before executing the agentic engine.
 	// This removes git credentials from .git/config and, when known credential-leaking
@@ -581,21 +581,21 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	paths = append(paths, getEngineArtifactPaths(engine)...)
 
 	// Collect MCP logs.
-	paths = append(paths, "/tmp/gh-aw/mcp-logs/")
+	paths = append(paths, constants.TmpMcpLogsDir)
 
 	// Collect DIFC proxy logs (proxy-tls certs + container stderr) when proxy was injected
 	paths = append(paths, difcProxyLogPaths(data)...)
 
 	// Collect MCPScripts logs path if mcp-scripts is enabled
 	if IsMCPScriptsEnabled(data.MCPScripts) {
-		paths = append(paths, "/tmp/gh-aw/mcp-scripts/logs/")
+		paths = append(paths, constants.TmpMcpScriptsLogsDir)
 	}
 
 	// Include the aggregated agent_usage.json in the agent artifact so third-party
 	// tools can consume structured token data without parsing the step summary.
 	// Requires AWF v0.25.8+
 	if isFirewallEnabled(data) {
-		paths = append(paths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.TokenUsageFilename)
 	}
 
 	// Collect agent stdio logs path for unified upload
@@ -608,29 +608,29 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// Collect agent-generated files path for unified upload
 	// This directory is used by workflows that instruct the agent to write files
 	// (e.g., smoke-claude status summaries)
-	paths = append(paths, "/tmp/gh-aw/agent/")
+	paths = append(paths, constants.TmpGhAwAgentDir)
 
 	// Collect GitHub API rate-limit log for observability.
 	// Written by github_rate_limit_logger.cjs during REST API calls.
-	paths = append(paths, "/tmp/gh-aw/"+constants.GithubRateLimitsFilename)
+	paths = append(paths, constants.TmpGhAwDirSlash+constants.GithubRateLimitsFilename)
 
 	// Collect OTLP span mirror — enables post-hoc trace debugging without a live collector.
 	// Written by send_otlp_span.cjs; each line is a full OTLP/HTTP JSON traces payload.
 	// Only included when OTLP is configured for this workflow.
 	if isOTLPEnabled(data) {
-		paths = append(paths, "/tmp/gh-aw/"+constants.OtelJsonlFilename)
-		paths = append(paths, "/tmp/gh-aw/"+constants.OtlpExportErrorsFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtelJsonlFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtlpExportErrorsFilename)
 	}
 
 	// Collect safe outputs and agent output paths for the unified artifact.
 	// These were previously uploaded as separate safe-output and agent-output artifacts.
 	if data.SafeOutputs != nil {
 		// Raw safe-output NDJSON (copied to /tmp/gh-aw/ by generateOutputCollectionStep)
-		paths = append(paths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.SafeOutputsFilename)
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
-		paths = append(paths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.AgentOutputFilename)
 		if data.SafeOutputs.CommentMemory != nil {
-			paths = append(paths, "/tmp/gh-aw/comment-memory/")
+			paths = append(paths, constants.TmpCommentMemoryDir)
 		}
 	}
 
@@ -644,13 +644,13 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	//    safe-output handler is staged and doesn't need checkout itself)
 	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
 	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
-		paths = append(paths, "/tmp/gh-aw/aw-*.patch")
+		paths = append(paths, constants.TmpAwPatchGlob)
 		// Bundle files are generated when patch-format: bundle is configured.
 		// Both formats use the same download path in the safe_outputs job, so
 		// include the bundle glob unconditionally alongside the patch glob.
 		// The artifact upload step already sets if-no-files-found: ignore, so
 		// this is safe even when no bundle files exist.
-		paths = append(paths, "/tmp/gh-aw/aw-*.bundle")
+		paths = append(paths, constants.TmpAwBundleGlob)
 	}
 
 	// Include firewall audit/observability logs in the unified agent artifact

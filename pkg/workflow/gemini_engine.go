@@ -107,7 +107,7 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 // ancestor under /tmp/gh-aw/ and the actions/upload-artifact LCA calculation stays correct.
 func (e *GeminiEngine) GetDeclaredOutputFiles() []string {
 	return []string{
-		"/tmp/gh-aw/gemini-client-error-*.json",
+		constants.TmpGeminiClientErrorGlob,
 	}
 }
 
@@ -249,7 +249,7 @@ touch %s
 	// Build environment variables
 	env := map[string]string{
 		"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}",
-		"GH_AW_PROMPT":   "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":   constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",

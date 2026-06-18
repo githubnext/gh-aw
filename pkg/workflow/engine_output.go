@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -33,7 +34,7 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 	// Filter to get only workspace files (exclude /tmp/gh-aw/ files)
 	var workspaceFiles []string
 	for _, file := range outputFiles {
-		if !strings.HasPrefix(file, "/tmp/gh-aw/") {
+		if !strings.HasPrefix(file, constants.TmpGhAwDirSlash) {
 			workspaceFiles = append(workspaceFiles, file)
 		}
 	}

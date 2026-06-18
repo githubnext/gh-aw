@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/importinpututil"
 )
 
@@ -960,7 +961,7 @@ func computeImportRelPath(fullPath, importPath string) string {
 	if idx := strings.LastIndex(normalizedFullPath, "/.github/"); idx >= 0 {
 		return normalizedFullPath[idx+1:] // +1 to skip the leading slash
 	}
-	if strings.HasPrefix(normalizedFullPath, ".github/") {
+	if strings.HasPrefix(normalizedFullPath, constants.GithubDir) {
 		return normalizedFullPath
 	}
 	return importPath

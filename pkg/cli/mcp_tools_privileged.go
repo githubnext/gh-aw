@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -133,7 +134,7 @@ from where the previous request stopped due to timeout.`,
 
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
-		cmdArgs := []string{"logs", "-o", "/tmp/gh-aw/aw-mcp/logs"}
+		cmdArgs := []string{"logs", "-o", constants.TmpAwMcpLogsDir}
 		if args.WorkflowName != "" {
 			cmdArgs = append(cmdArgs, args.WorkflowName)
 		}
@@ -384,7 +385,7 @@ Multi-run diff returns JSON describing changes between the base and each compari
 		// Pass all run IDs/URLs directly - the audit command handles single vs. diff mode.
 		cmdArgs := []string{"audit"}
 		cmdArgs = append(cmdArgs, runItems...)
-		cmdArgs = append(cmdArgs, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json")
+		cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
@@ -525,7 +526,7 @@ Returns JSON describing the differences between the base run and each comparison
 		// Build: gh aw audit diff <base> <compare...> -o ... --json [--artifacts ...]
 		cmdArgs := []string{"audit", "diff", args.BaseRunID}
 		cmdArgs = append(cmdArgs, args.CompareRunIDs...)
-		cmdArgs = append(cmdArgs, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json")
+		cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
