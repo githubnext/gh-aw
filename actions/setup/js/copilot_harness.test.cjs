@@ -972,6 +972,20 @@ describe("copilot_harness.cjs", () => {
       expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
     });
 
+    it("rewrites local proxy 403 errors in copilot-requests mode to org-billing guidance", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).\nCheck your COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN.", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+        S2STOKENS: "true",
+      });
+
+      expect(diagnostic).toContain("Copilot requests authentication failed");
+      expect(diagnostic).toContain("HTTP 403");
+      expect(diagnostic).toContain("permissions.copilot-requests: write");
+      expect(diagnostic).toContain("centralized Copilot billing");
+      expect(diagnostic).toContain("https://github.github.com/gh-aw/reference/billing/");
+      expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
+    });
+
     it("reports token-validation stage when present in the output", () => {
       const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Validating token with provider.\nAuthentication failed with provider at http://localhost:10002 (HTTP 401).", { COPILOT_MODEL: "gpt-4.1" });
 

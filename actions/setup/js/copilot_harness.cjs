@@ -403,19 +403,30 @@ function detectCopilotAuthFailureStage(output) {
 }
 
 /**
- * Build a more actionable Copilot auth diagnostic when a 401 came from the gh-aw API proxy.
+ * Build a more actionable Copilot auth diagnostic when a 401/403 came from the gh-aw API proxy.
  * @param {string} output
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {string}
  */
 function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
   const authFailure = parseProviderAuthFailure(output);
-  if (!authFailure || authFailure.statusCode !== "401" || !isLikelyAWFAPIProxyURL(authFailure.providerUrl)) {
+  if (!authFailure || !isLikelyAWFAPIProxyURL(authFailure.providerUrl)) {
     return "";
   }
 
   const selectedModel = typeof env.COPILOT_MODEL === "string" && env.COPILOT_MODEL.trim() ? env.COPILOT_MODEL.trim() : "(unset)";
   const stage = detectCopilotAuthFailureStage(output);
+  if (authFailure.statusCode === "403" && env.S2STOKENS === "true") {
+    return (
+      `Copilot requests authentication failed through the gh-aw API proxy (HTTP 403, model=${selectedModel}, stage=${stage}). ` +
+      "This workflow is using permissions.copilot-requests: write, so Copilot requests must be allowed through your organization's centralized Copilot billing configuration. " +
+      "Verify that copilot-requests: write is granted to the workflow or job and that Copilot org billing is enabled for your organization. " +
+      "See https://github.github.com/gh-aw/reference/billing/ for details."
+    );
+  }
+  if (authFailure.statusCode !== "401") {
+    return "";
+  }
   return (
     `Copilot authentication failed through the gh-aw API proxy (HTTP 401, model=${selectedModel}, stage=${stage}). ` +
     "Check that COPILOT_GITHUB_TOKEN is present, unexpired, and authorized for the selected COPILOT_MODEL. " +
