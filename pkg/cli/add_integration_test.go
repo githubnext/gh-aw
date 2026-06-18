@@ -997,8 +997,8 @@ func TestAddWorkflowWithDispatchWorkflowDependency(t *testing.T) {
 	defer setup.cleanup()
 
 	// Add test-dispatcher.md which has a dispatch-workflow dependency on test-workflow.
-	// Use an explicit path spec so the file resolves unambiguously from the main branch.
-	workflowSpec := "github/gh-aw/.github/workflows/test-dispatcher.md@main"
+	// Pin to a commit before private: true was added to this workflow (e8ca23ae1d).
+	workflowSpec := "github/gh-aw/.github/workflows/test-dispatcher.md@6d18ddf"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir
