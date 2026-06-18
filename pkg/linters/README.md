@@ -18,7 +18,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `fprintlnsprintf` — reports `fmt.Fprintln(..., fmt.Sprintf(...))` patterns and recommends direct formatting calls.
 - `hardcodedfilepath` — reports hard-coded file path string literals that match known path constants or should be extracted into named constants; also annotates paths that appear in log/print calls.
 - `httpnoctx` — reports HTTP client and package-level HTTP calls that do not accept a `context.Context`.
-- `jsonmarshalignoredeerror` — reports `json.Marshal` and `json.Unmarshal` calls where the error return is discarded with `_`.
+- `jsonmarshalignoredeerror` — reports `json.Marshal` and `json.Unmarshal` calls where the error return is discarded.
 - `largefunc` — reports function bodies that exceed a configurable line-count threshold.
 - `lenstringzero` — reports `len(s) == 0` / `len(s) != 0` comparisons on string values that should use `s == ""` / `s != ""`.
 - `manualmutexunlock` — reports non-deferred mutex `Unlock()` calls that can lead to deadlocks on early returns or panics.
@@ -55,7 +55,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `fprintlnsprintf` | Custom `go/analysis` analyzer that flags `fmt.Fprintln(..., fmt.Sprintf(...))` patterns |
 | `hardcodedfilepath` | Custom `go/analysis` analyzer that flags hard-coded file path string literals that match known path constants or should be extracted as named constants; annotates paths in log/print calls |
 | `httpnoctx` | Custom `go/analysis` analyzer that flags HTTP calls that do not accept a `context.Context` |
-| `jsonmarshalignoredeerror` | Custom `go/analysis` analyzer that flags `json.Marshal`/`json.Unmarshal` calls where the error return is discarded with `_` |
+| `jsonmarshalignoredeerror` | Custom `go/analysis` analyzer that flags `json.Marshal`/`json.Unmarshal` calls where the error return is discarded |
 | `largefunc` | Custom `go/analysis` analyzer that flags large functions with actionable diagnostics |
 | `lenstringzero` | Custom `go/analysis` analyzer that flags `len(s) == 0` / `len(s) != 0` on string values that should use `s == ""` / `s != ""` |
 | `manualmutexunlock` | Custom `go/analysis` analyzer that flags mutex `Unlock()` calls that are not deferred |
