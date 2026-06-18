@@ -86,28 +86,13 @@ async function main() {
 
   core.info(`Found ${uploadItems.length} upload-asset item(s)`);
 
-  // Resolve the candidate asset staging directories.
-  //
-  // Assets can be staged under different base prefixes depending on the job and
-  // execution mode: the agent-output download directory (parent of
-  // agent_output.json), RUNNER_TEMP/gh-aw, or the canonical /tmp/gh-aw. The
-  // producer (the upload_asset MCP handler) and this consumer job do not always
-  // agree on the prefix — for example RUNNER_TEMP is /home/runner/work/_temp on
-  // GitHub-hosted runners but the artifact is downloaded to /tmp/gh-aw. Searching
-  // every candidate makes asset resolution robust to these path-prefix
-  // mismatches instead of failing the whole job.
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const candidateBaseDirs = [];
-  if (agentOutputFile) {
-    candidateBaseDirs.push(path.dirname(agentOutputFile));
-  }
-  if (process.env.RUNNER_TEMP) {
-    candidateBaseDirs.push(path.join(process.env.RUNNER_TEMP, "gh-aw"));
-  }
-  candidateBaseDirs.push("/tmp/gh-aw");
-  // Build the per-directory assets paths, de-duplicated while preserving order.
-  const assetsDirs = [...new Set(candidateBaseDirs.map(dir => path.join(dir, "safeoutputs", "assets")))];
-  core.info(`Searching for staged assets in: ${assetsDirs.join(", ")}`);
+  // Read the staged-assets directory directly. The upload_assets job's
+  // download-artifact step writes the safe-outputs assets artifact to this exact
+  // directory, and the Go generator passes the same path via GH_AW_ASSETS_DIR, so
+  // producer and consumer can never disagree on the location. The literal fallback
+  // matches constants.TmpGhAwAssetsDir for robustness if the env var is unset.
+  const assetsDir = process.env.GH_AW_ASSETS_DIR || "/tmp/gh-aw/safeoutputs/assets";
+  core.info(`Reading staged assets from: ${assetsDir}`);
   let uploadCount = 0;
   let missingAssetCount = 0;
   let hasChanges = false;
@@ -145,17 +130,10 @@ async function main() {
         return;
       }
 
-      // Check if file exists in any of the candidate staging directories
-      let assetSourcePath = null;
-      for (const dir of assetsDirs) {
-        const candidate = path.join(dir, fileName);
-        if (fs.existsSync(candidate)) {
-          assetSourcePath = candidate;
-          break;
-        }
-      }
-      if (!assetSourcePath) {
-        core.warning(`${ERR_SYSTEM}: Asset file not found in any staging directory (${assetsDirs.join(", ")}) for ${fileName} — skipping`);
+      // Check if file exists in the staged-assets directory
+      const assetSourcePath = path.join(assetsDir, fileName);
+      if (!fs.existsSync(assetSourcePath)) {
+        core.warning(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath} — skipping`);
         missingAssetCount++;
         continue;
       }

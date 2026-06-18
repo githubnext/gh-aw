@@ -156,17 +156,20 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")))
 	preSteps = append(preSteps, "        with:\n")
 	preSteps = append(preSteps, fmt.Sprintf("          name: %ssafe-outputs-assets\n", assetsArtifactPrefix))
-	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
+	preSteps = append(preSteps, fmt.Sprintf("          path: %s\n", constants.TmpGhAwAssetsDirSlash))
 
 	// Step 4: List files
 	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	preSteps = append(preSteps, "        run: |\n")
 	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
-	preSteps = append(preSteps, "          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls\n")
+	preSteps = append(preSteps, fmt.Sprintf("          find %s -maxdepth 1 -ls\n", constants.TmpGhAwAssetsDirSlash))
 
 	// Build custom environment variables specific to upload-assets
 	var customEnvVars []string
+	// Single source of truth for the staged-assets directory: the consumer script
+	// reads exactly the directory the download step above wrote to.
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_DIR: %q\n", constants.TmpGhAwAssetsDir))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))

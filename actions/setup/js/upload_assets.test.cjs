@@ -13,8 +13,9 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
       getAssetsDir = () => path.join(tempBase, "safeoutputs", "assets"),
       executeScript = async () => ((global.core = mockCore), (global.exec = mockExec), await eval(`(async () => { ${uploadAssetsScript}; await main(); })()`));
     (beforeEach(() => {
-      (vi.clearAllMocks(), delete process.env.GH_AW_ASSETS_BRANCH, delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GH_AW_SAFE_OUTPUTS_STAGED);
+      (vi.clearAllMocks(), delete process.env.GH_AW_ASSETS_BRANCH, delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GH_AW_ASSETS_DIR, delete process.env.GH_AW_SAFE_OUTPUTS_STAGED);
       tempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-"));
+      process.env.GH_AW_ASSETS_DIR = path.join(tempBase, "safeoutputs", "assets");
       const scriptPath = path.join(__dirname, "upload_assets.cjs");
       ((uploadAssetsScript = fs.readFileSync(scriptPath, "utf8")), (mockExec = { exec: vi.fn().mockResolvedValue(0) }));
     }),
@@ -176,17 +177,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
           });
         });
         describe("staging directory resolution", () => {
-          it("should find assets staged under RUNNER_TEMP when agent output dir differs", async () => {
+          it("should read assets from the GH_AW_ASSETS_DIR directory", async () => {
             process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
             process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
-            // Stage the asset under a RUNNER_TEMP-based directory, NOT under the
-            // agent-output directory (tempBase), to simulate a path-prefix mismatch.
-            const prevRunnerTemp = process.env.RUNNER_TEMP;
-            const runnerTempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-rt-"));
-            process.env.RUNNER_TEMP = runnerTempBase;
-            const runnerAssetsDir = path.join(runnerTempBase, "gh-aw", "safeoutputs", "assets");
-            fs.mkdirSync(runnerAssetsDir, { recursive: !0 });
-            const assetSourcePath = path.join(runnerAssetsDir, "chart.png");
+            // Point GH_AW_ASSETS_DIR at a custom directory (distinct from the
+            // agent-output dir) to confirm the consumer reads exactly the
+            // directory the download step wrote to — no search, no derivation.
+            const customAssetsDir = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-assets-"));
+            process.env.GH_AW_ASSETS_DIR = customAssetsDir;
+            const assetSourcePath = path.join(customAssetsDir, "chart.png");
             fs.writeFileSync(assetSourcePath, "chart content");
             const crypto = require("crypto"),
               fileContent = fs.readFileSync(assetSourcePath),
@@ -206,8 +205,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
               expect(uploadCountCall).toBeDefined();
               uploadCountCall && expect(uploadCountCall[1]).toBe("1");
             } finally {
-              void 0 === prevRunnerTemp ? delete process.env.RUNNER_TEMP : (process.env.RUNNER_TEMP = prevRunnerTemp);
-              fs.existsSync(runnerTempBase) && fs.rmSync(runnerTempBase, { recursive: !0, force: !0 });
+              fs.existsSync(customAssetsDir) && fs.rmSync(customAssetsDir, { recursive: !0, force: !0 });
               fs.existsSync(path.join(process.cwd(), targetFile)) && fs.unlinkSync(path.join(process.cwd(), targetFile));
             }
           });

@@ -405,6 +405,15 @@ const TmpGhAwDirSlash = TmpGhAwDir + "/"
 // TmpGhAwAgentDir is the agent working directory in the /tmp/gh-aw tree.
 const TmpGhAwAgentDir = TmpGhAwDir + "/agent/"
 
+// TmpGhAwAssetsDir is the directory the upload_assets job downloads the
+// safe-outputs assets artifact into. It is the single source of truth shared by
+// the download step (path:) and the upload_assets.cjs consumer script, so the
+// two never disagree on where staged assets live.
+const TmpGhAwAssetsDir = TmpGhAwDir + "/safeoutputs/assets"
+
+// TmpGhAwAssetsDirSlash is TmpGhAwAssetsDir with a trailing slash.
+const TmpGhAwAssetsDirSlash = TmpGhAwAssetsDir + "/"
+
 // AgentStdioLogPath is the path for capturing agent standard I/O log output.
 const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"
 
