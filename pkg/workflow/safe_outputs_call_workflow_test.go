@@ -46,7 +46,10 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 	assert.Equal(t, "needs.safe_outputs.outputs.call_workflow_name == 'spring-boot-bugfix'", job.If, "Should have correct if condition")
 	assert.Equal(t, "./.github/workflows/spring-boot-bugfix.lock.yml", job.Uses, "Should use correct workflow path")
 	assert.True(t, job.SecretsInherit, "Should inherit secrets")
-	assert.Equal(t, "${{ needs.safe_outputs.outputs.call_workflow_payload }}", job.With["payload"], "Should pass payload")
+	// With no markdown path the worker inputs cannot be resolved, so no inputs
+	// (including the canonical payload) are forwarded.
+	_, hasPayload := job.With["payload"]
+	assert.False(t, hasPayload, "Should not pass payload when worker inputs are unknown")
 }
 
 // TestBuildCallWorkflowJobs_NoConfig returns nil when call-workflow is not configured
@@ -284,7 +287,8 @@ func TestCallWorkflowJobYAMLOutput(t *testing.T) {
 
 	assert.Contains(t, yamlOutput, "uses: ./.github/workflows/worker-a.lock.yml", "Should contain uses directive")
 	assert.Contains(t, yamlOutput, "secrets: inherit", "Should inherit secrets")
-	assert.Contains(t, yamlOutput, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}", "Should pass payload")
+	// With no markdown path the worker inputs cannot be resolved, so payload is not forwarded.
+	assert.NotContains(t, yamlOutput, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}", "Should not pass payload when worker inputs are unknown")
 	assert.Contains(t, yamlOutput, "if: needs.safe_outputs.outputs.call_workflow_name == 'worker-a'", "Should have if condition")
 
 	// Should not have runs-on (reusable workflows don't have this)
@@ -461,6 +465,75 @@ jobs:
 	payloadVal, _ := job.With["payload"].(string)
 	assert.NotContains(t, payloadVal, "fromJSON",
 		"payload canonical entry must be the raw step output, not a fromJSON expression")
+}
+
+// TestBuildCallWorkflowJobs_OmitsPayloadWhenNotDeclared verifies that the canonical
+// payload envelope is NOT forwarded in the with: block when the worker does not
+// declare a `payload` workflow_call input. GitHub Actions rejects a `uses:` step
+// that passes an input the called workflow does not declare, so passing payload
+// unconditionally would break workers that omit it (the common case).
+func TestBuildCallWorkflowJobs_OmitsPayloadWhenNotDeclared(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Worker declares only sentinel and environment; no payload input.
+	workerContent := `name: Worker
+on:
+  workflow_call:
+    inputs:
+      sentinel:
+        description: Sentinel value
+        type: string
+        required: true
+      environment:
+        description: Target environment
+        type: string
+        required: false
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-a.lock.yml"), []byte(workerContent), 0644))
+
+	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
+	require.NoError(t, os.WriteFile(gatewayFile, []byte("# Gateway"), 0644))
+
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Workflows:            []string{"worker-a"},
+				WorkflowFiles: map[string]string{
+					"worker-a": "./.github/workflows/worker-a.lock.yml",
+				},
+			},
+		},
+	}
+
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, gatewayFile)
+	require.NoError(t, err, "Should not error building call-workflow jobs")
+	require.Equal(t, []string{"call-worker-a"}, jobNames)
+
+	job, exists := compiler.jobManager.GetJob("call-worker-a")
+	require.True(t, exists, "call-worker-a job should exist")
+
+	// payload must NOT be forwarded because the worker does not declare it.
+	_, hasPayload := job.With["payload"]
+	assert.False(t, hasPayload, "Should not forward payload when worker does not declare it")
+
+	// Declared typed inputs should still be forwarded from the payload.
+	assert.Equal(t,
+		"${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).sentinel }}",
+		job.With["sentinel"],
+		"Should forward sentinel from payload")
+	assert.Equal(t,
+		"${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).environment }}",
+		job.With["environment"],
+		"Should forward environment from payload")
 }
 
 // TestExtractWorkflowCallInputsFromParsed tests the parsing of workflow_call inputs
