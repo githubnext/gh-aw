@@ -544,27 +544,54 @@ describe("mcp_cli_bridge.cjs", () => {
         return process.stdout;
       });
 
-      const writePromise = writeStdoutAndFlush("large payload\n");
+      try {
+        const writePromise = writeStdoutAndFlush("large payload\n");
 
-      // Drain callback not yet called — promise should still be pending
-      let resolved = false;
-      writePromise.then(() => {
-        resolved = true;
+        // Drain callback not yet called — promise should still be pending
+        let resolved = false;
+        writePromise.then(() => {
+          resolved = true;
+        });
+
+        // Let microtasks run; drain hasn't fired yet so still pending
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+        expect(drainCb).not.toBeNull();
+
+        // Fire the drain event
+        drainCb();
+
+        await writePromise;
+        expect(resolved).toBe(true);
+        expect(stdoutChunks).toContain("large payload\n");
+      } finally {
+        onceStub.mockRestore();
+      }
+    });
+
+    it("rejects when stdout emits error while waiting for drain (EPIPE)", async () => {
+      // Arrange: stdout.write returns false, then stdout emits an error
+      stdoutSpy.mockImplementation(chunk => {
+        stdoutChunks.push(String(chunk));
+        return false; // signal backpressure
+      });
+      const error = new Error("EPIPE");
+      let errorCb = null;
+      const onceStub = vi.spyOn(process.stdout, "once").mockImplementation((event, cb) => {
+        if (event === "error") {
+          errorCb = cb;
+        }
+        return process.stdout;
       });
 
-      // Let microtasks run; drain hasn't fired yet so still pending
-      await Promise.resolve();
-      expect(resolved).toBe(false);
-      expect(drainCb).not.toBeNull();
-
-      // Fire the drain event
-      drainCb();
-
-      await writePromise;
-      expect(resolved).toBe(true);
-      expect(stdoutChunks).toContain("large payload\n");
-
-      onceStub.mockRestore();
+      try {
+        const writePromise = writeStdoutAndFlush("data\n");
+        // Fire the error event asynchronously (simulates broken pipe)
+        Promise.resolve().then(() => errorCb?.(error));
+        await expect(writePromise).rejects.toThrow("EPIPE");
+      } finally {
+        onceStub.mockRestore();
+      }
     });
 
     it("formatResponse awaits stdout drain before writing to stderr (no interleaving)", async () => {
@@ -595,25 +622,27 @@ describe("mcp_cli_bridge.cjs", () => {
         },
       };
 
-      const formatPromise = formatResponse(body, "agenticworkflows");
+      try {
+        const formatPromise = formatResponse(body, "agenticworkflows");
 
-      // Yield to microtasks — stdout write is queued, drain not yet fired
-      await Promise.resolve();
+        // Yield to microtasks — stdout write is queued, drain not yet fired
+        await Promise.resolve();
 
-      // core.info should NOT have been called yet (stdout hasn't drained)
-      expect(callOrder.filter(e => e.stream === "stderr-info")).toHaveLength(0);
+        // core.info should NOT have been called yet (stdout hasn't drained)
+        expect(callOrder.filter(e => e.stream === "stderr-info")).toHaveLength(0);
 
-      // Now fire the drain event
-      if (drainCb) drainCb();
-      await formatPromise;
+        // Now fire the drain event
+        if (drainCb) drainCb();
+        await formatPromise;
 
-      // After drain: stdout write AND then core.info (order preserved)
-      const stdoutIdx = callOrder.findIndex(e => e.stream === "stdout");
-      const infoIdx = callOrder.findIndex(e => e.stream === "stderr-info");
-      expect(stdoutIdx).toBeGreaterThanOrEqual(0);
-      expect(infoIdx).toBeGreaterThan(stdoutIdx);
-
-      onceStub.mockRestore();
+        // After drain: stdout write AND then core.info (order preserved)
+        const stdoutIdx = callOrder.findIndex(e => e.stream === "stdout");
+        const infoIdx = callOrder.findIndex(e => e.stream === "stderr-info");
+        expect(stdoutIdx).toBeGreaterThanOrEqual(0);
+        expect(infoIdx).toBeGreaterThan(stdoutIdx);
+      } finally {
+        onceStub.mockRestore();
+      }
     });
   });
 });

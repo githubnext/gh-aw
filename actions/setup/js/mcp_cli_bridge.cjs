@@ -120,12 +120,21 @@ function auditLog(serverName, entry) {
  * @returns {Promise<void>}
  */
 function writeStdoutAndFlush(data) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const flushed = process.stdout.write(data);
     if (flushed) {
       resolve();
     } else {
-      process.stdout.once("drain", resolve);
+      const onDrain = () => {
+        process.stdout.removeListener("error", onError);
+        resolve();
+      };
+      const onError = err => {
+        process.stdout.removeListener("drain", onDrain);
+        reject(err);
+      };
+      process.stdout.once("drain", onDrain);
+      process.stdout.once("error", onError);
     }
   });
 }
