@@ -2078,6 +2078,127 @@ describe("add_comment", () => {
       // Should only call GraphQL once (not retry)
       expect(graphqlCallCount).toBe(1);
     });
+
+    it("should return skipped (not fail) when discussion comment fails with Resource not accessible by integration", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      let errorCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      // Mock REST API to return 404 (not found as issue/PR)
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Not Found");
+        // @ts-ignore -- Error type does not include status, but octokit adds it at runtime
+        error.status = 404;
+        throw error;
+      };
+
+      // Mock GraphQL to return the discussion node ID but fail on mutation
+      let graphqlCalls = [];
+      mockGithub.graphql = async (query, vars) => {
+        graphqlCalls.push({ query, vars });
+
+        // First call: fetch discussion node ID
+        if (query.includes("query") && query.includes("discussion(number:")) {
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest335",
+                url: "https://github.com/owner/repo/discussions/335",
+              },
+            },
+          };
+        }
+
+        // Second call: mutation — simulate "Resource not accessible by integration"
+        if (query.includes("mutation") && query.includes("addDiscussionComment")) {
+          const err = new Error("Request failed due to following response errors:\n - Resource not accessible by integration");
+          throw err;
+        }
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 335,
+        body: "Test comment on discussion",
+      };
+
+      const result = await handler(message, {});
+
+      // Should be skipped (not a hard failure) so the safe-outputs job doesn't fail
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("configuration mismatch");
+      expect(result.error).toContain("discussions:write");
+
+      // Warning should be emitted, no error
+      const configMismatchWarning = warningCalls.find(msg => msg.includes("configuration mismatch"));
+      expect(configMismatchWarning).toBeTruthy();
+      expect(errorCalls.length).toBe(0);
+    });
+
+    it("should return skipped when discussion GraphQL errors array contains Resource not accessible", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      // Mock REST API to return 404
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Not Found");
+        // @ts-ignore
+        error.status = 404;
+        throw error;
+      };
+
+      // GraphQL: discussion exists but mutation fails with errors array
+      mockGithub.graphql = async (query, vars) => {
+        if (query.includes("query") && query.includes("discussion(number:")) {
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest336",
+                url: "https://github.com/owner/repo/discussions/336",
+              },
+            },
+          };
+        }
+
+        if (query.includes("mutation") && query.includes("addDiscussionComment")) {
+          const err = new Error("Request failed");
+          // @ts-ignore -- Error type does not include errors, but GraphQL errors surface this way at runtime
+          err.errors = [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }];
+          throw err;
+        }
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 336,
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("configuration mismatch");
+
+      const configMismatchWarning = warningCalls.find(msg => msg.includes("configuration mismatch"));
+      expect(configMismatchWarning).toBeTruthy();
+    });
   });
 
   describe("temporary ID resolution", () => {

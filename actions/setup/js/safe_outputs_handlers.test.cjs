@@ -1741,6 +1741,43 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.error).toContain("requires item_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
+
+    it("should refuse reply_to_id when discussions are not enabled in config", () => {
+      // Default handlers have no discussions: true in config
+      const result = handlers.addCommentHandler({
+        body: "Reply to a discussion thread",
+        reply_to_id: "DC_kwDOABcD1M4AaBbC",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("discussion comments are not enabled");
+      expect(responseData.error).toContain("discussions: true");
+      expect(responseData.error).toContain("safe-outputs.add-comment");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should allow reply_to_id when discussions are enabled in config", () => {
+      const discussionHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        "add-comment": { enabled: true, discussions: true },
+      });
+
+      const result = discussionHandlers.addCommentHandler({
+        body: "Reply to a discussion thread with real content that is not a test placeholder",
+        reply_to_id: "DC_kwDOABcD1M4AaBbC",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "add_comment",
+          reply_to_id: "DC_kwDOABcD1M4AaBbC",
+        })
+      );
+    });
   });
 
   describe("createIssueHandler", () => {
