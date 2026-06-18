@@ -64,7 +64,11 @@ function isValidBaseBranchName(branchName) {
     return false;
   }
 
-  const result = spawnSync("git", ["check-ref-format", "--branch", branchName], { stdio: "ignore" });
+  // Use refs/heads/<name> to validate as a literal ref, not a branch expression.
+  // --branch also accepts @{-N} git expressions; refs/heads/ form correctly rejects them.
+  // Fail-closed: if git is unavailable (ENOENT) or times out (ETIMEDOUT), result.error is set
+  // and we return false, safely dropping the base branch rather than passing an invalid value.
+  const result = spawnSync("git", ["check-ref-format", `refs/heads/${branchName}`], { stdio: "ignore", timeout: 5000 });
   return !result.error && result.status === 0;
 }
 

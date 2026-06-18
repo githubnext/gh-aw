@@ -82,4 +82,16 @@ describe("extract_base_branch_from_agent_output", () => {
     expect(isValidBaseBranchName(".foo")).toBe(false);
     expect(isValidBaseBranchName("foo/.bar")).toBe(false);
   });
+
+  it("rejects git branch expressions (@{-N} notation)", () => {
+    expect(isValidBaseBranchName("@{-1}")).toBe(false);
+    expect(isValidBaseBranchName("@{-2}")).toBe(false);
+  });
+
+  it("enforces the 255-character length limit", () => {
+    const atLimit = "a".repeat(255);
+    const overLimit = "a".repeat(256);
+    expect(isValidBaseBranchName(atLimit)).toBe(true);
+    expect(isValidBaseBranchName(overLimit)).toBe(false);
+  });
 });
