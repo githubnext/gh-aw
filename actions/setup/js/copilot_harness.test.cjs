@@ -267,6 +267,55 @@ describe("copilot_harness.cjs", () => {
         expect(classifyCopilotFailure({ hasOutput: true, isMCPGatewayShutdown: true })).toBe("mcp_gateway_shutdown");
       });
 
+      it("sdk_session_idle_timeout outranks permission_denied in failure classification", () => {
+        // Both flags set — the more specific signal must win.
+        expect(classifyCopilotFailure({ hasOutput: true, isSDKSessionIdleTimeout: true, hasNumerousPermissionDenied: true })).toBe("sdk_session_idle_timeout");
+      });
+
+      it("mcp_gateway_shutdown outranks permission_denied in failure classification", () => {
+        // Both flags set — the more specific signal must win.
+        expect(classifyCopilotFailure({ hasOutput: true, isMCPGatewayShutdown: true, hasNumerousPermissionDenied: true })).toBe("mcp_gateway_shutdown");
+      });
+
+      it("retries sdk_session_idle_timeout as partial execution (shouldRetry)", () => {
+        // sdk_session_idle_timeout is not a quota/permission blocker; the harness should retry.
+        const result = {
+          exitCode: 1,
+          hasOutput: true,
+          output: "[copilot-sdk-driver] Timeout after 60000ms waiting for session.idle",
+        };
+        const MAX_RETRIES = 3;
+        const shouldRetryLocal = (r, attempt) => {
+          if (r.exitCode === 0) return false;
+          if (hasNumerousPermissionDeniedIssues(r.output)) return false;
+          if (isCAPIQuotaExceededError(r.output)) return false;
+          return attempt < MAX_RETRIES && r.hasOutput;
+        };
+        expect(shouldRetryLocal(result, 0)).toBe(true);
+      });
+
+      it("retries mcp_gateway_shutdown as partial execution (shouldRetry)", () => {
+        // mcp_gateway_shutdown is not a quota/permission blocker; the harness should retry.
+        const result = {
+          exitCode: 1,
+          hasOutput: true,
+          output: '{"message":"Gateway shutdown initiated","serversTerminated":1,"status":"closed"}',
+        };
+        const MAX_RETRIES = 3;
+        const shouldRetryLocal = (r, attempt) => {
+          if (r.exitCode === 0) return false;
+          if (hasNumerousPermissionDeniedIssues(r.output)) return false;
+          if (isCAPIQuotaExceededError(r.output)) return false;
+          return attempt < MAX_RETRIES && r.hasOutput;
+        };
+        expect(shouldRetryLocal(result, 0)).toBe(true);
+      });
+
+      it("extractOutputTail never exceeds maxChars even when maxChars is 1", () => {
+        const tail = extractOutputTail("abc", { maxLines: 5, maxChars: 1 });
+        expect(tail.length).toBeLessThanOrEqual(1);
+      });
+
       it("extracts a compact tail preview from large output", () => {
         const tail = extractOutputTail(["line 1", "line 2", "line 3", "line 4"].join("\n"), { maxLines: 2, maxChars: 20 });
         expect(tail).toBe("line 3\nline 4");

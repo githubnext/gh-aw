@@ -117,7 +117,10 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // Pattern: Copilot SDK driver timed out waiting for the session to become idle.
 const SDK_SESSION_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for session\.idle/;
 // Pattern: MCP gateway shutdown surfaced in agent output.
-const MCP_GATEWAY_SHUTDOWN_PATTERN = /Gateway shutdown initiated/;
+// Anchored to the JSON "message" key emitted by the MCP gateway driver to
+// avoid false positives from any process that logs "Gateway shutdown initiated"
+// as plain text.
+const MCP_GATEWAY_SHUTDOWN_PATTERN = /"message"\s*:\s*"Gateway shutdown initiated"/;
 
 // Pattern to detect null-type tool_call error that poisons conversation history.
 // Matches the Copilot API 400 error:
@@ -294,8 +297,9 @@ function extractOutputTail(output, options) {
   if (typeof output !== "string" || !output) return "";
   const maxChars = options?.maxChars ?? OUTPUT_TAIL_MAX_CHARS;
   const maxLines = options?.maxLines ?? OUTPUT_TAIL_MAX_LINES;
-  const normalized = output.replace(/\0/g, "").replace(/\r\n/g, "\n").trim();
+  const normalized = output.replace(/\0/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
   if (!normalized) return "";
+  // filter(Boolean) removes blank lines; maxLines therefore counts non-empty lines.
   const tailLines = normalized
     .split("\n")
     .map(line => line.trimEnd())
@@ -304,7 +308,8 @@ function extractOutputTail(output, options) {
   if (tailLines.length === 0) return "";
   let tail = tailLines.join("\n");
   if (tail.length > maxChars) {
-    tail = `…${tail.slice(-(maxChars - 1))}`;
+    const keep = maxChars - 1;
+    tail = keep > 0 ? `…${tail.slice(-keep)}` : "…";
   }
   return tail;
 }
@@ -333,9 +338,9 @@ function classifyCopilotFailure(detection) {
   if (detection.isNullTypeToolCall) return "null_type_tool_call";
   if (detection.isAuthErr) return "no_auth_info";
   if (detection.isAuthenticationFailed) return "authentication_failed";
-  if (detection.hasNumerousPermissionDenied) return "permission_denied";
   if (detection.isSDKSessionIdleTimeout) return "sdk_session_idle_timeout";
   if (detection.isMCPGatewayShutdown) return "mcp_gateway_shutdown";
+  if (detection.hasNumerousPermissionDenied) return "permission_denied";
   if (detection.isTransientCAPIError) return "capi_error_400";
   return detection.hasOutput ? "partial_execution" : "no_output";
 }
