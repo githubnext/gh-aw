@@ -180,13 +180,9 @@ Ensure proper audience validation and trust policies are configured.`
 // type cannot be determined, preserving prior behavior.
 func (c *Compiler) repositoryOwnerIsIndividualUser() bool {
 	slug := c.repositorySlug
-	if slug == "" || strings.Count(slug, "/") != 1 {
+	owner, repo, ok := strings.Cut(slug, "/")
+	if !ok || owner == "" || repo == "" {
 		workflowLog.Printf("Skipping owner-type check: slug %q is not in owner/repo format", slug)
-		return false
-	}
-	owner, _, _ := strings.Cut(slug, "/")
-	if owner == "" {
-		workflowLog.Printf("Skipping owner-type check: slug %q has empty owner", slug)
 		return false
 	}
 
