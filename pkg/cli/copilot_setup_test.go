@@ -805,7 +805,7 @@ jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
     steps:
-      - uses: github/gh-aw/actions/setup-cli@v1.0.0
+      - uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
 `
@@ -917,7 +917,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
       - name: Verify gh-aw installation
@@ -1065,7 +1065,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
 `,
@@ -1074,7 +1074,7 @@ jobs:
 			resolver:      nil,
 			expectUpgrade: true,
 			validate: func(t *testing.T, got string) {
-				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v2.0.0") {
+				if !strings.Contains(got, "uses: github/gh-aw-actions/setup-cli@v2.0.0") {
 					t.Errorf("Expected updated uses: line, got:\n%s", got)
 				}
 				if !strings.Contains(got, "version: v2.0.0") {
@@ -1098,7 +1098,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
 `,
@@ -1107,7 +1107,7 @@ jobs:
 			resolver:      &mockSHAResolver{sha: "bd9c0ca491e6334a2797ef56ad6ee89958d54ab9"},
 			expectUpgrade: true,
 			validate: func(t *testing.T, got string) {
-				want := "uses: github/gh-aw/actions/setup-cli@bd9c0ca491e6334a2797ef56ad6ee89958d54ab9 # v2.0.0"
+				want := "uses: github/gh-aw-actions/setup-cli@bd9c0ca491e6334a2797ef56ad6ee89958d54ab9 # v2.0.0"
 				if !strings.Contains(got, want) {
 					t.Errorf("Expected unquoted SHA-pinned uses: line %q, got:\n%s", want, got)
 				}
@@ -1126,7 +1126,7 @@ jobs:
   copilot-setup-steps:
     steps:
       - name: Install gh-aw extension
-        uses: "github/gh-aw/actions/setup-cli@oldsha # v0.53.2"
+        uses: "github/gh-aw-actions/setup-cli@oldsha # v0.53.2"
         with:
           version: v0.53.2
 `,
@@ -1138,7 +1138,7 @@ jobs:
 				if strings.Contains(got, `"github/gh-aw`) {
 					t.Errorf("Quotes must be stripped from uses: value, got:\n%s", got)
 				}
-				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v2.0.0") {
+				if !strings.Contains(got, "uses: github/gh-aw-actions/setup-cli@v2.0.0") {
 					t.Errorf("Expected updated unquoted uses: line, got:\n%s", got)
 				}
 				if !strings.Contains(got, "version: v2.0.0") {
@@ -1163,7 +1163,7 @@ jobs:
 			content: `jobs:
   copilot-setup-steps:
     steps:
-      - uses: github/gh-aw/actions/setup-cli@v1.0.0
+      - uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
 `,
@@ -1178,7 +1178,7 @@ jobs:
   copilot-setup-steps:
     steps:
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@cb7966564184443e601bd6135d5fbb534300070e # v0.58.0
+        uses: github/gh-aw-actions/setup-cli@cb7966564184443e601bd6135d5fbb534300070e # v0.58.0
         with:
           version: v0.53.6
 `,
@@ -1187,7 +1187,7 @@ jobs:
 			resolver:      &mockSHAResolver{sha: "newsha123"},
 			expectUpgrade: true,
 			validate: func(t *testing.T, got string) {
-				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@newsha123 # v0.60.0") {
+				if !strings.Contains(got, "uses: github/gh-aw-actions/setup-cli@newsha123 # v0.60.0") {
 					t.Errorf("Expected updated SHA-pinned uses: line, got:\n%s", got)
 				}
 				if !strings.Contains(got, "version: v0.60.0") {
@@ -1207,7 +1207,7 @@ jobs:
   copilot-setup-steps:
     steps:
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v0.58.0
+        uses: github/gh-aw-actions/setup-cli@v0.58.0
         with:
           version: v0.53.6
 `,
@@ -1216,7 +1216,7 @@ jobs:
 			resolver:      nil,
 			expectUpgrade: true,
 			validate: func(t *testing.T, got string) {
-				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v0.60.0") {
+				if !strings.Contains(got, "uses: github/gh-aw-actions/setup-cli@v0.60.0") {
 					t.Errorf("Expected updated uses: line, got:\n%s", got)
 				}
 				if !strings.Contains(got, "version: v0.60.0") {
@@ -1287,7 +1287,7 @@ jobs:
 
       # Step 2 comment — this step should be updated.
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
           extra-param: keep-me # this param must not be touched
@@ -1325,7 +1325,7 @@ jobs:
 
       # Step 2 comment — this step should be updated.
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v2.0.0
+        uses: github/gh-aw-actions/setup-cli@v2.0.0
         with:
           version: v2.0.0
           extra-param: keep-me # this param must not be touched
@@ -1409,7 +1409,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        uses: github/gh-aw-actions/setup-cli@v1.0.0
         with:
           version: v1.0.0
 `
@@ -1432,7 +1432,7 @@ jobs:
 	updatedStr := string(updated)
 
 	// The uses: line must be unquoted
-	wantUses := "uses: github/gh-aw/actions/setup-cli@" + sha + " # v2.0.0"
+	wantUses := "uses: github/gh-aw-actions/setup-cli@" + sha + " # v2.0.0"
 	if !strings.Contains(updatedStr, wantUses) {
 		t.Errorf("Expected unquoted uses: line %q, got:\n%s", wantUses, updatedStr)
 	}

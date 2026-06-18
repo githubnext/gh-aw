@@ -28,7 +28,7 @@ func TestRuntimesConfigToMap_GhAw(t *testing.T) {
 		GhAw: &RuntimeConfig{
 			Version:       "v1.2.3",
 			If:            "github.event_name == 'push'",
-			ActionRepo:    "github/gh-aw/actions/setup-cli",
+			ActionRepo:    "github/gh-aw-actions/setup-cli",
 			ActionVersion: "v0.72.1",
 		},
 	})
@@ -39,7 +39,7 @@ func TestRuntimesConfigToMap_GhAw(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "v1.2.3", ghAw["version"])
 	assert.Equal(t, "github.event_name == 'push'", ghAw["if"])
-	assert.Equal(t, "github/gh-aw/actions/setup-cli", ghAw["action-repo"])
+	assert.Equal(t, "github/gh-aw-actions/setup-cli", ghAw["action-repo"])
 	assert.Equal(t, "v0.72.1", ghAw["action-version"])
 }
 
@@ -115,7 +115,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_DevBuildsFromSource(t *testing.T) {
 	assert.Contains(t, content, "gh extension install .")
 	assert.Contains(t, content, "gh aw version")
 	assert.Contains(t, content, "GH_TOKEN: ${{ github.token }}")
-	assert.NotContains(t, content, "github/gh-aw/actions/setup-cli@")
+	assert.NotContains(t, content, "github/gh-aw-actions/setup-cli@")
 }
 
 func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesSetupCLI(t *testing.T) {
@@ -139,7 +139,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesSetupCLI(t *testing.T) {
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
-	assert.Contains(t, content, "uses: github/gh-aw/actions/setup-cli@")
+	assert.Contains(t, content, "uses: github/gh-aw-actions/setup-cli@")
 	assert.Contains(t, content, "version: 'v0.72.1'")
 }
 
@@ -159,7 +159,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesWorkflowDataPin(t *testing.T)
 
 	cache := NewActionCache(t.TempDir())
 	sha := "0123456789abcdef0123456789abcdef01234567"
-	cache.Set("github/gh-aw/actions/setup-cli", "v0.72.1", sha)
+	cache.Set("github/gh-aw-actions/setup-cli", "v0.72.1", sha)
 
 	data := &WorkflowData{
 		Ctx:            context.Background(),
@@ -173,6 +173,6 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesWorkflowDataPin(t *testing.T)
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
-	assert.Contains(t, content, "uses: github/gh-aw/actions/setup-cli@"+sha)
+	assert.Contains(t, content, "uses: github/gh-aw-actions/setup-cli@"+sha)
 	assert.Contains(t, content, "version: 'v0.72.1'")
 }
