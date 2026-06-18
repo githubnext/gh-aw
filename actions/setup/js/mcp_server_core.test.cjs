@@ -187,6 +187,36 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].result.isError).toBe(false);
     });
 
+    it("should propagate isError:true from handler result to MCP response", async () => {
+      // Reuse the server, capture hooks, and stderr spy already set up in beforeEach.
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      registerTool(server, {
+        name: "failing_tool",
+        description: "A tool that returns an application-level error",
+        inputSchema: {
+          type: "object",
+          properties: { input: { type: "string", description: "Input" } },
+          required: ["input"],
+        },
+        handler: () => ({
+          content: [{ type: "text", text: JSON.stringify({ result: "error", error: "something went wrong" }) }],
+          isError: true,
+        }),
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 42,
+        method: "tools/call",
+        params: { name: "failing_tool", arguments: { input: "test" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.isError).toBe(true);
+      expect(results[0].result.content[0].text).toContain('"result":"error"');
+    });
+
     it("should normalize tool arguments before required-field validation", async () => {
       const { createServer, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
       results = [];
@@ -437,6 +467,72 @@ describe("mcp_server_core.cjs", () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].result.content[0].text).toBe("default handler for no_handler_tool");
+    });
+  });
+
+  describe("handleRequest", () => {
+    beforeEach(() => {
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    });
+
+    it("should propagate isError:true from handler result into the JSON-RPC response", async () => {
+      const { createServer, registerTool, handleRequest } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "failing_tool",
+        description: "A tool that returns an application-level error",
+        inputSchema: {
+          type: "object",
+          properties: { input: { type: "string", description: "Input" } },
+          required: ["input"],
+        },
+        handler: () => ({
+          content: [{ type: "text", text: JSON.stringify({ result: "error", error: "something went wrong" }) }],
+          isError: true,
+        }),
+      });
+
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 7,
+        method: "tools/call",
+        params: { name: "failing_tool", arguments: { input: "test" } },
+      });
+
+      expect(response.id).toBe(7);
+      expect(response.result.isError).toBe(true);
+      expect(response.result.content[0].text).toContain('"result":"error"');
+    });
+
+    it("should report isError:false for a successful handler result", async () => {
+      const { createServer, registerTool, handleRequest } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "ok_tool",
+        description: "A tool that succeeds",
+        inputSchema: {
+          type: "object",
+          properties: { input: { type: "string", description: "Input" } },
+          required: ["input"],
+        },
+        handler: args => ({
+          content: [{ type: "text", text: `received: ${args.input}` }],
+        }),
+      });
+
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 8,
+        method: "tools/call",
+        params: { name: "ok_tool", arguments: { input: "hello" } },
+      });
+
+      expect(response.id).toBe(8);
+      expect(response.result.isError).toBe(false);
+      expect(response.result.content[0].text).toBe("received: hello");
     });
   });
 

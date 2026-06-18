@@ -489,3 +489,45 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     expect(log).toEqual(["seed"]);
   });
 });
+
+describe("apply_samples.cjs sampleResultIsError", () => {
+  const { sampleResultIsError } = require("./apply_samples.cjs");
+
+  it("returns false for a successful result (no isError, no error content)", () => {
+    const result = { content: [{ type: "text", text: JSON.stringify({ result: "success", id: 1 }) }], isError: false };
+    expect(sampleResultIsError(result)).toBe(false);
+  });
+
+  it("returns true when isError is true on the result (flag takes precedence)", () => {
+    const result = {
+      // Content is a success payload — proves the early-return on the isError flag,
+      // not the content-text fallback path.
+      content: [{ type: "text", text: JSON.stringify({ result: "success", id: 1 }) }],
+      isError: true,
+    };
+    expect(sampleResultIsError(result)).toBe(true);
+  });
+
+  it("returns true (defense-in-depth) when content text has result:error but isError is false", () => {
+    // This simulates the bug: an older server that forgot to set isError:true.
+    const result = {
+      content: [{ type: "text", text: JSON.stringify({ result: "error", error: "patch failed", details: "no merge base" }) }],
+      isError: false,
+    };
+    expect(sampleResultIsError(result)).toBe(true);
+  });
+
+  it("returns false for non-JSON content text", () => {
+    const result = { content: [{ type: "text", text: "plain text, not JSON" }], isError: false };
+    expect(sampleResultIsError(result)).toBe(false);
+  });
+
+  it("returns false for null result", () => {
+    expect(sampleResultIsError(null)).toBe(false);
+  });
+
+  it("returns false for empty content array", () => {
+    const result = { content: [], isError: false };
+    expect(sampleResultIsError(result)).toBe(false);
+  });
+});

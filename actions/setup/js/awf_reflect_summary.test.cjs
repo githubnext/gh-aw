@@ -378,6 +378,8 @@ describe("awf_reflect_summary.cjs", () => {
       expect(summary).toContain("openai");
       expect(summary).toContain("Runtime models.json");
       expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
+      expect(mockCore.info).toHaveBeenCalledTimes(2);
+      expect(mockCore.info).toHaveBeenCalledWith(summary);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
     });
   });

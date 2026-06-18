@@ -44,6 +44,7 @@ require("./shim.cjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const {
@@ -80,6 +81,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
+const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH = path.join(__dirname, "../md/copilot_requests_proxy_auth_403.md");
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -403,19 +405,40 @@ function detectCopilotAuthFailureStage(output) {
 }
 
 /**
- * Build a more actionable Copilot auth diagnostic when a 401 came from the gh-aw API proxy.
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function envFlagEnabled(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+/**
+ * Build a more actionable Copilot auth diagnostic when a 401/403 came from the gh-aw API proxy.
  * @param {string} output
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {string}
  */
 function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
   const authFailure = parseProviderAuthFailure(output);
-  if (!authFailure || authFailure.statusCode !== "401" || !isLikelyAWFAPIProxyURL(authFailure.providerUrl)) {
+  if (!authFailure || !isLikelyAWFAPIProxyURL(authFailure.providerUrl)) {
     return "";
   }
 
   const selectedModel = typeof env.COPILOT_MODEL === "string" && env.COPILOT_MODEL.trim() ? env.COPILOT_MODEL.trim() : "(unset)";
   const stage = detectCopilotAuthFailureStage(output);
+  if (authFailure.statusCode === "403" && envFlagEnabled(env.S2STOKENS)) {
+    return renderTemplateFromFile(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH, {
+      selected_model: selectedModel,
+      stage,
+    });
+  }
+  if (authFailure.statusCode !== "401") {
+    return "";
+  }
   return (
     `Copilot authentication failed through the gh-aw API proxy (HTTP 401, model=${selectedModel}, stage=${stage}). ` +
     "Check that COPILOT_GITHUB_TOKEN is present, unexpired, and authorized for the selected COPILOT_MODEL. " +
@@ -1005,6 +1028,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchAWFReflect,
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
+    envFlagEnabled,
     generateCopilotConnectionToken,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,

@@ -336,6 +336,7 @@ SAFE_OUTPUTS_FILES=(
   "levenshtein_distance.cjs"
   "markdown_code_region_balancer.cjs"
   "temporary_id.cjs"
+  "invocation_context_helpers.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

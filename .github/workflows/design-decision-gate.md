@@ -86,12 +86,20 @@ steps:
         --json number,title,body,labels,baseRefName,headRefName,author,url \
         > /tmp/gh-aw/agent/pr.json
 
-      gh pr diff "$PR_NUMBER" \
-        --repo "$EXPR_GITHUB_REPOSITORY" \
-        > /tmp/gh-aw/agent/pr.diff
-
       gh api --paginate "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
         --jq '.[]' | jq -s '.' > /tmp/gh-aw/agent/pr-files.json
+
+      FILE_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-files.json)
+
+      if [ "$FILE_COUNT" -gt 300 ]; then
+        echo "::warning::PR has $FILE_COUNT changed files (exceeds the 300-file GitHub diff API limit). Skipping full diff; file listing is available in pr-files.json."
+        printf '# Diff unavailable: PR has %s changed files (exceeds the 300-file GitHub diff API limit).\n# Use pr-files.json for the full file listing instead.\n' "$FILE_COUNT" \
+          > /tmp/gh-aw/agent/pr.diff
+      else
+        gh pr diff "$PR_NUMBER" \
+          --repo "$EXPR_GITHUB_REPOSITORY" \
+          > /tmp/gh-aw/agent/pr.diff
+      fi
 
       if [ -f "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" ]; then
         cp "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" /tmp/gh-aw/agent/design-gate-config.yml
@@ -110,13 +118,17 @@ steps:
         --argjson has_custom_config "$HAS_CUSTOM_CONFIG" \
         --arg pr_number "$PR_NUMBER" \
         --arg threshold "100" \
+        --argjson file_count "$FILE_COUNT" \
+        --argjson diff_available "$(jq -n --argjson fc "$FILE_COUNT" 'if $fc <= 300 then true else false end')" \
         '{
           pr_number: ($pr_number | tonumber),
           threshold: ($threshold | tonumber),
           has_custom_config: $has_custom_config,
           has_implementation_label: $has_implementation_label,
           default_business_additions: $default_business_additions,
-          requires_adr_by_default_volume: ($default_business_additions > ($threshold | tonumber))
+          requires_adr_by_default_volume: ($default_business_additions > ($threshold | tonumber)),
+          file_count: $file_count,
+          diff_available: $diff_available
         }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
 
 ---
@@ -169,7 +181,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
 2. If a pre-fetched file is missing or returns a permission error, fall back to the equivalent GitHub MCP tool immediately (do not retry the file read):
    - Missing `pr.json` → `mcp__github__get_pull_request`
    - Missing `pr-files.json` → `mcp__github__get_pull_request_files`
-   - Missing `pr.diff` → `mcp__github__get_pull_request_diff`
+   - Missing `pr.diff` → `mcp__github__get_pull_request_diff` (only if `diff_available` is `true` in the summary; if `false`, the diff exceeds the 300-file API limit — use `pr-files.json` instead and do **not** call the diff API)
    - Missing `adr-prefetch-summary.json` → compute manually from PR files and labels
 3. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
 4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
@@ -222,7 +234,7 @@ Use pre-fetched files first:
 Read:
 - `/tmp/gh-aw/agent/pr.json`
 - `/tmp/gh-aw/agent/pr-files.json`
-- `/tmp/gh-aw/agent/pr.diff`
+- `/tmp/gh-aw/agent/pr.diff` (if `diff_available` is `false` in the summary, this file contains only a notice — use `pr-files.json` for file-level analysis instead)
 
 Only if one of these files is missing required fields, make a targeted GitHub tool call for the missing field only.
 
@@ -280,7 +292,7 @@ Use this scoped question template before writing the ADR. Answer each item in 1�
 3. **Alternatives**: What are the top 2 realistic alternatives visible from this diff?
 4. **Consequences**: What are 2 positive and 2 negative consequences of the chosen decision?
 
-If any answer cannot be justified from `pr.json` + `pr-files.json` + `pr.diff`, state "Not inferable from current PR evidence" instead of speculating.
+If any answer cannot be justified from `pr.json` + `pr-files.json` + `pr.diff` (or `pr-files.json` alone when `diff_available` is `false`), state "Not inferable from current PR evidence" instead of speculating.
 
 If Question 1 (Decision) is not inferable from current PR evidence, call `missing_data` with a concise explanation of what is missing, then stop.
 

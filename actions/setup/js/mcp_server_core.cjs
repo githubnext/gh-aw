@@ -796,7 +796,9 @@ async function handleRequest(server, request, defaultHandler) {
       // Call handler and await the result (supports both sync and async handlers)
       const handlerResult = await Promise.resolve(handler(args));
       const content = handlerResult && handlerResult.content ? handlerResult.content : [];
-      result = { content, isError: false };
+      // Preserve isError from the handler result (e.g. safe-output handlers return isError:true on error)
+      const isError = !!(handlerResult && handlerResult.isError);
+      result = { content, isError };
     } else if (/^notifications\//.test(method)) {
       // Notifications don't need a response
       return null;
@@ -953,7 +955,9 @@ async function handleMessage(server, req, defaultHandler) {
       const result = await Promise.resolve(handler(args));
       server.debug(`Handler returned for tool: ${name}`);
       const content = result && result.content ? result.content : [];
-      server.replyResult(id, { content, isError: false });
+      // Preserve isError from the handler result (e.g. safe-output handlers return isError:true on error)
+      const isError = !!(result && result.isError);
+      server.replyResult(id, { content, isError });
     } else if (/^notifications\//.test(method)) {
       server.debug(`ignore ${method}`);
     } else {

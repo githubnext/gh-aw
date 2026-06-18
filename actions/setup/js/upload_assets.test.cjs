@@ -4,21 +4,24 @@ import path from "path";
 const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(void 0) } };
 ((global.core = mockCore),
   describe("upload_assets.cjs", () => {
-    let uploadAssetsScript, mockExec, tempFilePath;
+    let uploadAssetsScript, mockExec, tempFilePath, tempBase;
     const setAgentOutput = data => {
-        tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+        tempFilePath = path.join(tempBase, "agent_output.json");
         const content = "string" == typeof data ? data : JSON.stringify(data);
         (fs.writeFileSync(tempFilePath, content), (process.env.GH_AW_AGENT_OUTPUT = tempFilePath));
       },
-      getAssetsDir = () => path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "assets"),
+      getAssetsDir = () => path.join(tempBase, "safeoutputs", "assets"),
       executeScript = async () => ((global.core = mockCore), (global.exec = mockExec), await eval(`(async () => { ${uploadAssetsScript}; await main(); })()`));
     (beforeEach(() => {
       (vi.clearAllMocks(), delete process.env.GH_AW_ASSETS_BRANCH, delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GH_AW_SAFE_OUTPUTS_STAGED);
+      tempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-"));
       const scriptPath = path.join(__dirname, "upload_assets.cjs");
       ((uploadAssetsScript = fs.readFileSync(scriptPath, "utf8")), (mockExec = { exec: vi.fn().mockResolvedValue(0) }));
     }),
       afterEach(() => {
-        tempFilePath && fs.existsSync(tempFilePath) && fs.unlinkSync(tempFilePath);
+        tempBase && fs.existsSync(tempBase) && fs.rmSync(tempBase, { recursive: !0, force: !0 });
+        tempBase = void 0;
+        tempFilePath = void 0;
       }),
       describe("git commit command - vulnerability fix", () => {
         it("should not wrap commit message in extra quotes to prevent command injection", async () => {
@@ -138,13 +141,11 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
               fs.existsSync("test.png") && fs.unlinkSync("test.png"));
           }));
         describe("missing asset handling", () => {
-          it("should skip missing assets while uploading present assets from RUNNER_TEMP", async () => {
+          it("should skip missing assets while uploading present assets", async () => {
             process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
             process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
-            const runnerTempDir = fs.mkdtempSync(path.join("/tmp", "upload-assets-runner-temp-"));
-            process.env.RUNNER_TEMP = runnerTempDir;
-            const assetDir = path.join(runnerTempDir, "gh-aw", "safeoutputs", "assets");
-            fs.mkdirSync(assetDir, { recursive: !0 });
+            const assetDir = getAssetsDir();
+            fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
             const presentAssetSourcePath = path.join(assetDir, "present.png");
             fs.writeFileSync(presentAssetSourcePath, "present content");
             const crypto = require("crypto"),
@@ -172,8 +173,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
             uploadCountCall && expect(uploadCountCall[1]).toBe("1");
             fs.existsSync(presentAssetSourcePath) && fs.unlinkSync(presentAssetSourcePath);
             fs.existsSync(path.join(process.cwd(), presentTargetFile)) && fs.unlinkSync(path.join(process.cwd(), presentTargetFile));
-            fs.rmSync(runnerTempDir, { recursive: !0, force: !0 });
-            delete process.env.RUNNER_TEMP;
           });
         });
       }));

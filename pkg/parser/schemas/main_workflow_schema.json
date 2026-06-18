@@ -2130,63 +2130,7 @@
             },
             "permissions": {
               "description": "Additional permissions for the pre-activation job. Use to declare extra scopes required by on.steps (e.g., issues: read for GitHub API calls in steps).",
-              "oneOf": [
-                {
-                  "type": "object",
-                  "description": "Map of permission scope to level",
-                  "properties": {
-                    "actions": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "checks": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "contents": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "deployments": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "discussions": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "issues": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "packages": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "pages": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "pull-requests": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "repository-projects": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "security-events": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    },
-                    "statuses": {
-                      "type": "string",
-                      "enum": ["read", "write", "none"]
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              ],
+              "$ref": "#/$defs/github_actions_permissions",
               "examples": [
                 {
                   "issues": "read"
@@ -2194,6 +2138,9 @@
                 {
                   "issues": "read",
                   "pull-requests": "read"
+                },
+                {
+                  "vulnerability-alerts": "read"
                 }
               ]
             },

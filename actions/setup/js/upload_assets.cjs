@@ -86,7 +86,13 @@ async function main() {
 
   core.info(`Found ${uploadItems.length} upload-asset item(s)`);
 
-  const assetsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "assets");
+  // Derive the base directory from GH_AW_AGENT_OUTPUT when available.
+  // In the upload_assets job, the agent artifact (including safeoutputs/assets/)
+  // is downloaded to the same parent directory as agent_output.json, which may
+  // differ from RUNNER_TEMP when the download path is explicitly set to /tmp/gh-aw/.
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const baseDir = agentOutputFile ? path.dirname(agentOutputFile) : path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw");
+  const assetsDir = path.join(baseDir, "safeoutputs", "assets");
   let uploadCount = 0;
   let missingAssetCount = 0;
   let hasChanges = false;

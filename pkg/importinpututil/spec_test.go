@@ -185,7 +185,7 @@ func TestSpec_PublicAPI_FormatResolvedValue_MarshalFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s, ok := importinpututil.FormatResolvedValue(tt.value)
 			assert.False(t, ok, "FormatResolvedValue should return ok=false when JSON marshalling fails: %s", tt.name)
-			assert.Equal(t, "", s, "FormatResolvedValue should return empty string when JSON marshalling fails: %s", tt.name)
+			assert.Empty(t, s, "FormatResolvedValue should return empty string when JSON marshalling fails: %s", tt.name)
 		})
 	}
 }
