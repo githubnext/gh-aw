@@ -163,7 +163,7 @@ function extractReadablePathPatternsFromShellRule(shellRule) {
  * @param {string[]} allowedPathPatterns
  * @param {string | undefined} [workspaceRoot] - Optional workspace root for relative pattern matching.
  *   When provided, absolute paths under this root are also matched against relative patterns by
- *   stripping the workspace prefix first.  This allows shell rules such as `cat pkg/**\/*.go` to
+ *   stripping the workspace prefix first.  This allows shell rules like `cat pkg/**\/*.go` to
  *   permit `view` tool requests that arrive as absolute paths (e.g.
  *   `/home/runner/work/gh-aw/gh-aw/pkg/workflow/file.go`).
  * @returns {boolean}
