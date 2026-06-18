@@ -261,6 +261,7 @@ async function main() {
 
   const markdown = buildReflectSummary(reflectData, { awfConfigData, runtimeModelsData });
   await core.summary.addRaw(markdown).write();
+  core.info(markdown);
   core.info("AWF reflect summary written to step summary");
 }
 
