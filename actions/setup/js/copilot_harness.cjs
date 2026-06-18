@@ -437,7 +437,7 @@ function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
         stage,
       });
     } catch {
-      return `Copilot requests authentication failed through the gh-aw API proxy (HTTP 403, model=${selectedModel}, stage=${stage}). ` + "Verify that copilot-requests: write is granted and that Copilot org billing is enabled.";
+      return `Copilot requests authentication failed through the gh-aw API proxy (HTTP 403, model=${selectedModel}, stage=${stage}). Verify that copilot-requests: write is granted and that Copilot org billing is enabled.`;
     }
   }
   if (authFailure.statusCode !== "401") {
