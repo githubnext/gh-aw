@@ -333,6 +333,33 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 	})
 }
 
+// TestSpec_Variables_ErrNotGitRepository validates the documented sentinel-error
+// contract for ErrNotGitRepository.
+//
+// Specification (Variables + Behavioral contracts):
+//   - ErrNotGitRepository is the sentinel error returned by FindGitRoot and
+//     FindGitRootFrom when no .git entry is found while traversing up to the
+//     filesystem root.
+//   - FindGitRoot and FindGitRootFrom MUST return ErrNotGitRepository (not a
+//     wrapped error) when the filesystem root is reached without finding a .git
+//     entry.
+//
+// The README usage example relies on errors.Is(err, gitutil.ErrNotGitRepository),
+// so the returned error must satisfy that comparison.
+func TestSpec_Variables_ErrNotGitRepository(t *testing.T) {
+	require.Error(t, gitutil.ErrNotGitRepository,
+		"ErrNotGitRepository should be a non-nil sentinel error value")
+
+	// A directory created outside any git repository should surface the
+	// documented sentinel error.
+	isolated := t.TempDir()
+	_, err := gitutil.FindGitRootFrom(isolated)
+	require.Error(t, err,
+		"FindGitRootFrom should error when startDir is not inside a git repository")
+	assert.ErrorIs(t, err, gitutil.ErrNotGitRepository,
+		"FindGitRootFrom should return the documented ErrNotGitRepository sentinel")
+}
+
 // TestSpec_PublicAPI_ReadFileFromHEAD validates the documented behavior of
 // ReadFileFromHEAD as described in the package README.md.
 //
