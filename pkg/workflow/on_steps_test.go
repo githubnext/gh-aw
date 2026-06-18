@@ -377,6 +377,19 @@ func TestExtractOnPermissions(t *testing.T) {
 			expectNil:    false,
 			expectScopes: map[string]string{"issues": "read", "pull-requests": "read"},
 		},
+		{
+			name: "on_permissions_vulnerability_alerts",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": nil,
+					"permissions": map[string]any{
+						"vulnerability-alerts": "read",
+					},
+				},
+			},
+			expectNil:    false,
+			expectScopes: map[string]string{"vulnerability-alerts": "read"},
+		},
 	}
 
 	for _, tt := range tests {

@@ -1975,3 +1975,46 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 		}
 	})
 }
+
+// TestValidateMainWorkflowFrontmatter_OnPermissionsVulnerabilityAlerts validates that
+// vulnerability-alerts is accepted as a scope in on.permissions (regression for #40063).
+func TestValidateMainWorkflowFrontmatter_OnPermissionsVulnerabilityAlerts(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"schedule":          []any{map[string]any{"cron": "0 0 * * *"}},
+			"workflow_dispatch": nil,
+			"permissions": map[string]any{
+				"vulnerability-alerts": "read",
+			},
+			"steps": []any{
+				map[string]any{
+					"id":  "check",
+					"run": "echo checking",
+				},
+			},
+		},
+		"engine": "copilot",
+	}
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/on-permissions-vulnerability-alerts-test.md")
+	if err != nil {
+		t.Errorf("vulnerability-alerts: read should be accepted in on.permissions, got error: %v", err)
+	}
+}
+
+// TestValidateMainWorkflowFrontmatter_OnPermissionsUnknownScopeRejected validates that
+// unknown scopes in on.permissions are still rejected.
+func TestValidateMainWorkflowFrontmatter_OnPermissionsUnknownScopeRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": nil,
+			"permissions": map[string]any{
+				"unknown-scope": "read",
+			},
+		},
+		"engine": "copilot",
+	}
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/on-permissions-unknown-scope-test.md")
+	if err == nil {
+		t.Error("unknown scope in on.permissions should be rejected by schema validation")
+	}
+}
