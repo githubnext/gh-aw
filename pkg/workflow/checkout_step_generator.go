@@ -215,11 +215,20 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 
 	if len(subRepos) == 0 {
 		// Simple case: single root repo, call the script directly.
+		rootRepo := "${{ github.repository }}"
+		for _, entry := range cm.ordered {
+			// If a non-default checkout targets the workspace root (no path:), it will clobber
+			// the root checkout; configure git for the effective repo at the root.
+			if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
+				continue
+			}
+			rootRepo = entry.key.repository
+		}
 		return []string{
 			"      - name: Configure Git credentials\n",
 			fmt.Sprintf("        if: %s\n", conditionStr),
 			"        env:\n",
-			"          GITHUB_REPOSITORY: ${{ github.repository }}\n",
+			fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
 			"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
 			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
@@ -227,11 +236,18 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 	}
 
 	// Multi-repo case: configure the root repo, then re-authenticate each subdirectory checkout.
+	rootRepo := "${{ github.repository }}"
+	for _, entry := range cm.ordered {
+		if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
+			continue
+		}
+		rootRepo = entry.key.repository
+	}
 	steps := []string{
 		"      - name: Configure Git credentials\n",
 		fmt.Sprintf("        if: %s\n", conditionStr),
 		"        env:\n",
-		"          GITHUB_REPOSITORY: ${{ github.repository }}\n",
+		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
 		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
 		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 		"        run: |\n",
