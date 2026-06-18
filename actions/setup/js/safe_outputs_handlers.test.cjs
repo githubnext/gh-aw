@@ -1817,14 +1817,19 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should return intent error when target is triggering (default) and not in issue/PR/discussion context", () => {
-      // global.context has eventName: "push" (no issue/PR/discussion context)
-      const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
-      expect(result.isError).toBe(true);
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("add_comment");
-      expect(responseData.error).toContain('"push"');
-      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "push", payload: {} };
+      try {
+        const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("add_comment");
+        expect(responseData.error).toContain('"push"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
     });
 
     it("should return intent error on schedule event with default target", () => {
@@ -2460,14 +2465,19 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should return intent error when target is triggering (default) and not in PR context", () => {
-      // global.context has eventName: "push" (not a PR context)
-      const result = handlers.updatePullRequestHandler({ title: "Update title" });
-      expect(result.isError).toBe(true);
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("update_pull_request");
-      expect(responseData.error).toContain('"push"');
-      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "push", payload: {} };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "Update title" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("update_pull_request");
+        expect(responseData.error).toContain('"push"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
     });
 
     it("should return intent error on schedule event with default target", () => {

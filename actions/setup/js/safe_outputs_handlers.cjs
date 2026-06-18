@@ -1647,15 +1647,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const effectiveAddCommentTarget = addCommentConfig.target || "triggering";
     const hasExplicitItemNumber = args?.item_number != null || args?.issue_number != null || args?.["pr-number"] != null;
     if (effectiveAddCommentTarget === "triggering" && !hasExplicitItemNumber) {
-      let addCommentInvocationContext;
+      let invocationContext;
       try {
-        addCommentInvocationContext = resolveInvocationContext(context);
+        invocationContext = resolveInvocationContext(context);
       } catch {
         // Context resolution failed; skip validation and let downstream handle gracefully
       }
-      if (addCommentInvocationContext !== undefined) {
-        const effectiveEventName = addCommentInvocationContext?.eventName || context.eventName;
-        const effectivePayload = addCommentInvocationContext?.eventPayload || context.payload;
+      if (invocationContext !== undefined) {
+        const effectiveEventName = invocationContext?.eventName || context.eventName;
+        const effectivePayload = invocationContext?.eventPayload || context.payload;
         const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
         const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
         const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
