@@ -1009,6 +1009,9 @@ func buildMentionsHandlerConfig(m *MentionsConfig) map[string]any {
 	if len(m.Allowed) > 0 {
 		cfg["allowed"] = m.Allowed
 	}
+	if len(m.AllowedTeams) > 0 {
+		cfg["allowedTeams"] = m.AllowedTeams
+	}
 	if m.Max != nil {
 		cfg["max"] = *m.Max
 	}

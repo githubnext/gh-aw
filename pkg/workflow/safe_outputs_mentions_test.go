@@ -101,6 +101,50 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 			},
 		},
 		{
+			name: "allowed-teams with org/team format",
+			input: map[string]any{
+				"allowed-teams": []any{"myorg/my-team", "anotherorg/eng"},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/my-team", "anotherorg/eng"},
+			},
+		},
+		{
+			name: "allowed-teams with team-slug only",
+			input: map[string]any{
+				"allowed-teams": []any{"my-team"},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"my-team"},
+			},
+		},
+		{
+			name: "allowed-teams with @ prefix - should normalize",
+			input: map[string]any{
+				"allowed-teams": []any{"@myorg/my-team"},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/my-team"},
+			},
+		},
+		{
+			name: "full config with allowed-teams",
+			input: map[string]any{
+				"allow-team-members": true,
+				"allow-context":      false,
+				"allowed":            []any{"bot1"},
+				"allowed-teams":      []any{"myorg/eng"},
+				"max":                10,
+			},
+			expected: &MentionsConfig{
+				AllowTeamMembers: boolPtr(true),
+				AllowContext:     boolPtr(false),
+				Allowed:          []string{"bot1"},
+				AllowedTeams:     []string{"myorg/eng"},
+				Max:              new(10),
+			},
+		},
+		{
 			name: "max as float",
 			input: map[string]any{
 				"max": 10.5,
@@ -157,6 +201,19 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 				}
 			}
 
+			// Check AllowedTeams
+			if len(tt.expected.AllowedTeams) > 0 {
+				if len(result.AllowedTeams) != len(tt.expected.AllowedTeams) {
+					t.Errorf("Expected AllowedTeams length %d, got %d", len(tt.expected.AllowedTeams), len(result.AllowedTeams))
+				} else {
+					for i, expected := range tt.expected.AllowedTeams {
+						if result.AllowedTeams[i] != expected {
+							t.Errorf("Expected AllowedTeams[%d] to be %q, got %q", i, expected, result.AllowedTeams[i])
+						}
+					}
+				}
+			}
+
 			// Check Max
 			if tt.expected.Max != nil {
 				if result.Max == nil {
@@ -206,6 +263,30 @@ func TestGenerateSafeOutputsConfig_WithMentions(t *testing.T) {
 				"allowContext":     true,
 				"allowed":          []string{"bot1", "bot2"},
 				"max":              20,
+			},
+		},
+		{
+			name: "allowed-teams propagates to handler config",
+			config: &MentionsConfig{
+				AllowedTeams: []string{"myorg/eng", "myorg/reviewers"},
+			},
+			expected: map[string]any{
+				"allowedTeams": []string{"myorg/eng", "myorg/reviewers"},
+			},
+		},
+		{
+			name: "full config with allowed-teams",
+			config: &MentionsConfig{
+				AllowTeamMembers: boolPtr(false),
+				AllowedTeams:     []string{"myorg/eng"},
+				Allowed:          []string{"bot1"},
+				Max:              new(30),
+			},
+			expected: map[string]any{
+				"allowTeamMembers": false,
+				"allowedTeams":     []string{"myorg/eng"},
+				"allowed":          []string{"bot1"},
+				"max":              30,
 			},
 		},
 	}
@@ -343,6 +424,32 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 				Allowed: []string{"user1", "user2", "user3"},
 			},
 		},
+		{
+			name: "mentions with allowed-teams",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"mentions": map[string]any{
+						"allowed-teams": []any{"myorg/eng", "myorg/reviewers"},
+					},
+				},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/eng", "myorg/reviewers"},
+			},
+		},
+		{
+			name: "mentions with allowed-teams @ prefix - should normalize",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"mentions": map[string]any{
+						"allowed-teams": []any{"@myorg/eng"},
+					},
+				},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/eng"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -393,6 +500,19 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 					for i, expected := range tt.expected.Allowed {
 						if config.Mentions.Allowed[i] != expected {
 							t.Errorf("Expected Allowed[%d] to be %q, got %q", i, expected, config.Mentions.Allowed[i])
+						}
+					}
+				}
+			}
+
+			// Check AllowedTeams
+			if len(tt.expected.AllowedTeams) > 0 {
+				if len(config.Mentions.AllowedTeams) != len(tt.expected.AllowedTeams) {
+					t.Errorf("Expected AllowedTeams length %d, got %d", len(tt.expected.AllowedTeams), len(config.Mentions.AllowedTeams))
+				} else {
+					for i, expected := range tt.expected.AllowedTeams {
+						if config.Mentions.AllowedTeams[i] != expected {
+							t.Errorf("Expected AllowedTeams[%d] to be %q, got %q", i, expected, config.Mentions.AllowedTeams[i])
 						}
 					}
 				}

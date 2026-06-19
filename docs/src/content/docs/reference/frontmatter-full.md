@@ -8453,6 +8453,18 @@ safe-outputs:
     allowed: []
       # Array of strings
 
+    # List of team slugs whose members are always allowed to be mentioned. Accepts
+    # "team-slug" (resolved against the current org) or "org/team-slug" format.
+    # Members of these teams are fetched from the GitHub API at runtime and added to
+    # the allowed mentions list. Bots are excluded.
+    # IMPORTANT: Requires read:org scope — not available with the default GITHUB_TOKEN.
+    # Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a
+    # GitHub App with the Members:Read permission. Without the required scope, team
+    # lookups fail silently (warning logged) and those team members are skipped.
+    # (optional)
+    allowed-teams: []
+      # Array of strings, e.g. ["myorg/eng", "reviewers"]
+
     # Maximum number of mentions allowed per message. Default: 50 Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
