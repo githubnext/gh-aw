@@ -508,6 +508,17 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Merge remote .github folder
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_AGENT_FILE: ".github/agents/technical-doc-writer.agent.md"
+          GH_AW_AGENT_IMPORT_SPEC: "../agents/technical-doc-writer.agent.md"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/merge_remote_agent_github_folder.cjs');
+            await main();
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
