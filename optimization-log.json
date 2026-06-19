@@ -178,5 +178,15 @@
     "recommendations_count": 4,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 75
+  },
+  {
+    "date": "2026-06-19",
+    "workflow_name": "Glossary Maintainer",
+    "workflow_file": "glossary-maintainer",
+    "total_aic_analyzed": 2215.87,
+    "runs_audited": 4,
+    "recommendations_count": 4,
+    "subagent_candidates": 1,
+    "estimated_aic_savings_per_run": 270
   }
 ]
