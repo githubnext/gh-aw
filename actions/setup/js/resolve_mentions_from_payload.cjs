@@ -102,6 +102,46 @@ function extractKnownAuthorsFromPayload(context) {
 }
 
 /**
+ * Fetch members of a GitHub team and return their logins.
+ * Accepts "team-slug" (resolved against the current org) or "org/team-slug" format.
+ * @param {string} teamEntry - Team identifier, e.g. "my-team" or "myorg/my-team"
+ * @param {string} defaultOrg - The org to use when no org is specified in teamEntry
+ * @param {any} github - GitHub API client
+ * @param {any} core - GitHub Actions core
+ * @returns {Promise<string[]>} Array of member logins (non-bot)
+ */
+async function fetchTeamMembers(teamEntry, defaultOrg, github, core) {
+  let org = defaultOrg;
+  let teamSlug = teamEntry;
+
+  // Support "org/team-slug" format
+  const slashIdx = teamEntry.indexOf("/");
+  if (slashIdx !== -1) {
+    org = teamEntry.slice(0, slashIdx);
+    teamSlug = teamEntry.slice(slashIdx + 1);
+  }
+
+  if (!org || !teamSlug) {
+    core.warning(`[MENTIONS] Skipping invalid team entry: "${teamEntry}"`);
+    return [];
+  }
+
+  try {
+    const response = await github.rest.teams.listMembersInOrg({
+      org,
+      team_slug: teamSlug,
+      per_page: 100,
+    });
+    const logins = response.data.filter(member => member.type !== "Bot" && typeof member.login === "string").map(member => member.login);
+    core.info(`[MENTIONS] Fetched ${logins.length} member(s) from team ${org}/${teamSlug}`);
+    return logins;
+  } catch (error) {
+    core.warning(`[MENTIONS] Failed to fetch members for team ${org}/${teamSlug}: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
  * Resolve allowed mentions from the current GitHub event context
  * @param {any} context - GitHub Actions context
  * @param {any} github - GitHub API client
@@ -126,6 +166,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
   const allowTeamMembers = mentionsConfig?.allowTeamMembers !== false; // default: true
   const allowContext = mentionsConfig?.allowContext !== false; // default: true
   const allowedList = mentionsConfig?.allowed || [];
+  const allowedTeams = mentionsConfig?.allowedTeams || [];
   const maxMentions = mentionsConfig?.max || 50;
 
   try {
@@ -135,6 +176,17 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
     // Add allowed list (always included regardless of configuration)
     if (Array.isArray(allowedList)) {
       knownAuthors.push(...allowedList.filter(alias => typeof alias === "string" && alias.length > 0));
+    }
+
+    // Add members from allowed-teams (always included regardless of allow-team-members setting)
+    if (Array.isArray(allowedTeams) && allowedTeams.length > 0) {
+      core.info(`[MENTIONS] Fetching members for ${allowedTeams.length} configured team(s)`);
+      for (const teamEntry of allowedTeams) {
+        if (typeof teamEntry === "string" && teamEntry.length > 0) {
+          const teamMembers = await fetchTeamMembers(teamEntry, owner, github, core);
+          knownAuthors.push(...teamMembers);
+        }
+      }
     }
 
     // Add extra known authors (e.g. pre-fetched target issue authors for explicit item_number)
@@ -192,6 +244,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
 module.exports = {
   resolveAllowedMentionsFromPayload,
   extractKnownAuthorsFromPayload,
+  fetchTeamMembers,
   pushNonBotUser,
   pushNonBotAssignees,
 };

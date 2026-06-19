@@ -786,6 +786,10 @@ type MentionsConfig struct {
 	// Allowed is a list of user/bot names always allowed (bots not allowed by default)
 	Allowed []string `yaml:"allowed,omitempty" json:"allowed,omitempty"`
 
+	// AllowedTeams is a list of team slugs whose members are always allowed to be mentioned.
+	// Accepts "team-slug" (resolved against the current org) or "org/team-slug" format.
+	AllowedTeams []string `yaml:"allowed-teams,omitempty" json:"allowedTeams,omitempty"`
+
 	// Max is the maximum number of mentions per message (default: 50)
 	Max *int `yaml:"max,omitempty" json:"max,omitempty"`
 }

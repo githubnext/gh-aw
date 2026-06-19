@@ -96,6 +96,25 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 			}
 		}
 
+		// Parse allowed-teams list
+		if allowedTeams, exists := mentionsMap["allowed-teams"]; exists {
+			if allowedTeamsArray, ok := allowedTeams.([]any); ok {
+				var allowedTeamsStrings []string
+				for _, item := range allowedTeamsArray {
+					if str, ok := item.(string); ok {
+						// Normalize team slug by removing '@' prefix if present
+						normalized := str
+						if len(str) > 0 && str[0] == '@' {
+							normalized = str[1:]
+							safeOutputMessagesLog.Printf("Normalized team mention '%s' to '%s'", str, normalized)
+						}
+						allowedTeamsStrings = append(allowedTeamsStrings, normalized)
+					}
+				}
+				config.AllowedTeams = allowedTeamsStrings
+			}
+		}
+
 		// Parse max
 		if maxVal, exists := mentionsMap["max"]; exists {
 			switch v := maxVal.(type) {

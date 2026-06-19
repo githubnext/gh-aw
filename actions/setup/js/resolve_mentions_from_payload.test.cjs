@@ -18,7 +18,7 @@ vi.mock("./error_helpers.cjs", () => ({
   getErrorMessage: vi.fn(err => (err instanceof Error ? err.message : String(err))),
 }));
 
-const { resolveAllowedMentionsFromPayload, extractKnownAuthorsFromPayload, pushNonBotUser, pushNonBotAssignees } = await import("./resolve_mentions_from_payload.cjs");
+const { resolveAllowedMentionsFromPayload, extractKnownAuthorsFromPayload, fetchTeamMembers, pushNonBotUser, pushNonBotAssignees } = await import("./resolve_mentions_from_payload.cjs");
 
 /** @returns {{ info: ReturnType<typeof vi.fn>, warning: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }} */
 function makeMockCore() {
@@ -382,5 +382,211 @@ describe("resolveAllowedMentionsFromPayload", () => {
       allowTeamMembers: false,
     });
     expect(result).not.toContain("copilot");
+  });
+
+  it("includes members from allowed-teams", async () => {
+    const context = {
+      eventName: "workflow_dispatch",
+      actor: "actor",
+      payload: {},
+      repo: { owner: "myorg", repo: "repo" },
+    };
+    const mockGithubWithTeams = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => ({
+            data: [
+              { login: "alice", type: "User" },
+              { login: "bob", type: "User" },
+            ],
+          })),
+        },
+      },
+    };
+    const result = await resolveAllowedMentionsFromPayload(context, mockGithubWithTeams, mockCore, {
+      allowedTeams: ["myorg/eng"],
+      allowContext: false,
+      allowTeamMembers: false,
+    });
+    expect(result).toContain("alice");
+    expect(result).toContain("bob");
+    expect(mockGithubWithTeams.rest.teams.listMembersInOrg).toHaveBeenCalledWith({
+      org: "myorg",
+      team_slug: "eng",
+      per_page: 100,
+    });
+  });
+
+  it("allowed-teams with team-slug-only uses context owner", async () => {
+    const context = {
+      eventName: "workflow_dispatch",
+      actor: "actor",
+      payload: {},
+      repo: { owner: "contextorg", repo: "repo" },
+    };
+    const mockGithubWithTeams = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => ({
+            data: [{ login: "charlie", type: "User" }],
+          })),
+        },
+      },
+    };
+    const result = await resolveAllowedMentionsFromPayload(context, mockGithubWithTeams, mockCore, {
+      allowedTeams: ["eng-team"],
+      allowContext: false,
+      allowTeamMembers: false,
+    });
+    expect(result).toContain("charlie");
+    expect(mockGithubWithTeams.rest.teams.listMembersInOrg).toHaveBeenCalledWith({
+      org: "contextorg",
+      team_slug: "eng-team",
+      per_page: 100,
+    });
+  });
+
+  it("allowed-teams skips bots from team members", async () => {
+    const context = {
+      eventName: "workflow_dispatch",
+      actor: "actor",
+      payload: {},
+      repo: { owner: "myorg", repo: "repo" },
+    };
+    const mockGithubWithTeams = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => ({
+            data: [
+              { login: "alice", type: "User" },
+              { login: "bot-user", type: "Bot" },
+            ],
+          })),
+        },
+      },
+    };
+    const result = await resolveAllowedMentionsFromPayload(context, mockGithubWithTeams, mockCore, {
+      allowedTeams: ["myorg/eng"],
+      allowContext: false,
+      allowTeamMembers: false,
+    });
+    expect(result).toContain("alice");
+    expect(result).not.toContain("bot-user");
+  });
+
+  it("allowed-teams gracefully handles API errors", async () => {
+    const context = {
+      eventName: "workflow_dispatch",
+      actor: "actor",
+      payload: {},
+      repo: { owner: "myorg", repo: "repo" },
+    };
+    const mockGithubWithTeams = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => {
+            throw new Error("API error");
+          }),
+        },
+      },
+    };
+    const result = await resolveAllowedMentionsFromPayload(context, mockGithubWithTeams, mockCore, {
+      allowedTeams: ["myorg/eng"],
+      allowContext: false,
+      allowTeamMembers: false,
+    });
+    expect(result).toEqual([]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch members for team"));
+  });
+});
+
+describe("fetchTeamMembers", () => {
+  let mockCore;
+
+  beforeEach(() => {
+    mockCore = makeMockCore();
+    vi.clearAllMocks();
+  });
+
+  it("fetches team members with org/team-slug format", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => ({
+            data: [
+              { login: "alice", type: "User" },
+              { login: "bob", type: "User" },
+            ],
+          })),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual(["alice", "bob"]);
+    expect(mockGithub.rest.teams.listMembersInOrg).toHaveBeenCalledWith({
+      org: "myorg",
+      team_slug: "eng",
+      per_page: 100,
+    });
+  });
+
+  it("uses default org when only team-slug is given", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => ({
+            data: [{ login: "charlie", type: "User" }],
+          })),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual(["charlie"]);
+    expect(mockGithub.rest.teams.listMembersInOrg).toHaveBeenCalledWith({
+      org: "defaultorg",
+      team_slug: "eng",
+      per_page: 100,
+    });
+  });
+
+  it("excludes bots from team members", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => ({
+            data: [
+              { login: "alice", type: "User" },
+              { login: "bot-user", type: "Bot" },
+            ],
+          })),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual(["alice"]);
+    expect(result).not.toContain("bot-user");
+  });
+
+  it("returns empty array on API error and warns", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => {
+            throw new Error("Not Found");
+          }),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/unknown-team", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual([]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch members for team myorg/unknown-team"));
+  });
+
+  it("returns empty array for invalid team entry and warns", async () => {
+    const mockGithub = { rest: { teams: { listMembersInOrg: vi.fn() } } };
+    const result = await fetchTeamMembers("", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual([]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("invalid team entry"));
+    expect(mockGithub.rest.teams.listMembersInOrg).not.toHaveBeenCalled();
   });
 });
