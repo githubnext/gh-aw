@@ -2776,9 +2776,7 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
     h.defaultHandler("add_labels")({ labels: ["ok"] });
     expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
 
-    expect(() => h.defaultHandler("add_labels")({ labels: ["ok"] })).toThrow(
-      expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") })
-    );
+    expect(() => h.defaultHandler("add_labels")({ labels: ["ok"] })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
     expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
   });
 
@@ -2793,9 +2791,7 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
       expect(ok).not.toHaveProperty("isError");
       expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
 
-      expect(() => h.addCommentHandler({ body: "second comment", item_number: 2 })).toThrow(
-        expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") })
-      );
+      expect(() => h.addCommentHandler({ body: "second comment", item_number: 2 })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
       expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
     } finally {
       global.context = { repo: { owner: "test-owner", repo: "test-repo" }, eventName: "push", payload: {} };
@@ -2811,9 +2807,7 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
     global.context = { repo: { owner: "o", repo: "r" }, eventName: "issues", payload: { issue: { number: 1 } } };
     try {
       h.addCommentHandler({ body: "first comment", item_number: 1 });
-      expect(() => h.addCommentHandler({ body: "second comment", item_number: 2 })).toThrow(
-        expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") })
-      );
+      expect(() => h.addCommentHandler({ body: "second comment", item_number: 2 })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
 
       // add_labels budget is separate — all 3 calls should succeed
       expect(h.defaultHandler("add_labels")({ labels: ["a"] })).not.toHaveProperty("isError");
@@ -2821,9 +2815,7 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
       expect(h.defaultHandler("add_labels")({ labels: ["c"] })).not.toHaveProperty("isError");
 
       // 4th add_labels call must fail
-      expect(() => h.defaultHandler("add_labels")({ labels: ["d"] })).toThrow(
-        expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") })
-      );
+      expect(() => h.defaultHandler("add_labels")({ labels: ["d"] })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
     } finally {
       global.context = { repo: { owner: "test-owner", repo: "test-repo" }, eventName: "push", payload: {} };
     }
@@ -2918,9 +2910,7 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
 
     h1.defaultHandler("add_labels")({ labels: ["a"] });
     // h1's budget is now exhausted — must throw
-    expect(() => h1.defaultHandler("add_labels")({ labels: ["b"] })).toThrow(
-      expect.objectContaining({ code: -32602 })
-    );
+    expect(() => h1.defaultHandler("add_labels")({ labels: ["b"] })).toThrow(expect.objectContaining({ code: -32602 }));
 
     // h2 has its own fresh counter — should still allow 1 call
     expect(h2.defaultHandler("add_labels")({ labels: ["a"] })).not.toHaveProperty("isError");
