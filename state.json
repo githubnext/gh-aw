@@ -3,7 +3,7 @@
     "prompt_style": {
       "step_by_step": 4,
       "concise": 3,
-      "detailed": 2
+      "detailed": 3
     }
   },
   "runs": [
@@ -68,6 +68,13 @@
       "timestamp": "2026-06-17T11:01:46.922Z",
       "assignments": {
         "prompt_style": "step_by_step"
+      }
+    },
+    {
+      "run_id": "27821534851",
+      "timestamp": "2026-06-19T10:56:00.424Z",
+      "assignments": {
+        "prompt_style": "detailed"
       }
     }
   ]
