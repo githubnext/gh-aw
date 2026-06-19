@@ -147,6 +147,14 @@ const mockCore = {
           expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "smoke-copilot-sdk"));
       }),
+      it("should reject command followed by punctuation", async () => {
+        ((process.env.GH_AW_COMMANDS = JSON.stringify(["review"])),
+          (mockContext.eventName = "issue_comment"),
+          (mockContext.payload = { comment: { body: "/review:" } }),
+          await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`),
+          expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "false"),
+          expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", ""));
+      }),
       it("should pass for bot comment with attribution metadata after newline", async () => {
         ((process.env.GH_AW_COMMANDS = JSON.stringify(["deploy"])),
           (mockContext.eventName = "issue_comment"),

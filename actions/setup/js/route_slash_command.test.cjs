@@ -37,8 +37,8 @@ describe("parseSlashCommand", () => {
     expect(parseSlashCommand("  /smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
   });
 
-  it("does not include trailing punctuation in the command name", () => {
-    expect(parseSlashCommand("/smoke-copilot-sdk!")).toBe("smoke-copilot-sdk");
+  it("does not match when command is followed by punctuation", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk!")).toBe("");
   });
 
   it("does not match a slash command in the middle of text", () => {
@@ -57,8 +57,8 @@ describe("parseSlashCommand", () => {
     expect(parseSlashCommand("/-command")).toBe("");
   });
 
-  it("enforces word boundary: command followed by a colon", () => {
-    expect(parseSlashCommand("/archie:more")).toBe("archie");
+  it("does not match command followed by a colon", () => {
+    expect(parseSlashCommand("/archie:more")).toBe("");
   });
 });
 
