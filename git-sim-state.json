@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "last_run": "2026-06-19",
+  "tested_count": 4,
+  "total_cells": 3600,
+  "tested": {
+    "tiny-none-single-micro-clean-single": {
+      "outcome": "pass",
+      "timestamp": "2026-06-19",
+      "issue_url": null
+    },
+    "tiny-none-single-micro-clean-multi": {
+      "outcome": "pass",
+      "timestamp": "2026-06-19",
+      "issue_url": null
+    },
+    "tiny-none-single-micro-clean-merge_msg": {
+      "outcome": "pass",
+      "timestamp": "2026-06-19",
+      "issue_url": null
+    },
+    "tiny-none-single-micro-ahead-single": {
+      "outcome": "pass",
+      "timestamp": "2026-06-19",
+      "issue_url": null
+    }
+  },
+  "strategies": [],
+  "next_index": 4
+}
