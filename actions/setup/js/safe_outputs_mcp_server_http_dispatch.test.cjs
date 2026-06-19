@@ -54,7 +54,7 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
     }
 
     // Test the registration logic (extracted from safe_outputs_mcp_server_http.cjs)
-    const isDispatchWorkflowTool = !!tool._workflow_name;
+    const isDispatchWorkflowTool = typeof tool._workflow_name === "string" && tool._workflow_name.trim().length > 0;
     let shouldRegister = false;
 
     if (isDispatchWorkflowTool) {
@@ -98,7 +98,7 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
       }
     }
 
-    const isDispatchWorkflowTool = !!tool._workflow_name;
+    const isDispatchWorkflowTool = typeof tool._workflow_name === "string" && tool._workflow_name.trim().length > 0;
     let shouldRegister = false;
 
     if (isDispatchWorkflowTool) {
@@ -115,6 +115,42 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
     expect(shouldRegister).toBe(false);
     expect(isDispatchWorkflowTool).toBe(true);
     expect(config.dispatch_workflow).toBeFalsy();
+  });
+
+  it("should NOT treat whitespace-only _workflow_name as dispatch_workflow metadata", () => {
+    const tool = {
+      name: "test_workflow",
+      _workflow_name: "   ",
+      description: "Dispatch workflow",
+      inputSchema: { type: "object", properties: {} },
+    };
+
+    const config = {
+      dispatch_workflow: {
+        max: 1,
+      },
+    };
+
+    const enabledTools = new Set();
+    for (const [toolName, enabled] of Object.entries(config)) {
+      if (enabled) {
+        enabledTools.add(toolName);
+      }
+    }
+
+    const isDispatchWorkflowTool = typeof tool._workflow_name === "string" && tool._workflow_name.trim().length > 0;
+    let shouldRegister = false;
+
+    if (isDispatchWorkflowTool) {
+      if (config.dispatch_workflow) {
+        shouldRegister = true;
+      }
+    } else if (enabledTools.has(tool.name)) {
+      shouldRegister = true;
+    }
+
+    expect(isDispatchWorkflowTool).toBe(false);
+    expect(shouldRegister).toBe(false);
   });
 
   it("should register regular tools when their name is in config", () => {
@@ -137,7 +173,7 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
       }
     }
 
-    const isDispatchWorkflowTool = !!tool._workflow_name;
+    const isDispatchWorkflowTool = typeof tool._workflow_name === "string" && tool._workflow_name.trim().length > 0;
     let shouldRegister = false;
 
     if (isDispatchWorkflowTool) {
@@ -175,7 +211,7 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
       }
     }
 
-    const isDispatchWorkflowTool = !!tool._workflow_name;
+    const isDispatchWorkflowTool = typeof tool._workflow_name === "string" && tool._workflow_name.trim().length > 0;
     let shouldRegister = false;
 
     if (isDispatchWorkflowTool) {

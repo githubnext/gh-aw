@@ -14,6 +14,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -87,6 +88,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetUsage: {constants.UsageArtifactName},
 }
 
+const maxArtifactHintExamples = 2
+
 // ValidArtifactSetNames returns a sorted list of valid artifact set names,
 // derived dynamically from the artifactSetArtifacts map to stay in sync automatically.
 func ValidArtifactSetNames() []string {
@@ -96,6 +99,56 @@ func ValidArtifactSetNames() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+func usageOnlyArtifactHintMessage() string {
+	examples := artifactHintExampleSets()
+	switch len(examples) {
+	case 0:
+		return "Only the usage artifact was downloaded. Use --artifacts all to download all artifacts."
+	case 1:
+		return fmt.Sprintf("Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts %s.", examples[0])
+	default:
+		return fmt.Sprintf(
+			"Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts %s, or combinations such as --artifacts %s.",
+			examples[0],
+			strings.Join(examples, ","),
+		)
+	}
+}
+
+func artifactHintExampleSets() []string {
+	valid := ValidArtifactSetNames()
+	excluded := map[string]struct{}{
+		string(ArtifactSetAll):   {},
+		string(ArtifactSetUsage): {},
+	}
+	selected := make([]string, 0, maxArtifactHintExamples)
+	seen := make(map[string]struct{}, maxArtifactHintExamples)
+
+	add := func(name string) {
+		if len(selected) == maxArtifactHintExamples {
+			return
+		}
+		if _, skip := excluded[name]; skip {
+			return
+		}
+		if _, dup := seen[name]; dup {
+			return
+		}
+		if slices.Contains(valid, name) {
+			selected = append(selected, name)
+			seen[name] = struct{}{}
+		}
+	}
+
+	add(string(ArtifactSetAgent))
+	add(string(ArtifactSetFirewall))
+	for _, name := range valid {
+		add(name)
+	}
+
+	return selected
 }
 
 // ValidateArtifactSets checks that every entry in sets is a known ArtifactSet name.

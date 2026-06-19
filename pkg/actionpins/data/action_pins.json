@@ -182,6 +182,11 @@
       "digest": "sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22",
       "pinned_image": "docker.io/mcp/brave-search@sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22"
     },
+    "ghcr.io/chopratejas/headroom:latest": {
+      "image": "ghcr.io/chopratejas/headroom:latest",
+      "digest": "sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e",
+      "pinned_image": "ghcr.io/chopratejas/headroom:latest@sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e"
+    },
     "ghcr.io/github/gh-aw-firewall/agent-act:0.25.29": {
       "image": "ghcr.io/github/gh-aw-firewall/agent-act:0.25.29",
       "digest": "sha256:97b4cc14dc2123a45b9d5b9927489f66882dec5857de6afc0e5bab257be92ef1",
@@ -621,11 +626,6 @@
       "image": "semgrep/semgrep:latest",
       "digest": "sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2",
       "pinned_image": "semgrep/semgrep:latest@sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2"
-    },
-    "ghcr.io/chopratejas/headroom:latest": {
-      "image": "ghcr.io/chopratejas/headroom:latest",
-      "digest": "sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e",
-      "pinned_image": "ghcr.io/chopratejas/headroom:latest@sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e"
     }
   }
 }

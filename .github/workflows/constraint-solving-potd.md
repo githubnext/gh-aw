@@ -129,4 +129,20 @@ List 2–4 seminal or accessible references:
 
 When you have written the problem discussion, post it using `create-discussion`.
 
+**Important — passing the body correctly:**
+
+- The `body` parameter must contain the **full markdown content** (minimum 64 characters).
+- If you saved the discussion to a file (e.g. `/tmp/gh-aw/agent/discussion.md`), embed it with shell substitution:
+
+  ```bash
+  safeoutputs create_discussion \
+    --title "Problem of the Day: <topic>" \
+    --body "$(cat /tmp/gh-aw/agent/discussion.md)"
+  ```
+
+- **Do NOT** pipe the file and use `--body .`. The `"."` sentinel only reads stdin when it is the sole argument (no flags). With `--body .`, the literal string `"."` becomes the body value, which will fail validation.
+- **Do NOT** pass a `category` argument — the discussion category is pre-configured.
+
+If `create_discussion` fails or returns an error, call `noop` with a short explanation so the failure is recorded.
+
 If today's category was recently covered and you cannot find a sufficiently different problem, call `noop` with an explanation of why you skipped.

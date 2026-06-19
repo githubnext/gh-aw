@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // validateExpressions checks expression safety and runtime-import file references
@@ -301,6 +302,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil, message: "Using experimental feature: dispatch_repository"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil, message: "Using experimental feature: merge-pull-request"},
 		{enabled: workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK, message: "Using experimental feature: engine.copilot-sdk"},
+		{enabled: isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {
