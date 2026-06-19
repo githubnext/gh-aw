@@ -38,17 +38,17 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// safe_outputs handler code (not the untrusted agent) is the only consumer.
 	checkoutMgr.SetKeepCredentialsForPush(true)
 
-	// When create-pull-request is configured with a target-repo, inject a checkout for that
-	// repository so the safe_outputs job can apply patches to and push to the cross-repo
-	// target. This uses the same PR token as the rest of the safe_outputs job.
-	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
-		if targetRepo := data.SafeOutputs.CreatePullRequests.TargetRepoSlug; targetRepo != "" {
-			prToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
-			checkoutMgr.add(&CheckoutConfig{
-				Repository:  targetRepo,
-				GitHubToken: prToken,
-			})
-			consolidatedSafeOutputsStepsLog.Printf("Injected cross-repo checkout for target-repo: %s", targetRepo)
+	// Resolve once and reuse for all generated checkout/git credential steps.
+	gitRemoteToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
+
+	// Inject cross-repo checkouts for explicit target-repo values configured on either
+	// create-pull-request or push-to-pull-request-branch.
+	if data.SafeOutputs != nil {
+		if data.SafeOutputs.CreatePullRequests != nil {
+			injectSharedPRTargetRepoCheckout(checkoutMgr, "create-pull-request", data.SafeOutputs.CreatePullRequests.TargetRepoSlug, gitRemoteToken)
+		}
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			injectSharedPRTargetRepoCheckout(checkoutMgr, "push-to-pull-request-branch", data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug, gitRemoteToken)
 		}
 	}
 
@@ -79,11 +79,22 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 
 	// Configure Git credentials so the safe_outputs job can push. The agent job never
 	// pushes, so this step has no agent-job equivalent.
-	gitRemoteToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
 	steps = append(steps, checkoutMgr.GenerateConfigureGitCredentialsSteps(gitRemoteToken, condition)...)
 
 	consolidatedSafeOutputsStepsLog.Printf("Built shared PR checkout steps with condition: %s", condition.Render())
 	return steps
+}
+
+func injectSharedPRTargetRepoCheckout(checkoutMgr *CheckoutManager, source, targetRepo, token string) {
+	targetRepo = strings.TrimSpace(targetRepo)
+	if targetRepo == "" || targetRepo == "*" {
+		return
+	}
+	checkoutMgr.add(&CheckoutConfig{
+		Repository:  targetRepo,
+		GitHubToken: token,
+	})
+	consolidatedSafeOutputsStepsLog.Printf("Injected cross-repo checkout for %s target-repo: %s", source, targetRepo)
 }
 
 // buildHandlerManagerStep builds a single step that uses the safe output handler manager

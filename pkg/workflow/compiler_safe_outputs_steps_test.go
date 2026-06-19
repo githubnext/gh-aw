@@ -48,6 +48,46 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
+			name: "create pull request target-repo injects checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "microsoft/vscode-docs",
+				},
+			},
+			checkContains: []string{
+				"name: Checkout microsoft/vscode-docs",
+				"repository: microsoft/vscode-docs",
+				"token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+				`GITHUB_REPOSITORY: "microsoft/vscode-docs"`,
+			},
+		},
+		{
+			name: "target-repo wildcard does not inject checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "*",
+				},
+			},
+			checkNotContains: []string{
+				"name: Checkout *",
+				"repository: *",
+			},
+		},
+		{
+			name: "push-to-pull-request-branch target-repo injects checkout",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TargetRepoSlug: "microsoft/vscode-docs",
+				},
+			},
+			checkContains: []string{
+				"name: Checkout microsoft/vscode-docs",
+				"repository: microsoft/vscode-docs",
+				"token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+				`GITHUB_REPOSITORY: "microsoft/vscode-docs"`,
+			},
+		},
+		{
 			name: "uses custom default checkout fetch-depth",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
