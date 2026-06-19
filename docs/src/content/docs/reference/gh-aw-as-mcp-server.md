@@ -139,6 +139,7 @@ Download and analyze workflow logs with timeout handling and size guardrails.
 - `start_date`, `end_date` (optional): Date range filter (YYYY-MM-DD or delta like `-1w`)
 - `engine`, `firewall`, `no_firewall`, `branch` (optional): Run filters
 - `after_run_id`, `before_run_id` (optional): Pagination by run ID
+- `artifacts` (array of strings, optional): Artifact sets to download. Valid values: `all`, `activation`, `agent`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, `usage`. Defaults to `usage`.
 - `timeout` (optional): Max seconds to download (default: 50)
 - `max_tokens` (optional): Output token guardrail (default: 12000)
 - `jq` (optional): Apply jq filter to JSON output

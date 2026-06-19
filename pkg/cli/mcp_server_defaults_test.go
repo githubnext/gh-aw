@@ -52,12 +52,13 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("logs tool has count, timeout and max_tokens defaults", func(t *testing.T) {
+	t.Run("logs tool has count, timeout, max_tokens and artifacts defaults", func(t *testing.T) {
 		type logsArgs struct {
-			WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-			Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
-			Timeout      int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs"`
-			MaxTokens    int    `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored"`
+			WorkflowName string   `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
+			Count        int      `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
+			Timeout      int      `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs"`
+			MaxTokens    int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored"`
+			Artifacts    []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download"`
 		}
 
 		schema, err := GenerateSchema[logsArgs]()
@@ -74,6 +75,9 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		}
 		if err := AddSchemaDefault(schema, "max_tokens", 12000); err != nil {
 			t.Fatalf("Failed to add max_tokens default: %v", err)
+		}
+		if err := AddSchemaDefault(schema, "artifacts", []string{"usage"}); err != nil {
+			t.Fatalf("Failed to add artifacts default: %v", err)
 		}
 
 		// Verify count default
@@ -122,6 +126,22 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		}
 		if maxTokensDefault != 12000 {
 			t.Errorf("Expected max_tokens default to be 12000, got %v", maxTokensDefault)
+		}
+
+		// Verify artifacts default
+		artifactsProp, ok := schema.Properties["artifacts"]
+		if !ok {
+			t.Fatal("Expected 'artifacts' property to exist")
+		}
+		if len(artifactsProp.Default) == 0 {
+			t.Error("Expected 'artifacts' property to have a default value")
+		}
+		var artifactsDefault []string
+		if err := json.Unmarshal(artifactsProp.Default, &artifactsDefault); err != nil {
+			t.Fatalf("Failed to unmarshal artifacts default: %v", err)
+		}
+		if len(artifactsDefault) != 1 || artifactsDefault[0] != "usage" {
+			t.Errorf("Expected artifacts default to be [usage], got %v", artifactsDefault)
 		}
 	})
 

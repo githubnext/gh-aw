@@ -43,7 +43,7 @@ type logsArgs struct {
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
-	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
 }
 
 // The logs tool requires write+ access and checks actor permissions.
@@ -64,6 +64,9 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 	}
 	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
 		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
+	}
+	if err := AddSchemaDefault(logsSchema, "artifacts", []string{"usage"}); err != nil {
+		mcpLog.Printf("Failed to add default for artifacts: %v", err)
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
