@@ -41,7 +41,7 @@ jobs:
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -59,7 +59,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.179"
+          GH_AW_INFO_VERSION: "2.1.183"
           GH_AW_INFO_AWF_VERSION: "v0.27.7"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Generate agentic run info
@@ -68,8 +68,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'agent' }}
-          GH_AW_INFO_VERSION: "2.1.179"
-          GH_AW_INFO_AGENT_VERSION: "2.1.179"
+          GH_AW_INFO_VERSION: "2.1.183"
+          GH_AW_INFO_AGENT_VERSION: "2.1.183"
           GH_AW_INFO_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -137,7 +137,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Checkout .github and .agents folders
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -331,7 +331,7 @@ jobs:
       unknown_model_ai_credits: ${{ steps.parse-mcp-gateway.outputs.unknown_model_ai_credits || 'false' }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -348,11 +348,11 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.179"
+          GH_AW_INFO_VERSION: "2.1.183"
           GH_AW_INFO_AWF_VERSION: "v0.27.7"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
@@ -389,7 +389,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.7
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.179
+        run: npm install -g @anthropic-ai/claude-code@2.1.183
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -421,7 +421,7 @@ jobs:
           GH_AW_SKILL_DIR: ".claude/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.7 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.7 ghcr.io/github/gh-aw-firewall/squid:0.27.7 ghcr.io/github/gh-aw-mcpg:v0.3.27 ghcr.io/github/github-mcp-server:v1.3.0
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.7 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.7 ghcr.io/github/gh-aw-firewall/squid:0.27.7 ghcr.io/github/gh-aw-mcpg:v0.3.27 ghcr.io/github/github-mcp-server:v1.4.0
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -460,7 +460,7 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "container": "ghcr.io/github/github-mcp-server:v1.3.0",
+                "container": "ghcr.io/github/github-mcp-server:v1.4.0",
                 "env": {
                   "GITHUB_HOST": "$GITHUB_SERVER_URL",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
@@ -760,7 +760,7 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: github/gh-aw
           sparse-checkout: |
@@ -775,7 +775,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.179"
+          GH_AW_INFO_VERSION: "2.1.183"
           GH_AW_INFO_AWF_VERSION: "v0.27.7"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Check team membership for workflow
