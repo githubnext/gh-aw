@@ -1,0 +1,23 @@
+{
+  "date": "2026-06-19",
+  "metrics": {
+    "open_issues": 100,
+    "closed_issues": 100,
+    "open_prs": 4,
+    "merged_prs": 50,
+    "closed_prs": 30,
+    "commits_30d": 1674,
+    "contributors_30d": 10,
+    "latest_release": "v0.80.4"
+  },
+  "top_merged_prs": [40206, 39927, 40126, 40157, 40125, 40116, 40161, 40154],
+  "open_prs": [40208, 40188, 40175, 40166],
+  "top_contributors_30d": [
+    {"name": "Copilot", "commits": 1215},
+    {"name": "github-actions[bot]", "commits": 252},
+    {"name": "Don Syme", "commits": 85},
+    {"name": "Peli de Halleux", "commits": 64}
+  ],
+  "peak_commit_day": {"date": "2026-06-18", "commits": 62},
+  "peak_activity_day": {"date": "2026-06-18", "issues_opened": 113, "issues_closed": 84, "prs_merged": 43}
+}
