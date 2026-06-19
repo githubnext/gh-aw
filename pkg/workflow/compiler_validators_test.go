@@ -173,24 +173,31 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 			}
 
 			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
 			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = w.Close()
+				_ = r.Close()
+			})
 
 			compiler.emitExperimentalFeatureWarnings(workflowData)
 
-			w.Close()
+			require.NoError(t, w.Close())
 			os.Stderr = oldStderr
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
 			stderrOutput := buf.String()
 
 			if tt.expectWarning {
 				assert.Contains(t, stderrOutput, expectedMessage)
 				assert.Positive(t, compiler.GetWarningCount())
-				return
+			} else {
+				assert.NotContains(t, stderrOutput, expectedMessage)
+				assert.Zero(t, compiler.GetWarningCount())
 			}
-
-			assert.NotContains(t, stderrOutput, expectedMessage)
 		})
 	}
 }
