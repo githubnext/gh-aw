@@ -31,11 +31,25 @@ func TestEnsureMCPConfig(t *testing.T) {
 				if !exists {
 					t.Error("Expected github-agentic-workflows server to exist")
 				}
+				if server.Type != "local" {
+					t.Errorf("Expected type 'local', got %q", server.Type)
+				}
 				if server.Command != "gh" {
 					t.Errorf("Expected command 'gh', got %q", server.Command)
 				}
 				if len(server.Args) != 2 || server.Args[0] != "aw" || server.Args[1] != "mcp-server" {
 					t.Errorf("Expected args ['aw', 'mcp-server'], got %v", server.Args)
+				}
+				expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"}
+				if len(server.Tools) != len(expectedTools) {
+					t.Errorf("Expected %d tools, got %d (%v)", len(expectedTools), len(server.Tools), server.Tools)
+				} else {
+					for i, tool := range expectedTools {
+						if server.Tools[i] != tool {
+							t.Errorf("Expected tools %v, got %v", expectedTools, server.Tools)
+							break
+						}
+					}
 				}
 			},
 		},
@@ -70,8 +84,10 @@ func TestEnsureMCPConfig(t *testing.T) {
 			existingConfig: &MCPConfig{
 				MCPServers: map[string]VSCodeMCPServer{
 					"github-agentic-workflows": {
+						Type:    "local",
 						Command: "gh",
 						Args:    []string{"aw", "mcp-server"},
+						Tools:   []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"},
 					},
 				},
 			},
@@ -278,8 +294,10 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 	config := MCPConfig{
 		MCPServers: map[string]VSCodeMCPServer{
 			"github-agentic-workflows": {
+				Type:    "local",
 				Command: "gh",
 				Args:    []string{"aw", "mcp-server"},
+				Tools:   []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"},
 			},
 		},
 	}
@@ -312,6 +330,14 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 
 	if len(server.Args) != 2 {
 		t.Errorf("Expected 2 args, got %d", len(server.Args))
+	}
+
+	if server.Type != "local" {
+		t.Errorf("Expected type 'local', got %q", server.Type)
+	}
+
+	if len(server.Tools) != 6 {
+		t.Errorf("Expected 6 tools, got %d", len(server.Tools))
 	}
 }
 
