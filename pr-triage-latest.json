@@ -1,18 +1,29 @@
 {
-  "run_date": "2026-06-19T13:25:34Z",
-  "run_id": "27828344448",
-  "previous_run_id": "27813910542",
-  "previous_run_date": "2026-06-19T08:14:19Z",
+  "run_date": "2026-06-19T18:51:30Z",
+  "run_id": "27843133086",
+  "previous_run_id": "27828344448",
+  "previous_run_date": "2026-06-19T13:25:34Z",
   "fork_prs": 0,
-  "agent_prs_found": 6,
-  "copilot_swe_agent_prs": 6,
+  "agent_prs_found": 5,
+  "copilot_swe_agent_prs": 5,
   "github_actions_prs": 0,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
     {
-      "number": 40259,
-      "title": "logs: download only usage artifact by default",
+      "number": 40375,
+      "title": "Enable safeoutputs CLI write paths in Smoke Pi sandbox",
+      "draft": true,
+      "status": "DRAFT",
+      "created": "2026-06-19",
+      "labels": [],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
+    },
+    {
+      "number": 40369,
+      "title": "Support wildcard suffix matching for `slash_command`",
       "draft": false,
       "status": "OPEN",
       "created": "2026-06-19",
@@ -22,10 +33,10 @@
       "base_repo": "github/gh-aw"
     },
     {
-      "number": 40258,
-      "title": "feat(workflow): cache repository owner-type API call once per compilation run",
-      "draft": false,
-      "status": "OPEN",
+      "number": 40368,
+      "title": "feat(safe-outputs): add `allowed-teams` to mentions configuration",
+      "draft": true,
+      "status": "DRAFT",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
@@ -33,8 +44,8 @@
       "base_repo": "github/gh-aw"
     },
     {
-      "number": 40247,
-      "title": "linters: migrate osexitinlibrary, fprintlnsprintf, errstringmatch to type-based package identity",
+      "number": 40348,
+      "title": "Enforce per-type safe-output max count at MCP invocation time (MCE4)",
       "draft": false,
       "status": "OPEN",
       "created": "2026-06-19",
@@ -53,43 +64,15 @@
       "is_fork": false,
       "head_repo": "github/gh-aw",
       "base_repo": "github/gh-aw"
-    },
-    {
-      "number": 40223,
-      "title": "Add headroom context compression as a shared agentic workflow",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-19",
-      "labels": [],
-      "is_fork": false,
-      "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
-    },
-    {
-      "number": 40166,
-      "title": "Migrate threat detection to external `threat-detect` binary behind feature flag",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-18",
-      "labels": ["smoke-claude", "smoke-copilot", "smoke-copilot-aoai-entra"],
-      "is_fork": false,
-      "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
     }
   ],
-  "closed_since_last_run": [40231],
-  "new_since_last_run": [],
+  "closed_since_last_run": [40259, 40258, 40247, 40223, 40166],
+  "new_since_last_run": [40375, 40369, 40368, 40348],
   "statistics": {
     "by_status": {
-      "DRAFT": 2,
-      "OPEN": 4
-    },
-    "by_category": {
-      "chore": 1,
-      "feature": 3,
-      "refactor": 1,
-      "bug": 1
+      "DRAFT": 3,
+      "OPEN": 2
     }
   },
-  "notes": "6 open copilot-swe-agent PRs, all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. PR #40231 closed/merged since last run. Ongoing pattern: all agent PRs are same-repo branches, never fork PRs."
+  "notes": "5 open copilot PRs, all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 5 PRs closed/merged since last run (40259, 40258, 40247, 40223, 40166). 4 new PRs since last run (40375, 40369, 40368, 40348). Ongoing pattern: all agent PRs are same-repo branches, never fork PRs."
 }
