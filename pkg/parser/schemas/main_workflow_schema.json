@@ -10221,6 +10221,15 @@
                     "minLength": 1
                   }
                 },
+                "allowed-teams": {
+                  "type": "array",
+                  "description": "List of team slugs whose members are always allowed to be mentioned. Accepts 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team members are fetched from the GitHub API at runtime; bots are excluded. IMPORTANT: requires read:org scope — not available with the default GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a GitHub App with the Members:Read permission. Without the required scope, team lookups fail with a warning and those members are skipped.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "examples": [["myorg/eng"], ["reviewers"], ["myorg/eng", "myorg/docs"]]
+                },
                 "max": {
                   "description": "Maximum number of mentions allowed per message. Default: 50 Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
                   "oneOf": [
