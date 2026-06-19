@@ -16,8 +16,8 @@ permissions:
 tracker-id: daily-function-namer
 
 engine:
-  id: claude
-  model: "${{ needs.activation.outputs.model_size }}"
+  id: pi
+  model: copilot/gpt-5.4
 
 experiments:
   model_size:
@@ -61,7 +61,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-
 ---
 
 # Daily Go Function Namer

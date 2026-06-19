@@ -17,7 +17,8 @@ permissions:
   pull-requests: read
 max-turns: 100
 engine:
-  id: claude
+  id: pi
+  model: copilot/gpt-5.4
 tools:
   cli-proxy: true
   github:
