@@ -53,6 +53,15 @@ function sanitizeArgsBySchema(args, inputSchema, onUnknownKeysStripped) {
 }
 
 /**
+ * Check whether workflow metadata name is a non-empty string after trimming.
+ * @param {any} workflowName
+ * @returns {boolean}
+ */
+function hasValidWorkflowMetadataName(workflowName) {
+  return typeof workflowName === "string" && workflowName.trim().length > 0;
+}
+
+/**
  * Load tools from tools.json file
  * @param {Object} server - The MCP server instance for logging
  * @returns {Array} Array of tool definitions
@@ -143,9 +152,9 @@ function attachHandlers(tools, handlers, logger) {
     }
 
     // Check if this is a dispatch_workflow tool (dynamic tool with workflow metadata)
-    if (tool._workflow_name) {
+    if (hasValidWorkflowMetadataName(tool._workflow_name)) {
       // Create a custom handler that wraps args in inputs and adds workflow_name
-      const workflowName = tool._workflow_name;
+      const workflowName = tool._workflow_name.trim();
       tool.handler = args => {
         // Wrap args in inputs property to match dispatch_workflow schema
         return handlers.defaultHandler("dispatch_workflow")({
@@ -167,9 +176,9 @@ function attachHandlers(tools, handlers, logger) {
     }
 
     // Check if this is a call_workflow tool (dynamic tool with call workflow metadata)
-    if (tool._call_workflow_name) {
+    if (hasValidWorkflowMetadataName(tool._call_workflow_name)) {
       // Create a custom handler that wraps args in inputs and adds workflow_name
-      const workflowName = tool._call_workflow_name;
+      const workflowName = tool._call_workflow_name.trim();
       tool.handler = args => {
         // Wrap args in inputs property to match call_workflow schema
         return handlers.defaultHandler("call_workflow")({
@@ -250,7 +259,7 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
 
     // Check if this is a dispatch_workflow tool (has _workflow_name metadata)
     // These tools are dynamically generated with workflow-specific names
-    if (tool._workflow_name) {
+    if (hasValidWorkflowMetadataName(tool._workflow_name)) {
       server.debug(`Found dispatch_workflow tool: ${tool.name} (_workflow_name: ${tool._workflow_name})`);
       if (config.dispatch_workflow) {
         server.debug(`  dispatch_workflow config exists, registering tool`);
@@ -282,7 +291,7 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
 
     // Check if this is a call_workflow tool (has _call_workflow_name metadata)
     // These tools are dynamically generated with workflow-specific names
-    if (tool._call_workflow_name) {
+    if (hasValidWorkflowMetadataName(tool._call_workflow_name)) {
       server.debug(`Found call_workflow tool: ${tool.name} (_call_workflow_name: ${tool._call_workflow_name})`);
       if (config.call_workflow) {
         server.debug(`  call_workflow config exists, registering tool`);

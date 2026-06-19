@@ -285,6 +285,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"dispatch_workflow": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"workflow_name": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 256, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"inputs":        {Type: "object"},
+		},
+	},
 	"missing_tool": {
 		DefaultMax: 20,
 		Fields: map[string]FieldValidation{
