@@ -18,7 +18,7 @@ function parseSlashCommand(text) {
  * @returns {boolean}
  */
 function isWildcardCommandName(commandName) {
-  return typeof commandName === "string" && commandName.length > 1 && commandName.endsWith("*");
+  return typeof commandName === "string" && commandName.endsWith("*");
 }
 
 /**
@@ -41,7 +41,7 @@ function matchesCommandName(configuredCommand, actualCommand) {
 
   if (isWildcardCommandName(configuredCommand)) {
     const prefix = wildcardCommandPrefix(configuredCommand);
-    return prefix !== "" && actualCommand.startsWith(prefix);
+    return prefix === "" || actualCommand.startsWith(prefix);
   }
 
   return configuredCommand === actualCommand;
