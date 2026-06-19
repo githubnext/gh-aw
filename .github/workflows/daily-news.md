@@ -313,6 +313,7 @@ imports:
     with:
       branch-name: "memory/daily-news"
       description: "Historical news digest data"
+  - shared/mcp/headroom.md
   - shared/mcp/tavily.md
   - ../skills/jqschema/SKILL.md
   - uses: shared/daily-audit-base.md
