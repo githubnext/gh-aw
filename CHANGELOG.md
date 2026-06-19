@@ -504,6 +504,12 @@ MCP Gateway v0.1.5 introduces stricter MCP server validation:
 - Review and update MCP server definitions for the new requirements
 - Run `gh aw compile` to detect and fix invalid configurations before upgrading
 
+### Bug Fixes
+
+#### Bump the default gh-aw-firewall version to v0.27.7 and sync the embedded AWF config schema.
+
+This updates `DefaultFirewallVersion`, refreshes the embedded AWF schema for the new terminal-cap HTTP 403 behavior and `maxCacheMisses` support, and regenerates pinned workflow artifacts.
+
 ## v0.35.1 - 2026-01-06
 
 Maintenance release with dependency updates and minor improvements.
