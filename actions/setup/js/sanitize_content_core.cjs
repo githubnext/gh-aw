@@ -1280,14 +1280,7 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
   // URI filtering - replace non-https protocols with "(redacted)"
-  // applyToNonCodeRegions preserves fenced code blocks (including ```suggestion blocks)
-  // so that patch content is never corrupted by URL rewriting.
-  sanitized = applyToNonCodeRegions(sanitized, sanitizeUrlProtocols);
-
-  // Domain filtering for HTTPS URIs
-  // applyToNonCodeRegions preserves fenced code blocks (including ```suggestion blocks)
-  // so that patch content is never corrupted by URL rewriting.
-  sanitized = applyToNonCodeRegions(sanitized, s => sanitizeUrlDomains(s, allowedDomains));
+  sanitized = applyURLSanitizationPolicy(sanitized, allowedDomains);
 
   // Apply truncation limits
   sanitized = applyTruncation(sanitized, maxLength);
@@ -1311,6 +1304,27 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   return sanitized.trim();
 }
 
+/**
+ * Apply URL sanitization using configured safe-outputs URL policy.
+ * @param {string} content
+ * @param {string[]} allowedDomains
+ * @returns {string}
+ */
+function applyURLSanitizationPolicy(content, allowedDomains) {
+  const urlPolicy = process.env.GH_AW_SAFE_OUTPUTS_URLS || "allowed-only";
+  if (urlPolicy === "allowed-or-code-region") {
+    // Preserve fenced/inline code regions (including ```suggestion blocks) verbatim.
+    // This avoids corrupting patch payloads while still sanitizing prose.
+    let sanitized = applyToNonCodeRegions(content, sanitizeUrlProtocols);
+    sanitized = applyToNonCodeRegions(sanitized, s => sanitizeUrlDomains(s, allowedDomains));
+    return sanitized;
+  }
+  // Default/current behavior: sanitize URLs in all content regions.
+  let sanitized = sanitizeUrlProtocols(content);
+  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+  return sanitized;
+}
+
 module.exports = {
   sanitizeContentCore,
   getRedactedDomains,
@@ -1324,6 +1338,7 @@ module.exports = {
   sanitizeDomainName,
   sanitizeUrlProtocols,
   sanitizeUrlDomains,
+  applyURLSanitizationPolicy,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,

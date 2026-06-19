@@ -195,6 +195,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Parse URL sanitization policy
+			if urls, exists := outputMap["urls"]; exists {
+				if urlsStr, ok := urls.(string); ok {
+					config.URLs = urlsStr
+				}
+			}
+
 			// Parse allowed-github-references configuration
 			if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 				if refsArray, ok := allowGitHubRefs.([]any); ok {

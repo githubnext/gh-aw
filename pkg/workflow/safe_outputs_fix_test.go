@@ -192,6 +192,24 @@ func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 			},
 		},
 		{
+			name:      "URLs policy imported when empty in main",
+			topConfig: nil,
+			imported:  `{"urls":"allowed-or-code-region"}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				assert.Equal(t, SafeOutputsURLsPolicyAllowedOrCodeRegion, result.URLs, "URLs policy should be imported")
+			},
+		},
+		{
+			name: "URLs policy not overridden when set in main",
+			topConfig: &SafeOutputsConfig{
+				URLs: SafeOutputsURLsPolicyAllowedOnly,
+			},
+			imported: `{"urls":"allowed-or-code-region"}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				assert.Equal(t, SafeOutputsURLsPolicyAllowedOnly, result.URLs, "Main URLs policy should take precedence")
+			},
+		},
+		{
 			name:      "GroupReports imported when false in main",
 			topConfig: nil,
 			imported:  `{"group-reports":true}`,
