@@ -160,7 +160,7 @@ pre-agent-steps:
 # Build steps for documentation
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v6.0.3
+    uses: actions/checkout@v7.0.0
     with:
       persist-credentials: false
       lfs: true
