@@ -99,11 +99,18 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		}
 
 		server := config.MCPServers["github-agentic-workflows"]
+		if server.Type != "local" {
+			t.Errorf("Expected type to be 'local', got %s", server.Type)
+		}
 		if server.Command != "gh" {
 			t.Errorf("Expected command to be 'gh', got %s", server.Command)
 		}
 		if len(server.Args) != 2 || server.Args[0] != "aw" || server.Args[1] != "mcp-server" {
 			t.Errorf("Expected args to be ['aw', 'mcp-server'], got %v", server.Args)
+		}
+		expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"}
+		if len(server.Tools) != len(expectedTools) {
+			t.Errorf("Expected %d tools, got %d (%v)", len(expectedTools), len(server.Tools), server.Tools)
 		}
 	}
 }

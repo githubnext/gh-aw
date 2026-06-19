@@ -18,8 +18,10 @@ const mcpConfigFilePath = ".github/mcp.json"
 
 // VSCodeMCPServer represents a single MCP server configuration for VSCode mcp.json
 type VSCodeMCPServer struct {
+	Type    string   `json:"type,omitempty"`
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
+	Tools   []string `json:"tools,omitempty"`
 	CWD     string   `json:"cwd,omitempty"`
 }
 
@@ -40,8 +42,10 @@ func ensureMCPConfig(verbose bool) error {
 	// Add or update gh-aw MCP server configuration
 	ghAwServerName := "github-agentic-workflows"
 	ghAwConfig := VSCodeMCPServer{
+		Type:    "local",
 		Command: "gh",
 		Args:    []string{"aw", "mcp-server"},
+		Tools:   []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"},
 	}
 
 	// Check if file already exists
