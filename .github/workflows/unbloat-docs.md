@@ -163,7 +163,6 @@ steps:
     uses: actions/checkout@v7.0.0
     with:
       persist-credentials: false
-      lfs: true
 
   - name: Setup Node.js
     uses: actions/setup-node@v6.4.0
@@ -180,7 +179,10 @@ steps:
     working-directory: ./docs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: npm run build
+    run: |
+      npm run generate-agent-factory
+      npm run generate-model-tables
+      npx astro build
 
 ---
 
