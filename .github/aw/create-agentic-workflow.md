@@ -167,10 +167,13 @@ on:
       - "package-lock.json"
       - "yarn.lock"
       - "pnpm-lock.yaml"
+      - "bun.lockb"
       - "requirements.txt"
       - "pyproject.toml"
       - "go.mod"
       - "Cargo.toml"
+      - "composer.json"
+      - "composer.lock"
 ```
 
 Use `paths-ignore:` to skip documentation-only changes:

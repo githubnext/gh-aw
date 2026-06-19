@@ -82,12 +82,17 @@ safe-outputs:
   noop:
 ```
 
+> **Cache key scope**: `cache-memory` keys are repository-scoped by default. The environment name in the key (e.g. `deployment-incidents-production`) ensures that failures in different environments use separate cache entries and do not interfere with each other.
+
 Dedupe instructions for the agent:
 
 ```markdown
-1. Check `/tmp/gh-aw/cache-memory/last-incident.json` for the most recent incident SHA.
-2. If the current SHA (`${{ github.event.deployment.sha }}`) matches the cached SHA, call `noop` — this is a duplicate notification.
-3. If there is no cache or the SHA is new, create an incident issue and write `{"sha":"${{ github.event.deployment.sha }}","env":"${{ github.event.deployment.environment }}"}` to `/tmp/gh-aw/cache-memory/last-incident.json`.
+1. Check `/tmp/gh-aw/cache-memory/last-incident.json` for the most recent incident record.
+2. If the file exists, parse it and check whether both `sha` and `env` match the current event:
+   - current SHA: `${{ github.event.deployment.sha }}`
+   - current environment: `${{ github.event.deployment.environment }}`
+3. If both match, call `noop` — this is a duplicate notification for the same deployment to the same environment.
+4. If there is no cache, or either field differs, create an incident issue and write `{"sha":"${{ github.event.deployment.sha }}","env":"${{ github.event.deployment.environment }}"}` to `/tmp/gh-aw/cache-memory/last-incident.json`.
 ```
 
 ## Structured Incident Issue Fields
