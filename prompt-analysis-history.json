@@ -1,1 +1,67 @@
-{"daily_analysis": [{"date": "2026-06-08", "merged": 794, "closed": 199, "rate": 80.0}, {"date": "2026-06-09", "merged": 787, "closed": 203, "rate": 79.5}, {"date": "2026-06-10", "merged": 793, "closed": 203, "rate": 79.6}, {"date": "2026-06-12", "merged": 786, "closed": 206, "rate": 79.2}, {"date": "2026-06-13", "merged": 792, "closed": 204, "rate": 79.5}, {"date": "2026-06-14", "merged": 791, "closed": 202, "rate": 79.7}, {"date": "2026-06-16", "merged": 797, "closed": 196, "rate": 80.3}, {"date": "2026-06-18", "merged": 792, "closed": 196, "open": 12, "rate": 80.2, "categories": {"bug_fix": 0.794, "feature": 0.827, "testing": 0.82, "documentation": 0.839, "refactor": 0.737}}]}
+{
+  "daily_analysis": [
+    {
+      "date": "2026-06-08",
+      "merged": 794,
+      "closed": 199,
+      "rate": 80.0
+    },
+    {
+      "date": "2026-06-09",
+      "merged": 787,
+      "closed": 203,
+      "rate": 79.5
+    },
+    {
+      "date": "2026-06-10",
+      "merged": 793,
+      "closed": 203,
+      "rate": 79.6
+    },
+    {
+      "date": "2026-06-12",
+      "merged": 786,
+      "closed": 206,
+      "rate": 79.2
+    },
+    {
+      "date": "2026-06-13",
+      "merged": 792,
+      "closed": 204,
+      "rate": 79.5
+    },
+    {
+      "date": "2026-06-14",
+      "merged": 791,
+      "closed": 202,
+      "rate": 79.7
+    },
+    {
+      "date": "2026-06-16",
+      "merged": 797,
+      "closed": 196,
+      "rate": 80.3
+    },
+    {
+      "date": "2026-06-18",
+      "merged": 792,
+      "closed": 196,
+      "open": 12,
+      "rate": 80.2,
+      "categories": {
+        "bug_fix": 0.794,
+        "feature": 0.827,
+        "testing": 0.82,
+        "documentation": 0.839,
+        "refactor": 0.737
+      }
+    },
+    {
+      "date": "2026-06-19",
+      "merged": 795,
+      "closed": 201,
+      "open": 4,
+      "rate": 79.8
+    }
+  ]
+}
