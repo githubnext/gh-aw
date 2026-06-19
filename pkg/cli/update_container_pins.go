@@ -52,7 +52,10 @@ var buildxDigestPattern = regexp.MustCompile(`(?m)^Digest:\s+(sha256:[a-f0-9]{64
 //
 // When Docker is unavailable the function logs a warning and returns nil so that
 // the overall upgrade flow is not interrupted.
-func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) error {
+//
+// Returns true when new container pins were added and lock files should be
+// recompiled to embed the digest references.
+func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) (bool, error) {
 	containerPinsLog.Print("Starting container pin update")
 
 	if verbose {
@@ -67,14 +70,14 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to collect container images: %v", err)))
 		}
-		return nil
+		return false, nil
 	}
 
 	if len(images) == 0 {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("No container images found in lock files"))
 		}
-		return nil
+		return false, nil
 	}
 
 	containerPinsLog.Printf("Found %d unique container image(s) across lock files", len(images))
@@ -84,7 +87,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	actionCache := workflow.NewActionCache(".")
 	if _, statErr := os.Stat(actionsLockPath); statErr == nil {
 		if loadErr := actionCache.Load(); loadErr != nil {
-			return fmt.Errorf("failed to load actions-lock.json: %w", loadErr)
+			return false, fmt.Errorf("failed to load actions-lock.json: %w", loadErr)
 		}
 	}
 
@@ -178,12 +181,12 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 
 	if len(updatedImages) > 0 || prunedCount > 0 {
 		if err := actionCache.Save(); err != nil {
-			return fmt.Errorf("failed to save actions-lock.json: %w", err)
+			return false, fmt.Errorf("failed to save actions-lock.json: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated container pins in actions-lock.json"))
 	}
 
-	return nil
+	return len(updatedImages) > 0, nil
 }
 
 // collectImagesFromLockFiles scans all .lock.yml files under workflowDir and returns
