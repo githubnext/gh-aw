@@ -204,6 +204,80 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
 
   /**
+   * Session-scoped per-type operation counters.
+   * Incremented on every successful appendSafeOutput call (MCE4 dual enforcement).
+   * @type {Map<string, number>}
+   */
+  const operationCounts = new Map();
+
+  /**
+   * Return the explicitly user-configured max for a safe-output type, or null if not set / unlimited.
+   * Uses getSafeOutputsToolConfig for consistent key-normalisation (hyphens → underscores).
+   * Does NOT fall back to validation-config defaults: MCP-time enforcement is only
+   * applied when the user has explicitly set a limit; downstream enforcement covers defaults.
+   * Per Safe Outputs Specification MCE5: the same config source as the processor.
+   * @param {string} type - normalised safe-output type name (e.g. "add_comment")
+   * @returns {number | null}
+   */
+  function getExplicitMax(type) {
+    const toolConfig = getSafeOutputsToolConfig(config, type);
+    if (!toolConfig || typeof toolConfig !== "object") return null;
+    if (!("max" in toolConfig)) return null;
+    const maxVal = toolConfig.max;
+    if (maxVal === -1) return null; // -1 means unlimited
+    if (typeof maxVal === "number" && Number.isInteger(maxVal) && maxVal > 0) {
+      return maxVal;
+    }
+    return null;
+  }
+
+  /**
+   * Enforce the per-type operation count limit at invocation time.
+   * Throws a JSON-RPC -32602 error when the configured max has already been reached.
+   * Per Safe Outputs Specification MCE4: Dual Enforcement — constraints MUST be
+   * enforced at both invocation time (MCP server) and processing time (safe output
+   * processor) to provide defence-in-depth.
+   * @param {string} type - normalised safe-output type name
+   */
+  function enforcePerTypeMax(type) {
+    const maxAllowed = getExplicitMax(type);
+    if (maxAllowed === null) return; // no explicit limit configured
+    const current = operationCounts.get(type) || 0;
+    if (current >= maxAllowed) {
+      throw {
+        code: -32602,
+        message: `E002: ${type} limit reached — ${current} of ${maxAllowed} already used this run`,
+        data: {
+          constraint: "max",
+          type,
+          limit: maxAllowed,
+          guidance:
+            `You have used all ${maxAllowed} ${type} operations for this run. ` +
+            `Further ${type} calls will be ignored. Prioritize the most important items ` +
+            `(e.g. consolidate multiple updates into one), or call noop. ` +
+            `Note: other safe-output types have independent budgets, so applying one type ` +
+            `without its companion type can leave inconsistent state.`,
+        },
+      };
+    }
+  }
+
+  /**
+   * Append a safe-output entry after enforcing the per-type max count.
+   * Increments the session counter only after a successful write, mirroring the
+   * approach used by inlineReviewCommentCount so that write errors do not advance
+   * the counter.
+   * Per Safe Outputs Specification MCE4: invocation-time half of dual enforcement.
+   * @param {Record<string, any>} entry
+   */
+  const appendSafeOutputCounted = entry => {
+    const type = entry?.type;
+    if (type) enforcePerTypeMax(type);
+    appendSafeOutput(entry);
+    if (type) operationCounts.set(type, (operationCounts.get(type) || 0) + 1);
+  };
+
+  /**
    * Validate schema-declared explicit target parameters for wildcard-target tools.
    * @param {Record<string, any>} entry
    * @returns {{content: Array<{type: "text", text: string}>, isError: true} | null}
@@ -258,7 +332,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     const fileInfo = writeLargeContentToFile(largeContent);
     entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
 
     return {
       content: [
@@ -286,7 +360,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (largeContentResponse) return largeContentResponse;
 
     // Normal case - no large content
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
     return {
       content: [
         {
@@ -416,7 +490,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       targetFileName: targetFileName,
     };
 
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
 
     return {
       content: [
@@ -620,7 +694,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (allowEmpty) {
       server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
       // Append the safe output entry without generating a patch
-      appendSafeOutput(entry);
+      appendSafeOutputCounted(entry);
       return {
         content: [
           {
@@ -834,7 +908,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         entry.base_commit = bundleResult.baseCommit;
       }
 
-      appendSafeOutput(entry);
+      appendSafeOutputCounted(entry);
       return {
         content: [
           {
@@ -856,7 +930,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
     return {
       content: [
         {
@@ -1277,7 +1351,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         entry.base_commit = bundleResult.baseCommit;
       }
 
-      appendSafeOutput(entry);
+      appendSafeOutputCounted(entry);
       return {
         content: [
           {
@@ -1299,7 +1373,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
     return {
       content: [
         {
@@ -1551,7 +1625,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         };
         const largeContentResponse = maybeHandleLargeContent(droppedEntry);
         if (!largeContentResponse) {
-          appendSafeOutput(droppedEntry);
+          appendSafeOutputCounted(droppedEntry);
         }
         return {
           content: [
@@ -1572,7 +1646,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const largeContentResponse = maybeHandleLargeContent(entry);
     if (largeContentResponse) return largeContentResponse;
 
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
     return {
       content: [
         {
@@ -1603,7 +1677,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     server.debug(`temporary_id for create_project: ${entry.temporary_id}`);
 
     // Append to safe outputs
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
 
     // Return the temporary_id to the agent so it can reference this project
     return {
@@ -1714,7 +1788,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     server.debug(`temporary_id for add_comment: ${entry.temporary_id}`);
 
     // Append to safe outputs
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
 
     // Return the temporary_id to the agent so it can reference this comment
     return {
@@ -1893,7 +1967,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`upload_artifact: staged ${filePath} as ${destName}`);
     }
 
-    appendSafeOutput(entry);
+    appendSafeOutputCounted(entry);
 
     const temporaryId = entry.temporary_id || null;
     return {
