@@ -26,3 +26,14 @@ func suppressed(name string) {
 	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name))
 	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name)) //nolint:fprintlnsprintf
 }
+
+// shadowed: a local variable named "fmt" with Fprintln/Sprintf methods should NOT be flagged.
+type fmtWriter struct{}
+
+func (fmtWriter) Fprintln(_ interface{}, _ ...interface{}) {}
+func (fmtWriter) Sprintf(_ string, _ ...interface{}) string { return "" }
+
+func shadowedFmt(name string) {
+	fmt := fmtWriter{}
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name)) // should NOT be flagged
+}

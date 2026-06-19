@@ -52,11 +52,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		ident, ok := sel.X.(*ast.Ident)
-		if !ok {
-			return
-		}
-		if ident.Name == "os" && sel.Sel.Name == "Exit" {
+		if astutil.IsPkgSelector(pass, sel, "os") && sel.Sel.Name == "Exit" {
 			position := pass.Fset.PositionFor(call.Pos(), false)
 			if nolint.HasDirective(position, noLintLinesByFile) {
 				return

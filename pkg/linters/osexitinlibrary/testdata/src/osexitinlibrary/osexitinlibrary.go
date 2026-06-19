@@ -20,3 +20,13 @@ func suppressedPreviousLine() {
 func suppressedSameLine() {
 	os.Exit(1) //nolint:osexitinlibrary
 }
+
+// shadowed: a local variable named "os" with an Exit method should NOT be flagged.
+type osLike struct{}
+
+func (osLike) Exit(int) {}
+
+func shadowedOs() {
+	os := osLike{}
+	os.Exit(1) // should NOT be flagged
+}

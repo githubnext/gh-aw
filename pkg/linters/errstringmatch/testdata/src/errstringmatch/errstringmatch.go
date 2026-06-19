@@ -35,3 +35,13 @@ func checkIgnoredPreviousLine(err error) bool {
 func checkIgnoredSameLine(err error) bool {
 	return strings.Contains(err.Error(), "already merged") //nolint:errstringmatch // gh CLI merge status is only available as text.
 }
+
+// shadowed: a local variable named "strings" with a Contains method should NOT be flagged.
+type stringsLike struct{}
+
+func (stringsLike) Contains(s, sub string) bool { return false }
+
+func shadowedStrings(err error) bool {
+	strings := stringsLike{}
+	return strings.Contains(err.Error(), "not found") // should NOT be flagged
+}

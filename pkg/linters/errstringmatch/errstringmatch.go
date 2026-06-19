@@ -46,7 +46,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Match strings.Contains(X, Y)
-		if !isStringsContains(outer) {
+		if !isStringsContains(pass, outer) {
 			return
 		}
 		if len(outer.Args) != 2 {
@@ -73,16 +73,12 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 // isStringsContains returns true for strings.Contains(...) call expressions.
-func isStringsContains(call *ast.CallExpr) bool {
+func isStringsContains(pass *analysis.Pass, call *ast.CallExpr) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return ident.Name == "strings" && sel.Sel.Name == "Contains"
+	return astutil.IsPkgSelector(pass, sel, "strings") && sel.Sel.Name == "Contains"
 }
 
 // isErrDotError returns true when expr is a method call of the form <expr>.Error()
