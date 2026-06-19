@@ -157,7 +157,7 @@ Mark `status` as:
 6. Use the `dependency-batch-analyzer` subagent to summarize the selected dependency batch and likely source files before editing.
 7. Use the `retry-feedback-synthesizer` subagent to condense retry failures and maintainer feedback into concrete constraints for this attempt.
 8. For each selected dependency, find the source workflow markdown or shared config files that reference the outdated dependency.
-9. Apply all safe version updates to source `.md` files in one pass. Do not split the work into multiple replacement PRs and do not edit the generated manifest files directly.
+9. Apply all safe version updates to source `.md` files in one pass and do not edit the generated manifest files directly.
 10. Regenerate the manifests once with `make dependabot` or `./gh-aw compile --dependabot`.
 11. If `.github/workflows/package-lock.json` needs refresh after compilation, run `npm install --package-lock-only` from `.github/workflows`.
 12. Keep the change bounded to the selected dependency updates plus the smallest number of related source files needed.

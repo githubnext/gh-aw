@@ -605,6 +605,11 @@ jobs:
                         "description": "JSON array describing the selected Dependabot PR batch",
                         "type": "string"
                       },
+                      "maintainer-feedback-json": {
+                        "default": "[]",
+                        "description": "JSON summary of maintainer-only comments and reviews to honor on retries",
+                        "type": "string"
+                      },
                       "objective": {
                         "description": "Shared campaign objective",
                         "type": "string"
@@ -615,6 +620,11 @@ jobs:
                       },
                       "pr-numbers": {
                         "description": "Comma-separated selected Dependabot pull request numbers for the bundled batch",
+                        "type": "string"
+                      },
+                      "retry-context-json": {
+                        "default": "{}",
+                        "description": "JSON object describing recent failed burner PRs and the preferred retry strategy",
                         "type": "string"
                       }
                     },
@@ -1084,9 +1094,11 @@ jobs:
     with:
       aw_context: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}
       dependency-batch-json: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).dependency-batch-json }}
+      maintainer-feedback-json: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).maintainer-feedback-json }}
       objective: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).objective }}
       payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
       pr-numbers: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).pr-numbers }}
+      retry-context-json: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).retry-context-json }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}

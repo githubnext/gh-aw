@@ -74,12 +74,18 @@ steps:
         function parseBumpTitle(title) {
           const match = String(title || '').match(/^Bump\s+(.+?)\s+from\s+([^\s]+)\s+to\s+([^\s]+)$/i);
           if (!match) {
-            return { dependency_name: '', current_version: '', target_version: '' };
+            return {
+              dependency_name: String(title || '').trim(),
+              current_version: '',
+              target_version: '',
+              title_parse_mode: 'fallback',
+            };
           }
           return {
             dependency_name: match[1],
             current_version: match[2],
             target_version: match[3],
+            title_parse_mode: 'parsed',
           };
         }
 
@@ -147,6 +153,7 @@ steps:
               dependency_name: parsed.dependency_name,
               current_version: parsed.current_version,
               target_version: parsed.target_version,
+              title_parse_mode: parsed.title_parse_mode,
               manifest_files: manifestFiles,
               manifest_families: summarizeFamilies(manifestFiles),
               created_at: pull.created_at,
@@ -204,6 +211,7 @@ steps:
                 dependency_name: parsed.dependency_name,
                 current_version: parsed.current_version,
                 target_version: parsed.target_version,
+                title_parse_mode: parsed.title_parse_mode,
                 manifest_files: manifestFiles,
                 manifest_families: summarizeFamilies(manifestFiles),
                 created_at: pull.data.created_at,
@@ -215,13 +223,11 @@ steps:
 
           if (triggerPR) {
             const triggerFiles = new Set(triggerPR.manifest_files || []);
-            const triggerFamilies = new Set(triggerPR.manifest_families || []);
             selectedPRs = openPRs.filter((pull) => {
               if (pull.number === triggerPR.number) {
                 return true;
               }
-              return (pull.manifest_files || []).some((file) => triggerFiles.has(file)) ||
-                (pull.manifest_families || []).some((family) => triggerFamilies.has(family));
+              return (pull.manifest_files || []).some((file) => triggerFiles.has(file));
             });
             selectionReason = 'slash-command-similar-prs';
           } else {
@@ -242,6 +248,7 @@ steps:
             dependency_name: pull.dependency_name,
             current_version: pull.current_version,
             target_version: pull.target_version,
+            title_parse_mode: pull.title_parse_mode,
             manifest_files: pull.manifest_files,
             manifest_families: pull.manifest_families,
             title: pull.title,
@@ -315,7 +322,7 @@ Return compact JSON with:
 - `needs_noop`
 - `noop_reason`
 
-Treat PRs as related only when they match the filtered manifest-family scope from the triggering PR or the precomputed selected batch. Prefer a smaller safe batch over a larger speculative one.
+Treat PRs as related only when they share one of the triggering manifest files or are already present in the precomputed selected batch. Prefer a smaller safe batch over a larger speculative one.
 
 ## agent: `retry-history-analyzer`
 ---
