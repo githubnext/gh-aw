@@ -207,7 +207,7 @@ async function main() {
           tree: EMPTY_TREE_SHA,
           parents: [],
         });
-        let useSeedSha = true;
+        let useApiSeedSha = true;
         try {
           await github.rest.git.createRef({
             owner: targetOwner,
@@ -216,15 +216,17 @@ async function main() {
             sha: seedCommit.sha,
           });
         } catch (createRefError) {
-          // 422 "Reference already exists": another concurrent run created the
-          // branch between our fetch-check and this createRef call.  Treat as
-          // success and use the existing branch instead.
+          // GitHub returns HTTP 422 with "Reference already exists" when the
+          // branch was created concurrently between our fetch-check and this
+          // createRef call.  Check for either the status code or the message
+          // text since different Octokit versions surface errors differently.
+          // Treat as success and use the existing branch instead.
           const createRefErrMsg = createRefError instanceof Error ? createRefError.message : String(createRefError);
           if (!/422|Reference already exists/i.test(createRefErrMsg)) {
             throw createRefError;
           }
           core.info(`Branch ${branchName} was created concurrently (422 Reference already exists); using existing branch.`);
-          useSeedSha = false;
+          useApiSeedSha = false;
         }
         // Fetch the newly seeded (or concurrently created) branch and check it out.
         execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", suppressLogs: true });
@@ -232,7 +234,7 @@ async function main() {
         // Set baseRef to the seed commit SHA (or the existing branch HEAD for
         // the 422 concurrent-creation case) so pushSignedCommits can use the
         // GraphQL signed-commit path instead of the unsigned git push fallback.
-        baseRef = useSeedSha ? seedCommit.sha : execGitSync(["rev-parse", "HEAD"]).trim();
+        baseRef = useApiSeedSha ? seedCommit.sha : execGitSync(["rev-parse", "HEAD"]).trim();
         core.info(`Seeded and checked out new branch ${branchName} via GitHub API (baseRef: ${baseRef})`);
       } catch (seedError) {
         // Fallback: API seeding failed (e.g. insufficient token permissions).
