@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -161,7 +162,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 	safeJobsLog.Printf("Building %d safe-jobs, threatDetectionEnabled=%v", len(data.SafeOutputs.Jobs), threatDetectionEnabled)
 	var safeJobNames []string
-	for jobName, jobConfig := range data.SafeOutputs.Jobs {
+	jobNames := make([]string, 0, len(data.SafeOutputs.Jobs))
+	for jobName := range data.SafeOutputs.Jobs {
+		jobNames = append(jobNames, jobName)
+	}
+	sort.Strings(jobNames)
+
+	for _, jobName := range jobNames {
+		jobConfig := data.SafeOutputs.Jobs[jobName]
 		// Normalize job name to use underscores for consistency
 		normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
 
