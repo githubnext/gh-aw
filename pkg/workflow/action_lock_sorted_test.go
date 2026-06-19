@@ -113,7 +113,7 @@ func extractObjectKeyOrder(content []byte, field string) ([]string, error) {
 			return nil, fmt.Errorf("field %q is not an object", field)
 		}
 
-		keys := make([]string, 0)
+		keys := make([]string, 0, 8)
 		for dec.More() {
 			memberKeyToken, err := dec.Token()
 			if err != nil {
