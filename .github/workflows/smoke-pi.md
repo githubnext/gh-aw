@@ -29,6 +29,9 @@ sandbox:
         allowWrite:
           - ${{ github.workspace }}
           - /tmp/gh-aw/agent
+          - ${{ runner.temp }}/gh-aw/safeoutputs
+          - /tmp/gh-aw/safeoutputs
+          - /tmp/gh-aw/mcp-logs/safeoutputs
 runtimes:
   node: {}
 imports:
