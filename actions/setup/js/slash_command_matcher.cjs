@@ -13,12 +13,22 @@ function parseSlashCommand(text) {
   return match ? match[1] : "";
 }
 
+const CATCH_ALL_COMMAND = "*";
+
 /**
  * @param {string} commandName
  * @returns {boolean}
  */
 function isWildcardCommandName(commandName) {
   return typeof commandName === "string" && commandName.endsWith("*");
+}
+
+/**
+ * @param {string} commandName
+ * @returns {boolean}
+ */
+function isCatchAllCommandName(commandName) {
+  return commandName === CATCH_ALL_COMMAND;
 }
 
 /**
@@ -39,9 +49,13 @@ function matchesCommandName(configuredCommand, actualCommand) {
     return false;
   }
 
+  if (isCatchAllCommandName(configuredCommand)) {
+    return actualCommand !== "";
+  }
+
   if (isWildcardCommandName(configuredCommand)) {
     const prefix = wildcardCommandPrefix(configuredCommand);
-    return prefix === "" || actualCommand.startsWith(prefix);
+    return prefix !== "" && actualCommand.startsWith(prefix);
   }
 
   return configuredCommand === actualCommand;
@@ -68,6 +82,8 @@ function resolveMatchedCommand(text, configuredCommands) {
 }
 
 module.exports = {
+  CATCH_ALL_COMMAND,
+  isCatchAllCommandName,
   isWildcardCommandName,
   matchesCommandName,
   parseSlashCommand,
