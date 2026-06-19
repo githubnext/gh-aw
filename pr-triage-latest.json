@@ -1,78 +1,128 @@
 {
-  "run_date": "2026-06-19T01:31:57Z",
-  "run_id": "27799830285",
-  "previous_run_id": "27782643103",
-  "previous_run_date": "2026-06-18T19:04:44Z",
+  "run_date": "2026-06-19T08:14:19Z",
+  "run_id": "27813910542",
+  "previous_run_id": "27799830285",
+  "previous_run_date": "2026-06-19T01:31:57Z",
   "fork_prs": 0,
-  "agent_prs_found": 4,
-  "copilot_swe_agent_prs": 4,
+  "agent_prs_found": 7,
+  "copilot_swe_agent_prs": 7,
   "github_actions_prs": 0,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
     {
-      "number": 40188,
-      "title": "[WIP] Fix daily news workflow failure",
+      "number": 40259,
+      "title": "logs: download only usage artifact by default",
       "draft": true,
       "status": "DRAFT",
+      "merge_state": "UNSTABLE",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
+      "category": "chore",
+      "files_changed": 4,
+      "ci": "no_checks"
+    },
+    {
+      "number": 40258,
+      "title": "feat(workflow): cache repository owner-type API call once per compilation run",
+      "draft": true,
+      "status": "DRAFT",
+      "merge_state": "UNSTABLE",
+      "created": "2026-06-19",
+      "labels": [],
+      "is_fork": false,
+      "category": "feature",
+      "files_changed": 3,
+      "ci": "no_checks"
+    },
+    {
+      "number": 40247,
+      "title": "linters: migrate osexitinlibrary, fprintlnsprintf, errstringmatch to type-based package identity",
+      "draft": false,
+      "status": "OPEN",
+      "merge_state": "DIRTY",
+      "created": "2026-06-19",
+      "labels": [],
+      "is_fork": false,
+      "category": "refactor",
+      "files_changed": 11,
+      "ci": "no_checks"
+    },
+    {
+      "number": 40233,
+      "title": "Code Simplifier: prevent background-agent validation path that triggers copilot proxy auth failures",
+      "draft": true,
+      "status": "DRAFT",
+      "merge_state": "UNSTABLE",
+      "created": "2026-06-19",
+      "labels": ["awf"],
+      "is_fork": false,
       "category": "bug",
-      "ci": "unknown"
+      "files_changed": 2,
+      "ci": "no_checks"
+    },
+    {
+      "number": 40231,
+      "title": "Align daily AIC report workflow with real Sentry/Tempo query behavior",
+      "draft": true,
+      "status": "DRAFT",
+      "merge_state": "UNSTABLE",
+      "created": "2026-06-19",
+      "labels": [],
+      "is_fork": false,
+      "category": "chore",
+      "files_changed": 2,
+      "ci": "no_checks"
+    },
+    {
+      "number": 40223,
+      "title": "Add headroom context compression as a shared agentic workflow",
+      "draft": true,
+      "status": "DRAFT",
+      "merge_state": "DIRTY",
+      "created": "2026-06-19",
+      "labels": [],
+      "is_fork": false,
+      "category": "feature",
+      "files_changed": 3,
+      "ci": "no_checks"
     },
     {
       "number": 40166,
       "title": "Migrate threat detection to external `threat-detect` binary behind feature flag",
-      "draft": true,
-      "status": "DRAFT",
+      "draft": false,
+      "status": "OPEN",
+      "merge_state": "BLOCKED",
       "created": "2026-06-18",
-      "labels": [],
+      "labels": ["smoke-claude", "smoke-copilot", "smoke-copilot-aoai-entra"],
       "is_fork": false,
       "category": "feature",
-      "ci": "unknown"
-    },
-    {
-      "number": 40126,
-      "title": "feat: add Monte Carlo forecast compliance test suite (P1-P13) and fix fixture AIC gap",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "test",
-      "ci": "unknown"
-    },
-    {
-      "number": 39927,
-      "title": "fix: preserve fenced code blocks during URL sanitization to prevent suggestion block corruption",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "bug",
-      "ci": "unknown"
+      "files_changed": 100,
+      "ci": "no_checks"
     }
   ],
-  "closed_since_last_run": [40132, 40127, 40125, 40124, 40123, 40116, 40109, 40085, 40033, 39830],
-  "new_since_last_run": [40188, 40166],
+  "closed_since_last_run": [40188, 40126, 39927],
+  "new_since_last_run": [40259, 40258, 40247, 40233, 40231, 40223],
   "statistics": {
     "by_status": {
-      "DRAFT": 2,
+      "DRAFT": 5,
       "OPEN": 2
     },
     "by_category": {
-      "bug": 2,
-      "feature": 1,
-      "test": 1
+      "chore": 2,
+      "feature": 3,
+      "refactor": 1,
+      "bug": 1
     },
-    "by_ci": {
-      "unknown": 4
+    "by_merge_state": {
+      "UNSTABLE": 4,
+      "DIRTY": 2,
+      "BLOCKED": 1
     },
     "resolved_this_run": {
-      "closed_or_merged": 10
+      "closed_or_merged": 3
     }
   },
-  "notes": "4 open Copilot PRs, all branch-based (is_fork=false). Fork-only triage policy: 0 PRs eligible for formal triage. 10 PRs closed/merged since last run. 2 new PRs since last run (#40188, #40166). Continuing trend: all agent PRs are same-repo branch PRs, never fork PRs."
+  "notes": "7 open copilot-swe-agent PRs, all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 3 PRs closed/merged since last run (#40188, #40126, #39927). 6 new PRs since last run. Notable: #40166 large (100 files) BLOCKED PR for threat-detect binary migration; #40247 linter refactor (11 files, DIRTY). Ongoing pattern: all agent PRs are same-repo, never fork PRs."
 }
