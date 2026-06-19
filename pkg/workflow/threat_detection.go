@@ -1072,6 +1072,10 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 
 	engineID := c.getThreatDetectionEngineID(data)
+	engine, err := c.getAgenticEngine(engineID)
+	if err != nil {
+		return []string{"      # Engine not found, skipping execution\n"}
+	}
 
 	// Build detection WorkflowData for the external detector.
 	// The rw mount for ThreatDetectionDir allows the threat-detect binary to write
@@ -1157,7 +1161,48 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		}
 		steps = append(steps, prefixed)
 	}
+
+	// Reuse the engine's own execution env block so the external detector path
+	// gets the same token/model/runtime environment configuration as the agent job.
+	executionSteps := engine.GetExecutionSteps(threatDetectionData, constants.ThreatDetectionLogPath)
+	if len(executionSteps) > 0 {
+		for _, line := range extractStepEnvLines(executionSteps[0]) {
+			steps = append(steps, line+"\n")
+		}
+	}
+
 	return steps
+}
+
+func extractStepEnvLines(step GitHubActionStep) []string {
+	envIndex := -1
+	for i, line := range step {
+		if strings.TrimSpace(line) == "env:" {
+			envIndex = i
+			break
+		}
+	}
+	if envIndex == -1 {
+		return nil
+	}
+
+	var envLines []string
+	for _, line := range step[envIndex:] {
+		if line == "" {
+			envLines = append(envLines, line)
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			break
+		}
+		if !strings.HasPrefix(line, "        ") && trimmed != "env:" {
+			break
+		}
+		envLines = append(envLines, line)
+	}
+
+	return envLines
 }
 
 // buildUploadDetectionArtifactStep creates a step that uploads both the structured

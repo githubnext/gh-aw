@@ -200,4 +200,9 @@ Test workflow`
 	if !strings.Contains(detectionSection, "set -o pipefail") {
 		t.Error("External detector AWF step must use set -o pipefail so non-zero threat-detect exits fail the step")
 	}
+
+	// The external detector run must inherit engine runtime env config (auth/model/etc).
+	if !strings.Contains(detectionSection, "COPILOT_GITHUB_TOKEN:") {
+		t.Error("External detector path must configure engine auth env like the agent job")
+	}
 }
