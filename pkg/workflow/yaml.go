@@ -360,7 +360,11 @@ func prepareNestedMapValueForYAML(fieldName string, value any) any {
 	case yaml.MapSlice:
 		copied := make(yaml.MapSlice, 0, len(v))
 		for _, item := range v {
-			key, _ := item.Key.(string)
+			key, ok := item.Key.(string)
+			if !ok {
+				copied = append(copied, yaml.MapItem{Key: item.Key, Value: prepareNestedMapValueForYAML("", item.Value)})
+				continue
+			}
 			copied = append(copied, yaml.MapItem{Key: item.Key, Value: prepareNestedMapValueForYAML(key, item.Value)})
 		}
 		return copied
