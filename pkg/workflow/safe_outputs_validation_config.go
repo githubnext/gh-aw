@@ -404,7 +404,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"hide_comment": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
-			"comment_id": {Required: true, Type: "string", MaxLength: 256, TypeHint: "GraphQL node ID string (e.g. 'IC_kwDOABCD123456'), not a numeric REST comment ID"},
+			"comment_id": {Required: true, Type: "string", MaxLength: 256, TypeHint: "GraphQL node ID string (e.g. 'IC_kwDOABCD123456'); numeric REST comment IDs are accepted but may not resolve for all comment types (e.g. PR review comments)"},
 			"reason":     {Type: "string", Enum: []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED", "LOW_QUALITY"}},
 			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

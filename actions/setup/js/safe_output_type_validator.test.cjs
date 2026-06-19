@@ -171,7 +171,7 @@ const SAMPLE_VALIDATION_CONFIG = {
         required: true,
         type: "string",
         maxLength: 256,
-        typeHint: "GraphQL node ID string (e.g. 'IC_kwDOABCD123456'), not a numeric REST comment ID",
+        typeHint: "GraphQL node ID string (e.g. 'IC_kwDOABCD123456'); numeric REST comment IDs are accepted but may not resolve for all comment types (e.g. PR review comments)",
       },
       reason: { type: "string" },
     },
@@ -482,8 +482,7 @@ describe("safe_output_type_validator", () => {
       const result = validateItem({ type: "hide_comment" }, "hide_comment", 1);
 
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain("GraphQL node ID string");
-      expect(result.error).toContain("not a numeric REST comment ID");
+      expect(result.error).toContain("GraphQL node ID");
     });
 
     it("should include typeHint in error when hide_comment comment_id is a numeric REST id", async () => {
@@ -492,8 +491,7 @@ describe("safe_output_type_validator", () => {
       const result = validateItem({ type: "hide_comment", comment_id: 4748731349 }, "hide_comment", 1);
 
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain("GraphQL node ID string");
-      expect(result.error).toContain("not a numeric REST comment ID");
+      expect(result.error).toContain("GraphQL node ID");
     });
 
     it("should accept hide_comment with a GraphQL node ID comment_id", async () => {
