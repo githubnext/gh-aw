@@ -169,6 +169,7 @@ Do **not** re-fetch these datasets with GitHub tools unless a required file is m
 ## Command Guardrails (Required)
 
 - Do **NOT** use `python3` for JSON parsing; use `jq`, `cat`, or `head` instead.
+- Do **NOT** launch background agents (`task`, `read_agent`, or `mode: background`) for validation; run required checks directly with `bash` in this session.
 - Do **NOT** repeatedly retry variations of the same blocked command.
 - If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
 - If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
