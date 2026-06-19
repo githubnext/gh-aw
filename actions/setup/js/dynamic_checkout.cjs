@@ -47,6 +47,31 @@ async function getCurrentCheckoutRepo() {
 }
 
 /**
+ * Determine whether the current checkout already has a persisted
+ * http.<serverUrl>/.extraheader credential in .git/config.
+ *
+ * When actions/checkout runs with persist-credentials: true (as the safe_outputs job
+ * does), it writes an http.<serverUrl>/.extraheader entry that authenticates every
+ * <serverUrl> URL. In that case a dynamic repo switch must NOT inject a second
+ * extraheader, because git treats the key as multi-valued and would send two
+ * Authorization headers, which GitHub rejects with "Duplicate header: 'Authorization'".
+ *
+ * @param {string} serverUrl - GitHub server URL (e.g. "https://github.com")
+ * @returns {Promise<boolean>} true if a non-empty extraheader is already configured
+ */
+async function checkoutHasPersistedExtraheader(serverUrl) {
+  try {
+    const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${serverUrl}/.extraheader`], {
+      silent: true,
+      ignoreReturnCode: true,
+    });
+    return result.exitCode === 0 && result.stdout.trim() !== "";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Checkout a different repository for patch application
  * This is used when processing entries with a `repo` parameter that differs from the current checkout
  *
@@ -86,18 +111,33 @@ async function checkoutRepo(repoSlug, token, options = {}) {
     // Get GitHub server URL (for GHES support)
     const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
 
-    // Configure the new remote URL
-    // Use token in URL for authentication since we're not using credential helper
+    // Configure the new remote URL (no embedded credentials). Authentication is
+    // provided by the http.<serverUrl>/.extraheader credential that the safe_outputs
+    // checkout persisted into .git/config (persist-credentials: true with the resolved
+    // push token). That extraheader applies to every <serverUrl> URL, so it already
+    // authenticates the repository we are switching to.
     const remoteUrl = `${serverUrl}/${repoSlug}.git`;
 
-    // Change remote origin to the new repo
+    // Change remote origin to the new repo. Replacing the URL also drops any
+    // embedded-credential URL configure_git_credentials.sh may have set, leaving the
+    // persisted extraheader as the single source of auth.
     core.info(`Configuring remote origin to: ${repoSlug}`);
     await exec.exec("git", ["remote", "set-url", "origin", remoteUrl]);
 
-    // Configure token for authentication
-    // Use extraheader to pass token without embedding in URL (more secure)
-    const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
-    await exec.exec("git", ["config", `http.${serverUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+    // Trust the persisted credential rather than injecting a second one. git treats
+    // http.<url>.extraheader as multi-valued, so adding our own header on top of the
+    // checkout's persisted header would put two Authorization headers on the wire,
+    // which GitHub rejects with "Duplicate header: 'Authorization'" (HTTP 400). Only
+    // configure an extraheader when the checkout did not already persist one (e.g. a
+    // caller that runs without persist-credentials).
+    const hasPersistedAuth = await checkoutHasPersistedExtraheader(serverUrl);
+    if (!hasPersistedAuth) {
+      // Use extraheader to pass the token without embedding it in the URL (more secure).
+      const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
+      await exec.exec("git", ["config", `http.${serverUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+    } else {
+      core.info("Reusing persisted git credential for authentication (skipping extraheader injection)");
+    }
 
     // Fetch the new repo
     core.info(`Fetching repository: ${repoSlug}`);
