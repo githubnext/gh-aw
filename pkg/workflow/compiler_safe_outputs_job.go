@@ -124,14 +124,9 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 		}, c.getActionPin)
 		steps = append(steps, patchDownloadSteps...)
 
-		// Extract the base branch from the agent output so the checkout step can use it
-		// directly instead of relying on event-context expressions. This is the key
-		// decoupling that allows correct checkout for issue_comment events on PRs
-		// targeting non-default branches.
-		consolidatedSafeOutputsJobLog.Print("Adding base branch extraction step")
-		steps = append(steps, buildExtractBaseBranchStep()...)
-
-		// Add checkout and git config steps for PR operations
+		// Add checkout and git config steps for PR operations. These mirror the agent job's
+		// checkout layout exactly (same CheckoutManager generators); the base branch is
+		// resolved by the JS handler at apply time, so no checkout-time base ref is needed.
 		consolidatedSafeOutputsJobLog.Print("Adding shared checkout step for PR operations")
 		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
 		steps = append(steps, checkoutSteps...)

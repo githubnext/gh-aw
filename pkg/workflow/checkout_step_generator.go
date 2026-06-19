@@ -61,7 +61,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 		if entry.key.path == "" && entry.key.repository == "" {
 			continue
 		}
-		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, getActionPin)...)
+		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, cm.keepCredentialsForPush, getActionPin)...)
 	}
 	checkoutManagerLog.Printf("Generated %d additional checkout step(s)", len(lines))
 	return lines
@@ -189,6 +189,83 @@ func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref, tok
 	return []string{sb.String()}
 }
 
+// GenerateConfigureGitCredentialsSteps emits the "Configure Git credentials" step that
+// installs a push-capable token. The root workspace checkout is always the workflow
+// repository, so its remote is configured for ${{ github.repository }}. Any cross-repo
+// checkout placed into a subdirectory is re-authenticated in place so a later push can
+// reach it. The provided gitRemoteToken is used for all remotes.
+//
+// The agent job never pushes, so it has no equivalent of this step; it is used by the
+// safe_outputs job, which supplies the push token (resolvePRCheckoutToken) and a gating
+// condition.
+func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken string, condition ConditionNode) []string {
+	conditionStr := RenderCondition(condition)
+
+	// Collect subdirectory cross-repo checkouts that need per-repo re-authentication.
+	type subRepo struct {
+		repository string
+		path       string
+	}
+	var subRepos []subRepo
+	for _, entry := range cm.ordered {
+		if entry.key.repository != "" && entry.key.path != "" && !entry.key.wiki {
+			subRepos = append(subRepos, subRepo{repository: entry.key.repository, path: entry.key.path})
+		}
+	}
+
+	if len(subRepos) == 0 {
+		// Simple case: single root repo, call the script directly.
+		rootRepo := "${{ github.repository }}"
+		for _, entry := range cm.ordered {
+			// If a non-default checkout targets the workspace root (no path:), it will clobber
+			// the root checkout; configure git for the effective repo at the root.
+			if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
+				continue
+			}
+			rootRepo = entry.key.repository
+		}
+		return []string{
+			"      - name: Configure Git credentials\n",
+			fmt.Sprintf("        if: %s\n", conditionStr),
+			"        env:\n",
+			fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
+			"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
+			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
+		}
+	}
+
+	// Multi-repo case: configure the root repo, then re-authenticate each subdirectory checkout.
+	rootRepo := "${{ github.repository }}"
+	for _, entry := range cm.ordered {
+		if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
+			continue
+		}
+		rootRepo = entry.key.repository
+	}
+	steps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", conditionStr),
+		"        env:\n",
+		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
+		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+		"        run: |\n",
+		"          bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
+		"          GIT_SERVER_URL_STRIPPED=\"${GITHUB_SERVER_URL#https://}\"\n",
+	}
+	for _, repo := range subRepos {
+		steps = append(steps,
+			fmt.Sprintf("          # Re-authenticate git for %s\n", repo.repository),
+			fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/%s.git\"\n", repo.path, repo.repository),
+		)
+	}
+	steps = append(steps,
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	)
+	return steps
+}
+
 // GenerateDefaultCheckoutStep emits the default workspace checkout, applying any
 // user-supplied overrides (token, fetch-depth, ref, etc.) on top of the required
 // security defaults (persist-credentials: false).
@@ -213,7 +290,11 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	sb.WriteString("        with:\n")
 
 	cleanCreds := override != nil && override.cleanCreds
-	if cleanCreds {
+	if cm.keepCredentialsForPush {
+		// safe_outputs job: retain credentials so later git fetch/push can authenticate
+		// using the push-capable token installed at checkout time.
+		sb.WriteString("          persist-credentials: true\n")
+	} else if cleanCreds {
 		sb.WriteString("          persist-credentials: true\n")
 	} else {
 		// Security: default behavior disables credential persistence so the agent cannot
@@ -290,7 +371,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	if override != nil && len(override.sparsePatterns) > 0 {
 		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(""))
 	}
-	if cleanCreds {
+	if cleanCreds && !cm.keepCredentialsForPush {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
 
@@ -313,7 +394,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 // generateCheckoutStepLines generates YAML step lines for a single non-default checkout.
 // The index parameter identifies the checkout's position in the ordered list, used to
 // reference the correct app token minting step when app authentication is configured.
-func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin func(string) string) []string {
+// When keepCredentialsForPush is true (safe_outputs job), credentials are retained
+// (persist-credentials: true) and the post-checkout cleanup step is suppressed so a later
+// git fetch/push can authenticate.
+func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentialsForPush bool, getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating checkout step lines: index=%d, repo=%q, path=%q, ref=%q, appAuth=%v",
 		index, entry.key.repository, entry.key.path, entry.ref, entry.githubApp != nil)
 	name := "Checkout " + checkoutStepName(entry.key)
@@ -322,7 +406,10 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
 
-	if entry.cleanCreds {
+	if keepCredentialsForPush {
+		// safe_outputs job: retain credentials so later git fetch/push can authenticate.
+		sb.WriteString("          persist-credentials: true\n")
+	} else if entry.cleanCreds {
 		sb.WriteString("          persist-credentials: true\n")
 	} else {
 		// Security: default behavior disables credential persistence
@@ -374,7 +461,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	if len(entry.sparsePatterns) > 0 {
 		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(entry.key.path))
 	}
-	if entry.cleanCreds {
+	if entry.cleanCreds && !keepCredentialsForPush {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
 	if fetchStep := generateFetchStepLines(entry, index); fetchStep != "" {

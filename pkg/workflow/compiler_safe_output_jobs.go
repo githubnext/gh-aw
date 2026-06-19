@@ -163,10 +163,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - depends on safe_outputs
 //   - has an `if:` that checks needs.safe_outputs.outputs.call_workflow_name
 //   - uses: the relative path to the worker's .lock.yml (or .yml)
-//   - passes payload as the canonical `with:` input
-//   - also passes one `with:` entry per declared workflow_call input (except
-//     payload) as `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<name>`
-//     so that worker steps can reference inputs.<name> directly
+//   - forwards declared workflow_call inputs in `with:` so worker steps can reference inputs.<name> directly:
+//   - non-payload inputs: `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<name>`
+//   - `payload` is forwarded as the raw transport only when the worker declares it
+//     (GitHub Actions rejects undeclared inputs)
 //   - inherits all caller secrets via `secrets: inherit`
 //   - includes a job-level `permissions:` block that is the union of all the
 //     worker's job-level permissions, so GitHub allows the nested jobs to run
@@ -200,14 +200,14 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			workflowPath = fmt.Sprintf("./.github/workflows/%s.lock.yml", workflowName)
 		}
 
-		// Build the with: block. Always include the canonical payload transport,
-		// then add per-input entries derived from the payload for every declared
-		// workflow_call input on the worker (except 'payload' itself) so that
-		// worker steps can reference inputs.<name> directly without parsing JSON.
+		// Build the with: block. Forward one entry per declared workflow_call input
+		// on the worker, derived from the payload, so that worker steps can reference
+		// inputs.<name> directly without parsing JSON. The canonical `payload`
+		// envelope is only forwarded when the worker explicitly declares a `payload`
+		// input; GitHub Actions rejects a `uses:` step that passes an input the
+		// called workflow does not declare, so it must not be added unconditionally.
 		jobNeeds := []string{"safe_outputs"}
-		with := map[string]any{
-			"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
-		}
+		with := map[string]any{}
 
 		if markdownPath != "" {
 			fileResult, findErr := findWorkflowFile(workflowName, markdownPath)
@@ -235,6 +235,10 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 					typedInputCount := 0
 					for inputName := range workflowInputs {
 						if inputName == "payload" {
+							// The worker explicitly declares the canonical payload
+							// envelope input; forward the raw transport rather than a
+							// fromJSON expression.
+							with["payload"] = "${{ needs.safe_outputs.outputs.call_workflow_payload }}"
 							continue
 						}
 						with[inputName] = fmt.Sprintf("${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).%s }}", inputName)

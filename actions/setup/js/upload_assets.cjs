@@ -86,13 +86,13 @@ async function main() {
 
   core.info(`Found ${uploadItems.length} upload-asset item(s)`);
 
-  // Derive the base directory from GH_AW_AGENT_OUTPUT when available.
-  // In the upload_assets job, the agent artifact (including safeoutputs/assets/)
-  // is downloaded to the same parent directory as agent_output.json, which may
-  // differ from RUNNER_TEMP when the download path is explicitly set to /tmp/gh-aw/.
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const baseDir = agentOutputFile ? path.dirname(agentOutputFile) : path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw");
-  const assetsDir = path.join(baseDir, "safeoutputs", "assets");
+  // Read the staged-assets directory directly. The upload_assets job's
+  // download-artifact step writes the safe-outputs assets artifact to this exact
+  // directory, and the Go generator passes the same path via GH_AW_ASSETS_DIR, so
+  // producer and consumer can never disagree on the location. The literal fallback
+  // matches constants.TmpGhAwAssetsDir for robustness if the env var is unset.
+  const assetsDir = process.env.GH_AW_ASSETS_DIR || "/tmp/gh-aw/safeoutputs/assets";
+  core.info(`Reading staged assets from: ${assetsDir}`);
   let uploadCount = 0;
   let missingAssetCount = 0;
   let hasChanges = false;
@@ -130,7 +130,7 @@ async function main() {
         return;
       }
 
-      // Check if file exists in artifacts
+      // Check if file exists in the staged-assets directory
       const assetSourcePath = path.join(assetsDir, fileName);
       if (!fs.existsSync(assetSourcePath)) {
         core.warning(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath} — skipping`);
