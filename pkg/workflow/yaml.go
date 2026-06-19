@@ -351,6 +351,11 @@ func prepareNestedMapValueForYAML(fieldName string, value any) any {
 			copied[key] = prepareNestedMapValueForYAML(key, childValue)
 		}
 		return copied
+	case map[string]string:
+		if fieldName == "with" || fieldName == "env" || fieldName == "secrets" {
+			return recursivelyOrderYAMLValue(v)
+		}
+		return value
 	case []any:
 		copied := make([]any, len(v))
 		for i, childValue := range v {

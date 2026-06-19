@@ -367,7 +367,7 @@ func TestMarshalWithFieldOrder_OrdersNestedEnvWithSecretsRecursively(t *testing.
 						"alpha-child": "alpha",
 					},
 				},
-				"env": map[string]any{
+				"env": map[string]string{
 					"ZETA_STEP":  "zeta",
 					"ALPHA_STEP": "alpha",
 				},
