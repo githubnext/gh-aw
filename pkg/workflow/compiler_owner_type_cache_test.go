@@ -111,7 +111,7 @@ func TestRepositoryOwnerIsIndividualUser_CacheSharedAcrossCompilations(t *testin
 }
 
 // TestRepositoryOwnerIsIndividualUser_CacheInitializedByNewCompiler verifies that
-// NewCompiler initialises ownerTypeCache so callers never encounter a nil map panic.
+// NewCompiler initializes ownerTypeCache so callers never encounter a nil map panic.
 func TestRepositoryOwnerIsIndividualUser_CacheInitializedByNewCompiler(t *testing.T) {
 	c := NewCompiler()
 	if c.ownerTypeCache == nil {
