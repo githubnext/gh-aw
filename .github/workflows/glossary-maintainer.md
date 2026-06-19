@@ -134,7 +134,7 @@ Use Serena to:
 
 ### 1. Determine Scan Scope
 
-The pre-step has already determined the scan scope. Read all context files in one step:
+The pre-step has already determined the scan scope. Read all context files in one step (the glossary is read here early for efficiency, so Step 4 can work with already-loaded content):
 
 ```bash
 cat /tmp/gh-aw/agent/scan-scope.txt \
@@ -161,7 +161,7 @@ Check your cache to avoid duplicate work:
 
 ### 3. Scan Recent Changes
 
-Use the `discover-terms` sub-agent to identify new technical terms from the pre-fetched files. Pass it:
+Use the `discover-terms` sub-agent to identify new technical terms from the pre-fetched files. Invoke it by name and pass these file paths as context:
 - `/tmp/gh-aw/agent/scan-scope.txt`
 - `/tmp/gh-aw/agent/recent-commits.txt`
 - `/tmp/gh-aw/agent/doc-changes.txt`
@@ -309,4 +309,12 @@ Good luck! Your work helps users understand GitHub Agentic Workflows terminology
 model: claude-haiku-4.5
 description: Scans recent commits and doc changes to identify new technical terms
 ---
-Read the provided commit log and doc-change files. Fetch diffs for at most 20 commits using get_commit. For each commit, identify new technical terms introduced in user-facing docs (docs/**/*.md, docs/**/*.mdx). Return a JSON array: [{"term": "...", "context": "...", "source": "commit:<SHA> or pr:<N>"}]. If no new terms, return [].
+Read the provided commit log and doc-change files. Fetch diffs for at most 20 commits using get_commit. For each commit, identify new technical terms introduced in user-facing docs (docs/**/*.md, docs/**/*.mdx). Look for:
+- New configuration fields in frontmatter (YAML keys)
+- New CLI commands or flags
+- New tool names or MCP servers
+- New concepts or features
+- Technical acronyms (MCP, CLI, YAML, etc.)
+- Specialized terminology (safe-outputs, frontmatter, engine, etc.)
+
+Only include terms from `docs/**/*.{md,mdx}` files, not internal code or comments. Return a JSON array: [{"term": "...", "context": "...", "source": "commit:<SHA> or pr:<N>"}]. If no new terms, return [].
