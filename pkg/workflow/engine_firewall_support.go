@@ -121,6 +121,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	// Firewall logs are at a known location in the sandbox folder structure
 	firewallLogsDir := constants.AWFProxyLogsDir
+	firewallAuditDir := constants.AWFAuditDir
 	firewallDir := path.Dir(firewallLogsDir)
 
 	stepLines := []string{
@@ -130,6 +131,9 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        env:",
 		"          AWF_LOGS_DIR: " + firewallLogsDir,
 		"        run: |",
+		"          # Ensure log and audit directories exist so the artifact upload always captures them",
+		"          # even when the agent fails before AWF writes any proxy logs",
+		fmt.Sprintf("          sudo mkdir -p %s %s 2>/dev/null || true", firewallLogsDir, firewallAuditDir),
 		"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",
 		"          # AWF runs with sudo, creating files owned by root",
 		fmt.Sprintf("          sudo chmod -R a+rX %s 2>/dev/null || true", firewallDir),

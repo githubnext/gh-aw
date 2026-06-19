@@ -1035,6 +1035,9 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: |
+          # Ensure log and audit directories exist so the artifact upload always captures them
+          # even when the agent fails before AWF writes any proxy logs
+          sudo mkdir -p /tmp/gh-aw/sandbox/firewall/logs /tmp/gh-aw/sandbox/firewall/audit 2>/dev/null || true
           # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
@@ -1044,6 +1047,14 @@ jobs:
           else
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
+      - name: Upload Firewall Logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: firewall-logs-visual-regression-checker
+          path: /tmp/gh-aw/sandbox/firewall/logs/
+          if-no-files-found: ignore
       - name: Parse token usage for step summary
         if: always()
         continue-on-error: true

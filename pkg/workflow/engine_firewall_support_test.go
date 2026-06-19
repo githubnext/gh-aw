@@ -275,13 +275,53 @@ func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 	step := generateFirewallLogParsingStep("test-workflow")
 	stepContent := strings.Join(step, "\n")
 	expectedLogsDir := constants.AWFProxyLogsDir
+	expectedAuditDir := constants.AWFAuditDir
 	expectedFirewallDir := path.Dir(expectedLogsDir)
 
 	if !strings.Contains(stepContent, "AWF_LOGS_DIR: "+expectedLogsDir) {
 		t.Error("Expected firewall log parsing step to keep AWF_LOGS_DIR set to logs directory")
 	}
 
+	if !strings.Contains(stepContent, "sudo mkdir -p "+expectedLogsDir+" "+expectedAuditDir+" 2>/dev/null || true") {
+		t.Error("Expected firewall log parsing step to mkdir -p the logs and audit directories so they exist even on agent failure")
+	}
+
 	if !strings.Contains(stepContent, "sudo chmod -R a+rX "+expectedFirewallDir+" 2>/dev/null || true") {
 		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
+	}
+}
+
+func TestGenerateSummaryStepsIncludesFirewallLogsUpload(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+	compiler.stepOrderTracker.MarkAgentExecutionComplete()
+	// Record a secret redaction step so the upload ordering is valid
+	compiler.stepOrderTracker.RecordSecretRedaction("Redact secrets in logs")
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{"api.example.com"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	var yaml strings.Builder
+	compiler.generateSummarySteps(&yaml, workflowData, NewClaudeEngine())
+	output := yaml.String()
+
+	if !strings.Contains(output, "- name: Upload Firewall Logs") {
+		t.Error("Expected generateSummarySteps to include a dedicated 'Upload Firewall Logs' step when firewall is enabled")
+	}
+	if !strings.Contains(output, "if: always()") {
+		t.Error("Expected the 'Upload Firewall Logs' step to have 'if: always()'")
+	}
+	if !strings.Contains(output, "name: firewall-logs-test-workflow") {
+		t.Error("Expected the 'Upload Firewall Logs' step to use artifact name 'firewall-logs-test-workflow'")
+	}
+	if !strings.Contains(output, "if-no-files-found: ignore") {
+		t.Error("Expected the 'Upload Firewall Logs' step to use 'if-no-files-found: ignore'")
 	}
 }

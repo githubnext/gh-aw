@@ -685,6 +685,17 @@ func (c *Compiler) generateSummarySteps(yaml *strings.Builder, data *WorkflowDat
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')
 		}
+
+		// Add a dedicated firewall-logs artifact upload that runs with if: always() so the
+		// access.log is captured even when the agent fails early (e.g. ERR_CONFIG).
+		// This is separate from the unified agent artifact upload to make firewall logs
+		// easy to locate and to ensure they are uploaded independently.
+		firewallLogsUpload := generateSquidLogsUploadStep(data.Name)
+		for _, line := range firewallLogsUpload {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+		c.stepOrderTracker.RecordArtifactUpload("Upload Firewall Logs", []string{constants.AWFProxyLogsDir + "/"})
 	}
 
 	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
