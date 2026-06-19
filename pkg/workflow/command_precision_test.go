@@ -221,6 +221,27 @@ tools:
 				"github.event.comment.body == '/test-bot'",
 			},
 		},
+		{
+			name: "slash_command wildcard should use prefix matching",
+			frontmatter: `---
+on:
+  slash_command:
+    name: smoke*
+    events: [issue_comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename: "command-wildcard-prefix.md",
+			shouldContain: []string{
+				"startsWith(github.event.comment.body, '/smoke')",
+				"github.event_name == 'issue_comment'",
+			},
+			shouldNotContain: []string{
+				"github.event.comment.body == '/smoke*'",
+				"startsWith(github.event.comment.body, '/smoke* ')",
+			},
+		},
 	}
 
 	for _, tt := range tests {

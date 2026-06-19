@@ -7,6 +7,7 @@
  */
 
 const { isRepoAllowed } = require("./repo_helpers.cjs");
+const { resolveMatchedCommand } = require("./slash_command_matcher.cjs");
 
 const SAFE_OUTPUTS_URLS_ENV = "GH_AW_SAFE_OUTPUTS_URLS";
 const SAFE_OUTPUTS_URLS_ALLOWED_ONLY = "allowed-only";
@@ -359,17 +360,26 @@ function neutralizeCommands(s) {
     return s;
   }
 
-  // Neutralize each command name at the start of text (with optional leading whitespace)
-  let result = s;
+  const leadingWhitespace = s.match(/^\s*/)?.[0] ?? "";
+  const remainder = s.slice(leadingWhitespace.length);
+  const matchedCommand = resolveMatchedCommand(remainder, commandNames);
+  if (matchedCommand) {
+    const escapedCommand = matchedCommand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+  }
+
   for (const name of commandNames) {
+    if (name.endsWith("*")) {
+      continue;
+    }
     const escapedCommand = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    result = result.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-    // Stop after first substitution (only one command can be at position 0)
+    const result = s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
     if (result !== s) {
-      break;
+      return result;
     }
   }
-  return result;
+
+  return s;
 }
 
 /**

@@ -95,6 +95,12 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("/review check");
       expect(result).toBe("`/review` check");
     });
+
+    it("should neutralize wildcard-matched command names from GH_AW_COMMANDS", () => {
+      process.env.GH_AW_COMMANDS = JSON.stringify(["smoke*"]);
+      const result = sanitizeContent("/smoke-copilot-sdk run tests");
+      expect(result).toBe("`/smoke-copilot-sdk` run tests");
+    });
   });
 
   describe("@mention neutralization", () => {
