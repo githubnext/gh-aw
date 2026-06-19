@@ -1075,6 +1075,7 @@ describe("sanitize_content.cjs", () => {
       const input = "Prose ftp://bad.com\n```\nftp://inside-code.example\n```\nMore prose";
       const result = sanitizeContent(input);
       expect(result).not.toContain("ftp://inside-code.example");
+      expect(result).toContain("/redacted");
     });
   });
 
@@ -1180,6 +1181,7 @@ describe("sanitize_content.cjs", () => {
       const input = "Prose https://evil.com/malicious\n```\nhttps://evil.com/inside-code\n```\nMore prose";
       const result = sanitizeContent(input);
       expect(result).not.toContain("https://evil.com/inside-code");
+      expect(result).toContain("(evil.com/redacted)");
     });
   });
 
