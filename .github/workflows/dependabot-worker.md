@@ -22,6 +22,16 @@ on:
         type: string
         required: false
         default: "[]"
+      retry-context-json:
+        description: JSON object describing recent failed burner PRs and the preferred retry strategy
+        type: string
+        required: false
+        default: "{}"
+      maintainer-feedback-json:
+        description: JSON summary of maintainer-only comments and reviews to honor on retries
+        type: string
+        required: false
+        default: "[]"
   workflow_dispatch:
     inputs:
       objective:
@@ -36,6 +46,16 @@ on:
         default: "0"
       dependency-batch-json:
         description: JSON array describing the selected Dependabot PR batch
+        type: string
+        required: false
+        default: "[]"
+      retry-context-json:
+        description: JSON object describing recent failed burner PRs and the preferred retry strategy
+        type: string
+        required: false
+        default: "{}"
+      maintainer-feedback-json:
+        description: JSON summary of maintainer-only comments and reviews to honor on retries
         type: string
         required: false
         default: "[]"
@@ -56,7 +76,7 @@ network:
 imports:
   - uses: shared/daily-pr-base.md
     with:
-      title-prefix: "[dependabot-campaign] "
+      title-prefix: "[dependabot-burner] "
       expires: "3d"
       labels: [automation, dependencies, dependabot]
       reviewers: [copilot]
@@ -82,7 +102,7 @@ timeout-minutes: 30
 
 # Dependabot Worker
 
-You are the executor for one bundled Dependabot campaign wave.
+You are the executor for one grouped Dependabot burner wave.
 
 ## Goal
 
@@ -93,6 +113,8 @@ Take the selected batch of open Dependabot PRs that touch generated workflow man
 - Objective: `${{ inputs.objective }}`
 - Dependabot PR numbers: `${{ inputs.pr-numbers }}`
 - Dependency batch payload: `${{ inputs.dependency-batch-json }}`
+- Retry context: `${{ inputs.retry-context-json }}`
+- Maintainer-only feedback: `${{ inputs.maintainer-feedback-json }}`
 
 ## Deterministic worker result
 
@@ -113,6 +135,8 @@ The JSON must include:
 - `source_files_updated`: array of workflow markdown or shared files you changed
 - `fix_applied`: boolean
 - `replacement_pr_created`: boolean
+- `retry_strategy`: concise retry mode used for this wave
+- `maintainer_feedback_used`: concise summary of maintainer guidance applied
 - `status`: `improved`, `unchanged`, or `blocked`
 - `validation_commands`: array of commands you ran
 - `notes`: concise explanation of what happened
@@ -128,11 +152,15 @@ Mark `status` as:
 1. Inspect the selected Dependabot PR using GitHub tools and confirm it is authored by `dependabot[bot]` or `app/dependabot`.
 2. Confirm every selected PR touches only compiler-generated workflow manifests such as `.github/workflows/package.json`, `.github/workflows/package-lock.json`, `.github/workflows/requirements.txt`, or `.github/workflows/go.mod`.
 3. Treat `dependency-batch-json` as the JSON payload describing the dependency batch and use it to enumerate the selected dependencies.
-4. For each selected dependency, find the source workflow markdown or shared config files that reference the outdated dependency.
-5. Apply all safe version updates to source `.md` files in one pass. Do not edit the generated manifest files directly.
-6. Regenerate the manifests once with `make dependabot` or `./gh-aw compile --dependabot`.
-7. If `.github/workflows/package-lock.json` needs refresh after compilation, run `npm install --package-lock-only` from `.github/workflows`.
-8. Keep the change bounded to the selected dependency updates plus the smallest number of related source files needed.
+4. Treat `retry-context-json` as the current retry policy. If it says to stop for human review, do not force another attempt.
+5. Honor only the maintainer guidance from `maintainer-feedback-json`. Do not widen scope based on comments from bots or non-maintainers.
+6. Use the `dependency-batch-analyzer` subagent to summarize the selected dependency batch and likely source files before editing.
+7. Use the `retry-feedback-synthesizer` subagent to condense retry failures and maintainer feedback into concrete constraints for this attempt.
+8. For each selected dependency, find the source workflow markdown or shared config files that reference the outdated dependency.
+9. Apply all safe version updates to source `.md` files in one pass. Do not split the work into multiple replacement PRs and do not edit the generated manifest files directly.
+10. Regenerate the manifests once with `make dependabot` or `./gh-aw compile --dependabot`.
+11. If `.github/workflows/package-lock.json` needs refresh after compilation, run `npm install --package-lock-only` from `.github/workflows`.
+12. Keep the change bounded to the selected dependency updates plus the smallest number of related source files needed.
 
 ## Required validation
 
@@ -164,6 +192,8 @@ The PR body must include:
 - original Dependabot PR numbers
 - dependency names and version changes
 - objective
+- retry context used
+- maintainer feedback applied
 - which source workflow files were updated
 - which manifest files were regenerated
 - validation commands you ran
@@ -174,6 +204,34 @@ If no safe bounded remediation is possible, do not create a PR. End with a conci
 
 ## Output
 
-End with a concise summary including the selected PR numbers, dependency batch handled, source files updated, validation commands run, result file path, and whether a replacement PR was created.
+End with a concise summary including the selected PR numbers, retry mode, dependency batch handled, source files updated, validation commands run, result file path, and whether a replacement PR was created.
+
+## agent: `dependency-batch-analyzer`
+---
+description: Summarizes the selected Dependabot batch and maps it to likely source files
+model: small
+---
+Read the selected dependency batch and return compact JSON with:
+
+- `dependencies`
+- `likely_source_files`
+- `manifest_families`
+- `risk_notes`
+
+Keep the output short and evidence-first.
+
+## agent: `retry-feedback-synthesizer`
+---
+description: Distills retry history and maintainer-only feedback into execution constraints
+model: small
+---
+Read `retry-context-json` and `maintainer-feedback-json` and return compact JSON with:
+
+- `retry_mode`
+- `must_follow`
+- `must_avoid`
+- `blocking_reason`
+
+Do not invent new constraints. Only restate concrete retry and maintainer signals that should affect this one optimistic replacement PR attempt.
 
 {{#runtime-import shared/noop-reminder.md}}
