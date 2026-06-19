@@ -48,9 +48,36 @@ func TestActionsLockJSONFieldsAreSorted(t *testing.T) {
 				t.Fatalf("parse %s: %v", tc.path, err)
 			}
 
+			assertRootFieldsSortedInFileOrder(t, tc.path, data, "entries", "containers")
 			assertMapKeysSortedInFileOrder(t, tc.path, data, "entries", payload.Entries)
 			assertMapKeysSortedInFileOrder(t, tc.path, data, "containers", payload.Containers)
 		})
+	}
+}
+
+func assertRootFieldsSortedInFileOrder(t *testing.T, path string, content []byte, fields ...string) {
+	t.Helper()
+
+	inOrder, err := extractRootKeyOrder(content)
+	if err != nil {
+		t.Fatalf("extract root key order for %s: %v", path, err)
+	}
+
+	positions := make([]int, 0, len(fields))
+	for _, field := range fields {
+		position := slices.Index(inOrder, field)
+		if position < 0 {
+			continue
+		}
+		positions = append(positions, position)
+	}
+
+	if len(positions) <= 1 {
+		return
+	}
+
+	if !slices.IsSorted(positions) {
+		t.Fatalf("%s root fields %q are not sorted lexicographically", path, fields)
 	}
 }
 
@@ -142,4 +169,44 @@ func extractObjectKeyOrder(content []byte, field string) ([]string, error) {
 	}
 
 	return nil, fmt.Errorf("field %q not found", field)
+}
+
+func extractRootKeyOrder(content []byte) ([]string, error) {
+	dec := json.NewDecoder(bytes.NewReader(content))
+
+	start, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if d, ok := start.(json.Delim); !ok || d != '{' {
+		return nil, errors.New("root is not an object")
+	}
+
+	keys := make([]string, 0, 8)
+	for dec.More() {
+		keyToken, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := keyToken.(string)
+		if !ok {
+			return nil, fmt.Errorf("non-string root key token %T", keyToken)
+		}
+		keys = append(keys, key)
+
+		var ignored json.RawMessage
+		if err := dec.Decode(&ignored); err != nil {
+			return nil, err
+		}
+	}
+
+	end, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if d, ok := end.(json.Delim); !ok || d != '}' {
+		return nil, errors.New("root object not closed")
+	}
+
+	return keys, nil
 }
