@@ -631,27 +631,29 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	}
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:    outputDir,
-		summaryFile:  summaryFile,
-		format:       format,
-		jsonOutput:   jsonOutput,
-		toolGraph:    toolGraph,
-		train:        train,
-		continuation: continuation,
-		verbose:      verbose,
+		outputDir:      outputDir,
+		summaryFile:    summaryFile,
+		format:         format,
+		jsonOutput:     jsonOutput,
+		toolGraph:      toolGraph,
+		train:          train,
+		continuation:   continuation,
+		verbose:        verbose,
+		artifactFilter: artifactFilter,
 	})
 }
 
 // renderLogsOutputOptions holds configuration for renderLogsOutput.
 type renderLogsOutputOptions struct {
-	outputDir    string
-	summaryFile  string
-	format       string
-	jsonOutput   bool
-	toolGraph    bool
-	train        bool
-	continuation *ContinuationData
-	verbose      bool
+	outputDir      string
+	summaryFile    string
+	format         string
+	jsonOutput     bool
+	toolGraph      bool
+	train          bool
+	continuation   *ContinuationData
+	verbose        bool
+	artifactFilter []string
 }
 
 // renderLogsOutput finalizes processedRuns and renders them in the appropriate output
@@ -668,6 +670,12 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	// Build structured logs data
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
 	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
+
+	// When only the usage artifact was downloaded, add a hint so consumers know how
+	// to fetch additional artifact sets (agent logs, firewall data, etc.).
+	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
+		logsData.Message = usageOnlyArtifactHintMessage()
+	}
 
 	// Write summary file if requested (default behavior unless disabled with empty string)
 	if opts.summaryFile != "" {
@@ -692,6 +700,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 		} else {
 			renderLogsTSV(logsData)
 		}
+		renderLogsArtifactHint(os.Stderr, logsData.Message)
 		return nil
 
 	case "markdown", "pretty":
@@ -718,9 +727,11 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 		}
 		if opts.format == "pretty" {
 			renderCrossRunReportPretty(report)
+			renderLogsArtifactHint(os.Stderr, logsData.Message)
 			return nil
 		}
 		renderCrossRunReportMarkdown(report)
+		renderLogsArtifactHint(os.Stderr, logsData.Message)
 		return nil
 
 	case "console":
@@ -736,6 +747,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 			if opts.toolGraph {
 				generateToolGraph(processedRuns, opts.verbose)
 			}
+			renderLogsArtifactHint(os.Stderr, logsData.Message)
 		}
 		return nil
 	}
@@ -754,6 +766,13 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	}
 
 	return nil
+}
+
+func renderLogsArtifactHint(w *os.File, message string) {
+	if message == "" {
+		return
+	}
+	fmt.Fprintf(w, "[hint] %s\n", message)
 }
 
 // StdinLogsOptions holds parameters for DownloadWorkflowLogsFromStdin.
@@ -775,7 +794,9 @@ type StdinLogsOptions struct {
 	FilteredIntegrity bool
 	Train             bool
 	Format            string
-	ArtifactSets      []string
+	// ArtifactSets defaults to nil (download all artifacts) when this API is used
+	// programmatically. The CLI passes ["usage"] to match the logs command default.
+	ArtifactSets []string
 }
 
 // DownloadWorkflowLogsFromStdin fetches and processes workflow run logs for runs
@@ -1086,12 +1107,13 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	}
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:   opts.OutputDir,
-		summaryFile: opts.SummaryFile,
-		format:      opts.Format,
-		jsonOutput:  opts.JSONOutput,
-		toolGraph:   opts.ToolGraph,
-		train:       opts.Train,
-		verbose:     opts.Verbose,
+		outputDir:      opts.OutputDir,
+		summaryFile:    opts.SummaryFile,
+		format:         opts.Format,
+		jsonOutput:     opts.JSONOutput,
+		toolGraph:      opts.ToolGraph,
+		train:          opts.Train,
+		verbose:        opts.Verbose,
+		artifactFilter: artifactFilter,
 	})
 }
