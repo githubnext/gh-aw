@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -70,8 +71,8 @@ func assertMapKeysSortedInFileOrder(t *testing.T, path string, content []byte, f
 	slices.SortFunc(inOrder, func(a, b string) int {
 		qa := []byte(`"` + a + `"`)
 		qb := []byte(`"` + b + `"`)
-		ia := indexOfBytes(content, qa)
-		ib := indexOfBytes(content, qb)
+		ia := bytes.Index(content, qa)
+		ib := bytes.Index(content, qb)
 		switch {
 		case ia < ib:
 			return -1
@@ -87,16 +88,4 @@ func assertMapKeysSortedInFileOrder(t *testing.T, path string, content []byte, f
 			t.Fatalf("%s field %q is not sorted lexicographically", path, field)
 		}
 	}
-}
-
-func indexOfBytes(haystack []byte, needle []byte) int {
-	if len(needle) == 0 || len(haystack) < len(needle) {
-		return -1
-	}
-	for i := 0; i <= len(haystack)-len(needle); i++ {
-		if string(haystack[i:i+len(needle)]) == string(needle) {
-			return i
-		}
-	}
-	return -1
 }
