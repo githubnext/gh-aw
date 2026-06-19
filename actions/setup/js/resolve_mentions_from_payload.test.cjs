@@ -414,6 +414,7 @@ describe("resolveAllowedMentionsFromPayload", () => {
       org: "myorg",
       team_slug: "eng",
       per_page: 100,
+      page: 1,
     });
   });
 
@@ -443,6 +444,7 @@ describe("resolveAllowedMentionsFromPayload", () => {
       org: "contextorg",
       team_slug: "eng-team",
       per_page: 100,
+      page: 1,
     });
   });
 
@@ -527,6 +529,7 @@ describe("fetchTeamMembers", () => {
       org: "myorg",
       team_slug: "eng",
       per_page: 100,
+      page: 1,
     });
   });
 
@@ -546,7 +549,28 @@ describe("fetchTeamMembers", () => {
       org: "defaultorg",
       team_slug: "eng",
       per_page: 100,
+      page: 1,
     });
+  });
+
+  it("paginates through multiple pages to collect all members", async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ login: `user${i}`, type: "User" }));
+    const page2 = [{ login: "last-user", type: "User" }];
+    let callCount = 0;
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => {
+            callCount++;
+            return { data: callCount === 1 ? page1 : page2 };
+          }),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toHaveLength(101);
+    expect(result).toContain("last-user");
+    expect(mockGithub.rest.teams.listMembersInOrg).toHaveBeenCalledTimes(2);
   });
 
   it("excludes bots from team members", async () => {
@@ -580,6 +604,57 @@ describe("fetchTeamMembers", () => {
     const result = await fetchTeamMembers("myorg/unknown-team", "defaultorg", mockGithub, mockCore);
     expect(result).toEqual([]);
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch members for team myorg/unknown-team"));
+  });
+
+  it("warns with rate-limit message on HTTP 429", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => {
+            const err = new Error("Too Many Requests");
+            /** @type {any} */ err.status = 429;
+            throw err;
+          }),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual([]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Rate limit"));
+  });
+
+  it("warns with permission message on HTTP 403", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => {
+            const err = new Error("Forbidden");
+            /** @type {any} */ err.status = 403;
+            throw err;
+          }),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual([]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("read:org"));
+  });
+
+  it("warns with permission message on HTTP 404", async () => {
+    const mockGithub = {
+      rest: {
+        teams: {
+          listMembersInOrg: vi.fn(async () => {
+            const err = new Error("Not Found");
+            /** @type {any} */ err.status = 404;
+            throw err;
+          }),
+        },
+      },
+    };
+    const result = await fetchTeamMembers("myorg/eng", "defaultorg", mockGithub, mockCore);
+    expect(result).toEqual([]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("read:org"));
   });
 
   it("returns empty array for invalid team entry and warns", async () => {

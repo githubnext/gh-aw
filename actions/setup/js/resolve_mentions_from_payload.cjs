@@ -104,11 +104,12 @@ function extractKnownAuthorsFromPayload(context) {
 /**
  * Fetch members of a GitHub team and return their logins.
  * Accepts "team-slug" (resolved against the current org) or "org/team-slug" format.
+ * Failures are non-fatal: a warning is logged and an empty array is returned.
  * @param {string} teamEntry - Team identifier, e.g. "my-team" or "myorg/my-team"
  * @param {string} defaultOrg - The org to use when no org is specified in teamEntry
  * @param {any} github - GitHub API client
  * @param {any} core - GitHub Actions core
- * @returns {Promise<string[]>} Array of member logins (non-bot)
+ * @returns {Promise<string[]>} Array of member logins (non-bot), empty on any failure
  */
 async function fetchTeamMembers(teamEntry, defaultOrg, github, core) {
   let org = defaultOrg;
@@ -127,16 +128,39 @@ async function fetchTeamMembers(teamEntry, defaultOrg, github, core) {
   }
 
   try {
-    const response = await github.rest.teams.listMembersInOrg({
-      org,
-      team_slug: teamSlug,
-      per_page: 100,
-    });
-    const logins = response.data.filter(member => member.type !== "Bot" && typeof member.login === "string").map(member => member.login);
+    const logins = /** @type {string[]} */ [];
+    let page = 1;
+    const maxPages = 10; // cap at 1000 members to avoid excessive API calls
+
+    while (page <= maxPages) {
+      const response = await github.rest.teams.listMembersInOrg({
+        org,
+        team_slug: teamSlug,
+        per_page: 100,
+        page,
+      });
+      const pageLogins = response.data.filter(member => member.type !== "Bot" && typeof member.login === "string").map(member => member.login);
+      logins.push(...pageLogins);
+      if (response.data.length < 100) {
+        break; // no more pages
+      }
+      page++;
+    }
+
     core.info(`[MENTIONS] Fetched ${logins.length} member(s) from team ${org}/${teamSlug}`);
     return logins;
   } catch (error) {
-    core.warning(`[MENTIONS] Failed to fetch members for team ${org}/${teamSlug}: ${getErrorMessage(error)}`);
+    const status = /** @type {any} */ error?.status;
+    const isRateLimit = status === 429 || (status === 403 && /rate.?limit/i.test(getErrorMessage(error)));
+    const isPermission = !isRateLimit && (status === 403 || status === 404);
+
+    if (isRateLimit) {
+      core.warning(`[MENTIONS] Rate limit reached while fetching team ${org}/${teamSlug} members - skipping team (retry later or reduce team count)`);
+    } else if (isPermission) {
+      core.warning(`[MENTIONS] Cannot access team ${org}/${teamSlug} (HTTP ${status}) - ensure the token has 'read:org' scope and the team exists`);
+    } else {
+      core.warning(`[MENTIONS] Failed to fetch members for team ${org}/${teamSlug}: ${getErrorMessage(error)}`);
+    }
     return [];
   }
 }
