@@ -10,7 +10,7 @@
  * Event mapping:
  *   SDK "user.message"            → JSONL "user.message"
  *   SDK "tool.execution_start"    → JSONL "tool.execution_start"  (toolName, mcpServerName)
- *   SDK "tool.execution_complete" → JSONL "tool.execution_complete" (toolName, mcpServerName, success)
+ *   SDK "tool.execution_complete" → JSONL "tool.execution_complete" (toolName, mcpServerName, success, result)
  *   SDK "assistant.message"       → JSONL "assistant.message"     (content)
  *
  * The JSONL file is written to:
@@ -265,9 +265,12 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           const mcpServerName = pending?.mcpServerName ?? "";
           if (toolCallId) pendingToolCalls.delete(toolCallId);
           const success = event.data?.success ?? !event.data?.error;
+          // Include result.content (concise LLM-facing output) so that the log
+          // parser can render tool output previews from events.jsonl directly.
+          const result = event.data?.result ?? undefined;
           // max-tool-denials intentionally tracks permission denials only.
           // Tool execution failures are still logged, but do not increment the guardrail counter.
-          writeEvent("tool.execution_complete", { toolName, mcpServerName, success }, event.timestamp);
+          writeEvent("tool.execution_complete", { toolName, mcpServerName, success, result }, event.timestamp);
           break;
         }
 

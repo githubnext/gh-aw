@@ -37,17 +37,21 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/gh-aw/agent/integrity
-      # Download logs filtered to only runs with DIFC integrity-filtered events
+      # Download logs filtered to only runs with DIFC integrity-filtered events.
+      # --artifacts mcp: only download the MCP gateway log artifact (sufficient for DIFC checking).
+      # --timeout 8: cap execution at 8 minutes to prevent runaway downloads.
       gh aw logs --filtered-integrity --start-date -7d --json -c 200 \
-        > /tmp/gh-aw/agent/integrity/filtered-logs.json
+        --artifacts mcp --timeout 8 \
+        > /tmp/gh-aw/agent/integrity/filtered-logs.json || true
 
-      if [ -f /tmp/gh-aw/agent/integrity/filtered-logs.json ]; then
-        count=$(jq '. | length' /tmp/gh-aw/agent/integrity/filtered-logs.json 2>/dev/null || echo 0)
-        echo "✅ Downloaded $count runs with integrity-filtered events"
-      else
-        echo "⚠️ No logs file produced; continuing with empty dataset"
-        echo "[]" > /tmp/gh-aw/agent/integrity/filtered-logs.json
+      # Validate JSON output and fall back to an empty dataset on failure
+      if ! jq -e '.runs' /tmp/gh-aw/agent/integrity/filtered-logs.json > /dev/null 2>&1; then
+        echo "⚠️ No valid logs produced; continuing with empty dataset"
+        echo '{"runs":[],"summary":{"total_runs":0}}' > /tmp/gh-aw/agent/integrity/filtered-logs.json
       fi
+
+      count=$(jq '.runs | length' /tmp/gh-aw/agent/integrity/filtered-logs.json 2>/dev/null || echo 0)
+      echo "✅ Downloaded $count runs with integrity-filtered events"
 
 tools:
   bash:
@@ -172,11 +176,11 @@ Upload both charts using `upload_asset` and record the returned URLs.
 
 ### Step 3.1: Check for DIFC Data
 
-Read `/tmp/gh-aw/agent/integrity/filtered-logs.json`. If the array is empty (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
+Read `/tmp/gh-aw/agent/integrity/filtered-logs.json`. If the `runs` array is empty or missing (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
 
 ### Step 3.2: Fetch Detailed DIFC Gateway Data
 
-1. Read `/tmp/gh-aw/agent/integrity/filtered-logs.json` and extract all run IDs from each entry's `databaseId` field.
+1. Read `/tmp/gh-aw/agent/integrity/filtered-logs.json` and extract all run IDs from each entry's `run_id` field (under the `runs` array).
 2. For each run ID, call the `audit` tool to get its detailed DIFC filtered events:
 
 ```json
