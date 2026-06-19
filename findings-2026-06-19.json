@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-19",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/guides/using-at-scale.mdx",
+      "docs/src/content/docs/blog/2026-05-04-weekly-update.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/smoke-crush.md",
+      ".github/workflows/draft-pr-cleanup.md"
+    ],
+    "validation": [
+      "pkg/workflow/runs_on_validation_test.go"
+    ]
+  },
+  "overall_quality": "mixed-strong-docs-theatrical-messages",
+  "quality_highlights": [
+    {
+      "file": ".github/workflows/draft-pr-cleanup.md",
+      "aspect": "Status messages — all three are clear, action-oriented, and state the operational consequence on failure"
+    },
+    {
+      "file": "pkg/workflow/runs_on_validation.go",
+      "aspect": "Error messages follow the gold standard: state problem, explain why, give concrete example, link to FAQ"
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": ".github/workflows/smoke-crush.md",
+      "lines": [51, 52, 53, 54, 55],
+      "priority": "high",
+      "issue": "All four message fields use theatrical action-hero tone: run-success says 'MISSION COMPLETE!' (all-caps), run-failure says 'encountered unexpected challenges...' (passive, no actionable guidance), run-started has awkward grammar. Matches recurring pattern in smoke-codex.md, smoke-copilot-aoai-apikey.md, dev-hawk.md."
+    },
+    {
+      "file": "docs/src/content/docs/guides/using-at-scale.mdx",
+      "lines": [5],
+      "priority": "medium",
+      "issue": "No prerequisites/requirements note at top of guide. Enterprise architects evaluating at-scale adoption need runner requirements (Linux+Docker), authentication requirements (GitHub Apps), and plan requirements upfront. Currently discoverable only by reading the full guide. Opening sentence also uses marketing-speak ('something qualitatively different becomes possible')."
+    }
+  ]
+}

@@ -1,6 +1,20 @@
 {
-  "last_updated": "2026-06-18",
+  "last_updated": "2026-06-19",
   "pending_tasks": [
+    {
+      "file": ".github/workflows/smoke-crush.md",
+      "created": "2026-06-19",
+      "status": "pending",
+      "priority": "high",
+      "title": "Replace theatrical status messages with professional, actionable messages (lines 51-55)"
+    },
+    {
+      "file": "docs/src/content/docs/guides/using-at-scale.mdx",
+      "created": "2026-06-19",
+      "status": "pending",
+      "priority": "medium",
+      "title": "Add :::note[Before You Begin] prerequisites callout before opening paragraph; fix marketing-speak opening sentence"
+    },
     {
       "file": ".github/workflows/smoke-copilot-aoai-apikey.md",
       "created": "2026-06-18",
@@ -57,34 +71,6 @@
       "status": "pending",
       "priority": "medium",
       "title": "Fix missing sentence break on line 80 (working well That's)"
-    },
-    {
-      "file": ".github/workflows/architecture-guardian.md",
-      "created": "2026-05-24",
-      "status": "pending",
-      "priority": "high",
-      "title": "Professionalize Architecture Guardian Status Messages"
-    },
-    {
-      "file": "pkg/workflow/dangerous_permissions_validation.go",
-      "created": "2026-05-24",
-      "status": "pending",
-      "priority": "medium",
-      "title": "Replace Broken Doc Path with Actionable URL in Permissions Validation Error"
-    },
-    {
-      "file": ".github/workflows/test-quality-sentinel.md",
-      "created": "2026-06-13",
-      "status": "pending",
-      "priority": "high",
-      "title": "Fix run-success emoji (🧪→✅) for consistent status signaling"
-    },
-    {
-      "file": "docs/src/content/docs/specs/ai-credits-specification.md",
-      "created": "2026-06-13",
-      "status": "pending",
-      "priority": "high",
-      "title": "Expand Appendix A to show §3.5 cache_read deduction step-by-step"
     }
   ]
 }
