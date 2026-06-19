@@ -1045,12 +1045,12 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(threatDetectionData, engineCoreSecretVarNames(engineID))
 
 	// Build the threat-detect command. The binary reads the prepared detection
-	// context from /tmp/gh-aw/threat-detection/ (set up by previous steps) and
-	// writes the structured verdict to --output.
+	// artifacts directory from /tmp/gh-aw/threat-detection/ (set up by previous
+	// steps) and writes the structured verdict to detection_result.json there.
 	threatDetectCmd := fmt.Sprintf(
-		"threat-detect --engine %s --output %s",
+		"threat-detect --engine %s %s",
 		engineID,
-		shellEscapeArg(constants.ThreatDetectionResultPath),
+		shellEscapeArg(constants.ThreatDetectionDir),
 	)
 
 	// Build the complete AWF command. BuildAWFCommand handles config file setup,
