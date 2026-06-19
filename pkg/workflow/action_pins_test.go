@@ -261,10 +261,10 @@ func TestGetLatestActionPinByRepo(t *testing.T) {
 		expectVersionPrefix string
 	}{
 		{
-			repo:          "actions/checkout",
-			expectExists:  true,
-			expectRepo:    "actions/checkout",
-			expectVersion: "v6.0.3",
+			repo:                "actions/checkout",
+			expectExists:        true,
+			expectRepo:          "actions/checkout",
+			expectVersionPrefix: "v7.",
 		},
 		{
 			repo:                "actions/setup-node",
