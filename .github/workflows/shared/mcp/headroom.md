@@ -4,13 +4,8 @@
 # Accuracy is preserved; originals are cached and retrievable on demand (CCR).
 #
 # Source:   https://github.com/chopratejas/headroom
-# PyPI:     pip install headroom-ai
 # Docker:   ghcr.io/chopratejas/headroom:latest
 # Docs:     https://headroom-docs.vercel.app/docs
-#
-# This shared workflow:
-#   1. Installs headroom-ai and starts the headroom proxy on port 8787 (pre-step)
-#   2. Exposes the headroom MCP server so the agent can call compression tools directly
 #
 # MCP tools exposed to the agent:
 #   - headroom_compress  — compress text/JSON/code content; returns a summary + cache hash
@@ -21,43 +16,13 @@
 #   imports:
 #     - shared/mcp/headroom.md
 
-pre-steps:
-  - name: Install and start headroom proxy
-    run: |
-      pip install "headroom-ai[proxy,mcp]==0.26.0" --quiet
-      headroom proxy --host 0.0.0.0 --port 8787 &
-      # Wait up to 20 s for the proxy to become ready
-      READY=false
-      for i in $(seq 1 20); do
-        if curl -sf http://localhost:8787/health > /dev/null 2>&1; then
-          echo "✅ Headroom proxy ready"
-          READY=true
-          break
-        fi
-        sleep 1
-      done
-      if [ "$READY" != "true" ]; then
-        echo "❌ Headroom proxy did not become ready within 20 seconds"
-        exit 1
-      fi
-
-network:
-  allowed:
-    - python
-    - local
-
 mcp-servers:
   headroom:
     container: "ghcr.io/chopratejas/headroom:latest"
-    args:
-      - "--network"
-      - "host"
     entrypoint: "headroom"
     entrypointArgs:
       - "mcp"
       - "serve"
-      - "--proxy-url"
-      - "http://localhost:8787"
     allowed:
       - headroom_compress
       - headroom_retrieve
@@ -67,8 +32,7 @@ mcp-servers:
 <!--
 # Headroom Context Compression
 
-Headroom is active.  The proxy is running at `http://localhost:8787` and the MCP server
-exposes three tools to this agent:
+Headroom is active.  The MCP server exposes three tools to this agent:
 
 | Tool                  | When to use                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
