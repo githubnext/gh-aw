@@ -1,4 +1,4 @@
-# ADR-40388: Resolve `max-cache-misses` via Frontmatter, Env Default, Then Built-In Constant
+# ADR-40388: Resolve `max-turn-cache-misses` via Frontmatter, Env Default, Then Built-In Constant
 
 **Date**: 2026-06-19
 **Status**: Draft
@@ -9,22 +9,22 @@ The AWF API proxy enforces a consecutive cache-miss guardrail (`apiProxy.maxCach
 
 ## Decision
 
-We will accept a top-level `max-cache-misses` frontmatter key, validate it as a positive integer, thread it through `EngineConfig`, and emit it as `apiProxy.maxCacheMisses` in the generated AWF config. We will resolve its effective value with a fixed three-tier precedence: (1) the workflow frontmatter value, (2) the compiler-managed `GH_AW_DEFAULT_MAX_CACHE_MISSES` process-environment override, and (3) a built-in constant default of `5` (`constants.DefaultMaxCacheMisses`). Imported workflow values follow the same first-wins top-level guardrail merge behavior already used by the sibling keys, and the `gh aw env` defaults file gains a `default_max_cache_misses` key so the override can be batch-managed at repo, org, or enterprise scope.
+We will accept a top-level `max-turn-cache-misses` frontmatter key, validate it as a positive integer, thread it through `EngineConfig`, and emit it as `apiProxy.maxCacheMisses` in the generated AWF config. We will resolve its effective value with a fixed three-tier precedence: (1) the workflow frontmatter value, (2) the compiler-managed `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` process-environment override, and (3) a built-in constant default of `5` (`constants.DefaultMaxTurnCacheMisses`). Imported workflow values follow the same first-wins top-level guardrail merge behavior already used by the sibling keys, and the `gh aw env` defaults file gains a `default_max_turn_cache_misses` key so the override can be batch-managed at repo, org, or enterprise scope.
 
 ## Alternatives Considered
 
 ### Alternative 1: Frontmatter key only, no env-managed default
-Expose `max-cache-misses` in frontmatter but omit the `GH_AW_DEFAULT_MAX_CACHE_MISSES` override and `gh aw env` integration, relying solely on the built-in `5` when unset. Rejected because it diverges from the established `max-ai-credits` / `max-turns` precedence pattern and gives organizations no way to set a fleet-wide default without editing every workflow.
+Expose `max-turn-cache-misses` in frontmatter but omit the `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` override and `gh aw env` integration, relying solely on the built-in `5` when unset. Rejected because it diverges from the established `max-ai-credits` / `max-turns` precedence pattern and gives organizations no way to set a fleet-wide default without editing every workflow.
 
 ### Alternative 2: Runtime `vars.*` substitution like `max-ai-credits`
-Emit a runtime patch expression (e.g. `${{ vars.GH_AW_DEFAULT_MAX_CACHE_MISSES || '5' }}`) resolved by the GitHub Actions runner at run time, mirroring how `max-ai-credits` is steered. Rejected in favor of compile-time resolution from the compiler process environment, which emits a concrete `apiProxy.maxCacheMisses` integer directly into the AWF config JSON and keeps the guardrail value deterministic at compile time.
+Emit a runtime patch expression (e.g. `${{ vars.GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES || '5' }}`) resolved by the GitHub Actions runner at run time, mirroring how `max-ai-credits` is steered. Rejected in favor of compile-time resolution from the compiler process environment, which emits a concrete `apiProxy.maxCacheMisses` integer directly into the AWF config JSON and keeps the guardrail value deterministic at compile time.
 
 ## Consequences
 
 ### Positive
-- `max-cache-misses` is now a first-class, schema-validated frontmatter key consistent with the other AWF guardrails.
-- Organizations can set a fleet-wide default via `GH_AW_DEFAULT_MAX_CACHE_MISSES` / `default_max_cache_misses` without editing individual workflows.
-- The resolution precedence is explicit and deterministic at compile time, with a single built-in constant (`DefaultMaxCacheMisses = 5`) as the floor.
+- `max-turn-cache-misses` is now a first-class, schema-validated frontmatter key consistent with the other AWF guardrails.
+- Organizations can set a fleet-wide default via `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` / `default_max_turn_cache_misses` without editing individual workflows.
+- The resolution precedence is explicit and deterministic at compile time, with a single built-in constant (`DefaultMaxTurnCacheMisses = 5`) as the floor.
 
 ### Negative
 - Adds another `GH_AW_DEFAULT_*` variable and defaults-file key, increasing the surface area of compiler-environment configuration that operators must understand.

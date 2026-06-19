@@ -83,7 +83,7 @@ func TestResolveDefaultsTarget(t *testing.T) {
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
 		DefaultMaxAICredits:          new("1000"),
-		DefaultMaxCacheMisses:        new("5"),
+		DefaultMaxTurnCacheMisses:    new("5"),
 		DefaultDetectionMaxAICredits: new("400"),
 		DefaultMaxDailyAICredits:     new("500000"),
 		DefaultMaxTurns:              new("42"),
@@ -100,7 +100,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 
 	yml := string(data)
 	assert.Contains(t, yml, "default_max_ai_credits:")
-	assert.Contains(t, yml, "default_max_cache_misses:")
+	assert.Contains(t, yml, "default_max_turn_cache_misses:")
 	assert.Contains(t, yml, "default_detection_max_ai_credits:")
 	assert.Contains(t, yml, "default_max_daily_ai_credits:")
 	assert.Contains(t, yml, "default_max_turns:")
@@ -148,7 +148,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("accepts valid values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
 			DefaultMaxAICredits:          new("1000"),
-			DefaultMaxCacheMisses:        new("5"),
+			DefaultMaxTurnCacheMisses:    new("5"),
 			DefaultDetectionMaxAICredits: new("400"),
 			DefaultMaxDailyAICredits:     new("500000"),
 			DefaultMaxTurns:              new("12"),
@@ -172,7 +172,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
 			DefaultMaxAICredits:          new("0"),
-			DefaultMaxCacheMisses:        new("0"),
+			DefaultMaxTurnCacheMisses:    new("0"),
 			DefaultDetectionMaxAICredits: new("0"),
 			DefaultMaxDailyAICredits:     new("0"),
 			DefaultMaxTurns:              new("abc"),
@@ -182,7 +182,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default_max_ai_credits must be a non-zero integer when set")
-		assert.Contains(t, err.Error(), "default_max_cache_misses must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_max_turn_cache_misses must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_detection_max_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_daily_ai_credits must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
@@ -217,7 +217,7 @@ func TestDefaultsBuildUpdateChanges(t *testing.T) {
 
 	for _, field := range []string{
 		"default_max_ai_credits",
-		"default_max_cache_misses",
+		"default_max_turn_cache_misses",
 		"default_detection_max_ai_credits",
 		"default_max_daily_ai_credits",
 		"default_max_turns",

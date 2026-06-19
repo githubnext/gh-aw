@@ -40,9 +40,9 @@ func parseMaxRunsValue(raw any) int {
 	return 0
 }
 
-// parseMaxCacheMissesValue parses max-cache-misses from either integer or
+// parseMaxTurnCacheMissesValue parses max-turn-cache-misses from either integer or
 // numeric-string frontmatter values.
-func parseMaxCacheMissesValue(raw any) int {
+func parseMaxTurnCacheMissesValue(raw any) int {
 	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		return val
 	}
@@ -50,7 +50,7 @@ func parseMaxCacheMissesValue(raw any) int {
 		if parsed, err := strconv.Atoi(rawStr); err == nil && parsed > 0 {
 			return parsed
 		}
-		engineLog.Printf("Ignoring invalid max-cache-misses value: %q", rawStr)
+		engineLog.Printf("Ignoring invalid max-turn-cache-misses value: %q", rawStr)
 	}
 	return 0
 }

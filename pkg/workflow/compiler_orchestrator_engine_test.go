@@ -240,12 +240,12 @@ imports:
 	assert.Equal(t, "9", result.engineConfig.MaxToolDenials)
 }
 
-func TestSetupEngineAndImports_ImportedTopLevelMaxCacheMisses(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "engine-imported-max-cache-misses")
+func TestSetupEngineAndImports_ImportedTopLevelMaxTurnCacheMisses(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-max-turn-cache-misses")
 
 	sharedContent := `---
 engine: copilot
-max-cache-misses: 7
+max-turn-cache-misses: 7
 ---
 
 # Shared Workflow
@@ -275,7 +275,7 @@ imports:
 	require.NotNil(t, result)
 	require.NotNil(t, result.engineConfig)
 	assert.Equal(t, "copilot", result.engineSetting)
-	assert.Equal(t, 7, result.engineConfig.MaxCacheMisses)
+	assert.Equal(t, 7, result.engineConfig.MaxTurnCacheMisses)
 }
 
 // TestSetupEngineAndImports_EngineOverride tests command-line engine override
