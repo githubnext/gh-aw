@@ -140,6 +140,12 @@ const DefaultMCPSDKVersion Version = "1.24.0"
 // DefaultGitHubScriptVersion is the default version of the actions/github-script action
 const DefaultGitHubScriptVersion Version = "v9"
 
+// DefaultThreatDetectVersion is the default version of the gh-aw-threat-detection binary.
+// This version is downloaded from GitHub Releases when `features: gh-aw-detection: true`
+// is set in the workflow frontmatter, enabling the external threat-detect binary path instead
+// of the inline engine execution path.
+const DefaultThreatDetectVersion Version = "v0.2.2"
+
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"
 

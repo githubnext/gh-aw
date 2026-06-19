@@ -471,6 +471,14 @@ const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"
 // ThreatDetectionLogPath is the threat detection engine log file path.
 const ThreatDetectionLogPath = TmpGhAwDir + "/threat-detection/detection.log"
 
+// ThreatDetectionDir is the threat detection working directory.
+const ThreatDetectionDir = TmpGhAwDir + "/threat-detection"
+
+// ThreatDetectionResultPath is the structured verdict output file written by the
+// external threat-detect binary (features: gh-aw-detection: true). The binary writes
+// a four-field JSON verdict to this path via --output; threat-detect conclude reads it.
+const ThreatDetectionResultPath = TmpGhAwDir + "/threat-detection/detection_result.json"
+
 // TmpProxyLogsDir is the DIFC proxy logs directory (with trailing slash).
 const TmpProxyLogsDir = TmpGhAwDir + "/proxy-logs/"
 
