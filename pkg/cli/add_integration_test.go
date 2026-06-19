@@ -997,9 +997,9 @@ func TestAddWorkflowWithDispatchWorkflowDependency(t *testing.T) {
 	defer setup.cleanup()
 
 	// Add test-dispatcher.md which has a dispatch-workflow dependency on test-workflow.
-	// Pin to the last public revision (6d18ddf01ec9aaac84f679ebecfcf6d66aa31153)
+	// Pin to the last public revision (6d18ddf01e820eca81031fe9c95bad265c940015)
 	// before private: true was added in e8ca23ae1d.
-	workflowSpec := "github/gh-aw/.github/workflows/test-dispatcher.md@6d18ddf01ec9aaac84f679ebecfcf6d66aa31153"
+	workflowSpec := "github/gh-aw/.github/workflows/test-dispatcher.md@6d18ddf01e820eca81031fe9c95bad265c940015"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir
