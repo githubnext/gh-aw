@@ -1,131 +1,47 @@
 {
-  "run_date": "2026-06-18T19:04:44Z",
-  "run_id": "27782643103",
-  "previous_run_id": "27762753975",
-  "previous_run_date": "2026-06-18T13:28:29Z",
+  "run_date": "2026-06-19T01:31:57Z",
+  "run_id": "27799830285",
+  "previous_run_id": "27782643103",
+  "previous_run_date": "2026-06-18T19:04:44Z",
   "fork_prs": 0,
-  "agent_prs_found": 12,
-  "copilot_swe_agent_prs": 12,
-  "github_actions_prs": 1,
+  "agent_prs_found": 4,
+  "copilot_swe_agent_prs": 4,
+  "github_actions_prs": 0,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
     {
-      "number": 40132,
-      "title": "[WIP] Bump firewall to v0.27.6 and mcpg to v0.3.27",
+      "number": 40188,
+      "title": "[WIP] Fix daily news workflow failure",
       "draft": true,
       "status": "DRAFT",
-      "created": "2026-06-18",
+      "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
-      "category": "chore",
+      "category": "bug",
       "ci": "unknown"
     },
     {
-      "number": 40127,
-      "title": "docs: clarify safe-output tool names, add incident dedup patterns, expand visual-regression guidance",
+      "number": 40166,
+      "title": "Migrate threat detection to external `threat-detect` binary behind feature flag",
       "draft": true,
       "status": "DRAFT",
       "created": "2026-06-18",
       "labels": [],
       "is_fork": false,
-      "category": "docs",
+      "category": "feature",
       "ci": "unknown"
     },
     {
       "number": 40126,
-      "title": "feat: add Monte Carlo forecast compliance test suite (P1–P13) and fix fixture AIC gap",
-      "draft": true,
-      "status": "DRAFT",
+      "title": "feat: add Monte Carlo forecast compliance test suite (P1-P13) and fix fixture AIC gap",
+      "draft": false,
+      "status": "OPEN",
       "created": "2026-06-18",
       "labels": [],
       "is_fork": false,
       "category": "test",
       "ci": "unknown"
-    },
-    {
-      "number": 40125,
-      "title": "fix(daily-security-observability): prevent step timeout downloading integrity-filtered logs",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "bug",
-      "ci": "unknown"
-    },
-    {
-      "number": 40124,
-      "title": "fix(daily-spdd-spec-planner): add sed to bash allowlist to prevent tool denial threshold",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "bug",
-      "ci": "unknown"
-    },
-    {
-      "number": 40123,
-      "title": "Remove unnecessary `lfs: true` from unbloat-docs checkout step",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "chore",
-      "ci": "unknown"
-    },
-    {
-      "number": 40116,
-      "title": "Show tool output previews in Copilot CLI conversation rendering",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "feature",
-      "ci": "unknown",
-      "reviews": 4,
-      "comments": 7
-    },
-    {
-      "number": 40109,
-      "title": "[WIP] Fix failing GitHub Actions job for integration add with dispatch-workflow",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "bug",
-      "ci": "unknown",
-      "comments": 1
-    },
-    {
-      "number": 40085,
-      "title": "Fix AIC extraction and computation from token usage JSONL files",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "bug",
-      "ci": "unknown",
-      "reviews": 4,
-      "comments": 7
-    },
-    {
-      "number": 40033,
-      "title": "fix: double-mount runner tool cache at /host prefix for AWF chroot on GPU runners",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-18",
-      "labels": [],
-      "is_fork": false,
-      "category": "bug",
-      "ci": "unknown",
-      "reviews": 1,
-      "comments": 3
     },
     {
       "number": 39927,
@@ -136,44 +52,27 @@
       "labels": [],
       "is_fork": false,
       "category": "bug",
-      "ci": "unknown",
-      "reviews": 1,
-      "comments": 6
-    },
-    {
-      "number": 39830,
-      "title": "Impact Efficiency Report: progressive disclosure + fix artificial/missing data + recommendations",
-      "draft": false,
-      "status": "OPEN",
-      "created": "2026-06-17",
-      "labels": [],
-      "is_fork": false,
-      "category": "docs",
-      "ci": "unknown",
-      "reviews": 1,
-      "comments": 10
+      "ci": "unknown"
     }
   ],
-  "closed_since_last_run": [40064, 40062, 40061, 40060, 40052, 40035, 40028],
-  "new_since_last_run": [40132, 40127, 40126, 40125, 40124, 40123, 40116, 40109, 40085],
+  "closed_since_last_run": [40132, 40127, 40125, 40124, 40123, 40116, 40109, 40085, 40033, 39830],
+  "new_since_last_run": [40188, 40166],
   "statistics": {
     "by_status": {
-      "DRAFT": 6,
-      "OPEN": 6
+      "DRAFT": 2,
+      "OPEN": 2
     },
     "by_category": {
-      "bug": 6,
-      "chore": 2,
-      "docs": 2,
+      "bug": 2,
       "feature": 1,
       "test": 1
     },
     "by_ci": {
-      "unknown": 12
+      "unknown": 4
     },
     "resolved_this_run": {
-      "closed_or_merged": 7
+      "closed_or_merged": 10
     }
   },
-  "notes": "12 open copilot-swe-agent PRs, all branch-based (is_fork=false). Fork-only triage policy → 0 PRs eligible for formal triage. 7 PRs closed/merged since last run (#40064, #40062, #40061, #40060, #40052, #40035, #40028). 9 new PRs since last run (#40132, #40127, #40126, #40125, #40124, #40123, #40116, #40109, #40085). Still open from last run: #40033, #39927, #39830. Most active PR: #39830 (1 review, 10 comments). Dominant category: bug fixes (6/12). 6 DRAFTs (WIP). Notable new: #40126 Monte Carlo forecast compliance test suite (feat), #40116 tool output previews."
+  "notes": "4 open Copilot PRs, all branch-based (is_fork=false). Fork-only triage policy: 0 PRs eligible for formal triage. 10 PRs closed/merged since last run. 2 new PRs since last run (#40188, #40166). Continuing trend: all agent PRs are same-repo branch PRs, never fork PRs."
 }
