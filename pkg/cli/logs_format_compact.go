@@ -211,11 +211,12 @@ func renderLogsCompact(data LogsData) {
 		fmt.Fprintf(os.Stdout, "[location] %s\n", data.LogsLocation)
 	}
 
-	// [hint] — static usage hint + dynamic artifact hint when applicable
+	// [hint] — dynamic artifact hint + static usage guidance rendered as a single line
+	hint := "use --json for full details, -v for verbose, --format console for tables"
 	if data.Message != "" {
-		fmt.Fprintf(os.Stdout, "[hint] %s\n", data.Message)
+		hint = data.Message + " " + hint
 	}
-	fmt.Fprintln(os.Stdout, "[hint] use --json for full details, -v for verbose, --format console for tables")
+	fmt.Fprintf(os.Stdout, "[hint] %s\n", hint)
 }
 
 // renderLogsCompactVerbose adds extra columns and sections for deeper analysis.

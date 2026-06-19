@@ -27,10 +27,12 @@ var logsCommandLog = logger.New("cli:logs_command")
 
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
+	validArtifactSets := strings.Join(ValidArtifactSetNames(), ", ")
+
 	logsCmd := &cobra.Command{
 		Use:   "logs [workflow]",
 		Short: "Download and analyze agentic workflow logs with aggregated metrics",
-		Long: `Download and analyze agentic workflow logs and artifacts from GitHub Actions.
+		Long: fmt.Sprintf(`Download and analyze agentic workflow logs and artifacts from GitHub Actions.
 
 This command fetches workflow runs, downloads their artifacts, and extracts them into
 organized folders named by run ID. It also provides an overview table with aggregate
@@ -40,8 +42,7 @@ By default only the compact usage artifact is downloaded (token usage, run metad
 Use --artifacts all to download all artifacts, or specify individual sets such as
 --artifacts agent,firewall to fetch only what you need.
 
-All available artifact sets: activation, agent, all, detection, experiment, firewall,
-github-api, mcp, usage.
+All available artifact sets: %s.
 
 Downloaded artifacts include (when using --artifacts all):
 - Workflow metadata: Engine configuration and run metadata
@@ -52,8 +53,7 @@ Downloaded artifacts include (when using --artifacts all):
 - aw-{branch}.patch: Git patch of changes for each branch (one file per PR/push)
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
-
-` + WorkflowIDExplanation,
+`, validArtifactSets) + WorkflowIDExplanation,
 		Example: `  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
@@ -362,7 +362,7 @@ Downloaded artifacts include (when using --artifacts all):
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
-	logsCmd.Flags().StringSlice("artifacts", []string{"usage"}, "Artifact sets to download (default: usage). Use 'all' for everything, or comma-separate sets. Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	logsCmd.Flags().StringSlice("artifacts", []string{"usage"}, "Artifact sets to download (default: usage). Use 'all' for everything, or comma-separate sets. Valid sets: "+validArtifactSets)
 	logsCmd.Flags().String("cache-before", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
 	logsCmd.Flags().String("after", "", "Alias for --cache-before")
 	_ = logsCmd.Flags().MarkHidden("after")

@@ -674,7 +674,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	// When only the usage artifact was downloaded, add a hint so consumers know how
 	// to fetch additional artifact sets (agent logs, firewall data, etc.).
 	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
-		logsData.Message = "Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts agent or --artifacts agent,firewall."
+		logsData.Message = usageOnlyArtifactHintMessage()
 	}
 
 	// Write summary file if requested (default behavior unless disabled with empty string)
@@ -700,6 +700,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 		} else {
 			renderLogsTSV(logsData)
 		}
+		renderLogsArtifactHint(os.Stderr, logsData.Message)
 		return nil
 
 	case "markdown", "pretty":
@@ -726,9 +727,11 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 		}
 		if opts.format == "pretty" {
 			renderCrossRunReportPretty(report)
+			renderLogsArtifactHint(os.Stderr, logsData.Message)
 			return nil
 		}
 		renderCrossRunReportMarkdown(report)
+		renderLogsArtifactHint(os.Stderr, logsData.Message)
 		return nil
 
 	case "console":
@@ -744,6 +747,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 			if opts.toolGraph {
 				generateToolGraph(processedRuns, opts.verbose)
 			}
+			renderLogsArtifactHint(os.Stderr, logsData.Message)
 		}
 		return nil
 	}
@@ -762,6 +766,13 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	}
 
 	return nil
+}
+
+func renderLogsArtifactHint(w *os.File, message string) {
+	if message == "" {
+		return
+	}
+	fmt.Fprintf(w, "[hint] %s\n", message)
 }
 
 // StdinLogsOptions holds parameters for DownloadWorkflowLogsFromStdin.
@@ -783,7 +794,9 @@ type StdinLogsOptions struct {
 	FilteredIntegrity bool
 	Train             bool
 	Format            string
-	ArtifactSets      []string
+	// ArtifactSets defaults to nil (download all artifacts) when this API is used
+	// programmatically. The CLI passes ["usage"] to match the logs command default.
+	ArtifactSets []string
 }
 
 // DownloadWorkflowLogsFromStdin fetches and processes workflow run logs for runs
