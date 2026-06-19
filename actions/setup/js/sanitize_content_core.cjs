@@ -8,6 +8,9 @@
 
 const { isRepoAllowed } = require("./repo_helpers.cjs");
 
+const SAFE_OUTPUTS_URLS_ALLOWED_ONLY = "allowed-only";
+const SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION = "allowed-or-code-region";
+
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
  * @type {string[]}
@@ -1311,8 +1314,8 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
  * @returns {string}
  */
 function applyURLSanitizationPolicy(content, allowedDomains) {
-  const urlPolicy = process.env.GH_AW_SAFE_OUTPUTS_URLS || "allowed-only";
-  if (urlPolicy === "allowed-or-code-region") {
+  const urlPolicy = process.env.GH_AW_SAFE_OUTPUTS_URLS || SAFE_OUTPUTS_URLS_ALLOWED_ONLY;
+  if (urlPolicy === SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION) {
     // Preserve fenced/inline code regions (including ```suggestion blocks) verbatim.
     // This avoids corrupting patch payloads while still sanitizing prose.
     let sanitized = applyToNonCodeRegions(content, sanitizeUrlProtocols);
