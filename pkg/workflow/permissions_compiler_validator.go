@@ -186,9 +186,6 @@ func (c *Compiler) repositoryOwnerIsIndividualUser() bool {
 		return false
 	}
 
-	if c.ownerTypeCache == nil {
-		c.ownerTypeCache = make(map[string]string)
-	}
 	ownerType, cached := c.ownerTypeCache[owner]
 	if !cached {
 		workflowLog.Printf("Checking owner type for: %s", owner)
