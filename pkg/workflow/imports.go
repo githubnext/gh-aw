@@ -429,6 +429,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if len(result.AllowedDomains) == 0 && len(importedConfig.AllowedDomains) > 0 {
 		result.AllowedDomains = importedConfig.AllowedDomains
 	}
+	if result.URLs == "" && importedConfig.URLs != "" {
+		result.URLs = importedConfig.URLs
+	}
 	if !result.Staged && importedConfig.Staged {
 		result.Staged = importedConfig.Staged
 	}

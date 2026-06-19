@@ -23,6 +23,7 @@ describe("sanitize_content.cjs", () => {
     delete global.core;
     delete process.env.GH_AW_ALLOWED_DOMAINS;
     delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
+    delete process.env.GH_AW_SAFE_OUTPUTS_URLS;
     delete process.env.GH_AW_COMMANDS;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_API_URL;
@@ -1045,6 +1046,37 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("file://");
     });
+
+    it("should preserve non-https protocol URLs inside fenced code blocks", () => {
+      // Fenced code block content must not be rewritten – suggestion block patches
+      // are applied verbatim by GitHub, so any rewrite corrupts the patch.
+      process.env.GH_AW_SAFE_OUTPUTS_URLS = "allowed-or-code-region";
+      const input = "Prose ftp://bad.com\n```\nftp://inside-code.example\n```\nMore prose";
+      const result = sanitizeContent(input);
+      expect(result).toContain("ftp://inside-code.example");
+      expect(result).not.toContain("ftp://bad.com");
+    });
+
+    it("should preserve non-https protocol URLs inside suggestion blocks", () => {
+      // Regression: safe-output sanitizer must not rewrite link targets inside
+      // GitHub pull request suggestion fences (fixes issue #39793).
+      process.env.GH_AW_SAFE_OUTPUTS_URLS = "allowed-or-code-region";
+      const input = "See also ftp://external.example.\n" + "```suggestion\n" + "Assign users a role that grants [access](reference://docs/role).\n" + "```\n";
+      const result = sanitizeContent(input);
+      // Content inside the suggestion block is preserved verbatim
+      expect(result).toContain("reference://docs/role");
+      // Content outside the block is still sanitized
+      expect(result).not.toContain("ftp://external.example");
+    });
+
+    it("should sanitize non-https protocol URLs inside fenced code blocks by default", () => {
+      // Default policy is "allowed-only", so code regions are sanitized unless
+      // GH_AW_SAFE_OUTPUTS_URLS is set to "allowed-or-code-region".
+      const input = "Prose ftp://bad.com\n```\nftp://inside-code.example\n```\nMore prose";
+      const result = sanitizeContent(input);
+      expect(result).not.toContain("ftp://inside-code.example");
+      expect(result).toContain("/redacted");
+    });
   });
 
   describe("URL domain filtering", () => {
@@ -1120,6 +1152,36 @@ describe("sanitize_content.cjs", () => {
       process.env.GH_AW_ALLOWED_DOMAINS = "*.example.com";
       const result = sanitizeContent("Visit https://deep.nested.example.com/page");
       expect(result).toBe("Visit https://deep.nested.example.com/page");
+    });
+
+    it("should preserve disallowed HTTPS domain URLs inside fenced code blocks", () => {
+      // Fenced code block content must not be domain-filtered.
+      process.env.GH_AW_SAFE_OUTPUTS_URLS = "allowed-or-code-region";
+      const input = "Prose https://evil.com/malicious\n```\nhttps://evil.com/inside-code\n```\nMore prose";
+      const result = sanitizeContent(input);
+      expect(result).toContain("https://evil.com/inside-code");
+      expect(result).not.toContain("https://evil.com/malicious");
+    });
+
+    it("should preserve disallowed HTTPS domain URLs inside suggestion blocks", () => {
+      // Regression: safe-output sanitizer must not rewrite link targets inside
+      // GitHub pull request suggestion fences (fixes issue #39793).
+      process.env.GH_AW_SAFE_OUTPUTS_URLS = "allowed-or-code-region";
+      const input = "Prose https://evil.com/bad.\n" + "```suggestion\n" + "Assign users a role that grants [access](https://docs.elastic.co/en/docs/role).\n" + "```\n";
+      const result = sanitizeContent(input);
+      // Content inside the suggestion block is preserved verbatim
+      expect(result).toContain("https://docs.elastic.co/en/docs/role");
+      // Content outside the block is still sanitized
+      expect(result).not.toContain("https://evil.com/bad");
+    });
+
+    it("should sanitize disallowed HTTPS domain URLs inside fenced code blocks by default", () => {
+      // Default policy is "allowed-only", so code regions are sanitized unless
+      // GH_AW_SAFE_OUTPUTS_URLS is set to "allowed-or-code-region".
+      const input = "Prose https://evil.com/malicious\n```\nhttps://evil.com/inside-code\n```\nMore prose";
+      const result = sanitizeContent(input);
+      expect(result).not.toContain("https://evil.com/inside-code");
+      expect(result).toContain("(evil.com/redacted)");
     });
   });
 

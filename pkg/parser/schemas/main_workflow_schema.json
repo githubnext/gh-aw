@@ -4858,6 +4858,11 @@
         }
       ],
       "properties": {
+        "urls": {
+          "type": "string",
+          "description": "URL sanitization policy for safe outputs. \"allowed-only\" sanitizes all non-allowed URLs everywhere. \"allowed-or-code-region\" preserves URLs inside fenced and inline code regions while sanitizing prose.",
+          "enum": ["allowed-only", "allowed-or-code-region"]
+        },
         "allowed-domains": {
           "type": "array",
           "description": "List of allowed domains for URL redaction in safe output handlers. Supports ecosystem identifiers (e.g., \"python\", \"node\", \"default-safe-outputs\") like network.allowed. These domains are unioned with the engine defaults and network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
