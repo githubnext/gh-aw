@@ -74,8 +74,10 @@ Alternatively, create `.github/mcp.json` manually:
 {
   "mcpServers": {
     "github-agentic-workflows": {
+      "type": "local",
       "command": "gh",
-      "args": ["aw", "mcp-server"]
+      "args": ["aw", "mcp-server"],
+      "tools": ["compile", "audit", "logs", "inspect", "status", "audit-diff"]
     }
   }
 }
