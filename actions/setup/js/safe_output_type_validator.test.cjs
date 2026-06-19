@@ -149,6 +149,21 @@ const SAMPLE_VALIDATION_CONFIG = {
       body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 20 },
     },
   },
+  dispatch_workflow: {
+    defaultMax: 1,
+    fields: {
+      workflow_name: {
+        required: true,
+        type: "string",
+        sanitize: true,
+        minLength: 1,
+        maxLength: 256,
+        pattern: ".*\\S.*",
+        patternError: "must not be empty",
+      },
+      inputs: { type: "object" },
+    },
+  },
 };
 
 const ISSUE_CLOSING_KEYWORDS = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
@@ -208,6 +223,23 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem).toBeDefined();
+    });
+
+    it("should validate dispatch_workflow with non-empty workflow_name", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "dispatch_workflow", workflow_name: "haiku-printer", inputs: {} }, "dispatch_workflow", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should fail dispatch_workflow when workflow_name is whitespace-only", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "dispatch_workflow", workflow_name: "   ", inputs: {} }, "dispatch_workflow", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("workflow_name");
     });
 
     it("should fail validation when required title is missing", async () => {

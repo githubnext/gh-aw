@@ -3,7 +3,10 @@
 package workflow
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -128,6 +131,72 @@ func TestValidateFeatureConfig(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err, "validateFeatureConfig should not return an error")
+			}
+		})
+	}
+}
+
+func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
+	t.Setenv("GH_AW_FEATURES", "")
+	tests := []struct {
+		name          string
+		features      map[string]any
+		expectWarning bool
+	}{
+		{
+			name: "gh-aw-detection enabled produces experimental warning",
+			features: map[string]any{
+				"gh-aw-detection": true,
+			},
+			expectWarning: true,
+		},
+		{
+			name: "gh-aw-detection disabled does not produce experimental warning",
+			features: map[string]any{
+				"gh-aw-detection": false,
+			},
+			expectWarning: false,
+		},
+		{
+			name:          "no gh-aw-detection does not produce experimental warning",
+			features:      nil,
+			expectWarning: false,
+		},
+	}
+
+	expectedMessage := "Using experimental feature: gh-aw-detection"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Features: tt.features,
+			}
+
+			oldStderr := os.Stderr
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = w.Close()
+				_ = r.Close()
+			})
+
+			compiler.emitExperimentalFeatureWarnings(workflowData)
+
+			require.NoError(t, w.Close())
+			os.Stderr = oldStderr
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
+			stderrOutput := buf.String()
+
+			if tt.expectWarning {
+				assert.Contains(t, stderrOutput, expectedMessage)
+				assert.Positive(t, compiler.GetWarningCount())
+			} else {
+				assert.NotContains(t, stderrOutput, expectedMessage)
+				assert.Zero(t, compiler.GetWarningCount())
 			}
 		})
 	}

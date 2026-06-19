@@ -217,6 +217,22 @@ describe("dispatch_workflow handler factory", () => {
     expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
+  it("should handle whitespace-only workflow name", async () => {
+    const handler = await main({});
+
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "   ",
+      inputs: {},
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("empty");
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
   it("should handle dispatch errors", async () => {
     const handler = await main({
       workflows: ["missing-workflow"],

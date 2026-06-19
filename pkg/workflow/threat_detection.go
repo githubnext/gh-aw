@@ -304,22 +304,51 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	// Step 6: Setup threat detection (github-script)
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
-	// Step 7: Engine execution (AWF, no network)
-	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data) {
+		// External detector path (features: gh-aw-detection: true)
 
-	// Step 8: Custom post-steps if configured (run after engine execution)
-	if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
-		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
+		// Step 7: Install AWF binary (required for the detection AWF invocation)
+		steps = append(steps, c.buildInstallAWFForExternalDetectorStep(data)...)
+
+		// Step 8: Install the selected agentic engine binary for threat-detect execution
+		steps = append(steps, c.buildInstallDetectionEngineForExternalDetectorStep(data)...)
+
+		// Step 9: Install the threat-detect binary from GitHub Releases
+		steps = append(steps, c.buildInstallThreatDetectStep()...)
+
+		// Step 10: Run threat-detect under AWF with a read-write mount for the result file
+		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
+
+		// Step 11: Custom post-steps if configured (run after detection execution)
+		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
+			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
+		}
+
+		// Step 12: Upload detection_result.json + detection.log as the detection artifact
+		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
+
+		// Step 13: Conclude via threat-detect conclude (no .cjs)
+		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
+	} else {
+		// Inline engine path (default)
+
+		// Step 7: Engine execution (AWF, no network)
+		steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+
+		// Step 8: Custom post-steps if configured (run after engine execution)
+		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
+			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
+		}
+
+		// Step 9: Parse threat-detection token usage for step summary and downstream footer rendering.
+		steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
+
+		// Step 10: Upload detection-artifact
+		steps = append(steps, c.buildUploadDetectionLogStep(data)...)
+
+		// Step 11: Parse results, log extensively, and set job conclusion (single JS step)
+		steps = append(steps, c.buildDetectionConclusionStep(data)...)
 	}
-
-	// Step 9: Parse threat-detection token usage for step summary and downstream footer rendering.
-	steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
-
-	// Step 10: Upload detection-artifact
-	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
-
-	// Step 11: Parse results, log extensively, and set job conclusion (single JS step)
-	steps = append(steps, c.buildDetectionConclusionStep(data)...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
 	return steps
@@ -901,6 +930,356 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
 	}
+}
+
+// --- External detector helper functions (features: gh-aw-detection: true) ---
+
+// buildInstallAWFForExternalDetectorStep creates the AWF installation step required
+// by the external detector execution path, which invokes `awf` directly.
+func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []string {
+	version := string(constants.DefaultFirewallVersion)
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil && firewallConfig.Version != "" {
+		version = firewallConfig.Version
+	}
+
+	step := generateAWFInstallationStep(version, nil)
+	if len(step) == 0 {
+		return nil
+	}
+
+	lines := make([]string, 0, len(step))
+	for _, line := range step {
+		lines = append(lines, line+"\n")
+	}
+	return lines
+}
+
+// buildInstallDetectionEngineForExternalDetectorStep installs the selected detection
+// engine in the external detector path so threat-detect can invoke the engine binary.
+func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *WorkflowData) []string {
+	engineID := c.getThreatDetectionEngineID(data)
+	engine, err := c.getAgenticEngine(engineID)
+	if err != nil {
+		threatLog.Printf("Failed to resolve detection engine %q for external detector installation: %v (compilation will continue without engine install steps; threat-detect will only succeed if the engine binary is already available at runtime)", engineID, err)
+		return nil
+	}
+
+	// Build a synthetic detection WorkflowData solely to generate the engine's
+	// installation steps for this separate detection job context.
+	threatDetectionData := &WorkflowData{
+		Tools: map[string]any{
+			"bash": []any{"*"},
+		},
+		EngineConfig:      &EngineConfig{ID: engineID},
+		AI:                engineID,
+		Features:          data.Features,
+		Permissions:       data.Permissions,
+		CachedPermissions: data.CachedPermissions,
+		IsDetectionRun:    true,
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+	}
+
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		ec := data.SafeOutputs.ThreatDetection.EngineConfig
+		threatDetectionData.EngineConfig = &EngineConfig{
+			ID:               engineID,
+			Model:            ec.Model,
+			Version:          ec.Version,
+			Env:              ec.Env,
+			Config:           ec.Config,
+			Args:             ec.Args,
+			Command:          ec.Command,
+			APITarget:        ec.APITarget,
+			HarnessScript:    ec.HarnessScript,
+			CopilotSDKDriver: ec.CopilotSDKDriver,
+			CopilotSDK:       ec.CopilotSDK,
+		}
+	}
+	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
+		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget
+	}
+
+	installSteps := engine.GetInstallationSteps(threatDetectionData)
+	var lines []string
+	for _, step := range installSteps {
+		if isAWFBinaryInstallStep(step) {
+			continue
+		}
+		for _, line := range step {
+			lines = append(lines, line+"\n")
+		}
+	}
+
+	return lines
+}
+
+func isAWFBinaryInstallStep(step GitHubActionStep) bool {
+	for _, line := range step {
+		if strings.Contains(line, "install_awf_binary.sh") {
+			return true
+		}
+	}
+	return false
+}
+
+// buildInstallThreatDetectStep creates a step that installs the threat-detect binary
+// from GitHub Releases at the pinned version. This is used when the gh-aw-detection
+// feature flag is set, replacing the inline engine installation steps.
+func (c *Compiler) buildInstallThreatDetectStep() []string {
+	version := string(constants.DefaultThreatDetectVersion)
+	return []string{
+		"      - name: Install threat-detect binary\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        run: |\n",
+		fmt.Sprintf("          bash \"${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh\" %s\n", version),
+	}
+}
+
+// engineCoreSecretVarNames returns the secret-backed env var names for the given engine ID
+// that must be excluded from the AWF container via --exclude-env. These are the credentials
+// that AWF's API proxy intercepts, so the container itself does not need them.
+func engineCoreSecretVarNames(engineID string) []string {
+	switch engineID {
+	case "copilot":
+		return []string{"COPILOT_GITHUB_TOKEN"}
+	case "claude":
+		return []string{"ANTHROPIC_API_KEY"}
+	case "codex":
+		return []string{"OPENAI_API_KEY", "CODEX_API_KEY"}
+	case "gemini", "antigravity":
+		return []string{"GEMINI_API_KEY", "ANTIGRAVITY_API_KEY"}
+	default:
+		return []string{}
+	}
+}
+
+// buildExternalDetectorExecutionStep creates the AWF execution step for the external
+// threat-detect binary. It runs threat-detect inside the AWF firewall sandbox with a
+// read-write mount so detection_result.json can be written from inside the container
+// back to the host filesystem. This replaces the inline engine execution step when
+// features: gh-aw-detection: true is set.
+func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []string {
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineDisabled {
+		return []string{
+			"      # AI engine disabled for threat detection (engine: false)\n",
+		}
+	}
+
+	engineID := c.getThreatDetectionEngineID(data)
+	engine, err := c.getAgenticEngine(engineID)
+	if err != nil {
+		return []string{fmt.Sprintf("      # Failed to resolve detection engine %q: %v\n", engineID, err)}
+	}
+
+	// Build detection WorkflowData for the external detector.
+	// The rw mount for ThreatDetectionDir allows the threat-detect binary to write
+	// detection_result.json from inside the AWF container to the host filesystem.
+	threatDetectionData := &WorkflowData{
+		Tools: map[string]any{
+			"bash": []any{"*"},
+		},
+		EngineConfig:      &EngineConfig{ID: engineID},
+		AI:                engineID,
+		Features:          data.Features,
+		Permissions:       data.Permissions,
+		CachedPermissions: data.CachedPermissions,
+		IsDetectionRun:    true,
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+				// Add a read-write mount so the threat-detect binary can write
+				// detection_result.json inside the container and it becomes visible
+				// on the host through the bind mount.
+				Mounts: []string{
+					constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw",
+				},
+			},
+		},
+	}
+
+	// Inherit engine config overrides from threat-detection config when set.
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		ec := data.SafeOutputs.ThreatDetection.EngineConfig
+		threatDetectionData.EngineConfig = &EngineConfig{
+			ID:        engineID,
+			APITarget: ec.APITarget,
+		}
+	}
+	// Inherit APITarget from main engine config for GHE/custom endpoints.
+	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
+		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget
+	}
+
+	// Compute which env vars to exclude from the AWF container. The API proxy
+	// handles authentication, so the raw credentials must not reach the container.
+	excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(threatDetectionData, engineCoreSecretVarNames(engineID))
+
+	// Build the threat-detect command. The binary reads the prepared detection
+	// artifacts directory from /tmp/gh-aw/threat-detection/ (set up by previous
+	// steps) and writes the structured verdict to detection_result.json there.
+	threatDetectCmd := fmt.Sprintf(
+		"threat-detect --engine %s --output %s %s",
+		engineID,
+		shellEscapeArg(constants.ThreatDetectionResultPath),
+		shellEscapeArg(constants.ThreatDetectionDir),
+	)
+
+	// Build the complete AWF command. BuildAWFCommand handles config file setup,
+	// ARC/DinD probes, tool cache mount, and the log tee pattern.
+	awfConfig := AWFCommandConfig{
+		EngineName:         engineID,
+		EngineCommand:      threatDetectCmd,
+		LogFile:            constants.ThreatDetectionLogPath,
+		WorkflowData:       threatDetectionData,
+		ExcludeEnvVarNames: excludeEnvVarNames,
+	}
+	command := BuildAWFCommand(awfConfig)
+
+	steps := []string{
+		"      - name: Execute threat detection with AWF\n",
+		"        id: detection_agentic_execution\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        continue-on-error: true\n",
+		"        run: |\n",
+	}
+	for _, line := range strings.SplitAfter(command, "\n") {
+		if line == "" {
+			continue
+		}
+		prefixed := "          " + line
+		if !strings.HasSuffix(prefixed, "\n") {
+			prefixed += "\n"
+		}
+		steps = append(steps, prefixed)
+	}
+
+	// Reuse the engine's own execution env block so the external detector path
+	// gets the same token/model/runtime environment configuration as the agent job.
+	executionSteps := engine.GetExecutionSteps(threatDetectionData, constants.ThreatDetectionLogPath)
+	if len(executionSteps) > 0 {
+		envLines := extractStepEnvLines(executionSteps[0])
+		if len(envLines) == 0 {
+			threatLog.Printf("Detection engine %q execution step did not expose env lines; external detector will run with minimal env", engineID)
+		}
+		for _, line := range envLines {
+			steps = append(steps, line+"\n")
+		}
+	} else {
+		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
+	}
+
+	return steps
+}
+
+const stepEnvIndent = "        "
+
+// extractStepEnvLines copies the YAML env: block from a rendered engine execution step.
+// It intentionally stops when a comment line appears because comments in step templates
+// are section separators, and consuming past them may bleed into non-env content.
+func extractStepEnvLines(step GitHubActionStep) []string {
+	envIndex := -1
+	for i, line := range step {
+		if strings.TrimSpace(line) == "env:" {
+			envIndex = i
+			break
+		}
+	}
+	if envIndex == -1 {
+		return nil
+	}
+
+	var envLines []string
+	for _, line := range step[envIndex:] {
+		if line == "" {
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			break
+		}
+		if !strings.HasPrefix(line, stepEnvIndent) && trimmed != "env:" {
+			break
+		}
+		envLines = append(envLines, line)
+	}
+
+	return envLines
+}
+
+// buildUploadDetectionArtifactStep creates a step that uploads both the structured
+// verdict file (detection_result.json) and the detection log (detection.log) as the
+// detection artifact. Used when features: gh-aw-detection: true is set; the inline
+// path uses buildUploadDetectionLogStep which only uploads detection.log.
+func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string {
+	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
+	return []string{
+		"      - name: Upload threat detection artifact\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
+		"        with:\n",
+		"          name: " + detectionArtifactName + "\n",
+		"          path: |\n",
+		"            " + constants.ThreatDetectionResultPath + "\n",
+		"            " + constants.ThreatDetectionLogPath + "\n",
+		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildExternalDetectorConcludeStep creates the conclude step for the external
+// threat-detect binary. It runs `threat-detect conclude --result-file ...` which reads
+// the structured detection_result.json and sets the detection_conclusion/detection_reason/
+// detection_success step outputs and exports GH_AW_DETECTION_CONCLUSION/GH_AW_DETECTION_REASON,
+// preserving the same gate contract as the inline parse_threat_detection_results.cjs path.
+// The step ID (detection_conclusion) and env vars (RUN_DETECTION, DETECTION_AGENTIC_EXECUTION_OUTCOME,
+// GH_AW_DETECTION_CONTINUE_ON_ERROR) are byte-identical to the inline conclude step.
+func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []string {
+	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
+	continueOnError := true
+	var continueOnErrorExpr *string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
+		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
+	}
+
+	steps := []string{
+		"      - name: Conclude threat detection\n",
+		"        id: detection_conclusion\n",
+		"        if: always()\n",
+	}
+
+	if continueOnErrorExpr != nil {
+		steps = append(steps, fmt.Sprintf("        continue-on-error: %s\n", *continueOnErrorExpr))
+	} else if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
+
+	var coeEnvLine string
+	if continueOnErrorExpr != nil {
+		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %s\n", *continueOnErrorExpr)
+	} else {
+		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError))
+	}
+
+	steps = append(steps, []string{
+		"        env:\n",
+		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
+		"          DETECTION_AGENTIC_EXECUTION_OUTCOME: ${{ steps.detection_agentic_execution.outcome }}\n",
+		coeEnvLine,
+		"        run: |\n",
+		fmt.Sprintf("          threat-detect conclude --result-file %s\n", shellEscapeArg(constants.ThreatDetectionResultPath)),
+	}...)
+
+	return steps
 }
 
 // buildWorkspaceCheckoutForDetectionStep creates a checkout step for the detection job.

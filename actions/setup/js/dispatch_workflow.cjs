@@ -144,7 +144,7 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const workflowName = message.workflow_name;
+    const workflowName = typeof message.workflow_name === "string" ? message.workflow_name.trim() : "";
 
     if (!workflowName || workflowName.trim() === "") {
       core.warning("Workflow name is empty, skipping");
