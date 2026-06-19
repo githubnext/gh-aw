@@ -1,6 +1,7 @@
-// Package errstringmatch implements a Go analysis linter that flags
-// calls to strings.Contains(err.Error(), "literal") that perform brittle
-// substring matching on error messages instead of using errors.Is or errors.As.
+// Package errstringmatch implements a Go analysis linter that flags calls to
+// strings.Contains/HasPrefix/HasSuffix/EqualFold/Index/LastIndex/Compare on
+// err.Error() with a string literal — all perform brittle substring matching on
+// error messages instead of using errors.Is or errors.As.
 package errstringmatch
 
 import (
@@ -18,10 +19,22 @@ import (
 // Analyzer is the err-string-match analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "errstringmatch",
-	Doc:      "reports strings.Contains(err.Error(), \"...\") calls that perform brittle substring matching on error messages",
+	Doc:      "reports strings.Contains/HasPrefix/HasSuffix/EqualFold/Index/LastIndex/Compare(err.Error(), \"...\") calls that perform brittle substring matching on error messages",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errstringmatch",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
+}
+
+// brittleErrStringFuncs is the set of strings package functions that perform
+// brittle error-message matching when their first argument is err.Error().
+var brittleErrStringFuncs = map[string]bool{
+	"Contains":  true,
+	"HasPrefix": true,
+	"HasSuffix": true,
+	"EqualFold": true,
+	"Index":     true,
+	"LastIndex": true,
+	"Compare":   true,
 }
 
 func run(pass *analysis.Pass) (any, error) {
@@ -45,8 +58,9 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// Match strings.Contains(X, Y)
-		if !isStringsContains(outer) {
+		// Match strings.<BrittleFunc>(X, Y)
+		funcName, matched := brittleErrStringFuncName(outer)
+		if !matched {
 			return
 		}
 		if len(outer.Args) != 2 {
@@ -66,23 +80,30 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		pass.ReportRangef(outer, "avoid strings.Contains(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead")
+		pass.ReportRangef(outer, "avoid strings.%s(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead", funcName)
 	})
 
 	return nil, nil
 }
 
-// isStringsContains returns true for strings.Contains(...) call expressions.
-func isStringsContains(call *ast.CallExpr) bool {
+// brittleErrStringFuncName returns the matched strings function name and true
+// when call is a strings.<BrittleFunc>(...) call expression.
+func brittleErrStringFuncName(call *ast.CallExpr) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
-		return false
+		return "", false
 	}
 	ident, ok := sel.X.(*ast.Ident)
 	if !ok {
-		return false
+		return "", false
 	}
-	return ident.Name == "strings" && sel.Sel.Name == "Contains"
+	if ident.Name != "strings" {
+		return "", false
+	}
+	if brittleErrStringFuncs[sel.Sel.Name] {
+		return sel.Sel.Name, true
+	}
+	return "", false
 }
 
 // isErrDotError returns true when expr is a method call of the form <expr>.Error()

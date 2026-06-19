@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -105,6 +106,7 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 		{"after-run-id", "0"},
 		{"before-run-id", "0"},
 		{"repo", ""},
+		{"artifacts", "[usage]"},
 	}
 
 	for _, tt := range tests {
@@ -262,7 +264,9 @@ func TestLogsCommandHelpText(t *testing.T) {
 	// Verify long description contains expected sections
 	expectedLongSections := []string{
 		"Download and analyze agentic workflow logs",
-		"Downloaded artifacts include:",
+		"Downloaded artifacts include (when using --artifacts all):",
+		"--artifacts all",
+		strings.Join(ValidArtifactSetNames(), ", "),
 	}
 
 	for _, section := range expectedLongSections {
@@ -274,6 +278,7 @@ func TestLogsCommandHelpText(t *testing.T) {
 		"gh aw logs",
 		"--safe-output noop",
 		"--safe-output report-incomplete",
+		"--artifacts all",
 	}
 
 	for _, section := range expectedExampleSections {

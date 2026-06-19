@@ -230,6 +230,37 @@ func TestLogsToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 	}
 }
 
+func TestLogsToolPassesArtifactsArgument(t *testing.T) {
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = append([]string(nil), args...)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerLogsTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerLogsTool should succeed")
+
+	session := connectInMemory(t, server)
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "logs",
+		Arguments: map[string]any{
+			"artifacts": []any{"agent", "firewall"},
+		},
+	})
+	require.NoError(t, err, "logs tool should succeed")
+
+	require.Contains(t, capturedArgs, "--artifacts", "logs tool should pass --artifacts through to the CLI")
+	for i, arg := range capturedArgs {
+		if arg == "--artifacts" {
+			require.Less(t, i+1, len(capturedArgs), "--artifacts should have a value")
+			assert.Equal(t, "agent,firewall", capturedArgs[i+1], "logs tool should join artifact sets for the CLI")
+			return
+		}
+	}
+	t.Fatal("expected --artifacts flag in command args")
+}
+
 // TestAuditToolPassesGithubRepositoryAsRepoFlag verifies that the audit MCP tool
 // appends --repo <owner/repo> to the subprocess command when GITHUB_REPOSITORY
 // is set, allowing the audit command to resolve the repository without git.

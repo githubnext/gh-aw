@@ -54,7 +54,7 @@ jobs:
       ci_run_id: ${{ steps.ci_check.outputs.ci_run_id }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Check last CI workflow run status on main branch
