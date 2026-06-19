@@ -107,7 +107,7 @@ type Compiler struct {
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
 	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3.x pins for artifact actions instead of the latest v7/v8
-	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login
+	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -136,7 +136,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		artifactManager:   NewArtifactManager(),
 		actionPinWarnings: make(map[string]bool), // Initialize warning cache
 		priorManifests:    make(map[string]*GHAWManifest),
-		gitRoot:           gitRoot, // Auto-detected git root
+		ownerTypeCache:    make(map[string]string), // Initialize owner-type cache (keyed by owner login)
+		gitRoot:           gitRoot,                 // Auto-detected git root
 	}
 
 	// Apply functional options
