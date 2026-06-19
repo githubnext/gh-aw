@@ -274,14 +274,15 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 func TestGetNpmBinPathSetup(t *testing.T) {
 	pathSetup := GetNpmBinPathSetup()
 
-	// Should use find command to locate bin directories in hostedtoolcache
-	if !strings.Contains(pathSetup, "/opt/hostedtoolcache") {
-		t.Errorf("PATH setup should reference /opt/hostedtoolcache, got: %s", pathSetup)
+	// Should require RUNNER_TOOL_CACHE instead of guessing fallback paths.
+	if !strings.Contains(pathSetup, "RUNNER_TOOL_CACHE must be set") {
+		t.Errorf("PATH setup should require RUNNER_TOOL_CACHE, got: %s", pathSetup)
 	}
-
-	// Should also search the self-hosted GPU runner tool cache path
-	if !strings.Contains(pathSetup, "/home/runner/work/_tool") {
-		t.Errorf("PATH setup should reference /home/runner/work/_tool for GPU runner support, got: %s", pathSetup)
+	if strings.Contains(pathSetup, ":-/opt/hostedtoolcache") {
+		t.Errorf("PATH setup should not fall back to /opt/hostedtoolcache, got: %s", pathSetup)
+	}
+	if strings.Contains(pathSetup, "/home/runner/work/_tool") {
+		t.Errorf("PATH setup should not hard-code /home/runner/work/_tool, got: %s", pathSetup)
 	}
 
 	// Should search for bin directories
@@ -304,8 +305,11 @@ func TestGetNpmBinPathSetup(t *testing.T) {
 	}
 
 	// GOROOT re-prepend should come AFTER the find command
-	findIdx := strings.Index(pathSetup, "find /opt/hostedtoolcache")
+	findIdx := strings.Index(pathSetup, `find "$GH_AW_TOOL_CACHE"`)
 	gorootIdx := strings.Index(pathSetup, "$GOROOT")
+	if findIdx < 0 {
+		t.Errorf("PATH setup should search GH_AW_TOOL_CACHE, got: %s", pathSetup)
+	}
 	if gorootIdx < findIdx {
 		t.Errorf("GOROOT re-prepend should come after find command, got: %s", pathSetup)
 	}
@@ -359,7 +363,7 @@ func TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain(t *testing.T) {
 	//   GetNpmBinPathSetup() && INSTRUCTION="..." && codex exec ...
 	// When GOROOT is empty, [ -n "$GOROOT" ] is false. Without || true,
 	// the && chain short-circuits and INSTRUCTION is never set.
-	shellCmd := `unset GOROOT; GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"; export PATH="$(find "$GH_AW_TOOL_CACHE" /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && echo "chain-continued"`
+	shellCmd := fmt.Sprintf(`unset GOROOT; export RUNNER_TOOL_CACHE=%q; %s && echo "chain-continued"`, t.TempDir(), GetNpmBinPathSetup())
 
 	cmd := exec.Command("bash", "-c", shellCmd)
 	output, err := cmd.Output()

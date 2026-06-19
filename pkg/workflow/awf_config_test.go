@@ -993,6 +993,11 @@ func TestValidateAWFConfigJSON_AllowsTemplatableModelFallbackEnabled(t *testing.
 	require.NoError(t, err, "modelFallback.enabled expressions should pass compile-time schema validation")
 }
 
+func TestValidateAWFConfigJSON_AllowsMaxCacheMisses(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxCacheMisses":3}}`)
+	require.NoError(t, err, "maxCacheMisses should pass compile-time schema validation")
+}
+
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
 // WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
 func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {
@@ -1300,9 +1305,10 @@ func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
 
 	command := BuildAWFCommand(config)
 
-	assert.Contains(t, command, `GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"`, "should detect RUNNER_TOOL_CACHE with hostedtoolcache fallback")
+	assert.Contains(t, command, `GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"`, "should require RUNNER_TOOL_CACHE instead of guessing fallback paths")
 	assert.Contains(t, command, `GH_AW_TOOL_CACHE_MOUNT="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"`, "should mount non-/opt tool cache paths")
-	assert.Contains(t, command, `GH_AW_TOOL_CACHE_MOUNT="/home/runner/work/_tool:/home/runner/work/_tool:ro"`, "should include fallback mount for legacy _tool path")
+	assert.NotContains(t, command, `/home/runner/work/_tool`, "should not assume a self-hosted runner tool-cache path")
+	assert.NotContains(t, command, `:-/opt/hostedtoolcache`, "should not fall back to /opt/hostedtoolcache")
 	assert.Contains(t, command, `${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"}`, "should inject tool-cache mount args into awf invocation")
 }
 

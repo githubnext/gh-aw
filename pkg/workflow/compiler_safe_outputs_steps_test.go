@@ -439,6 +439,16 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			},
 		},
 		{
+			name: "handler manager with urls policy propagates to process step",
+			safeOutputs: &SafeOutputsConfig{
+				URLs:        SafeOutputsURLsPolicyAllowedOrCodeRegion,
+				AddComments: &AddCommentsConfig{},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_URLS: \"allowed-or-code-region\"",
+			},
+		},
+		{
 			name: "handler manager without allowed-domains still includes github urls",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},

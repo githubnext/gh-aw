@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/github/gh-aw-firewall/releases/download/v0.27.0/awf-config.schema.json",
+  "$id": "https://raw.githubusercontent.com/github/gh-aw-firewall/main/docs/awf-config.schema.json",
   "title": "AWF Configuration",
   "description": "JSON/YAML configuration for awf CLI. CLI flags override config file values. See https://github.com/github/gh-aw-firewall for documentation.",
   "type": "object",
@@ -53,7 +53,7 @@
         },
         "enableTokenSteering": {
           "type": "boolean",
-          "description": "Enable AI Credits budget steering. When true, the proxy injects budget-warning system messages at 80%, 90%, 95%, and 99% usage to nudge the agent to wrap up. Requires maxAiCredits. Default: false."
+          "description": "Enable effective token budget steering. When true, the proxy injects budget-warning system messages at 80%, 90%, 95%, and 99% usage to nudge the agent to wrap up. Requires maxEffectiveTokens. Default: false."
         },
         "anthropicAutoCache": {
           "type": "boolean",
@@ -67,12 +67,12 @@
         "maxEffectiveTokens": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
         },
         "maxAiCredits": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Maximum cumulative AI credits allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'ai_credits_limit_exceeded'. AWF also enforces a non-overridable hard cap of 10,000 AI credits; values above 10,000 are effectively clamped."
+          "description": "Maximum cumulative AI credits allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'ai_credits_limit_exceeded'. AWF also enforces a non-overridable hard cap of 10,000 AI credits; values above 10,000 are effectively clamped."
         },
         "defaultAiCreditsPricing": {
           "type": "object",
@@ -104,7 +104,7 @@
         },
         "modelMultipliers": {
           "type": "object",
-          "description": "Per-model cost multipliers. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec §10.2.",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec §10.2.",
           "additionalProperties": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -123,7 +123,7 @@
         "maxTurns": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'max_runs_exceeded'. See spec §11."
         },
         "maxRuns": {
           "type": "integer",
@@ -134,6 +134,11 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum number of upstream permission-denied (401/403) responses allowed per run. When reached, the API proxy rejects all subsequent requests with HTTP 403 and error type 'permission_denied_limit_exceeded', stopping the run to avoid wasting tokens on misconfigured or missing API credentials. When unset, the guard is disabled."
+        },
+        "maxCacheMisses": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of consecutive cache misses allowed per run. A miss is counted only for successful responses with non-zero input_tokens and zero cache_read_tokens. Responses with cache_read_tokens > 0 reset the streak. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'max_cache_misses_exceeded'."
         },
         "requestedModel": {
           "type": "string",
@@ -212,6 +217,20 @@
             "items": {
               "type": "string"
             }
+          }
+        },
+        "allowedModels": {
+          "type": "array",
+          "description": "Allowlist of permitted model names (glob patterns). When set, only models matching at least one pattern are permitted. Uses case-insensitive glob matching with * as a wildcard. Evaluated after disallowedModels — a model in the denylist is always rejected even if it matches the allowlist. Examples: [\"*sonnet*\", \"*haiku*\"].",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disallowedModels": {
+          "type": "array",
+          "description": "Denylist of prohibited model names (glob patterns). Models matching any pattern are rejected with HTTP 403 regardless of the allowedModels allowlist. Uses case-insensitive glob matching with * as a wildcard. Examples: [\"*opus*\", \"gpt-5*\"].",
+          "items": {
+            "type": "string"
           }
         },
         "auth": {
@@ -358,6 +377,32 @@
               "description": "Directory for token-usage.jsonl and token-diag.jsonl files. Must be /var/log/api-proxy (or a subdirectory) so logs are captured by AWF's bind mount.",
               "pattern": "^/var/log/api-proxy(?:/.*)?$",
               "default": "/var/log/api-proxy"
+            }
+          }
+        },
+        "diagnostics": {
+          "type": "object",
+          "description": "Opt-in diagnostics for blocked LLM requests. Writes body-shape records to blocked-request-diag.jsonl when a guard hard-rails a request.",
+          "additionalProperties": false,
+          "properties": {
+            "captureBlockedRequests": {
+              "description": "Enable capture of body-shape diagnostics for guard-blocked requests. 'summary' captures counts/sizes/hashes only (no content). 'redacted' adds first 200 chars per message. 'full' captures the entire body up to maxCapturedBytes. Maps to AWF_CAPTURE_BLOCKED_LLM_REQUESTS.",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": ["summary", "redacted", "full"]
+                }
+              ],
+              "default": false
+            },
+            "maxCapturedBytes": {
+              "type": "integer",
+              "description": "Maximum body bytes to include in a single 'full'-mode blocked-request-diag record. Maps to AWF_MAX_BLOCKED_CAPTURE_BYTES.",
+              "minimum": 1,
+              "default": 250000
             }
           }
         }
@@ -632,6 +677,18 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum number of bytes transferred per minute."
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "description": "GitHub platform deployment type. Explicitly declares the environment so AWF can apply correct auth behavior (e.g. token vs Bearer prefix) without relying on heuristic detection.",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
+          "description": "The GitHub deployment type. 'github.com' = GitHub.com (default), 'ghes' = GitHub Enterprise Server (on-premises), 'ghec' = GitHub Enterprise Cloud (*.ghe.com tenants), 'ghec-self-hosted' = GHEC with self-hosted runners."
         }
       }
     }

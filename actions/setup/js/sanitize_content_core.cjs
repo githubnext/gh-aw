@@ -8,6 +8,10 @@
 
 const { isRepoAllowed } = require("./repo_helpers.cjs");
 
+const SAFE_OUTPUTS_URLS_ENV = "GH_AW_SAFE_OUTPUTS_URLS";
+const SAFE_OUTPUTS_URLS_ALLOWED_ONLY = "allowed-only";
+const SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION = "allowed-or-code-region";
+
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
  * @type {string[]}
@@ -1280,10 +1284,7 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
   // URI filtering - replace non-https protocols with "(redacted)"
-  sanitized = sanitizeUrlProtocols(sanitized);
-
-  // Domain filtering for HTTPS URIs
-  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+  sanitized = applyURLSanitizationPolicy(sanitized, allowedDomains);
 
   // Apply truncation limits
   sanitized = applyTruncation(sanitized, maxLength);
@@ -1307,6 +1308,28 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   return sanitized.trim();
 }
 
+/**
+ * Apply URL sanitization using configured safe-outputs URL policy.
+ * @param {string} content
+ * @param {string[]} allowedDomains
+ * @returns {string}
+ */
+function applyURLSanitizationPolicy(content, allowedDomains) {
+  const urlPolicy = process.env[SAFE_OUTPUTS_URLS_ENV] || SAFE_OUTPUTS_URLS_ALLOWED_ONLY;
+  if (urlPolicy === SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION) {
+    // Preserve fenced/inline code regions (including ```suggestion blocks) verbatim.
+    // This avoids corrupting patch payloads while still sanitizing prose.
+    let sanitized = applyToNonCodeRegions(content, sanitizeUrlProtocols);
+    sanitized = applyToNonCodeRegions(sanitized, s => sanitizeUrlDomains(s, allowedDomains));
+    return sanitized;
+  }
+  // Default policy ("allowed-only"): sanitize URLs in all content regions,
+  // including fenced and inline code spans.
+  let sanitized = sanitizeUrlProtocols(content);
+  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+  return sanitized;
+}
+
 module.exports = {
   sanitizeContentCore,
   getRedactedDomains,
@@ -1320,6 +1343,7 @@ module.exports = {
   sanitizeDomainName,
   sanitizeUrlProtocols,
   sanitizeUrlDomains,
+  applyURLSanitizationPolicy,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,

@@ -202,9 +202,7 @@ func TestCopilotMCPRenderer_UsesHomeForConfigPath(t *testing.T) {
 // shell expansion would not happen.
 //
 // This deliberately does NOT assert there are zero /home/runner occurrences
-// anywhere in the generated workflow. Other references — notably the AWF
-// tool-cache mount path /home/runner/work/_tool — are governed by
-// RUNNER_TOOL_CACHE and the runner work directory layout, which are
+// anywhere in the generated workflow. Other references may be governed by
 // separate concerns from the Copilot CLI HOME-resolution fix.
 func TestGetExecutionSteps_NoLiteralHomeRunner(t *testing.T) {
 	// Patterns that must NEVER appear in generated Copilot step output because

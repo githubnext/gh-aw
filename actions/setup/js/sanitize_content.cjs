@@ -13,8 +13,7 @@ const {
   buildAllowedDomains,
   buildAllowedGitHubReferences,
   getCurrentRepoSlug,
-  sanitizeUrlProtocols,
-  sanitizeUrlDomains,
+  applyURLSanitizationPolicy,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,
@@ -120,8 +119,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
   // URI filtering (shared with core)
-  sanitized = sanitizeUrlProtocols(sanitized);
-  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+  sanitized = applyURLSanitizationPolicy(sanitized, allowedDomains);
 
   // Apply truncation limits (shared with core)
   sanitized = applyTruncation(sanitized, maxLength);

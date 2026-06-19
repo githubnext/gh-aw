@@ -122,6 +122,9 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	if domainsStr != "" {
 		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr))
 	}
+	if data.SafeOutputs != nil && data.SafeOutputs.URLs != "" {
+		steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_URLS: %q\n", data.SafeOutputs.URLs))
+	}
 	// Pass GitHub server/API URLs so buildAllowedDomains() can add GHES domains dynamically
 	steps = append(steps, "          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	steps = append(steps, "          GITHUB_API_URL: ${{ github.api_url }}\n")
