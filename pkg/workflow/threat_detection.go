@@ -960,10 +960,12 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 	engineID := c.getThreatDetectionEngineID(data)
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
-		threatLog.Printf("Failed to resolve detection engine %q for external detector installation: %v (threat-detect may fail at runtime if engine binary is unavailable)", engineID, err)
+		threatLog.Printf("Failed to resolve detection engine %q for external detector installation: %v (compilation will continue without engine install steps; threat-detect will only succeed if the engine binary is already available at runtime)", engineID, err)
 		return nil
 	}
 
+	// Build a synthetic detection WorkflowData solely to generate the engine's
+	// installation steps for this separate detection job context.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
