@@ -162,6 +162,18 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  ZETA_WORKFLOW: zeta
+  ALPHA_WORKFLOW: alpha
+steps:
+  - name: Deterministic uses step
+    uses: actions/cache/restore@v4
+    with:
+      zeta-input: zeta
+      alpha-input: alpha
+    env:
+      ZETA_STEP: zeta
+      ALPHA_STEP: alpha
 engine: copilot
 timeout-minutes: 10
 ---
@@ -189,6 +201,21 @@ This workflow tests that compilation is deterministic.
 
 	require.Equal(t, normalizeHeredocDelimiters(results[0]), normalizeHeredocDelimiters(results[1]), "compilation 1 and 2 differ")
 	require.Equal(t, normalizeHeredocDelimiters(results[1]), normalizeHeredocDelimiters(results[2]), "compilation 2 and 3 differ")
+
+	assertOrder := func(before, after string) {
+		t.Helper()
+		beforeIndex := strings.Index(results[0], before)
+		afterIndex := strings.Index(results[0], after)
+		require.NotEqual(t, -1, beforeIndex, "expected %q in compiled YAML", before)
+		require.NotEqual(t, -1, afterIndex, "expected %q in compiled YAML", after)
+		if beforeIndex >= afterIndex {
+			t.Fatalf("expected %q before %q in compiled YAML:\n%s", before, after, results[0])
+		}
+	}
+
+	assertOrder("  ALPHA_WORKFLOW:", "  ZETA_WORKFLOW:")
+	assertOrder("      alpha-input:", "      zeta-input:")
+	assertOrder("      ALPHA_STEP:", "      ZETA_STEP:")
 }
 
 // TestWasmGolden_NativeVsStringAPI compiles a workflow using both the native

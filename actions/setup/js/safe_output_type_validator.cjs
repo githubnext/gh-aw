@@ -67,6 +67,7 @@ function normalizeIssueClosingKeywordBackticks(content) {
  * @typedef {Object} FieldValidation
  * @property {boolean} [required] - Whether the field is required
  * @property {string} [type] - Expected type: 'string', 'number', 'boolean', 'array'
+ * @property {string} [typeHint] - Overrides the type description in error messages (e.g. "GraphQL node ID string")
  * @property {boolean} [sanitize] - Whether to sanitize string content
  * @property {number} [maxLength] - Maximum length for strings
  * @property {number} [minLength] - Minimum length for strings
@@ -301,7 +302,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
 
   // Handle required check for other fields
   if (validation.required && (value === undefined || value === null)) {
-    const fieldType = validation.type || "string";
+    const fieldType = validation.typeHint || validation.type || "string";
     return {
       isValid: false,
       error: `Line ${lineNum}: ${itemType} requires a '${fieldName}' field (${fieldType})`,
@@ -328,9 +329,10 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
     if (typeof value !== "string") {
       // For required fields, use "requires a" format for both missing and wrong type
       if (validation.required) {
+        const fieldType = validation.typeHint || "string";
         return {
           isValid: false,
-          error: `Line ${lineNum}: ${itemType} requires a '${fieldName}' field (string)`,
+          error: `Line ${lineNum}: ${itemType} requires a '${fieldName}' field (${fieldType})`,
         };
       }
       return {

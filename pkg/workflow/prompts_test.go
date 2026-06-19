@@ -324,6 +324,35 @@ func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T
 	}
 }
 
+func TestDailyFormalSpecVerifierDefinesDirectSafeOutputContract(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-formal-spec-verifier.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	requiredContract := "Draft the title and body locally first if needed, but emit exactly one final `create_issue` safe output only after the full payload is complete."
+	if !strings.Contains(workflow, requiredContract) {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to require a single final create_issue safe output")
+	}
+
+	noShellGuidance := "Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments."
+	if !strings.Contains(workflow, noShellGuidance) {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to forbid bash/CLI safe-output invocation")
+	}
+
+	reportIncompleteGuidance := "If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`."
+	if !strings.Contains(workflow, reportIncompleteGuidance) {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to require direct report_incomplete fallback")
+	}
+}
+
 func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {

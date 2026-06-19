@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -161,9 +162,25 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 	safeJobsLog.Printf("Building %d safe-jobs, threatDetectionEnabled=%v", len(data.SafeOutputs.Jobs), threatDetectionEnabled)
 	var safeJobNames []string
-	for jobName, jobConfig := range data.SafeOutputs.Jobs {
-		// Normalize job name to use underscores for consistency
-		normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
+
+	// Collect normalized names and a config lookup map, then sort by normalized name.
+	// Sorting on the normalized form (rather than the raw key) guarantees that the
+	// returned safeJobNames slice and the conclusion job's needs: list are ordered
+	// consistently with the names that appear in the compiled YAML, even when raw
+	// names contain characters (e.g. '.', '-') that normalize differently from '_'.
+	type safeJobEntry struct {
+		normalizedName string
+		config         *SafeJobConfig
+	}
+	entries := make([]safeJobEntry, 0, len(data.SafeOutputs.Jobs))
+	for rawName, cfg := range data.SafeOutputs.Jobs {
+		entries = append(entries, safeJobEntry{stringutil.NormalizeSafeOutputIdentifier(rawName), cfg})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].normalizedName < entries[j].normalizedName })
+
+	for _, entry := range entries {
+		jobConfig := entry.config
+		normalizedJobName := entry.normalizedName
 
 		job := &Job{
 			Name:        normalizedJobName,
@@ -265,7 +282,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 					// Convert to typed step for action pinning
 					typedStep, err := MapToStep(stepMap)
 					if err != nil {
-						return nil, fmt.Errorf("failed to convert step to typed step for safe job %s: %w", jobName, err)
+						return nil, fmt.Errorf("failed to convert step to typed step for safe job %s: %w", normalizedJobName, err)
 					}
 
 					// Inject setup env vars so user steps can access GH_AW_AGENT_OUTPUT
@@ -285,7 +302,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 					// Convert back to map for YAML generation
 					stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 					if err != nil {
-						return nil, fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
+						return nil, fmt.Errorf("failed to convert step to YAML for safe job %s: %w", normalizedJobName, err)
 					}
 					steps = append(steps, stepYAML)
 				}
@@ -307,7 +324,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Add the job to the job manager
 		if err := c.jobManager.AddJob(job); err != nil {
 			safeJobsLog.Printf("Failed to add safe-job %s: %v", normalizedJobName, err)
-			return nil, fmt.Errorf("failed to add safe job %s: %w", jobName, err)
+			return nil, fmt.Errorf("failed to add safe job %s: %w", normalizedJobName, err)
 		}
 		safeJobsLog.Printf("Created safe-job: %s with %d dependencies and %d steps", normalizedJobName, len(job.Needs), len(job.Steps))
 		safeJobNames = append(safeJobNames, normalizedJobName)

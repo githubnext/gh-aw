@@ -174,6 +174,13 @@ Use existing types, functions, and interfaces from the codebase where possible (
 
 Create exactly one issue using the `create_issue` safe output.
 
+### Output Contract (Required)
+
+1. Draft the title and body locally first if needed, but emit exactly one final `create_issue` safe output only after the full payload is complete.
+2. Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments.
+3. Never retry `create_issue` with empty, placeholder, or partial arguments.
+4. If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.
+
 ### Issue format
 
 Title: `[formal-spec] <SpecFileName> — Formal model & test suite — <YYYY-MM-DD>`
@@ -239,7 +246,7 @@ Before emitting `create_issue`, verify the body:
 - The generated test file compiles without errors (review for syntax mistakes).
 - Is at least 1200 characters long.
 
-If these checks cannot be met, emit `report_incomplete` instead of `create_issue`.
+If these checks cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.
 
 ---
 

@@ -3,9 +3,12 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -240,6 +243,51 @@ func TestBuildSafeJobs(t *testing.T) {
 	if strings.Contains(stepsContent, "GLOBAL_VAR=global_value") {
 		t.Error("Safe-jobs should not inherit environment variables from safe-outputs.env (they are now independent)")
 	}
+}
+
+func TestCompileWorkflowConclusionNeedsSafeJobsDeterministically(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "safe-jobs-ordering")
+
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  jobs:
+    zebra-job:
+      steps:
+        - name: Zebra
+          run: echo "zebra"
+    alpha-job:
+      steps:
+        - name: Alpha
+          run: echo "alpha"
+---
+
+# Test deterministic safe-job ordering
+`
+
+	testFile := filepath.Join(tmpDir, "test-safe-jobs-ordering.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "test-safe-jobs-ordering.lock.yml")
+	compiled, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	conclusionSection := extractJobSection(string(compiled), "conclusion")
+	require.NotEmpty(t, conclusionSection)
+
+	alphaIdx := indexInNonCommentLines(conclusionSection, "- alpha_job")
+	zebraIdx := indexInNonCommentLines(conclusionSection, "- zebra_job")
+	require.NotEqual(t, -1, alphaIdx, "conclusion job should depend on alpha_job")
+	require.NotEqual(t, -1, zebraIdx, "conclusion job should depend on zebra_job")
+	require.Less(t, alphaIdx, zebraIdx, "conclusion job should list safe-jobs in deterministic sorted order")
 }
 
 func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
