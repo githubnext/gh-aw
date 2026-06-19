@@ -1070,6 +1070,8 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should sanitize non-https protocol URLs inside fenced code blocks by default", () => {
+      // Default policy is "allowed-only", so code regions are sanitized unless
+      // GH_AW_SAFE_OUTPUTS_URLS is set to "allowed-or-code-region".
       const input = "Prose ftp://bad.com\n```\nftp://inside-code.example\n```\nMore prose";
       const result = sanitizeContent(input);
       expect(result).not.toContain("ftp://inside-code.example");
@@ -1173,6 +1175,8 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should sanitize disallowed HTTPS domain URLs inside fenced code blocks by default", () => {
+      // Default policy is "allowed-only", so code regions are sanitized unless
+      // GH_AW_SAFE_OUTPUTS_URLS is set to "allowed-or-code-region".
       const input = "Prose https://evil.com/malicious\n```\nhttps://evil.com/inside-code\n```\nMore prose";
       const result = sanitizeContent(input);
       expect(result).not.toContain("https://evil.com/inside-code");

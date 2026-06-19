@@ -1319,7 +1319,8 @@ function applyURLSanitizationPolicy(content, allowedDomains) {
     sanitized = applyToNonCodeRegions(sanitized, s => sanitizeUrlDomains(s, allowedDomains));
     return sanitized;
   }
-  // Default/current behavior: sanitize URLs in all content regions.
+  // Default policy ("allowed-only"): sanitize URLs in all content regions,
+  // including fenced and inline code spans.
   let sanitized = sanitizeUrlProtocols(content);
   sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
   return sanitized;
