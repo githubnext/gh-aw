@@ -10203,10 +10203,16 @@
               "type": "object",
               "description": "Advanced configuration for @mention filtering with fine-grained control",
               "properties": {
+                "allowed-collaborators": {
+                  "type": "boolean",
+                  "description": "Allow mentions of repository collaborators (team members with any permission level, excluding bots). Default: true",
+                  "default": true
+                },
                 "allow-team-members": {
                   "type": "boolean",
-                  "description": "Allow mentions of repository team members (collaborators with any permission level, excluding bots). Default: true",
-                  "default": true
+                  "description": "Deprecated alias for allowed-collaborators",
+                  "deprecated": true,
+                  "x-deprecation-message": "'allow-team-members' is deprecated in safe-outputs.mentions. Use 'allowed-collaborators' instead. Run 'gh aw fix' to automatically migrate."
                 },
                 "allow-context": {
                   "type": "boolean",

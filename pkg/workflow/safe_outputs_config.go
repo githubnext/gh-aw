@@ -1000,8 +1000,8 @@ func buildMentionsHandlerConfig(m *MentionsConfig) map[string]any {
 	if m.Enabled != nil {
 		cfg["enabled"] = *m.Enabled
 	}
-	if m.AllowTeamMembers != nil {
-		cfg["allowTeamMembers"] = *m.AllowTeamMembers
+	if m.AllowedCollaborators != nil {
+		cfg["allowedCollaborators"] = *m.AllowedCollaborators
 	}
 	if m.AllowContext != nil {
 		cfg["allowContext"] = *m.AllowContext
