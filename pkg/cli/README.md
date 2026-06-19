@@ -195,6 +195,9 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `ParseCopilotCodingAgentLogMetrics` | `func(logContent string, verbose bool) workflow.LogMetrics` | Parses Copilot coding-agent logs into metrics |
 | `ExtractLogMetricsFromRun` | `func(ProcessedRun) workflow.LogMetrics` | Extracts log metrics from a processed run |
 | `TrainDrain3Weights` | `func([]ProcessedRun, outputDir string, verbose bool) error` | Trains Drain3 anomaly-detection weights from run history |
+| `EvaluateOutcomes` | `func(items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport` | Checks the current state of all safe output items from a run |
+| `ComputeOutcomeSummary` | `func(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary` | Aggregates outcome reports into a summary with acceptance and zero-touch rates |
+| `RunOutcomesHistory` | `func(OutcomesHistoryConfig) error` | Scores recent closed issues and merged PRs against the objective mapping |
 | `DisplayOutdatedDependencies` | `func([]OutdatedDependency, int)` | Renders an outdated-dependencies table to stdout |
 | `DisplayDependencyReport` | `func(*DependencyReport)` | Renders a full dependency report to stdout |
 | `DisplayDependencyReportJSON` | `func(*DependencyReport) error` | Renders a dependency report as JSON to stdout |
@@ -276,6 +279,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `DifcFilteredEvent` | struct | A DIFC-filtered event from the MCP gateway log |
 | `DockerUnavailableError` | struct | Error returned when the Docker daemon is not reachable |
 | `DomainAnalysis` | struct | Aggregated per-domain network request analysis |
+| `DomainBreakdown` | struct | Per-domain outcome breakdown from outcome evaluation |
 | `DomainBuckets` | struct | Domain requests bucketed by category (allow, deny, unknown) |
 | `DomainDiffEntry` | struct | Per-domain diff between two runs |
 | `DownloadResult` | struct | Result of a log artifact download |
@@ -332,6 +336,11 @@ The `cli` package exports many types used across its command implementations. Th
 | `NoopReport` | struct | Report for a noop safe-output event |
 | `ObservabilityInsight` | struct | An insight derived from observability data |
 | `OverviewData` | struct | High-level overview data for a workflow run |
+| `OutcomeEvaluation` | struct | Evaluation state embedded in `OutcomeReport` (status, merge/close metadata) |
+| `OutcomeReport` | struct | Result of evaluating one safe output item — outcome, timing, human engagement, and objective value |
+| `OutcomeResult` | string alias | Outcome classification: `accepted`, `rejected`, `ignored`, `pending`, `unknown`, `lifecycle`, `error` |
+| `OutcomeSummary` | struct | Aggregated outcome statistics across multiple safe output items |
+| `OutcomesHistoryConfig` | struct | Configuration for `RunOutcomesHistory` |
 | `PRCheckRun` | struct | A single CI check run attached to a pull request |
 | `PRCommitStatus` | struct | A commit status context for a pull request |
 | `PRInfo` | struct | Pull-request metadata used by `gh aw pr` commands |
