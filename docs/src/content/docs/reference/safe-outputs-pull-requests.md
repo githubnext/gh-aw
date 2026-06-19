@@ -353,6 +353,22 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for a comp
 
 Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
 
+### Checkout token for git operations
+
+`create-pull-request` and `push-to-pull-request-branch` run their git operations (fetch/push) against a repository that the `safe_outputs` job checks out with credentials persisted in `.git/config`. A **single** token is persisted into that checkout, resolved with this precedence:
+
+1. `create-pull-request.github-token`
+2. `push-to-pull-request-branch.github-token`
+3. The `safe-outputs.github-app` minted token (when a GitHub App is configured)
+4. `safe-outputs.github-token`
+5. The default `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
+
+Because only one token can govern the shared checkout, **if you configure both `create-pull-request` and `push-to-pull-request-branch` for the same repository, give them the same token.** If they specify different `github-token` values, the higher-precedence one wins for the checkout, so the other output's git operations run with a token you did not intend. Set the token once at `safe-outputs.github-token` (or `safe-outputs.github-app`) and let both outputs inherit it, or set identical `github-token` values on each.
+
+:::note
+This applies to the git checkout used by the handlers' `fetch`/`push`. The GitHub API calls each handler makes still honor that handler's own `github-token` precedence.
+:::
+
 ## Add Reviewer (`add-reviewer:`)
 
 Adds reviewers to pull requests. Specify `allowed-reviewers` to restrict to specific GitHub usernames and `allowed-team-reviewers` to restrict to specific team slugs.

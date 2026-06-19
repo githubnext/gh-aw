@@ -234,6 +234,85 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 	})
 }
 
+// TestCheckoutPushTokenFallback verifies the safe_outputs push-token fallback that
+// persists the resolved PR push token into the checkout when keepCredentialsForPush is
+// enabled and no explicit checkout token (or app auth) already governs the checkout.
+func TestCheckoutPushTokenFallback(t *testing.T) {
+	getPin := func(action string) string { return action + "@v4" }
+	const pushToken = "${{ secrets.PUSH_TOKEN }}"
+
+	t.Run("default checkout with no explicit token emits pushToken once", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		cm.SetKeepCredentialsForPush(true)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "persist-credentials: true", "keepCredentialsForPush should retain credentials")
+		assert.Contains(t, combined, "token: "+pushToken, "should persist the push token")
+		assert.Equal(t, 1, strings.Count(combined, "token: "), "token must be emitted exactly once")
+	})
+
+	t.Run("default checkout with explicit token does not override with pushToken", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
+		})
+		cm.SetKeepCredentialsForPush(true)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "explicit checkout token should win")
+		assert.NotContains(t, combined, pushToken, "pushToken must not override an explicit checkout token")
+		assert.Equal(t, 1, strings.Count(combined, "token: "), "token must be emitted exactly once")
+	})
+
+	t.Run("default checkout with app auth does not override with pushToken", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubApp: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.APP_KEY }}"}},
+		})
+		cm.SetKeepCredentialsForPush(true)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "checkout-app-token-0.outputs.token", "app-minted token should govern the checkout")
+		assert.NotContains(t, combined, pushToken, "pushToken must not override an app-minted token")
+	})
+
+	t.Run("default checkout does not emit pushToken when keepCredentialsForPush is false", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "persist-credentials: false", "agent-style checkout strips credentials")
+		assert.NotContains(t, combined, pushToken, "pushToken must not be persisted when credentials are not retained")
+	})
+
+	t.Run("additional checkout with no token uses pushToken", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/libs", Path: "./libs"},
+		})
+		cm.SetKeepCredentialsForPush(true)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "persist-credentials: true", "keepCredentialsForPush should retain credentials")
+		assert.Contains(t, combined, "token: "+pushToken, "additional checkout should fall back to the push token")
+		assert.Equal(t, 1, strings.Count(combined, "token: "), "token must be emitted exactly once")
+	})
+
+	t.Run("additional checkout with explicit token does not override with pushToken", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/libs", Path: "./libs", GitHubToken: "${{ secrets.MY_TOKEN }}"},
+		})
+		cm.SetKeepCredentialsForPush(true)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "explicit checkout token should win")
+		assert.NotContains(t, combined, pushToken, "pushToken must not override an explicit checkout token")
+		assert.Equal(t, 1, strings.Count(combined, "token: "), "token must be emitted exactly once")
+	})
+}
+
 // TestGenerateAdditionalCheckoutSteps verifies that non-default checkouts are emitted correctly.
 func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 	getPin := func(action string) string { return action + "@v4" }
