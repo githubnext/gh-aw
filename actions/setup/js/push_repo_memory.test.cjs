@@ -1575,3 +1575,69 @@ describe("push_repo_memory.cjs - signed commit push (pushSignedCommits delegatio
     });
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────────
+// API branch seeding tests
+// Verifies that push_repo_memory seeds new memory branches via the GitHub REST
+// API (server-signed commits) before falling back to the orphan-branch path.
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("push_repo_memory.cjs - API branch seeding for signed commits", () => {
+  it("should use EMPTY_TREE_SHA and parents:[] to create a root seed commit (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // Must define the well-known empty-tree SHA as the seed tree
+    expect(scriptContent).toContain("4b825dc642cb6eb9a060e54bf8d69288fbee4904");
+    // Must call createCommit with an empty parents array (root/orphan commit)
+    expect(scriptContent).toContain("github.rest.git.createCommit");
+    expect(scriptContent).toContain("parents: []");
+    // Must create the branch ref pointing at the seed commit
+    expect(scriptContent).toContain("github.rest.git.createRef");
+    // Must set baseRef to the seed commit SHA so pushSignedCommits can use the
+    // GraphQL signed-commit path instead of the unsigned git push fallback
+    expect(scriptContent).toContain("seedCommit.sha");
+  });
+
+  it("should fall back to orphan branch with core.warning when API seeding fails (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // Must emit a warning identifying the API seeding failure and fallback
+    expect(scriptContent).toContain("falling back to orphan branch");
+    // The fallback must still create an orphan branch (original path preserved)
+    expect(scriptContent).toContain('"--orphan"');
+    expect(scriptContent).toContain('"read-tree", "--empty"');
+  });
+
+  it("should treat 422 Reference-already-exists as success during concurrent branch creation (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // Must detect the 422 status code or the GitHub "Reference already exists" message
+    expect(scriptContent).toContain("422|Reference already exists");
+    // Must not rethrow a 422 error – branch is used as-is after concurrent creation
+    expect(scriptContent).toContain("Reference already exists");
+  });
+
+  it("should split targetOwner/targetRepoName before the checkout block (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // targetOwner/targetRepoName must be declared before the checkout section
+    // so they are available for the GitHub REST API seeding calls
+    const splitIdx = scriptContent.indexOf('targetRepo.split("/")');
+    const checkoutIdx = scriptContent.indexOf("Checking out branch:");
+    expect(splitIdx).toBeGreaterThan(-1);
+    expect(checkoutIdx).toBeGreaterThan(-1);
+    expect(splitIdx).toBeLessThan(checkoutIdx);
+  });
+});

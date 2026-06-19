@@ -35,3 +35,43 @@ func checkIgnoredPreviousLine(err error) bool {
 func checkIgnoredSameLine(err error) bool {
 	return strings.Contains(err.Error(), "already merged") //nolint:errstringmatch // gh CLI merge status is only available as text.
 }
+
+// flagged: strings.HasPrefix on err.Error() with a string literal
+func checkHasPrefix(err error) bool {
+	return strings.HasPrefix(err.Error(), "connection refused") // want `avoid strings\.HasPrefix\(err\.Error\(\)`
+}
+
+// flagged: strings.HasSuffix on err.Error() with a string literal
+func checkHasSuffix(err error) bool {
+	return strings.HasSuffix(err.Error(), "not found") // want `avoid strings\.HasSuffix\(err\.Error\(\)`
+}
+
+// flagged: strings.EqualFold on err.Error() with a string literal
+func checkEqualFold(err error) bool {
+	return strings.EqualFold(err.Error(), "timeout") // want `avoid strings\.EqualFold\(err\.Error\(\)`
+}
+
+// flagged: strings.Index on err.Error() with a string literal
+func checkIndex(err error) bool {
+	return strings.Index(err.Error(), "denied") >= 0 // want `avoid strings\.Index\(err\.Error\(\)`
+}
+
+// flagged: strings.LastIndex on err.Error() with a string literal
+func checkLastIndex(err error) bool {
+	return strings.LastIndex(err.Error(), "denied") >= 0 // want `avoid strings\.LastIndex\(err\.Error\(\)`
+}
+
+// flagged: strings.Compare on err.Error() with a string literal
+func checkCompare(err error) bool {
+	return strings.Compare(err.Error(), "timeout") == 0 // want `avoid strings\.Compare\(err\.Error\(\)`
+}
+
+// not flagged: strings.HasPrefix on a plain string, not err.Error()
+func checkHasPrefixString(s string) bool {
+	return strings.HasPrefix(s, "prefix")
+}
+
+// not flagged: strings.EqualFold on a plain string, not err.Error()
+func checkEqualFoldString(s string) bool {
+	return strings.EqualFold(s, "value")
+}

@@ -993,6 +993,11 @@ func TestValidateAWFConfigJSON_AllowsTemplatableModelFallbackEnabled(t *testing.
 	require.NoError(t, err, "modelFallback.enabled expressions should pass compile-time schema validation")
 }
 
+func TestValidateAWFConfigJSON_AllowsMaxCacheMisses(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxCacheMisses":3}}`)
+	require.NoError(t, err, "maxCacheMisses should pass compile-time schema validation")
+}
+
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
 // WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
 func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {

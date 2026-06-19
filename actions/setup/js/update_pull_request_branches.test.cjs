@@ -207,6 +207,40 @@ describe("update_pull_request_branches", () => {
     expect(moduleUnderTest.isNonFatalUpdateBranchError(new Error("Something else went wrong"))).toBe(false);
   });
 
+  it("skips closed pull requests when filtering mergeable pull requests", async () => {
+    mockGithub.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
+      if (pull_number === 1) return { data: { state: "closed", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } };
+      return { data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } };
+    });
+
+    const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [1, 2]);
+
+    expect(result).toEqual([2]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping PR #1"));
+  });
+
+  it("skips pull requests where mergeable is null (GitHub pending computation)", async () => {
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: { state: "open", mergeable: null, draft: false, head: { repo: { full_name: "owner/repo" } } },
+    });
+
+    const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [5]);
+
+    expect(result).toEqual([]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("mergeable=null"));
+  });
+
+  it("does not treat non-object errors as non-fatal", () => {
+    expect(moduleUnderTest.isNonFatalUpdateBranchError("some string error")).toBe(false);
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(null)).toBe(false);
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(42)).toBe(false);
+  });
+
+  it("does not treat 404 status errors as non-fatal", () => {
+    const err = Object.assign(new Error("Not Found"), { status: 404 });
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(err)).toBe(false);
+  });
+
   it("filters out non-integer pull request numbers", async () => {
     mockGithub.paginate.mockResolvedValue([{ number: 1 }, { number: "bad" }, { number: null }, { number: 2 }]);
     mockGithub.rest.pulls.get.mockResolvedValue({

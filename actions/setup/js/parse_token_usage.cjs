@@ -103,6 +103,26 @@ function buildStepSummarySection(title, markdown) {
 }
 
 /**
+ * Renders the token usage markdown table as plain text for core.info output.
+ * Strips markdown table separators, pipes, and bold markers so the table is
+ * readable in the raw step log.
+ * @param {string} title
+ * @param {string} markdown
+ * @returns {string}
+ */
+function renderTokenTableAsPlainText(title, markdown) {
+  const plainText = markdown
+    .replace(/^\|(?:[-: ]+\|)+$/gm, "") // Remove table separator lines (handles alignment colons)
+    .replace(/^\|/gm, "") // Remove leading pipe from table rows
+    .replace(/\|$/gm, "") // Remove trailing pipe from table rows
+    .replace(/\s*\|\s*/g, " | ") // Normalize remaining pipes to spaced separators
+    .replace(/\*\*(.*?)\*\*/g, "$1") // Remove bold markers
+    .replace(/\n{3,}/g, "\n\n") // Collapse excess blank lines
+    .trim();
+  return `${title}\n\n${plainText}`;
+}
+
+/**
  * Appends the token usage section to GITHUB_STEP_SUMMARY when available.
  * Falls back to the Actions summary API when the summary path is unavailable.
  * @param {string} title
@@ -142,6 +162,7 @@ async function main() {
     }
     const markdown = generateTokenUsageSummary(summary);
     if (markdown.length > 0) {
+      core.info(renderTokenTableAsPlainText(getSummaryTitle(), markdown));
       await appendStepSummarySection(getSummaryTitle(), markdown);
     }
 
@@ -199,6 +220,7 @@ if (typeof module !== "undefined" && module.exports) {
     getSummaryTitle,
     buildStepSummarySection,
     appendStepSummarySection,
+    renderTokenTableAsPlainText,
     TOKEN_USAGE_AUDIT_PATH,
     TOKEN_USAGE_PATH,
     TOKEN_USAGE_PATHS,
