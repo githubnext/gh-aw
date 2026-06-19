@@ -2512,6 +2512,8 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
+      - name: Install AWF binary
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.6
       - name: Install threat-detect binary
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
