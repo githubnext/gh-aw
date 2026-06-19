@@ -960,7 +960,7 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 	engineID := c.getThreatDetectionEngineID(data)
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
-		threatLog.Printf("Skipping external detector engine installation: failed to resolve engine %q: %v", engineID, err)
+		threatLog.Printf("Failed to resolve detection engine %q for external detector installation: %v (threat-detect may fail at runtime if engine binary is unavailable)", engineID, err)
 		return nil
 	}
 
@@ -1018,7 +1018,7 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 
 func isAWFBinaryInstallStep(step GitHubActionStep) bool {
 	for _, line := range step {
-		if strings.Contains(line, "Install AWF binary") || strings.Contains(line, "install_awf_binary.sh") {
+		if strings.Contains(line, "install_awf_binary.sh") {
 			return true
 		}
 	}
