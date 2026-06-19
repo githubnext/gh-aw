@@ -175,3 +175,34 @@ network:
 network:
   allowed: []
 ```
+
+### Browser automation (Playwright)
+
+For workflows that install and run Playwright with a browser:
+
+```yaml
+# Playwright + Chromium only (most common)
+network:
+  allowed:
+    - defaults
+    - playwright    # Playwright browser downloads
+    - chrome        # Chromium/Chrome binaries via Google CDN
+
+# Playwright + Chromium + Node.js app build
+network:
+  allowed:
+    - defaults
+    - node          # npm/yarn for app dependencies
+    - playwright    # Playwright browser downloads
+    - chrome        # Chromium/Chrome binaries
+
+# Playwright + Chromium + apt system packages
+network:
+  allowed:
+    - defaults
+    - linux-distros  # apt/deb packages for Chromium dependencies
+    - playwright     # Playwright browser downloads
+    - chrome         # Chromium/Chrome binaries
+```
+
+> **Tip**: If your visual regression workflow builds a Node.js app before running Playwright, include `node` for `npm install`. Add `linux-distros` only when the workflow explicitly runs `apt-get` for system dependencies like shared libraries.

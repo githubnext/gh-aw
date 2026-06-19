@@ -55,6 +55,47 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 - Before creating the file, check whether `.github/workflows/<workflow-id>.md` already exists.
 - If it exists, choose a more specific ID instead of overwriting.
 
+### 1a. Decide whether to enable strict mode
+
+Set `strict: true` in the frontmatter when the workflow will run in production and write to shared state (issues, PRs, comments). Strict mode enforces:
+
+- actions pinned to commit SHAs (no tag references)
+- no wildcard (`*`) in `network.allowed`
+- no direct write permissions — all mutations must go through `safe-outputs:`
+
+Example skeleton with strict mode enabled:
+
+```markdown
+---
+emoji: 🔒
+description: <brief description>
+strict: true
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/**"
+      - "packages/**"
+permissions:
+  contents: read
+  pull-requests: read
+tools:
+  github:
+    mode: gh-proxy
+    toolsets: [default]
+network:
+  allowed:
+    - defaults
+    - github
+safe-outputs:
+  add-comment:
+    max: 1
+  noop:
+---
+```
+
+Omit `strict: true` for exploratory or low-risk workflows; default is non-strict.
+
 ### 2. Choose the trigger
 
 Use the smallest trigger that matches the request.
@@ -89,6 +130,74 @@ Compact scenario examples:
 - **Visual regression on UI changes**: trigger `pull_request`, use `playwright` + `cache-memory`, keep writes in `add-comment`, call `noop` when UI paths are unchanged.
 - **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, call `noop` when a failure self-recovers or is duplicate noise.
 - **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, publish digest with `create-issue`, call `noop` when there are no updates in the date window.
+
+### Path filter examples
+
+Add `paths:` to PR triggers so the workflow only runs when relevant files change:
+
+```yaml
+# Backend contract files only
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "db/migrate/**"
+      - "migrations/**"
+      - "schema/**"
+      - "openapi/**"
+      - "api/**"
+
+# UI source files for visual regression
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/**"
+      - "components/**"
+      - "app/**"
+      - "public/**"
+      - "*.css"
+
+# Dependency files for security audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "yarn.lock"
+      - "pnpm-lock.yaml"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - "go.mod"
+      - "Cargo.toml"
+```
+
+Use `paths-ignore:` to skip documentation-only changes:
+
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".github/CODEOWNERS"
+```
+
+### Noop criteria reference
+
+For every scenario, provide explicit `noop` stop conditions in the prompt so no-op runs are observable:
+
+| Scenario | Noop when |
+|---|---|
+| Schema/API review | No migration or contract files changed in the PR |
+| Visual regression | All screenshots match baselines within threshold |
+| Deployment triage | Deployment did not fail, or a duplicate open issue already exists |
+| Security audit | No new vulnerabilities found in changed dependencies |
+| Stakeholder digest | No activity in the reporting date window |
+| Issue triage | Issue already has a triage label or is assigned |
+| CI regression watcher | Failure is a known flake with an open tracking issue |
 
 ### 2a. Backend review compact guidance
 
@@ -158,6 +267,19 @@ Common mappings:
 - add labels → `add-labels`
 - attach downloadable files → `upload-artifact`
 - publish embeddable assets → `upload-asset`
+
+**Scenario safe-output mapping:**
+
+| Scenario | Trigger | Safe output | Noop when |
+|---|---|---|---|
+| PR code/schema review | `pull_request` | `add-comment` (max: 1) | No relevant files changed |
+| Visual regression | `pull_request` | `add-comment` (max: 1) | Screenshots match baselines |
+| Deployment incident triage | `deployment_status` | `create-issue` (close-older-issues: true) | Not a failure, or duplicate issue exists |
+| CI regression | `workflow_run` | `create-issue` | Known flake or no new regressions |
+| Security audit | `pull_request` | `add-comment` | No new vulnerabilities found |
+| Stakeholder digest | `schedule` | `create-issue` | No activity in date window |
+| Issue routing/labeling | `issues` | `add-labels` + `add-comment` | Issue already labeled/assigned |
+| Code refactoring PR | `schedule` or `slash_command` | `create-pull-request` (allowed-files scoped) | Nothing to refactor |
 
 Rules:
 

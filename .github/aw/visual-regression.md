@@ -63,3 +63,28 @@ Otherwise compare each screenshot to its baseline. Post a comment summarizing: p
 - If external previews are required, allowlist exact domains (no broad wildcards).
 - Enable `network.node` only when installing/building Node deps; scope to registries and preview hosts.
 - Keep Playwright navigation limited to app-under-test URLs.
+
+## Network Access by Installation Scenario
+
+Match your `network.allowed` entries to what the workflow actually installs:
+
+| What the workflow does | Ecosystems to include |
+|---|---|
+| Playwright browser download only (no app build) | `defaults`, `playwright`, `chrome` |
+| Build a Node.js app, then run Playwright | `defaults`, `node`, `playwright`, `chrome` |
+| Build a Node.js app + `apt-get` system libs, then run Playwright | `defaults`, `node`, `linux-distros`, `playwright`, `chrome` |
+| Build a Python app, then run Playwright | `defaults`, `python`, `playwright`, `chrome` |
+| Serve an already-built artifact (no package install) | `defaults`, `playwright`, `chrome` |
+
+Example for a Node.js app with Playwright:
+
+```yaml
+network:
+  allowed:
+    - defaults
+    - node        # npm install for app dependencies
+    - playwright  # Playwright browser downloads
+    - chrome      # Chromium/Chrome binaries
+```
+
+> ⚠️ **Do not use `network: defaults` alone** for workflows that install packages or download browsers — `defaults` covers only basic infrastructure (certificate authorities, Ubuntu package verification). Always add the relevant ecosystems.

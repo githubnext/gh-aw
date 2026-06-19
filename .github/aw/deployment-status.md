@@ -29,6 +29,96 @@ safe-outputs:
   noop:
 ```
 
+## Failure Filters
+
+Filter events before running expensive agent logic. Common patterns:
+
+### Filter by environment
+
+Use an `if:` expression to process only the environments you care about:
+
+```yaml
+# Production failures only
+if: ${{ github.event.deployment_status.state == 'failure' && github.event.deployment.environment == 'production' }}
+
+# Production or staging failures
+if: ${{ github.event.deployment_status.state == 'failure' && (github.event.deployment.environment == 'production' || github.event.deployment.environment == 'staging') }}
+```
+
+### Filter by state
+
+`deployment_status` fires for all terminal states (`success`, `failure`, `error`, `inactive`). Always restrict to actionable states:
+
+```yaml
+# Failures and errors only
+if: ${{ contains(fromJSON('["failure","error"]'), github.event.deployment_status.state) }}
+```
+
+### Filter by deployer
+
+To skip bot/automation-triggered deployments:
+
+```yaml
+if: ${{ github.event.deployment_status.state == 'failure' && !endsWith(github.event.deployment.creator.login, '[bot]') }}
+```
+
+## Deduplication with `cache-memory`
+
+Use `cache-memory` to prevent duplicate incident issues when the same environment fails repeatedly within a short window:
+
+```yaml
+tools:
+  github:
+    toolsets: [default]
+  cache-memory:
+    key: deployment-incidents-${{ github.event.deployment.environment }}
+    retention-days: 7
+    allowed-extensions: [".json"]
+safe-outputs:
+  create-issue:
+    expires: 1d
+    title-prefix: "[Deployment Failure] "
+    close-older-issues: true
+  noop:
+```
+
+Dedupe instructions for the agent:
+
+```markdown
+1. Check `/tmp/gh-aw/cache-memory/last-incident.json` for the most recent incident SHA.
+2. If the current SHA (`${{ github.event.deployment.sha }}`) matches the cached SHA, call `noop` — this is a duplicate notification.
+3. If there is no cache or the SHA is new, create an incident issue and write `{"sha":"${{ github.event.deployment.sha }}","env":"${{ github.event.deployment.environment }}"}` to `/tmp/gh-aw/cache-memory/last-incident.json`.
+```
+
+## Structured Incident Issue Fields
+
+Include these fields in every incident issue body to ensure triage can proceed without the external link:
+
+```markdown
+## Incident Details
+
+| Field | Value |
+|---|---|
+| **Environment** | ${{ github.event.deployment.environment }} |
+| **State** | ${{ github.event.deployment_status.state }} |
+| **Branch / ref** | ${{ github.event.deployment.ref }} |
+| **Commit SHA** | ${{ github.event.deployment.sha }} |
+| **Deployed by** | ${{ github.event.deployment.creator.login }} |
+| **Error description** | ${{ github.event.deployment_status.description }} |
+| **External logs** | [View deployment logs](${{ github.event.deployment_status.target_url }}) |
+
+## Impact Assessment
+
+<Describe observed symptoms, affected services, and estimated user impact.>
+
+## Suggested Next Steps
+
+1. Review the external deployment logs linked above.
+2. Check recent commits on `${{ github.event.deployment.ref }}` for likely causes.
+3. Roll back to the previous successful deployment if users are impacted.
+4. Re-run the deployment pipeline after fixing the root cause.
+```
+
 ## Available Event Context
 
 The following expressions are available in the prompt body:
