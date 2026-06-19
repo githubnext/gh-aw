@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-18",
+  "updated": "2026-06-19",
   "workflows": {
     "Linter Miner": {
       "last": "2026-06-06",
@@ -16,11 +16,11 @@
       "note": "RECUR day4: awf-cli-proxy 18443 connection refused, agent never invoked turns=0 (27297209601)"
     },
     "PR Code Quality Reviewer": {
-      "last": "2026-06-10",
+      "last": "2026-06-19",
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "session.idle-870s-timeout",
-      "note": "2/3 runs hard-failed via copilot-sdk session.idle 870s timeout (hasOutput=true, review done then session never idle); runs 27296662875,27297195086"
+      "note": "06-19 0-tok/23min tool-perm-lockout on PR branch"
     },
     "Daily Testify Uber Super Expert": {
       "last": "2026-06-16",
@@ -37,11 +37,11 @@
       "note": "MODULE_NOT_FOUND minimatch (run 27070604747); observability flagged as overkill_for_agentic"
     },
     "Daily SPDD Spec Planner": {
-      "last": "2026-06-18",
+      "last": "2026-06-19",
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "copilot-sdk-driver-failures",
-      "note": "NEW affected wf, same lockout signature"
+      "note": "06-19 0-tok/25min tool-perm-lockout (detection+safe_outputs oddly SUCCESS)"
     },
     "GEO Optimizer Daily Audit": {
       "last": "2026-06-06",
@@ -58,18 +58,18 @@
       "note": "RECUR day 3: 400 'This model does not support the effort parameter' (run 27104658186, retries 1/11). Unfixed; drop effort param from frontmatter."
     },
     "Daily Cache Strategy Analyzer": {
-      "last": "2026-06-18",
+      "last": "2026-06-19",
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "codex-gh-aw-binary-not-found-for-mcp",
-      "note": "codex 0-tok agent:failure; persistent ~100% fail-rate"
+      "note": "06-19 codex 0-tok/6min agent:failure; ~100% fail-rate"
     },
     "Daily Safe Output Integrator": {
-      "last": "2026-06-18",
+      "last": "2026-06-19",
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "copilot-sdk-driver-failures",
-      "note": "0-tok/25min tool-perm-lockout, recur day11"
+      "note": "06-19 0-tok/23min tool-perm-lockout, day12"
     },
     "Design Decision Gate": {
       "last": "2026-06-06",
@@ -132,7 +132,7 @@
     "Smoke Gemini": {
       "last_seen": "2026-06-11",
       "last_status": "failure",
-      "reliability": "0/2 — gemini model pricing missing (gemini-3.1-flash-tts-preview)",
+      "reliability": "0/2 \u2014 gemini model pricing missing (gemini-3.1-flash-tts-preview)",
       "engine": "gemini"
     },
     "Smoke Antigravity": {
@@ -148,11 +148,12 @@
       "engine": "pi"
     },
     "Avenger": {
-      "last": "2026-06-18",
+      "last": "2026-06-19",
       "last_concl": "failure",
-      "eff_tok": 77000,
+      "eff_tok": 0,
       "class": "avenger-err-config-no-structured-logs",
-      "note": "x2 fails 06-18 (2-turn each) after 4 quiet days; chronic, recur 11"
+      "note": "06-19 x4 = 100% of runs reddened (0-tok), escalating from 06-18 x2; chronic #1 prod-main offender",
+      "class_": "avenger-err-config-no-structured-logs"
     },
     "Daily Formal Spec Verifier": {
       "last": "2026-06-14",
@@ -163,11 +164,11 @@
       "engine": "copilot-sdk"
     },
     "Documentation Unbloat": {
-      "last": "2026-06-18",
+      "last": "2026-06-19",
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "doc-unbloat-empty-output",
-      "note": "empty {items:[]}, recur 5"
+      "note": "06-19 0-tok/3min empty-output, recur 6"
     },
     "Repository Tree Map Generator": {
       "last": "2026-06-15",

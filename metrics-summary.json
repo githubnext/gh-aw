@@ -1,32 +1,26 @@
 {
-  "updated": "2026-06-18T22:00Z",
-  "date": "2026-06-18",
+  "updated": "2026-06-19T22:00Z",
+  "date": "2026-06-19",
   "partial": true,
-  "latest_window": "2026-06-18 last-24h (~13.1h compute, evening cluster). 78 runs w/summary (76 completed, 2 in-progress=this audit + PR Description Updater). 67 s / 9 f = 88.2% completed. prod-main(main+schedule) 23/31 = 74.2% — DIP vs 06-17 (97.7%), driven by an 8-failure cluster ALL mapping to KNOWN recurring issues (no new class). missing_tools=0 missing_data=0 mcp_failures=0 errors=0. fw 80/5552=1.4% blocked, ALL by-design (google safebrowsing smoke egress probes + github-cloud/golang-proxy asset pulls). Engines (downloaded subset): copilot 60, claude 17, codex 1 — NOTE gemini/antigravity/pi smoke runs undercounted (logs tool 120s timeout left ~90 run dirs empty).",
+  "latest_window": "2026-06-19 last-24h (window 16:18Z-21:29Z, ~18.8h compute action-min). 106 runs, 97 s / 9 f = 91.5%. prod-main 46/54 = 85.2% \u2014 REBOUND from 06-18 (74.2%). All 9 fails KNOWN-recurring, ZERO new class: Avenger x4 (100% of its runs, escalating day-over-day from 06-18 x2), copilot-sdk tool-perm-lockout x3 (Daily Safe Output Integrator, Daily SPDD Spec Planner, PR Code Quality Reviewer), codex Cache Strategy x1, Documentation Unbloat empty-output x1. missing_tools=0 missing_data=0 mcp_failures=0 errors=0. TOKEN DATA UNAVAILABLE this window (logs called without --artifacts; all token_usage.jsonl empty, summary tok=0).",
   "totals": {
-    "r": 78,
-    "completed": 76,
-    "s": 67,
+    "r": 106,
+    "completed": 106,
+    "s": 97,
     "f": 9,
-    "in_progress": 2,
-    "rate": 88.2,
-    "prod_main_rate": 74.2,
-    "tok": 42796721,
-    "turns": 1015,
-    "action_min": 786,
+    "rate": 91.5,
+    "prod_main_rate": 85.2,
+    "tok": null,
+    "tok_note": "unavailable-artifacts-not-downloaded",
+    "action_min": 1129,
     "missing_tools": 0,
     "missing_data": 0,
     "mcp_failures": 0,
     "errors": 0,
-    "safe_items": 11,
-    "fw_total": 5552,
-    "fw_blocked": 80
+    "safe_items": 0
   },
   "engines": {
-    "copilot": 60,
-    "claude": 17,
-    "codex": 1,
-    "note": "partial: gemini/antigravity/pi undercounted due to logs-timeout empty dirs"
+    "note": "engine_counts unavailable this window (logs summary.engine_counts=none, aw_info.json artifacts not downloaded)"
   },
   "history": [
     {
@@ -107,7 +101,7 @@
       "rate": 84.2,
       "$": 15.05,
       "tok": 32731221,
-      "note": "full window; $ claude-measured. Success DOWN from 96.2% peak. 9 failures/3 classes: token-budget-429 RE-ESCALATED (2 wf over 25M cap), safe-output partial-failure-intolerance (3 wf), NEW copilot-sdk-session-auth (4 dev-iteration runs on 1 experimental wf). Cos…"
+      "note": "full window; $ claude-measured. Success DOWN from 96.2% peak. 9 failures/3 classes: token-budget-429 RE-ESCALATED (2 wf over 25M cap), safe-output partial-failure-intolerance (3 wf), NEW copilot-sdk-session-auth (4 dev-iteration runs on 1 experimental wf). Cos\u2026"
     },
     {
       "d": "2026-06-03",
@@ -134,7 +128,7 @@
       "s": 48,
       "rate": 90.6,
       "tok": 30404314,
-      "note": "full window (~4h evening cluster; continuation returned 0 older runs). 5 fail: NEW model/param config-incompatibility x2 prod-main (Caveman effort-unsupported 400, Cache Strategy model-not-found 404) + TQS copilot agent-job redden w/ valid output + 2 by-design…"
+      "note": "full window (~4h evening cluster; continuation returned 0 older runs). 5 fail: NEW model/param config-incompatibility x2 prod-main (Caveman effort-unsupported 400, Cache Strategy model-not-found 404) + TQS copilot agent-job redden w/ valid output + 2 by-design\u2026"
     },
     {
       "d": "2026-06-06",
@@ -143,7 +137,7 @@
       "rate": 83.5,
       "tok": 41627101,
       "partial": true,
-      "note": "PARTIAL ~6h window (15:11-21:29Z; logs tool timed out at 120s, newest 100 runs only, ~18h unobserved). 16 fail. DOMINANT: copilot SDK-driver path broken = 9/16 (NEW minimatch MODULE_NOT_FOUND x6 + RECUR tool-perm-lockout x3). Also: model/param config RECUR x2…"
+      "note": "PARTIAL ~6h window (15:11-21:29Z; logs tool timed out at 120s, newest 100 runs only, ~18h unobserved). 16 fail. DOMINANT: copilot SDK-driver path broken = 9/16 (NEW minimatch MODULE_NOT_FOUND x6 + RECUR tool-perm-lockout x3). Also: model/param config RECUR x2\u2026"
     },
     {
       "d": "2026-06-07",
@@ -151,7 +145,7 @@
       "s": 46,
       "rate": 85.2,
       "tok": 23994237,
-      "note": "FULL but SMALL 24h window (~3.7h active cluster 17:56-21:38Z; continuation returned 0 older runs — quiet Sunday). PROD-MAIN 39/42 real = 92.9% (excl 1 intentional-fail). 8 fail/4 classes: NEW guardrail-module-missing x4 (PR branch copilot/fix-daily-credit-limi…"
+      "note": "FULL but SMALL 24h window (~3.7h active cluster 17:56-21:38Z; continuation returned 0 older runs \u2014 quiet Sunday). PROD-MAIN 39/42 real = 92.9% (excl 1 intentional-fail). 8 fail/4 classes: NEW guardrail-module-missing x4 (PR branch copilot/fix-daily-credit-limi\u2026"
     },
     {
       "d": "2026-06-08",
@@ -160,7 +154,7 @@
       "rate": 75.0,
       "tok": 24367927,
       "partial": true,
-      "note": "PARTIAL ~3.3h evening cluster (18:21-21:40Z; logs timeout, 93/260 dirs had summaries). ACTIVE INCIDENT copilot-pat-not-supported-400 (NEW) onset 19:40Z still firing 21:37Z: '400 Personal Access Tokens are not supported for this endpoint' on copilot harness+sdk…"
+      "note": "PARTIAL ~3.3h evening cluster (18:21-21:40Z; logs timeout, 93/260 dirs had summaries). ACTIVE INCIDENT copilot-pat-not-supported-400 (NEW) onset 19:40Z still firing 21:37Z: '400 Personal Access Tokens are not supported for this endpoint' on copilot harness+sdk\u2026"
     },
     {
       "d": "2026-06-09",
@@ -169,7 +163,7 @@
       "rate": 83.8,
       "tok": 23834861,
       "partial": true,
-      "note": "PARTIAL ~2.5h evening cluster (19:13-21:41Z, 38 in-window). PAT-400 incident RESOLVED (4 signature-carrying runs all SUCCEEDED attempt1; pelikhan/fix-pat-400-retry landed). 6 fail ALL copilot: NEW daily-ai-credits-cap-429 (Ambient 1026.78/1000 prod-main), cli-…"
+      "note": "PARTIAL ~2.5h evening cluster (19:13-21:41Z, 38 in-window). PAT-400 incident RESOLVED (4 signature-carrying runs all SUCCEEDED attempt1; pelikhan/fix-pat-400-retry landed). 6 fail ALL copilot: NEW daily-ai-credits-cap-429 (Ambient 1026.78/1000 prod-main), cli-\u2026"
     },
     {
       "d": "2026-06-10",
@@ -254,6 +248,15 @@
       "tok": 42796721,
       "partial": true,
       "note": "prod-main 74.2%; 8-fail cluster all KNOWN-recurring (avenger x2, copilot-sdk-lockout x2, doc-unbloat, codex-binary, security-obs 0tok, PR-Sous-Chef safe_outputs); 0 missing-tools/data/mcp"
+    },
+    {
+      "d": "2026-06-19",
+      "r": 106,
+      "s": 97,
+      "rate": 91.5,
+      "tok": null,
+      "partial": true,
+      "note": "prod-main 85.2% rebound; 9 fails ALL known (avenger x4 100%, copilot-sdk-lockout x3, codex-cache-strategy, doc-unbloat); 0 missing-tools/data/mcp/errors; token data unavailable (artifacts not fetched)"
     }
   ]
 }

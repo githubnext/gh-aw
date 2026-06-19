@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-18",
+  "updated": "2026-06-19",
   "issues": [
     {
       "id": "model-param-config-incompatibility",
@@ -9,12 +9,12 @@
       "new": false,
       "first_seen": "2026-06-05",
       "last_seen": "2026-06-13",
-      "recurrence": "RECUR 2026-06-13 (count 4): Daily Cache Strategy Analyzer codex 28x 'Model not found' gpt-5-codex-alpha — SAME wf, SAME signature as 06-11/06-05. Still unfixed.",
+      "recurrence": "RECUR 2026-06-13 (count 4): Daily Cache Strategy Analyzer codex 28x 'Model not found' gpt-5-codex-alpha \u2014 SAME wf, SAME signature as 06-11/06-05. Still unfixed.",
       "affected": [
         "Daily Caveman Optimizer",
         "Daily Cache Strategy Analyzer"
       ],
-      "note": "Two variants: (a) Daily Caveman Optimizer [claude] -> 400 invalid_request_error 'This model does not support the effort parameter' (claude model pinned with a r…",
+      "note": "Two variants: (a) Daily Caveman Optimizer [claude] -> 400 invalid_request_error 'This model does not support the effort parameter' (claude model pinned with a r\u2026",
       "recurrence_count": 4
     },
     {
@@ -24,7 +24,7 @@
       "severity": "HIGH",
       "first_seen": "2026-05",
       "last_seen": "2026-06-18",
-      "recurrence": "ABSENT 2026-06-07: PR Sous Chef ran 3x on main this window (0/7/21 turns, execution-drift flagged) all SUCCESS; no safe_outputs …",
+      "recurrence": "ABSENT 2026-06-07: PR Sous Chef ran 3x on main this window (0/7/21 turns, execution-drift flagged) all SUCCESS; no safe_outputs \u2026",
       "affected": [
         "Contribution Check",
         "PR Sous Chef",
@@ -40,8 +40,8 @@
       "status": "recurring",
       "severity": "HIGH",
       "first_seen": "2026-06-02",
-      "last_seen": "2026-06-18",
-      "recurrence": "RECUR 2026-06-16 (count 10): Daily Safe Output Integrator (copilot, run 27643760095) 5-denial tool-perm-lockout (read /pkg/*, shell go version/git status) ~24min then agent:failure 0-tok. Daily Testify Uber Super Expert (run 27641213363) SAME signature ~26min — NEW affected wf. Day10.",
+      "last_seen": "2026-06-19",
+      "recurrence": "RECUR 2026-06-19 (count 12): 3 tool-perm-lockout 0-tok fails \u2014 Daily Safe Output Integrator (27844066542, 23min, safe_outputs+detection skipped), Daily SPDD Spec Planner (27837850380, 25min, detection+safe_outputs SUCCESS), PR Code Quality Reviewer (27841406519, PR branch, 23min). Day12 of chronic path.",
       "affected": [
         "Daily SPDD Spec Planner",
         "Daily Safe Output Integrator",
@@ -49,8 +49,8 @@
         "GEO Optimizer Daily Audit",
         "PR Code Quality Reviewer"
       ],
-      "note": "day11: SPDD Spec Planner (NEW affected wf) + Safe Output Integrator both 0-tok/1-turn/~25min tool-perm-lockout fails",
-      "recurrence_count": 11
+      "note": "06-19 x3 prod/PR tool-perm-lockout (Safe Output Integrator, SPDD, PR CQR)",
+      "recurrence_count": 12
     },
     {
       "id": "copilot-agent-job-redden-with-valid-output",
@@ -60,46 +60,13 @@
       "new": true,
       "first_seen": "2026-06-05",
       "last_seen": "2026-06-12",
-      "recurrence": "RECUR 2026-06-12 x3: Smoke Copilot (gpt-5.4) agent SUCCEEDED (exitCode=0) and emitted a valid FAIL-status smoke report (create_issue #38943, set_issue_type, add_comment all OK per safe-output-items.jsonl) on 3 runs (27444195593, 27443692618…",
+      "recurrence": "RECUR 2026-06-12 x3: Smoke Copilot (gpt-5.4) agent SUCCEEDED (exitCode=0) and emitted a valid FAIL-status smoke report (create_issue #38943, set_issue_type, add_comment all OK per safe-output-items.jsonl) on 3 runs (27444195593, 27443692618\u2026",
       "affected": [
         "Test Quality Sentinel",
         "Smoke Copilot"
       ],
       "note": "Likely two root causes under one id: (a) safe_outputs partial-failure-intolerance reds a job after a valid agent run; (b) empty-output agent failures. Smoke variant most affected.",
       "recurrence_count": 3
-    },
-    {
-      "id": "create_discussion-missing-label-tempid",
-      "title": "create_discussion safe-output lacks label + temporary_id fields",
-      "status": "OPEN",
-      "severity": "LOW",
-      "first_seen": "2026-06-04",
-      "last_seen": "2026-06-05",
-      "recurrence": "re-surfaced by Smoke Copilot probe 2026-06-05",
-      "affected": [
-        "Smoke Copilot"
-      ],
-      "note": "Product gap surfaced by smoke test: create_discussion cannot attach labels (e.g. ai-generated) or a temporary_id for cross-referencing."
-    },
-    {
-      "id": "cli-proxy-difc-liveness-probe-failed",
-      "title": "awf-cli-proxy container DIFC liveness probe fails (localhost:18443 connection refused)",
-      "first_seen": "2026-06-08",
-      "last_seen": "2026-06-10",
-      "recurrence": 4,
-      "status": "recurring",
-      "severity": "medium",
-      "engines": [
-        "copilot"
-      ],
-      "affected_workflows": [
-        "Issue Monster",
-        "PR Description Updater",
-        "PR Sous Chef",
-        "Sub-Issue Closer",
-        "Auto-Triage Issues"
-      ],
-      "detail": "awf-cli-proxy container errors at startup; DIFC proxy liveness probe to localhost:18443 connection refused -> agent never starts (turns=0). 2 runs, pre-incident 18:xx."
     },
     {
       "id": "daily-ai-credits-cap-429",
@@ -116,12 +83,12 @@
       "affected": [
         "Daily Ambient Context Optimizer"
       ],
-      "note": "Daily Ambient Context Optimizer (copilot, prod-main, run 27233269431) ran 57 turns / 3.0M tokens then the Copilot API returned CAPIError 429 'Maximum AI credits…",
+      "note": "Daily Ambient Context Optimizer (copilot, prod-main, run 27233269431) ran 57 turns / 3.0M tokens then the Copilot API returned CAPIError 429 'Maximum AI credits\u2026",
       "fix": "Add a soft pre-cap credit guard that checks remaining daily AI credits before the heaviest aggregation turns and degrades gracefully (emit partial output + noop) instead of 429-aborting; or raise the cap for the few heavy prod-main aggregators; or shard Ambient's work across smaller runs."
     },
     {
       "id": "copilot-harness-15min-action-timeout",
-      "title": "Copilot CLI step hits hard action timeout (5/15-min tiers) — legit overrun OR degenerate self-loop",
+      "title": "Copilot CLI step hits hard action timeout (5/15-min tiers) \u2014 legit overrun OR degenerate self-loop",
       "status": "recurring",
       "severity": "medium",
       "new": true,
@@ -135,46 +102,9 @@
         "Test Quality Sentinel",
         "GitHub Remote MCP Authentication Test"
       ],
-      "note": "Test Quality Sentinel (copilot, PR branch copilot/feature-dangerously-disable-sandbox-agent, run 27234356749) ran 20 turns / 649k tokens of valid review work, t…",
+      "note": "Test Quality Sentinel (copilot, PR branch copilot/feature-dangerously-disable-sandbox-agent, run 27234356749) ran 20 turns / 649k tokens of valid review work, t\u2026",
       "fix": "Raise the Copilot CLI step timeout for review-heavy workflows, or add periodic checkpoint flushing of the review so a timeout still emits the buffered safe-output instead of reddening with nothing.",
       "recurrence_count": 1
-    },
-    {
-      "id": "docker-hub-registry-pull-timeout",
-      "title": "Image download step fails pulling node:lts-alpine from Docker Hub (registry-1.docker.io) — exit 123, agent nev",
-      "first_seen": "2026-06-10",
-      "last_seen": "2026-06-10",
-      "recurrence": 1,
-      "status": "new",
-      "severity": "high",
-      "new": true,
-      "engines": [
-        "copilot"
-      ],
-      "affected": [
-        "Daily Windows Terminal Integration Builder",
-        "Daily Hippo Learn"
-      ],
-      "note": "download_docker_images.sh pulls all ghcr.io images successfully but TIMES OUT on the single Docker Hub image node:lts-alpine: 'Error response from daemon: Get h…",
-      "fix": "Mirror/cache node:lts-alpine in ghcr.io (or pin to a ghcr-hosted node image) so the agent setup no longer depends on Docker Hub; alternatively authenticate Docker Hub pulls to lift the anonymous rate limit, or add a longer/backed-off retry."
-    },
-    {
-      "id": "repo-memory-push-signed-commit-seeding",
-      "title": "repo-memory push fails: new orphan memory branch needs a manually-seeded signed first commit (GH013 rule viola",
-      "first_seen": "2026-06-10",
-      "last_seen": "2026-06-10",
-      "recurrence": 1,
-      "status": "new",
-      "severity": "low",
-      "new": true,
-      "engines": [
-        "claude"
-      ],
-      "affected": [
-        "Daily Safe Outputs Git Simulator"
-      ],
-      "note": "AGENT SUCCEEDED (agent/detection/safe_outputs all success) but the post-agent push_repo_memory job failed 4/4 attempts: 'remote: error: GH013: Repository rule v…",
-      "fix": "Seed memory/git-simulator manually with one signed commit (per the harness instructions), OR have the repo-memory push step create the orphan branch's first commit as a signed commit, OR exempt memory/* branches from the signed-commit ruleset."
     },
     {
       "id": "gemini-model-ai-credits-pricing-missing",
@@ -189,21 +119,6 @@
         "Smoke Gemini"
       ],
       "fix": "Add gemini-3.1-flash-tts-preview (and likely other new gemini models) to the api-proxy AI-credits pricing table, OR set apiProxy.defaultAiCreditsPricing fallback (e.g. {input:3.0,output:15.0}) in AWF config so unknown models do not hard-fail."
-    },
-    {
-      "id": "daily-effective-workflow-cap-reddens-pr-runs",
-      "status": "OPEN-BY-DESIGN",
-      "severity": "low-ux",
-      "first_seen": "2026-06-11",
-      "last_seen": "2026-06-11",
-      "recurrence_count": 1,
-      "title": "daily_effective_workflow_exceeded gate fails activation -> agent skipped -> PR run reddened",
-      "recurrence": "NEW 2026-06-11. ~20:05-20:51Z the daily effective-workflow budget cap tripped (activation output daily_effective_workflow_exceeded=='true'). Affected 3x Matt Pocock Skills Reviewer + 1x Test Quality S…",
-      "affected_workflows": [
-        "Matt Pocock Skills Reviewer",
-        "Test Quality Sentinel"
-      ],
-      "fix": "Consider surfacing daily-cap gating as a neutral/skipped conclusion (or a clear annotation) instead of run=failure so PR authors don't see false red. Confirm the cap threshold is intended for the evening burst."
     },
     {
       "id": "aoai-apikey-persistent-transient-api-error",
@@ -227,7 +142,7 @@
       "first_seen": "2026-06-12",
       "last_seen": "2026-06-13",
       "recurrence_count": 2,
-      "title": "Copilot CLI requires Node.js but 'node' not available inside AWF chroot — agent never starts",
+      "title": "Copilot CLI requires Node.js but 'node' not available inside AWF chroot \u2014 agent never starts",
       "recurrence": "RECUR 2026-06-13 (count 2): Daily Issues Report Generator exit 127 command-not-found (workflow_dispatch). Confirms 06-12 chroot-node onset is recurring.",
       "affected_workflows": [
         "Daily Issues Report Generator"
@@ -241,13 +156,13 @@
       "severity": "HIGH",
       "new": true,
       "first_seen": "2026-06-13",
-      "last_seen": "2026-06-18",
-      "recurrence_count": 11,
-      "recurrence": "RECUR 2026-06-14 day2 (3x prod-main, claude/opus-4-8; cumulative 9). 2 agents did real work (run 27502877407 created PR avenger/schema-allof-fix-356 $2.06/48turns + valid create_pull_request; 27504244304 ran tests) then run reddened; 27508639846 explicit ERR_CONFIG 0-tok. Fix branch copilot/aw-avenger-failed-fix not...",
+      "last_seen": "2026-06-19",
+      "recurrence_count": 12,
+      "recurrence": "RECUR 2026-06-19 (count 12, ESCALATING): Avenger x4 ALL reddened (100% of its runs) \u2014 runs 27845956163/27843736968/27841318778/27839069048, all main/schedule, 0-tok/0-turn agent:failure 17-21min. Up from 06-18 x2. Chronic #1 prod-main offender; fix branch still not effective.",
       "affected": [
         "Avenger"
       ],
-      "note": "resurfaced 06-18 x2 (77K tok/2-turn agent:failure each) after 4-day quiet since 06-14"
+      "note": "06-19 x4 (100% fail, escalating); 4 days of recurrence since 06-13 onset with quiet gaps"
     },
     {
       "id": "doc-unbloat-empty-output",
@@ -256,13 +171,13 @@
       "severity": "LOW",
       "new": true,
       "first_seen": "2026-06-12",
-      "last_seen": "2026-06-18",
-      "recurrence_count": 5,
-      "recurrence": "RECUR 2026-06-15 (count 4): Documentation Unbloat (claude, run 27565919025). ROOT CAUSE REFINED: git exit code 2 in check_cache_memory_git_integrity.sh (cache-memory integrity), not pure empty-output. Day3 (06-13/14/15).",
+      "last_seen": "2026-06-19",
+      "recurrence_count": 6,
+      "recurrence": "RECUR 2026-06-19 (count 6): Documentation Unbloat (27839021623) 0-tok/3min agent:failure, main/schedule. Empty-output / cache-git-integrity family persists.",
       "affected": [
         "Documentation Unbloat"
       ],
-      "note": "06-18 claude agent emitted {\"items\":[]} empty, 0-tok/3-min, agent:failure"
+      "note": "06-19 claude 0-tok/3-min agent:failure"
     },
     {
       "id": "codex-gh-aw-binary-not-found-for-mcp",
@@ -271,13 +186,13 @@
       "severity": "high",
       "new": true,
       "first_seen": "2026-06-15",
-      "last_seen": "2026-06-18",
-      "recurrence_count": 2,
-      "recurrence": "NEW 2026-06-15: Daily Cache Strategy Analyzer (codex, run 27571281247) exit1. Binary built (go build) + copied to RUNNER_TEMP and /usr/local/bin/gh-aw per logs, yet MCP-helper reported binary-not-found. NEW signature (prior chronic fail=model-not-found gpt-5-codex-alpha). wf flagged 100% fail-rate.",
+      "last_seen": "2026-06-19",
+      "recurrence_count": 3,
+      "recurrence": "RECUR 2026-06-19 (count 3): Daily Cache Strategy Analyzer (27843593919) 0-tok agent:failure 6min, main/schedule. wf remains ~100% fail-rate (binary-not-found / model-not-found family).",
       "affected": [
         "Daily Cache Strategy Analyzer"
       ],
-      "note": "Daily Cache Strategy Analyzer codex 0-tok agent:failure again 06-18; wf remains ~100% fail-rate"
+      "note": "06-19 codex 0-tok agent:failure again; chronically broken wf"
     },
     {
       "id": "copilot-agent-artifact-missing-0tok",
@@ -303,7 +218,7 @@
       "first_seen": "2026-06-16",
       "last_seen": "2026-06-18",
       "recurrence_count": 2,
-      "recurrence": "RECUR 2026-06-17 (count 2): Daily Project Performance Summary Generator copilot run 27720651183 — observability flagged 100% failure (1/1), GitHub status=completed 21.7m. Same upload_assets safe-output reddening signature as 06-16. Still unfixed.",
+      "recurrence": "RECUR 2026-06-17 (count 2): Daily Project Performance Summary Generator copilot run 27720651183 \u2014 observability flagged 100% failure (1/1), GitHub status=completed 21.7m. Same upload_assets safe-output reddening signature as 06-16. Still unfixed.",
       "affected": [
         "Daily Code Metrics and Trend Tracking Agent",
         "Daily Project Performance Summary Generator",

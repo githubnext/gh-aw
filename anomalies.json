@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-18",
+  "updated": "2026-06-19",
   "anomalies": [
     {
       "id": "anom-sdk-toolperm-reescalate",
@@ -7,22 +7,11 @@
       "wf": "Daily Safe Output Integrator",
       "run": "27101776716",
       "kind": "sdk-driver-tool-permission-lockout",
-      "persistence": 5,
+      "persistence": 6,
       "escalation": "PERSISTING-ESCALATE",
-      "detail": "RECUR 06-07 on 1 prod-main schedule (Safe Output Integrator): denies read(*_test.go)/shell(sed), 13 denials, 5-denial abort. Down from 3 wf on 06-06. sdk-driver path now 1/8 fails (minimatch gone). | … | 06-18: spread to NEW wf (SPDD Spec Planner) + Safe Output Integrator, 2 prod-main 0-tok lockout fails, recur day11.",
+      "detail": "RECUR 06-07 on 1 prod-main schedule (Safe Output Integrator): denies read(*_test.go)/shell(sed), 13 denials, 5-denial abort. Down from 3 wf on 06-06. sdk-driver path now 1/8 fails (minimatch gone). | \u2026 | 06-18: spread to NEW wf (SPDD Spec Planner) + Safe Output Integrator, 2 prod-main 0-tok lockout fails, recur day11. | 06-19 day12: 3 prod/PR tool-perm-lockout 0-tok fails (Safe Output Integrator + SPDD Spec Planner + PR Code Quality Reviewer).",
       "status": "ACTIVE",
-      "last_seen": "2026-06-18"
-    },
-    {
-      "id": "anom-ambient-back-under-cap",
-      "date": "2026-06-06",
-      "wf": "Daily Ambient Context Optimizer",
-      "run": null,
-      "kind": "effective-token-back-under-cap",
-      "persistence": 4,
-      "escalation": "DE-ESCALATED",
-      "detail": "21.48M eff this window, comfortably UNDER the 25M cap (was 25.37M over-cap 06-05, 25.12M 429-fail 06-04). token-budget-429 quiet. Watch continues but trending safe.",
-      "status": "WATCH"
+      "last_seen": "2026-06-19"
     },
     {
       "id": "anom-model-config-effort",
@@ -32,7 +21,7 @@
       "kind": "model-config-effort-unsupported",
       "persistence": 3,
       "escalation": "PERSISTING-ESCALATE",
-      "detail": "RECUR 3rd consecutive day: 400 'This model does not support the effort parameter' (run 27104658186, now retries 1/11) on prod main schedule; all retries exhausted, 0 tokens. Unfixed 3 days — static co…",
+      "detail": "RECUR 3rd consecutive day: 400 'This model does not support the effort parameter' (run 27104658186, now retries 1/11) on prod main schedule; all retries exhausted, 0 tokens. Unfixed 3 days \u2014 static co\u2026",
       "status": "ACTIVE"
     },
     {
@@ -43,7 +32,7 @@
       "kind": "model-config-model-not-found",
       "persistence": 3,
       "escalation": "PERSISTING-ESCALATE",
-      "detail": "RECUR 3rd consecutive day: 404 'Model not found gpt-5-codex-alpha-2025-11-07' (run 27101492605) on prod main schedule. Model id ROTATED from adelie-alpha-2026-02-19 but STILL 404 — chasing a moving en…",
+      "detail": "RECUR 3rd consecutive day: 404 'Model not found gpt-5-codex-alpha-2025-11-07' (run 27101492605) on prod main schedule. Model id ROTATED from adelie-alpha-2026-02-19 but STILL 404 \u2014 chasing a moving en\u2026",
       "status": "ACTIVE"
     },
     {
@@ -53,32 +42,10 @@
       "persistence": 2,
       "state": "new",
       "severity": "high",
-      "note": "Daily Ambient Context Optimizer prod-main hit account daily AI-credits cap 429 (1026.78/1000) at turn 57, 3.0M tokens wasted. Watch whether this recurs as heavy aggregators routinely cross the ~1000-c…",
+      "note": "Daily Ambient Context Optimizer prod-main hit account daily AI-credits cap 429 (1026.78/1000) at turn 57, 3.0M tokens wasted. Watch whether this recurs as heavy aggregators routinely cross the ~1000-c\u2026",
       "escalation": "WATCH",
       "date": "2026-06-10",
       "detail": " | 06-10: Ambient 1003/1000 AIC recurred. | 06-14: prod-main Ambient CLEAN under-cap; 429 resurfaced ONLY on a PR Smoke Copilot probe (1015/1000, 3.9M tok). Account-wide cap can be tripped by heavy PR probes."
-    },
-    {
-      "id": "anom-docker-hub-pull-timeout",
-      "date": "2026-06-10",
-      "wf": "Daily Windows Terminal Integration Builder / Daily Hippo Learn",
-      "run": "27256826368,27261326308",
-      "kind": "docker-hub-registry-pull-timeout",
-      "persistence": 1,
-      "escalation": "NEW-HIGH",
-      "status": "ACTIVE",
-      "detail": "node:lts-alpine pull from registry-1.docker.io timed out (context deadline exceeded / dial tcp 54.166.120.201:443 i/o timeout) on 2 prod-main copilot runs in a ~1.7h window (06:09-07:49Z); all ghcr.io…"
-    },
-    {
-      "id": "anom-degenerate-date-loop",
-      "date": "2026-06-10",
-      "wf": "GitHub Remote MCP Authentication Test",
-      "run": "27258574627",
-      "kind": "degenerate-tool-loop",
-      "persistence": 1,
-      "escalation": "NEW-MEDIUM",
-      "status": "ACTIVE",
-      "detail": "Agent emitted the same `date -u` shell command 130+ times across 136 turns, 3.7M tokens, then 5-min action timeout. Single worst token-waste anomaly this window. Specific to this MCP-auth-test workflo…"
     },
     {
       "id": "smoke-copilot-aoai-token-blowout",
@@ -87,7 +54,7 @@
       "value": 2152350,
       "persistence_score": 1,
       "escalation": "watch",
-      "desc": "Smoke Copilot - AOAI (apikey) o4-mini-aw burned 2.15M tokens / 73 turns in a transient-API-error retry loop then FAILED. Largest single failed-run token spend this window. See known-issue aoai-apikey-…"
+      "desc": "Smoke Copilot - AOAI (apikey) o4-mini-aw burned 2.15M tokens / 73 turns in a transient-API-error retry loop then FAILED. Largest single failed-run token spend this window. See known-issue aoai-apikey-\u2026"
     },
     {
       "id": "matt-pocock-skills-reviewer-5M-tokens",
@@ -96,18 +63,7 @@
       "value": 5039029,
       "persistence_score": 1,
       "escalation": "watch",
-      "desc": "Matt Pocock Skills Reviewer SUCCEEDED but consumed 5.04M tokens (66 turns) — top token consumer this window, ~20% of all tokens in one run. Not a failure but a cost outlier worth tracking for budget."
-    },
-    {
-      "id": "anom-success-rate-trough-0613",
-      "date": "2026-06-13",
-      "wf": "(fleet)",
-      "run": null,
-      "kind": "success-rate-trough",
-      "persistence": 1,
-      "escalation": "DE-ESCALATED",
-      "status": "RESOLVED",
-      "detail": "Overall 68.4% (67/98) — lowest since 2026-05-23 (41.6%); prod-main 66.7%. Driven almost entirely by Avenger x6 + PR Sous Chef x6 NEW failure clusters. Watch tomorrow: if fix branches land, expect rebound to ~90%. | 06-14 RESOLVED: rebounded to 87.0% as predicted. PR Sous Chef fix landed (10/10). Avenger fix not yet effective (still 3x)."
+      "desc": "Matt Pocock Skills Reviewer SUCCEEDED but consumed 5.04M tokens (66 turns) \u2014 top token consumer this window, ~20% of all tokens in one run. Not a failure but a cost outlier worth tracking for budget."
     },
     {
       "id": "anom-avenger-6x-redden",
@@ -122,28 +78,16 @@
       "last_seen": "2026-06-14"
     },
     {
-      "id": "anom-sous-chef-6x-redden",
-      "date": "2026-06-13",
-      "wf": "PR Sous Chef",
-      "run": "27471203716,27473979242,27475734213,27476889681,27478573032,27479325900",
-      "kind": "sous-chef-mixed-fail",
-      "persistence": 1,
-      "escalation": "DE-ESCALATED",
-      "status": "RESOLVED",
-      "detail": "6 PR Sous Chef reddens: 2x update_branch-from-base safe-output fail + 4x agent-startup-0tok. First clustered appearance. Fix branch in flight. | 06-14 RESOLVED: 10/10 success, fix landed.",
-      "last_seen": "2026-06-14"
-    },
-    {
       "id": "cache-strategy-100pct-fail",
       "date": "2026-06-15",
       "wf": "Daily Cache Strategy Analyzer",
       "run": 27571281247,
       "kind": "failure-hotspot",
-      "persistence": 1,
+      "persistence": 2,
       "escalation": "escalate",
-      "detail": "100% fail-rate; today gh-aw-binary-not-found-for-mcp exit1 (new signature vs prior model-not-found). Chronically broken wf.",
+      "detail": "100% fail-rate; today gh-aw-binary-not-found-for-mcp exit1 (new signature vs prior model-not-found). Chronically broken wf. | 06-19 RECUR: 0-tok agent:failure (27843593919), still ~100% fail-rate.",
       "status": "active",
-      "last_seen": "2026-06-15"
+      "last_seen": "2026-06-19"
     },
     {
       "id": "safe-output-integrator-sdk-perm-lockout",
@@ -175,11 +119,11 @@
       "wf": "Avenger",
       "run": "27777515515,27783264854",
       "kind": "err-config-no-structured-logs",
-      "persistence": 2,
-      "escalation": "WATCH",
-      "detail": "Avenger claude resurfaced 06-18 x2 (77K tok/2-turn agent:failure) after 4-day quiet since 06-14; chronic top prod-main offender (issue recur 11). Bash tool error stalls observed in agent-stdio.",
+      "persistence": 3,
+      "escalation": "PERSISTING-ESCALATE",
+      "detail": "Avenger claude resurfaced 06-18 x2 (77K tok/2-turn agent:failure) after 4-day quiet since 06-14; chronic top prod-main offender (issue recur 11). Bash tool error stalls observed in agent-stdio. | 06-19 ESCALATE: x4 reddens (100% of Avenger runs), 0-tok/0-turn agent:failure 17-21min (27845956163/27843736968/27841318778/27839069048). Up from 06-18 x2; chronic #1 prod-main offender.",
       "status": "ACTIVE",
-      "last_seen": "2026-06-18"
+      "last_seen": "2026-06-19"
     }
   ]
 }
