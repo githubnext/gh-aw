@@ -139,6 +139,9 @@ Test workflow`
 	}
 
 	// The install step must reference the pinned version
+	if !strings.Contains(detectionSection, "install_awf_binary.sh") {
+		t.Error("External detector path must emit 'install_awf_binary.sh' install step")
+	}
 	if !strings.Contains(detectionSection, "install_threat_detect_binary.sh") {
 		t.Error("External detector path must emit 'install_threat_detect_binary.sh' install step")
 	}

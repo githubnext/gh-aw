@@ -307,21 +307,24 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data) {
 		// External detector path (features: gh-aw-detection: true)
 
-		// Step 7: Install the threat-detect binary from GitHub Releases
+		// Step 7: Install AWF binary (required for the detection AWF invocation)
+		steps = append(steps, c.buildInstallAWFForExternalDetectorStep(data)...)
+
+		// Step 8: Install the threat-detect binary from GitHub Releases
 		steps = append(steps, c.buildInstallThreatDetectStep()...)
 
-		// Step 8: Run threat-detect under AWF with a read-write mount for the result file
+		// Step 9: Run threat-detect under AWF with a read-write mount for the result file
 		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
 
-		// Step 9: Custom post-steps if configured (run after detection execution)
+		// Step 10: Custom post-steps if configured (run after detection execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
 		}
 
-		// Step 10: Upload detection_result.json + detection.log as the detection artifact
+		// Step 11: Upload detection_result.json + detection.log as the detection artifact
 		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
 
-		// Step 11: Conclude via threat-detect conclude (no .cjs)
+		// Step 12: Conclude via threat-detect conclude (no .cjs)
 		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
 	} else {
 		// Inline engine path (default)
@@ -927,6 +930,26 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 }
 
 // --- External detector helper functions (features: gh-aw-detection: true) ---
+
+// buildInstallAWFForExternalDetectorStep creates the AWF installation step required
+// by the external detector execution path, which invokes `awf` directly.
+func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []string {
+	version := string(constants.DefaultFirewallVersion)
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil && firewallConfig.Version != "" {
+		version = firewallConfig.Version
+	}
+
+	step := generateAWFInstallationStep(version, nil)
+	if len(step) == 0 {
+		return nil
+	}
+
+	lines := make([]string, 0, len(step))
+	for _, line := range step {
+		lines = append(lines, line+"\n")
+	}
+	return lines
+}
 
 // buildInstallThreatDetectStep creates a step that installs the threat-detect binary
 // from GitHub Releases at the pinned version. This is used when the gh-aw-detection
