@@ -189,6 +189,10 @@ Controls full Data Integrity and Flow Control (DIFC) proxy enforcement. When `to
 
 A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/examples/maintaining-repos/#reactions-as-trust-signals).
 
+### Soft-Skip
+
+A safe output processing behavior where a handler skips an operation with a warning message instead of failing the workflow step. A soft-skip occurs when a condition prevents execution but is not considered a hard error — for example, when `target: triggering` is configured but no triggering PR context exists, or when `resolveReviewThread` is rejected by the GitHub API due to token scope limitations. Soft-skips allow the workflow to continue processing other safe outputs rather than aborting entirely. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
 ### Status Comment
 
 A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Defaults to `true` for `slash_command` and `label_command` triggers; must be explicitly enabled for other trigger types. Set `status-comment: false` to disable. Not automatically bundled with `ai-reaction` — each must be configured independently.
@@ -327,7 +331,7 @@ A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric chara
 
 ### Merge Pull Request (`merge-pull-request:`)
 
-An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Supports `merge`, `squash`, and `rebase` methods and cross-repository targets. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/#type-merge_pull_request).
+An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Merges to the repository default branch are always refused. Supports `merge`, `squash`, and `rebase` methods, cross-repository targets, and `staged: true` for dry-run gate evaluation without calling the GitHub merge API. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#merge-pull-request-merge-pull-request) and the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/#type-merge_pull_request).
 
 ### Close Pull Request (`close-pull-request:`)
 

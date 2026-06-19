@@ -465,6 +465,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     - `py:` - Python script implementation
     - `go:` - Go script implementation (executed via `go run`, receives inputs as JSON via stdin)
     - `env:` - Environment variables for secrets (supports `${{ secrets.* }}`)
+    - `dependencies:` - Runtime packages installed before first invocation (list of strings). Manager inferred from script type: `script`→npm, `py`→pip, `go`→`go get`, `run`→apt. Must be exact-version-pinned (`name@1.2.3`, `name==1.2.3`, `module@v1.2.3`, `name=1.6`); floating refs are rejected.
     - `timeout:` - Execution timeout in seconds (default: 60)
   - Example:
 
@@ -484,11 +485,10 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         script: |
           const { Octokit } = require('@octokit/rest');
           const octokit = new Octokit({ auth: process.env.GH_TOKEN });
-          const result = await octokit.search.issuesAndPullRequests({
-            q: inputs.query,
-            per_page: inputs.limit
-          });
-          return result.data.items;
+          const r = await octokit.search.issuesAndPullRequests({ q: inputs.query, per_page: inputs.limit });
+          return r.data.items;
+        dependencies:
+          - "@octokit/rest@21.0.2"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     ```
