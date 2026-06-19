@@ -3712,6 +3712,12 @@
       "default": 1000,
       "description": "Per-run AI Credits budget control for firewall cost enforcement. Enabled by default at 1000 (1k) when omitted. Set to -1 to disable both budget enforcement and token steering. Supports GitHub Actions expressions."
     },
+    "max-cache-misses": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5,
+      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses` and defaults to 5 when omitted."
+    },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
       "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."

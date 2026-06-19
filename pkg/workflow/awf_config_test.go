@@ -49,6 +49,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
 		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns")
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxCacheMisses":%d`, constants.DefaultMaxCacheMisses), "apiProxy should emit default maxCacheMisses")
 		assert.NotContains(t, jsonStr, `"maxEffectiveTokens"`, "apiProxy should omit maxEffectiveTokens when unset")
 
 		// container.imageTag
@@ -159,6 +160,66 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should bake in frontmatter maxAiCredits (skipping runtime expression)")
+	})
+
+	t.Run("default max-cache-misses uses built-in default when unset", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxCacheMisses":5`, "apiProxy should emit built-in maxCacheMisses default when unset")
+	})
+
+	t.Run("enterprise default max-cache-misses env var overrides built-in default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxCacheMisses, "9")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxCacheMisses":9`, "apiProxy should emit env-managed default maxCacheMisses when frontmatter is unset")
+	})
+
+	t.Run("frontmatter max-cache-misses takes precedence over env default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxCacheMisses, "9")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:             "copilot",
+					MaxCacheMisses: 3,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxCacheMisses":3`, "apiProxy should emit frontmatter maxCacheMisses ahead of env default")
 	})
 
 	// T-AIC-PR-007: Imported workflow max-ai-credits baked into AWF config JSON when no main

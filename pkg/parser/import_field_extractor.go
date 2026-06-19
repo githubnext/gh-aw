@@ -81,6 +81,7 @@ type importAccumulator struct {
 	mergedMaxTurns          string
 	mergedMaxToolDenials    string
 	mergedMaxRuns           string
+	mergedMaxCacheMisses    string
 	mergedMaxAICredits      string
 	mergedMaxDailyAICredits string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
@@ -362,6 +363,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turns", &acc.mergedMaxTurns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-tool-denials", &acc.mergedMaxToolDenials)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
+	acc.extractFirstWinsJSONField(fm, fullPath, "max-cache-misses", &acc.mergedMaxCacheMisses)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
 
@@ -751,6 +753,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMaxTurns:                acc.mergedMaxTurns,
 		MergedMaxToolDenials:          acc.mergedMaxToolDenials,
 		MergedMaxRuns:                 acc.mergedMaxRuns,
+		MergedMaxCacheMisses:          acc.mergedMaxCacheMisses,
 		MergedMaxAICredits:            acc.mergedMaxAICredits,
 		MergedMaxDailyAICredits:       acc.mergedMaxDailyAICredits,
 		Warnings:                      acc.warnings,

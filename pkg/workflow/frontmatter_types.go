@@ -302,6 +302,7 @@ type FrontmatterConfig struct {
 	Version           string            `json:"version,omitempty"`
 	TimeoutMinutes    *TemplatableInt32 `json:"timeout-minutes,omitempty"`
 	MaxAICredits      *TemplatableInt32 `json:"max-ai-credits,omitempty"`
+	MaxCacheMisses    *int32            `json:"max-cache-misses,omitempty"`
 	MaxDailyAICredits *TemplatableInt32 `json:"max-daily-ai-credits,omitempty"`
 	MaxToolDenials    *TemplatableInt32 `json:"max-tool-denials,omitempty"`
 	Strict            *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false

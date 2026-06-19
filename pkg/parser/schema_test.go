@@ -635,6 +635,34 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxAICreditsOtherN
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxCacheMissesPositiveAccepted(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":               "push",
+		"max-cache-misses": 5,
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-cache-misses-positive-test.md")
+	if err != nil {
+		t.Fatalf("expected max-cache-misses=5 to pass schema validation, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxCacheMissesZeroRejected(t *testing.T) {
+	t.Parallel()
+
+	invalidFrontmatter := map[string]any{
+		"on":               "push",
+		"max-cache-misses": 0,
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-cache-misses-zero-test.md")
+	if err == nil {
+		t.Fatal("expected max-cache-misses=0 to fail schema validation")
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyAICreditsZeroInvalid(t *testing.T) {
 	t.Parallel()
 

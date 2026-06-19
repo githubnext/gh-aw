@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/typeutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var engineLog = logger.New("workflow:engine")
@@ -49,6 +50,7 @@ type EngineConfig struct {
 	MaxTurns         string
 	MaxToolDenials   string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
 	MaxRuns          int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
+	MaxCacheMisses   int    // Maximum number of consecutive cache misses per run (AWF apiProxy.maxCacheMisses)
 	MaxContinuations int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
 	MaxAICredits     int64  // Maximum allowed AI credits per run for AWF apiProxy firewall enforcement
 	Concurrency      string // Agent job-level concurrency configuration (YAML format)
@@ -172,11 +174,21 @@ func (e *EngineConfig) GetMaxRuns() int {
 	return e.MaxRuns
 }
 
+// GetMaxCacheMisses returns the configured AWF max-cache-misses value, falling back
+// to the enterprise override or built-in default.
+func (e *EngineConfig) GetMaxCacheMisses() int {
+	if e == nil || e.MaxCacheMisses <= 0 {
+		return compilerenv.ResolveDefaultMaxCacheMisses(constants.DefaultMaxCacheMisses)
+	}
+	return e.MaxCacheMisses
+}
+
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
 	topLevelMaxTurns := parseMaxTurnsValue(frontmatter["max-turns"])
 	topLevelMaxToolDenials := parseMaxToolDenialsValue(frontmatter["max-tool-denials"])
 	topLevelMaxAICredits := parseMaxAICreditsValue(frontmatter["max-ai-credits"])
+	topLevelMaxCacheMisses := parseMaxCacheMissesValue(frontmatter["max-cache-misses"])
 	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-turns"])
 	if topLevelMaxRuns == 0 {
 		topLevelMaxRuns = parseMaxRunsValue(frontmatter["max-runs"])
@@ -193,6 +205,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				MaxTurns:       topLevelMaxTurns,
 				MaxToolDenials: topLevelMaxToolDenials,
 				MaxRuns:        topLevelMaxRuns,
+				MaxCacheMisses: topLevelMaxCacheMisses,
 				MaxAICredits:   topLevelMaxAICredits,
 			}
 		}
@@ -270,6 +283,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxToolDenials = topLevelMaxToolDenials
 				}
 				config.MaxRuns = topLevelMaxRuns
+				config.MaxCacheMisses = topLevelMaxCacheMisses
 				config.MaxAICredits = topLevelMaxAICredits
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
@@ -509,6 +523,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				config.MaxTurns = topLevelMaxTurns
 			}
 			config.MaxRuns = topLevelMaxRuns
+			config.MaxCacheMisses = topLevelMaxCacheMisses
 			config.MaxAICredits = topLevelMaxAICredits
 
 			// Extract optional 'copilot-sdk' field (bool; copilot engine only)
@@ -528,11 +543,12 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		}
 	}
 
-	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxAICredits != 0 || topLevelMaxRuns > 0 {
+	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxAICredits != 0 || topLevelMaxRuns > 0 || topLevelMaxCacheMisses > 0 {
 		return "", &EngineConfig{
 			MaxTurns:       topLevelMaxTurns,
 			MaxToolDenials: topLevelMaxToolDenials,
 			MaxRuns:        topLevelMaxRuns,
+			MaxCacheMisses: topLevelMaxCacheMisses,
 			MaxAICredits:   topLevelMaxAICredits,
 		}
 	}
