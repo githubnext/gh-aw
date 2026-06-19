@@ -100,6 +100,7 @@ func TestExternalDetectorPath(t *testing.T) {
 
 	workflowContent := `---
 on: push
+engine: copilot
 safe-outputs:
   create-issue:
 features:
@@ -144,6 +145,9 @@ Test workflow`
 	}
 	if !strings.Contains(detectionSection, "install_threat_detect_binary.sh") {
 		t.Error("External detector path must emit 'install_threat_detect_binary.sh' install step")
+	}
+	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
+		t.Error("External detector path must emit engine installation step for copilot")
 	}
 	// The install step must pass the pinned DefaultThreatDetectVersion to the script
 	if !strings.Contains(detectionSection, string(constants.DefaultThreatDetectVersion)) {

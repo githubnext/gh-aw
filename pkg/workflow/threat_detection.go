@@ -310,21 +310,24 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 7: Install AWF binary (required for the detection AWF invocation)
 		steps = append(steps, c.buildInstallAWFForExternalDetectorStep(data)...)
 
-		// Step 8: Install the threat-detect binary from GitHub Releases
+		// Step 8: Install the selected agentic engine binary for threat-detect execution
+		steps = append(steps, c.buildInstallDetectionEngineForExternalDetectorStep(data)...)
+
+		// Step 9: Install the threat-detect binary from GitHub Releases
 		steps = append(steps, c.buildInstallThreatDetectStep()...)
 
-		// Step 9: Run threat-detect under AWF with a read-write mount for the result file
+		// Step 10: Run threat-detect under AWF with a read-write mount for the result file
 		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
 
-		// Step 10: Custom post-steps if configured (run after detection execution)
+		// Step 11: Custom post-steps if configured (run after detection execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
 		}
 
-		// Step 11: Upload detection_result.json + detection.log as the detection artifact
+		// Step 12: Upload detection_result.json + detection.log as the detection artifact
 		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
 
-		// Step 12: Conclude via threat-detect conclude (no .cjs)
+		// Step 13: Conclude via threat-detect conclude (no .cjs)
 		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
 	} else {
 		// Inline engine path (default)
@@ -949,6 +952,76 @@ func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []
 		lines = append(lines, line+"\n")
 	}
 	return lines
+}
+
+// buildInstallDetectionEngineForExternalDetectorStep installs the selected detection
+// engine in the external detector path so threat-detect can invoke the engine binary.
+func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *WorkflowData) []string {
+	engineID := c.getThreatDetectionEngineID(data)
+	engine, err := c.getAgenticEngine(engineID)
+	if err != nil {
+		return nil
+	}
+
+	threatDetectionData := &WorkflowData{
+		Tools: map[string]any{
+			"bash": []any{"*"},
+		},
+		EngineConfig:      &EngineConfig{ID: engineID},
+		AI:                engineID,
+		Features:          data.Features,
+		Permissions:       data.Permissions,
+		CachedPermissions: data.CachedPermissions,
+		IsDetectionRun:    true,
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+	}
+
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		ec := data.SafeOutputs.ThreatDetection.EngineConfig
+		threatDetectionData.EngineConfig = &EngineConfig{
+			ID:               engineID,
+			Model:            ec.Model,
+			Version:          ec.Version,
+			Env:              ec.Env,
+			Config:           ec.Config,
+			Args:             ec.Args,
+			Command:          ec.Command,
+			APITarget:        ec.APITarget,
+			HarnessScript:    ec.HarnessScript,
+			CopilotSDKDriver: ec.CopilotSDKDriver,
+			CopilotSDK:       ec.CopilotSDK,
+		}
+	}
+	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
+		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget
+	}
+
+	installSteps := engine.GetInstallationSteps(threatDetectionData)
+	var lines []string
+	for _, step := range installSteps {
+		if installsAWFBinary(step) {
+			continue
+		}
+		for _, line := range step {
+			lines = append(lines, line+"\n")
+		}
+	}
+
+	return lines
+}
+
+func installsAWFBinary(step GitHubActionStep) bool {
+	for _, line := range step {
+		if strings.Contains(line, "Install AWF binary") || strings.Contains(line, "install_awf_binary.sh") {
+			return true
+		}
+	}
+	return false
 }
 
 // buildInstallThreatDetectStep creates a step that installs the threat-detect binary
