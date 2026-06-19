@@ -1,11 +1,11 @@
 {
-  "run_date": "2026-06-19T08:14:19Z",
-  "run_id": "27813910542",
-  "previous_run_id": "27799830285",
-  "previous_run_date": "2026-06-19T01:31:57Z",
+  "run_date": "2026-06-19T13:25:34Z",
+  "run_id": "27828344448",
+  "previous_run_id": "27813910542",
+  "previous_run_date": "2026-06-19T08:14:19Z",
   "fork_prs": 0,
-  "agent_prs_found": 7,
-  "copilot_swe_agent_prs": 7,
+  "agent_prs_found": 6,
+  "copilot_swe_agent_prs": 6,
   "github_actions_prs": 0,
   "prs_triaged": 0,
   "fork_only_policy": true,
@@ -13,116 +13,83 @@
     {
       "number": 40259,
       "title": "logs: download only usage artifact by default",
-      "draft": true,
-      "status": "DRAFT",
-      "merge_state": "UNSTABLE",
+      "draft": false,
+      "status": "OPEN",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
-      "category": "chore",
-      "files_changed": 4,
-      "ci": "no_checks"
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
     },
     {
       "number": 40258,
       "title": "feat(workflow): cache repository owner-type API call once per compilation run",
-      "draft": true,
-      "status": "DRAFT",
-      "merge_state": "UNSTABLE",
+      "draft": false,
+      "status": "OPEN",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
-      "category": "feature",
-      "files_changed": 3,
-      "ci": "no_checks"
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
     },
     {
       "number": 40247,
       "title": "linters: migrate osexitinlibrary, fprintlnsprintf, errstringmatch to type-based package identity",
       "draft": false,
       "status": "OPEN",
-      "merge_state": "DIRTY",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
-      "category": "refactor",
-      "files_changed": 11,
-      "ci": "no_checks"
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
     },
     {
       "number": 40233,
       "title": "Code Simplifier: prevent background-agent validation path that triggers copilot proxy auth failures",
       "draft": true,
       "status": "DRAFT",
-      "merge_state": "UNSTABLE",
       "created": "2026-06-19",
       "labels": ["awf"],
       "is_fork": false,
-      "category": "bug",
-      "files_changed": 2,
-      "ci": "no_checks"
-    },
-    {
-      "number": 40231,
-      "title": "Align daily AIC report workflow with real Sentry/Tempo query behavior",
-      "draft": true,
-      "status": "DRAFT",
-      "merge_state": "UNSTABLE",
-      "created": "2026-06-19",
-      "labels": [],
-      "is_fork": false,
-      "category": "chore",
-      "files_changed": 2,
-      "ci": "no_checks"
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
     },
     {
       "number": 40223,
       "title": "Add headroom context compression as a shared agentic workflow",
       "draft": true,
       "status": "DRAFT",
-      "merge_state": "DIRTY",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
-      "category": "feature",
-      "files_changed": 3,
-      "ci": "no_checks"
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
     },
     {
       "number": 40166,
       "title": "Migrate threat detection to external `threat-detect` binary behind feature flag",
       "draft": false,
       "status": "OPEN",
-      "merge_state": "BLOCKED",
       "created": "2026-06-18",
       "labels": ["smoke-claude", "smoke-copilot", "smoke-copilot-aoai-entra"],
       "is_fork": false,
-      "category": "feature",
-      "files_changed": 100,
-      "ci": "no_checks"
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw"
     }
   ],
-  "closed_since_last_run": [40188, 40126, 39927],
-  "new_since_last_run": [40259, 40258, 40247, 40233, 40231, 40223],
+  "closed_since_last_run": [40231],
+  "new_since_last_run": [],
   "statistics": {
     "by_status": {
-      "DRAFT": 5,
-      "OPEN": 2
+      "DRAFT": 2,
+      "OPEN": 4
     },
     "by_category": {
-      "chore": 2,
+      "chore": 1,
       "feature": 3,
       "refactor": 1,
       "bug": 1
-    },
-    "by_merge_state": {
-      "UNSTABLE": 4,
-      "DIRTY": 2,
-      "BLOCKED": 1
-    },
-    "resolved_this_run": {
-      "closed_or_merged": 3
     }
   },
-  "notes": "7 open copilot-swe-agent PRs, all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 3 PRs closed/merged since last run (#40188, #40126, #39927). 6 new PRs since last run. Notable: #40166 large (100 files) BLOCKED PR for threat-detect binary migration; #40247 linter refactor (11 files, DIRTY). Ongoing pattern: all agent PRs are same-repo, never fork PRs."
+  "notes": "6 open copilot-swe-agent PRs, all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. PR #40231 closed/merged since last run. Ongoing pattern: all agent PRs are same-repo branches, never fork PRs."
 }
