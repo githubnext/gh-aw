@@ -55,15 +55,15 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 - Before creating the file, check whether `.github/workflows/<workflow-id>.md` already exists.
 - If it exists, choose a more specific ID instead of overwriting.
 
-### 1a. Decide whether to enable strict mode
+### 1a. Enable strict mode
 
-Set `strict: true` in the frontmatter when the workflow will run in production and write to shared state (issues, PRs, comments). Strict mode enforces:
+Always set `strict: true` in the frontmatter. Strict mode enforces:
 
 - actions pinned to commit SHAs (no tag references)
 - no wildcard (`*`) in `network.allowed`
 - no direct write permissions — all mutations must go through `safe-outputs:`
 
-Example skeleton with strict mode enabled:
+Example skeleton:
 
 ```markdown
 ---
@@ -93,8 +93,6 @@ safe-outputs:
   noop:
 ---
 ```
-
-Omit `strict: true` for exploratory or low-risk workflows; default is non-strict.
 
 ### 2. Choose the trigger
 
@@ -351,6 +349,7 @@ When processing a workflow-creation issue form:
 ---
 emoji: 🏷️
 description: <brief description>
+strict: true
 on:
   issues:
     types: [opened]
