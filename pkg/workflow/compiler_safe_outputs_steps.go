@@ -38,6 +38,15 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// safe_outputs handler code (not the untrusted agent) is the only consumer.
 	checkoutMgr.SetKeepCredentialsForPush(true)
 
+	// Persist the resolved PR push token (not just the default GITHUB_TOKEN) into
+	// .git/config so the retained credential matches the token the handlers use to
+	// fetch/push. This keeps a single, correct Authorization header on the wire and
+	// removes the need for the handlers to inject a separate http.extraheader. The
+	// same token is reused below for the "Configure Git credentials" step so both the
+	// persisted checkout credential and the push remote agree on a single token.
+	prCheckoutToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
+	checkoutMgr.SetPushToken(prCheckoutToken)
+
 	// Combined condition: run the checkout/git-config steps only when a create_pull_request
 	// or push_to_pull_request_branch output will be processed.
 	condition := buildPRCheckoutCondition(data.SafeOutputs)
@@ -64,9 +73,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	)...)
 
 	// Configure Git credentials so the safe_outputs job can push. The agent job never
-	// pushes, so this step has no agent-job equivalent.
-	gitRemoteToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
-	steps = append(steps, checkoutMgr.GenerateConfigureGitCredentialsSteps(gitRemoteToken, condition)...)
+	// pushes, so this step has no agent-job equivalent. Reuse the token resolved above so
+	// the push remote and the persisted checkout credential use the same token.
+	steps = append(steps, checkoutMgr.GenerateConfigureGitCredentialsSteps(prCheckoutToken, condition)...)
 
 	consolidatedSafeOutputsStepsLog.Printf("Built shared PR checkout steps with condition: %s", condition.Render())
 	return steps

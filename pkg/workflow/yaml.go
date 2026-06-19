@@ -314,7 +314,7 @@ func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice 
 	// This ensures important fields like "name", "on", "jobs" appear first
 	for _, fieldName := range priorityFields {
 		if value, exists := data[fieldName]; exists {
-			orderedData = append(orderedData, yaml.MapItem{Key: fieldName, Value: value})
+			orderedData = append(orderedData, yaml.MapItem{Key: fieldName, Value: prepareNestedMapValueForYAML(fieldName, value)})
 		}
 	}
 
@@ -334,10 +334,84 @@ func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice 
 
 	// Phase 4: Add remaining fields to the ordered map
 	for _, key := range remainingKeys {
-		orderedData = append(orderedData, yaml.MapItem{Key: key, Value: data[key]})
+		orderedData = append(orderedData, yaml.MapItem{Key: key, Value: prepareNestedMapValueForYAML(key, data[key])})
 	}
 
 	return orderedData
+}
+
+func prepareNestedMapValueForYAML(fieldName string, value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		if fieldName == "with" || fieldName == "env" || fieldName == "secrets" {
+			return recursivelyOrderYAMLValue(v)
+		}
+		copied := make(map[string]any, len(v))
+		for key, childValue := range v {
+			copied[key] = prepareNestedMapValueForYAML(key, childValue)
+		}
+		return copied
+	case map[string]string:
+		if fieldName == "with" || fieldName == "env" || fieldName == "secrets" {
+			return recursivelyOrderYAMLValue(v)
+		}
+		return value
+	case []any:
+		copied := make([]any, len(v))
+		for i, childValue := range v {
+			copied[i] = prepareNestedMapValueForYAML("", childValue)
+		}
+		return copied
+	case yaml.MapSlice:
+		copied := make(yaml.MapSlice, 0, len(v))
+		for _, item := range v {
+			key, ok := item.Key.(string)
+			if !ok {
+				copied = append(copied, yaml.MapItem{Key: item.Key, Value: prepareNestedMapValueForYAML("", item.Value)})
+				continue
+			}
+			copied = append(copied, yaml.MapItem{Key: item.Key, Value: prepareNestedMapValueForYAML(key, item.Value)})
+		}
+		return copied
+	default:
+		return value
+	}
+}
+
+func recursivelyOrderYAMLValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		orderedData := make(yaml.MapSlice, 0, len(v))
+		var keys []string
+		for key := range v {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			orderedData = append(orderedData, yaml.MapItem{Key: key, Value: recursivelyOrderYAMLValue(v[key])})
+		}
+		return orderedData
+	case map[string]string:
+		orderedData := make(yaml.MapSlice, 0, len(v))
+		for _, key := range sortedMapKeys(v) {
+			orderedData = append(orderedData, yaml.MapItem{Key: key, Value: v[key]})
+		}
+		return orderedData
+	case []any:
+		copied := make([]any, len(v))
+		for i, childValue := range v {
+			copied[i] = recursivelyOrderYAMLValue(childValue)
+		}
+		return copied
+	case yaml.MapSlice:
+		copied := make(yaml.MapSlice, 0, len(v))
+		for _, item := range v {
+			copied = append(copied, yaml.MapItem{Key: item.Key, Value: recursivelyOrderYAMLValue(item.Value)})
+		}
+		return copied
+	default:
+		return value
+	}
 }
 
 // CleanYAMLNullValues removes " null" from YAML key-value pairs where the value is null.

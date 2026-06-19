@@ -82,7 +82,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 		if entry.key.path == "" && entry.key.repository == "" {
 			continue
 		}
-		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, cm.keepCredentialsForPush, getActionPin)...)
+		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, cm.keepCredentialsForPush, cm.pushToken, getActionPin)...)
 	}
 	checkoutManagerLog.Printf("Generated %d additional checkout step(s)", len(lines))
 	return lines
@@ -323,6 +323,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		sb.WriteString("          persist-credentials: false\n")
 	}
 
+	// Track whether a token has been written to the checkout step so the safe_outputs
+	// push-token fallback below does not double-emit.
+	tokenEmitted := false
+
 	// Apply trial mode overrides
 	if trialMode {
 		if trialLogicalRepoSlug != "" {
@@ -330,6 +334,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		}
 		effectiveToken := getEffectiveGitHubToken("")
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
+		tokenEmitted = true
 	}
 
 	// Apply user overrides (only when NOT in trial mode to avoid conflicts)
@@ -370,6 +375,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		}
 		if effectiveOverrideToken != "" {
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
+			tokenEmitted = true
 		}
 		if override.fetchDepth != nil {
 			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
@@ -386,6 +392,14 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if override.lfs {
 			sb.WriteString("          lfs: true\n")
 		}
+	}
+
+	// safe_outputs job: when no explicit token was written above, persist the resolved
+	// push token so the credential retained in .git/config matches the token the
+	// safe-output handlers use to fetch/push (avoiding both a wrong-token push and the
+	// duplicate Authorization header that a separate per-command extraheader would add).
+	if !trialMode && !tokenEmitted && cm.keepCredentialsForPush && cm.pushToken != "" {
+		fmt.Fprintf(&sb, "          token: %s\n", cm.pushToken)
 	}
 
 	steps := []string{sb.String()}
@@ -418,7 +432,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 // When keepCredentialsForPush is true (safe_outputs job), credentials are retained
 // (persist-credentials: true) and the post-checkout cleanup step is suppressed so a later
 // git fetch/push can authenticate.
-func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentialsForPush bool, getActionPin func(string) string) []string {
+func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentialsForPush bool, pushToken string, getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating checkout step lines: index=%d, repo=%q, path=%q, ref=%q, appAuth=%v",
 		index, entry.key.repository, entry.key.path, entry.ref, entry.githubApp != nil)
 	name := "Checkout " + checkoutStepName(entry.key)
@@ -451,6 +465,12 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentia
 	}
 	// Determine effective token: github-app-minted token takes precedence
 	effectiveToken := resolveCheckoutTokenExpression(entry, index, false)
+	// safe_outputs job: when this checkout declares no token/app of its own, persist the
+	// resolved push token so the retained .git/config credential matches the token the
+	// safe-output handlers use to fetch/push.
+	if effectiveToken == "" && keepCredentialsForPush && pushToken != "" {
+		effectiveToken = pushToken
+	}
 	if effectiveToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
 	}

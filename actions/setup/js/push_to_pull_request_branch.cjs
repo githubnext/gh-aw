@@ -17,7 +17,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
@@ -127,12 +127,14 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
-  // Build git auth env once for all network operations in this handler.
-  // clean_git_credentials.sh removes credentials from .git/config before the
-  // agent runs, so git fetch/push must authenticate via GIT_CONFIG_* env vars.
-  // Use the per-handler github-token (for cross-repo PAT) when available,
-  // falling back to GITHUB_TOKEN for the default workflow token.
-  const gitAuthEnv = getGitAuthEnv(config["github-token"]);
+  // Git network operations authenticate using the credentials actions/checkout
+  // persisted into .git/config for the safe_outputs job (persist-credentials: true,
+  // using the resolved push token). We intentionally do NOT inject an additional
+  // http.extraheader via GIT_CONFIG_* here: doing so duplicates the Authorization
+  // header already present in .git/config and causes the server to reject the request
+  // with "Duplicate header: Authorization" (HTTP 400) on git fetch/push. GitHub API
+  // ("gh") operations authenticate separately via the authenticated Octokit client above.
+  const gitAuthEnv = {};
 
   // Base branch from config (if set) - used only for logging at factory level
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
@@ -641,8 +643,8 @@ async function main(config = {}) {
     }
 
     // Fetch the specific target branch from origin
-    // Use GIT_CONFIG_* env vars for auth because .git/config credentials are
-    // cleaned by clean_git_credentials.sh before the agent runs.
+    // Authenticate using the credentials actions/checkout persisted into .git/config
+    // for the safe_outputs job; no GIT_CONFIG_* extraheader is injected (see gitAuthEnv above).
     try {
       core.info(`Fetching branch: ${branchName}`);
       await exec.exec("git", ["fetch", "origin", `${branchName}:refs/remotes/origin/${branchName}`], {
