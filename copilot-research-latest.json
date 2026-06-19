@@ -1,16 +1,17 @@
 {
-  "timestamp": "2026-06-18T05:16:15Z",
-  "workflow_run_id": "27738311748",
+  "timestamp": "2026-06-19T05:24:20Z",
+  "workflow_run_id": "27807178037",
   "total_workflows": 250,
-  "copilot_workflows": 136,
-  "copilot_pct": 54,
-  "copilot_explicit": 40,
+  "copilot_workflows": 133,
+  "copilot_pct": 53,
+  "copilot_scalar": 36,
   "copilot_obj_form": 96,
   "copilot_sdk_workflows": 63,
   "feature_usage": {
-    "engine_agent": 24,
-    "engine_agent_awf": 13,
-    "engine_agent_custom": 11,
+    "engine_agent": 29,
+    "engine_agent_awf": 16,
+    "engine_agent_custom": 13,
+    "engine_agent_blank": 5,
     "engine_args": 0,
     "engine_api_target": 0,
     "engine_harness": 0,
@@ -40,33 +41,37 @@
     "engine_auth_wif": 1,
     "max_turns": 14,
     "unused_agent_files": 5,
-    "append_only_comments": 8
+    "append_only_comments": 8,
+    "cache_memory": 72
   },
   "improvements_vs_last": {
-    "engine_agent": "+16 (8->24, +200% — major recovery from 8 low, exceeds 21 prior state)",
-    "append_only_comments": "+8 (0->8 — new feature showing good adoption)",
-    "total_workflows": "+1 (249->250)"
+    "engine_agent": "+5 (24->29, +21% — continuing recovery trend)",
+    "engine_agent_awf": "+3 (13->16 — AWF migration continuing)"
   },
   "regressions_vs_last": {
-    "blocked_domains": "-1 (1->0 — the only user removed it!)"
+    "copilot_scalar": "-4 (40->36 — some scalar-form workflows removed or converted to object form)",
+    "copilot_total": "-3 (136->133 — net decrease)"
   },
   "persistent_gaps": [
-    "engine.args (20+ consecutive runs with ZERO usage in engine block)",
-    "engine.api-target (20+ consecutive runs)",
+    "engine.args (21+ consecutive runs with ZERO usage in engine block)",
+    "engine.api-target (21+ consecutive runs)",
     "engine.harness (never used as custom override)",
     "engine.token-weights (never used)",
     "mcp.session-timeout (never used)",
     "mcp.tool-timeout (never used)",
     "max-tool-denials (0/63 SDK workflows — persistent security gap)",
     "startup-timeout (1/250 total — barely used)",
-    "blocked-domains (0/250 — regression from 1 to 0)"
+    "blocked-domains (0/250 copilot — consistently zero)",
+    "max-ai-credits (18/133 copilot — 115 without budget guardrails)"
   ],
-  "new_features_adoption": {
-    "append_only_comments": "8/250 (good adoption for new feature)",
-    "mcp_scripts_frontmatter": "1/250 (barely adopted)",
-    "engine_auth_wif": "1/250 (barely adopted)"
+  "stable_features": {
+    "max_continuations": "7/133 (5%) — stable",
+    "append_only_comments": "8/250 — stable smoke workflows only",
+    "copilot_sdk": "63 (47% of copilot)",
+    "experiments": "41 — stable",
+    "cache_memory": "72 — stable"
   },
-  "opportunities_found": 11,
-  "analysis_date": "2026-06-18",
-  "previous_run": "2026-06-16"
+  "opportunities_found": 10,
+  "analysis_date": "2026-06-19",
+  "previous_run": "2026-06-18"
 }
