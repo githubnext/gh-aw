@@ -69,6 +69,11 @@ First, attempt to call `search_events` using:
 - time range: last 24 hours
 - include enough results to cover the day (use pagination as needed)
 
+Then explicitly test whether Sentry can actually surface AIC as a searchable numeric field:
+- try `has:gh-aw.aic`
+- try `gh-aw.aic:>0`
+- if spans exist but the `gh-aw.aic` field renders blank or those filters return zero matches, treat Sentry AIC as **not queryable**
+
 If `search_events` is **not available** (the tool is absent from the available tool list because no embedded LLM provider is configured), fall back to `list_events` with direct Sentry query syntax:
 - `organizationSlug`: the org discovered in Step 1
 - `dataset: spans`
@@ -89,9 +94,14 @@ Use the Grafana MCP server in this workflow.
 
 1. Call `list_datasources` and identify the tracing datasource used for Tempo. Note the datasource UID — pass it explicitly to all subsequent Tempo tool calls.
 2. Call `tempo_get-attribute-names` (with the datasource UID from step 1) to confirm available attribute keys.
-3. Query recent traces in the last 24 hours with `tempo_traceql-search` (datasource UID from step 1, `start: now-24h`, `end: now`), scoped to gh-aw telemetry using `{.service.name =~ "gh-aw.*"}`. If attribute values returned by `tempo_get-attribute-values` reveal the actual `service.name`, use that value instead.
-4. If needed, call `tempo_get-trace` (datasource UID from step 1) on representative traces to verify whether AIC fields are present and numeric on spans.
-5. Record any query constraints or backend limitations (missing attributes, string-only values, fields not indexed, or inability to aggregate numerically).
+3. Query recent traces in the last 24 hours with `tempo_traceql-search` (datasource UID from step 1) using explicit RFC3339 timestamps for the `start` and `end` parameters (for example, convert `now-24h` / `now` into concrete RFC3339 values), scoped to gh-aw telemetry with `{ span."service.name" =~ "gh-aw.*" }` or the concrete service name discovered from recent values.
+4. Test Grafana/Tempo AIC queryability in this order:
+   - existence: `{ span."gh-aw.aic" != nil }`
+   - numeric comparison: `{ span."gh-aw.aic" > 0 }`
+   - fallback comparison: `{ span."gh-aw.aic" >= 0 }`
+   If existence works but numeric comparisons return zero traces, treat Grafana AIC as **partially queryable** rather than fully queryable.
+5. If needed, call `tempo_get-trace` (datasource UID from step 1) on representative traces to verify whether AIC fields are present and numeric on spans.
+6. Record any query constraints or backend limitations (missing attributes, string-only values, fields not indexed, query caps, or inability to aggregate numerically).
 
 Treat Grafana data as "no usable AIC records" when traces exist but none expose recognized AIC fields in queryable numeric form.
 
@@ -102,19 +112,21 @@ If `list_datasources` returns no Tempo datasource, or if `tempo_get-attribute-na
 For each Sentry event/span and Grafana span, derive:
 
 - **Workflow name** using first non-empty of likely fields:
+  - `gh-aw.workflow.name`
   - `github.workflow`
   - `github.workflow_ref`
   - `workflow.name`
   - `gh_aw.workflow`
+  - `resource.service.name` with the `gh-aw.` prefix removed when present
   - fallback: `"unknown-workflow"`
 - **Run ID** using:
-  - `github.run_id`
   - `gh-aw.run.id`
+  - `github.run_id`
   - `gh_aw.run.id`
   - `gh_aw.run_id`
 - **AIC value** with precedence:
   - Prefer `gh-aw.aic` → `gh_aw.aic` → `agent_usage.aic` → `aic`.
-  - **For Sentry spans**: if none are present, use `0` (zero is distinct from "absent" and makes gaps visible in Sentry EAP).
+  - **For Sentry spans**: if none are present or the field is blank/unsearchable, record as **unavailable** (not 0).
   - **For Grafana spans**: if none are present, record as **absent** (not 0). Track absent-AIC spans separately for the `events_with_aic_data_grafana` gap metric — only count a span in that metric when a confirmed numeric AIC value is present.
 - Recognized AIC fields:
   - `gh-aw.aic`
@@ -122,13 +134,23 @@ For each Sentry event/span and Grafana span, derive:
   - `agent_usage.aic`
   - `aic`
 
-For Sentry spans, normalize missing values to `0`. For Grafana spans, treat absent AIC fields as unknown and do not zero-fill them.
+Treat missing or unqueryable AIC as **unknown** in both backends. Never zero-fill an absent or unqueryable backend field.
+
+### Step 5: Normalize to Per-Run AIC
+
+AIC is a **per-run / per-phase** measure, not a per-event metric.
+
+- Group spans by workflow + run ID before calculating totals.
+- When both the `gh-aw.agent.conclusion` span and the child `gh-aw.agent.agent` span carry the same `gh-aw.aic`, count that phase only once.
+- Sum distinct phase AIC values per run.
+- If Grafana search returns a capped sample instead of a full census, label every derived total as a **lower-bound sample estimate**.
+- Track error-bearing runs separately so the report can call out anomalous high-AIC runs with span errors.
 
 ## Analysis Requirements
 
 Calculate:
 
-- `total_events_analyzed`: total Sentry spans/events analyzed (use Sentry as the canonical source to avoid double-counting, since spans are exported to both backends simultaneously)
+- `total_events_analyzed`: total Sentry spans/events analyzed when Sentry data is available (if only page-1 or a capped sample is available, say so explicitly)
 - `events_with_aic_data`: union count of spans from either backend that have a confirmed numeric AIC value
 - `events_with_aic_data_sentry`: Sentry spans with confirmed numeric AIC data
 - `events_with_aic_data_grafana`: Grafana spans with confirmed numeric AIC data
@@ -136,18 +158,18 @@ Calculate:
 (Note: `events_with_aic_data_sentry + events_with_aic_data_grafana` may exceed `events_with_aic_data` when the same span is reported by both backends, since spans are exported to both simultaneously.)
 
 - `events_missing_workflow`
-- `total_aic`: sourced from Sentry (canonical); note if Grafana-only would yield a different total
+- `run_count`: number of runs included in the AIC sample
+- `total_aic`: prefer the backend that is actually queryable for AIC; if only Grafana yields usable values, report the total as a representative lower-bound sample rather than a census
 - `workflow_count` (unique workflows)
 - `top_workflows_by_aic` (top 10)
-- `avg_aic_per_event`
-- `p95_aic_per_event`
+- `avg_aic_per_run`
+- `p95_aic_per_run`
 
 For each workflow include:
 - workflow name
-- event count
+- run count
 - total AIC
-- average AIC/event
-- highest-AIC event (with run id if available)
+- notable context (for example span errors, verified full trace, or sample caveats)
 
 ## Report Output
 
@@ -165,33 +187,39 @@ Use this body structure:
 ### Key Metrics
 | Metric | Value |
 |---|---|
-| Events analyzed | ... |
+| Events analyzed (Sentry) | ... |
 | Events with AIC data | ... |
 | Events with AIC data (Sentry) | ... |
 | Events with AIC data (Grafana) | ... |
 | Total AIC | ... |
 | Unique workflows | ... |
-| Avg AIC/event | ... |
-| P95 AIC/event | ... |
+| Avg AIC/run | ... |
+| P95 AIC/run | ... |
+
+If totals come from Grafana only, say so directly in the `Total AIC` row (for example `Sentry: unavailable (gap) · Grafana representative sample: ≈ 999.8 AIC`). Use `≈` only for sampled or capped results; use exact values when the backend returns a full census.
+
+Add one visible sentence below the table when needed: `AIC is naturally a per-run / per-phase measure, so metrics are reported per run.`
 
 ### Top 10 Workflows by AIC Consumption
-| Workflow | Events | Total AIC | Avg AIC/Event |
-|---|---:|---:|---:|
+| Workflow | Runs (sample) | Total AIC | Notes |
+|---|---:|---:|---|
 | ... |
 
 ### Grafana AIC Findings
 (Show this as a top-level section only when AIC is not fully queryable in Grafana. Otherwise, include a one-line note "Grafana AIC: fully queryable" and collapse details using a `<details>` block.)
 
 - State whether AIC was queryable in Grafana.
-- If not queryable, list the exact issue (for example: attributes missing on spans, attribute present but typed as string, no numeric aggregation support in queried datasource, or insufficient workflow attribution fields).
+- If not queryable, list the exact issue (for example: existence works but numeric comparisons fail, attributes missing on spans, attribute present but typed as string, no numeric aggregation support in queried datasource, or insufficient workflow attribution fields).
 - Include one concrete query or trace evidence line.
 - Note: Grafana trace explore links may be limited in the report if the Grafana base URL is redacted by the safe-outputs step; use datasource UIDs or relative references where possible.
 
 <details>
 <summary>Data Quality and Gaps</summary>
 
+- Per-phase / duplicated-span aggregation caveats
 - Events missing workflow identifiers
 - Events missing AIC attributes
+- Sample-versus-census caveats
 - Any assumptions or fallback fields used
 - Sentry-specific AIC caveats
 - Grafana-specific AIC caveats
@@ -200,7 +228,9 @@ Use this body structure:
 
 ### Recommendations
 - 2-4 concrete actions to reduce AIC usage for the highest consumers.
-- If Grafana lacks queryable numeric AIC, include at least one recommendation for fixing the instrumentation gap (for example: ensure spans emit `gh-aw.aic` as a numeric attribute, configure Tempo to index the relevant attribute, or verify OTLP export settings).
+- If Sentry cannot query AIC, include a recommendation to fix Sentry ingestion/indexing or promote AIC into a queryable measurement.
+- If Grafana lacks queryable numeric AIC, include at least one recommendation for fixing the backend/queryability gap (for example: configure Tempo to index the relevant attribute or add a typed numeric column for `gh-aw.aic`).
+- Call out the highest-AIC anomalous run when one workflow clearly dominates the sample.
 
 ### References
 - Include up to four relevant links (Sentry query links, Grafana traces/query references, and/or run links when available).
@@ -209,7 +239,7 @@ Use this body structure:
 
 - Be explicit when telemetry fields are absent or ambiguous.
 - Never invent AIC values.
-- If Grafana lacks queryable numeric AIC, report that as an observability gap (unknown AIC), not as zero usage.
+- If Sentry or Grafana lacks queryable numeric AIC, report that as an observability gap (unknown AIC), not as zero usage.
 - Keep the report concise and actionable.
 - Use `###` or lower headers only.
 
