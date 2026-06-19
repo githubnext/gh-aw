@@ -262,7 +262,8 @@ func TestLogsCommandHelpText(t *testing.T) {
 	// Verify long description contains expected sections
 	expectedLongSections := []string{
 		"Download and analyze agentic workflow logs",
-		"Downloaded artifacts include:",
+		"Downloaded artifacts include (when using --artifacts all):",
+		"--artifacts all",
 	}
 
 	for _, section := range expectedLongSections {
@@ -274,6 +275,7 @@ func TestLogsCommandHelpText(t *testing.T) {
 		"gh aw logs",
 		"--safe-output noop",
 		"--safe-output report-incomplete",
+		"--artifacts all",
 	}
 
 	for _, section := range expectedExampleSections {

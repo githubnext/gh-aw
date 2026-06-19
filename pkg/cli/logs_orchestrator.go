@@ -631,27 +631,29 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	}
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:    outputDir,
-		summaryFile:  summaryFile,
-		format:       format,
-		jsonOutput:   jsonOutput,
-		toolGraph:    toolGraph,
-		train:        train,
-		continuation: continuation,
-		verbose:      verbose,
+		outputDir:      outputDir,
+		summaryFile:    summaryFile,
+		format:         format,
+		jsonOutput:     jsonOutput,
+		toolGraph:      toolGraph,
+		train:          train,
+		continuation:   continuation,
+		verbose:        verbose,
+		artifactFilter: artifactFilter,
 	})
 }
 
 // renderLogsOutputOptions holds configuration for renderLogsOutput.
 type renderLogsOutputOptions struct {
-	outputDir    string
-	summaryFile  string
-	format       string
-	jsonOutput   bool
-	toolGraph    bool
-	train        bool
-	continuation *ContinuationData
-	verbose      bool
+	outputDir      string
+	summaryFile    string
+	format         string
+	jsonOutput     bool
+	toolGraph      bool
+	train          bool
+	continuation   *ContinuationData
+	verbose        bool
+	artifactFilter []string
 }
 
 // renderLogsOutput finalizes processedRuns and renders them in the appropriate output
@@ -668,6 +670,12 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	// Build structured logs data
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
 	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
+
+	// When only the usage artifact was downloaded, add a hint so consumers know how
+	// to fetch additional artifact sets (agent logs, firewall data, etc.).
+	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
+		logsData.Message = "Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or --artifacts <set> for specific sets (e.g. --artifacts agent,firewall)."
+	}
 
 	// Write summary file if requested (default behavior unless disabled with empty string)
 	if opts.summaryFile != "" {
@@ -1086,12 +1094,13 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	}
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:   opts.OutputDir,
-		summaryFile: opts.SummaryFile,
-		format:      opts.Format,
-		jsonOutput:  opts.JSONOutput,
-		toolGraph:   opts.ToolGraph,
-		train:       opts.Train,
-		verbose:     opts.Verbose,
+		outputDir:      opts.OutputDir,
+		summaryFile:    opts.SummaryFile,
+		format:         opts.Format,
+		jsonOutput:     opts.JSONOutput,
+		toolGraph:      opts.ToolGraph,
+		train:          opts.Train,
+		verbose:        opts.Verbose,
+		artifactFilter: artifactFilter,
 	})
 }

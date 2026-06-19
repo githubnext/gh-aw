@@ -211,6 +211,10 @@ func renderLogsCompact(data LogsData) {
 		fmt.Fprintf(os.Stdout, "[location] %s\n", data.LogsLocation)
 	}
 
+	// [hint] — static usage hint + dynamic artifact hint when applicable
+	if data.Message != "" {
+		fmt.Fprintf(os.Stdout, "[hint] %s\n", data.Message)
+	}
 	fmt.Fprintln(os.Stdout, "[hint] use --json for full details, -v for verbose, --format console for tables")
 }
 
