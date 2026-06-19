@@ -186,15 +186,15 @@ func (c *Compiler) repositoryOwnerIsIndividualUser() bool {
 		return false
 	}
 
-	if c.ownerTypeCache == nil {
-		c.ownerTypeCache = make(map[string]string)
-	}
 	ownerType, cached := c.ownerTypeCache[owner]
 	if !cached {
 		workflowLog.Printf("Checking owner type for: %s", owner)
 		output, err := RunGH("Checking repository owner type...", "api", "/users/"+owner, "--jq", ".type")
 		if err != nil {
 			workflowLog.Printf("Could not determine owner type for %q: %v", owner, err)
+			// Cache the empty string so subsequent calls for the same owner also return false
+			// without retrying. This is intentional: fail-safe means "show the tip when uncertain"
+			// and avoids N retry round-trips per run.
 			c.ownerTypeCache[owner] = ""
 			return false
 		}

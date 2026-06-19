@@ -325,7 +325,7 @@ func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*Safe
 		if safeOutputsMap, ok := safeOutputs.(map[string]any); ok {
 			if jobs, exists := safeOutputsMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
-					c := &Compiler{} // Create a temporary compiler instance for parsing
+					c := NewCompiler() // Create a temporary compiler instance for parsing
 					return c.parseSafeJobsConfig(jobsMap)
 				}
 			}
