@@ -38,6 +38,20 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// safe_outputs handler code (not the untrusted agent) is the only consumer.
 	checkoutMgr.SetKeepCredentialsForPush(true)
 
+	// When create-pull-request is configured with a target-repo, inject a checkout for that
+	// repository so the safe_outputs job can apply patches to and push to the cross-repo
+	// target. This uses the same PR token as the rest of the safe_outputs job.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
+		if targetRepo := data.SafeOutputs.CreatePullRequests.TargetRepoSlug; targetRepo != "" {
+			prToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
+			checkoutMgr.add(&CheckoutConfig{
+				Repository:  targetRepo,
+				GitHubToken: prToken,
+			})
+			consolidatedSafeOutputsStepsLog.Printf("Injected cross-repo checkout for target-repo: %s", targetRepo)
+		}
+	}
+
 	// Combined condition: run the checkout/git-config steps only when a create_pull_request
 	// or push_to_pull_request_branch output will be processed.
 	condition := buildPRCheckoutCondition(data.SafeOutputs)

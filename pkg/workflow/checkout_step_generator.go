@@ -222,7 +222,14 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 			if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
 				continue
 			}
-			rootRepo = entry.key.repository
+			// Quote literal repo names so the YAML value is a proper string (not a bare slash-
+			// separated word that some parsers may misinterpret). GitHub Actions expressions
+			// like ${{ github.repository }} are left unquoted as they are already valid YAML.
+			if isExpression(entry.key.repository) {
+				rootRepo = entry.key.repository
+			} else {
+				rootRepo = fmt.Sprintf("%q", entry.key.repository)
+			}
 		}
 		return []string{
 			"      - name: Configure Git credentials\n",
@@ -241,7 +248,11 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 		if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
 			continue
 		}
-		rootRepo = entry.key.repository
+		if isExpression(entry.key.repository) {
+			rootRepo = entry.key.repository
+		} else {
+			rootRepo = fmt.Sprintf("%q", entry.key.repository)
+		}
 	}
 	steps := []string{
 		"      - name: Configure Git credentials\n",
