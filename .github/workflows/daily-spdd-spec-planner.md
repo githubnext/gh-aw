@@ -40,6 +40,7 @@ tools:
     - "cat docs/src/content/docs/reference/*specification*.md"
     - "cat scratchpad/*specification*.md"
     - "git log --oneline --since=\"14 days ago\" -- specs docs/src/content/docs/reference scratchpad"
+    - "sed -n"
 
 steps:
   - name: Copy OpenSPDD prompts
