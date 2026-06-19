@@ -27,13 +27,19 @@ pre-steps:
       pip install "headroom-ai[proxy,mcp]==0.26.0" --quiet
       headroom proxy --host 0.0.0.0 --port 8787 &
       # Wait up to 20 s for the proxy to become ready
+      READY=false
       for i in $(seq 1 20); do
         if curl -sf http://localhost:8787/health > /dev/null 2>&1; then
           echo "✅ Headroom proxy ready"
+          READY=true
           break
         fi
         sleep 1
       done
+      if [ "$READY" != "true" ]; then
+        echo "❌ Headroom proxy did not become ready within 20 seconds"
+        exit 1
+      fi
 
 network:
   allowed:
@@ -51,7 +57,7 @@ mcp-servers:
       - "mcp"
       - "serve"
       - "--proxy-url"
-      - "http://127.0.0.1:8787"
+      - "http://localhost:8787"
     allowed:
       - headroom_compress
       - headroom_retrieve
