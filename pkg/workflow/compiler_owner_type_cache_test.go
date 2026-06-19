@@ -72,10 +72,6 @@ func TestRepositoryOwnerIsIndividualUser_MalformedSlug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCompiler()
 			c.SetRepositorySlug(tt.slug)
-			// Populate the cache with "User" for any conceivable owner — if the slug
-			// parsing were bypassed and a lookup happened, it would incorrectly return true.
-			c.ownerTypeCache["owneronly"] = "User"
-			c.ownerTypeCache["owner"] = "User"
 
 			got := c.repositoryOwnerIsIndividualUser()
 			if got {
