@@ -39,9 +39,9 @@ func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
 		return nil
 	}
 
+	scopes := append(GetAllPermissionScopes(), PermissionCopilotRequests)
 	var missing []string
-	for _, scope := range GetAllPermissionScopes() {
-		workerLevel, workerWants := worker.Get(scope)
+	for _, scope := range scopes {
 		if !workerWants || workerLevel == PermissionNone {
 			continue
 		}
