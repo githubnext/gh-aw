@@ -173,9 +173,20 @@ Test workflow`
 		t.Error("External detector path must include read-write mount for /tmp/gh-aw/threat-detection")
 	}
 
-	// The detector invocation must pass the artifacts directory and not use the removed --output flag
-	if !strings.Contains(detectionSection, "threat-detect --engine") || !strings.Contains(detectionSection, "/tmp/gh-aw/threat-detection") {
-		t.Error("External detector path must pass /tmp/gh-aw/threat-detection as the artifacts directory")
+	// The detector invocation must pass the artifacts directory positionally and not use the removed --output flag
+	invocationNeedle := "threat-detect --engine "
+	invocationIndex := strings.Index(detectionSection, invocationNeedle)
+	if invocationIndex == -1 {
+		t.Error("External detector path must invoke threat-detect with --engine")
+	} else {
+		invocationLineEnd := strings.Index(detectionSection[invocationIndex:], "\n")
+		if invocationLineEnd == -1 {
+			invocationLineEnd = len(detectionSection) - invocationIndex
+		}
+		invocationLine := detectionSection[invocationIndex : invocationIndex+invocationLineEnd]
+		if !strings.Contains(invocationLine, " /tmp/gh-aw/threat-detection") {
+			t.Error("External detector path must pass /tmp/gh-aw/threat-detection as the positional artifacts directory")
+		}
 	}
 	if strings.Contains(detectionSection, "--output /tmp/gh-aw/threat-detection/detection_result.json") {
 		t.Error("External detector path must not pass --output to threat-detect")
