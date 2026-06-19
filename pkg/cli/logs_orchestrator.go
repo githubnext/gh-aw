@@ -674,7 +674,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	// When only the usage artifact was downloaded, add a hint so consumers know how
 	// to fetch additional artifact sets (agent logs, firewall data, etc.).
 	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
-		logsData.Message = "Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or --artifacts <set> for specific sets (e.g. --artifacts agent,firewall)."
+		logsData.Message = "Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts agent or --artifacts agent,firewall."
 	}
 
 	// Write summary file if requested (default behavior unless disabled with empty string)

@@ -89,7 +89,7 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
 
-  # Artifact selection (default: usage only — the compact conclusion artifact)
+  # Artifact selection (default: usage only - the compact conclusion artifact)
   ` + string(constants.CLIExtensionPrefix) + ` logs --artifacts all           # Download all artifacts (agent logs, firewall, etc.)
   ` + string(constants.CLIExtensionPrefix) + ` logs --artifacts agent         # Download only agent logs
   ` + string(constants.CLIExtensionPrefix) + ` logs --artifacts agent,firewall # Download agent and firewall artifacts
