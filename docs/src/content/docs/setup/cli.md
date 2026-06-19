@@ -499,7 +499,7 @@ cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
-The `--artifacts` flag selects which artifact sets to download (default: all). Valid sets include `activation`, `agent`, `all`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, and `usage`. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
+The `--artifacts` flag selects which artifact sets to download (default: `usage`). Valid sets include `activation`, `agent`, `all`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, and `usage`. Use `all` to download the full artifact set. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
 
 Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 

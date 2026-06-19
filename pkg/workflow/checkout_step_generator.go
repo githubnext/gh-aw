@@ -27,7 +27,8 @@ func wikiRepository(repository string) string {
 // referenced in the corresponding checkout step.
 //
 // The step ID for each checkout is "checkout-app-token-{index}" where index is
-// the position in the ordered checkout list.
+// the position in the ordered checkout list. Each returned slice element is a
+// complete YAML step string, matching injectStepCondition's whole-step contract.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permissions *Permissions) []string {
 	checkoutManagerLog.Printf("Building app token minting steps for %d checkout entries", len(cm.ordered))
 	var steps []string
@@ -38,14 +39,34 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", checkoutIndex, entry.key.repository)
 		// Pass empty fallback so the app token defaults to github.event.repository.name.
 		// Checkout-specific cross-repo scoping is handled via the explicit repository field.
-		steps = append(steps, c.buildGitHubAppTokenMintStepWithMeta(
+		steps = append(steps, collapseYAMLLinesIntoSteps(c.buildGitHubAppTokenMintStepWithMeta(
 			entry.githubApp,
 			permissions,
 			"",
 			entry.key.repository,
 			fmt.Sprintf("Generate GitHub App token for checkout (%d)", checkoutIndex),
 			fmt.Sprintf("checkout-app-token-%d", checkoutIndex),
-		)...)
+		))...)
+	}
+	return steps
+}
+
+func collapseYAMLLinesIntoSteps(lines []string) []string {
+	if len(lines) == 0 {
+		return nil
+	}
+
+	var steps []string
+	var current strings.Builder
+	for _, line := range lines {
+		if strings.HasPrefix(line, "      - ") && current.Len() > 0 {
+			steps = append(steps, current.String())
+			current.Reset()
+		}
+		current.WriteString(line)
+	}
+	if current.Len() > 0 {
+		steps = append(steps, current.String())
 	}
 	return steps
 }
