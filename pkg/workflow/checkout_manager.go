@@ -170,6 +170,14 @@ type CheckoutManager struct {
 	// The agent job leaves this false: the untrusted agent must not be able to read
 	// credentials from disk, so its checkouts use persist-credentials: false.
 	keepCredentialsForPush bool
+	// pushToken is the token expression persisted into .git/config by every generated
+	// checkout step when keepCredentialsForPush is enabled and the checkout entry does
+	// not carry its own explicit token/app auth. Setting this ensures the credential
+	// retained on disk matches the token the safe_outputs handlers use to push, so a
+	// single (correct) Authorization header is sent and no separate per-command
+	// http.extraheader injection is required. Empty means "fall back to the
+	// actions/checkout default token".
+	pushToken string
 }
 
 // NewCheckoutManager creates a new CheckoutManager pre-loaded with user-supplied
@@ -227,6 +235,15 @@ func (cm *CheckoutManager) GetCrossRepoTargetRef() string {
 func (cm *CheckoutManager) SetKeepCredentialsForPush(keep bool) {
 	checkoutManagerLog.Printf("Setting keepCredentialsForPush: %t", keep)
 	cm.keepCredentialsForPush = keep
+}
+
+// SetPushToken sets the token expression persisted into .git/config by the generated
+// checkout steps when keepCredentialsForPush is enabled. Call this for the safe_outputs
+// job with the resolved PR push token so the retained credential matches the token the
+// handlers use to fetch/push. Has no effect on entries that declare their own token/app.
+func (cm *CheckoutManager) SetPushToken(token string) {
+	checkoutManagerLog.Printf("Setting pushToken: present=%t", token != "")
+	cm.pushToken = token
 }
 
 // add processes a single CheckoutConfig and either creates a new entry or merges

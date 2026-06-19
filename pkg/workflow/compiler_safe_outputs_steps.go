@@ -38,6 +38,13 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// safe_outputs handler code (not the untrusted agent) is the only consumer.
 	checkoutMgr.SetKeepCredentialsForPush(true)
 
+	// Persist the resolved PR push token (not just the default GITHUB_TOKEN) into
+	// .git/config so the retained credential matches the token the handlers use to
+	// fetch/push. This keeps a single, correct Authorization header on the wire and
+	// removes the need for the handlers to inject a separate http.extraheader.
+	pushToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
+	checkoutMgr.SetPushToken(pushToken)
+
 	// Combined condition: run the checkout/git-config steps only when a create_pull_request
 	// or push_to_pull_request_branch output will be processed.
 	condition := buildPRCheckoutCondition(data.SafeOutputs)
