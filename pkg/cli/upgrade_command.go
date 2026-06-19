@@ -338,12 +338,20 @@ func runUpgradeCommand(opts upgradeOptions) error {
 	// lock files are currently on disk.
 	if !opts.noFix && !opts.noActions {
 		upgradeLog.Print("Updating container image digest pins")
-		if err := UpdateContainerPins(opts.ctx, opts.workflowDir, opts.verbose); err != nil {
+		newPins, err := UpdateContainerPins(opts.ctx, opts.workflowDir, opts.verbose)
+		if err != nil {
 			upgradeLog.Printf("Failed to update container pins: %v", err)
 			// Non-critical — Docker may not be available in all environments.
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
 		} else if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated container image pins"))
+		}
+		if newPins && !opts.noCompile {
+			upgradeLog.Print("Recompiling workflows to embed new container digest pins")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflows to embed container digest pins..."))
+			if recompileErr := recompileAllWorkflows(opts.ctx, opts.workflowDir, "", opts.verbose); recompileErr != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to recompile after container pin update: %v", recompileErr)))
+			}
 		}
 	}
 
