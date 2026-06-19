@@ -2,8 +2,11 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -288,9 +291,55 @@ func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA 
 	return latestSHA, nil
 }
 
+// fetchPublicGitHubAPI makes an unauthenticated GET request to the GitHub public
+// REST API. This is used as a fallback when the current token (e.g. an enterprise
+// SAML-enforced token) cannot access cross-organization public repositories.
+// Unauthenticated requests are subject to a lower rate limit (60 req/hour) but
+// are sufficient for the handful of calls needed during update resolution.
+func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) {
+	apiURL := "https://api.github.com" + endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return body, nil
+}
+
 // getRepoDefaultBranch fetches the default branch name for a repository.
 func getRepoDefaultBranch(ctx context.Context, repo string) (string, error) {
 	output, err := workflow.RunGHContext(ctx, "Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
+	if err != nil && gitutil.IsAuthError(err.Error()) {
+		updateLog.Printf("GitHub API auth failed for %s, retrying without token", repo)
+		body, fallbackErr := fetchPublicGitHubAPI(ctx, "/repos/"+repo)
+		if fallbackErr != nil {
+			return "", fmt.Errorf("failed (with token: %w; without token: %w)", err, fallbackErr)
+		}
+		var result struct {
+			DefaultBranch string `json:"default_branch"`
+		}
+		if fallbackErr = json.Unmarshal(body, &result); fallbackErr != nil {
+			return "", fmt.Errorf("failed to parse repo response: %w", fallbackErr)
+		}
+		if result.DefaultBranch == "" {
+			return "", fmt.Errorf("empty default branch returned for %s", repo)
+		}
+		return result.DefaultBranch, nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -306,7 +355,27 @@ func getRepoDefaultBranch(ctx context.Context, repo string) (string, error) {
 // getLatestBranchCommitSHA fetches the latest commit SHA for a given branch.
 func getLatestBranchCommitSHA(ctx context.Context, repo, branch string) (string, error) {
 	// URL-encode the branch name since it may contain slashes (e.g. "feature/foo")
-	output, err := workflow.RunGHContext(ctx, "Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, url.PathEscape(branch)), "--jq", ".commit.sha")
+	endpoint := fmt.Sprintf("/repos/%s/branches/%s", repo, url.PathEscape(branch))
+	output, err := workflow.RunGHContext(ctx, "Fetching branch info...", "api", endpoint, "--jq", ".commit.sha")
+	if err != nil && gitutil.IsAuthError(err.Error()) {
+		updateLog.Printf("GitHub API auth failed for branch %s of %s, retrying without token", branch, repo)
+		body, fallbackErr := fetchPublicGitHubAPI(ctx, endpoint)
+		if fallbackErr != nil {
+			return "", fmt.Errorf("failed (with token: %w; without token: %w)", err, fallbackErr)
+		}
+		var result struct {
+			Commit struct {
+				SHA string `json:"sha"`
+			} `json:"commit"`
+		}
+		if fallbackErr = json.Unmarshal(body, &result); fallbackErr != nil {
+			return "", fmt.Errorf("failed to parse branch response: %w", fallbackErr)
+		}
+		if result.Commit.SHA == "" {
+			return "", fmt.Errorf("empty commit SHA returned for branch %s", branch)
+		}
+		return result.Commit.SHA, nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -326,7 +395,29 @@ type workflowUpdateDeps struct {
 func defaultWorkflowUpdateDeps() workflowUpdateDeps {
 	return workflowUpdateDeps{
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
-			return workflow.RunGHContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+			endpoint := fmt.Sprintf("/repos/%s/releases", repo)
+			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", endpoint, "--jq", ".[].tag_name")
+			if err != nil && gitutil.IsAuthError(err.Error()) {
+				updateLog.Printf("GitHub API auth failed for releases of %s, retrying without token", repo)
+				body, fallbackErr := fetchPublicGitHubAPI(ctx, endpoint)
+				if fallbackErr != nil {
+					return nil, fmt.Errorf("failed (with token: %w; without token: %w)", err, fallbackErr)
+				}
+				var releases []struct {
+					TagName string `json:"tag_name"`
+				}
+				if fallbackErr = json.Unmarshal(body, &releases); fallbackErr != nil {
+					return nil, fmt.Errorf("failed to parse releases response: %w", fallbackErr)
+				}
+				var tags []string
+				for _, r := range releases {
+					if r.TagName != "" {
+						tags = append(tags, r.TagName)
+					}
+				}
+				return []byte(strings.Join(tags, "\n")), nil
+			}
+			return output, err
 		},
 	}
 }
