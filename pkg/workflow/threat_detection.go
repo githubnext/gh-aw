@@ -1074,7 +1074,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	engineID := c.getThreatDetectionEngineID(data)
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
-		return []string{"      # Engine not found, skipping execution\n"}
+		return []string{fmt.Sprintf("      # Failed to resolve detection engine %q: %v\n", engineID, err)}
 	}
 
 	// Build detection WorkflowData for the external detector.
@@ -1166,14 +1166,25 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// gets the same token/model/runtime environment configuration as the agent job.
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, constants.ThreatDetectionLogPath)
 	if len(executionSteps) > 0 {
-		for _, line := range extractStepEnvLines(executionSteps[0]) {
+		envLines := extractStepEnvLines(executionSteps[0])
+		if len(envLines) == 0 {
+			threatLog.Printf("Detection engine %q execution step did not expose env lines; external detector will run with minimal env", engineID)
+		}
+		for _, line := range envLines {
 			steps = append(steps, line+"\n")
 		}
+	} else {
+		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
 	}
 
 	return steps
 }
 
+const stepEnvIndent = "        "
+
+// extractStepEnvLines copies the YAML env: block from a rendered engine execution step.
+// It intentionally stops when a comment line appears because comments in step templates
+// are section separators, and consuming past them may bleed into non-env content.
 func extractStepEnvLines(step GitHubActionStep) []string {
 	envIndex := -1
 	for i, line := range step {
@@ -1189,14 +1200,13 @@ func extractStepEnvLines(step GitHubActionStep) []string {
 	var envLines []string
 	for _, line := range step[envIndex:] {
 		if line == "" {
-			envLines = append(envLines, line)
 			continue
 		}
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "#") {
 			break
 		}
-		if !strings.HasPrefix(line, "        ") && trimmed != "env:" {
+		if !strings.HasPrefix(line, stepEnvIndent) && trimmed != "env:" {
 			break
 		}
 		envLines = append(envLines, line)
