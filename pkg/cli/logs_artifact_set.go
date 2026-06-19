@@ -88,6 +88,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetUsage: {constants.UsageArtifactName},
 }
 
+const maxArtifactHintExamples = 2
+
 // ValidArtifactSetNames returns a sorted list of valid artifact set names,
 // derived dynamically from the artifactSetArtifacts map to stay in sync automatically.
 func ValidArtifactSetNames() []string {
@@ -108,7 +110,7 @@ func usageOnlyArtifactHintMessage() string {
 		return fmt.Sprintf("Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts %s.", examples[0])
 	default:
 		return fmt.Sprintf(
-			"Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts %s or --artifacts %s.",
+			"Only the usage artifact was downloaded. Use --artifacts all to download all artifacts, or a specific set such as --artifacts %s, or combinations such as --artifacts %s.",
 			examples[0],
 			strings.Join(examples, ","),
 		)
@@ -121,11 +123,11 @@ func artifactHintExampleSets() []string {
 		string(ArtifactSetAll):   {},
 		string(ArtifactSetUsage): {},
 	}
-	selected := make([]string, 0, 2)
-	seen := make(map[string]struct{}, 2)
+	selected := make([]string, 0, maxArtifactHintExamples)
+	seen := make(map[string]struct{}, maxArtifactHintExamples)
 
 	add := func(name string) {
-		if len(selected) == 2 {
+		if len(selected) == maxArtifactHintExamples {
 			return
 		}
 		if _, skip := excluded[name]; skip {
