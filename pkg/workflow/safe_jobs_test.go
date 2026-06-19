@@ -283,8 +283,8 @@ safe-outputs:
 	conclusionSection := extractJobSection(string(compiled), "conclusion")
 	require.NotEmpty(t, conclusionSection)
 
-	alphaIdx := strings.Index(conclusionSection, "- alpha_job")
-	zebraIdx := strings.Index(conclusionSection, "- zebra_job")
+	alphaIdx := indexInNonCommentLines(conclusionSection, "- alpha_job")
+	zebraIdx := indexInNonCommentLines(conclusionSection, "- zebra_job")
 	require.NotEqual(t, -1, alphaIdx, "conclusion job should depend on alpha_job")
 	require.NotEqual(t, -1, zebraIdx, "conclusion job should depend on zebra_job")
 	require.Less(t, alphaIdx, zebraIdx, "conclusion job should list safe-jobs in deterministic sorted order")
