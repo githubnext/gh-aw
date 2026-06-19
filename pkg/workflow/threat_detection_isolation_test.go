@@ -177,7 +177,7 @@ Test workflow`
 		t.Error("External detector path must include read-write mount for /tmp/gh-aw/threat-detection")
 	}
 
-	// The detector invocation must pass the artifacts directory positionally and not use the removed --output flag
+	// The detector invocation must pass the artifacts directory positionally and write a structured result file.
 	invocationNeedle := "threat-detect --engine "
 	invocationIndex := strings.Index(detectionSection, invocationNeedle)
 	if invocationIndex == -1 {
@@ -192,8 +192,8 @@ Test workflow`
 			t.Error("External detector path must pass /tmp/gh-aw/threat-detection as the positional artifacts directory")
 		}
 	}
-	if strings.Contains(detectionSection, "--output /tmp/gh-aw/threat-detection/detection_result.json") {
-		t.Error("External detector path must not pass --output to threat-detect")
+	if !strings.Contains(detectionSection, "--output /tmp/gh-aw/threat-detection/detection_result.json") {
+		t.Error("External detector path must pass --output /tmp/gh-aw/threat-detection/detection_result.json to threat-detect")
 	}
 
 	// The AWF execution pipeline must preserve non-zero threat-detect exits.

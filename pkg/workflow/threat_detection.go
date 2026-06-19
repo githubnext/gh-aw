@@ -1128,8 +1128,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// artifacts directory from /tmp/gh-aw/threat-detection/ (set up by previous
 	// steps) and writes the structured verdict to detection_result.json there.
 	threatDetectCmd := fmt.Sprintf(
-		"threat-detect --engine %s %s",
+		"threat-detect --engine %s --output %s %s",
 		engineID,
+		shellEscapeArg(constants.ThreatDetectionResultPath),
 		shellEscapeArg(constants.ThreatDetectionDir),
 	)
 
