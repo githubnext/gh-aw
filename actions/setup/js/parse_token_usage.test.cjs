@@ -547,8 +547,8 @@ describe("parse_token_usage", () => {
       const result = renderTokenTableAsPlainText("Token Usage", markdown);
 
       expect(result).toContain("Token Usage");
-      // separator line is removed
-      expect(result).not.toMatch(/\|--/);
+      // separator line is removed (no dash sequences that leak from separator rows)
+      expect(result).not.toMatch(/---/);
       // leading/trailing pipes are stripped
       expect(result).not.toMatch(/^\|/m);
       expect(result).not.toMatch(/\|$/m);

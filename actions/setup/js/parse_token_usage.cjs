@@ -112,7 +112,7 @@ function buildStepSummarySection(title, markdown) {
  */
 function renderTokenTableAsPlainText(title, markdown) {
   const plainText = markdown
-    .replace(/^\|-+.*-+\|$/gm, "") // Remove table separator lines
+    .replace(/^\|(?:[-: ]+\|)+$/gm, "") // Remove table separator lines (handles alignment colons)
     .replace(/^\|/gm, "") // Remove leading pipe from table rows
     .replace(/\|$/gm, "") // Remove trailing pipe from table rows
     .replace(/\s*\|\s*/g, " | ") // Normalize remaining pipes to spaced separators
