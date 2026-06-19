@@ -55,8 +55,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"entrypoint": "sh"`,
 				`"entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`,
 				`"env": {`,
-				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
-				`"RUNNER_TEMP": "$RUNNER_TEMP"`,
+				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
+				`"RUNNER_TEMP": "\${RUNNER_TEMP}"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -171,7 +171,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
 				// Environment variables
 				`"DEBUG": "*"`, // Literal value for debug logging
-				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
+				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
