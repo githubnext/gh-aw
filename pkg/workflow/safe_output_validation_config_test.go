@@ -164,7 +164,7 @@ func TestGetValidationConfigJSONWithMentions(t *testing.T) {
 		t.Errorf("Expected mentions.enabled to be true, got %v", mentionsParsed["enabled"])
 	}
 	if allowTeam, _ := mentionsParsed["allowedCollaborators"].(bool); allowTeam {
-		t.Errorf("Expected mentions.allowTeamMembers to be false, got %v", mentionsParsed["allowedCollaborators"])
+		t.Errorf("Expected mentions.allowedCollaborators to be false, got %v", mentionsParsed["allowedCollaborators"])
 	}
 
 	// A second call without mentions must not include the key (cache safety).
