@@ -150,11 +150,10 @@ async function main() {
   let skippedCount = 0;
   let failedCount = 0;
 
-  for (let i = 0; i < mergeablePullRequests.length; i++) {
+  for (const [i, pullNumber] of mergeablePullRequests.entries()) {
     if (i > 0) {
       await sleep(UPDATE_DELAY_MS);
     }
-    const pullNumber = mergeablePullRequests[i];
     try {
       core.info(`Updating branch for PR #${pullNumber}`);
       await updatePullRequestBranch(owner, repo, pullNumber);
