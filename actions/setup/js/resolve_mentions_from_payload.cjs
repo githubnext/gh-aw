@@ -187,7 +187,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
   }
 
   // Get configuration options (with defaults)
-  const allowTeamMembers = mentionsConfig?.allowTeamMembers !== false; // default: true
+  const allowCollaboratorMentions = (mentionsConfig?.allowedCollaborators ?? mentionsConfig?.allowTeamMembers) !== false; // default: true
   const allowContext = mentionsConfig?.allowContext !== false; // default: true
   const allowedList = mentionsConfig?.allowed || [];
   const allowedTeams = mentionsConfig?.allowedTeams || [];
@@ -202,7 +202,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
       knownAuthors.push(...allowedList.filter(alias => typeof alias === "string" && alias.length > 0));
     }
 
-    // Add members from allowed-teams (always included regardless of allow-team-members setting)
+    // Add members from allowed-teams (always included regardless of collaborator mention setting)
     if (Array.isArray(allowedTeams) && allowedTeams.length > 0) {
       core.info(`[MENTIONS] Fetching members for ${allowedTeams.length} configured team(s)`);
       for (const teamEntry of allowedTeams) {
@@ -231,9 +231,9 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
       deduplicatedKnownAuthors.push(author);
     }
 
-    // If allow-team-members is disabled, only use known authors (context + allowed list)
-    if (!allowTeamMembers) {
-      core.info(`[MENTIONS] Team members disabled - only allowing context (${deduplicatedKnownAuthors.length} users)`);
+    // If collaborator mentions are disabled, only use known authors (context + allowed list)
+    if (!allowCollaboratorMentions) {
+      core.info(`[MENTIONS] Collaborator mentions disabled - only allowing context (${deduplicatedKnownAuthors.length} users)`);
       if (deduplicatedKnownAuthors.length > maxMentions) {
         core.warning(`[MENTIONS] Mention limit exceeded: ${deduplicatedKnownAuthors.length} mentions, limiting to ${maxMentions}`);
       }

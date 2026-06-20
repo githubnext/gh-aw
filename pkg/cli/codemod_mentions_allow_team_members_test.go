@@ -286,3 +286,30 @@ safe-outputs:
 	assert.False(t, applied)
 	assert.Equal(t, content, result)
 }
+
+func TestMentionsAllowTeamMembersCodemod_FlowStyleMentions(t *testing.T) {
+	codemod := getMentionsAllowTeamMembersCodemod()
+
+	content := `---
+safe-outputs:
+  mentions: { allow-team-members: false, allow-context: true }
+---
+
+# Test workflow`
+
+	frontmatter := map[string]any{
+		"safe-outputs": map[string]any{
+			"mentions": map[string]any{
+				"allow-team-members": false,
+				"allow-context":      true,
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "mentions: { allowed-collaborators: false, allow-context: true }")
+	assert.NotContains(t, result, "allow-team-members:")
+}

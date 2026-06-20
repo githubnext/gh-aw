@@ -83,6 +83,17 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 			},
 		},
 		{
+			name: "deprecated allow-team-members alias",
+			input: map[string]any{
+				"allow-team-members": false,
+				"allow-context":      false,
+			},
+			expected: &MentionsConfig{
+				AllowedCollaborators: boolPtr(false),
+				AllowContext:         boolPtr(false),
+			},
+		},
+		{
 			name: "allowed list with @ prefix - should normalize",
 			input: map[string]any{
 				"allowed": []any{"@pelikhan", "@bot1"},

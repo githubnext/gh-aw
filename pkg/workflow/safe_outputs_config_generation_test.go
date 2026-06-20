@@ -158,14 +158,14 @@ func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 // TestGenerateSafeOutputsConfigMentions tests the mentions configuration generation.
 func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	enabled := true
-	allowTeamMembers := false
+	allowedCollaborators := false
 	max := 5
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			Mentions: &MentionsConfig{
 				Enabled:              &enabled,
-				AllowedCollaborators: &allowTeamMembers,
+				AllowedCollaborators: &allowedCollaborators,
 				Max:                  &max,
 				Allowed:              []string{"user1", "user2"},
 			},

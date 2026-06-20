@@ -10205,7 +10205,7 @@
               "properties": {
                 "allowed-collaborators": {
                   "type": "boolean",
-                  "description": "Allow mentions of repository collaborators (team members with any permission level, excluding bots). Default: true",
+                  "description": "Allow mentions of repository collaborators (users with repository access, excluding bots). Default: true",
                   "default": true
                 },
                 "allow-team-members": {

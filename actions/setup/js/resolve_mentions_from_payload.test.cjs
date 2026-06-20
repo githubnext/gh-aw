@@ -285,6 +285,20 @@ describe("resolveAllowedMentionsFromPayload", () => {
     expect(result).not.toContain("alice");
   });
 
+  it("respects allowedCollaborators: false", async () => {
+    const context = {
+      eventName: "issues",
+      payload: { issue: { user: { login: "alice", type: "User" }, assignees: [] } },
+      repo: { owner: "o", repo: "r" },
+    };
+    const result = await resolveAllowedMentionsFromPayload(context, mockGithub, mockCore, {
+      allowContext: false,
+      allowedCollaborators: false,
+      allowed: ["trusted-user"],
+    });
+    expect(result).toEqual(["trusted-user"]);
+  });
+
   it("resolves mentions with team members enabled", async () => {
     const context = {
       eventName: "issues",
