@@ -60,6 +60,7 @@ When a requested feature increases risk:
 - auto-merge or bypassing review
 - overly broad network access
 - unbounded bash allowlists for untrusted input
+- shell injection: interpolating `${{ github.event.* }}` or other untrusted expressions directly into `run:` scripts; pass untrusted values through environment variables instead
 - placing OIDC/secret bootstrap in `pre-steps` instead of earlier `setup-steps`
 - using `post-steps:` for agent-driven write actions
 

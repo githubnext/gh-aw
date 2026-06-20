@@ -158,16 +158,16 @@ func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 // TestGenerateSafeOutputsConfigMentions tests the mentions configuration generation.
 func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	enabled := true
-	allowTeamMembers := false
+	allowedCollaborators := false
 	max := 5
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			Mentions: &MentionsConfig{
-				Enabled:          &enabled,
-				AllowTeamMembers: &allowTeamMembers,
-				Max:              &max,
-				Allowed:          []string{"user1", "user2"},
+				Enabled:              &enabled,
+				AllowedCollaborators: &allowedCollaborators,
+				Max:                  &max,
+				Allowed:              []string{"user1", "user2"},
 			},
 		},
 	}
@@ -182,7 +182,7 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	mentions, ok := parsed["mentions"].(map[string]any)
 	require.True(t, ok, "Expected mentions key in config")
 	assert.True(t, mentions["enabled"].(bool), "enabled should be true")
-	assert.False(t, mentions["allowTeamMembers"].(bool), "allowTeamMembers should be false")
+	assert.False(t, mentions["allowedCollaborators"].(bool), "allowedCollaborators should be false")
 	assert.InDelta(t, float64(5), mentions["max"], 0.0001, "max should be 5")
 }
 

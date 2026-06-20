@@ -84,6 +84,28 @@ func TestResolveDefaultTimeoutMinutes(t *testing.T) {
 	})
 }
 
+func TestResolveDefaultMaxTurnCacheMisses(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurnCacheMisses, "")
+		assert.Equal(t, 5, ResolveDefaultMaxTurnCacheMisses(5))
+	})
+
+	t.Run("invalid uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurnCacheMisses, "abc")
+		assert.Equal(t, 5, ResolveDefaultMaxTurnCacheMisses(5))
+	})
+
+	t.Run("zero uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurnCacheMisses, "0")
+		assert.Equal(t, 5, ResolveDefaultMaxTurnCacheMisses(5))
+	})
+
+	t.Run("valid value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurnCacheMisses, "9")
+		assert.Equal(t, 9, ResolveDefaultMaxTurnCacheMisses(5))
+	})
+}
+
 func TestResolveDefaultDetectionModel(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultDetectionModel, "")

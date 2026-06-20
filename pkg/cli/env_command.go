@@ -29,6 +29,7 @@ const (
 
 type defaultsFile struct {
 	DefaultMaxAICredits          *string `yaml:"default_max_ai_credits"`
+	DefaultMaxTurnCacheMisses    *string `yaml:"default_max_turn_cache_misses"`
 	DefaultDetectionMaxAICredits *string `yaml:"default_detection_max_ai_credits"`
 	DefaultMaxDailyAICredits     *string `yaml:"default_max_daily_ai_credits"`
 	DefaultMaxTurns              *string `yaml:"default_max_turns"`
@@ -94,6 +95,7 @@ func (e *defaultsGHError) Unwrap() error {
 
 var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultMaxAICredits, fieldName: "default_max_ai_credits", get: func(f *defaultsFile) **string { return &f.DefaultMaxAICredits }},
+	{envName: compilerenv.DefaultMaxTurnCacheMisses, fieldName: "default_max_turn_cache_misses", get: func(f *defaultsFile) **string { return &f.DefaultMaxTurnCacheMisses }},
 	{envName: compilerenv.DefaultDetectionMaxAICredits, fieldName: "default_detection_max_ai_credits", get: func(f *defaultsFile) **string { return &f.DefaultDetectionMaxAICredits }},
 	{envName: compilerenv.DefaultMaxDailyAICredits, fieldName: "default_max_daily_ai_credits", get: func(f *defaultsFile) **string { return &f.DefaultMaxDailyAICredits }},
 	{envName: compilerenv.DefaultMaxTurns, fieldName: "default_max_turns", get: func(f *defaultsFile) **string { return &f.DefaultMaxTurns }},
@@ -323,6 +325,7 @@ func defaultsValidateFile(file *defaultsFile) error {
 	}
 
 	validateNonZeroInt("default_max_ai_credits", file.DefaultMaxAICredits)
+	validatePositiveInt("default_max_turn_cache_misses", file.DefaultMaxTurnCacheMisses)
 	validateNonZeroInt("default_detection_max_ai_credits", file.DefaultDetectionMaxAICredits)
 	validateNonZeroInt("default_max_daily_ai_credits", file.DefaultMaxDailyAICredits)
 	validatePositiveInt("default_max_turns", file.DefaultMaxTurns)

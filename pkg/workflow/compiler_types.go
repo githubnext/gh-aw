@@ -777,8 +777,8 @@ type MentionsConfig struct {
 	//   nil: use default behavior with team members and context
 	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 
-	// AllowTeamMembers determines if team members can be mentioned (default: true)
-	AllowTeamMembers *bool `yaml:"allow-team-members,omitempty" json:"allowTeamMembers,omitempty"`
+	// AllowedCollaborators determines if repository collaborators can be mentioned (default: true)
+	AllowedCollaborators *bool `yaml:"allowed-collaborators,omitempty" json:"allowedCollaborators,omitempty"`
 
 	// AllowContext determines if mentions from event context are allowed (default: true)
 	AllowContext *bool `yaml:"allow-context,omitempty" json:"allowContext,omitempty"`

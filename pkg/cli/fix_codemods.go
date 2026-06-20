@@ -87,6 +87,7 @@ func GetAllCodemods() []Codemod {
 		getSandboxAgentFalseRemovalCodemod(),                       // Remove deprecated sandbox.agent: false (rejected in strict mode)
 		getInferToDisableModelInvocationCodemod(),                  // Migrate deprecated 'infer' to 'disable-model-invocation'
 		getRunInstallScriptsToRuntimesNodeCodemod(),                // Move top-level run-install-scripts under runtimes.node
+		getMentionsAllowTeamMembersCodemod(),                       // Rename allow-team-members to allowed-collaborators in safe-outputs.mentions
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

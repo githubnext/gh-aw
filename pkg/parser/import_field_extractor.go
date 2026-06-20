@@ -78,11 +78,12 @@ type importAccumulator struct {
 	// max-daily-ai-credits found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
-	mergedMaxTurns          string
-	mergedMaxToolDenials    string
-	mergedMaxRuns           string
-	mergedMaxAICredits      string
-	mergedMaxDailyAICredits string
+	mergedMaxTurns           string
+	mergedMaxToolDenials     string
+	mergedMaxRuns            string
+	mergedMaxTurnCacheMisses string
+	mergedMaxAICredits       string
+	mergedMaxDailyAICredits  string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -362,6 +363,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turns", &acc.mergedMaxTurns)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-tool-denials", &acc.mergedMaxToolDenials)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-runs", &acc.mergedMaxRuns)
+	acc.extractFirstWinsJSONField(fm, fullPath, "max-turn-cache-misses", &acc.mergedMaxTurnCacheMisses)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
 
@@ -751,6 +753,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMaxTurns:                acc.mergedMaxTurns,
 		MergedMaxToolDenials:          acc.mergedMaxToolDenials,
 		MergedMaxRuns:                 acc.mergedMaxRuns,
+		MergedMaxTurnCacheMisses:      acc.mergedMaxTurnCacheMisses,
 		MergedMaxAICredits:            acc.mergedMaxAICredits,
 		MergedMaxDailyAICredits:       acc.mergedMaxDailyAICredits,
 		Warnings:                      acc.warnings,

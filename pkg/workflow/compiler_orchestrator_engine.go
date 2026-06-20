@@ -36,7 +36,7 @@ type engineSetupResult struct {
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
-	preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns := extractEngineBudgetLimits(engineConfig)
+	preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		return nil, err
 	}
-	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns)
+	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses)
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
 		return nil, err
@@ -74,11 +74,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}, nil
 }
 
-func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int) {
+func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, int) {
 	if engineConfig == nil {
-		return "", 0, 0
+		return "", 0, 0, 0
 	}
-	return engineConfig.MaxTurns, engineConfig.MaxAICredits, engineConfig.MaxRuns
+	return engineConfig.MaxTurns, engineConfig.MaxAICredits, engineConfig.MaxRuns, engineConfig.MaxTurnCacheMisses
 }
 
 func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {
@@ -293,6 +293,7 @@ func (c *Compiler) applyEngineImportDefaults(
 	preservedMaxTurns string,
 	preservedMaxAICredits int64,
 	preservedMaxRuns int,
+	preservedMaxTurnCacheMisses int,
 ) *EngineConfig {
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
@@ -305,6 +306,9 @@ func (c *Compiler) applyEngineImportDefaults(
 	}
 	if preservedMaxRuns > 0 {
 		engineConfig.MaxRuns = preservedMaxRuns
+	}
+	if preservedMaxTurnCacheMisses > 0 {
+		engineConfig.MaxTurnCacheMisses = preservedMaxTurnCacheMisses
 	}
 	if engineConfig.MaxTurns == "" && importsResult.MergedMaxTurns != "" {
 		var importedMaxTurns any
@@ -339,6 +343,15 @@ func (c *Compiler) applyEngineImportDefaults(
 			if parsed := parseMaxAICreditsValue(importedMaxAICredits); parsed != 0 {
 				engineConfig.MaxAICredits = parsed
 				orchestratorEngineLog.Printf("Applied max-ai-credits from import")
+			}
+		}
+	}
+	if engineConfig.MaxTurnCacheMisses <= 0 && importsResult.MergedMaxTurnCacheMisses != "" {
+		var importedMaxTurnCacheMisses any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurnCacheMisses), &importedMaxTurnCacheMisses); err == nil {
+			if parsed := parseMaxTurnCacheMissesValue(importedMaxTurnCacheMisses); parsed > 0 {
+				engineConfig.MaxTurnCacheMisses = parsed
+				orchestratorEngineLog.Printf("Applied max-turn-cache-misses from import")
 			}
 		}
 	}
@@ -394,6 +407,7 @@ func (c *Compiler) runPostEngineValidations(
 ) error {
 	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
 	enableFirewallByDefaultForClaude(engineSetting, networkPermissions, sandboxConfig)
+	enableFirewallByDefaultForPi(engineSetting, networkPermissions, sandboxConfig)
 	return c.withEffectiveStrictMode(frontmatter, func() error {
 		orchestratorEngineLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
 		if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {

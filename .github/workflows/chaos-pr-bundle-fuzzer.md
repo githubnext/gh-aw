@@ -11,11 +11,13 @@ permissions:
   pull-requests: read
   issues: read
 engine:
-  id: copilot
-  model: claude-sonnet-4.6
+  id: pi
+  model: copilot/gpt-5.4
 strict: true
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
   cache-memory: true
   bash: true
 safe-outputs:

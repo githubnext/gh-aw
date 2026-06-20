@@ -78,6 +78,14 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxToolDenials: "${{ inputs.max-tool-denials }}"},
 		},
 		{
+			name: "top-level max-turn-cache-misses without engine",
+			frontmatter: map[string]any{
+				"max-turn-cache-misses": 6,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxTurnCacheMisses: 6},
+		},
+		{
 			name: "top-level max-turns zero is ignored",
 			frontmatter: map[string]any{
 				"max-turns": 0,

@@ -19,6 +19,8 @@ import (
 // that contains the expected network, apiProxy, and container fields.
 func TestBuildAWFConfigJSON(t *testing.T) {
 	t.Run("basic config with allowed domains and API proxy enabled", func(t *testing.T) {
+		// Clear any ambient env override so the assertion below tests the built-in default.
+		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "")
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com,api.github.com",
@@ -49,6 +51,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
 		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns")
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxCacheMisses":%d`, constants.DefaultMaxTurnCacheMisses), "apiProxy should emit default maxCacheMisses")
 		assert.NotContains(t, jsonStr, `"maxEffectiveTokens"`, "apiProxy should omit maxEffectiveTokens when unset")
 
 		// container.imageTag
@@ -159,6 +162,68 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should bake in frontmatter maxAiCredits (skipping runtime expression)")
+	})
+
+	t.Run("default max-turn-cache-misses uses built-in default when unset", func(t *testing.T) {
+		// Clear any ambient env override so this test actually exercises the built-in default path.
+		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxCacheMisses":5`, "apiProxy should emit built-in maxCacheMisses default when unset")
+	})
+
+	t.Run("enterprise default max-turn-cache-misses env var overrides built-in default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "9")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxCacheMisses":9`, "apiProxy should emit env-managed default maxCacheMisses when frontmatter is unset")
+	})
+
+	t.Run("frontmatter max-turn-cache-misses takes precedence over env default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "9")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:                 "copilot",
+					MaxTurnCacheMisses: 3,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxCacheMisses":3`, "apiProxy should emit frontmatter maxCacheMisses ahead of env default")
 	})
 
 	// T-AIC-PR-007: Imported workflow max-ai-credits baked into AWF config JSON when no main
@@ -993,7 +1058,7 @@ func TestValidateAWFConfigJSON_AllowsTemplatableModelFallbackEnabled(t *testing.
 	require.NoError(t, err, "modelFallback.enabled expressions should pass compile-time schema validation")
 }
 
-func TestValidateAWFConfigJSON_AllowsMaxCacheMisses(t *testing.T) {
+func TestValidateAWFConfigJSON_AllowsMaxTurnCacheMisses(t *testing.T) {
 	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxCacheMisses":3}}`)
 	require.NoError(t, err, "maxCacheMisses should pass compile-time schema validation")
 }

@@ -276,10 +276,12 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		var valueStr string
 		if envVar.isLiteral {
 			valueStr = envVar.value
-		} else if includeCopilotFields {
-			valueStr = "\\${" + envVar.value + "}"
 		} else {
-			valueStr = "$" + envVar.value
+			// Always use backslash-escaped shell variable references in JSON MCP config heredocs.
+			// The heredoc delimiter is unquoted so bash would expand $VAR before the gateway
+			// script runs; escaping ensures the literal ${VAR} string is passed to the gateway,
+			// which resolves it from its own environment without leaking secret values in logs.
+			valueStr = "\\${" + envVar.value + "}"
 		}
 		yaml.WriteString("                  \"" + envVar.name + "\": \"" + valueStr + "\"" + comma + "\n")
 	}
@@ -412,14 +414,11 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 			// Literal value (e.g., DEBUG = "*")
 			valueStr = envVar.value
 		} else {
-			// Variable reference
-			if includeCopilotFields {
-				// Copilot format: backslash-escaped shell variable reference
-				valueStr = "\\${" + envVar.value + "}"
-			} else {
-				// Claude/Custom format: direct shell variable reference
-				valueStr = "$" + envVar.value
-			}
+			// Always use backslash-escaped shell variable references in JSON MCP config heredocs.
+			// The heredoc delimiter is unquoted so bash would expand $VAR before the gateway
+			// script runs; escaping ensures the literal ${VAR} string is passed to the gateway,
+			// which resolves it from its own environment without leaking secret values in logs.
+			valueStr = "\\${" + envVar.value + "}"
 		}
 
 		yaml.WriteString("                  \"" + envVar.name + "\": \"" + valueStr + "\"" + comma + "\n")

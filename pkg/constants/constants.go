@@ -291,6 +291,9 @@ const DefaultMaxDailyAICredits = "5000"
 // DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy.
 const DefaultMaxRuns = 500
 
+// DefaultMaxTurnCacheMisses is the default AWF consecutive cache-miss guardrail.
+const DefaultMaxTurnCacheMisses = 5
+
 // MCPSessionTimeoutMin is the minimum allowed value for engine.mcp.session-timeout (5 minutes).
 const MCPSessionTimeoutMin = 5 * time.Minute
 

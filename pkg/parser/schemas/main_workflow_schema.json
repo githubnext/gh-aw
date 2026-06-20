@@ -414,8 +414,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "pattern": "^[^/*][^/*]*\\*?$",
-                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/'. Append '*' as a suffix to enable wildcard prefix matching (for example, 'smoke*' matches '/smoke-copilot')."
+                  "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching (for example, 'smoke*' matches '/smoke-copilot')."
                 },
                 {
                   "type": "object",
@@ -426,8 +426,8 @@
                         {
                           "type": "string",
                           "minLength": 1,
-                          "pattern": "^[^/*][^/*]*\\*?$",
-                          "description": "Single command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/'. Append '*' as a suffix to enable wildcard prefix matching. Defaults to workflow filename without .md extension if not specified."
+                          "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                          "description": "Single command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching. Defaults to workflow filename without .md extension if not specified."
                         },
                         {
                           "type": "array",
@@ -436,8 +436,8 @@
                           "items": {
                             "type": "string",
                             "minLength": 1,
-                            "pattern": "^[^/*][^/*]*\\*?$",
-                            "description": "Command name without leading slash. Append '*' as a suffix to enable wildcard prefix matching."
+                            "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                            "description": "Command name without leading slash. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching."
                           },
                           "maxItems": 25
                         }
@@ -485,8 +485,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "pattern": "^[^/*][^/*]*\\*?$",
-                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/'. Append '*' as a suffix to enable wildcard prefix matching (for example, 'smoke*' matches '/smoke-copilot')."
+                  "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching (for example, 'smoke*' matches '/smoke-copilot')."
                 },
                 {
                   "type": "object",
@@ -497,8 +497,8 @@
                         {
                           "type": "string",
                           "minLength": 1,
-                          "pattern": "^[^/*][^/*]*\\*?$",
-                          "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/'. Append '*' as a suffix to enable wildcard prefix matching. Defaults to workflow filename without .md extension if not specified."
+                          "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                          "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching. Defaults to workflow filename without .md extension if not specified."
                         },
                         {
                           "type": "array",
@@ -507,8 +507,8 @@
                           "items": {
                             "type": "string",
                             "minLength": 1,
-                            "pattern": "^[^/*][^/*]*\\*?$",
-                            "description": "Command name without leading slash. Append '*' as a suffix to enable wildcard prefix matching."
+                            "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                            "description": "Command name without leading slash. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching."
                           },
                           "maxItems": 25
                         }
@@ -3711,6 +3711,12 @@
       "$ref": "#/$defs/max_ai_credits_limit",
       "default": 1000,
       "description": "Per-run AI Credits budget control for firewall cost enforcement. Enabled by default at 1000 (1k) when omitted. Set to -1 to disable both budget enforcement and token steering. Supports GitHub Actions expressions."
+    },
+    "max-turn-cache-misses": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5,
+      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence: frontmatter value → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override → built-in default `5`."
     },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
@@ -10203,10 +10209,16 @@
               "type": "object",
               "description": "Advanced configuration for @mention filtering with fine-grained control",
               "properties": {
+                "allowed-collaborators": {
+                  "type": "boolean",
+                  "description": "Allow mentions of repository collaborators (users with repository access, excluding bots). Default: true",
+                  "default": true
+                },
                 "allow-team-members": {
                   "type": "boolean",
-                  "description": "Allow mentions of repository team members (collaborators with any permission level, excluding bots). Default: true",
-                  "default": true
+                  "description": "Deprecated alias for allowed-collaborators",
+                  "deprecated": true,
+                  "x-deprecation-message": "'allow-team-members' is deprecated in safe-outputs.mentions. Use 'allowed-collaborators' instead. Run 'gh aw fix' to automatically migrate."
                 },
                 "allow-context": {
                   "type": "boolean",

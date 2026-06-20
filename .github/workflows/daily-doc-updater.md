@@ -32,8 +32,8 @@ safe-outputs:
 description: Automatically reviews and updates documentation to ensure accuracy and completeness
 emoji: 📝
 engine:
-  id: claude
-  model: "${{ needs.activation.outputs.model_size }}"
+  id: pi
+  model: copilot/gpt-5.4
 name: Daily Documentation Updater
 strict: true
 experiments:
