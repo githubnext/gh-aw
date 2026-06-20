@@ -59,7 +59,6 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure read-only `gh` CLI access without exposing `GITHUB_TOKEN` (requires AWF v0.26.0+). Prerequisite for `integrity-reactions`; the compiler enables it automatically when `integrity-reactions: true` is set.
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
-    - `mcp-cli: true` - Deprecated. This flag has been removed; MCP CLI mounting is now always enabled when `tools.cli-proxy: true` is set.
     - `dangerously-disable-sandbox-agent: "<justification>"` - Required when `sandbox.agent: false` is set. Must be a plain string justification (minimum 20 characters; expressions are not allowed) that explains why disabling the sandbox is safe for this workflow.
 
 - **`experiments:`** - A/B testing experiments for balanced variant selection (object)
@@ -442,16 +441,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
 - **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
 
-  **Key safe-outputs global fields:**
-  - `github-token:` — custom token for all safe-output jobs
-  - `github-app:` — GitHub App credentials for minting tokens
-  - `staged:` — preview mode (no API calls)
-  - `footer:` — global footer control (boolean)
-  - `threat-detection:` — auto-enabled threat detection
-  - `runs-on:` — runner for safe-output jobs (default: `ubuntu-slim`)
-  - `messages:` — custom footer/notification message templates
-  - `env:` — environment variables for safe-output jobs
-  - `max-patch-size:` — maximum git patch size in KB (default: 4096)
+  **Key safe-outputs global fields** (detail in [safe-outputs-runtime.md](safe-outputs-runtime.md)): `github-token`, `github-app`, `staged` (preview mode, no API calls), `footer`, `threat-detection`, `runs-on` (default `ubuntu-slim`), `messages`, `env`, `max-patch-size` (KB, default `4096`).
 
 
 - **`mcp-scripts:`** - Define custom lightweight MCP tools as JavaScript, shell, Python, or Go scripts (object)

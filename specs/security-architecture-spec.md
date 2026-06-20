@@ -1408,7 +1408,7 @@ Success!
 
 **Explanation**: Terminal color codes (`\x1b[...m`) removed to prevent terminal injection.
 
-#### Example 6: Comprehensive Sanitization
+#### Example 6: Combined Threat Sanitization
 
 **Input** (markdown with multiple threats):
 ```markdown

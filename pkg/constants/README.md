@@ -182,6 +182,8 @@ constants.AgentArtifactName           // "agent" (unified agent artifact)
 constants.DetectionArtifactName       // "detection"
 constants.LegacyDetectionArtifactName // "threat-detection.log" (backward compat)
 constants.ActivationArtifactName      // "activation"
+constants.ExperimentArtifactName      // "experiment" — A/B experiment state uploaded by the activation job
+constants.UsageArtifactName           // "usage" — compact run metadata and token-usage files from the conclusion job
 constants.SafeOutputItemsArtifactName // "safe-outputs-items"
 constants.SarifArtifactName           // "code-scanning-sarif"
 
@@ -191,6 +193,7 @@ constants.SafeOutputsFilename         // "safeoutputs.jsonl"
 constants.TokenUsageFilename          // "agent_usage.json"
 constants.GithubRateLimitsFilename    // "github_rate_limits.jsonl"
 constants.OtelJsonlFilename           // "otel.jsonl"
+constants.OtlpExportErrorsFilename    // "otlp-export-errors.jsonl" — OTLP per-endpoint export failure log
 constants.TemporaryIdMapFilename      // "temporary-id-map.json"
 constants.SarifFileName               // "code-scanning-alert.sarif"
 constants.SarifArtifactDownloadPath   // "/tmp/gh-aw/sarif/"
@@ -219,6 +222,7 @@ constants.PreActivationAppTokenStepID    // "pre-activation-app-token"
 
 // Agent job step IDs
 constants.ParseMCPGatewayStepID          // "parse-mcp-gateway"
+constants.DetectAgentErrorsStepID        // "detect-agent-errors" — post-execution error detection step
 ```
 
 ### Step Output Keys
@@ -265,6 +269,7 @@ constants.DefaultPiVersion              // Pi CLI version (experimental)
 // Infrastructure
 constants.DefaultGitHubMCPServerVersion // GitHub MCP server Docker image version
 constants.DefaultFirewallVersion        // AWF firewall version
+constants.DefaultThreatDetectVersion    // gh-aw-threat-detection binary version
 constants.DefaultMCPGatewayVersion      // MCP Gateway (gh-aw-mcpg) Docker image version
 
 // MCP tooling
@@ -396,6 +401,14 @@ constants.AWFAuditDir                // "/tmp/gh-aw/sandbox/firewall/audit"
 constants.AWFDefaultLogLevel         // "info"
 constants.DefaultGitHubLockdown      // false — GitHub MCP server lockdown default
 constants.AWFAPIProxyContainerIP     // "172.30.0.30" — fixed api-proxy sidecar address inside the AWF sandbox network
+```
+
+### Threat Detection Paths
+
+```go
+constants.ThreatDetectionLogPath    // "/tmp/gh-aw/threat-detection/detection.log" — engine log file
+constants.ThreatDetectionDir        // "/tmp/gh-aw/threat-detection" — working directory
+constants.ThreatDetectionResultPath // "/tmp/gh-aw/threat-detection/detection_result.json" — structured verdict output
 ```
 
 ## Validation Field Lists
