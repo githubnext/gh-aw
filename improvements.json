@@ -1,6 +1,20 @@
 {
-  "last_updated": "2026-06-19",
+  "last_updated": "2026-06-20",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-advanced-analytics.md",
+      "created": "2026-06-20",
+      "status": "pending",
+      "priority": "high",
+      "title": "Fix inaccurate add-wizard commands: line 53 points to copilot-agent-analysis.md (should be copilot-session-insights.md); line 59 missing .md extension on copilot-pr-nlp-analysis URL"
+    },
+    {
+      "file": ".github/workflows/daily-fact.md",
+      "created": "2026-06-20",
+      "status": "pending",
+      "priority": "medium",
+      "title": "Replace non-actionable run-failure message (line 62) with operationally useful message while preserving minimal personality"
+    },
     {
       "file": ".github/workflows/smoke-crush.md",
       "created": "2026-06-19",

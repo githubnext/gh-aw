@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-20",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-advanced-analytics.md",
+      "docs/src/content/docs/experimental/awf-reflect.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/daily-fact.md",
+      ".github/workflows/daily-max-ai-credits-test.md"
+    ],
+    "validation": [
+      "pkg/workflow/samples_validation_test.go"
+    ]
+  },
+  "overall_quality": "mixed-accurate-reference-mismatched-commands",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/experimental/awf-reflect.md",
+      "aspect": "Model reference doc — experimental callout is prominent, recommended selection flow (6 numbered steps) is precise and actionable, and the related-docs footer links to cost-management and model-tables for context."
+    },
+    {
+      "file": ".github/workflows/daily-max-ai-credits-test.md",
+      "aspect": "All three messages are context-aware and operationally clear: run-started explains what is being tested and the limit, run-success flags unexpected behavior with a ⚠️ and tells operators what to verify, run-failure explains why this is expected."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-advanced-analytics.md",
+      "lines": [53, 59],
+      "priority": "high",
+      "issue": "Line 53: add-wizard command under 'Copilot Session Insights' heading points to copilot-agent-analysis.md (wrong file; should be copilot-session-insights.md). Line 59: add-wizard command for Copilot PR NLP Analysis is missing .md extension. Both errors would cause users to add wrong/non-existent workflows."
+    },
+    {
+      "file": ".github/workflows/daily-fact.md",
+      "lines": [62],
+      "priority": "medium",
+      "issue": "run-failure message is theatrical ('Alas! its quill fallen mid-verse. The poem remains unfinished...') and provides zero operational signal for operators investigating a failure. Matches recurring pattern across smoke-crush, smoke-codex, smoke-copilot-aoai-apikey, dev-hawk."
+    }
+  ]
+}
