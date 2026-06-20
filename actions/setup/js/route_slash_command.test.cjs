@@ -270,13 +270,13 @@ describe("route_slash_command", () => {
   });
 
   it("warns and returns false for /help on unsupported event type", async () => {
-    globals.context.eventName = "push";
+    globals.context.eventName = "pull_request_review_comment";
     globals.context.payload = { comment: { body: "/help", id: 123456 } };
 
     await main();
 
     expect(issueCommentCalls).toHaveLength(0);
-    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Unable to post builtin /help response for event 'push'"));
+    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Unable to post builtin /help response for event 'pull_request_review_comment'"));
   });
 
   it("warns on invalid GH_AW_HELP_COMMAND_ENABLED value and still posts help", async () => {
@@ -321,7 +321,9 @@ describe("route_slash_command", () => {
     await main();
 
     expect(issueCommentCalls).toHaveLength(1);
-    expect(issueCommentCalls[0].body).not.toContain("@admin");
+    // The raw unquoted mention should not appear
+    expect(issueCommentCalls[0].body).not.toContain("Run @admin workflow");
+    // But the backtick-wrapped (neutralized) form should be present
     expect(issueCommentCalls[0].body).toContain("`@admin`");
   });
 
