@@ -142,6 +142,24 @@ function extractFromStreamJson(line) {
     return extractResultFromText(text.slice(prefixIdx));
   }
 
+  /**
+   * @param {unknown} content
+   * @returns {string|null}
+   */
+  function extractFromAssistantContent(content) {
+    if (typeof content === "string") {
+      return extractPrefixedResult(content) || extractStructuredOutput(content);
+    }
+    if (!Array.isArray(content)) return null;
+    for (const part of content) {
+      const text = part && typeof part === "object" && typeof part.text === "string" ? part.text : null;
+      if (!text) continue;
+      const extracted = extractPrefixedResult(text) || extractStructuredOutput(text);
+      if (extracted) return extracted;
+    }
+    return null;
+  }
+
   try {
     const obj = JSON.parse(jsonText);
     // Only extract from the authoritative "result" summary, not "assistant" messages.
@@ -186,6 +204,25 @@ function extractFromStreamJson(line) {
     }
     if (obj.type === "item.completed" && obj.item && typeof obj.item.text === "string") {
       return extractPrefixedResult(obj.item.text) || extractStructuredOutput(obj.item.text);
+    }
+
+    // Pi emits final assistant verdicts in turn_end/message_end envelopes.
+    if ((obj.type === "turn_end" || obj.type === "message_end") && obj.message && obj.message.role === "assistant") {
+      return extractFromAssistantContent(obj.message.content);
+    }
+
+    // Some streams emit final assistant state via message_update.
+    if (obj.type === "message_update" && obj.message && obj.message.role === "assistant") {
+      return extractFromAssistantContent(obj.message.content);
+    }
+
+    // Agent-level summaries may include all messages; parse assistant messages only.
+    if (obj.type === "agent_end" && Array.isArray(obj.messages)) {
+      for (const message of obj.messages) {
+        if (!message || message.role !== "assistant") continue;
+        const extracted = extractFromAssistantContent(message.content);
+        if (extracted) return extracted;
+      }
     }
   } catch {
     // Not valid JSON — not a stream-json line
