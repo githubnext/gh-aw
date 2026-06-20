@@ -163,6 +163,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			return err
 		}
 		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+			Context:         ctx,
 			WorkflowDir:     workflowDir,
 			Enabled:         repoConfig.IsAutoUpgradeEnabled(),
 			RepoSlug:        repoSlug,
@@ -224,6 +225,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		}
 
 		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+			Context:         ctx,
 			WorkflowDir:     workflowDir,
 			Enabled:         repoConfig != nil && repoConfig.IsAutoUpgradeEnabled(),
 			RepoSlug:        repoSlug,
@@ -306,6 +308,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	}
 
 	return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+		Context:         ctx,
 		WorkflowDir:     workflowDir,
 		Enabled:         repoConfig != nil && repoConfig.IsAutoUpgradeEnabled(),
 		RepoSlug:        repoSlug,

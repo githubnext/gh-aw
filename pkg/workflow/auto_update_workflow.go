@@ -24,6 +24,9 @@ const autoUpdateWorkflowIdentifier = "agentic-auto-upgrade"
 
 // GenerateAutoUpdateWorkflowOptions configures an auto-update workflow generation run.
 type GenerateAutoUpdateWorkflowOptions struct {
+	// Context is used for action reference resolution in non-dev modes.
+	// When nil, context.Background() is used.
+	Context context.Context
 	// WorkflowDir is the directory where the workflow file will be written.
 	WorkflowDir string
 	// Enabled indicates whether auto-updates are enabled in the repo config.
@@ -95,11 +98,15 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 	if actionMode == "" {
 		actionMode = ActionModeDev
 	}
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	content := buildAutoUpdateWorkflowYAML(
 		cronSchedule,
 		setupActionRef,
 		githubScriptPin,
-		generateInstallCLISteps(context.Background(), actionMode, opts.Version, opts.ActionTag, opts.Resolver),
+		generateInstallCLISteps(ctx, actionMode, opts.Version, opts.ActionTag, opts.Resolver),
 		getCLICmdPrefix(actionMode),
 	)
 
