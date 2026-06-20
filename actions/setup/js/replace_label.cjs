@@ -337,7 +337,14 @@ const main = createCountGatedHandler({
         );
       } catch (err) {
         const errorMessage = getErrorMessage(err);
-        core.error(`Failed to replace label: ${errorMessage}`);
+        // RL-046: detect partial mutation success — remove succeeded but add failed
+        const errAsAny = /** @type {any} */ err;
+        const partialData = errAsAny?.data;
+        if (partialData?.removeLabels && !partialData?.addLabels) {
+          core.error(`Partial mutation failure on ${contextType} #${itemNumber} in ${itemRepo}: ` + `"${labelToRemove}" was removed but "${labelToAdd}" could not be added: ${errorMessage}`);
+        } else {
+          core.error(`Failed to replace label: ${errorMessage}`);
+        }
         return { success: false, error: errorMessage };
       }
     };
