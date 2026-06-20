@@ -741,11 +741,15 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 			if err != nil {
 				return fmt.Errorf("failed to create report file: %w", err)
 			}
-			defer f.Close() //nolint:errcheck
-			oldStdout := os.Stdout
-			os.Stdout = f
-			renderCrossRunReportMarkdown(report)
-			os.Stdout = oldStdout
+			if err := func() error {
+				oldStdout := os.Stdout
+				defer func() { os.Stdout = oldStdout }()
+				os.Stdout = f
+				renderCrossRunReportMarkdown(report)
+				return f.Close()
+			}(); err != nil {
+				return fmt.Errorf("failed to write report file: %w", err)
+			}
 		} else {
 			renderCrossRunReportMarkdown(report)
 		}
