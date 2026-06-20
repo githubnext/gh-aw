@@ -301,7 +301,14 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
 
 function isBuiltinHelpEnabled() {
   const raw = (process.env.GH_AW_HELP_COMMAND_ENABLED || "").trim().toLowerCase();
-  return raw !== "false";
+  if (!raw || raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  core.warning(`Invalid GH_AW_HELP_COMMAND_ENABLED value '${raw}', defaulting to enabled.`);
+  return true;
 }
 
 function parseHelpCommandsMetadata() {
@@ -329,7 +336,8 @@ function parseHelpCommandsMetadata() {
       })
       .sort((left, right) => left.command.localeCompare(right.command));
   } catch (error) {
-    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)}`);
+    const preview = raw.length > 160 ? `${raw.slice(0, 157)}...` : raw;
+    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)} (raw: ${preview})`);
     return [];
   }
 }
