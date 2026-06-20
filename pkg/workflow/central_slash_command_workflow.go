@@ -42,6 +42,7 @@ type helpCommandEntry struct {
 	Description   string `json:"description,omitempty"`
 	Centralized   bool   `json:"centralized"`
 	Decentralized bool   `json:"decentralized"`
+	Label         bool   `json:"label,omitempty"`
 }
 
 // GenerateCentralSlashCommandWorkflow generates a single centralized slash-command trigger
@@ -389,14 +390,17 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 		DescriptionBy string
 		Centralized   bool
 		Decentralized bool
+		Label         bool
 	}
 	byCommand := make(map[string]aggregate)
+	byLabel := make(map[string]aggregate)
 
 	for _, wd := range workflowDataList {
-		if wd == nil || len(wd.Command) == 0 {
+		if wd == nil {
 			continue
 		}
 		description := strings.TrimSpace(wd.Description)
+
 		for _, commandName := range wd.Command {
 			trimmed := strings.TrimSpace(commandName)
 			if trimmed == "" {
@@ -428,6 +432,30 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			}
 			byCommand[trimmed] = existing
 		}
+
+		for _, labelName := range wd.LabelCommand {
+			trimmed := strings.TrimSpace(labelName)
+			if trimmed == "" {
+				continue
+			}
+			existing := byLabel[trimmed]
+			if existing.Description != "" && description != "" && existing.Description != description {
+				centralSlashCommandWorkflowLog.Printf(
+					"Conflicting descriptions for label %q: keeping %q from workflow %s, ignoring %q from workflow %s",
+					trimmed,
+					existing.Description,
+					existing.DescriptionBy,
+					description,
+					wd.WorkflowID,
+				)
+			}
+			if existing.Description == "" && description != "" {
+				existing.Description = description
+				existing.DescriptionBy = wd.WorkflowID
+			}
+			existing.Label = true
+			byLabel[trimmed] = existing
+		}
 	}
 
 	commands := make([]string, 0, len(byCommand))
@@ -436,7 +464,13 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 	}
 	sort.Strings(commands)
 
-	entries := make([]helpCommandEntry, 0, len(commands))
+	labels := make([]string, 0, len(byLabel))
+	for labelName := range byLabel {
+		labels = append(labels, labelName)
+	}
+	sort.Strings(labels)
+
+	entries := make([]helpCommandEntry, 0, len(commands)+len(labels))
 	for _, command := range commands {
 		item := byCommand[command]
 		entries = append(entries, helpCommandEntry{
@@ -444,6 +478,14 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			Description:   item.Description,
 			Centralized:   item.Centralized,
 			Decentralized: item.Decentralized,
+		})
+	}
+	for _, labelName := range labels {
+		item := byLabel[labelName]
+		entries = append(entries, helpCommandEntry{
+			Command:     labelName,
+			Description: item.Description,
+			Label:       true,
 		})
 	}
 

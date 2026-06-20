@@ -435,12 +435,23 @@ func TestBuildHelpCommandEntries(t *testing.T) {
 			CommandCentralized: false,
 			Description:        "Summarize latest updates",
 		},
+		{
+			WorkflowID:   "label-triage",
+			LabelCommand: []string{"triage-label", "urgent"},
+			Description:  "Triage via label",
+		},
+		{
+			WorkflowID:   "label-duplicate",
+			LabelCommand: []string{"triage-label"},
+		},
 	}
 
 	require.Equal(t, []helpCommandEntry{
 		{Command: "helpful", Description: "Triage work items", Centralized: true},
 		{Command: "summary", Description: "Summarize latest updates", Decentralized: true},
 		{Command: "triage", Description: "Triage work items", Centralized: true, Decentralized: true},
+		{Command: "triage-label", Description: "Triage via label", Label: true},
+		{Command: "urgent", Description: "Triage via label", Label: true},
 	}, buildHelpCommandEntries(data))
 }
 

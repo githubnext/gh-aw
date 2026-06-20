@@ -148,6 +148,7 @@ describe("route_slash_command", () => {
     process.env.GH_AW_HELP_COMMANDS = JSON.stringify([
       { command: "archie", description: "Run archie workflow", centralized: true, decentralized: false },
       { command: "local-summary", description: "Run summary workflow", centralized: false, decentralized: true },
+      { command: "triage", description: "Apply triage label", label: true },
     ]);
     process.env.GH_AW_HELP_COMMAND_ENABLED = "true";
     process.env.GH_AW_SLASH_COMMAND_DOCS_URL = "https://github.github.com/gh-aw/reference/command-triggers/";
@@ -204,11 +205,13 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(0);
     expect(issueCommentCalls).toHaveLength(1);
     expect(issueCommentCalls[0].issue_number).toBe(77);
-    expect(issueCommentCalls[0].body).toContain("## Supported Slash Commands");
-    expect(issueCommentCalls[0].body).toContain("**Centralized commands**");
+    expect(issueCommentCalls[0].body).toContain("## Supported Commands");
+    expect(issueCommentCalls[0].body).toContain("**Centralized slash commands**");
     expect(issueCommentCalls[0].body).toContain("- `/archie` — Run archie workflow");
-    expect(issueCommentCalls[0].body).toContain("**Non-centralized commands**");
+    expect(issueCommentCalls[0].body).toContain("**Non-centralized slash commands**");
     expect(issueCommentCalls[0].body).toContain("- `/local-summary` — Run summary workflow");
+    expect(issueCommentCalls[0].body).toContain("**Label commands**");
+    expect(issueCommentCalls[0].body).toContain("- `triage` — Apply triage label");
     expect(issueCommentCalls[0].body).toContain("https://github.github.com/gh-aw/reference/command-triggers/");
   });
 

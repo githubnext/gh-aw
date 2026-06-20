@@ -331,6 +331,7 @@ function parseHelpCommandsMetadata() {
             description,
             centralized: Boolean(item?.centralized),
             decentralized: Boolean(item?.decentralized),
+            label: Boolean(item?.label),
           },
         ];
       })
@@ -351,11 +352,17 @@ function buildCommandBulletLine(entry) {
   return `- \`/${entry.command}\`${suffix}`;
 }
 
+function buildLabelBulletLine(entry) {
+  const suffix = entry.description ? ` — ${entry.description}` : "";
+  return `- \`${entry.command}\`${suffix}`;
+}
+
 function buildHelpCommentBody(helpCommands) {
   const centralized = helpCommands.filter(entry => entry.centralized);
   const decentralized = helpCommands.filter(entry => entry.decentralized);
+  const labels = helpCommands.filter(entry => entry.label);
 
-  const lines = ["## Supported Slash Commands", "", "**Centralized commands**"];
+  const lines = ["## Supported Commands", "", "**Centralized slash commands**"];
   if (centralized.length === 0) {
     lines.push("- _None_");
   } else {
@@ -364,12 +371,21 @@ function buildHelpCommentBody(helpCommands) {
     }
   }
 
-  lines.push("", "**Non-centralized commands**");
+  lines.push("", "**Non-centralized slash commands**");
   if (decentralized.length === 0) {
     lines.push("- _None_");
   } else {
     for (const entry of decentralized) {
       lines.push(buildCommandBulletLine(entry));
+    }
+  }
+
+  lines.push("", "**Label commands**");
+  if (labels.length === 0) {
+    lines.push("- _None_");
+  } else {
+    for (const entry of labels) {
+      lines.push(buildLabelBulletLine(entry));
     }
   }
 
