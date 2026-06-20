@@ -92,6 +92,10 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 		enabledTools["remove_labels"] = struct {
 		}{}
 	}
+	if data.SafeOutputs.ReplaceLabel != nil {
+		enabledTools["replace_label"] = struct {
+		}{}
+	}
 	if data.SafeOutputs.AddReviewer != nil {
 		enabledTools["add_reviewer"] = struct {
 		}{}

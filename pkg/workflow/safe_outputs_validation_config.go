@@ -392,6 +392,15 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"replace_label": {
+		DefaultMax: 5,
+		Fields: map[string]FieldValidation{
+			"label_to_remove": {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"label_to_add":    {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"item_number":     {IssueNumberOrTemporaryID: true},
+			"repo":            {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
 	"unassign_from_user": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{

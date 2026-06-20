@@ -3716,7 +3716,7 @@
       "type": "integer",
       "minimum": 1,
       "default": 5,
-      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence: frontmatter value → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override → built-in default `5`."
+      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence: frontmatter value \u2192 `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override \u2192 built-in default `5`."
     },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
@@ -10235,7 +10235,7 @@
                 },
                 "allowed-teams": {
                   "type": "array",
-                  "description": "List of team slugs whose members are always allowed to be mentioned. Accepts 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team members are fetched from the GitHub API at runtime; bots are excluded. IMPORTANT: requires read:org scope — not available with the default GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a GitHub App with the Members:Read permission. Without the required scope, team lookups fail with a warning and those members are skipped.",
+                  "description": "List of team slugs whose members are always allowed to be mentioned. Accepts 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team members are fetched from the GitHub API at runtime; bots are excluded. IMPORTANT: requires read:org scope \u2014 not available with the default GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a GitHub App with the Members:Read permission. Without the required scope, team lookups fail with a warning and those members are skipped.",
                   "items": {
                     "type": "string",
                     "minLength": 1
@@ -10540,6 +10540,116 @@
             }
           ],
           "description": "Enable AI agents to signal that a task could not be completed due to infrastructure or tool failures (e.g., MCP crash, missing auth, inaccessible repository). Activates failure handling even when the agent exits 0."
+        },
+        "replace-label": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows any labels to be replaced. Labels will be created if they don't already exist in the repository."
+            },
+            {
+              "type": "object",
+              "description": "Configuration for replacing one label with another on issues/PRs in a single atomic operation. Enables clear state transitions (e.g. 'in-progress' \u2192 'done').",
+              "properties": {
+                "allowed-add": {
+                  "type": "array",
+                  "description": "Optional list of allowed label patterns that can be added (supports glob patterns like 'state-*'). Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "allowed-remove": {
+                  "type": "array",
+                  "description": "Optional list of allowed label patterns that can be removed (supports glob patterns like 'state-*'). If omitted, any labels can be removed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "blocked": {
+                  "type": "array",
+                  "description": "Optional list of blocked label patterns (supports glob patterns like '~*', '*[bot]'). Applied to both label_to_add and label_to_remove. Rejected before allowed list filtering.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "max": {
+                  "description": "Optional maximum number of label replacements (default: 5). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for the operation: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository label replacement. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that label replacements can target. When specified, the agent can use a 'repo' field in the output to specify which repository to update labels on."
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
+                },
+                "samples": {
+                  "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Enable AI agents to replace one label with another on GitHub issues or pull requests in a single atomic operation. Ideal for maintaining label-based state machines (e.g. transitioning issues through workflow states)."
         }
       },
       "additionalProperties": false

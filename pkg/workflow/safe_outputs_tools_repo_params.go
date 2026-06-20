@@ -79,7 +79,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}
-	case "add_labels", "remove_labels", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
+	case "add_labels", "remove_labels", "replace_label", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
 		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user",
 		"set_issue_type", "set_issue_field":
 		// These use SafeOutputTargetConfig - check the appropriate config
@@ -91,6 +91,11 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			}
 		case "remove_labels":
 			if config := safeOutputs.RemoveLabels; config != nil {
+				hasAllowedRepos = len(config.AllowedRepos) > 0
+				targetRepoSlug = config.TargetRepoSlug
+			}
+		case "replace_label":
+			if config := safeOutputs.ReplaceLabel; config != nil {
 				hasAllowedRepos = len(config.AllowedRepos) > 0
 				targetRepoSlug = config.TargetRepoSlug
 			}

@@ -600,6 +600,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.RemoveLabels != nil {
 		tools = append(tools, toolWithMaxBudget("remove_labels", safeOutputs.RemoveLabels.Max))
 	}
+	if safeOutputs.ReplaceLabel != nil {
+		tools = append(tools, toolWithMaxBudget("replace_label", safeOutputs.ReplaceLabel.Max))
+	}
 	if safeOutputs.AddReviewer != nil {
 		tools = append(tools, toolWithMaxBudget("add_reviewer", safeOutputs.AddReviewer.Max))
 	}
