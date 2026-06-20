@@ -26,6 +26,8 @@ const fs = require("fs");
 const path = require("path");
 
 const NETWORK_ALLOWED_ENV_VAR = "GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED";
+/** @typedef {{allowDomains?: string[]}} AWFNetworkConfig */
+/** @typedef {Record<string, unknown> & {network?: AWFNetworkConfig | unknown}} AWFConfig */
 
 /**
  * @returns {Promise<void>}
@@ -39,7 +41,7 @@ async function main() {
 
   const configPath = path.join(runnerTemp, "gh-aw", "awf-config.json");
 
-  /** @type {any} */
+  /** @type {AWFConfig} */
   let config;
   try {
     config = JSON.parse(fs.readFileSync(configPath, "utf8"));
@@ -82,11 +84,11 @@ async function main() {
     if (!config.network || typeof config.network !== "object" || Array.isArray(config.network)) {
       config.network = {};
     }
-    const network = /** @type {Record<string, unknown>} */ config.network;
+    const network = /** @type {AWFNetworkConfig} */ config.network;
     if (!Array.isArray(network.allowDomains)) {
       network.allowDomains = [];
     }
-    const allowDomains = /** @type {string[]} */ network.allowDomains;
+    const allowDomains = network.allowDomains;
     const seen = new Set(allowDomains);
 
     for (const token of tokens) {
