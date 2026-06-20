@@ -30,6 +30,7 @@ const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
 const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
+const RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW = new Set(["bash", "shell"]);
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded
@@ -1209,7 +1210,7 @@ function extractShellCommandPreview(data) {
 function formatRecentToolCall(toolName, mcpServerName, data) {
   const base = mcpServerName ? `${mcpServerName}.${toolName}` : toolName;
   const normalizedTool = toolName.toLowerCase();
-  if (normalizedTool !== "bash" && normalizedTool !== "shell") {
+  if (!RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW.has(normalizedTool)) {
     return base;
   }
   const commandPreview = extractShellCommandPreview(data);
