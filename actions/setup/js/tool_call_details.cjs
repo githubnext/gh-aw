@@ -13,7 +13,7 @@ function extractShellCommandFromToolData(data) {
   const commandFieldCandidates = [];
   if ("command" in data) commandFieldCandidates.push(data.command);
   if ("input" in data) commandFieldCandidates.push(data.input);
-  if ("arguments" in data) commandFieldCandidates.push(data["arguments"]);
+  if ("arguments" in data) commandFieldCandidates.push(data.arguments);
   if ("args" in data) commandFieldCandidates.push(data.args);
   if ("toolInput" in data) commandFieldCandidates.push(data.toolInput);
   if ("parameters" in data) commandFieldCandidates.push(data.parameters);
