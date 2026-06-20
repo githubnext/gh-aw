@@ -29,7 +29,13 @@
       "tested": "2026-06-07",
       "effectiveness": "High",
       "finding": "On recovery days (completion>=40%) gate/moderator/review workflows (Test Quality Sentinel, PR Code Quality Reviewer, Design Decision Gate, Matt Pocock, Code Review, Agentic Commands) DO produce success conclusions -- 17/20 successes vs only 3 from cloud-agent. Inverts the 06-03 provenance mapping which held only on pure gate-sweep days. Implication: completion% is bimodal by regime, not purely a gate-to-agent ratio."
+    },
+    {
+      "name": "Gate Footprint Signature Classification",
+      "tested": "2026-06-20",
+      "effectiveness": "Medium-High",
+      "finding": "Classify a branch's gate activity by refire ratio = total runs / distinct workflows. Narrow high-refire (one branch re-firing the same 1-2 workflows, ratio >=~3) inflates the daily gate-sweep count and can co-locate failures; broad single-pass fan-out (ratio ~1.0-1.3) is a normal per-push CI sweep. On 06-20 update-custom-css-themes was 27 runs/5 distinct (ratio 5.4, Q12+AgenticCommands12) and held the only failure, while 3 other branches were single-pass. GSII alone (sessions/branches=12.5) hides this bimodality."
     }
   ],
-  "last_updated": "2026-06-07"
+  "last_updated": "2026-06-20"
 }
