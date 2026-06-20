@@ -408,6 +408,8 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			if wd.CommandCentralized {
 				existing.Centralized = true
 			} else {
+				// Slash commands are either centralized or inline in current workflow metadata:
+				// CommandCentralized=false indicates the command is handled in its own workflow.
 				existing.Decentralized = true
 			}
 			byCommand[trimmed] = existing

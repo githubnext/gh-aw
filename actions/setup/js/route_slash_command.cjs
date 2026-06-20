@@ -312,20 +312,21 @@ function parseHelpCommandsMetadata() {
       return [];
     }
     return parsed
-      .map(item => {
+      .flatMap(item => {
         const command = typeof item?.command === "string" ? item.command.trim() : "";
         if (!command) {
-          return null;
+          return [];
         }
         const description = typeof item?.description === "string" ? item.description.trim() : "";
-        return {
-          command,
-          description,
-          centralized: Boolean(item?.centralized),
-          decentralized: Boolean(item?.decentralized),
-        };
+        return [
+          {
+            command,
+            description,
+            centralized: Boolean(item?.centralized),
+            decentralized: Boolean(item?.decentralized),
+          },
+        ];
       })
-      .filter(item => item !== null)
       .sort((left, right) => left.command.localeCompare(right.command));
   } catch (error) {
     core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)}`);
@@ -333,7 +334,7 @@ function parseHelpCommandsMetadata() {
   }
 }
 
-function helpDocsURL() {
+function getHelpDocsUrl() {
   const fromEnv = (process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim();
   return fromEnv || DEFAULT_SLASH_COMMAND_DOCS_URL;
 }
@@ -365,7 +366,7 @@ function buildHelpCommentBody(helpCommands) {
     }
   }
 
-  lines.push("", `Learn more: [Slash command documentation](${helpDocsURL()})`);
+  lines.push("", `Learn more: [Slash command documentation](${getHelpDocsUrl()})`);
   return lines.join("\n");
 }
 
