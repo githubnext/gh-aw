@@ -23,7 +23,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -175,44 +174,13 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
 	}
 
-	return fmt.Sprintf(`python3 - <<'PY'
-import base64
-import json
-import os
-from pathlib import Path
-
-runner_temp = os.environ.get("RUNNER_TEMP")
-if not runner_temp:
-    raise SystemExit("RUNNER_TEMP is not set")
-
-config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
-try:
-    config = json.loads(config_path.read_text())
-except FileNotFoundError as exc:
-    raise SystemExit(f"Missing AWF config file at {config_path}") from exc
-except json.JSONDecodeError as exc:
-    raise SystemExit(f"Invalid AWF config JSON at {config_path}: {exc}") from exc
-except OSError as exc:
-    raise SystemExit(f"Failed to read AWF config file at {config_path}: {exc}") from exc
-
-network_allowed = os.environ.get(%q, "")
-tokens = [token.strip() for token in network_allowed.split(",") if token.strip()]
-
-if tokens:
-    ecosystem_map = json.loads(base64.b64decode('%s').decode())
-    allow_domains = config.setdefault("network", {}).setdefault("allowDomains", [])
-    seen = set(allow_domains)
-    for token in tokens:
-        for domain in ecosystem_map.get(token, [token]):
-            if domain not in seen:
-                allow_domains.append(domain)
-                seen.add(domain)
-
-try:
-    config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
-except OSError as exc:
-    raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
-PY`, string(WorkflowCallNetworkAllowedEnvVar), base64.StdEncoding.EncodeToString(ecosystemJSON)), nil
+	// Pass the ecosystem map JSON via an env var and invoke the JavaScript
+	// implementation deployed by actions/setup to ${RUNNER_TEMP}/gh-aw/actions/.
+	// Using node avoids any Python dependency and eliminates the risk of quote
+	// injection: the ecosystem map is single-quoted by shellEscapeArg (JSON only
+	// contains double-quoted strings so no single quotes can appear).
+	return fmt.Sprintf(`GH_AW_ECOSYSTEM_MAP_JSON=%s node "${RUNNER_TEMP}/gh-aw/actions/update_network_allowed.cjs"`,
+		shellEscapeArg(string(ecosystemJSON))), nil
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.

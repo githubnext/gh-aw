@@ -1396,7 +1396,10 @@ func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *t
 
 	command := BuildAWFCommand(config)
 
-	assert.Contains(t, command, `os.environ.get("RUNNER_TEMP")`, "workflow_call network updater should resolve RUNNER_TEMP inside Python")
+	assert.Contains(t, command, `update_network_allowed.cjs`, "workflow_call network updater should invoke the JavaScript implementation")
+	assert.Contains(t, command, `GH_AW_ECOSYSTEM_MAP_JSON=`, "workflow_call network updater should pass ecosystem map via env var")
+	assert.Contains(t, command, `"${RUNNER_TEMP}/gh-aw/actions/update_network_allowed.cjs"`, "workflow_call network updater should resolve RUNNER_TEMP at runtime via shell expansion")
+	assert.NotContains(t, command, `os.environ.get("RUNNER_TEMP")`, "workflow_call network updater should not use Python os.environ")
 	assert.NotContains(t, command, `Path("${RUNNER_TEMP}/gh-aw/awf-config.json")`, "workflow_call network updater should not embed an unexpanded RUNNER_TEMP literal")
 }
 
