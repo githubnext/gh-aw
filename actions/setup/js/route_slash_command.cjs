@@ -342,13 +342,19 @@ function parseHelpCommandsMetadata() {
 }
 
 /**
+ * Regex matching bare GitHub @mentions outside inline code spans.
+ * Captures the preceding non-word character (p1) and the username (p2).
+ */
+const GITHUB_MENTION_RE = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?)/g;
+
+/**
  * Neutralizes bare @mentions in a description string so they do not trigger
  * GitHub notifications. Wraps matched mentions in backticks.
  * @param {string} description
  * @returns {string}
  */
 function neutralizeDescriptionMentions(description) {
-  return description.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?)/g, (_, p1, p2) => `${p1}\`@${p2}\``);
+  return description.replace(GITHUB_MENTION_RE, (_, p1, p2) => `${p1}\`@${p2}\``);
 }
 
 function buildCommandBulletLine(entry) {
@@ -398,7 +404,10 @@ function buildHelpCommentBody(helpCommands) {
     }
   }
 
-  lines.push("", `Learn more: [Slash command documentation](${(process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim()})`);
+  const docsUrl = (process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim();
+  if (docsUrl) {
+    lines.push("", `Learn more: [Slash command documentation](${docsUrl})`);
+  }
   return lines.join("\n");
 }
 
