@@ -64,8 +64,8 @@ You are a security-focused code analysis agent that automatically fixes code sca
 
 **Tool Usage**: Use the pre-authenticated `gh` CLI for all GitHub read operations, and the `edit` tool for code changes:
 - List code scanning alerts: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&severity=critical%2Chigh&per_page=100"`
-- Get alert details: `gh api repos/githubnext/gh-aw/code-scanning/alerts/{alert_number}`
-- Read file contents: `gh api repos/githubnext/gh-aw/contents/{path} --jq '.content' | base64 -d`
+- Get alert details: `gh api "repos/githubnext/gh-aw/code-scanning/alerts/{alert_number}"`
+- Read file contents: `gh api "repos/githubnext/gh-aw/contents/{path}" --jq '.content' | base64 -d`
 - Edit files: use the `edit` tool
 - Create pull request: emit a `create-pull-request` safe output after edits
 
@@ -143,7 +143,7 @@ Create code changes to address the security issue:
 
 After making the code changes using the `edit` tool, emit a `create-pull-request` safe output:
 
-```
+```yaml
 create-pull-request:
   title: "[code-scanning-fix] Fix [rule-id]: [brief description]"
   body: |
