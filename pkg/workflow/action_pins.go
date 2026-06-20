@@ -212,7 +212,7 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 	if version == "" {
 		cachedPin := getCachedActionPin(actionRepo, data)
 		if cachedPin == "" {
-			actionPinsLog.Printf("Skipping pin for %s: no pin available", actionRepo)
+			actionPinsLog.Printf("Skipping pin for %s: no cached pin found for unversioned action", actionRepo)
 			return step
 		}
 
