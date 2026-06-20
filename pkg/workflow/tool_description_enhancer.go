@@ -347,7 +347,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Only these labels can be added: %s.", formatStringList(config.AllowedAdd)))
 			}
 			if len(config.AllowedRemove) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %v.", config.AllowedRemove))
+				constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %s.", formatStringList(config.AllowedRemove)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))

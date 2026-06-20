@@ -160,28 +160,28 @@ describe("replace_label", () => {
   });
 
   it("should reject label_to_add that is not in allowed-add list", async () => {
-    const handler = await main({ allowed_add: ["approved", "done"] }, 1, false, github, context);
+    const handler = await main({ allowed_add: ["approved", "done"] });
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "wontfix" }, {});
 
     expect(result.success).toBe(false);
   });
 
   it("should reject label_to_remove that is not in allowed-remove list", async () => {
-    const handler = await main({ allowed_remove: ["in-progress", "review-needed"] }, 1, false, github, context);
+    const handler = await main({ allowed_remove: ["in-progress", "review-needed"] });
     const result = await handler({ label_to_remove: "bug", label_to_add: "done" }, {});
 
     expect(result.success).toBe(false);
   });
 
   it("should reject labels matching blocked patterns", async () => {
-    const handler = await main({ blocked: ["~*"] }, 1, false, github, context);
+    const handler = await main({ blocked: ["~*"] });
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "~internal" }, {});
 
     expect(result.success).toBe(false);
   });
 
   it("should skip when required-labels filter does not match", async () => {
-    const handler = await main({ required_labels: ["approved"] }, 1, false, github, context);
+    const handler = await main({ required_labels: ["approved"] });
     // Issue has "in-progress" and "bug" but not "approved"
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
 
@@ -190,7 +190,7 @@ describe("replace_label", () => {
   });
 
   it("should skip when required-title-prefix does not match", async () => {
-    const handler = await main({ required_title_prefix: "[BUG]" }, 1, false, github, context);
+    const handler = await main({ required_title_prefix: "[BUG]" });
     // Issue title is "Test issue title", does not start with "[BUG]"
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
 
