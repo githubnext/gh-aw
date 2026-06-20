@@ -1208,7 +1208,7 @@ function extractShellCommandPreview(data) {
  */
 function formatRecentToolCall(toolName, mcpServerName, data) {
   const base = mcpServerName ? `${mcpServerName}.${toolName}` : toolName;
-  const normalizedTool = String(toolName || "").toLowerCase();
+  const normalizedTool = toolName.toLowerCase();
   if (normalizedTool !== "bash" && normalizedTool !== "shell") {
     return base;
   }
