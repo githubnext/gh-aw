@@ -39,7 +39,8 @@ function logCache(message, details) {
   if (details && Object.keys(details).length > 0) {
     try {
       suffix = ": " + JSON.stringify(details);
-    } catch {
+    } catch (e) {
+      core.warning(`[daily-aic-cache] logCache: could not serialise details: ${e}`);
       suffix = ": {}";
     }
   }

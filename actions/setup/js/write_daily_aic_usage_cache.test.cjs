@@ -172,5 +172,6 @@ describe("write_daily_aic_usage_cache", () => {
     await runMain();
 
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Could not read existing cache file"));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to write usage cache"));
   });
 });
