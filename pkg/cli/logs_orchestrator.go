@@ -61,6 +61,7 @@ type LogsDownloadOptions struct {
 	Format            string
 	ArtifactSets      []string
 	After             string
+	ReportFile        string
 }
 
 func shouldStopPagination(totalFetched, batchSize int) bool {
@@ -634,6 +635,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		outputDir:      outputDir,
 		summaryFile:    summaryFile,
 		format:         format,
+		reportFile:     opts.ReportFile,
 		jsonOutput:     jsonOutput,
 		toolGraph:      toolGraph,
 		train:          train,
@@ -648,6 +650,7 @@ type renderLogsOutputOptions struct {
 	outputDir      string
 	summaryFile    string
 	format         string
+	reportFile     string
 	jsonOutput     bool
 	toolGraph      bool
 	train          bool
@@ -730,7 +733,31 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 			renderLogsArtifactHint(os.Stderr, logsData.Message)
 			return nil
 		}
-		renderCrossRunReportMarkdown(report)
+		if opts.reportFile != "" {
+			if err := os.MkdirAll(filepath.Dir(opts.reportFile), constants.DirPermPublic); err != nil {
+				return fmt.Errorf("failed to create report file directory: %w", err)
+			}
+			f, err := os.Create(opts.reportFile)
+			if err != nil {
+				return fmt.Errorf("failed to create report file: %w", err)
+			}
+			if err := func() (retErr error) {
+				defer func() {
+					if cerr := f.Close(); cerr != nil && retErr == nil {
+						retErr = cerr
+					}
+				}()
+				oldStdout := os.Stdout
+				defer func() { os.Stdout = oldStdout }()
+				os.Stdout = f
+				renderCrossRunReportMarkdown(report)
+				return nil
+			}(); err != nil {
+				return fmt.Errorf("failed to write report file: %w", err)
+			}
+		} else {
+			renderCrossRunReportMarkdown(report)
+		}
 		renderLogsArtifactHint(os.Stderr, logsData.Message)
 		return nil
 
@@ -794,6 +821,7 @@ type StdinLogsOptions struct {
 	FilteredIntegrity bool
 	Train             bool
 	Format            string
+	ReportFile        string
 	// ArtifactSets defaults to nil (download all artifacts) when this API is used
 	// programmatically. The CLI passes ["usage"] to match the logs command default.
 	ArtifactSets []string
@@ -1110,6 +1138,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		outputDir:      opts.OutputDir,
 		summaryFile:    opts.SummaryFile,
 		format:         opts.Format,
+		reportFile:     opts.ReportFile,
 		jsonOutput:     opts.JSONOutput,
 		toolGraph:      opts.ToolGraph,
 		train:          opts.Train,
