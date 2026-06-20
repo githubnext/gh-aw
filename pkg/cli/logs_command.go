@@ -165,6 +165,15 @@ Downloaded artifacts include (when using --artifacts all):
 					}
 				}
 
+				if reportFile != "" {
+					if format != "markdown" {
+						return errors.New("--report-file requires --format markdown")
+					}
+					if jsonOutput {
+						return errors.New("--report-file cannot be used with --json")
+					}
+				}
+
 				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
 					RunURLs:           runURLs,
 					OutputDir:         outputDir,
@@ -307,6 +316,15 @@ Downloaded artifacts include (when using --artifacts all):
 				if !registry.IsValidEngine(engine) {
 					supportedEngines := registry.GetSupportedEngines()
 					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
+				}
+			}
+
+			if reportFile != "" {
+				if format != "markdown" {
+					return errors.New("--report-file requires --format markdown")
+				}
+				if jsonOutput {
+					return errors.New("--report-file cannot be used with --json")
 				}
 			}
 
