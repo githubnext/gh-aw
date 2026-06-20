@@ -31,7 +31,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
-const { validateRequiredFields, validateStringInputLengths } = require("./mcp_scripts_validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, validateStringMinLengths } = require("./mcp_scripts_validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createDependencyInstallGate } = require("./mcp_dependencies_manager.cjs");
@@ -793,6 +793,16 @@ async function handleRequest(server, request, defaultHandler) {
         };
       }
 
+      // Validate minLength constraints from the schema.
+      const tooShortFields = validateStringMinLengths(args, tool.inputSchema);
+      if (tooShortFields.length) {
+        const details = tooShortFields.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
+        throw {
+          code: -32602,
+          message: `Invalid arguments: ${details}`,
+        };
+      }
+
       // Call handler and await the result (supports both sync and async handlers)
       const handlerResult = await Promise.resolve(handler(args));
       const content = handlerResult && handlerResult.content ? handlerResult.content : [];
@@ -947,6 +957,14 @@ async function handleMessage(server, req, defaultHandler) {
       if (oversized.length) {
         const details = oversized.map(v => `'${v.field}' (${v.byteLength} bytes)`).join(", ");
         server.replyError(id, -32602, `Input string parameter(s) exceed the 10 KB limit for tool '${name}': ${details}`);
+        return;
+      }
+
+      // Validate minLength constraints from the schema.
+      const tooShort = validateStringMinLengths(args, tool.inputSchema);
+      if (tooShort.length) {
+        const details = tooShort.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
+        server.replyError(id, -32602, `Invalid arguments: ${details}`);
         return;
       }
 

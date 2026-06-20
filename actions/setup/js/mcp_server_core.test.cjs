@@ -534,6 +534,40 @@ describe("mcp_server_core.cjs", () => {
       expect(response.result.isError).toBe(false);
       expect(response.result.content[0].text).toBe("received: hello");
     });
+
+    it("should reject create_issue with a short body via handleRequest", async () => {
+      const { createServer, registerTool, handleRequest } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "safe-outputs", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "create_issue",
+        description: "Create an issue",
+        inputSchema: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Issue title" },
+            body: { type: "string", minLength: 20, description: "Issue body" },
+          },
+          required: ["title", "body"],
+        },
+        handler: args => ({
+          content: [{ type: "text", text: JSON.stringify({ result: "success" }) }],
+        }),
+      });
+
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 9,
+        method: "tools/call",
+        params: { name: "create_issue", arguments: { title: "My Issue", body: "." } },
+      });
+
+      expect(response.error).toBeDefined();
+      expect(response.error.code).toBe(-32602);
+      expect(response.error.message).toContain("body");
+      expect(response.error.message).toContain("too short");
+      expect(response.error.message).toContain("20");
+    });
   });
 
   describe("loadToolHandlers", () => {

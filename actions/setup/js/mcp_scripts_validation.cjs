@@ -73,8 +73,38 @@ function validateStringInputLengths(args, inputSchema, maxBytes) {
   return violations;
 }
 
+/**
+ * Validate that string-typed arguments meet the schema's minLength constraints.
+ * Trims values before comparing (matching downstream validator behavior).
+ * Only checks top-level properties with `type === "string"` and an explicit `minLength`.
+ * Absent or non-string values are skipped.
+ *
+ * @param {Object} args - The arguments object to validate
+ * @param {Object} inputSchema - The input schema describing property types and constraints
+ * @returns {{ field: string, minLength: number, actualLength: number }[]} Array of violations (empty if all OK)
+ */
+function validateStringMinLengths(args, inputSchema) {
+  const properties = inputSchema && inputSchema.properties ? inputSchema.properties : {};
+  const violations = [];
+
+  for (const [field, schema] of Object.entries(properties)) {
+    if (schema && schema.type === "string" && typeof schema.minLength === "number") {
+      const value = args[field];
+      if (typeof value === "string") {
+        const trimmedLength = value.trim().length;
+        if (trimmedLength < schema.minLength) {
+          violations.push({ field, minLength: schema.minLength, actualLength: trimmedLength });
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
 module.exports = {
   validateRequiredFields,
   validateStringInputLengths,
+  validateStringMinLengths,
   MAX_STRING_INPUT_BYTES,
 };
