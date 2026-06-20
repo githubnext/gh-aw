@@ -12,6 +12,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -165,11 +166,18 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
 
-	// Start timeout timer if specified
+	// Start timeout timer if specified. When timeoutMinutes > 0 we also create a
+	// child context with a matching deadline so that any concurrent artifact
+	// downloads that are in-flight at the moment the soft-timer fires are
+	// interrupted promptly via context cancellation rather than continuing until
+	// the next iteration boundary.
 	var startTime time.Time
 	var timeoutReached bool
 	if timeoutMinutes > 0 {
 		startTime = time.Now()
+		var timeoutCancel context.CancelFunc
+		ctx, timeoutCancel = context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+		defer timeoutCancel()
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeoutMinutes)))
 		}
@@ -186,12 +194,24 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 	for iteration < MaxIterations {
-		// Check context cancellation
+		// Check context cancellation or timeout deadline
 		select {
 		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				// Our own timeout context expired — treat this as a graceful stop,
+				// not a hard error.  Partial results collected so far will be output.
+				timeoutReached = true
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached (deadline exceeded), stopping download"))
+				}
+				break
+			}
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
 			return ctx.Err()
 		default:
+		}
+		if timeoutReached {
+			break
 		}
 
 		// Check timeout if specified
@@ -309,6 +329,20 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 			remainingNeeded := count - len(processedRuns)
 			if remainingNeeded <= 0 {
 				break
+			}
+
+			// Check context/timeout before starting each new chunk so we stop
+			// promptly when the deadline fires between individual chunk downloads.
+			select {
+			case <-ctx.Done():
+				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+					timeoutReached = true
+				}
+				// Break out of the inner chunk loop; the outer loop will also
+				// detect the cancellation on its next iteration.
+				runsRemaining = nil
+				continue
+			default:
 			}
 
 			// Process slightly more than we need to account for skips due to filters.
