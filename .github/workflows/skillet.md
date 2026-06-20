@@ -56,10 +56,13 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
-            const { matchesCommandName } = require(path.join(process.env.GITHUB_WORKSPACE, 'actions', 'setup', 'js', 'slash_command_matcher.cjs'));
-
-            const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
             const workspace = process.env.GITHUB_WORKSPACE;
+            const matcherPath = path.join(workspace, 'actions', 'setup', 'js', 'slash_command_matcher.cjs');
+            if (!fs.existsSync(matcherPath)) {
+              throw new Error(`Expected slash command matcher at ${matcherPath}`);
+            }
+            const { matchesCommandName } = require(matcherPath);
+            const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
             const body = (
               event.comment?.body ||
               event.review?.body ||
@@ -86,11 +89,12 @@ jobs:
                 return [];
               }
               const routerContent = fs.readFileSync(routerPath, 'utf8');
-              const routerMatch = routerContent.match(/GH_AW_SLASH_ROUTING:\s+'([^']*)'/);
+              const routingLine = routerContent.split(/\r?\n/, 1)[0] || '';
+              const routerMatch = routingLine.match(/GH_AW_SLASH_ROUTING:\s+(['"])(.*)\1\s*$/);
               if (!routerMatch) {
                 return [];
               }
-              return Object.keys(JSON.parse(routerMatch[1]));
+              return Object.keys(JSON.parse(routerMatch[2]));
             }))]
               .filter((configuredCommand) => configuredCommand && configuredCommand !== '*')
               .sort((a, b) => a.localeCompare(b));
@@ -129,7 +133,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: event.issue?.number || event.pull_request?.number,
+                issue_number: event.issue?.number ?? event.pull_request?.number,
                 body: sections.join('\n'),
               });
             }
