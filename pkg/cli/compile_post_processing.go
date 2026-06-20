@@ -126,7 +126,8 @@ func generateCentralSlashCommandWorkflowWrapper(
 		if strict {
 			return fmt.Errorf("failed to load repo config: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to load repo config: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"Failed to load repo config; repo-config flags (e.g. help_command) will use defaults: %v", err)))
 		repoConfig = nil
 	}
 

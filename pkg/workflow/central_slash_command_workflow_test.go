@@ -455,6 +455,28 @@ func TestBuildHelpCommandEntries(t *testing.T) {
 	}, buildHelpCommandEntries(data))
 }
 
+func TestBuildHelpCommandEntries_ConflictingDescriptions(t *testing.T) {
+	// Two workflows register the same command with different descriptions — first-wins.
+	data := []*WorkflowData{
+		{WorkflowID: "deploy-a", Command: []string{"deploy"}, CommandCentralized: true, Description: "Deploy service A"},
+		{WorkflowID: "deploy-b", Command: []string{"deploy"}, CommandCentralized: true, Description: "Deploy service B"},
+	}
+	entries := buildHelpCommandEntries(data)
+	require.Len(t, entries, 1)
+	require.Equal(t, "Deploy service A", entries[0].Description, "first description should win on conflict")
+}
+
+func TestBuildHelpCommandEntries_ReservedHelpCommandName(t *testing.T) {
+	// The 'help' command name is reserved for the builtin handler; it should still be
+	// included in entries so the metadata accurately reflects the registered commands.
+	data := []*WorkflowData{
+		{WorkflowID: "custom-help", Command: []string{"help"}, CommandCentralized: true},
+	}
+	entries := buildHelpCommandEntries(data)
+	require.Len(t, entries, 1)
+	require.Equal(t, "help", entries[0].Command)
+}
+
 func typeSetKeys(typeSet map[string]bool) []string {
 	out := make([]string, 0, len(typeSet))
 	for key := range typeSet {

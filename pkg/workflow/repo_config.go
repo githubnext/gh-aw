@@ -145,7 +145,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
 	var raw struct {
 		GHES        bool            `json:"ghes,omitempty"`
-		HelpCommand *bool           `json:"help_command,omitempty"`
+		HelpCommand *bool           `json:"help_command,omitempty"` // nil = use default (enabled)
 		UTC         string          `json:"utc,omitempty"`
 		Maintenance json.RawMessage `json:"maintenance,omitempty"`
 	}

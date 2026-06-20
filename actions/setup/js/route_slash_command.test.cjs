@@ -215,7 +215,17 @@ describe("route_slash_command", () => {
     expect(issueCommentCalls[0].body).toContain("https://github.github.com/gh-aw/reference/command-triggers/");
   });
 
-  it("skips builtin /help when disabled", async () => {
+  it("adds immediate reaction before posting builtin /help comment", async () => {
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(reactionCalls).toHaveLength(1);
+    expect(issueCommentCalls).toHaveLength(1);
+  });
+
+  it("skips builtin /help when disabled and falls through to normal routing", async () => {
     process.env.GH_AW_HELP_COMMAND_ENABLED = "false";
     globals.context.payload.comment.body = "/help";
 
@@ -224,6 +234,124 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(0);
     expect(issueCommentCalls).toHaveLength(0);
     expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Builtin /help command is disabled"));
+  });
+
+  it("dispatches custom /help workflow when builtin is disabled", async () => {
+    process.env.GH_AW_HELP_COMMAND_ENABLED = "false";
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["issue_comment"] }],
+      help: [{ workflow: "custom-help", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("custom-help.lock.yml");
+    expect(issueCommentCalls).toHaveLength(0);
+  });
+
+  it("handles builtin /help on discussion_comment events via GraphQL", async () => {
+    globals.context.eventName = "discussion_comment";
+    globals.context.payload = {
+      discussion: { node_id: "D_test123" },
+      comment: { body: "/help", id: 123456 },
+    };
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(0);
+    expect(issueCommentCalls).toHaveLength(0);
+    const graphqlCalls = globals.github.graphql.mock.calls;
+    const helpCall = graphqlCalls.find(([query]) => query.includes("addDiscussionComment"));
+    expect(helpCall).toBeDefined();
+    expect(helpCall[1].discussionId).toBe("D_test123");
+    expect(helpCall[1].body).toContain("## Supported Commands");
+  });
+
+  it("warns and returns false for /help on unsupported event type", async () => {
+    globals.context.eventName = "push";
+    globals.context.payload = { comment: { body: "/help", id: 123456 } };
+
+    await main();
+
+    expect(issueCommentCalls).toHaveLength(0);
+    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Unable to post builtin /help response for event 'push'"));
+  });
+
+  it("warns on invalid GH_AW_HELP_COMMAND_ENABLED value and still posts help", async () => {
+    process.env.GH_AW_HELP_COMMAND_ENABLED = "banana";
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Invalid value for GH_AW_HELP_COMMAND_ENABLED"));
+    expect(issueCommentCalls).toHaveLength(1);
+  });
+
+  it("handles malformed JSON in GH_AW_HELP_COMMANDS gracefully", async () => {
+    process.env.GH_AW_HELP_COMMANDS = "{not valid json}";
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse GH_AW_HELP_COMMANDS metadata"));
+    expect(issueCommentCalls).toHaveLength(1);
+    expect(issueCommentCalls[0].body).toContain("## Supported Commands");
+  });
+
+  it("handles non-array JSON in GH_AW_HELP_COMMANDS gracefully", async () => {
+    process.env.GH_AW_HELP_COMMANDS = '{"command":"foo"}';
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(issueCommentCalls).toHaveLength(1);
+    expect(issueCommentCalls[0].body).toContain("- _None_");
+  });
+
+  it("neutralizes @mentions in descriptions within /help output", async () => {
+    process.env.GH_AW_HELP_COMMANDS = JSON.stringify([{ command: "archie", description: "Run @admin workflow", centralized: true }]);
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(issueCommentCalls).toHaveLength(1);
+    expect(issueCommentCalls[0].body).not.toContain("@admin");
+    expect(issueCommentCalls[0].body).toContain("`@admin`");
+  });
+
+  it("shows command with both centralized and decentralized flags only under centralized section", async () => {
+    process.env.GH_AW_HELP_COMMANDS = JSON.stringify([{ command: "triage", description: "Triage items", centralized: true, decentralized: true }]);
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    const body = issueCommentCalls[0].body;
+    const centralizedIdx = body.indexOf("**Centralized slash commands**");
+    const decentralizedIdx = body.indexOf("**Non-centralized slash commands**");
+    const triageInCentralized = body.indexOf("- `/triage`");
+    expect(triageInCentralized).toBeGreaterThan(centralizedIdx);
+    expect(triageInCentralized).toBeLessThan(decentralizedIdx);
+    // Should not appear again after the non-centralized heading
+    expect(body.indexOf("- `/triage`", decentralizedIdx)).toBe(-1);
+  });
+
+  it("warns when postBuiltinHelpComment fails due to API error", async () => {
+    globals.github.rest.issues.createComment = vi.fn(async () => {
+      throw new Error("API rate limit exceeded");
+    });
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to post builtin /help comment"));
   });
 
   it("logs empty selected command in summary when no slash command is present", async () => {

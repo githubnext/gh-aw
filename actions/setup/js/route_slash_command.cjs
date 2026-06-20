@@ -7,7 +7,6 @@ const { matchesCommandName, parseSlashCommand } = require("./slash_command_match
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
-const DEFAULT_SLASH_COMMAND_DOCS_URL = "https://github.github.com/gh-aw/reference/command-triggers/";
 
 /**
  * Appends centralized command routing details to the current step summary.
@@ -342,24 +341,34 @@ function parseHelpCommandsMetadata() {
   }
 }
 
-function getHelpDocsUrl() {
-  const fromEnv = (process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim();
-  return fromEnv || DEFAULT_SLASH_COMMAND_DOCS_URL;
+/**
+ * Neutralizes bare @mentions in a description string so they do not trigger
+ * GitHub notifications. Wraps matched mentions in backticks.
+ * @param {string} description
+ * @returns {string}
+ */
+function neutralizeDescriptionMentions(description) {
+  return description.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?)/g, (_, p1, p2) => `${p1}\`@${p2}\``);
 }
 
 function buildCommandBulletLine(entry) {
-  const suffix = entry.description ? ` — ${entry.description}` : "";
+  const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
+  const suffix = desc ? ` — ${desc}` : "";
   return `- \`/${entry.command}\`${suffix}`;
 }
 
 function buildLabelBulletLine(entry) {
-  const suffix = entry.description ? ` — ${entry.description}` : "";
+  const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
+  const suffix = desc ? ` — ${desc}` : "";
   return `- \`${entry.command}\`${suffix}`;
 }
 
 function buildHelpCommentBody(helpCommands) {
+  // Commands that are centralized should appear only in the centralized section even if
+  // they are also registered as decentralized (e.g. two workflows for the same command).
   const centralized = helpCommands.filter(entry => entry.centralized);
-  const decentralized = helpCommands.filter(entry => entry.decentralized);
+  const centralizedNames = new Set(centralized.map(entry => entry.command));
+  const decentralized = helpCommands.filter(entry => entry.decentralized && !centralizedNames.has(entry.command));
   const labels = helpCommands.filter(entry => entry.label);
 
   const lines = ["## Supported Commands", "", "**Centralized slash commands**"];
@@ -389,7 +398,7 @@ function buildHelpCommentBody(helpCommands) {
     }
   }
 
-  lines.push("", `Learn more: [Slash command documentation](${getHelpDocsUrl()})`);
+  lines.push("", `Learn more: [Slash command documentation](${(process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim()})`);
   return lines.join("\n");
 }
 
@@ -397,40 +406,45 @@ async function postBuiltinHelpComment(commentBody) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
-  const issueNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
-  if (issueNumber) {
-    await github.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      body: commentBody,
-      headers: {
-        "X-GitHub-Api-Version": GITHUB_API_VERSION,
-      },
-    });
-    return true;
-  }
-
-  if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
-    const discussionID = context.payload?.discussion?.node_id;
-    if (!discussionID) {
-      core.warning("Unable to post builtin /help response: discussion node_id missing.");
-      return false;
+  try {
+    const issueNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
+    if (issueNumber) {
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: commentBody,
+        headers: {
+          "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        },
+      });
+      return true;
     }
-    await github.graphql(
-      `
-        mutation($discussionId: ID!, $body: String!) {
-          addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
-            comment { id }
-          }
-        }`,
-      { discussionId: discussionID, body: commentBody }
-    );
-    return true;
-  }
 
-  core.warning(`Unable to post builtin /help response for event '${context.eventName}'.`);
-  return false;
+    if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
+      const discussionID = context.payload?.discussion?.node_id;
+      if (!discussionID) {
+        core.warning("Unable to post builtin /help response: discussion node_id missing.");
+        return false;
+      }
+      await github.graphql(
+        `
+          mutation($discussionId: ID!, $body: String!) {
+            addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+              comment { id }
+            }
+          }`,
+        { discussionId: discussionID, body: commentBody }
+      );
+      return true;
+    }
+
+    core.warning(`Unable to post builtin /help response for event '${context.eventName}'.`);
+    return false;
+  } catch (error) {
+    core.warning(`Failed to post builtin /help comment: ${String(error)}`);
+    return false;
+  }
 }
 
 function toWorkflowDispatchID(route) {
@@ -559,15 +573,16 @@ async function main() {
 
   const commandName = selectedCommand;
   if (commandName === "help") {
-    if (!isBuiltinHelpEnabled()) {
-      core.info("Builtin /help command is disabled by aw.json (help_command=false).");
+    if (isBuiltinHelpEnabled()) {
+      await addImmediateReaction("eyes");
+      const posted = await postBuiltinHelpComment(buildHelpCommentBody(parseHelpCommandsMetadata()));
+      if (posted) {
+        core.info("Posted builtin /help command response.");
+      }
       return;
     }
-    const posted = await postBuiltinHelpComment(buildHelpCommentBody(parseHelpCommandsMetadata()));
-    if (posted) {
-      core.info("Posted builtin /help command response.");
-    }
-    return;
+    // Builtin /help is disabled — fall through so custom /help workflows still dispatch.
+    core.info("Builtin /help command is disabled by aw.json (help_command=false); routing normally.");
   }
 
   core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);

@@ -69,10 +69,7 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", nil)
 
 	helpCommands := buildHelpCommandEntries(workflowDataList)
-	helpCommandEnabled := true
-	if repoConfig != nil {
-		helpCommandEnabled = repoConfig.IsHelpCommandEnabled()
-	}
+	helpCommandEnabled := repoConfig.IsHelpCommandEnabled()
 
 	content, err := buildCentralSlashCommandWorkflowYAML(
 		slashRoutesByCommand,
@@ -405,6 +402,13 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			trimmed := strings.TrimSpace(commandName)
 			if trimmed == "" {
 				continue
+			}
+			if trimmed == "help" {
+				centralSlashCommandWorkflowLog.Printf(
+					"Warning: 'help' is reserved for the builtin /help handler in workflow %s; "+
+						"this command will not be dispatched unless help_command is disabled via aw.json",
+					wd.WorkflowID,
+				)
 			}
 			existing := byCommand[trimmed]
 			if existing.Description != "" && description != "" && existing.Description != description {
