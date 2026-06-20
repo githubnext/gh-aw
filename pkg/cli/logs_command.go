@@ -153,6 +153,7 @@ Downloaded artifacts include (when using --artifacts all):
 				filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
 				train, _ := cmd.Flags().GetBool("train")
 				format, _ := cmd.Flags().GetString("format")
+				reportFile, _ := cmd.Flags().GetString("report-file")
 				artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 
 				if engine != "" {
@@ -182,6 +183,7 @@ Downloaded artifacts include (when using --artifacts all):
 					FilteredIntegrity: filteredIntegrity,
 					Train:             train,
 					Format:            format,
+					ReportFile:        reportFile,
 					ArtifactSets:      artifacts,
 				})
 			}
@@ -268,6 +270,7 @@ Downloaded artifacts include (when using --artifacts all):
 			filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
 			train, _ := cmd.Flags().GetBool("train")
 			format, _ := cmd.Flags().GetString("format")
+			reportFile, _ := cmd.Flags().GetString("report-file")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 			cacheBefore, _ := cmd.Flags().GetString("cache-before")
 			if !cmd.Flags().Changed("cache-before") {
@@ -333,6 +336,7 @@ Downloaded artifacts include (when using --artifacts all):
 				FilteredIntegrity: filteredIntegrity,
 				Train:             train,
 				Format:            format,
+				ReportFile:        reportFile,
 				ArtifactSets:      artifacts,
 				After:             cacheBefore,
 			})
@@ -361,6 +365,7 @@ Downloaded artifacts include (when using --artifacts all):
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")
+	logsCmd.Flags().String("report-file", "", "Write --format markdown output directly to this file path instead of stdout (creates parent directories as needed)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", []string{"usage"}, "Artifact sets to download (default: usage). Use 'all' for everything, or comma-separate sets. Valid sets: "+validArtifactSets)
 	logsCmd.Flags().String("cache-before", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
