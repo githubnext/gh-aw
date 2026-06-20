@@ -16,6 +16,7 @@ const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
+const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -1195,26 +1196,7 @@ function normalizeToolCallPreview(value, maxLen = 120) {
  * @returns {string}
  */
 function extractShellCommandPreview(data) {
-  if (!data || typeof data !== "object") return "";
-  const directCandidates = [data.command, data.input, data.arguments, data.args];
-  for (const candidate of directCandidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return normalizeToolCallPreview(candidate);
-    }
-  }
-
-  const nestedCandidates = [data.input, data.arguments, data.args, data.toolInput, data.parameters];
-  for (const candidate of nestedCandidates) {
-    if (!candidate || typeof candidate !== "object") continue;
-    if (typeof candidate.command === "string" && candidate.command.trim()) {
-      return normalizeToolCallPreview(candidate.command);
-    }
-    if (typeof candidate.cmd === "string" && candidate.cmd.trim()) {
-      return normalizeToolCallPreview(candidate.cmd);
-    }
-  }
-
-  return "";
+  return normalizeToolCallPreview(extractShellCommandFromToolData(data));
 }
 
 /**
