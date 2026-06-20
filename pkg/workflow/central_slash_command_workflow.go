@@ -396,7 +396,7 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 	byLabel := make(map[string]aggregate)
 
 	for _, wd := range workflowDataList {
-		if wd == nil {
+		if wd == nil || (len(wd.Command) == 0 && len(wd.LabelCommand) == 0) {
 			continue
 		}
 		description := strings.TrimSpace(wd.Description)
