@@ -794,9 +794,9 @@ async function handleRequest(server, request, defaultHandler) {
       }
 
       // Validate minLength constraints from the schema.
-      const tooShortFields = validateStringMinLengths(args, tool.inputSchema);
-      if (tooShortFields.length) {
-        const details = tooShortFields.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
+      const tooShort = validateStringMinLengths(args, tool.inputSchema);
+      if (tooShort.length) {
+        const details = tooShort.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
         throw {
           code: -32602,
           message: `Invalid arguments: ${details}`,

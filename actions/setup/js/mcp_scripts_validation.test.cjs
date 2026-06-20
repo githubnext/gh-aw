@@ -352,7 +352,7 @@ describe("mcp_scripts_validation.cjs", () => {
       const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
 
       // 25 spaces — trims to 0 chars, below minLength 20
-      const args = { body: "                         " };
+      const args = { body: " ".repeat(25) };
       const schema = {
         type: "object",
         properties: { body: { type: "string", minLength: 20 } },
