@@ -146,9 +146,9 @@ describe("route_slash_command", () => {
     });
     process.env.GH_AW_LABEL_ROUTING = JSON.stringify({});
     process.env.GH_AW_HELP_COMMANDS = JSON.stringify([
-      { command: "archie", description: "Run archie workflow", centralized: true, decentralized: false },
-      { command: "local-summary", description: "Run summary workflow", centralized: false, decentralized: true },
-      { command: "triage", description: "Apply triage label", label: true },
+      { command: "archie", description: "Run archie workflow", centralized: true, decentralized: false, source_file: "archie" },
+      { command: "local-summary", description: "Run summary workflow", centralized: false, decentralized: true, source_file: "local-summary" },
+      { command: "triage", description: "Apply triage label", label: true, source_file: "triage-workflow" },
     ]);
     process.env.GH_AW_HELP_COMMAND_ENABLED = "true";
     process.env.GH_AW_SLASH_COMMAND_DOCS_URL = "https://github.github.com/gh-aw/reference/command-triggers/";
@@ -205,11 +205,11 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(0);
     expect(issueCommentCalls).toHaveLength(1);
     expect(issueCommentCalls[0].issue_number).toBe(77);
-    expect(issueCommentCalls[0].body).toContain("## Supported Commands");
+    expect(issueCommentCalls[0].body).toContain("### Agentic Workflow Commands");
     expect(issueCommentCalls[0].body).toContain("**Centralized slash commands**");
-    expect(issueCommentCalls[0].body).toContain("- `/archie` — Run archie workflow");
+    expect(issueCommentCalls[0].body).toContain("[`/archie`](https://github.com/github/gh-aw/blob/HEAD/.github/workflows/archie.md) — Run archie workflow");
     expect(issueCommentCalls[0].body).toContain("**Non-centralized slash commands**");
-    expect(issueCommentCalls[0].body).toContain("- `/local-summary` — Run summary workflow");
+    expect(issueCommentCalls[0].body).toContain("[`/local-summary`](https://github.com/github/gh-aw/blob/HEAD/.github/workflows/local-summary.md) — Run summary workflow");
     expect(issueCommentCalls[0].body).toContain("**Label commands**");
     expect(issueCommentCalls[0].body).toContain("- `triage` — Apply triage label");
     expect(issueCommentCalls[0].body).toContain("https://github.github.com/gh-aw/reference/command-triggers/");
@@ -266,7 +266,7 @@ describe("route_slash_command", () => {
     const helpCall = graphqlCalls.find(([query]) => query.includes("addDiscussionComment"));
     expect(helpCall).toBeDefined();
     expect(helpCall[1].discussionId).toBe("D_test123");
-    expect(helpCall[1].body).toContain("## Supported Commands");
+    expect(helpCall[1].body).toContain("### Agentic Workflow Commands");
   });
 
   it("warns and returns false for /help on unsupported event type", async () => {
@@ -299,7 +299,7 @@ describe("route_slash_command", () => {
 
     expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse GH_AW_HELP_COMMANDS metadata"));
     expect(issueCommentCalls).toHaveLength(1);
-    expect(issueCommentCalls[0].body).toContain("## Supported Commands");
+    expect(issueCommentCalls[0].body).toContain("### Agentic Workflow Commands");
   });
 
   it("handles non-array JSON in GH_AW_HELP_COMMANDS gracefully", async () => {
@@ -328,7 +328,7 @@ describe("route_slash_command", () => {
   });
 
   it("shows command with both centralized and decentralized flags only under centralized section", async () => {
-    process.env.GH_AW_HELP_COMMANDS = JSON.stringify([{ command: "triage", description: "Triage items", centralized: true, decentralized: true }]);
+    process.env.GH_AW_HELP_COMMANDS = JSON.stringify([{ command: "triage", description: "Triage items", centralized: true, decentralized: true, source_file: "triage" }]);
     globals.context.payload.issue.number = 77;
     globals.context.payload.comment.body = "/help";
 
@@ -337,11 +337,12 @@ describe("route_slash_command", () => {
     const body = issueCommentCalls[0].body;
     const centralizedIdx = body.indexOf("**Centralized slash commands**");
     const decentralizedIdx = body.indexOf("**Non-centralized slash commands**");
-    const triageInCentralized = body.indexOf("- `/triage`");
+    const triageLink = "[`/triage`](https://github.com/github/gh-aw/blob/HEAD/.github/workflows/triage.md)";
+    const triageInCentralized = body.indexOf(triageLink);
     expect(triageInCentralized).toBeGreaterThan(centralizedIdx);
     expect(triageInCentralized).toBeLessThan(decentralizedIdx);
     // Should not appear again after the non-centralized heading
-    expect(body.indexOf("- `/triage`", decentralizedIdx)).toBe(-1);
+    expect(body.indexOf(triageLink, decentralizedIdx)).toBe(-1);
   });
 
   it("warns when postBuiltinHelpComment fails due to API error", async () => {

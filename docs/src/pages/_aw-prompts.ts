@@ -22,24 +22,51 @@ function parseFrontmatterDescription(content: string): string {
 	return descMatch ? descMatch[1].trim() : '';
 }
 
-export function getAwPrompts(): AwPrompt[] {
-	// process.cwd() is the docs/ directory during `astro build`
-	const awDir = join(process.cwd(), '../.github/aw');
-	if (!existsSync(awDir)) {
+export function getAwDir(): string | null {
+	const candidates = [
+		join(process.cwd(), '.github', 'aw'),
+		join(process.cwd(), '..', '.github', 'aw'),
+	];
+
+	for (const candidate of candidates) {
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+export function getAwPromptFiles(): string[] {
+	const awDir = getAwDir();
+	if (!awDir) {
 		return [];
 	}
+
 	try {
 		return readdirSync(awDir)
 			.filter((f) => f.endsWith('.md'))
-			.sort()
-			.map((file) => {
-				const content = readFileSync(join(awDir, file), 'utf-8');
-				return {
-					file,
-					description: parseFrontmatterDescription(content),
-					rawUrl: `${RAW_BASE}/${file}`,
-				};
-			});
+			.sort();
+	} catch {
+		return [];
+	}
+}
+
+export function getAwPrompts(): AwPrompt[] {
+	const awDir = getAwDir();
+	if (!awDir) {
+		return [];
+	}
+
+	try {
+		return getAwPromptFiles().map((file) => {
+			const content = readFileSync(join(awDir, file), 'utf-8');
+			return {
+				file,
+				description: parseFrontmatterDescription(content),
+				rawUrl: `${RAW_BASE}/${file}`,
+			};
+		});
 	} catch {
 		return [];
 	}

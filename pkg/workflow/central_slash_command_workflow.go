@@ -43,6 +43,7 @@ type helpCommandEntry struct {
 	Centralized   bool   `json:"centralized"`
 	Decentralized bool   `json:"decentralized"`
 	Label         bool   `json:"label,omitempty"`
+	SourceFile    string `json:"source_file,omitempty"`
 }
 
 // GenerateCentralSlashCommandWorkflow generates a single centralized slash-command trigger
@@ -385,6 +386,7 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 	type aggregate struct {
 		Description   string
 		DescriptionBy string
+		SourceFile    string
 		Centralized   bool
 		Decentralized bool
 		Label         bool
@@ -427,6 +429,9 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 				existing.Description = description
 				existing.DescriptionBy = wd.WorkflowID
 			}
+			if existing.SourceFile == "" {
+				existing.SourceFile = wd.WorkflowID
+			}
 			if wd.CommandCentralized {
 				existing.Centralized = true
 			} else {
@@ -457,6 +462,9 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 				existing.Description = description
 				existing.DescriptionBy = wd.WorkflowID
 			}
+			if existing.SourceFile == "" {
+				existing.SourceFile = wd.WorkflowID
+			}
 			existing.Label = true
 			byLabel[trimmed] = existing
 		}
@@ -482,6 +490,7 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			Description:   item.Description,
 			Centralized:   item.Centralized,
 			Decentralized: item.Decentralized,
+			SourceFile:    item.SourceFile,
 		})
 	}
 	for _, labelName := range labels {
@@ -490,6 +499,7 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			Command:     labelName,
 			Description: item.Description,
 			Label:       true,
+			SourceFile:  item.SourceFile,
 		})
 	}
 

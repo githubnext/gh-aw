@@ -331,6 +331,7 @@ function parseHelpCommandsMetadata() {
             centralized: Boolean(item?.centralized),
             decentralized: Boolean(item?.decentralized),
             label: Boolean(item?.label),
+            source_file: typeof item?.source_file === "string" ? item.source_file.trim() : "",
           },
         ];
       })
@@ -360,7 +361,15 @@ function neutralizeDescriptionMentions(description) {
 function buildCommandBulletLine(entry) {
   const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
   const suffix = desc ? ` — ${desc}` : "";
-  return `- \`/${entry.command}\`${suffix}`;
+  const commandText = `\`/${entry.command}\``;
+  if (entry.source_file) {
+    const owner = context.repo.owner;
+    const repo = context.repo.repo;
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const sourceUrl = `${githubServer}/${owner}/${repo}/blob/HEAD/.github/workflows/${entry.source_file}.md`;
+    return `- [${commandText}](${sourceUrl})${suffix}`;
+  }
+  return `- ${commandText}${suffix}`;
 }
 
 function buildLabelBulletLine(entry) {
@@ -377,7 +386,7 @@ function buildHelpCommentBody(helpCommands) {
   const decentralized = helpCommands.filter(entry => entry.decentralized && !centralizedNames.has(entry.command));
   const labels = helpCommands.filter(entry => entry.label);
 
-  const lines = ["## Supported Commands", "", "**Centralized slash commands**"];
+  const lines = ["### Agentic Workflow Commands", "", "**Centralized slash commands**"];
   if (centralized.length === 0) {
     lines.push("- _None_");
   } else {
