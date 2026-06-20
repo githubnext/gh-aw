@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -370,7 +371,7 @@ jobs:
           GH_AW_SLASH_ROUTING: '` + escapeYAMLSingleQuoted(string(slashRoutesJSON)) + `'
           GH_AW_LABEL_ROUTING: '` + escapeYAMLSingleQuoted(string(labelRoutesJSON)) + `'
           GH_AW_HELP_COMMANDS: '` + escapeYAMLSingleQuoted(string(helpCommandsJSON)) + `'
-          GH_AW_HELP_COMMAND_ENABLED: '` + fmt.Sprintf("%t", helpCommandEnabled) + `'
+          GH_AW_HELP_COMMAND_ENABLED: '` + strconv.FormatBool(helpCommandEnabled) + `'
           GH_AW_SLASH_COMMAND_DOCS_URL: 'https://github.github.com/gh-aw/reference/command-triggers/'
         with:
           script: |

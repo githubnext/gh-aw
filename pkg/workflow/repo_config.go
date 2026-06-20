@@ -161,15 +161,6 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// IsHelpCommandEnabled returns true when the builtin centralized /help command
-	// handler should be enabled. The default is enabled.
-	func (r *RepoConfig) IsHelpCommandEnabled() bool {
-		if r == nil || r.HelpCommand == nil {
-			return true
-		}
-		return *r.HelpCommand
-	}
-
 	// Try boolean first: maintenance: false disables the feature.
 	var b bool
 	if err := json.Unmarshal(raw.Maintenance, &b); err == nil {
@@ -186,6 +177,15 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	repoConfigLog.Printf("Maintenance field parsed as object: runsOn=%v, issueExpires=%d", mc.RunsOn, mc.ActionFailureIssueExpires)
 	r.Maintenance = &mc
 	return nil
+}
+
+// IsHelpCommandEnabled returns true when the builtin centralized /help command
+// handler should be enabled. The default is enabled.
+func (r *RepoConfig) IsHelpCommandEnabled() bool {
+	if r == nil || r.HelpCommand == nil {
+		return true
+	}
+	return *r.HelpCommand
 }
 
 // LoadRepoConfig loads and validates .github/workflows/aw.json from the
