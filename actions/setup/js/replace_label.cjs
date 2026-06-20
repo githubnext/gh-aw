@@ -98,7 +98,7 @@ async function resolveLabel(githubClient, owner, repo, labelName, labelNodeIdCac
     if (err?.status !== 404) {
       throw err;
     }
-    throw new Error(`Label "${labelName}" does not exist in ${owner}/${repo}. Create the label in the repository before using it with replace-label.`);
+    throw new Error(`Label "${labelName}" does not exist in ${owner}/${repo} (${getErrorMessage(err)}). Create the label in the repository before using it with replace-label.`);
   }
 }
 
@@ -318,8 +318,12 @@ const main = createCountGatedHandler({
       } catch (err) {
         const errorMessage = getErrorMessage(err);
         // RL-046: detect partial mutation success — remove succeeded but add failed.
-        // withRetry may wrap the original error via enhanceError, so check both
-        // err.data (direct graphql error) and err.originalError.data (wrapped error).
+        // withRetry may wrap the original error via enhanceError, so check both:
+        //   err.data          — present on direct @octokit/graphql GraphQLResponseError
+        //   err.originalError.data — present when withRetry has wrapped the graphql error
+        // The nullish-coalescing order is intentional: prefer err.data (the closest
+        // error to the API boundary); fall back to err.originalError.data only when
+        // err.data is absent (i.e. the error has been wrapped by enhanceError).
         const errAsAny = /** @type {any} */ err;
         const partialData = errAsAny?.data ?? errAsAny?.originalError?.data;
         if (partialData?.removeLabels && !partialData?.addLabels) {
