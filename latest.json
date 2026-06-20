@@ -1,11 +1,8 @@
 {
-  "timestamp": "2026-06-18T05:16:15Z",
-  "workflow_run_id": "27738311748",
-  "total_workflows": 250,
-  "copilot_workflows": 136,
-  "copilot_pct": 54,
-  "copilot_explicit": 40,
-  "copilot_obj_form": 96,
-  "copilot_sdk_workflows": 63,
-  "analysis_date": "2026-06-18"
+  "timestamp": "2026-06-20T05:04:29Z",
+  "workflow_run_id": "27860912593",
+  "total_workflows": 249,
+  "copilot_workflows": 122,
+  "copilot_pct": 49,
+  "analysis_date": "2026-06-20"
 }
