@@ -307,7 +307,7 @@ function isBuiltinHelpEnabled() {
   if (raw === "false") {
     return false;
   }
-  core.warning(`GH_AW_HELP_COMMAND_ENABLED must be 'true' or 'false', got '${raw}'. Defaulting to enabled.`);
+  core.warning(`Invalid value for GH_AW_HELP_COMMAND_ENABLED (expected 'true' or 'false', got '${raw}'). Using default: enabled.`);
   return true;
 }
 

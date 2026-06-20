@@ -413,6 +413,8 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 					wd.WorkflowID,
 				)
 			}
+			// Conflict resolution keeps the first non-empty description encountered
+			// while iterating workflowDataList, which is deterministic for compilation.
 			if existing.Description == "" && description != "" {
 				existing.Description = description
 				existing.DescriptionBy = wd.WorkflowID
