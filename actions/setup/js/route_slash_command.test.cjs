@@ -440,6 +440,62 @@ describe("route_slash_command", () => {
     expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Completed decentralized label routing for 'smoke'."));
   });
 
+  it("falls back to default branch for slash commands when workflow_dispatch trigger is missing on PR branch", async () => {
+    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async params => {
+      if (params.ref === "refs/heads/copilot/some-feature-branch") {
+        throw Object.assign(new Error("Workflow does not have 'workflow_dispatch' trigger"), {
+          status: 422,
+          response: { status: 422, data: { message: "Workflow does not have 'workflow_dispatch' trigger" } },
+        });
+      }
+      dispatchCalls.push(params);
+    });
+    globals.context.payload = {
+      issue: { number: 42, pull_request: {} },
+      comment: { id: 99, body: "/archie do the thing" },
+    };
+    globals.github.rest.pulls.get = vi.fn(async () => ({
+      data: { number: 42, head: { ref: "copilot/some-feature-branch" } },
+    }));
+    globals.context.payload.repository = { default_branch: "main" };
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("archie.lock.yml");
+    expect(dispatchCalls[0].ref).toBe("refs/heads/main");
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Workflow 'archie.lock.yml' not found on ref 'refs/heads/copilot/some-feature-branch'; retrying on default branch 'refs/heads/main'."));
+  });
+
+  it("falls back to default branch for label routes when workflow_dispatch trigger is missing on PR branch", async () => {
+    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async params => {
+      if (params.ref === "refs/heads/copilot/some-feature-branch") {
+        throw Object.assign(new Error("Workflow does not have 'workflow_dispatch' trigger"), {
+          status: 422,
+          response: { status: 422, data: { message: "Workflow does not have 'workflow_dispatch' trigger" } },
+        });
+      }
+      dispatchCalls.push(params);
+    });
+    globals.context.eventName = "pull_request";
+    globals.context.payload = {
+      action: "labeled",
+      label: { name: "ci-doctor" },
+      pull_request: { number: 42, head: { ref: "copilot/some-feature-branch" }, state: "open" },
+      repository: { default_branch: "main" },
+    };
+    process.env.GH_AW_LABEL_ROUTING = JSON.stringify({
+      "ci-doctor": [{ workflow: "ci-doctor", events: ["pull_request"], ai_reaction: "eyes" }],
+    });
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("ci-doctor.lock.yml");
+    expect(dispatchCalls[0].ref).toBe("refs/heads/main");
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Workflow 'ci-doctor.lock.yml' not found on ref 'refs/heads/copilot/some-feature-branch'; retrying on default branch 'refs/heads/main'."));
+  });
+
   it("skips centralized routing when PR is closed at workflow start", async () => {
     globals.context.eventName = "pull_request";
     globals.context.payload = { action: "ready_for_review", pull_request: { number: 12, state: "closed" } };

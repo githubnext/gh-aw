@@ -274,9 +274,10 @@ async function addImmediateReaction(reaction) {
  * @param {string} workflowId
  * @param {string} ref
  * @param {Record<string, string>} inputs
+ * @param {string} [fallbackRef]
  * @returns {Promise<boolean>}
  */
-async function dispatchWorkflow(workflowId, ref, inputs) {
+async function dispatchWorkflow(workflowId, ref, inputs, fallbackRef) {
   try {
     await github.rest.actions.createWorkflowDispatch({
       owner: context.repo.owner,
@@ -293,6 +294,10 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
     if (isDisabledWorkflowDispatchError(error)) {
       core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
       return false;
+    }
+    if (isMissingWorkflowDispatchTriggerError(error) && fallbackRef && ref !== fallbackRef) {
+      core.info(`Workflow '${workflowId}' not found on ref '${ref}'; retrying on default branch '${fallbackRef}'.`);
+      return dispatchWorkflow(workflowId, fallbackRef, inputs);
     }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
   }
@@ -322,6 +327,20 @@ function isDisabledWorkflowDispatchError(error) {
   }
 
   return message.includes("workflow is disabled") || message.includes("workflow was disabled") || message.includes("disabled workflow");
+}
+
+function isMissingWorkflowDispatchTriggerError(error) {
+  const status = error?.status ?? error?.response?.status;
+  const message = [error?.message, error?.response?.data?.message]
+    .filter(value => typeof value === "string" && value.trim())
+    .join(" ")
+    .toLowerCase();
+
+  if (status !== 422 || !message) {
+    return false;
+  }
+
+  return message.includes("does not have 'workflow_dispatch' trigger") || message.includes("no ref found for");
 }
 
 /**
@@ -367,6 +386,7 @@ async function main() {
   const identifier = eventIdentifier();
   const { buildAwContext } = require("./aw_context.cjs");
   const ref = await resolveDispatchRef();
+  const defaultBranch = normalizeDispatchRef(context.payload?.repository?.default_branch || "main");
   if (isPRClosedAtStart()) {
     core.info("Pull request is closed at workflow start; skipping centralized routing.");
     return;
@@ -404,9 +424,14 @@ async function main() {
         ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
       };
       core.info(`Dispatching workflow '${workflowID}' for label '${labelName}'.`);
-      const dispatched = await dispatchWorkflow(workflowID, ref, {
-        aw_context: JSON.stringify(awContext),
-      });
+      const dispatched = await dispatchWorkflow(
+        workflowID,
+        ref,
+        {
+          aw_context: JSON.stringify(awContext),
+        },
+        defaultBranch
+      );
       if (dispatched) {
         core.info(`Dispatched '${workflowID}' for label '${labelName}'`);
       }
@@ -452,9 +477,14 @@ async function main() {
       ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
     };
     core.info(`Dispatching workflow '${workflowID}' for '/${commandName}'.`);
-    const dispatched = await dispatchWorkflow(workflowID, ref, {
-      aw_context: JSON.stringify(awContext),
-    });
+    const dispatched = await dispatchWorkflow(
+      workflowID,
+      ref,
+      {
+        aw_context: JSON.stringify(awContext),
+      },
+      defaultBranch
+    );
     if (dispatched) {
       core.info(`Dispatched '${workflowID}' for '/${commandName}'`);
     }
