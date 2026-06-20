@@ -4,6 +4,10 @@ emoji: "🍳"
 name: "Skillet"
 description: Reviews pull requests by mapping any slash command to a matching repository skill under .github/skills
 on:
+  permissions:
+    contents: read
+    pull-requests: read
+    issues: write
   slash_command:
     strategy: centralized
     name: "*"
@@ -40,6 +44,9 @@ jobs:
         with:
           sparse-checkout: |
             .github/skills
+            .github/workflows/agentic_commands.yml
+            .github/workflows/agentic-maintenance.yml
+            actions/setup/js/slash_command_matcher.cjs
           persist-credentials: false
     steps:
       - name: Match requested skill
@@ -49,6 +56,7 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
+            const { matchesCommandName } = require(path.join(process.env.GITHUB_WORKSPACE, 'actions', 'setup', 'js', 'slash_command_matcher.cjs'));
 
             const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
             const workspace = process.env.GITHUB_WORKSPACE;
@@ -69,17 +77,61 @@ jobs:
               .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(skillsDir, entry.name, 'SKILL.md')))
               .map((entry) => entry.name)
               .sort((a, b) => a.localeCompare(b));
+            const centralizedCommandFiles = [
+              path.join(workspace, '.github', 'workflows', 'agentic_commands.yml'),
+              path.join(workspace, '.github', 'workflows', 'agentic-maintenance.yml'),
+            ];
+            const availableCentralCommands = [...new Set(centralizedCommandFiles.flatMap((routerPath) => {
+              if (!fs.existsSync(routerPath)) {
+                return [];
+              }
+              const routerContent = fs.readFileSync(routerPath, 'utf8');
+              const routerMatch = routerContent.match(/GH_AW_SLASH_ROUTING:\s+'([^']*)'/);
+              if (!routerMatch) {
+                return [];
+              }
+              return Object.keys(JSON.parse(routerMatch[1]));
+            }))]
+              .filter((configuredCommand) => configuredCommand && configuredCommand !== '*')
+              .sort((a, b) => a.localeCompare(b));
+            const matchedCentralCommands = command
+              ? availableCentralCommands.filter((configuredCommand) => matchesCommandName(configuredCommand, command))
+              : [];
             const matchedSkillPath = path.join(skillsDir, command, 'SKILL.md');
             const isPRContext = Boolean(event.pull_request || event.issue?.pull_request);
             const shouldRun = isPRContext && availableSkills.includes(command);
+            const shouldCommentWithAvailableCommands = isPRContext && command && !shouldRun && matchedCentralCommands.length === 0;
 
             let skipReason = '';
             if (!isPRContext) {
               skipReason = 'Skillet only reviews pull requests.';
             } else if (!command) {
               skipReason = 'No slash command was found at the start of the comment.';
+            } else if (matchedCentralCommands.length > 0) {
+              skipReason = `/${command} is routed by a centralized commands workflow.`;
             } else if (!availableSkills.includes(command)) {
               skipReason = `No repository skill matched /${command}.`;
+            }
+
+            if (shouldCommentWithAvailableCommands) {
+              const formatCommandList = (commands) => commands.length > 0
+                ? commands.map((name) => `- \`/${name}\``).join('\n')
+                : '- `<none>`';
+              const sections = [
+                `I couldn't find a repository skill or centralized command for \`/${command}\`.`,
+                '',
+                'Available repository skills:',
+                formatCommandList(availableSkills),
+              ];
+              if (availableCentralCommands.length > 0) {
+                sections.push('', 'Other centralized commands:', formatCommandList(availableCentralCommands));
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: event.issue?.number || event.pull_request?.number,
+                body: sections.join('\n'),
+              });
             }
 
             core.setOutput('should_run', shouldRun ? 'true' : 'false');
@@ -93,7 +145,9 @@ jobs:
               .addHeading('Skillet pre-activation', 3)
               .addRaw(`- Command: \`/${command || '<none>'}\`\n`)
               .addRaw(`- Pull request context: \`${isPRContext ? 'yes' : 'no'}\`\n`)
-              .addRaw(`- Skill match: \`${shouldRun ? 'yes' : 'no'}\`\n`);
+              .addRaw(`- Skill match: \`${shouldRun ? 'yes' : 'no'}\`\n`)
+              .addRaw(`- Centralized command match: \`${matchedCentralCommands.length > 0 ? 'yes' : 'no'}\`\n`)
+              .addRaw(`- Available-command comment posted: \`${shouldCommentWithAvailableCommands ? 'yes' : 'no'}\`\n`);
             if (skipReason) {
               core.summary.addRaw(`- Skip reason: ${skipReason}\n`);
             }
