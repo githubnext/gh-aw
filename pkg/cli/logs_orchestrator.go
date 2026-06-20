@@ -210,7 +210,7 @@ outerLoop:
 				// not a hard error.  Partial results collected so far will be output.
 				timeoutReached = true
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached (deadline exceeded), stopping download"))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached, stopping download"))
 				}
 			} else {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))

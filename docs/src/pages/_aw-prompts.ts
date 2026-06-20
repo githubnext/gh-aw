@@ -2,7 +2,7 @@
  * Shared helper: reads all agent-optimised prompts from .github/aw/*.md and
  * returns metadata needed to build llms.txt / agents.txt.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const RAW_BASE =
@@ -25,15 +25,22 @@ function parseFrontmatterDescription(content: string): string {
 export function getAwPrompts(): AwPrompt[] {
 	// process.cwd() is the docs/ directory during `astro build`
 	const awDir = join(process.cwd(), '../.github/aw');
-	return readdirSync(awDir)
-		.filter((f) => f.endsWith('.md'))
-		.sort()
-		.map((file) => {
-			const content = readFileSync(join(awDir, file), 'utf-8');
-			return {
-				file,
-				description: parseFrontmatterDescription(content),
-				rawUrl: `${RAW_BASE}/${file}`,
-			};
-		});
+	if (!existsSync(awDir)) {
+		return [];
+	}
+	try {
+		return readdirSync(awDir)
+			.filter((f) => f.endsWith('.md'))
+			.sort()
+			.map((file) => {
+				const content = readFileSync(join(awDir, file), 'utf-8');
+				return {
+					file,
+					description: parseFrontmatterDescription(content),
+					rawUrl: `${RAW_BASE}/${file}`,
+				};
+			});
+	} catch {
+		return [];
+	}
 }
