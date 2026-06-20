@@ -5,8 +5,8 @@ description: Explores agentic-workflows custom agent behavior by generating soft
 on: daily
 max-daily-ai-credits: 10000
 engine:
-  id: copilot
-  model: gpt-5.4-mini
+  id: pi
+  model: copilot/gpt-5.4
 permissions:
   contents: read
   actions: read
@@ -37,6 +37,8 @@ experiments:
 # Note: max-turns not available for default Copilot engine (Claude only)
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
   agentic-workflows:
   cache-memory: true
 safe-outputs:

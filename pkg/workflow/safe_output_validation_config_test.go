@@ -123,11 +123,11 @@ func TestGetValidationConfigJSONEmpty(t *testing.T) {
 
 func TestGetValidationConfigJSONWithMentions(t *testing.T) {
 	mentions := map[string]any{
-		"enabled":          true,
-		"allowTeamMembers": false,
-		"allowContext":     false,
-		"allowed":          []string{"copilot", "github-actions"},
-		"max":              5,
+		"enabled":              true,
+		"allowedCollaborators": false,
+		"allowContext":         false,
+		"allowed":              []string{"copilot", "github-actions"},
+		"max":                  5,
 	}
 
 	jsonStr, err := GetValidationConfigJSON([]string{"add_comment"}, mentions)
@@ -163,8 +163,8 @@ func TestGetValidationConfigJSONWithMentions(t *testing.T) {
 	if enabled, _ := mentionsParsed["enabled"].(bool); !enabled {
 		t.Errorf("Expected mentions.enabled to be true, got %v", mentionsParsed["enabled"])
 	}
-	if allowTeam, _ := mentionsParsed["allowTeamMembers"].(bool); allowTeam {
-		t.Errorf("Expected mentions.allowTeamMembers to be false, got %v", mentionsParsed["allowTeamMembers"])
+	if allowTeam, _ := mentionsParsed["allowedCollaborators"].(bool); allowTeam {
+		t.Errorf("Expected mentions.allowedCollaborators to be false, got %v", mentionsParsed["allowedCollaborators"])
 	}
 
 	// A second call without mentions must not include the key (cache safety).

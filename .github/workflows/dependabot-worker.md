@@ -44,8 +44,8 @@ permissions:
   issues: read
   pull-requests: read
 engine:
-  id: copilot
-  model: gpt-5.4-mini
+  id: pi
+  model: copilot/gpt-5.4
 strict: true
 network:
   allowed:

@@ -73,13 +73,11 @@ func renderMCPScriptsMCPConfigWithOptions(yaml *strings.Builder, mcpScripts *MCP
 
 	// Add Authorization header with API key
 	yaml.WriteString("                \"headers\": {\n")
-	if includeCopilotFields {
-		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_MCP_SCRIPTS_API_KEY}\"\n")
-	} else {
-		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"$GH_AW_MCP_SCRIPTS_API_KEY\"\n")
-	}
+	// Always use backslash-escaped shell variable references in JSON MCP config heredocs.
+	// The heredoc delimiter is unquoted so bash would expand $VAR before the gateway
+	// script runs; escaping ensures the literal ${VAR} string is passed to the gateway,
+	// which resolves it from its own environment without leaking secret values in logs.
+	yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_MCP_SCRIPTS_API_KEY}\"\n")
 	// Close headers - with or without trailing comma depending on whether guard policies follow
 	// Note: env block is NOT included for HTTP servers because the old MCP Gateway schema
 	// doesn't allow env in httpServerConfig. The variables are resolved via URL templates.

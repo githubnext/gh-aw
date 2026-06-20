@@ -99,6 +99,7 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 		{"Claude", NewClaudeEngine()},
 		{"Copilot", NewCopilotEngine()},
 		{"Codex", NewCodexEngine()},
+		{"Pi", NewPiEngine()},
 	}
 
 	for _, e := range engines {
@@ -131,6 +132,29 @@ func TestAgenticWorkflowsHasMCPServers(t *testing.T) {
 
 	assert.True(t, HasMCPServers(workflowData),
 		"HasMCPServers should return true when agentic-workflows tool is configured")
+}
+
+// TestPiMCPConfig_SafeOutputs verifies that the Pi engine generates a valid MCP config
+// that includes the safeoutputs server. This directly documents the bug fixed in
+// cda969a: Pi engine was not rendering MCP config so safeoutputs was never mounted.
+func TestPiMCPConfig_SafeOutputs(t *testing.T) {
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"safe-outputs": map[string]any{
+				"create-issue": map[string]any{},
+			},
+		},
+	}
+
+	var sb strings.Builder
+	err := NewPiEngine().RenderMCPConfig(&sb, workflowData.Tools, []string{"safe-outputs"}, workflowData)
+	require.NoError(t, err)
+
+	result := sb.String()
+	assert.Contains(t, result, "safeoutputs",
+		"Pi MCP config must include safeoutputs server so the CLI can be mounted")
+	assert.Contains(t, result, "start_safe_outputs_mcp.sh",
+		"Pi MCP config must reference the safe-outputs startup script")
 }
 
 func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
