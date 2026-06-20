@@ -581,14 +581,15 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   let jsonOutput = false;
   const hasSchemaProperties = Object.keys(schemaProperties).length > 0;
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
+  // Trimmed stdin content used in both JSON payload mode and per-field stdin mode.
+  const trimmedStdin = stdinContent !== null ? stdinContent.trim() : null;
 
   // JSON payload mode: when args is empty or ['.'] and stdinContent is available,
   // parse stdin as a JSON object and use its properties directly as tool arguments.
-  if (stdinContent !== null && (args.length === 0 || (args.length === 1 && args[0] === "."))) {
-    const trimmed = stdinContent.trim();
-    if (trimmed) {
+  if (trimmedStdin !== null && (args.length === 0 || (args.length === 1 && args[0] === "."))) {
+    if (trimmedStdin) {
       try {
-        const parsed = JSON.parse(trimmed);
+        const parsed = JSON.parse(trimmedStdin);
         if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
           for (const [key, value] of Object.entries(parsed)) {
             const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -614,8 +615,8 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
         } else {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
           const rawValue = raw.slice(eqIdx + 1);
-          if (rawValue === "." && stdinContent !== null && stdinContent.trim()) {
-            result[canonicalKey] = stdinContent.trim();
+          if (rawValue === "." && trimmedStdin) {
+            result[canonicalKey] = trimmedStdin;
           } else {
             result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
           }
@@ -625,8 +626,8 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
         const rawValue = args[i + 1];
-        if (rawValue === "." && stdinContent !== null && stdinContent.trim()) {
-          result[canonicalKey] = stdinContent.trim();
+        if (rawValue === "." && trimmedStdin) {
+          result[canonicalKey] = trimmedStdin;
         } else {
           result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
