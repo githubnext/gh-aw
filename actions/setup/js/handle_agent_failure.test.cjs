@@ -2375,7 +2375,12 @@ describe("handle_agent_failure", () => {
   // ──────────────────────────────────────────────────────
 
   describe("hasEngineMaxRunsExceededSignal", () => {
-    const { hasEngineMaxRunsExceededSignal } = require("./handle_agent_failure.cjs");
+    let hasEngineMaxRunsExceededSignal;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ hasEngineMaxRunsExceededSignal } = require("./handle_agent_failure.cjs"));
+    });
 
     it("returns false for empty-like content", () => {
       expect(hasEngineMaxRunsExceededSignal("")).toBe(false);

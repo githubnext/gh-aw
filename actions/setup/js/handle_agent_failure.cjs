@@ -1570,7 +1570,7 @@ function hasEngineRateLimit429Signal(content) {
  * Detect max-runs guardrail failures in text payloads.
  * Returns true when content includes either the `max_runs_exceeded` error type
  * or the "Maximum LLM invocations exceeded" message fragment.
- * @param {string} content
+ * @param {string|null|undefined} content
  * @returns {boolean}
  */
 function hasEngineMaxRunsExceededSignal(content) {
@@ -1611,11 +1611,11 @@ function buildEngineRateLimit429Context(engineLabel) {
 /**
  * Build dedicated context for max-runs guardrail failures.
  * Renders the max-runs-exceeded prompt template with the active engine label.
- * @param {string} engineLabel
+ * @param {string} [engineLabel]
  * @returns {string}
  */
 function buildEngineMaxRunsExceededContext(engineLabel) {
-  const normalizedEngineLabel = engineLabel.trim() || "AI";
+  const normalizedEngineLabel = (typeof engineLabel === "string" ? engineLabel : "").trim() || "AI";
   return "\n" + renderPromptTemplate("engine_max_runs_exceeded.md", { engine_label: normalizedEngineLabel });
 }
 
