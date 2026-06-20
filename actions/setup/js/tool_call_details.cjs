@@ -9,7 +9,14 @@ function extractShellCommandFromToolData(data) {
   if (!data || typeof data !== "object") return "";
   // Priority order prefers top-level command-like fields emitted by tool wrappers,
   // then object-shaped payloads used by MCP/SDK tool schemas.
-  const commandFieldCandidates = [data.command, data.input, data["arguments"], data.args, data.toolInput, data.parameters];
+  /** @type {Array<any>} */
+  const commandFieldCandidates = [];
+  if ("command" in data) commandFieldCandidates.push(data.command);
+  if ("input" in data) commandFieldCandidates.push(data.input);
+  if ("arguments" in data) commandFieldCandidates.push(data["arguments"]);
+  if ("args" in data) commandFieldCandidates.push(data.args);
+  if ("toolInput" in data) commandFieldCandidates.push(data.toolInput);
+  if ("parameters" in data) commandFieldCandidates.push(data.parameters);
   for (const candidate of commandFieldCandidates) {
     if (typeof candidate === "string" && candidate.trim()) {
       return candidate.trim();

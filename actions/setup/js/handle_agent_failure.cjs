@@ -31,7 +31,8 @@ const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
 const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 const RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW = new Set(["bash", "shell"]);
-const ELLIPSIS_LENGTH = 3;
+const ELLIPSIS = "...";
+const ELLIPSIS_LENGTH = ELLIPSIS.length;
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded
@@ -1189,7 +1190,7 @@ function normalizeToolCallPreview(value, maxLen = 120) {
     .trim();
   if (!singleLine) return "";
   if (singleLine.length <= maxLen) return singleLine;
-  return `${singleLine.slice(0, maxLen - ELLIPSIS_LENGTH)}...`;
+  return `${singleLine.slice(0, maxLen - ELLIPSIS_LENGTH)}${ELLIPSIS}`;
 }
 
 /**
