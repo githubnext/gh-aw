@@ -44,6 +44,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed guard policy test."
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."
 timeout-minutes: 10
+features:
+  gh-aw-detection: true
 ---
 
 # Guard Policy Smoke Test: scoped/approved (scoped patterns)

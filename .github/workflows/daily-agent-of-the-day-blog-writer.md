@@ -69,6 +69,8 @@ imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/noop-reminder.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Agent of the Day Blog Writer

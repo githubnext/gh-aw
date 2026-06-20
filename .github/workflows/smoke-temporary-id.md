@@ -67,6 +67,8 @@ experiments:
     start_date: "2026-05-23"
     analysis_type: t_test
     tags: [cost-efficiency, sub-agents, smoke-tests]
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Temporary ID Functionality

@@ -55,6 +55,8 @@ safe-outputs:
     run-started: "🦙 BYOK Ollama test starting... [{workflow_name}]({run_url})"
     run-success: "✅ [{workflow_name}]({run_url}) — BYOK endpoint responded."
     run-failure: "❌ [{workflow_name}]({run_url}) — BYOK endpoint test failed: {status}"
+features:
+  gh-aw-detection: true
 ---
 
 # Daily BYOK Endpoint Test
