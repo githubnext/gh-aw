@@ -1,15 +1,63 @@
 {
-  "run_date": "2026-06-20T07:37:00Z",
-  "run_id": "27864421659",
-  "previous_run_id": "27855877895",
-  "previous_run_date": "2026-06-20T01:21:29Z",
+  "run_date": "2026-06-20T12:52:50Z",
+  "run_id": "27871706688",
+  "previous_run_id": "27864421659",
+  "previous_run_date": "2026-06-20T07:37:00Z",
   "fork_prs": 0,
-  "agent_prs_found": 9,
+  "agent_prs_found": 12,
   "copilot_swe_agent_prs": 8,
-  "github_actions_prs": 1,
+  "github_actions_prs": 4,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
+    {
+      "number": 40456,
+      "title": "[spec-extractor] Update package specifications for agentdrain, cli, console, constants",
+      "author": "app/github-actions",
+      "draft": false,
+      "status": "OPEN",
+      "created": "2026-06-20",
+      "labels": [],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 13,
+      "deletions": 0,
+      "changed_files": 1,
+      "review_decision": null
+    },
+    {
+      "number": 40453,
+      "title": "[instructions] Sync instruction files with release v0.80.6",
+      "author": "app/github-actions",
+      "draft": false,
+      "status": "OPEN",
+      "created": "2026-06-20",
+      "labels": [],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 1,
+      "deletions": 11,
+      "changed_files": 1,
+      "review_decision": null
+    },
+    {
+      "number": 40451,
+      "title": "[docs] Update editor preview screenshots \u2013 2026-06-20",
+      "author": "app/github-actions",
+      "draft": true,
+      "status": "DRAFT",
+      "created": "2026-06-20",
+      "labels": [],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 2,
+      "deletions": 2,
+      "changed_files": 1,
+      "review_decision": null
+    },
     {
       "number": 40442,
       "title": "Add top-level `goal` frontmatter support and map it to Codex `--goal`",
@@ -53,9 +101,9 @@
       "is_fork": false,
       "head_repo": "github/gh-aw",
       "base_repo": "github/gh-aw",
-      "additions": null,
-      "deletions": null,
-      "changed_files": null,
+      "additions": 61,
+      "deletions": 11,
+      "changed_files": 2,
       "review_decision": null
     },
     {
@@ -149,24 +197,24 @@
       "is_fork": false,
       "head_repo": "github/gh-aw",
       "base_repo": "github/gh-aw",
-      "additions": 357,
-      "deletions": 3,
-      "changed_files": 6,
+      "additions": 757,
+      "deletions": 17,
+      "changed_files": 10,
       "review_decision": null
     }
   ],
-  "closed_since_last_run": [40413, 40412, 40399, 40396],
-  "merged_since_last_run": [40413, 40399, 40396],
-  "closed_not_merged": [40412],
-  "new_since_last_run": [40442, 40441, 40433, 40425, 40423, 40422, 40420, 40419],
+  "closed_since_last_run": [],
+  "merged_since_last_run": [],
+  "closed_not_merged": [],
+  "new_since_last_run": [40456, 40453, 40451],
   "statistics": {
     "by_status": {
-      "DRAFT": 5,
-      "OPEN": 4
+      "DRAFT": 6,
+      "OPEN": 6
     },
-    "open_non_draft_prs": 4,
-    "draft_prs": 5,
+    "open_non_draft_prs": 6,
+    "draft_prs": 6,
     "prs_with_changes_requested": 2
   },
-  "notes": "9 open agent PRs (8 copilot-swe-agent + 1 github-actions), all same-repo branches (is_fork=False). Fork-only triage policy: 0 PRs eligible. 4 PRs closed/merged since last run: 3 merged (#40413, #40399, #40396), 1 closed without merge (#40412). 8 new PRs since last run. Ongoing pattern: all agent PRs are same-repo branches, never fork PRs. 2 PRs have CHANGES_REQUESTED (#40425, #40422)."
+  "notes": "12 open agent PRs (8 copilot-swe-agent + 4 github-actions), all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 0 PRs closed/merged since last run. 3 new PRs since last run (#40456, #40453, #40451 - all github-actions). Ongoing pattern: all agent PRs are same-repo branches, never fork PRs. 2 PRs have CHANGES_REQUESTED (#40425, #40422). Run [§27871706688](https://github.com/github/gh-aw/actions/runs/27871706688)."
 }
