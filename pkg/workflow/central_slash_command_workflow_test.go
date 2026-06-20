@@ -447,11 +447,11 @@ func TestBuildHelpCommandEntries(t *testing.T) {
 	}
 
 	require.Equal(t, []helpCommandEntry{
-		{Command: "helpful", Description: "Triage work items", Centralized: true},
-		{Command: "summary", Description: "Summarize latest updates", Decentralized: true},
-		{Command: "triage", Description: "Triage work items", Centralized: true, Decentralized: true},
-		{Command: "triage-label", Description: "Triage via label", Label: true},
-		{Command: "urgent", Description: "Triage via label", Label: true},
+		{Command: "helpful", Description: "Triage work items", Centralized: true, SourceFile: "triage"},
+		{Command: "summary", Description: "Summarize latest updates", Decentralized: true, SourceFile: "summary"},
+		{Command: "triage", Description: "Triage work items", Centralized: true, Decentralized: true, SourceFile: "triage"},
+		{Command: "triage-label", Description: "Triage via label", Label: true, SourceFile: "label-triage"},
+		{Command: "urgent", Description: "Triage via label", Label: true, SourceFile: "label-triage"},
 	}, buildHelpCommandEntries(data))
 }
 
@@ -464,6 +464,7 @@ func TestBuildHelpCommandEntries_ConflictingDescriptions(t *testing.T) {
 	entries := buildHelpCommandEntries(data)
 	require.Len(t, entries, 1)
 	require.Equal(t, "Deploy service A", entries[0].Description, "first description should win on conflict")
+	require.Equal(t, "deploy-a", entries[0].SourceFile, "source file should be from first workflow")
 }
 
 func TestBuildHelpCommandEntries_ReservedHelpCommandName(t *testing.T) {
