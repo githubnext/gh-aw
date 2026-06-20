@@ -1209,8 +1209,8 @@ function extractShellCommandPreview(data) {
  */
 function formatRecentToolCall(toolName, mcpServerName, data) {
   const base = mcpServerName ? `${mcpServerName}.${toolName}` : toolName;
-  const normalizedTool = toolName.toLowerCase();
-  if (!RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW.has(normalizedTool)) {
+  const normalizedToolName = toolName.toLowerCase();
+  if (!RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW.has(normalizedToolName)) {
     return base;
   }
   const commandPreview = extractShellCommandPreview(data);
