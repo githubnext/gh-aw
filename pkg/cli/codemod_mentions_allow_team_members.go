@@ -109,8 +109,7 @@ func renameMentionsAllowTeamMembers(lines []string) ([]string, bool) {
 					mentionsChildIndent = ""
 					if strings.Contains(trimmed, "allow-team-members:") {
 						newLine := strings.Replace(line, "allow-team-members:", "allowed-collaborators:", 1)
-						replaced := newLine != line
-						if replaced {
+						if newLine != line {
 							result = append(result, newLine)
 							modified = true
 							mentionsAllowTeamMembersCodemodLog.Printf("Renamed allow-team-members to allowed-collaborators in safe-outputs.mentions on line %d", i+1)
