@@ -119,6 +119,149 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(stop).toHaveBeenCalledTimes(1);
     });
 
+    it("resolves exitCode 0 on SDK idle-timeout when output collected and all tool calls complete", async () => {
+      // Regression test: when sendAndWait throws an idle-timeout error but the agent
+      // produced output and all tool calls completed, the driver must return exitCode 0.
+      // This covers the case where the SDK drops the session.idle signal on long runs.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      const session = {
+        sessionId: "session-idle-timeout-success",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          // Simulate tool execution events before the idle-timeout
+          onEvent({
+            type: "tool.execution_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolName: "bash", mcpServerName: "terminal", toolCallId: "call-1" },
+          });
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "I found the answer" },
+          });
+          onEvent({
+            type: "tool.execution_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolCallId: "call-1", success: true },
+          });
+          throw new Error("Timeout after 870000ms waiting for session.idle");
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => "allow",
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.hasOutput).toBe(true);
+      expect(result.output).toContain("I found the answer");
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(stop).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns exitCode 1 on SDK idle-timeout when tool calls are still pending", async () => {
+      // When the idle-timeout fires with in-flight (unmatched) tool calls, the agent did
+      // not finish cleanly — the driver must NOT treat it as success.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      const session = {
+        sessionId: "session-idle-timeout-pending-tools",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "tool.execution_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolName: "bash", mcpServerName: "terminal", toolCallId: "call-pending" },
+          });
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "working on it" },
+          });
+          // tool.execution_complete is never emitted — tool call remains pending
+          throw new Error("Timeout after 870000ms waiting for session.idle");
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => "allow",
+        },
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.hasOutput).toBe(true);
+      expect(result.output).toContain("working on it");
+    });
+
+    it("returns exitCode 1 on SDK idle-timeout with no output collected", async () => {
+      // When the idle-timeout fires before the agent produces any output, the driver
+      // must return exitCode 1 — there is nothing useful to surface.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const session = {
+        sessionId: "session-idle-timeout-no-output",
+        on: () => {},
+        sendAndWait: vi.fn().mockRejectedValue(new Error("Timeout after 870000ms waiting for session.idle")),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => "allow",
+        },
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.hasOutput).toBe(false);
+    });
+
     it("passes custom provider and model through to SDK createSession", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);

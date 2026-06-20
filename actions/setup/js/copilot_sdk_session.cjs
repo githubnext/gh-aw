@@ -36,6 +36,12 @@ const { buildCopilotSDKPermissionHandler, getEnvPositiveIntOrDefault, parseMaxTo
 // Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
 const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 
+// Pattern matching the SDK idle-timeout error emitted when sendAndWait reaches its
+// deadline waiting for the session.idle event.  This matches the message format
+// "Timeout after <N>ms waiting for session.idle" produced by the Copilot SDK.
+// Keep in sync with SDK_SESSION_IDLE_TIMEOUT_PATTERN in copilot_harness.cjs.
+const SDK_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for session\.idle/;
+
 /**
  * Extract the prompt text from a resolved args array.
  * Looks for the first occurrence of "-p <value>" or "--prompt <value>".
@@ -141,6 +147,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   let toolDenialCount = 0;
   let catastrophicToolDenialsError = null;
   let catastrophicToolDenialsTriggered = false;
+  /**
+   * Map from toolCallId → {toolName, mcpServerName} for enriching tool.execution_complete
+   * events and for tracking in-flight tool calls when the idle-timeout fires.
+   * Declared at function scope so the catch block can check pendingToolCalls.size.
+   * @type {Map<string, {toolName: string, mcpServerName: string}>}
+   */
+  const pendingToolCalls = new Map();
 
   /**
    * Best-effort write of a driver-level event to events.jsonl and stderr.
@@ -213,13 +226,6 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     // Snapshot to a non-null local for closure-safe writes (JSDoc nullability narrowing).
     const stream = eventsStream;
     log(`serialising SDK events to ${eventsPath}`);
-
-    /**
-     * Map from toolCallId → {toolName, mcpServerName} so that tool.execution_complete
-     * events (which carry no mcpServerName) can be enriched from the matching start event.
-     * @type {Map<string, {toolName: string, mcpServerName: string}>}
-     */
-    const pendingToolCalls = new Map();
 
     /**
      * Write one JSONL entry to the events file and stderr.
@@ -316,10 +322,24 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const durationMs = Date.now() - startTime;
     const failure = catastrophicToolDenialsError ?? (err instanceof Error ? err : new Error(String(err)));
     log(`error: ${failure.message}`);
+
+    // When sendAndWait times out waiting for session.idle but the agent produced
+    // output and all tracked tool calls have already completed, the session work is
+    // done — the SDK simply failed to emit the idle signal.  Treat it as a successful
+    // run so the harness does not classify it as a failure or waste retry attempts.
+    const isIdleTimeout = !catastrophicToolDenialsError && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
+    if (isIdleTimeout && hasOutput && pendingToolCalls.size === 0) {
+      log(`warning: SDK idle-timeout with collected output and no pending tool calls — treating as completed`);
+      log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
+      return { exitCode: 0, output, hasOutput, durationMs };
+    }
+
+    // Preserve any output collected before the error so the harness can use it
+    // for retry decisions and diagnostics.
     return {
       exitCode: 1,
-      output: failure.message,
-      hasOutput: false,
+      output: hasOutput ? output : failure.message,
+      hasOutput,
       durationMs,
     };
   } finally {
@@ -345,4 +365,4 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   }
 }
 
-module.exports = { SDK_SEND_TIMEOUT_MS_DEFAULT, extractPromptFromArgs, runWithCopilotSDK };
+module.exports = { SDK_SEND_TIMEOUT_MS_DEFAULT, SDK_IDLE_TIMEOUT_PATTERN, extractPromptFromArgs, runWithCopilotSDK };
