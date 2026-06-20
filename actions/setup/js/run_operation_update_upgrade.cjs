@@ -338,13 +338,29 @@ ${AUTO_UPGRADE_ISSUE_MARKER}
 `;
 
   core.info(`Creating upgrade notification issue: "${issueTitle}"`);
-  const createdIssue = await github.rest.issues.create({
-    owner,
-    repo,
-    title: issueTitle,
-    body: issueBody,
-    labels: ["agentic-workflows"],
-  });
+  let createdIssue;
+  try {
+    createdIssue = await github.rest.issues.create({
+      owner,
+      repo,
+      title: issueTitle,
+      body: issueBody,
+      labels: ["agentic-workflows"],
+    });
+  } catch (error) {
+    // Label may not exist when auto-upgrade is used without maintenance label creation.
+    if (error && error.status === 422) {
+      core.warning("Failed to create issue with label 'agentic-workflows'; retrying without labels");
+      createdIssue = await github.rest.issues.create({
+        owner,
+        repo,
+        title: issueTitle,
+        body: issueBody,
+      });
+    } else {
+      throw error;
+    }
+  }
 
   const issueUrl = createdIssue.data.html_url;
   core.info(`✓ Created issue: ${issueUrl}`);

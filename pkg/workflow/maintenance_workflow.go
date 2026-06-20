@@ -168,6 +168,10 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			RepoSlug:        repoSlug,
 			SetupActionRef:  setupActionRef,
 			GitHubScriptPin: githubScriptPin,
+			ActionMode:      actionMode,
+			Version:         version,
+			ActionTag:       actionTag,
+			Resolver:        resolver,
 		})
 	}
 
@@ -225,6 +229,10 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			RepoSlug:        repoSlug,
 			SetupActionRef:  setupActionRef,
 			GitHubScriptPin: githubScriptPin,
+			ActionMode:      actionMode,
+			Version:         version,
+			ActionTag:       actionTag,
+			Resolver:        resolver,
 		})
 	}
 
@@ -303,6 +311,10 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		RepoSlug:        repoSlug,
 		SetupActionRef:  setupActionRef,
 		GitHubScriptPin: githubScriptPin,
+		ActionMode:      actionMode,
+		Version:         version,
+		ActionTag:       actionTag,
+		Resolver:        resolver,
 	})
 }
 

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,6 +40,15 @@ type GenerateAutoUpdateWorkflowOptions struct {
 	// GitHubScriptPin is the pinned reference for actions/github-script.
 	// When empty, getActionPin("actions/github-script") is used as a fallback.
 	GitHubScriptPin string
+	// ActionMode controls how CLI install steps and command prefixes are generated.
+	// Defaults to ActionModeDev when empty.
+	ActionMode ActionMode
+	// Version is the gh-aw version used by generateInstallCLISteps in non-dev modes.
+	Version string
+	// ActionTag optionally overrides the setup-cli version tag in non-dev modes.
+	ActionTag string
+	// Resolver optionally resolves setup-cli action tags to SHA-pinned refs.
+	Resolver SHAResolver
 }
 
 // GenerateAutoUpdateWorkflow generates or removes the agentic-auto-upgrade.yml workflow
@@ -81,7 +91,17 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		githubScriptPin = getActionPin("actions/github-script")
 	}
 
-	content := buildAutoUpdateWorkflowYAML(cronSchedule, setupActionRef, githubScriptPin)
+	actionMode := opts.ActionMode
+	if actionMode == "" {
+		actionMode = ActionModeDev
+	}
+	content := buildAutoUpdateWorkflowYAML(
+		cronSchedule,
+		setupActionRef,
+		githubScriptPin,
+		generateInstallCLISteps(context.Background(), actionMode, opts.Version, opts.ActionTag, opts.Resolver),
+		getCLICmdPrefix(actionMode),
+	)
 
 	autoUpdateWorkflowLog.Printf("Writing auto-update workflow to %s", outputFile)
 	if err := fileutil.EnsureParentDir(outputFile, constants.DirPermPublic); err != nil {
@@ -106,7 +126,9 @@ func buildAutoUpdateSeed(repoSlug string) string {
 }
 
 // buildAutoUpdateWorkflowYAML generates the YAML content for agentic-auto-upgrade.yml.
-func buildAutoUpdateWorkflowYAML(cronSchedule, setupActionRef, githubScriptPin string) string {
+func buildAutoUpdateWorkflowYAML(
+	cronSchedule, setupActionRef, githubScriptPin, installCLISteps, cliCmdPrefix string,
+) string {
 	customInstructions := `Alternative regeneration methods:
   make recompile
 
@@ -126,13 +148,17 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
   auto-upgrade:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Scripts
+      - name: Checkout repository
+        uses: ` + getActionPin("actions/checkout") + `
+
+` + installCLISteps + `      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
@@ -142,7 +168,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_OPERATION: upgrade
-          GH_AW_CMD_PREFIX: gh aw
+          GH_AW_CMD_PREFIX: ` + cliCmdPrefix + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

@@ -31,9 +31,13 @@ func TestGenerateAutoUpdateWorkflow_Enabled(t *testing.T) {
 	assert.Contains(t, content, "cron:", "should include cron schedule")
 	assert.Contains(t, content, "Weekly (auto-upgrade)", "should include schedule comment")
 	assert.Contains(t, content, "workflow_dispatch:", "should include workflow_dispatch trigger")
+	assert.Contains(t, content, "contents: read", "should grant contents: read for checkout")
 	assert.Contains(t, content, "issues: write", "should grant issues: write")
 	assert.Contains(t, content, "run_operation_update_upgrade.cjs", "should inline upgrade JS")
 	assert.Contains(t, content, "GH_AW_OPERATION: upgrade", "should set upgrade operation")
+	assert.Contains(t, content, "GH_AW_CMD_PREFIX: ./gh-aw", "should use dev CLI prefix by default")
+	assert.Contains(t, content, "Checkout repository", "should include checkout step")
+	assert.Contains(t, content, "Build gh-aw", "should include local gh-aw build step in dev mode")
 	assert.Contains(t, content, "mainNotifyIssue", "should call mainNotifyIssue")
 	assert.NotContains(t, content, "uses: ./.github/workflows/agentics-maintenance.yml", "should not use workflow_call")
 	assert.NotContains(t, content, "actions: write", "should not grant actions: write")
@@ -155,6 +159,25 @@ func TestGenerateAutoUpdateWorkflow_CustomActionRefs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "github/gh-aw/actions/setup@abc123", "should use custom setup action ref")
 	assert.Contains(t, string(content), "actions/github-script@def456", "should use custom github-script pin")
+}
+
+func TestGenerateAutoUpdateWorkflow_ReleaseModeUsesGhAwPrefix(t *testing.T) {
+	dir := t.TempDir()
+
+	err := GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+		WorkflowDir: dir,
+		Enabled:     true,
+		RepoSlug:    "owner/repo",
+		ActionMode:  ActionModeRelease,
+		Version:     "v1.2.3",
+	})
+	require.NoError(t, err, "GenerateAutoUpdateWorkflow should succeed in release mode")
+
+	content, err := os.ReadFile(filepath.Join(dir, AutoUpdateWorkflowFileName))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "GH_AW_CMD_PREFIX: gh aw", "should use gh aw prefix outside dev mode")
+	assert.Contains(t, string(content), "name: Install gh-aw", "should install gh-aw in release mode")
+	assert.NotContains(t, string(content), "Build gh-aw", "should not build gh-aw from source in release mode")
 }
 
 func TestBuildAutoUpdateSeed(t *testing.T) {

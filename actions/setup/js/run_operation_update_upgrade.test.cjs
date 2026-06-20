@@ -463,6 +463,7 @@ describe("run_operation_update_upgrade", () => {
           repo: "testrepo",
           title: "[aw] Upgrade available",
           body: expect.stringContaining("<!-- gh-aw-workflow-id: agentic-auto-upgrade -->"),
+          labels: ["agentic-workflows"],
         })
       );
       expect(mockCore.notice).toHaveBeenCalledWith(expect.stringContaining("https://github.com/testowner/testrepo/issues/42"));
@@ -539,6 +540,31 @@ describe("run_operation_update_upgrade", () => {
       // Only the issue (not the PR) should be closed
       expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(1);
       expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 6 }));
+    });
+
+    it("retries issue creation without labels when label is missing", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(0);
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args[3] === ".github/aw/actions-lock.json") {
+          return { stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      });
+
+      const labelError = new Error("Validation Failed");
+      labelError.status = 422;
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(labelError)
+        .mockResolvedValueOnce({ data: { html_url: "https://github.com/testowner/testrepo/issues/43", number: 43 } });
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await mainNotifyIssue();
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(1, expect.objectContaining({ labels: ["agentic-workflows"] }));
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(2, expect.not.objectContaining({ labels: expect.anything() }));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("retrying without labels"));
     });
   });
 });
