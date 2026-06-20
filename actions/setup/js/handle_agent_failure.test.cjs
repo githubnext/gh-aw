@@ -2081,7 +2081,15 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns dedicated context for max-runs guardrail failures in stdio logs", () => {
-      fs.writeFileSync(stdioLogPath, '[ERROR] API error (attempt 1/11): 403 {"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (50 / 50)."}}\n');
+      fs.writeFileSync(stdioLogPath, '[ERROR] API error (attempt 1/11): {"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (50 / 50)."}}\n');
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Max Runs Exceeded");
+      expect(result).toContain("max-runs guardrail");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context when only max-runs message text is present", () => {
+      fs.writeFileSync(stdioLogPath, "Maximum LLM invocations exceeded (50 / 50).\n");
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Max Runs Exceeded");
       expect(result).toContain("max-runs guardrail");
@@ -2359,6 +2367,84 @@ describe("handle_agent_failure", () => {
       const result = buildEngineFailureContext();
       expect(result).toContain("Cyber Policy Violation");
       expect(result).not.toContain("Engine Failure");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // hasEngineMaxRunsExceededSignal
+  // ──────────────────────────────────────────────────────
+
+  describe("hasEngineMaxRunsExceededSignal", () => {
+    const { hasEngineMaxRunsExceededSignal } = require("./handle_agent_failure.cjs");
+
+    it("returns false for empty-like content", () => {
+      expect(hasEngineMaxRunsExceededSignal("")).toBe(false);
+      expect(hasEngineMaxRunsExceededSignal(null)).toBe(false);
+      expect(hasEngineMaxRunsExceededSignal(undefined)).toBe(false);
+    });
+
+    it("returns true when max_runs_exceeded marker is present", () => {
+      expect(hasEngineMaxRunsExceededSignal('{"error":{"type":"max_runs_exceeded"}}')).toBe(true);
+    });
+
+    it("returns true when Maximum LLM invocations exceeded text is present", () => {
+      expect(hasEngineMaxRunsExceededSignal("Maximum LLM invocations exceeded (50 / 50).")).toBe(true);
+    });
+
+    it("returns false for unrelated content", () => {
+      expect(hasEngineMaxRunsExceededSignal("request failed for unrelated reason")).toBe(false);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // buildEngineMaxRunsExceededContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildEngineMaxRunsExceededContext", () => {
+    let buildEngineMaxRunsExceededContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-engine-max-runs-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildEngineMaxRunsExceededContext } = require("./handle_agent_failure.cjs"));
+      fs.writeFileSync(path.join(promptsDir, "engine_max_runs_exceeded.md"), ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE);
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("renders template content for a provided engine label", () => {
+      const result = buildEngineMaxRunsExceededContext("Claude");
+      expect(result).toContain("Engine Max Runs Exceeded");
+      expect(result).toContain("max-runs guardrail");
+      expect(result).toContain("Claude");
+    });
+
+    it("falls back to AI when engine label is empty or whitespace", () => {
+      expect(buildEngineMaxRunsExceededContext("")).toContain("AI");
+      expect(buildEngineMaxRunsExceededContext("   ")).toContain("AI");
+    });
+
+    it("trims leading/trailing whitespace from engine label", () => {
+      const result = buildEngineMaxRunsExceededContext("  copilot  ");
+      expect(result).toContain("copilot");
+      expect(result).not.toContain("  copilot  ");
     });
   });
 

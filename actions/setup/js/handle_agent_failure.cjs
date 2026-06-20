@@ -36,7 +36,7 @@ const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "ag
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
-const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|maximum llm invocations exceeded)/i;
+const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -1568,6 +1568,8 @@ function hasEngineRateLimit429Signal(content) {
 
 /**
  * Detect max-runs guardrail failures in text payloads.
+ * Returns true when content includes either the `max_runs_exceeded` error type
+ * or the "Maximum LLM invocations exceeded" message fragment.
  * @param {string} content
  * @returns {boolean}
  */
@@ -1608,6 +1610,7 @@ function buildEngineRateLimit429Context(engineLabel) {
 
 /**
  * Build dedicated context for max-runs guardrail failures.
+ * Renders the max-runs-exceeded prompt template with the active engine label.
  * @param {string} engineLabel
  * @returns {string}
  */
@@ -2110,14 +2113,14 @@ function buildEngineFailureContext(options = {}) {
       return "";
     }
 
-    if (hasEngineMaxRunsExceededSignal(logContent)) {
-      core.info("Detected engine max-runs guardrail signal — using dedicated context message");
-      return buildEngineMaxRunsExceededContext(engineLabel);
-    }
-
     if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);
+    }
+
+    if (hasEngineMaxRunsExceededSignal(logContent)) {
+      core.info("Detected engine max-runs guardrail signal — using dedicated context message");
+      return buildEngineMaxRunsExceededContext(engineLabel);
     }
 
     const errorMessages = new Set();
@@ -3484,8 +3487,10 @@ module.exports = {
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
   buildUnknownModelAICreditsContext,
+  hasEngineMaxRunsExceededSignal,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
+  buildEngineMaxRunsExceededContext,
   buildEngineRateLimit429Context,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
