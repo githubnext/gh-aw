@@ -7,7 +7,7 @@ import (
 var replaceLabelLog = logger.New("workflow:replace_label")
 
 // ReplaceLabelConfig holds configuration for replacing one label with another on issues/PRs from agent output.
-// It combines the capabilities of add-labels and remove-labels into a single atomic GraphQL operation,
+// It combines the capabilities of add-labels and remove-labels into a single GraphQL request,
 // enabling clear state transitions (e.g. "in-progress" → "done").
 type ReplaceLabelConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`

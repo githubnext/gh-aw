@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
-const { main, deterministicLabelColor } = require("./replace_label.cjs");
+const { main } = require("./replace_label.cjs");
 
 describe("replace_label", () => {
   let mockCore;
@@ -105,23 +105,18 @@ describe("replace_label", () => {
     expect(result.labelAdded).toBe("done");
   });
 
-  it("should create label_to_add if it does not exist in the repo", async () => {
-    let createLabelCalled = false;
-    mockGithub.rest.issues.getLabel = async ({ name }) => {
+  it("should return error when label_to_add does not exist in the repo", async () => {
+    mockGithub.rest.issues.getLabel = async () => {
       const err = new Error("Not Found");
       err.status = 404;
-      throw err; // All labels "not found"
-    };
-    mockGithub.rest.issues.createLabel = async ({ name, color }) => {
-      createLabelCalled = true;
-      return { data: { name, node_id: `LA_${name}_created`, color } };
+      throw err;
     };
 
     const handler = await main({});
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "needs-review" }, {});
 
-    expect(result.success).toBe(true);
-    expect(createLabelCalled).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("needs-review");
   });
 
   it("should succeed even when label_to_remove is not present on the issue", async () => {
@@ -219,38 +214,36 @@ describe("replace_label", () => {
 
     expect(result.success).toBe(false);
   });
-});
 
-describe("deterministicLabelColor", () => {
-  it("should return a 6-char hex string", () => {
-    const color = deterministicLabelColor("done");
-    expect(color).toMatch(/^[0-9a-f]{6}$/);
+  it("should log partial failure and return error when remove succeeds but add fails (RL-046)", async () => {
+    const gqlError = new Error("add mutation failed");
+    // @octokit/graphql populates err.data with the partial response when some fields succeed
+    gqlError.data = {
+      removeLabels: { clientMutationId: null }, // remove succeeded
+      // addLabels absent — simulates add failure after remove succeeded
+    };
+    mockGithub.graphql = async () => {
+      throw gqlError;
+    };
+
+    const handler = await main({});
+    const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
+
+    expect(result.success).toBe(false);
+    expect(mockCore.errors.some(e => e.includes("in-progress") && e.includes("done"))).toBe(true);
   });
 
-  it("should return different colors for different labels", () => {
-    const c1 = deterministicLabelColor("done");
-    const c2 = deterministicLabelColor("in-progress");
-    expect(c1).not.toBe(c2);
-  });
+  it("should return error when getLabel fails with a non-404 error", async () => {
+    mockGithub.rest.issues.getLabel = async () => {
+      const err = new Error("Service unavailable");
+      err.status = 503;
+      throw err;
+    };
 
-  it("should return the same color for the same label", () => {
-    const c1 = deterministicLabelColor("needs-review");
-    const c2 = deterministicLabelColor("needs-review");
-    expect(c1).toBe(c2);
-  });
+    const handler = await main({});
+    const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
 
-  it("should return pastel colors (128-191 per channel)", () => {
-    for (const name of ["done", "in-progress", "approved", "needs-review", "blocked"]) {
-      const hex = deterministicLabelColor(name);
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      expect(r).toBeGreaterThanOrEqual(128);
-      expect(r).toBeLessThanOrEqual(191);
-      expect(g).toBeGreaterThanOrEqual(128);
-      expect(g).toBeLessThanOrEqual(191);
-      expect(b).toBeGreaterThanOrEqual(128);
-      expect(b).toBeLessThanOrEqual(191);
-    }
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("done");
   });
 });

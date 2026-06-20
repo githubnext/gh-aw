@@ -24,14 +24,18 @@ const HANDLER_TYPE = "replace_label";
 
 /**
  * GraphQL mutation that removes one label and adds another in a single request.
- * Root mutations in a single request are executed sequentially (remove first, then add),
- * providing an atomic state transition for label-based state machines.
+ * Root mutations in a single request are executed sequentially (remove first, then add).
+ * When $doRemove is false the removeLabels field is skipped entirely, avoiding a
+ * GitHub API error that would result from passing an empty labelIds array.
+ *
+ * Note: this is a sequential operation, not a transaction. If removeLabels succeeds
+ * but addLabels fails the removal is not reversed (see RL-046 partial-failure handling).
  *
  * @type {string}
  */
 const REPLACE_LABEL_MUTATION = /* GraphQL */ `
-  mutation ReplaceLabelMutation($labelableId: ID!, $addLabelIds: [ID!]!, $removeLabelIds: [ID!]!) {
-    removeLabels: removeLabelsFromLabelable(input: { labelableId: $labelableId, labelIds: $removeLabelIds }) {
+  mutation ReplaceLabelMutation($labelableId: ID!, $addLabelIds: [ID!]!, $removeLabelIds: [ID!]!, $doRemove: Boolean!) {
+    removeLabels: removeLabelsFromLabelable(input: { labelableId: $labelableId, labelIds: $removeLabelIds }) @include(if: $doRemove) {
       clientMutationId
     }
     addLabels: addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $addLabelIds }) {
@@ -55,27 +59,7 @@ const REPLACE_LABEL_MUTATION = /* GraphQL */ `
   }
 `;
 
-/**
- * GraphQL query to resolve label node IDs from a repository by name.
- * Searches for labels matching the given names so we can get their node IDs
- * for the mutation.
- *
- * @type {string}
- */
-const RESOLVE_LABEL_QUERY = /* GraphQL */ `
-  query ResolveLabelNodeIds($owner: String!, $repo: String!) {
-    repository(owner: $owner, name: $repo) {
-      labels(first: 100) {
-        nodes {
-          id
-          name
-        }
-      }
-    }
-  }
-`;
-
-const { validateLabels } = require("./safe_output_validator.cjs");
+const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -87,22 +71,21 @@ const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
- * Resolve or create a label in the repository, returning its GraphQL node ID.
- * If the label does not exist, it is created with a deterministic pastel color.
+ * Resolve a label in the repository, returning its GraphQL node ID.
+ * If the label does not exist in the repository, a hard error is thrown.
  *
- * @param {any} githubClient - Authenticated GitHub client with REST and graphql
+ * @param {any} githubClient - Authenticated GitHub client with REST
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} labelName - Label name to resolve or create
+ * @param {string} labelName - Label name to resolve
  * @param {Map<string, string>} labelNodeIdCache - Cache of label name → node_id
  * @returns {Promise<string>} The GraphQL node ID of the label
  */
-async function resolveOrCreateLabel(githubClient, owner, repo, labelName, labelNodeIdCache) {
+async function resolveLabel(githubClient, owner, repo, labelName, labelNodeIdCache) {
   if (labelNodeIdCache.has(labelName)) {
     return /** @type {string} */ labelNodeIdCache.get(labelName);
   }
 
-  // Try to get the label from the repo
   try {
     const { data: label } = await githubClient.rest.issues.getLabel({
       owner,
@@ -112,47 +95,43 @@ async function resolveOrCreateLabel(githubClient, owner, repo, labelName, labelN
     labelNodeIdCache.set(labelName, label.node_id);
     return label.node_id;
   } catch (err) {
-    const msg = getErrorMessage(err);
-    if (!msg.includes("404") && !msg.toLowerCase().includes("not found")) {
+    if (err?.status !== 404) {
       throw err;
     }
+    throw new Error(`Label "${labelName}" does not exist in ${owner}/${repo}. Create the label in the repository before using it with replace-label.`);
   }
-
-  // Label does not exist — create it with a deterministic color
-  core.info(`Label "${labelName}" not found in ${owner}/${repo}, creating it`);
-  const color = deterministicLabelColor(labelName);
-  const { data: created } = await githubClient.rest.issues.createLabel({
-    owner,
-    repo,
-    name: labelName,
-    color,
-  });
-  core.info(`Created label "${labelName}" with color #${color}`);
-  labelNodeIdCache.set(labelName, created.node_id);
-  return created.node_id;
 }
 
 /**
- * Generate a deterministic pastel hex color from a label name.
- * Produces colors in the pastel range (128–191 per channel) for readability.
+ * Validate a single label against blocked and allowed-list patterns.
+ * Uses explicit rejection semantics — does not silently filter or truncate the label name.
+ * Blocked patterns are evaluated first (security boundary), consistent with safe_output_validator.cjs.
  *
- * @param {string} name
- * @returns {string} Six-character hex color (no leading #)
+ * @param {string} labelName - Label name to validate
+ * @param {string[]} allowedPatterns - Allowlist patterns (empty = all labels allowed)
+ * @param {string[]} blockedPatterns - Blocklist patterns
+ * @param {string} fieldName - Field name for error messages (e.g. "label_to_add")
+ * @returns {{valid: true} | {valid: false, error: string}}
  */
-function deterministicLabelColor(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+function validateSingleLabel(labelName, allowedPatterns, blockedPatterns, fieldName) {
+  if (blockedPatterns.length > 0) {
+    const isBlocked = blockedPatterns.some(pattern => matchesSimpleGlob(labelName, pattern));
+    if (isBlocked) {
+      return { valid: false, error: `${fieldName} "${labelName}" matches a blocked pattern` };
+    }
   }
-  const r = 128 + (hash & 0x3f);
-  const g = 128 + ((hash >> 6) & 0x3f);
-  const b = 128 + ((hash >> 12) & 0x3f);
-  return ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+  if (allowedPatterns.length > 0) {
+    const isAllowed = allowedPatterns.some(pattern => matchesSimpleGlob(labelName, pattern));
+    if (!isAllowed) {
+      return { valid: false, error: `${fieldName} "${labelName}" is not in the allowed list` };
+    }
+  }
+  return { valid: true };
 }
 
 /**
  * Main handler factory for replace_label.
- * Uses the GraphQL API to remove one label and add another in a single atomic request.
+ * Uses the GraphQL API to remove one label and add another in a single request.
  * @type {HandlerFactoryFunction}
  */
 const main = createCountGatedHandler({
@@ -221,18 +200,18 @@ const main = createCountGatedHandler({
         return { success: false, error };
       }
 
-      // Validate label_to_remove against allowed-remove and blocked patterns
-      const removeValidation = validateLabels([labelToRemove], configAllowedRemove, 1, blockedPatterns);
+      // Validate label_to_remove against blocked patterns and allowed-remove list
+      const removeValidation = validateSingleLabel(labelToRemove, configAllowedRemove, blockedPatterns, "label_to_remove");
       if (!removeValidation.valid) {
         core.warning(`label_to_remove validation failed: ${removeValidation.error}`);
-        return { success: false, error: removeValidation.error ?? "Invalid label_to_remove" };
+        return { success: false, error: removeValidation.error };
       }
 
-      // Validate label_to_add against allowed-add and blocked patterns
-      const addValidation = validateLabels([labelToAdd], configAllowedAdd, 1, blockedPatterns);
+      // Validate label_to_add against blocked patterns and allowed-add list
+      const addValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
       if (!addValidation.valid) {
         core.warning(`label_to_add validation failed: ${addValidation.error}`);
-        return { success: false, error: addValidation.error ?? "Invalid label_to_add" };
+        return { success: false, error: addValidation.error };
       }
 
       // Apply required-labels and required-title-prefix filters
@@ -276,14 +255,14 @@ const main = createCountGatedHandler({
       }
       const labelNodeIdCache = /** @type {Map<string, string>} */ repoCaches.get(itemRepo);
 
-      // Resolve the node ID of label_to_add (create if it doesn't exist in the repo)
+      // Resolve the node ID of label_to_add — fails with hard error if the label does not exist
       let addLabelNodeId;
       try {
-        addLabelNodeId = await withRetry(() => resolveOrCreateLabel(githubClient, repoParts.owner, repoParts.repo, labelToAdd, labelNodeIdCache), RATE_LIMIT_RETRY_CONFIG, `resolve/create label "${labelToAdd}" in ${itemRepo}`);
+        addLabelNodeId = await withRetry(() => resolveLabel(githubClient, repoParts.owner, repoParts.repo, labelToAdd, labelNodeIdCache), RATE_LIMIT_RETRY_CONFIG, `resolve label "${labelToAdd}" in ${itemRepo}`);
       } catch (err) {
         const errorMessage = getErrorMessage(err);
-        core.error(`Failed to resolve/create label "${labelToAdd}": ${errorMessage}`);
-        return { success: false, error: `Failed to resolve/create label "${labelToAdd}": ${errorMessage}` };
+        core.error(`Failed to resolve label "${labelToAdd}": ${errorMessage}`);
+        return { success: false, error: `Failed to resolve label "${labelToAdd}": ${errorMessage}` };
       }
 
       // Find the node ID of label_to_remove from the issue's current labels.
@@ -309,6 +288,7 @@ const main = createCountGatedHandler({
               labelableId,
               addLabelIds: [addLabelNodeId],
               removeLabelIds: removeLabelNodeId ? [removeLabelNodeId] : [],
+              doRemove: !!removeLabelNodeId,
             }),
           RATE_LIMIT_RETRY_CONFIG,
           `replace_label on ${contextType} #${itemNumber} in ${itemRepo}`
@@ -337,9 +317,11 @@ const main = createCountGatedHandler({
         );
       } catch (err) {
         const errorMessage = getErrorMessage(err);
-        // RL-046: detect partial mutation success — remove succeeded but add failed
+        // RL-046: detect partial mutation success — remove succeeded but add failed.
+        // withRetry may wrap the original error via enhanceError, so check both
+        // err.data (direct graphql error) and err.originalError.data (wrapped error).
         const errAsAny = /** @type {any} */ err;
-        const partialData = errAsAny?.data;
+        const partialData = errAsAny?.data ?? errAsAny?.originalError?.data;
         if (partialData?.removeLabels && !partialData?.addLabels) {
           core.error(`Partial mutation failure on ${contextType} #${itemNumber} in ${itemRepo}: "${labelToRemove}" was removed but "${labelToAdd}" could not be added: ${errorMessage}`);
         } else {
@@ -351,4 +333,4 @@ const main = createCountGatedHandler({
   },
 });
 
-module.exports = { main, deterministicLabelColor, REPLACE_LABEL_MUTATION, RESOLVE_LABEL_QUERY };
+module.exports = { main, REPLACE_LABEL_MUTATION };
