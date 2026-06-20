@@ -1,8 +1,8 @@
 {
-  "run_date": "2026-06-19T18:51:30Z",
-  "run_id": "27843133086",
-  "previous_run_id": "27828344448",
-  "previous_run_date": "2026-06-19T13:25:34Z",
+  "run_date": "2026-06-20T01:21:29Z",
+  "run_id": "27855877895",
+  "previous_run_id": "27843133086",
+  "previous_run_date": "2026-06-19T18:51:30Z",
   "fork_prs": 0,
   "agent_prs_found": 5,
   "copilot_swe_agent_prs": 5,
@@ -11,68 +11,106 @@
   "fork_only_policy": true,
   "open_agent_prs": [
     {
-      "number": 40375,
-      "title": "Enable safeoutputs CLI write paths in Smoke Pi sandbox",
+      "number": 40414,
+      "title": "feat: add auto_updates to maintenance config to generate a weekly agentic-update workflow",
       "draft": true,
       "status": "DRAFT",
-      "created": "2026-06-19",
+      "created": "2026-06-20",
       "labels": [],
       "is_fork": false,
       "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
+      "base_repo": "github/gh-aw",
+      "additions": 357,
+      "deletions": 3,
+      "changed_files": 6
     },
     {
-      "number": 40369,
-      "title": "Support wildcard suffix matching for `slash_command`",
+      "number": 40413,
+      "title": "Add step authoring guidance to .github/aw instruction files",
+      "draft": true,
+      "status": "DRAFT",
+      "created": "2026-06-20",
+      "labels": [],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 49,
+      "deletions": 0,
+      "changed_files": 2
+    },
+    {
+      "number": 40412,
+      "title": "Add step-implementation.md: guide preferred step technologies and injection safety",
+      "draft": true,
+      "status": "DRAFT",
+      "created": "2026-06-20",
+      "labels": [],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 131,
+      "deletions": 2,
+      "changed_files": 6
+    },
+    {
+      "number": 40399,
+      "title": "Add skillet skill-routed PR reviewer workflow",
       "draft": false,
       "status": "OPEN",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
       "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
+      "base_repo": "github/gh-aw",
+      "additions": 2182,
+      "deletions": 15,
+      "changed_files": 6
     },
     {
-      "number": 40368,
-      "title": "feat(safe-outputs): add `allowed-teams` to mentions configuration",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-19",
-      "labels": [],
-      "is_fork": false,
-      "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
-    },
-    {
-      "number": 40348,
-      "title": "Enforce per-type safe-output max count at MCP invocation time (MCE4)",
+      "number": 40396,
+      "title": "Add centralized /dependabot-burner grouping and retry-aware single-workflow remediation",
       "draft": false,
       "status": "OPEN",
       "created": "2026-06-19",
       "labels": [],
       "is_fork": false,
       "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
-    },
-    {
-      "number": 40233,
-      "title": "Code Simplifier: prevent background-agent validation path that triggers copilot proxy auth failures",
-      "draft": true,
-      "status": "DRAFT",
-      "created": "2026-06-19",
-      "labels": ["awf"],
-      "is_fork": false,
-      "head_repo": "github/gh-aw",
-      "base_repo": "github/gh-aw"
+      "base_repo": "github/gh-aw",
+      "additions": 805,
+      "deletions": 4165,
+      "changed_files": 7
     }
   ],
-  "closed_since_last_run": [40259, 40258, 40247, 40223, 40166],
-  "new_since_last_run": [40375, 40369, 40368, 40348],
+  "closed_since_last_run": [
+    40375,
+    40369,
+    40368,
+    40348,
+    40233
+  ],
+  "merged_since_last_run": [
+    40375,
+    40369,
+    40368,
+    40348
+  ],
+  "closed_not_merged": [
+    40233
+  ],
+  "new_since_last_run": [
+    40414,
+    40413,
+    40412,
+    40399,
+    40396
+  ],
   "statistics": {
     "by_status": {
       "DRAFT": 3,
       "OPEN": 2
-    }
+    },
+    "open_non_draft_prs": 2,
+    "draft_prs": 3
   },
-  "notes": "5 open copilot PRs, all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 5 PRs closed/merged since last run (40259, 40258, 40247, 40223, 40166). 4 new PRs since last run (40375, 40369, 40368, 40348). Ongoing pattern: all agent PRs are same-repo branches, never fork PRs."
+  "notes": "5 open copilot PRs, all same-repo branches (is_fork=False). Fork-only triage policy: 0 PRs eligible. 5 PRs closed/merged since last run: 4 merged (#40375, #40369, #40368, #40348), 1 closed without merge (#40233). 5 new PRs since last run. Ongoing pattern: all agent PRs are same-repo branches, never fork PRs."
 }
