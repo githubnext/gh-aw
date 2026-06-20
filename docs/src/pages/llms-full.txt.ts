@@ -1,24 +1,25 @@
 import type { APIRoute } from 'astro';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+// Root-level instruction files for AI agents working with gh-aw.
+// These files guide agents on how to create, install, debug, optimize, and package workflows.
+const INSTRUCTION_FILES = ['create.md', 'install.md', 'debug.md', 'optimize.md', 'package.md'];
 
 export const GET: APIRoute = () => {
 	// process.cwd() is the docs/ directory during `astro build`
-	const awDir = join(process.cwd(), '../.github/aw');
-	const files = readdirSync(awDir)
-		.filter((f) => f.endsWith('.md'))
-		.sort();
+	const repoRoot = join(process.cwd(), '..');
 
 	const sections: string[] = [
 		'# GitHub Agentic Workflows — Full Corpus',
 		'',
-		'> Full content of all agent-optimised prompt files for GitHub Agentic Workflows (gh-aw).',
-		'> This file is intended for AI agents and LLMs that need the complete reference material.',
+		'> Full content of the agent instruction files for GitHub Agentic Workflows (gh-aw).',
+		'> This file is intended for AI agents and LLMs that need the complete instruction material.',
 		'',
 	];
 
-	for (const file of files) {
-		const content = readFileSync(join(awDir, file), 'utf-8');
+	for (const file of INSTRUCTION_FILES) {
+		const content = readFileSync(join(repoRoot, file), 'utf-8');
 		sections.push(`---`, `## ${file}`, ``, content.trim(), ``);
 	}
 
