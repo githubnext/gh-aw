@@ -14,6 +14,7 @@ describe("handle_agent_failure", () => {
   let buildSecretVerificationContext;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
+  const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -2030,6 +2031,7 @@ describe("handle_agent_failure", () => {
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
+      fs.writeFileSync(path.join(promptsDir, "engine_max_runs_exceeded.md"), ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE);
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
@@ -2075,6 +2077,14 @@ describe("handle_agent_failure", () => {
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Rate Limited (HTTP 429)");
       expect(result).toContain("OTLP telemetry");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context for max-runs guardrail failures in stdio logs", () => {
+      fs.writeFileSync(stdioLogPath, '[ERROR] API error (attempt 1/11): 403 {"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (50 / 50)."}}\n');
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Max Runs Exceeded");
+      expect(result).toContain("max-runs guardrail");
       expect(result).not.toContain("Last agent output");
     });
 

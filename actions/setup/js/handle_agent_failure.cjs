@@ -36,6 +36,7 @@ const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "ag
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
+const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|maximum llm invocations exceeded)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -1566,6 +1567,18 @@ function hasEngineRateLimit429Signal(content) {
 }
 
 /**
+ * Detect max-runs guardrail failures in text payloads.
+ * @param {string} content
+ * @returns {boolean}
+ */
+function hasEngineMaxRunsExceededSignal(content) {
+  if (!content) {
+    return false;
+  }
+  return ENGINE_MAX_RUNS_EXCEEDED_RE.test(content);
+}
+
+/**
  * Detect HTTP 429/rate-limit engine failures from OTLP JSONL mirror payloads.
  * @param {string} [otelJsonlPathOverride]
  * @returns {boolean}
@@ -1591,6 +1604,16 @@ function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
 function buildEngineRateLimit429Context(engineLabel) {
   const normalizedEngineLabel = engineLabel.trim() || "AI";
   return "\n" + renderPromptTemplate("engine_rate_limit_429.md", { engine_label: normalizedEngineLabel });
+}
+
+/**
+ * Build dedicated context for max-runs guardrail failures.
+ * @param {string} engineLabel
+ * @returns {string}
+ */
+function buildEngineMaxRunsExceededContext(engineLabel) {
+  const normalizedEngineLabel = engineLabel.trim() || "AI";
+  return "\n" + renderPromptTemplate("engine_max_runs_exceeded.md", { engine_label: normalizedEngineLabel });
 }
 
 /**
@@ -2085,6 +2108,11 @@ function buildEngineFailureContext(options = {}) {
     if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
       core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
       return "";
+    }
+
+    if (hasEngineMaxRunsExceededSignal(logContent)) {
+      core.info("Detected engine max-runs guardrail signal — using dedicated context message");
+      return buildEngineMaxRunsExceededContext(engineLabel);
     }
 
     if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
