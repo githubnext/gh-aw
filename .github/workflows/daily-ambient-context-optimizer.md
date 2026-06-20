@@ -30,7 +30,7 @@ safe-outputs:
     labels: [automation, report, workflow-optimization, analysis]
     close-older-issues: true
     expires: 7d
-    max: 1
+    max: 3
 timeout-minutes: 45
 steps:
   - name: Setup Python
@@ -204,8 +204,10 @@ Each sub-agent invocation may return at most 3 opportunities for its run. Aggreg
 - Keep the workflow bounded and avoid exploratory loops.
 - Do not repeatedly re-open or re-parse the same artifacts once required metrics are extracted.
 - Keep the final issue body concise and evidence-based, with short bullets and compact explanations.
+- Keep the final issue body under 9500 bytes (UTF-8); if needed, shorten details before calling the tool.
 - Use at most 3 run links in the final References section.
-- Create the issue by calling the safe output tool directly once you have the final body.
+- Never call `create_issue` with placeholders, probes, or test strings (for example `"."` or `"test"`). Call it only with the final intended title/body.
+- Call `create_issue` only after validating your final body length and content.
 
 ## Recommendation Rules
 
@@ -300,6 +302,8 @@ In that case:
 - prioritize repository-wide recommendations only when supported by the sampled data
 
 Do not use `noop` merely because the sample is small or imperfect. Create exactly one issue whenever logs are available. Use `noop` only if no run logs can be downloaded at all or the repository context is unavailable.
+
+If `create_issue` returns a body-size validation error, shorten the details and retry with a compact body that preserves Executive Summary, Highest-Leverage Changes, Key Metrics, and References.
 
 ## agent: `request-optimizer`
 ---
