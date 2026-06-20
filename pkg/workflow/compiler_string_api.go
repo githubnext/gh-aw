@@ -204,7 +204,9 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	}
 
 	// Process and merge custom steps
-	c.processAndMergeSteps(parseResult.frontmatterResult.Frontmatter, workflowData, engineSetup.importsResult)
+	if err := c.processAndMergeSteps(parseResult.frontmatterResult.Frontmatter, workflowData, engineSetup.importsResult); err != nil {
+		return nil, err
+	}
 
 	// Apply defaults
 	if err := c.applyDefaults(workflowData, cleanPath); err != nil {

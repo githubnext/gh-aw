@@ -152,7 +152,10 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
-			pinnedStep := applyActionPinToTypedStep(typedStep, data)
+			pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to pin action for safe-outputs step at index %d: %w", i, err)
+			}
 			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
