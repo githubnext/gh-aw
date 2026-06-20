@@ -191,6 +191,12 @@ func getCachedActionPin(repo string, data *WorkflowData) string {
 	return actionpins.ResolveLatestActionPin(repo, data.PinContext())
 }
 
+// getLatestCachedActionPin returns the latest pinned action reference for a
+// repository, preferring resolver/cache data from WorkflowData when available.
+func getLatestCachedActionPin(repo string, data *WorkflowData) string {
+	return getCachedActionPin(repo, data)
+}
+
 // --------------------------------------------------------------------------
 // Step-level helpers that depend on WorkflowStep (stay in pkg/workflow)
 // --------------------------------------------------------------------------
@@ -210,7 +216,7 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 
 	version := extractActionVersion(step.Uses)
 	if version == "" {
-		latestPin := getCachedActionPin(actionRepo, data)
+		latestPin := getLatestCachedActionPin(actionRepo, data)
 		if latestPin == "" {
 			actionPinsLog.Printf("Skipping pin for %s: no pin available", actionRepo)
 			return step

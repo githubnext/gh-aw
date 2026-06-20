@@ -185,7 +185,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 			expectedUses: "my-org/my-action@v1",
 		},
 		{
-			name: "step with action missing ref",
+			name: "step with unversioned action",
 			stepMap: map[string]any{
 				"name": "Checkout",
 				"uses": "actions/checkout",
@@ -374,7 +374,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			expectedUses: "my-org/my-action@v1",
 		},
 		{
-			name: "step with action missing ref",
+			name: "step with unversioned action",
 			step: &WorkflowStep{
 				Name: "Checkout",
 				Uses: "actions/checkout",
