@@ -3696,6 +3696,11 @@
       ],
       "$ref": "#/$defs/engine_config"
     },
+    "goal": {
+      "type": "string",
+      "description": "Optional top-level goal passed to the AI engine. For Codex this is forwarded as `--goal`.",
+      "examples": ["Fix flaky tests in pkg/workflow", "${{ inputs.goal }}"]
+    },
     "max-turns": {
       "$ref": "#/$defs/templatable_integer",
       "description": "AWF turn cap (`max_turns`) applied consistently across all agentic engines. Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for reusable workflow_call workflows.",

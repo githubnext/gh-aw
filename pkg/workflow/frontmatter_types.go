@@ -290,6 +290,7 @@ type FrontmatterConfig struct {
 	// Core workflow fields
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
+	Goal        string `json:"goal,omitempty"`  // Optional top-level Codex goal passed via --goal
 	Emoji       string `json:"emoji,omitempty"` // Optional emoji to represent the workflow visually
 	// Engine accepts both a plain string engine name (e.g. "copilot") and an object-style
 	// configuration (e.g. {id: copilot, max-continuations: 2}).  Using any prevents

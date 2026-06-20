@@ -150,6 +150,14 @@ Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-
 engine: copilot
 ```
 
+### Goal (`goal:`)
+
+Optional top-level goal string for the run. For Codex workflows this is passed to the Codex CLI as `--goal`; otherwise, the workflow instructions still come from the markdown body.
+
+```yaml wrap
+goal: "Fix flaky tests in pkg/workflow"
+```
+
 ### Network Permissions (`network:`)
 
 Controls network access using ecosystem identifiers and domain allowlists. See [Network Permissions](/gh-aw/reference/network/) for full documentation.

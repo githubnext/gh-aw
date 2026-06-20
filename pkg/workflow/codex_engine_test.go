@@ -193,6 +193,42 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 	}
 }
 
+func TestCodexEngineExecutionIncludesGoalFromTopLevelFrontmatter(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Goal: "Fix flaky tests in pkg/workflow",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected at least one execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, `${GH_AW_GOAL:+ --goal "$GH_AW_GOAL"}`) {
+		t.Errorf("Expected codex command to include goal argument expansion, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "GH_AW_GOAL: Fix flaky tests in pkg/workflow") {
+		t.Errorf("Expected GH_AW_GOAL environment variable in codex step, got:\n%s", stepContent)
+	}
+}
+
+func TestCodexEngineExecutionOmitsGoalEnvWhenGoalIsUnset(t *testing.T) {
+	engine := NewCodexEngine()
+
+	steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/gh-aw/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected at least one execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if strings.Contains(stepContent, "\n              GH_AW_GOAL:") {
+		t.Errorf("Did not expect GH_AW_GOAL environment variable when goal is unset, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 	engine := NewCodexEngine()
 

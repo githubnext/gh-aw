@@ -179,6 +179,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		modelEnvVar = constants.EnvVarModelAgentCodex
 	}
 	modelParam := fmt.Sprintf(`${%s:+ --model "$%s"}`, modelEnvVar, modelEnvVar)
+	goalParam := `${GH_AW_GOAL:+ --goal "$GH_AW_GOAL"}`
 
 	// Build search parameter: disable web search by default, enable only if web-search tool is present.
 	// Codex enables web search by default, so we must explicitly set web_search="disabled" to disable it.
@@ -271,12 +272,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, goalParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
-			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s%s \"$INSTRUCTION\"",
+			commandName, modelParam, goalParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
@@ -453,6 +454,9 @@ mkdir -p "$CODEX_HOME/logs"
 		env[modelEnvVar] = workflowData.EngineConfig.Model
 	} else {
 		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
+	}
+	if workflowData.Goal != "" {
+		env["GH_AW_GOAL"] = workflowData.Goal
 	}
 
 	// Add custom environment variables from engine config

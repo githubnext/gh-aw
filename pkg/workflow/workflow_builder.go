@@ -40,6 +40,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterFieldLines: result.FieldLines,
 		RawMarkdown:           result.Markdown,
 		Description:           c.extractDescription(result.Frontmatter),
+		Goal:                  resolveWorkflowGoal(toolsResult.parsedFrontmatter, result.Frontmatter),
 		Source:                c.extractSource(result.Frontmatter),
 		Redirect:              c.extractRedirect(result.Frontmatter),
 		TrackerID:             toolsResult.trackerID,
@@ -251,6 +252,16 @@ func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
 // populated regardless of whether ParseFrontmatterConfig succeeded.
 func resolveInlinedImports(rawFrontmatter map[string]any) bool {
 	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
+}
+
+func resolveWorkflowGoal(parsed *FrontmatterConfig, rawFrontmatter map[string]any) string {
+	if parsed != nil && parsed.Goal != "" {
+		return parsed.Goal
+	}
+	if rawGoal, ok := rawFrontmatter["goal"].(string); ok {
+		return strings.TrimSpace(rawGoal)
+	}
+	return ""
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter

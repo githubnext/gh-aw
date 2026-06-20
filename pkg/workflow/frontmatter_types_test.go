@@ -59,6 +59,7 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		frontmatter := map[string]any{
 			"name":        "full-workflow",
 			"description": "A complete workflow",
+			"goal":        "Fix flaky workflow tests",
 			"engine":      "copilot",
 			"source":      "owner/repo/path@main",
 			"redirect":    "owner/repo/new-path@main",
@@ -92,6 +93,9 @@ func TestParseFrontmatterConfig(t *testing.T) {
 
 		if config.Description != "A complete workflow" {
 			t.Errorf("Description = %q, want %q", config.Description, "A complete workflow")
+		}
+		if config.Goal != "Fix flaky workflow tests" {
+			t.Errorf("Goal = %q, want %q", config.Goal, "Fix flaky workflow tests")
 		}
 
 		if config.Engine != "copilot" {
