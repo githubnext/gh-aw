@@ -341,7 +341,7 @@ const main = createCountGatedHandler({
         const errAsAny = /** @type {any} */ err;
         const partialData = errAsAny?.data;
         if (partialData?.removeLabels && !partialData?.addLabels) {
-          core.error(`Partial mutation failure on ${contextType} #${itemNumber} in ${itemRepo}: ` + `"${labelToRemove}" was removed but "${labelToAdd}" could not be added: ${errorMessage}`);
+          core.error(`Partial mutation failure on ${contextType} #${itemNumber} in ${itemRepo}: "${labelToRemove}" was removed but "${labelToAdd}" could not be added: ${errorMessage}`);
         } else {
           core.error(`Failed to replace label: ${errorMessage}`);
         }
