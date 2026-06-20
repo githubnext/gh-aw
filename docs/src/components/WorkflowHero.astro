@@ -215,18 +215,20 @@ function unmountFromHero() {
   .workflow-hero__feature {
     position: relative;
     max-width: 52rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(196, 181, 253, 0.22);
     border-radius: 1.25rem;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.03);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
+    background:
+      linear-gradient(135deg, rgba(91, 33, 182, 0.28), rgba(17, 24, 39, 0.55)),
+      rgba(255, 255, 255, 0.03);
+    box-shadow: 0 24px 56px rgba(15, 23, 42, 0.28);
   }
 
   .workflow-hero__frame-wrap {
     position: relative;
     overflow: hidden;
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .workflow-hero__slides {
@@ -296,8 +298,12 @@ function unmountFromHero() {
   }
 
   :global([data-theme='light']) .workflow-hero__feature {
-    background: rgba(255, 255, 255, 0.82);
+    background:
+      linear-gradient(135deg, rgba(130, 80, 223, 0.22), rgba(245, 243, 255, 0.94)),
+      rgba(255, 255, 255, 0.82);
     color: var(--sl-color-black);
+    border-color: rgba(130, 80, 223, 0.24);
+    box-shadow: 0 24px 50px rgba(111, 66, 193, 0.14);
   }
 
   @media (prefers-reduced-motion: reduce) {

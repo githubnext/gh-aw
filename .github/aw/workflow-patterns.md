@@ -93,6 +93,54 @@ For recurring maintenance in large repos:
 
 See also: [memory.md](memory.md)
 
+## Step Authoring Guidance
+
+When writing `steps:`, `pre-steps:`, and `post-steps:`, choose the implementation type in this order of preference:
+
+### 1. Preferred: `actions/github-script`
+
+Use `actions/github-script` for GitHub API interactions and general scripting. The workflow compiler handles action pinning automatically; specify a recent major version tag (`@v7`) without a SHA.
+
+- Provides typed access to the GitHub REST API via `github.rest.*`
+- Exposes `context`, `core`, `github`, `io`, and `exec` helpers
+- Eliminates shell injection risks for untrusted input
+- Example:
+
+  ```yaml
+  steps:
+    - name: Fetch issue data
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issue = await github.rest.issues.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          core.setOutput('title', issue.data.title);
+  ```
+
+### 2. Shell scripts
+
+Use `run:` steps when `actions/github-script` is not suitable. To prevent shell injection, never interpolate untrusted values directly into the script body. Any value that originates from user input — including `github.event.issue.title`, `github.event.issue.body`, `github.event.comment.body`, `github.event.pull_request.title`, `github.event.pull_request.body`, and `github.head_ref` — must be passed through environment variables:
+
+```yaml
+# ❌ Unsafe: direct expression interpolation into the shell script
+- name: Unsafe comment
+  run: gh issue comment ${{ github.event.issue.number }} --body "${{ github.event.issue.title }}"
+
+# ✅ Safe: pass untrusted values through env vars and reference them as $VAR_NAME
+- name: Safe comment
+  env:
+    ISSUE_NUMBER: ${{ github.event.issue.number }}
+    TITLE: ${{ github.event.issue.title }}
+  run: gh issue comment "$ISSUE_NUMBER" --body "$TITLE"
+```
+
+### 3. Python (last resort)
+
+Use Python only when the task genuinely requires data science or numeric libraries (for example `pandas`, `numpy`, `matplotlib`). Prefer `actions/github-script` or a shell step for everything else.
+
 ## Pre-Step Data Fetching Pattern
 
 Use deterministic `steps:` when the workflow needs large external data before the agent runs.

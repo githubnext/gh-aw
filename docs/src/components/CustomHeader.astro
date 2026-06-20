@@ -54,7 +54,7 @@ const base = import.meta.env.BASE_URL;
 	
 	.header-link:hover {
 		color: var(--sl-color-text-accent);
-		background-color: rgba(110, 118, 129, 0.1);
+		background-color: rgba(var(--aw-accent-rgb, 130, 80, 223), 0.12);
 	}
 
 	/* Tablet navigation wrapper — hidden by default; shown via global CSS at 769–900px */
@@ -79,7 +79,7 @@ const base = import.meta.env.BASE_URL;
 	}
 
 	.hamburger-btn:hover {
-		background-color: rgba(110, 118, 129, 0.1);
+		background-color: rgba(var(--aw-accent-rgb, 130, 80, 223), 0.12);
 	}
 
 	/* Three-line hamburger icon built with CSS pseudo-elements */
@@ -114,14 +114,16 @@ const base = import.meta.env.BASE_URL;
 		position: fixed;
 		top: 3.5rem;
 		right: 1rem;
-		background: var(--sl-color-bg-nav, #161b22);
-		border: 1px solid rgba(48, 54, 61, 0.8);
+		background: var(--aw-bg-elevated, rgba(22, 27, 34, 0.92));
+		border: 1px solid var(--aw-border, rgba(99, 110, 123, 0.34));
 		border-radius: 8px;
 		padding: 0.5rem 0;
 		min-width: 180px;
 		max-width: calc(100vw - 2rem);
 		z-index: 1000;
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+		box-shadow: var(--aw-shadow, 0 8px 24px rgba(0, 0, 0, 0.4));
+		-webkit-backdrop-filter: blur(16px);
+		backdrop-filter: blur(16px);
 	}
 
 	.dropdown-link {
@@ -135,7 +137,7 @@ const base = import.meta.env.BASE_URL;
 	}
 
 	.dropdown-link:hover {
-		background-color: rgba(110, 118, 129, 0.1);
+		background-color: rgba(var(--aw-accent-rgb, 130, 80, 223), 0.12);
 		color: var(--sl-color-text-accent);
 	}
 </style>

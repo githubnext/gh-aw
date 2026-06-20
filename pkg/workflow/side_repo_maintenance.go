@@ -520,7 +520,7 @@ jobs:
             --count 100 \
             --output ./.cache/gh-aw/activity-report-logs \
             --format markdown \
-            > ./.cache/gh-aw/activity-report-logs/report.md
+            --report-file ./.cache/gh-aw/activity-report-logs/report.md
 
       - name: Save activity report logs cache
         if: ${{ always() }}

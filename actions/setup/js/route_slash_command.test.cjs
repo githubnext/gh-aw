@@ -480,6 +480,20 @@ describe("route_slash_command", () => {
     expect(awContext.command_name).toBe("smoke-copilot-sdk");
   });
 
+  it("dispatches catch-all slash routes using the actual matched command name", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      "*": [{ workflow: "skillet", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/developer review auth changes";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("skillet.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("developer");
+  });
+
   it("does not dispatch smoke-copilot-sdk when command is smoke-copilot", async () => {
     process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
       "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],
