@@ -408,7 +408,6 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-codex-${{ github.workflow }}"
-      queue: max
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1161,7 +1160,6 @@ jobs:
     concurrency:
       group: "gh-aw-conclusion-daily-observability-report"
       cancel-in-progress: false
-      queue: max
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}

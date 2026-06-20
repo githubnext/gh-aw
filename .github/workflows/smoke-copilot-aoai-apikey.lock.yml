@@ -2147,7 +2147,6 @@ jobs:
     concurrency:
       group: "gh-aw-conclusion-smoke-copilot-aoai-apikey"
       cancel-in-progress: false
-      queue: max
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}

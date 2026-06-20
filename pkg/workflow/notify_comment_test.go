@@ -931,7 +931,7 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			name:              "concurrency group set when workflow ID is present",
 			workflowID:        "my-workflow",
 			expectConcurrency: true,
-			expectQueue:       true,
+			expectQueue:       false,
 			expectedGroup:     "gh-aw-conclusion-my-workflow",
 		},
 		{
@@ -944,7 +944,7 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			workflowID:        "my-workflow",
 			discriminator:     "${{ github.event.issue.number || github.run_id }}",
 			expectConcurrency: true,
-			expectQueue:       true,
+			expectQueue:       false,
 			expectedGroup:     "gh-aw-conclusion-my-workflow-${{ github.event.issue.number || github.run_id }}",
 		},
 		{
@@ -952,8 +952,16 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			workflowID:        "pentest-triage",
 			discriminator:     "${{ github.run_id }}",
 			expectConcurrency: true,
-			expectQueue:       true,
+			expectQueue:       false,
 			expectedGroup:     "gh-aw-conclusion-pentest-triage-${{ github.run_id }}",
+		},
+		{
+			name:              "queue can be enabled with feature flag",
+			workflowID:        "my-workflow",
+			features:          map[string]any{"group-concurrency-queue": true},
+			expectConcurrency: true,
+			expectQueue:       true,
+			expectedGroup:     "gh-aw-conclusion-my-workflow",
 		},
 		{
 			name:              "queue can be disabled with feature flag",

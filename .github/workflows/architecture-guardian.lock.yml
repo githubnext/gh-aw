@@ -441,7 +441,6 @@ jobs:
       copilot-requests: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
-      queue: max
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1124,7 +1123,6 @@ jobs:
     concurrency:
       group: "gh-aw-conclusion-architecture-guardian"
       cancel-in-progress: false
-      queue: max
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}

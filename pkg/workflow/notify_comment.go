@@ -778,8 +778,9 @@ func buildDailyAICUsageCacheSteps(data *WorkflowData, pinAction func(string) str
 }
 
 // isGroupConcurrencyQueueEnabled reports whether compiler-generated concurrency groups
-// should include queue: max. The feature is enabled by default and can be disabled
-// with features.group-concurrency-queue: false.
+// should include queue: max. The feature is disabled by default because queue: max is
+// not a valid GitHub Actions concurrency key and causes a syntax error at runtime.
+// It can be enabled with features.group-concurrency-queue: true.
 func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
 	flag := strings.ToLower(strings.TrimSpace(string(constants.GroupConcurrencyQueueFeatureFlag)))
 	if data != nil && data.Features != nil {
@@ -789,7 +790,7 @@ func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
 			}
 		}
 	}
-	return true
+	return false
 }
 
 func parseGroupConcurrencyQueueFeatureValue(value any) bool {

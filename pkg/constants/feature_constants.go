@@ -69,12 +69,14 @@ const (
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
 	// GroupConcurrencyQueueFeatureFlag controls whether compiler-generated group
-	// concurrency blocks include queue: max.
+	// concurrency blocks include queue: max. This feature is disabled by default
+	// because queue: max is not a valid GitHub Actions concurrency key and causes
+	// a syntax error at runtime.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  group-concurrency-queue: false
+	//	  group-concurrency-queue: true
 	GroupConcurrencyQueueFeatureFlag FeatureFlag = "group-concurrency-queue"
 	// DangerouslyDisableSandboxAgentFeatureFlag is required to allow sandbox.agent: false.
 	// Without this flag, setting sandbox.agent to false raises a validation error.
