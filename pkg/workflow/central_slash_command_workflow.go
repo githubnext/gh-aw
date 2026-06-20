@@ -386,6 +386,7 @@ jobs:
 func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntry {
 	type aggregate struct {
 		Description   string
+		DescriptionBy string
 		Centralized   bool
 		Decentralized bool
 	}
@@ -404,15 +405,17 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 			existing := byCommand[trimmed]
 			if existing.Description != "" && description != "" && existing.Description != description {
 				centralSlashCommandWorkflowLog.Printf(
-					"Conflicting descriptions for /%s: keeping %q, ignoring %q from workflow %s",
+					"Conflicting descriptions for /%s: keeping %q from workflow %s, ignoring %q from workflow %s",
 					trimmed,
 					existing.Description,
+					existing.DescriptionBy,
 					description,
 					wd.WorkflowID,
 				)
 			}
 			if existing.Description == "" && description != "" {
 				existing.Description = description
+				existing.DescriptionBy = wd.WorkflowID
 			}
 			if wd.CommandCentralized {
 				existing.Centralized = true
