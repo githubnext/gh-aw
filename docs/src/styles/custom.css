@@ -432,6 +432,7 @@ body::before {
   opacity: 0;
 }
 
+/* WorkflowHero exposes [data-slide-hero] as the homepage glow trigger contract. */
 body:has([data-slide-hero])::before {
   animation: glow-move 24s ease-in-out infinite;
   opacity: 1;
@@ -736,7 +737,7 @@ header::after {
 
 :root[data-theme='light'] .sl-markdown-content p,
 :root[data-theme='light'] .sl-markdown-content li {
-  color: var(--aw-text-muted);
+  color: var(--sl-color-text);
 }
 
 /* Code Blocks */
@@ -949,9 +950,9 @@ header::after {
 }
 
 :root[data-theme='light'] .sl-markdown-content blockquote {
-  border-left-color: rgba(var(--aw-accent-rgb), 0.34);
-  color: var(--aw-text-muted);
-  background: rgba(208, 215, 222, 0.22);
+  border-left-color: rgba(var(--aw-accent-rgb, 130, 80, 223), 0.34);
+  color: var(--sl-color-text);
+  background: var(--aw-bg-subtle);
 }
 
 /* Links */
