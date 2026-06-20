@@ -297,7 +297,7 @@ async function dispatchWorkflow(workflowId, ref, inputs, fallbackRef) {
     }
     if (isMissingWorkflowDispatchTriggerError(error) && fallbackRef && ref !== fallbackRef) {
       core.info(`Workflow '${workflowId}' not found on ref '${ref}'; retrying on default branch '${fallbackRef}'.`);
-      return dispatchWorkflow(workflowId, fallbackRef, inputs);
+      return dispatchWorkflow(workflowId, fallbackRef, inputs, undefined);
     }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
   }
@@ -340,7 +340,7 @@ function isMissingWorkflowDispatchTriggerError(error) {
     return false;
   }
 
-  return message.includes("does not have 'workflow_dispatch' trigger") || message.includes("no ref found for");
+  return message.includes("does not have 'workflow_dispatch' trigger");
 }
 
 /**
