@@ -30,10 +30,12 @@ import (
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 
-// isDeadlineExceeded reports whether ctx has been cancelled due to a deadline
-// expiry.  It is used to distinguish our own timeout cancellation (graceful
-// partial results) from a user-initiated cancellation or other error.
+// isDeadlineExceeded reports whether ctx.Err() is context.DeadlineExceeded,
+// returning false for any other error (including nil).  It is used to
+// distinguish our own timeout cancellation (graceful partial results) from a
+// user-initiated cancellation or other error.
 func isDeadlineExceeded(ctx context.Context) bool {
+	// errors.Is handles nil gracefully (returns false), so no nil check needed.
 	return errors.Is(ctx.Err(), context.DeadlineExceeded)
 }
 
@@ -173,18 +175,17 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
 
-	// Start timeout timer if specified. When timeoutMinutes > 0 we also create a
-	// child context with a matching deadline so that any concurrent artifact
-	// downloads that are in-flight at the moment the soft-timer fires are
-	// interrupted promptly via context cancellation rather than continuing until
-	// the next iteration boundary.
+	// activeCtx is ctx extended with a deadline when timeoutMinutes > 0.
+	// Using a named variable avoids reassigning the ctx parameter and makes it
+	// explicit that a derived context governs all downstream downloads.
+	activeCtx := ctx
 	var startTime time.Time
 	var timeoutReached bool
 	if timeoutMinutes > 0 {
 		startTime = time.Now()
-		timeoutCtx, timeoutCancel := context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+		var timeoutCancel context.CancelFunc
+		activeCtx, timeoutCancel = context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
 		defer timeoutCancel()
-		ctx = timeoutCtx
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeoutMinutes)))
 		}
@@ -204,8 +205,8 @@ outerLoop:
 	for iteration < MaxIterations {
 		// Check context cancellation or timeout deadline
 		select {
-		case <-ctx.Done():
-			if isDeadlineExceeded(ctx) {
+		case <-activeCtx.Done():
+			if isDeadlineExceeded(activeCtx) {
 				// Our own timeout context expired — treat this as a graceful stop,
 				// not a hard error.  Partial results collected so far will be output.
 				timeoutReached = true
@@ -214,7 +215,7 @@ outerLoop:
 				}
 			} else {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-				return ctx.Err()
+				return activeCtx.Err()
 			}
 			break outerLoop
 		default:
@@ -341,8 +342,8 @@ outerLoop:
 			// Check context/timeout before starting each new chunk so we stop
 			// promptly when the deadline fires between individual chunk downloads.
 			select {
-			case <-ctx.Done():
-				if isDeadlineExceeded(ctx) {
+			case <-activeCtx.Done():
+				if isDeadlineExceeded(activeCtx) {
 					timeoutReached = true
 				}
 				break innerLoop
@@ -355,7 +356,7 @@ outerLoop:
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
 
-			downloadResults := downloadRunArtifactsConcurrent(ctx, chunk, outputDir, verbose, remainingNeeded, repoOverride, artifactFilter)
+			downloadResults := downloadRunArtifactsConcurrent(activeCtx, chunk, outputDir, verbose, remainingNeeded, repoOverride, artifactFilter)
 
 			for _, result := range downloadResults {
 				if result.Skipped {
