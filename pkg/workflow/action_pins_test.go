@@ -15,6 +15,7 @@ import (
 const setupNodeV6ExpectedUsesPlaceholder = "__setup_node_v6__"
 const checkoutV6ExpectedUsesPlaceholder = "__checkout_v6__"
 const checkoutSHAExpectedUsesPlaceholder = "__checkout_sha__"
+const checkoutLatestExpectedUsesPlaceholder = "__checkout_latest__"
 
 func expectedPinnedUses(t *testing.T, repo, version string) string {
 	t.Helper()
@@ -27,6 +28,16 @@ func expectedPinnedUses(t *testing.T, repo, version string) string {
 		t.Fatalf("getActionPinWithData(%s, %s) returned empty result", repo, version)
 	}
 	return result
+}
+
+func expectedLatestPinnedUses(t *testing.T, repo string) string {
+	t.Helper()
+
+	pin, ok := getLatestActionPinByRepo(repo)
+	if !ok {
+		t.Fatalf("getLatestActionPinByRepo(%s) returned no pin", repo)
+	}
+	return expectedPinnedUses(t, repo, pin.Version)
 }
 
 // TestGetActionPinFallback tests that getActionPin returns empty string for unknown actions
@@ -174,6 +185,15 @@ func TestApplyActionPinToStep(t *testing.T) {
 			expectedUses: "my-org/my-action@v1",
 		},
 		{
+			name: "step with action missing ref",
+			stepMap: map[string]any{
+				"name": "Checkout",
+				"uses": "actions/checkout",
+			},
+			expectPinned: true,
+			expectedUses: checkoutLatestExpectedUsesPlaceholder,
+		},
+		{
 			name: "step without uses field",
 			stepMap: map[string]any{
 				"name": "Run command",
@@ -230,6 +250,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 				}
 				if expectedUses == checkoutSHAExpectedUsesPlaceholder {
 					expectedUses = expectedPinnedUses(t, "actions/checkout", "de0fac2e4500dabe0009e67214ff5f5447ce83dd")
+				}
+				if expectedUses == checkoutLatestExpectedUsesPlaceholder {
+					expectedUses = expectedLatestPinnedUses(t, "actions/checkout")
 				}
 				if usesStr != expectedUses {
 					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, expectedUses)
@@ -351,6 +374,15 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			expectedUses: "my-org/my-action@v1",
 		},
 		{
+			name: "step with action missing ref",
+			step: &WorkflowStep{
+				Name: "Checkout",
+				Uses: "actions/checkout",
+			},
+			expectPinned: true,
+			expectedUses: checkoutLatestExpectedUsesPlaceholder,
+		},
+		{
 			name: "step without uses field",
 			step: &WorkflowStep{
 				Name: "Run command",
@@ -408,6 +440,9 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			}
 			if expectedUses == checkoutV6ExpectedUsesPlaceholder {
 				expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
+			}
+			if expectedUses == checkoutLatestExpectedUsesPlaceholder {
+				expectedUses = expectedLatestPinnedUses(t, "actions/checkout")
 			}
 			if result.Uses != expectedUses {
 				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, expectedUses)

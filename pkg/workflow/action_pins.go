@@ -210,7 +210,16 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 
 	version := extractActionVersion(step.Uses)
 	if version == "" {
-		return step
+		pinnedRef := getCachedActionPin(actionRepo, data)
+		if pinnedRef == "" {
+			actionPinsLog.Printf("Skipping pin for %s: no pin available", actionRepo)
+			return step
+		}
+
+		actionPinsLog.Printf("Pinned action: %s (no ref) -> %s", actionRepo, pinnedRef)
+		result := step.Clone()
+		result.Uses = pinnedRef
+		return result
 	}
 
 	// Strip the comment suffix before checking if it's already a SHA.
