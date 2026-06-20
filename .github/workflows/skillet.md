@@ -40,7 +40,7 @@ jobs:
   pre-activation:
     pre-steps:
       - name: Checkout skills directory
-        uses: actions/checkout
+        uses: actions/checkout@v7.0.0
         with:
           sparse-checkout: |
             .github/skills
