@@ -176,9 +176,8 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 
 	// Pass the ecosystem map JSON via an env var and invoke the JavaScript
 	// implementation deployed by actions/setup to ${RUNNER_TEMP}/gh-aw/actions/.
-	// Using node avoids any Python dependency and eliminates the risk of quote
-	// injection: the ecosystem map is single-quoted by shellEscapeArg (JSON only
-	// contains double-quoted strings so no single quotes can appear).
+	// Using node avoids any Python dependency and eliminates quote-injection risk:
+	// shellEscapeArg safely single-quotes and escapes the JSON payload.
 	return fmt.Sprintf(`GH_AW_ECOSYSTEM_MAP_JSON=%s node "${RUNNER_TEMP}/gh-aw/actions/update_network_allowed.cjs"`,
 		shellEscapeArg(string(ecosystemJSON))), nil
 }

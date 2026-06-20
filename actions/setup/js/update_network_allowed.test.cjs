@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 import { tmpdir } from "os";
 import { join } from "path";
-import { writeFileSync, readFileSync, mkdtempSync, rmSync } from "fs";
+import { writeFileSync, readFileSync, mkdtempSync, rmSync, mkdirSync } from "fs";
 
 const req = createRequire(import.meta.url);
 const { main } = req("./update_network_allowed.cjs");
@@ -24,7 +24,7 @@ describe("update_network_allowed.cjs", () => {
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), "update-network-allowed-test-"));
     const ghAwDir = join(tempDir, "gh-aw");
-    require("fs").mkdirSync(ghAwDir);
+    mkdirSync(ghAwDir);
     configPath = join(ghAwDir, "awf-config.json");
 
     savedEnv = {
@@ -155,6 +155,25 @@ describe("update_network_allowed.cjs", () => {
     });
     try {
       await expect(main()).rejects.toThrow();
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    } finally {
+      exitSpy.mockRestore();
+    }
+  });
+
+  it("exits 1 when GH_AW_ECOSYSTEM_MAP_JSON is invalid JSON", async () => {
+    const initial = { network: { allowDomains: [] } };
+    writeFileSync(configPath, JSON.stringify(initial) + "\n");
+
+    process.env.GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED = "npm";
+    process.env.GH_AW_ECOSYSTEM_MAP_JSON = "{not valid json";
+
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(_code => {
+      throw new Error("process.exit called");
+    });
+    try {
+      await expect(main()).rejects.toThrow();
+      expect(exitSpy).toHaveBeenCalledWith(1);
     } finally {
       exitSpy.mockRestore();
     }
