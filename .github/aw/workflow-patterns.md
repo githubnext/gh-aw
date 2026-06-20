@@ -122,7 +122,7 @@ Use `actions/github-script` for GitHub API interactions and general scripting. T
 
 ### 2. Shell scripts
 
-Use `run:` steps when `actions/github-script` is not suitable. To prevent shell injection, never interpolate untrusted values (for example `${{ github.event.issue.title }}`) directly into the script body. Instead, pass them through environment variables:
+Use `run:` steps when `actions/github-script` is not suitable. To prevent shell injection, never interpolate untrusted values directly into the script body. Any value that originates from user input — including `github.event.issue.title`, `github.event.issue.body`, `github.event.comment.body`, `github.event.pull_request.title`, `github.event.pull_request.body`, and `github.head_ref` — must be passed through environment variables:
 
 ```yaml
 # ❌ Unsafe: direct expression interpolation into the shell script
