@@ -199,7 +199,7 @@ safe-outputs:
         contents: read
       steps:
         - name: Post to Slack
-          uses: actions/github-script@v7
+          uses: actions/github-script@v9
           env:
             SLACK_TOKEN: "${{ secrets.SLACK_TOKEN }}"
             CHANNEL: ${{ github.aw.import-inputs.channel }}

@@ -62,6 +62,7 @@ See also: [workflow-constraints.md](workflow-constraints.md)
 | Editing and recompilation rules | [workflow-editing.md](workflow-editing.md) |
 | Architectural and security constraints | [workflow-constraints.md](workflow-constraints.md) |
 | Common design patterns | [workflow-patterns.md](workflow-patterns.md) |
+| Step implementation (github-script, shell, Python) | [step-implementation.md](step-implementation.md) |
 | Frontmatter schema index | [syntax.md](syntax.md) |
 | Safe outputs index | [safe-outputs.md](safe-outputs.md) |
 | Trigger patterns | [triggers.md](triggers.md) |

@@ -19,6 +19,7 @@ Create new workflow files under `.github/workflows/` using the installed `gh aw`
 
 Load these topic files only when relevant:
 
+- [step-implementation.md](step-implementation.md) for preferred step technologies and shell injection prevention
 - [campaign.md](campaign.md) for campaign, KPI, pacing, cadence, or `stop-after`
 - [experiments.md](experiments.md) for experiments, A/B tests, variants, or prompt comparisons
 - [visual-regression.md](visual-regression.md) for screenshot comparison workflows

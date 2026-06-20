@@ -105,6 +105,8 @@ Rules:
 - add `permissions: actions: read` for downloading workflow logs/artifacts
 - use `jq` to reduce JSON payload size
 
+For implementation technology (when to use `actions/github-script`, shell, or Python) and shell injection prevention, see [step-implementation.md](step-implementation.md).
+
 ## PR Visual Regression Pattern
 
 For PR UI validation and screenshot diffs:
