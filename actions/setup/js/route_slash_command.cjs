@@ -307,7 +307,7 @@ function isBuiltinHelpEnabled() {
   if (raw === "false") {
     return false;
   }
-  core.warning(`Invalid GH_AW_HELP_COMMAND_ENABLED value '${raw}', defaulting to enabled.`);
+  core.warning(`Invalid GH_AW_HELP_COMMAND_ENABLED value '${raw}' (expected 'true' or 'false'), defaulting to enabled.`);
   return true;
 }
 
@@ -336,8 +336,7 @@ function parseHelpCommandsMetadata() {
       })
       .sort((left, right) => left.command.localeCompare(right.command));
   } catch (error) {
-    const preview = raw.length > 160 ? `${raw.slice(0, 157)}...` : raw;
-    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)} (raw: ${preview})`);
+    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)}`);
     return [];
   }
 }

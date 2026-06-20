@@ -402,6 +402,15 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 				continue
 			}
 			existing := byCommand[trimmed]
+			if existing.Description != "" && description != "" && existing.Description != description {
+				centralSlashCommandWorkflowLog.Printf(
+					"Conflicting descriptions for /%s: keeping %q, ignoring %q from workflow %s",
+					trimmed,
+					existing.Description,
+					description,
+					wd.WorkflowID,
+				)
+			}
 			if existing.Description == "" && description != "" {
 				existing.Description = description
 			}
