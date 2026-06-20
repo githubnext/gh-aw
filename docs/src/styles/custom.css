@@ -126,7 +126,7 @@
   background-size: 100% 100%, 100% 100%, 100% 100%;
   z-index: 0;
   pointer-events: none;
-  animation: light-glow-move 24s ease-in-out infinite;
+  animation: none;
   opacity: 0;
 }
 
@@ -428,12 +428,17 @@ body::before {
   background-size: 100% 100%, 100% 100%, 100% 100%;
   z-index: 0;
   pointer-events: none;
-  animation: glow-move 24s ease-in-out infinite;
+  animation: none;
   opacity: 0;
 }
 
 body:has([data-slide-hero])::before {
+  animation: glow-move 24s ease-in-out infinite;
   opacity: 1;
+}
+
+:root[data-theme='light'] body:has([data-slide-hero])::before {
+  animation: light-glow-move 24s ease-in-out infinite;
 }
 
 /* Dark Theme Transparent Backgrounds - Desktop only */
@@ -1073,8 +1078,8 @@ a.button:hover {
 
 :root[data-theme='light'] .card,
 :root[data-theme='light'] .panel {
-  background-color: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 10px 28px rgba(31, 35, 40, 0.06);
+  background-color: var(--aw-bg-elevated);
+  box-shadow: var(--aw-shadow);
 }
 
 /* Scrollbar */
