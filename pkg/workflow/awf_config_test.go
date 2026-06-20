@@ -19,6 +19,8 @@ import (
 // that contains the expected network, apiProxy, and container fields.
 func TestBuildAWFConfigJSON(t *testing.T) {
 	t.Run("basic config with allowed domains and API proxy enabled", func(t *testing.T) {
+		// Clear any ambient env override so the assertion below tests the built-in default.
+		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "")
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com,api.github.com",
@@ -163,6 +165,8 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 	})
 
 	t.Run("default max-turn-cache-misses uses built-in default when unset", func(t *testing.T) {
+		// Clear any ambient env override so this test actually exercises the built-in default path.
+		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "")
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",

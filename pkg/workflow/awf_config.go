@@ -68,7 +68,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -358,7 +357,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
 	maxAICredits := int64(0)
 	maxRuns := constants.DefaultMaxRuns
-	maxTurnCacheMisses := compilerenv.ResolveDefaultMaxTurnCacheMisses(constants.DefaultMaxTurnCacheMisses)
+	// GetMaxTurnCacheMisses handles nil receiver and env-var fallback, so pre-init
+	// via the nil receiver avoids a redundant os.Getenv when EngineConfig is set.
+	maxTurnCacheMisses := (*EngineConfig)(nil).GetMaxTurnCacheMisses()
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
 			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
