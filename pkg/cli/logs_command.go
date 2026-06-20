@@ -165,13 +165,8 @@ Downloaded artifacts include (when using --artifacts all):
 					}
 				}
 
-				if reportFile != "" {
-					if format != "markdown" {
-						return errors.New("--report-file requires --format markdown")
-					}
-					if jsonOutput {
-						return errors.New("--report-file cannot be used with --json")
-					}
+				if err := validateReportFileFlags(reportFile, format, jsonOutput); err != nil {
+					return err
 				}
 
 				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
@@ -319,13 +314,8 @@ Downloaded artifacts include (when using --artifacts all):
 				}
 			}
 
-			if reportFile != "" {
-				if format != "markdown" {
-					return errors.New("--report-file requires --format markdown")
-				}
-				if jsonOutput {
-					return errors.New("--report-file cannot be used with --json")
-				}
+			if err := validateReportFileFlags(reportFile, format, jsonOutput); err != nil {
+				return err
 			}
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
@@ -472,4 +462,20 @@ func repoIsLocal(repo string) bool {
 		return false
 	}
 	return strings.EqualFold(ownerRepo, currentRepo)
+}
+
+// validateReportFileFlags returns an error if --report-file is combined with an
+// incompatible flag. --report-file only takes effect for --format markdown output
+// and is bypassed when --json is set.
+func validateReportFileFlags(reportFile, format string, jsonOutput bool) error {
+	if reportFile == "" {
+		return nil
+	}
+	if format != "markdown" {
+		return errors.New("--report-file requires --format markdown")
+	}
+	if jsonOutput {
+		return errors.New("--report-file cannot be used with --json")
+	}
+	return nil
 }
