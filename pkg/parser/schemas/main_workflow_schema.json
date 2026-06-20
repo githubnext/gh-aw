@@ -10551,6 +10551,27 @@
               "type": "object",
               "description": "Configuration for replacing one label with another on issues/PRs in a single atomic operation. Enables clear state transitions (e.g. 'in-progress' \u2192 'done').",
               "properties": {
+                "allowed-transitions": {
+                  "type": "array",
+                  "description": "Optional list of allowed label state transitions. Each entry specifies a (from, to) pair that is permitted. When specified, the agent may ONLY perform the listed transitions, regardless of allowed-add/allowed-remove. Useful for enforcing a strict state machine (e.g. only 'in-review' → 'approved' is allowed).",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "description": "The label that must currently be on the item and will be removed."
+                      },
+                      "to": {
+                        "type": "string",
+                        "description": "The label that will be added."
+                      }
+                    },
+                    "required": ["from", "to"],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 100
+                },
                 "allowed-add": {
                   "type": "array",
                   "description": "Optional list of allowed label patterns that can be added (supports glob patterns like 'state-*'). Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed.",

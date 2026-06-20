@@ -246,4 +246,58 @@ describe("replace_label", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("done");
   });
+
+  describe("allowed-transitions", () => {
+    it("should allow a transition that is in the allowed-transitions list", async () => {
+      const handler = await main({
+        allowed_transitions: [
+          { from: "in-progress", to: "done" },
+          { from: "pending", to: "in-progress" },
+        ],
+      });
+      const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should reject a transition that is not in the allowed-transitions list", async () => {
+      const handler = await main({
+        allowed_transitions: [{ from: "in-progress", to: "done" }],
+      });
+      const result = await handler({ label_to_remove: "in-progress", label_to_add: "rejected" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('"in-progress" → "rejected"');
+      expect(result.error).toContain("allowed-transitions");
+    });
+
+    it("should reject a reversed transition when only forward direction is listed", async () => {
+      const handler = await main({
+        allowed_transitions: [{ from: "in-progress", to: "done" }],
+      });
+      // Reversed: done → in-progress is NOT in the list
+      const result = await handler({ label_to_remove: "done", label_to_add: "in-progress" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("allowed-transitions");
+    });
+
+    it("should enforce both allowed-transitions and blocked patterns", async () => {
+      const handler = await main({
+        allowed_transitions: [{ from: "in-progress", to: "~internal" }],
+        blocked: ["~*"],
+      });
+      // Even though the transition is listed, the blocked pattern must reject it first
+      const result = await handler({ label_to_remove: "in-progress", label_to_add: "~internal" }, {});
+
+      expect(result.success).toBe(false);
+    });
+
+    it("should allow any transition when allowed-transitions is empty", async () => {
+      const handler = await main({ allowed_transitions: [] });
+      const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
+
+      expect(result.success).toBe(true);
+    });
+  });
 });

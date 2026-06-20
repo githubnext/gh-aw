@@ -146,8 +146,11 @@ const main = createCountGatedHandler({
     // Config keys use snake_case (set by the Go handler config builder)
     const configAllowedAdd = Array.isArray(config.allowed_add) ? config.allowed_add : [];
     const configAllowedRemove = Array.isArray(config.allowed_remove) ? config.allowed_remove : [];
+    /** @type {{from: string, to: string}[]} */
+    const configAllowedTransitions = Array.isArray(config.allowed_transitions) ? config.allowed_transitions : [];
 
     core.info(`Replace label configuration: max=${maxCount}`);
+    if (configAllowedTransitions.length > 0) core.info(`Allowed transitions: ${configAllowedTransitions.map(t => `"${t.from}" → "${t.to}"`).join(", ")}`);
     if (configAllowedAdd.length > 0) core.info(`Allowed labels to add: ${configAllowedAdd.join(", ")}`);
     if (configAllowedRemove.length > 0) core.info(`Allowed labels to remove: ${configAllowedRemove.join(", ")}`);
     if (blockedPatterns.length > 0) core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
@@ -212,6 +215,20 @@ const main = createCountGatedHandler({
       if (!addValidation.valid) {
         core.warning(`label_to_add validation failed: ${addValidation.error}`);
         return { success: false, error: addValidation.error };
+      }
+
+      // Validate the (from, to) pair against the allowed-transitions list.
+      // When allowed-transitions is configured, the pair must match at least one entry exactly.
+      // This check is applied after individual label validation so blocked/allowlist guards
+      // run first (they are security boundaries); transition validation is an additional
+      // state-machine constraint on top of them.
+      if (configAllowedTransitions.length > 0) {
+        const transitionAllowed = configAllowedTransitions.some(t => t.from === labelToRemove && t.to === labelToAdd);
+        if (!transitionAllowed) {
+          const error = `Transition "${labelToRemove}" → "${labelToAdd}" is not in the allowed-transitions list`;
+          core.warning(error);
+          return { success: false, error };
+        }
       }
 
       // Apply required-labels and required-title-prefix filters

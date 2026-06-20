@@ -174,11 +174,16 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.ReplaceLabel
+		transitions := make([]map[string]string, len(c.AllowedTransitions))
+		for i, t := range c.AllowedTransitions {
+			transitions[i] = map[string]string{"from": t.From, "to": t.To}
+		}
 		config := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed_add", c.AllowedAdd).
 			AddStringSlice("allowed_remove", c.AllowedRemove).
 			AddStringSlice("blocked", c.Blocked).
+			AddMapSlice("allowed_transitions", transitions).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
