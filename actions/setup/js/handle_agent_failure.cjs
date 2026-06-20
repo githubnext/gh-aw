@@ -1175,6 +1175,66 @@ function normalizeDeniedPermissionCommand(command) {
 }
 
 /**
+ * Collapse tool call details to a compact single-line preview.
+ * @param {string} value
+ * @param {number} [maxLen]
+ * @returns {string}
+ */
+function normalizeToolCallPreview(value, maxLen = 120) {
+  const singleLine = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!singleLine) return "";
+  if (singleLine.length <= maxLen) return singleLine;
+  return `${singleLine.slice(0, maxLen - 3)}...`;
+}
+
+/**
+ * Best-effort extraction of a shell command preview from a tool.execution_start payload.
+ * @param {Record<string, any>} data
+ * @returns {string}
+ */
+function extractShellCommandPreview(data) {
+  if (!data || typeof data !== "object") return "";
+  const directCandidates = [data.command, data.input, data.arguments, data.args];
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return normalizeToolCallPreview(candidate);
+    }
+  }
+
+  const nestedCandidates = [data.input, data.arguments, data.args, data.toolInput, data.parameters];
+  for (const candidate of nestedCandidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+    if (typeof candidate.command === "string" && candidate.command.trim()) {
+      return normalizeToolCallPreview(candidate.command);
+    }
+    if (typeof candidate.cmd === "string" && candidate.cmd.trim()) {
+      return normalizeToolCallPreview(candidate.cmd);
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Format a compact display value for a recent tool call entry.
+ * @param {string} toolName
+ * @param {string} mcpServerName
+ * @param {Record<string, any>} data
+ * @returns {string}
+ */
+function formatRecentToolCall(toolName, mcpServerName, data) {
+  const base = mcpServerName ? `${mcpServerName}.${toolName}` : toolName;
+  const normalizedTool = String(toolName || "").toLowerCase();
+  if (normalizedTool !== "bash" && normalizedTool !== "shell") {
+    return base;
+  }
+  const commandPreview = extractShellCommandPreview(data);
+  return commandPreview ? `${base}(${commandPreview})` : base;
+}
+
+/**
  * Load missing_tool messages from agent output.
  * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
@@ -1320,7 +1380,7 @@ function loadToolDenialsExceededEvents() {
             const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
             if (toolName) {
               const mcpServerName = typeof parsed.data.mcpServerName === "string" ? parsed.data.mcpServerName.trim() : "";
-              recentToolCalls.push(mcpServerName ? `${mcpServerName}.${toolName}` : toolName);
+              recentToolCalls.push(formatRecentToolCall(toolName, mcpServerName, parsed.data));
               if (recentToolCalls.length > 5) recentToolCalls.shift();
             }
             continue;
