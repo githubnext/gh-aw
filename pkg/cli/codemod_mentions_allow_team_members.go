@@ -95,10 +95,10 @@ func renameMentionsAllowTeamMembers(lines []string) ([]string, bool) {
 		}
 
 		if inSafeOutputs && isDescendant(indent, safeOutputsIndent) && !strings.HasPrefix(trimmed, "#") {
-			if safeOutputsChildIndent == "" {
-				safeOutputsChildIndent = indent
-			}
-			if indent == safeOutputsChildIndent && strings.HasPrefix(trimmed, "mentions:") {
+			if (safeOutputsChildIndent == "" || indent == safeOutputsChildIndent) && strings.HasPrefix(trimmed, "mentions:") {
+				if safeOutputsChildIndent == "" {
+					safeOutputsChildIndent = indent
+				}
 				if strings.HasSuffix(trimmed, ":") {
 					inMentions = true
 					mentionsIndent = indent
@@ -107,7 +107,7 @@ func renameMentionsAllowTeamMembers(lines []string) ([]string, bool) {
 					inMentions = false
 					mentionsIndent = ""
 					mentionsChildIndent = ""
-					if strings.Contains(trimmed, "{") {
+					if strings.Contains(trimmed, "allow-team-members:") {
 						newLine := strings.Replace(line, "allow-team-members:", "allowed-collaborators:", 1)
 						replaced := newLine != line
 						if replaced {
@@ -121,7 +121,10 @@ func renameMentionsAllowTeamMembers(lines []string) ([]string, bool) {
 				result = append(result, line)
 				continue
 			}
-			if strings.HasSuffix(trimmed, ":") && indent == safeOutputsChildIndent {
+			if strings.HasSuffix(trimmed, ":") && (safeOutputsChildIndent == "" || indent == safeOutputsChildIndent) {
+				if safeOutputsChildIndent == "" {
+					safeOutputsChildIndent = indent
+				}
 				inMentions = false
 				mentionsIndent = ""
 				mentionsChildIndent = ""
