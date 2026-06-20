@@ -2,7 +2,7 @@
  * Shared helper: reads all agent-optimised prompts from .github/aw/*.md and
  * returns metadata needed to build llms.txt / agents.txt.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const RAW_BASE =
@@ -22,18 +22,48 @@ function parseFrontmatterDescription(content: string): string {
 	return descMatch ? descMatch[1].trim() : '';
 }
 
+export function getAwDir(): string | null {
+	const candidates = [
+		join(process.cwd(), '.github', 'aw'),
+		join(process.cwd(), '..', '.github', 'aw'),
+	];
+
+	for (const candidate of candidates) {
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+export function getAwPromptFiles(): string[] {
+	const awDir = getAwDir();
+	if (!awDir) {
+		return [];
+	}
+
+	try {
+		return readdirSync(awDir)
+			.filter((f) => f.endsWith('.md'))
+			.sort();
+	} catch {
+		return [];
+	}
+}
+
 export function getAwPrompts(): AwPrompt[] {
-	// process.cwd() is the docs/ directory during `astro build`
-	const awDir = join(process.cwd(), '../.github/aw');
-	return readdirSync(awDir)
-		.filter((f) => f.endsWith('.md'))
-		.sort()
-		.map((file) => {
-			const content = readFileSync(join(awDir, file), 'utf-8');
-			return {
-				file,
-				description: parseFrontmatterDescription(content),
-				rawUrl: `${RAW_BASE}/${file}`,
-			};
-		});
+	const awDir = getAwDir();
+	if (!awDir) {
+		return [];
+	}
+
+	return getAwPromptFiles().map((file) => {
+		const content = readFileSync(join(awDir, file), 'utf-8');
+		return {
+			file,
+			description: parseFrontmatterDescription(content),
+			rawUrl: `${RAW_BASE}/${file}`,
+		};
+	});
 }

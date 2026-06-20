@@ -1,15 +1,13 @@
 import type { APIRoute } from 'astro';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { getAwDir, getAwPromptFiles } from './_aw-prompts.js';
+
+export const prerender = true;
 
 export const GET: APIRoute = () => {
-	// process.cwd() is the docs/ directory during `astro build`
-	const repoRoot = join(process.cwd(), '..');
-	const awDir = join(repoRoot, '.github', 'aw');
-
-	const files = readdirSync(awDir)
-		.filter((f) => f.endsWith('.md'))
-		.sort();
+	const awDir = getAwDir();
+	const files = getAwPromptFiles();
 
 	const sections: string[] = [
 		'# GitHub Agentic Workflows — Full Corpus',
@@ -19,9 +17,13 @@ export const GET: APIRoute = () => {
 		'',
 	];
 
-	for (const file of files) {
-		const content = readFileSync(join(awDir, file), 'utf-8');
-		sections.push(`---`, `## ${file}`, ``, content.trim(), ``);
+	if (!awDir || files.length === 0) {
+		sections.push('(No content available.)');
+	} else {
+		for (const file of files) {
+			const content = readFileSync(join(awDir, file), 'utf-8');
+			sections.push(`<!-- file: ${file} -->`, ``, content, ``);
+		}
 	}
 
 	return new Response(sections.join('\n'), {
