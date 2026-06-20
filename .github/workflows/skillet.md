@@ -44,66 +44,60 @@ jobs:
     steps:
       - name: Match requested skill
         id: match_skill
-        shell: bash
-        run: |
-          set -euo pipefail
-          python <<'PY'
-          import json
-          import os
-          import pathlib
-          import re
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
 
-          event_path = pathlib.Path(os.environ["GITHUB_EVENT_PATH"])
-          workspace = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
-          event = json.loads(event_path.read_text())
+            const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+            const workspace = process.env.GITHUB_WORKSPACE;
+            const body = (
+              event.comment?.body ||
+              event.review?.body ||
+              event.pull_request?.body ||
+              event.issue?.body ||
+              ''
+            ).trim();
 
-          body = (
-              event.get("comment", {}).get("body")
-              or event.get("review", {}).get("body")
-              or event.get("pull_request", {}).get("body")
-              or event.get("issue", {}).get("body")
-              or ""
-          ).strip()
+            const match = body.match(/^\/([A-Za-z0-9][A-Za-z0-9._-]*)(?:\s+(.*))?$/s);
+            const command = match?.[1] || '';
+            const requestText = (match?.[2] || '').trim();
 
-          match = re.match(r"^/([A-Za-z0-9][A-Za-z0-9._-]*)(?:\s+(.*))?$", body, re.S)
-          command = match.group(1) if match else ""
-          request_text = (match.group(2) or "").strip() if match else ""
+            const skillsDir = path.join(workspace, '.github', 'skills');
+            const availableSkills = fs.readdirSync(skillsDir, { withFileTypes: true })
+              .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(skillsDir, entry.name, 'SKILL.md')))
+              .map((entry) => entry.name)
+              .sort((a, b) => a.localeCompare(b));
+            const matchedSkillPath = path.join(skillsDir, command, 'SKILL.md');
+            const isPRContext = Boolean(event.pull_request || event.issue?.pull_request);
+            const shouldRun = isPRContext && availableSkills.includes(command);
 
-          skills_dir = workspace / ".github" / "skills"
-          available_skills = sorted(path.parent.name for path in skills_dir.glob("*/SKILL.md"))
-          matched_skill_path = skills_dir / command / "SKILL.md"
-          is_pr_context = bool(event.get("pull_request") or event.get("issue", {}).get("pull_request"))
-          should_run = is_pr_context and command in available_skills
+            let skipReason = '';
+            if (!isPRContext) {
+              skipReason = 'Skillet only reviews pull requests.';
+            } else if (!command) {
+              skipReason = 'No slash command was found at the start of the comment.';
+            } else if (!availableSkills.includes(command)) {
+              skipReason = `No repository skill matched /${command}.`;
+            }
 
-          if not is_pr_context:
-              skip_reason = "Skillet only reviews pull requests."
-          elif not command:
-              skip_reason = "No slash command was found at the start of the comment."
-          elif command not in available_skills:
-              skip_reason = f"No repository skill matched /{command}."
-          else:
-              skip_reason = ""
+            core.setOutput('should_run', shouldRun ? 'true' : 'false');
+            core.setOutput('skill_name', command);
+            core.setOutput('skill_path', shouldRun ? matchedSkillPath : '');
+            core.setOutput('available_skills', availableSkills.join(','));
+            core.setOutput('request_text', requestText);
+            core.setOutput('skip_reason', skipReason);
 
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"should_run={'true' if should_run else 'false'}\n")
-              output.write(f"skill_name={command}\n")
-              output.write(f"skill_path={matched_skill_path if should_run else ''}\n")
-              output.write(f"available_skills={','.join(available_skills)}\n")
-              output.write("request_text<<__GHAW_REQUEST__\n")
-              output.write(request_text + "\n")
-              output.write("__GHAW_REQUEST__\n")
-              output.write("skip_reason<<__GHAW_SKIP__\n")
-              output.write(skip_reason + "\n")
-              output.write("__GHAW_SKIP__\n")
-
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-              summary.write("### Skillet pre-activation\n")
-              summary.write(f"- Command: `/{command or '<none>'}`\n")
-              summary.write(f"- Pull request context: `{'yes' if is_pr_context else 'no'}`\n")
-              summary.write(f"- Skill match: `{'yes' if should_run else 'no'}`\n")
-              if skip_reason:
-                  summary.write(f"- Skip reason: {skip_reason}\n")
-          PY
+            await core.summary
+              .addHeading('Skillet pre-activation', 3)
+              .addRaw(`- Command: \`/${command || '<none>'}\`\n`)
+              .addRaw(`- Pull request context: \`${isPRContext ? 'yes' : 'no'}\`\n`)
+              .addRaw(`- Skill match: \`${shouldRun ? 'yes' : 'no'}\`\n`);
+            if (skipReason) {
+              core.summary.addRaw(`- Skip reason: ${skipReason}\n`);
+            }
+            await core.summary.write();
     outputs:
       should_run: ${{ steps.match_skill.outputs.should_run }}
       skill_name: ${{ steps.match_skill.outputs.skill_name }}
