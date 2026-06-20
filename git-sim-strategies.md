@@ -17,6 +17,32 @@ Tested the first 4 cells of the deterministic enumeration (all in the
 | tiny-none-single-micro-clean-merge_msg | pass | 1 | 1.52 | 1 |
 | tiny-none-single-micro-ahead-single | pass (both) | 2 | 2.58 | 2 |
 
+### 2026-06-20 (run 27861930502) — cells 4-7
+
+Tested the next 4 cells, completing the `tiny-none-single-micro-{ahead,diverged}`
+sub-corner. All **passed**. Exercised `ahead`/`diverged` branch states and the
+`merge_msg` commit structure under append-only push.
+
+| config_id | outcome | patch files | patch KB | commits | merges | push |
+|-----------|---------|-------------|----------|---------|--------|------|
+| tiny-none-single-micro-ahead-multi | pass (both) | 3 | 4.58 | 3 | 0 | +1 append → 4 |
+| tiny-none-single-micro-ahead-merge_msg | pass (both) | 1 | 1.61 | 1 | 0 | +1 append → 2 |
+| tiny-none-single-micro-diverged-single | pass (both) | 1 | 1.54 | 1 | 0 | +1 append → 2 |
+| tiny-none-single-micro-diverged-multi | pass (both) | 3 | 4.58 | 3 | 0 | +1 append → 4 |
+
+New confirmations this run:
+- **merge_msg verified at the rev-list level**: `git rev-list --merges` returns 0
+  for the single-parent "Merge branch ..." commit — confirms the earlier
+  hypothesis that a merge-style *message* is structurally a normal commit and
+  format-patch / append-only push handle it without misclassification.
+- **diverged push is safe when append-only**: simulated the base branch advancing
+  independently (a divergent commit on `main` not merged into `feature`), then
+  pushed by appending one commit to `feature`. Append-only push is unaffected by
+  base divergence because no `git merge main` is performed on the PR branch —
+  consistent with the documented guidance to use rebase, never merge, into a PR
+  branch. A real rejection would only be expected if a workflow merged base in
+  (creating a 2-parent commit) — not yet exercised.
+
 ## Patterns / Hypotheses (to validate as coverage grows)
 
 - **Baseline corner is healthy**: the smallest configs (tiny/none/single/micro)
@@ -37,4 +63,7 @@ Tested the first 4 cells of the deterministic enumeration (all in the
 
 ## Next
 
-Next enumeration index: **4** → `tiny-none-single-micro-ahead-multi`.
+Next enumeration index: **8** → `tiny-none-single-micro-diverged-merge_msg`.
+
+This exhausts the `tiny-none-single-micro-*` corner after index 8; index 9 moves
+to `tiny-none-single-small-clean-single` (first PATCH=small cell).
