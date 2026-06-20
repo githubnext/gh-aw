@@ -55,9 +55,15 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 			LabelCommandDecentralized: true,
 			AIReaction:                "eyes",
 		},
+		{
+			WorkflowID:         "daily-summary",
+			Command:            []string{"summary"},
+			CommandCentralized: false,
+			Description:        "Summarize recent updates",
+		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, nil))
 
 	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
 	content, err := os.ReadFile(generatedPath)
@@ -98,6 +104,11 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"],"ai_reaction":"eyes"},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"],"ai_reaction":"rocket"}]`)
 	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"],"ai_reaction":"heart"}]`)
 	require.Contains(t, text, `"ci-doctor":[{"workflow":"ci-doctor","events":["pull_request"],"ai_reaction":"eyes"}]`)
+	require.Contains(t, text, `GH_AW_HELP_COMMANDS`)
+	require.Contains(t, text, `"command":"summary","description":"Summarize recent updates","centralized":false,"decentralized":true`)
+	require.Contains(t, text, `"command":"triage","centralized":true,"decentralized":false`)
+	require.Contains(t, text, `GH_AW_HELP_COMMAND_ENABLED: 'true'`)
+	require.Contains(t, text, `GH_AW_SLASH_COMMAND_DOCS_URL: 'https://github.github.com/gh-aw/reference/command-triggers/'`)
 	require.Contains(t, text, "GH_AW_LABEL_ROUTING")
 	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs')`)
 	require.Contains(t, text, `setupGlobals(core, github, context, exec, io, getOctokit);`)
@@ -122,7 +133,7 @@ func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, nil))
 	_, err := os.Stat(generatedPath)
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
@@ -139,7 +150,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesForDecentralizedLabelsOnly
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, nil))
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	text := string(content)
@@ -164,7 +175,7 @@ func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestsPermissionForIs
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, nil))
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	text := string(content)
@@ -321,7 +332,7 @@ func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, nil))
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	require.Contains(t, string(content), "runs-on: self-hosted")
@@ -385,6 +396,52 @@ func TestBuildCommandsHeaderMetadata_UsesReleaseVersionOnlyForReleaseBuilds(t *t
 	SetIsRelease(true)
 	metadata = buildCommandsHeaderMetadata(routesByCommand, nil)
 	require.Equal(t, "v1.2.3", metadata.Compiler)
+}
+
+func TestGenerateCentralSlashCommandWorkflow_DisablesHelpCommandViaRepoConfig(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-help-config-test")
+	disabled := false
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, &RepoConfig{HelpCommand: &disabled}))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	require.Contains(t, string(content), `GH_AW_HELP_COMMAND_ENABLED: 'false'`)
+}
+
+func TestBuildHelpCommandEntries(t *testing.T) {
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage",
+			Command:            []string{"triage", "helpful"},
+			CommandCentralized: true,
+			Description:        "Triage work items",
+		},
+		{
+			WorkflowID:         "triage-inline",
+			Command:            []string{"triage"},
+			CommandCentralized: false,
+		},
+		{
+			WorkflowID:         "summary",
+			Command:            []string{"summary"},
+			CommandCentralized: false,
+			Description:        "Summarize latest updates",
+		},
+	}
+
+	require.Equal(t, []helpCommandEntry{
+		{Command: "helpful", Description: "Triage work items", Centralized: true},
+		{Command: "summary", Description: "Summarize latest updates", Decentralized: true},
+		{Command: "triage", Description: "Triage work items", Centralized: true, Decentralized: true},
+	}, buildHelpCommandEntries(data))
 }
 
 func typeSetKeys(typeSet map[string]bool) []string {

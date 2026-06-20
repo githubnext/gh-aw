@@ -116,11 +116,21 @@ func generateCentralSlashCommandWorkflowWrapper(
 	ctx context.Context,
 	workflowDataList []*workflow.WorkflowData,
 	workflowsDir string,
+	gitRoot string,
 	strict bool,
 ) error {
 	compilePostProcessingLog.Print("Generating centralized slash-command workflow")
 
-	if err := workflow.GenerateCentralSlashCommandWorkflow(ctx, workflowDataList, workflowsDir); err != nil {
+	repoConfig, err := workflow.LoadRepoConfig(gitRoot)
+	if err != nil {
+		if strict {
+			return fmt.Errorf("failed to load repo config: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to load repo config: %v", err)))
+		repoConfig = nil
+	}
+
+	if err := workflow.GenerateCentralSlashCommandWorkflow(ctx, workflowDataList, workflowsDir, repoConfig); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate centralized slash-command workflow: %w", err)
 		}

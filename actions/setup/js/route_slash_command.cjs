@@ -7,6 +7,7 @@ const { matchesCommandName, parseSlashCommand } = require("./slash_command_match
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
+const DEFAULT_SLASH_COMMAND_DOCS_URL = "https://github.github.com/gh-aw/reference/command-triggers/";
 
 /**
  * Appends centralized command routing details to the current step summary.
@@ -294,6 +295,120 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
       return false;
     }
+
+    function isBuiltinHelpEnabled() {
+      const raw = (process.env.GH_AW_HELP_COMMAND_ENABLED || "").trim().toLowerCase();
+      return raw !== "false";
+    }
+
+    function parseHelpCommandsMetadata() {
+      const raw = process.env.GH_AW_HELP_COMMANDS || "[]";
+      try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+          return [];
+        }
+        return parsed
+          .map(item => {
+            const command = typeof item?.command === "string" ? item.command.trim() : "";
+            if (!command) {
+              return null;
+            }
+            const description = typeof item?.description === "string" ? item.description.trim() : "";
+            return {
+              command,
+              description,
+              centralized: Boolean(item?.centralized),
+              decentralized: Boolean(item?.decentralized),
+            };
+          })
+          .filter(item => item !== null)
+          .sort((left, right) => left.command.localeCompare(right.command));
+      } catch (error) {
+        core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)}`);
+        return [];
+      }
+    }
+
+    function helpDocsURL() {
+      const fromEnv = (process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim();
+      return fromEnv || DEFAULT_SLASH_COMMAND_DOCS_URL;
+    }
+
+    function buildCommandBulletLine(entry) {
+      const suffix = entry.description ? ` — ${entry.description}` : "";
+      return `- \`/${entry.command}\`${suffix}`;
+    }
+
+    function buildHelpCommentBody(helpCommands) {
+      const centralized = helpCommands.filter(entry => entry.centralized);
+      const decentralized = helpCommands.filter(entry => entry.decentralized);
+
+      const lines = [
+        "## Supported Slash Commands",
+        "",
+        "**Centralized commands**",
+      ];
+      if (centralized.length === 0) {
+        lines.push("- _None_");
+      } else {
+        for (const entry of centralized) {
+          lines.push(buildCommandBulletLine(entry));
+        }
+      }
+
+      lines.push("", "**Non-centralized commands**");
+      if (decentralized.length === 0) {
+        lines.push("- _None_");
+      } else {
+        for (const entry of decentralized) {
+          lines.push(buildCommandBulletLine(entry));
+        }
+      }
+
+      lines.push("", `Learn more: [Slash command documentation](${helpDocsURL()})`);
+      return lines.join("\n");
+    }
+
+    async function postBuiltinHelpComment(commentBody) {
+      const owner = context.repo.owner;
+      const repo = context.repo.repo;
+
+      const issueNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
+      if (issueNumber) {
+        await github.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: commentBody,
+          headers: {
+            "X-GitHub-Api-Version": GITHUB_API_VERSION,
+          },
+        });
+        return true;
+      }
+
+      if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
+        const discussionID = context.payload?.discussion?.node_id;
+        if (!discussionID) {
+          core.warning("Unable to post builtin /help response: discussion node_id missing.");
+          return false;
+        }
+        await github.graphql(
+          `
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+                comment { id }
+              }
+            }`,
+          { discussionId: discussionID, body: commentBody }
+        );
+        return true;
+      }
+
+      core.warning(`Unable to post builtin /help response for event '${context.eventName}'.`);
+      return false;
+    }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
   }
 }
@@ -423,6 +538,18 @@ async function main() {
   }
 
   const commandName = selectedCommand;
+  if (commandName === "help") {
+    if (!isBuiltinHelpEnabled()) {
+      core.info("Builtin /help command is disabled by aw.json (help_command=false).");
+      return;
+    }
+    const posted = await postBuiltinHelpComment(buildHelpCommentBody(parseHelpCommandsMetadata()));
+    if (posted) {
+      core.info("Posted builtin /help command response.");
+    }
+    return;
+  }
+
   core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
   const configuredRoutes = resolveMatchingSlashRoutes(slashRouteMap, commandName);
   core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);

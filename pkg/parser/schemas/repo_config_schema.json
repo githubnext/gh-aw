@@ -11,6 +11,10 @@
       "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. When true, the compiler emits GHES-compatible artifact action versions (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8 which are not supported on GHES.",
       "type": "boolean"
     },
+    "help_command": {
+      "description": "Enable or disable the builtin centralized /help slash command handler. Defaults to true when omitted. Set to false to disable.",
+      "type": "boolean"
+    },
     "utc": {
       "description": "Project home UTC offset used when rendering local times in CLI output. Must be a numeric UTC offset such as +00:00 or -08:00.",
       "type": "string",

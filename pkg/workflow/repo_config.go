@@ -8,6 +8,7 @@
 //
 //	{
 //	  "ghes": true,               // enables GHES compatibility mode (v3 artifact pins)
+//	  "help_command": false,      // disables builtin centralized /help comment handler
 //	  "utc": "-08:00", // project home UTC offset for rendered local times
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
@@ -122,6 +123,11 @@ type RepoConfig struct {
 	// The value must be a numeric UTC offset such as "+00:00" or "-08:00".
 	UTC string
 
+	// HelpCommand controls builtin centralized /help command behavior.
+	// When nil or true, the builtin help command is enabled.
+	// Set to false in aw.json to disable it.
+	HelpCommand *bool
+
 	// MaintenanceDisabled is true when maintenance has been explicitly set to false
 	// in aw.json, disabling agentic-maintenance generation and any features that
 	// depend on it (such as expires).
@@ -139,6 +145,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
 	var raw struct {
 		GHES        bool            `json:"ghes,omitempty"`
+		HelpCommand *bool           `json:"help_command,omitempty"`
 		UTC         string          `json:"utc,omitempty"`
 		Maintenance json.RawMessage `json:"maintenance,omitempty"`
 	}
@@ -147,10 +154,20 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	r.GHES = raw.GHES
+	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
 
 	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
 		return nil
+	}
+
+	// IsHelpCommandEnabled returns true when the builtin centralized /help command
+	// handler should be enabled. The default is enabled.
+	func (r *RepoConfig) IsHelpCommandEnabled() bool {
+		if r == nil || r.HelpCommand == nil {
+			return true
+		}
+		return *r.HelpCommand
 	}
 
 	// Try boolean first: maintenance: false disables the feature.

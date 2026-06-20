@@ -59,6 +59,29 @@ func TestLoadRepoConfig_EmptyObject(t *testing.T) {
 	require.NoError(t, err, "empty aw.json should load without error")
 	assert.False(t, cfg.MaintenanceDisabled, "maintenance should be enabled by default")
 	assert.Nil(t, cfg.Maintenance, "maintenance config should be nil when not specified")
+	assert.True(t, cfg.IsHelpCommandEnabled(), "help command should be enabled by default")
+}
+
+func TestLoadRepoConfig_HelpCommandFalse(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"help_command": false}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.HelpCommand, "help_command should be set")
+	assert.False(t, *cfg.HelpCommand, "help_command should be false when explicitly set")
+	assert.False(t, cfg.IsHelpCommandEnabled(), "help command should be disabled when help_command is false")
+}
+
+func TestLoadRepoConfig_HelpCommandTrue(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"help_command": true}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.HelpCommand, "help_command should be set")
+	assert.True(t, *cfg.HelpCommand, "help_command should be true when explicitly set")
+	assert.True(t, cfg.IsHelpCommandEnabled(), "help command should be enabled when help_command is true")
 }
 
 func TestLoadRepoConfig_MaintenanceEmptyObject(t *testing.T) {

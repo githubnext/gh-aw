@@ -69,6 +69,8 @@ describe("route_slash_command", () => {
   let dispatchCalls;
   /** @type {any[]} */
   let reactionCalls;
+  /** @type {any[]} */
+  let issueCommentCalls;
   /** @type {any} */
   let summaryMock;
 
@@ -83,6 +85,7 @@ describe("route_slash_command", () => {
     };
     dispatchCalls = [];
     reactionCalls = [];
+    issueCommentCalls = [];
     summaryMock = {};
     summaryMock.addHeading = vi.fn(() => summaryMock);
     summaryMock.addRaw = vi.fn(() => summaryMock);
@@ -122,6 +125,11 @@ describe("route_slash_command", () => {
             },
           })),
         },
+        issues: {
+          createComment: vi.fn(async params => {
+            issueCommentCalls.push(params);
+          }),
+        },
       },
     };
     globals.context = {
@@ -137,6 +145,12 @@ describe("route_slash_command", () => {
       archie: [{ workflow: "archie", events: ["issue_comment", "pull_request_comment"], ai_reaction: "eyes" }],
     });
     process.env.GH_AW_LABEL_ROUTING = JSON.stringify({});
+    process.env.GH_AW_HELP_COMMANDS = JSON.stringify([
+      { command: "archie", description: "Run archie workflow", centralized: true, decentralized: false },
+      { command: "local-summary", description: "Run summary workflow", centralized: false, decentralized: true },
+    ]);
+    process.env.GH_AW_HELP_COMMAND_ENABLED = "true";
+    process.env.GH_AW_SLASH_COMMAND_DOCS_URL = "https://github.github.com/gh-aw/reference/command-triggers/";
     process.env.GITHUB_WORKSPACE = `${process.cwd()}`;
   });
 
@@ -149,6 +163,9 @@ describe("route_slash_command", () => {
     globals.getOctokit = savedGlobals.getOctokit;
     delete process.env.GH_AW_SLASH_ROUTING;
     delete process.env.GH_AW_LABEL_ROUTING;
+    delete process.env.GH_AW_HELP_COMMANDS;
+    delete process.env.GH_AW_HELP_COMMAND_ENABLED;
+    delete process.env.GH_AW_SLASH_COMMAND_DOCS_URL;
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_REF;
     delete process.env.GITHUB_HEAD_REF;
@@ -176,6 +193,34 @@ describe("route_slash_command", () => {
     expect(summaryMock.addRaw).toHaveBeenCalledWith("- Configured commands: 1", true);
     expect(summaryMock.addRaw).toHaveBeenCalledWith("<details><summary>Configured commands</summary>\n\n- `/archie`\n\n</details>", true);
     expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });
+  });
+
+  it("handles builtin /help by posting a context comment and skipping dispatch", async () => {
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(0);
+    expect(issueCommentCalls).toHaveLength(1);
+    expect(issueCommentCalls[0].issue_number).toBe(77);
+    expect(issueCommentCalls[0].body).toContain("## Supported Slash Commands");
+    expect(issueCommentCalls[0].body).toContain("**Centralized commands**");
+    expect(issueCommentCalls[0].body).toContain("- `/archie` — Run archie workflow");
+    expect(issueCommentCalls[0].body).toContain("**Non-centralized commands**");
+    expect(issueCommentCalls[0].body).toContain("- `/local-summary` — Run summary workflow");
+    expect(issueCommentCalls[0].body).toContain("https://github.github.com/gh-aw/reference/command-triggers/");
+  });
+
+  it("skips builtin /help when disabled", async () => {
+    process.env.GH_AW_HELP_COMMAND_ENABLED = "false";
+    globals.context.payload.comment.body = "/help";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(0);
+    expect(issueCommentCalls).toHaveLength(0);
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Builtin /help command is disabled"));
   });
 
   it("logs empty selected command in summary when no slash command is present", async () => {
