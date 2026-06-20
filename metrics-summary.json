@@ -1,26 +1,26 @@
 {
-  "updated": "2026-06-19T22:00Z",
-  "date": "2026-06-19",
+  "updated": "2026-06-20T22:00Z",
+  "date": "2026-06-20",
   "partial": true,
-  "latest_window": "2026-06-19 last-24h (window 16:18Z-21:29Z, ~18.8h compute action-min). 106 runs, 97 s / 9 f = 91.5%. prod-main 46/54 = 85.2% \u2014 REBOUND from 06-18 (74.2%). All 9 fails KNOWN-recurring, ZERO new class: Avenger x4 (100% of its runs, escalating day-over-day from 06-18 x2), copilot-sdk tool-perm-lockout x3 (Daily Safe Output Integrator, Daily SPDD Spec Planner, PR Code Quality Reviewer), codex Cache Strategy x1, Documentation Unbloat empty-output x1. missing_tools=0 missing_data=0 mcp_failures=0 errors=0. TOKEN DATA UNAVAILABLE this window (logs called without --artifacts; all token_usage.jsonl empty, summary tok=0).",
+  "latest_window": "2026-06-20 (~23.3h 21:56Z-21:16Z). 395 runs, 275 s/120 f = 69.6% overall \u2014 BUT 103/120 fails (86%) are NEW workflow Skillet at 100% fail rate. EX-SKILLET success = 275/292 = 94.2% (on-baseline, healthy). Skillet=copilot, fires on push fleet-wide (all branches+main), 0-tok pre-activation fails, merged in HEAD 894b94c private:true. Non-Skillet fails (17): Avenger x8 (ESCALATING recur13, 100% of runs), copilot-sdk-lockout x2, security-obs-0tok x1, +singletons +2 by-design. missing_tools=2 missing_data=0 mcp=0. Tokens partial (18.3M captured, undercounted).",
   "totals": {
-    "r": 106,
-    "completed": 106,
-    "s": 97,
-    "f": 9,
-    "rate": 91.5,
-    "prod_main_rate": 85.2,
-    "tok": null,
-    "tok_note": "unavailable-artifacts-not-downloaded",
-    "action_min": 1129,
-    "missing_tools": 0,
+    "r": 395,
+    "completed": 395,
+    "s": 275,
+    "f": 120,
+    "rate": 69.6,
+    "rate_ex_skillet": 94.2,
+    "tok": 18325653,
+    "tok_note": "partial-undercounted",
+    "aic": 6398,
+    "turns": 7134,
+    "missing_tools": 2,
     "missing_data": 0,
     "mcp_failures": 0,
-    "errors": 0,
     "safe_items": 0
   },
   "engines": {
-    "note": "engine_counts unavailable this window (logs summary.engine_counts=none, aw_info.json artifacts not downloaded)"
+    "note": "engine_counts unavailable (aw_info not fetched); Skillet=copilot, Avenger=claude per source"
   },
   "history": [
     {
@@ -257,6 +257,16 @@
       "tok": null,
       "partial": true,
       "note": "prod-main 85.2% rebound; 9 fails ALL known (avenger x4 100%, copilot-sdk-lockout x3, codex-cache-strategy, doc-unbloat); 0 missing-tools/data/mcp/errors; token data unavailable (artifacts not fetched)"
+    },
+    {
+      "d": "2026-06-20",
+      "r": 395,
+      "s": 275,
+      "rate": 69.6,
+      "rate_ex_skillet": 94.2,
+      "tok": 18325653,
+      "partial": true,
+      "note": "Skillet NEW 100%-fail x103 skews overall; ex-Skillet 94.2% healthy. Avenger escalating x8."
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-19",
+  "updated": "2026-06-20T22:00Z",
   "issues": [
     {
       "id": "model-param-config-incompatibility",
@@ -40,8 +40,8 @@
       "status": "recurring",
       "severity": "HIGH",
       "first_seen": "2026-06-02",
-      "last_seen": "2026-06-19",
-      "recurrence": "RECUR 2026-06-19 (count 12): 3 tool-perm-lockout 0-tok fails \u2014 Daily Safe Output Integrator (27844066542, 23min, safe_outputs+detection skipped), Daily SPDD Spec Planner (27837850380, 25min, detection+safe_outputs SUCCESS), PR Code Quality Reviewer (27841406519, PR branch, 23min). Day12 of chronic path.",
+      "last_seen": "2026-06-20",
+      "recurrence": "RECUR 2026-06-20 (count 14)",
       "affected": [
         "Daily SPDD Spec Planner",
         "Daily Safe Output Integrator",
@@ -50,7 +50,9 @@
         "PR Code Quality Reviewer"
       ],
       "note": "06-19 x3 prod/PR tool-perm-lockout (Safe Output Integrator, SPDD, PR CQR)",
-      "recurrence_count": 12
+      "recurrence_count": 12,
+      "count": 14,
+      "summary": "2 tool-perm-lockout 0-tok fails: Daily Safe Output Integrator (27880811834, 24min, 1-turn) + PR Code Quality Reviewer (PR branch). Day14 of chronic copilot-sdk path."
     },
     {
       "id": "copilot-agent-job-redden-with-valid-output",
@@ -156,13 +158,15 @@
       "severity": "HIGH",
       "new": true,
       "first_seen": "2026-06-13",
-      "last_seen": "2026-06-19",
+      "last_seen": "2026-06-20",
       "recurrence_count": 12,
-      "recurrence": "RECUR 2026-06-19 (count 12, ESCALATING): Avenger x4 ALL reddened (100% of its runs) \u2014 runs 27845956163/27843736968/27841318778/27839069048, all main/schedule, 0-tok/0-turn agent:failure 17-21min. Up from 06-18 x2. Chronic #1 prod-main offender; fix branch still not effective.",
+      "recurrence": "RECUR 2026-06-20 (count 13, ESCALATING)",
       "affected": [
         "Avenger"
       ],
-      "note": "06-19 x4 (100% fail, escalating); 4 days of recurrence since 06-13 onset with quiet gaps"
+      "note": "06-19 x4 (100% fail, escalating); 4 days of recurrence since 06-13 onset with quiet gaps",
+      "count": 13,
+      "summary": "Avenger x8 ALL reddened (100% of its runs), main/schedule, 0-tok agent:failure 14-21min. ESCALATING: 06-18 x2 -> 06-19 x4 -> 06-20 x8. Chronic #1 non-Skillet prod-main offender; fix branch still not effective after 13 days."
     },
     {
       "id": "doc-unbloat-empty-output",
@@ -201,13 +205,15 @@
       "severity": "medium",
       "new": true,
       "first_seen": "2026-06-15",
-      "last_seen": "2026-06-18",
+      "last_seen": "2026-06-20",
       "recurrence_count": 2,
       "recurrence": "NEW 2026-06-15: Daily Security Observability Report (copilot, run 27564289635). Setup ok (gh aw v0.79.8) but agent emitted no output/artifact (tok=0); conclusion hard-failed on missing 'agent' artifact. Likely copilot CLI startup fail pre-output.",
       "affected": [
         "Daily Security Observability Report"
       ],
-      "note": "Daily Security Observability Report copilot 0-tok agent:failure 06-18"
+      "note": "Daily Security Observability Report copilot 0-tok agent:failure 06-18",
+      "count": 2,
+      "summary": "Daily Security Observability Report 0-tok agent:failure (10.4m) main/schedule. Recurs."
     },
     {
       "id": "upload-assets-reddens-successful-run",
@@ -226,6 +232,20 @@
       ],
       "note": "quiet 06-18 (no upload_assets-only failures); kept OPEN",
       "fix": "Make upload_assets non-fatal to overall run conclusion (skip-and-warn) OR add retry/validation so a transient asset upload failure does not red a successful agent run."
+    },
+    {
+      "id": "skillet-100pct-fail-on-push-fleet-wide",
+      "status": "OPEN",
+      "first_seen": "2026-06-20",
+      "last_seen": "2026-06-20",
+      "recurrence": "NEW",
+      "count": 1,
+      "affected_workflows": [
+        "Skillet"
+      ],
+      "engine": "copilot",
+      "summary": "NEW workflow Skillet (merged HEAD 894b94c, private:true) fired on push across every branch incl main and failed 100% (103/103 runs in 24h), 0-tok/null-turn pre-activation failures (agent never runs). Source declares slash_command(centralized) trigger yet runs carry event=push. Single-handedly dropped fleet overall success 94.2%->69.6%. Active dev in flight (many copilot/* branches) but also reddening main.",
+      "detail": "103 fails: ~81 concentrated 13:00-21:16Z dev-activity window. Lock at HEAD has only workflow_dispatch trigger; mismatch with observed push-triggered runs suggests activation/trigger misconfig or central-dispatcher misfire."
     }
   ]
 }

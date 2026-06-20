@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-19",
+  "updated": "2026-06-20T22:00Z",
   "anomalies": [
     {
       "id": "anom-sdk-toolperm-reescalate",
@@ -124,6 +124,15 @@
       "detail": "Avenger claude resurfaced 06-18 x2 (77K tok/2-turn agent:failure) after 4-day quiet since 06-14; chronic top prod-main offender (issue recur 11). Bash tool error stalls observed in agent-stdio. | 06-19 ESCALATE: x4 reddens (100% of Avenger runs), 0-tok/0-turn agent:failure 17-21min (27845956163/27843736968/27841318778/27839069048). Up from 06-18 x2; chronic #1 prod-main offender.",
       "status": "ACTIVE",
       "last_seen": "2026-06-19"
+    },
+    {
+      "id": "anom-skillet-fleet-wide-redness-2026-06-20",
+      "first_seen": "2026-06-20",
+      "last_seen": "2026-06-20",
+      "persistence_score": 1,
+      "escalation_state": "NEW-HIGH",
+      "summary": "Sudden fleet-wide failure spike: NEW workflow Skillet 103 fails/100% in 24h on push across all branches+main, 0-tok pre-activation. Overall success cratered to 69.6% (would be 94.2% ex-Skillet). Largest single-workflow failure cluster observed in audit history. Watch for resolution as Skillet dev stabilizes.",
+      "linked_issue": "skillet-100pct-fail-on-push-fleet-wide"
     }
   ]
 }

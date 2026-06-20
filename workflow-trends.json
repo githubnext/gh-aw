@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-19",
+  "updated": "2026-06-20T22:00Z",
   "workflows": {
     "Linter Miner": {
       "last": "2026-06-06",
@@ -148,12 +148,11 @@
       "engine": "pi"
     },
     "Avenger": {
-      "last": "2026-06-19",
+      "last": "2026-06-20",
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "avenger-err-config-no-structured-logs",
-      "note": "06-19 x4 = 100% of runs reddened (0-tok), escalating from 06-18 x2; chronic #1 prod-main offender",
-      "class_": "avenger-err-config-no-structured-logs"
+      "note": "x8 100% fail, ESCALATING 2->4->8 over 06-18/19/20. recur13. Chronic #1 non-Skillet offender."
     },
     "Daily Formal Spec Verifier": {
       "last": "2026-06-14",
@@ -197,6 +196,13 @@
       "class": "upload_assets-reddens-successful-run",
       "note": "agent SUCCESS but upload_assets job failed -> run red (run 27649783375). False-red.",
       "engine": "copilot"
+    },
+    "Skillet": {
+      "last": "2026-06-20",
+      "last_concl": "failure",
+      "eff_tok": 0,
+      "class": "skillet-100pct-fail-on-push-fleet-wide",
+      "note": "NEW; 103 fails/100% in 24h on push all-branches+main, 0-tok pre-activation. private:true, merged HEAD 894b94c."
     }
   }
 }

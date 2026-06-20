@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-19",
+  "updated": "2026-06-20T22:00Z",
   "recommendations": [
     {
       "id": "rec-sdk-toolperm-allowlist-or-relax-guard",
@@ -55,9 +55,10 @@
       "first_seen": "2026-06-13",
       "last_seen": "2026-06-19",
       "recurrence": 4,
-      "status": "open",
+      "status": "ESCALATE day7",
       "rec": "TOP NEW. Avenger reddened 6x today (claude). The agent finishes real work + posts a valid safe-output, then a follow-up engine call in the same job returns no structured log entries -> ERR_CONFIG hard-fails the agent job. Fix: (1) treat a follow-up invocation that produces no structured logs AFTER a successful prior pass as success/no-op rather than ERR_CONFIG; (2) gate the 2nd invocation behind a 'work remaining' ch\u2026",
-      "note": "RECONFIRM 06-19 (ESCALATE): Avenger x4 = 100% of its runs reddened, up from 06-18 x2. Now jointly TOP prod-main offender. Fix branch still not effective after 6 days."
+      "note": "ESCALATING: 06-18 x2 -> 06-19 x4 -> 06-20 x8 (100% of Avenger runs). avenger-err-config recur13, fix still ineffective. Now #1 non-Skillet prod-main offender. Needs owner attention.",
+      "last_raised": "2026-06-20"
     },
     {
       "id": "rec-doc-unbloat-tolerance-consistency",
@@ -129,6 +130,17 @@
       "status": "open",
       "rec": "upload_assets safe-output job failure should not redden a run whose agent + other safe_outputs + detection all succeeded. Make the asset-publish step non-fatal (continue-on-error / soft-fail) and surface a warning annotation instead, OR validate asset path resolution earlier. Note: asset paths must resolve under $GITHUB_WORKSPACE \u2014 host safeoutputs server cannot read /tmp/gh-aw/{python,agent,cache-memory}; document this so chart-generating workflows copy to workspace before upload.",
       "note": "Recurs 06-16 (Daily Code Metrics, Daily Project Performance Summary) -> 06-17 (Daily Project Performance Summary). 2 consecutive days."
+    },
+    {
+      "id": "rec-skillet-trigger-and-preactivation-fix",
+      "priority": "P0",
+      "status": "OPEN",
+      "first_raised": "2026-06-20",
+      "linked_issue": "skillet-100pct-fail-on-push-fleet-wide",
+      "workflows": [
+        "Skillet"
+      ],
+      "recommendation": "Skillet (NEW, merged HEAD 894b94c, private:true) is failing 100% (103 runs/24h) and firing on push across EVERY branch incl main, reddening the whole fleet (94.2%->69.6%). (1) Reconcile trigger: source declares slash_command(centralized) but runs carry event=push \u2014 verify the compiled trigger/central-dispatcher registration; it should NOT run on arbitrary pushes. (2) Fix the pre-activation/setup job that 0-tok-fails before the agent. (3) Until fixed, consider disabling Skillet on main or gating it so dev iteration doesn't generate fleet-wide red runs. Owner appears to be actively iterating (copilot/* branches)."
     }
   ]
 }
