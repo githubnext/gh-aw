@@ -139,11 +139,11 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 	if !strings.Contains(output, `"entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`) {
 		t.Error("Expected entrypointArgs to run the stdio MCP server script")
 	}
-	if !strings.Contains(output, `"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`) {
-		t.Error("Expected direct shell variable reference for safe outputs path")
+	if !strings.Contains(output, `"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`) {
+		t.Error("Expected backslash-escaped shell variable reference for safe outputs path")
 	}
-	if !strings.Contains(output, `"RUNNER_TEMP": "$RUNNER_TEMP"`) {
-		t.Error("Expected direct shell variable reference for RUNNER_TEMP")
+	if !strings.Contains(output, `"RUNNER_TEMP": "\${RUNNER_TEMP}"`) {
+		t.Error("Expected backslash-escaped shell variable reference for RUNNER_TEMP")
 	}
 	if strings.Contains(output, `"tools"`) {
 		t.Error("Should not contain 'tools' field")

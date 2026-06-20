@@ -76,7 +76,7 @@ The wizard generates a compiled workflow file (`.lock.yml`) automatically — yo
 
 > [!NOTE]
 > **Setting up `COPILOT_GITHUB_TOKEN`?**
-> 1. [Create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) under your user account.
+> 1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
 > 2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
 > 3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
 >
@@ -93,6 +93,13 @@ The wizard generates a compiled workflow file (`.lock.yml`) automatically — yo
 ### Step 3 - Wait for the workflow to complete
 
 An automated workflow run can take 2-3 minutes.
+
+To watch the run while it's in flight:
+
+- **From the browser**: open the **Actions** tab of your repository and select the most recent workflow run.
+- **From the CLI**: run `gh aw status` to list workflow state, or `gh run watch` to stream the latest run.
+
+When the run succeeds, a new issue titled with "Daily Repo Report" appears in the **Issues** tab of your repository. If the run fails, open the run from the **Actions** tab to view step logs and error output.
 
 Once your initial run is complete, a new issue will be created in your repository with a "Daily Repo Report". The report will be automatically generated and will analyze:
 

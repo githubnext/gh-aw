@@ -107,7 +107,7 @@ type Compiler struct {
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
 	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3.x pins for artifact actions instead of the latest v7/v8
-	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login
+	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -136,7 +136,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		artifactManager:   NewArtifactManager(),
 		actionPinWarnings: make(map[string]bool), // Initialize warning cache
 		priorManifests:    make(map[string]*GHAWManifest),
-		gitRoot:           gitRoot, // Auto-detected git root
+		ownerTypeCache:    make(map[string]string), // Initialize owner-type cache (keyed by owner login)
+		gitRoot:           gitRoot,                 // Auto-detected git root
 	}
 
 	// Apply functional options
@@ -718,6 +719,7 @@ type SafeOutputsConfig struct {
 	Jobs                                   map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
 	Scripts                                map[string]*SafeScriptConfig           `yaml:"scripts,omitempty"`                      // Custom inline handlers that run in the safe-output handler loop
 	GitHubApp                              *GitHubAppConfig                       `yaml:"github-app,omitempty"`                   // GitHub App credentials for token minting
+	URLs                                   string                                 `yaml:"urls,omitempty"`                         // URL sanitization policy: SafeOutputsURLsPolicyAllowedOnly (default) or SafeOutputsURLsPolicyAllowedOrCodeRegion
 	AllowedDomains                         []string                               `yaml:"allowed-domains,omitempty"`              // Allowed domains for URL redaction, unioned with network.allowed; supports ecosystem identifiers
 	AllowGitHubReferences                  []string                               `yaml:"allowed-github-references,omitempty"`    // Allowed repositories for GitHub references (e.g., ["repo", "org/repo2"])
 	Staged                                 bool                                   `yaml:"staged,omitempty"`                       // If true, emit step summary messages instead of making GitHub API calls
@@ -775,14 +777,22 @@ type MentionsConfig struct {
 	//   nil: use default behavior with team members and context
 	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 
-	// AllowTeamMembers determines if team members can be mentioned (default: true)
-	AllowTeamMembers *bool `yaml:"allow-team-members,omitempty" json:"allowTeamMembers,omitempty"`
+	// AllowedCollaborators determines if repository collaborators can be mentioned (default: true)
+	AllowedCollaborators *bool `yaml:"allowed-collaborators,omitempty" json:"allowedCollaborators,omitempty"`
 
 	// AllowContext determines if mentions from event context are allowed (default: true)
 	AllowContext *bool `yaml:"allow-context,omitempty" json:"allowContext,omitempty"`
 
 	// Allowed is a list of user/bot names always allowed (bots not allowed by default)
 	Allowed []string `yaml:"allowed,omitempty" json:"allowed,omitempty"`
+
+	// AllowedTeams is a list of team slugs whose members are always allowed to be mentioned.
+	// Accepts "team-slug" (resolved against the current org) or "org/team-slug" format.
+	// Requires the workflow token to have read:org scope (a fine-grained PAT, classic PAT with
+	// read:org, or a GitHub App with the Members:Read permission). The default GITHUB_TOKEN
+	// does not include read:org and will produce a 403/404 warning; team members will be skipped
+	// but the workflow will not fail.
+	AllowedTeams []string `yaml:"allowed-teams,omitempty" json:"allowedTeams,omitempty"`
 
 	// Max is the maximum number of mentions per message (default: 50)
 	Max *int `yaml:"max,omitempty" json:"max,omitempty"`

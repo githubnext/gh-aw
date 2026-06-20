@@ -203,6 +203,66 @@ describe("checkoutRepo slug validation", () => {
   });
 });
 
+describe("checkoutRepo extraheader credential handling", () => {
+  let mockExec;
+  let mockCore;
+  let originalExec;
+  let originalCore;
+
+  /** Build an exec mock whose `git config --get-all ...extraheader` returns `persisted`. */
+  function makeExec(persisted) {
+    return {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+        if (args && args[0] === "config" && args.includes("--get-all")) {
+          return Promise.resolve({ stdout: persisted, stderr: "", exitCode: persisted ? 0 : 1 });
+        }
+        return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+      }),
+    };
+  }
+
+  /** Returns true if any exec.exec call configured an http.<...>.extraheader. */
+  function injectedExtraheader(exec) {
+    return exec.exec.mock.calls.some(([, args]) => Array.isArray(args) && args[0] === "config" && args.some(a => typeof a === "string" && a.endsWith(".extraheader")));
+  }
+
+  beforeEach(() => {
+    originalExec = global.exec;
+    originalCore = global.core;
+    mockCore = { info: vi.fn(), error: vi.fn(), warning: vi.fn(), debug: vi.fn() };
+    global.core = mockCore;
+  });
+
+  afterEach(() => {
+    global.exec = originalExec;
+    global.core = originalCore;
+  });
+
+  it("does not inject a second extraheader when the checkout already persisted one", async () => {
+    mockExec = makeExec("AUTHORIZATION: basic PERSISTED");
+    global.exec = mockExec;
+
+    const result = await checkoutRepo("owner/repo", "fake-token", { baseBranch: "main" });
+
+    expect(result.success).toBe(true);
+    expect(injectedExtraheader(mockExec)).toBe(false);
+    // origin is still repointed at the target repo so the persisted credential applies
+    const setUrl = mockExec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "remote" && args[1] === "set-url");
+    expect(setUrl).toBeDefined();
+  });
+
+  it("injects an extraheader when no credential is persisted", async () => {
+    mockExec = makeExec("");
+    global.exec = mockExec;
+
+    const result = await checkoutRepo("owner/repo", "fake-token", { baseBranch: "main" });
+
+    expect(result.success).toBe(true);
+    expect(injectedExtraheader(mockExec)).toBe(true);
+  });
+});
+
 describe("getCurrentCheckoutRepo URL parsing", () => {
   let mockCore;
   let originalExec;

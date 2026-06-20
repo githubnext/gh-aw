@@ -204,6 +204,26 @@ describe("safe_outputs_tools_loader", () => {
       expect(defaultHandler).toHaveBeenCalledWith("dispatch_workflow");
     });
 
+    it("should not attach dispatch_workflow handler for whitespace-only _workflow_name", () => {
+      const tools = [{ name: "test_workflow", description: "Test workflow", _workflow_name: "   " }];
+      const mockHandlerFunction = vi.fn();
+      const defaultHandler = vi.fn(() => mockHandlerFunction);
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+        defaultHandler: defaultHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBeDefined();
+      result[0].handler({ test_param: "value" });
+      expect(mockHandlerFunction).toHaveBeenCalledWith({ test_param: "value" });
+      expect(defaultHandler).toHaveBeenCalledWith("test_workflow");
+      expect(defaultHandler).not.toHaveBeenCalledWith("dispatch_workflow");
+    });
+
     it("should wrap args in inputs property for dispatch_workflow handler", () => {
       const tools = [{ name: "ci_workflow", description: "CI workflow", _workflow_name: "ci" }];
       const mockHandlerFunction = vi.fn();
@@ -565,6 +585,22 @@ describe("safe_outputs_tools_loader", () => {
       expect(registerTool).toHaveBeenCalledWith(mockServer, tools[1]);
       // Should NOT register the tool without _workflow_name
       expect(registerTool).not.toHaveBeenCalledWith(mockServer, tools[2]);
+    });
+
+    it("should not register dispatch_workflow tools with whitespace-only _workflow_name", () => {
+      const tools = [{ name: "test_workflow", description: "Test workflow", _workflow_name: "   " }];
+      const config = {
+        dispatch_workflow: {
+          workflows: ["test-workflow"],
+          max: 1,
+        },
+      };
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerPredefinedTools(mockServer, tools, config, registerTool, normalizeTool);
+
+      expect(registerTool).not.toHaveBeenCalled();
     });
 
     it("should not register dispatch_workflow tools when dispatch_workflow is not in config", () => {

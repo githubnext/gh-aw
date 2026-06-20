@@ -197,6 +197,9 @@ type AWFAPIProxyConfig struct {
 	// MaxRuns is the maximum number of LLM invocations allowed for a run.
 	MaxRuns int `json:"maxRuns,omitempty"`
 
+	// MaxTurnCacheMisses is the maximum number of consecutive cache misses allowed for a run.
+	MaxTurnCacheMisses int `json:"maxCacheMisses,omitempty"`
+
 	// MaxAICredits is the explicit per-run AI credits budget enforced by the API proxy.
 	MaxAICredits int64 `json:"maxAiCredits,omitempty"`
 
@@ -354,11 +357,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
 	maxAICredits := int64(0)
 	maxRuns := constants.DefaultMaxRuns
+	// GetMaxTurnCacheMisses handles nil receiver and env-var fallback, so pre-init
+	// via the nil receiver avoids a redundant os.Getenv when EngineConfig is set.
+	maxTurnCacheMisses := (*EngineConfig)(nil).GetMaxTurnCacheMisses()
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
 			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
 		}
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
+		maxTurnCacheMisses = config.WorkflowData.EngineConfig.GetMaxTurnCacheMisses()
 	}
 
 	// Token steering is enabled by default. Setting max-ai-credits to a negative
@@ -373,6 +380,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	apiProxy := &AWFAPIProxyConfig{
 		Enabled:             true,
 		MaxRuns:             maxRuns,
+		MaxTurnCacheMisses:  maxTurnCacheMisses,
 		MaxAICredits:        maxAICredits,
 		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
 	}

@@ -240,6 +240,84 @@ imports:
 	assert.Equal(t, "9", result.engineConfig.MaxToolDenials)
 }
 
+func TestSetupEngineAndImports_ImportedTopLevelMaxTurnCacheMisses(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-max-turn-cache-misses")
+
+	sharedContent := `---
+engine: copilot
+max-turn-cache-misses: 7
+---
+
+# Shared Workflow
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(sharedContent), 0644))
+
+	testContent := `---
+on: push
+imports:
+  - shared/common.md
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "copilot", result.engineSetting)
+	assert.Equal(t, 7, result.engineConfig.MaxTurnCacheMisses)
+}
+
+// TestSetupEngineAndImports_MainMaxTurnCacheMissesTakesPrecedenceOverImport verifies that
+// a main workflow's max-turn-cache-misses frontmatter wins over the same field in an import.
+func TestSetupEngineAndImports_MainMaxTurnCacheMissesTakesPrecedenceOverImport(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-main-cache-misses-wins")
+
+	sharedContent := `---
+engine: copilot
+max-turn-cache-misses: 7
+---
+
+# Shared Workflow
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(sharedContent), 0644))
+
+	testContent := `---
+on: push
+max-turn-cache-misses: 3
+imports:
+  - shared/common.md
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, 3, result.engineConfig.MaxTurnCacheMisses, "main workflow max-turn-cache-misses must win over import")
+}
+
 // TestSetupEngineAndImports_EngineOverride tests command-line engine override
 func TestSetupEngineAndImports_EngineOverride(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-override")

@@ -4,11 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var commandLog = logger.New("workflow:command")
+
+func isWildcardCommandName(commandName string) bool {
+	return len(commandName) > 1 && strings.HasSuffix(commandName, "*")
+}
 
 // buildEventAwareCommandCondition creates a condition that only applies command checks to comment-related events
 // commandNames: list of command names that can trigger this workflow
@@ -43,6 +48,15 @@ func buildEventAwareCommandCondition(commandNames []string, commandEvents []stri
 	buildMultiCommandCheck := func(bodyAccessor string) ConditionNode {
 		var commandOrChecks []ConditionNode
 		for _, commandName := range commandNames {
+			if isWildcardCommandName(commandName) {
+				commandPrefix := "/" + strings.TrimSuffix(commandName, "*")
+				commandOrChecks = append(commandOrChecks, BuildFunctionCall("startsWith",
+					BuildPropertyAccess(bodyAccessor),
+					BuildStringLiteral(commandPrefix),
+				))
+				continue
+			}
+
 			commandText := "/" + commandName
 			commandWithSpace := fmt.Sprintf("/%s ", commandName)
 			commandWithNewline := fmt.Sprintf("/%s\n", commandName)

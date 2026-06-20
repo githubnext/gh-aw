@@ -255,7 +255,11 @@ fi`,
 	if awfSupportsDockerHostPathPrefix(firewallConfig) {
 		chrootPatchBody := ""
 		if awfSupportsChrootConfig(firewallConfig) {
-			chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBody()
+			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
+				chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBodyBash()
+			} else {
+				chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBody()
+			}
 		}
 		arcDindPrefixProbe = fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
@@ -269,15 +273,12 @@ fi`,
 		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
 	toolCacheMountProbe := fmt.Sprintf(`%s=""
-GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"
+GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"
 if [ -d "$GH_AW_TOOL_CACHE" ]; then
   if [[ "$GH_AW_TOOL_CACHE" != /opt/* ]]; then
     %s="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"
   fi
-elif [ -d "/home/runner/work/_tool" ]; then
-  %s="/home/runner/work/_tool:/home/runner/work/_tool:ro"
 fi`,
-		awfToolCacheMountVarName,
 		awfToolCacheMountVarName,
 		awfToolCacheMountVarName,
 	)
@@ -977,4 +978,21 @@ try:
 except Exception as e:
  raise SystemExit(f"chroot config patch failed: {e}") from e
 PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome, awfArcDindChrootBinariesSourcePath)
+}
+
+// buildArcDindChrootConfigPatchBodyBash returns bash commands (using jq) that patch the AWF
+// config file with chroot.binariesSourcePath and chroot.identity.*. This is the bash
+// equivalent of buildArcDindChrootConfigPatchBody, used for detection runs where Python
+// must not be injected.
+// Both config paths are updated: ${RUNNER_TEMP}/gh-aw/awf-config.json (read by AWF) and
+// /tmp/gh-aw/awf-config.json (used by the unified agent artifact upload).
+func buildArcDindChrootConfigPatchBodyBash() string {
+	return fmt.Sprintf(
+		`  _GH_AW_CHROOT_JSON=$(jq -c --arg src %s --arg user "$(id -un)" --argjson uid "$(id -u)" --argjson gid "$(id -g)" --arg home %s '.chroot={"binariesSourcePath":$src,"identity":{"user":$user,"uid":$uid,"gid":$gid,"home":$home}}' "${RUNNER_TEMP}/gh-aw/awf-config.json") || { echo "chroot config patch failed" >&2; exit 1; }
+  printf '%%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+  printf '%%s\n' "$_GH_AW_CHROOT_JSON" > "%s/awf-config.json"`,
+		awfArcDindChrootBinariesSourcePath,
+		awfArcDindChrootIdentityHome,
+		awfArcDindChrootBinariesSourcePath,
+	)
 }

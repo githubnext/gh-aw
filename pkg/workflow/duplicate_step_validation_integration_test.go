@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
-
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestDuplicateStepValidation_Integration tests that the duplicate step validation
@@ -187,4 +189,84 @@ compile without duplicate 'Generate GitHub App token' step errors in the activat
 	}
 
 	t.Logf("✓ No duplicate token steps: checkout (0) count=%d, checkout (1) count=%d, generic in agent=%d", count0, count1, genericCountInAgent)
+}
+
+// TestDuplicateStepValidation_CheckoutAppTokenCondition_Integration verifies that
+// safe_outputs checkout app-token steps remain valid YAML when PR-producing
+// safe outputs inject a shared condition onto mirrored checkout steps.
+func TestDuplicateStepValidation_CheckoutAppTokenCondition_Integration(t *testing.T) {
+	cases := []struct {
+		name                 string
+		safeOutputConfigLine string
+		outputType           string
+	}{
+		{
+			name:                 "create_pull_request",
+			safeOutputConfigLine: "create-pull-request: {}",
+			outputType:           "create_pull_request",
+		},
+		{
+			name:                 "push_to_pull_request_branch",
+			safeOutputConfigLine: "push-to-pull-request-branch: {}",
+			outputType:           "push_to_pull_request_branch",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "duplicate-checkout-app-token-if-test")
+
+			mdContent := `---
+on:
+  issues:
+    types: [opened]
+engine: claude
+strict: false
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+checkout:
+  github-app:
+    app-id: ${{ secrets.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+safe-outputs:
+  ` + tc.safeOutputConfigLine + `
+---
+
+# Test Workflow
+`
+
+			mdFile := filepath.Join(tmpDir, "test-checkout-app-token-condition.md")
+			err := os.WriteFile(mdFile, []byte(mdContent), 0644)
+			require.NoError(t, err, "Failed to create test file")
+
+			compiler := NewCompiler()
+			err = compiler.CompileWorkflow(mdFile)
+			require.NoError(t, err, "Regression: checkout github-app + PR-producing safe output should compile successfully")
+
+			lockFile := stringutil.MarkdownToLockFile(mdFile)
+			lockContent, err := os.ReadFile(lockFile)
+			require.NoError(t, err, "Failed to read lock file")
+
+			var workflow map[string]any
+			require.NoError(t, yaml.Unmarshal(lockContent, &workflow), "compiled lock file should be valid YAML")
+
+			safeOutputsSection := extractJobSection(string(lockContent), "safe_outputs")
+			stepStart := strings.Index(safeOutputsSection, "      - name: Generate GitHub App token for checkout (0)\n")
+			require.NotEqual(t, -1, stepStart, "safe_outputs job should contain the checkout app-token step")
+
+			stepEnd := strings.Index(safeOutputsSection[stepStart+1:], "\n      - ")
+			if stepEnd == -1 {
+				stepEnd = len(safeOutputsSection)
+			} else {
+				stepEnd += stepStart + 1
+			}
+			stepBlock := safeOutputsSection[stepStart:stepEnd]
+
+			assert.Equal(t, 1, strings.Count(stepBlock, "\n        if: "), "checkout app-token step should have exactly one injected if condition")
+			assert.Contains(t, stepBlock, "id: checkout-app-token-0")
+			assert.Contains(t, stepBlock, tc.outputType)
+		})
+	}
 }

@@ -9,6 +9,30 @@ import (
 
 var safeOutputsDomainsValidationLog = newValidationLogger("safe_outputs_domains")
 
+const (
+	SafeOutputsURLsPolicyAllowedOnly         = "allowed-only"
+	SafeOutputsURLsPolicyAllowedOrCodeRegion = "allowed-or-code-region"
+)
+
+// validateSafeOutputsURLs validates the urls policy in safe-outputs.
+func validateSafeOutputsURLs(config *SafeOutputsConfig) error {
+	if config == nil || config.URLs == "" {
+		return nil
+	}
+
+	switch config.URLs {
+	case SafeOutputsURLsPolicyAllowedOnly, SafeOutputsURLsPolicyAllowedOrCodeRegion:
+		return nil
+	default:
+		return fmt.Errorf(
+			"safe-outputs.urls: invalid value %q (expected one of: %q, %q)",
+			config.URLs,
+			SafeOutputsURLsPolicyAllowedOnly,
+			SafeOutputsURLsPolicyAllowedOrCodeRegion,
+		)
+	}
+}
+
 // validateSafeOutputsAllowedDomains validates the allowed-domains configuration in safe-outputs.
 // Supports ecosystem identifiers (e.g., "python", "node", "default-safe-outputs") like network.allowed.
 func (c *Compiler) validateSafeOutputsAllowedDomains(config *SafeOutputsConfig) error {

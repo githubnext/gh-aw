@@ -7,6 +7,11 @@
  */
 
 const { isRepoAllowed } = require("./repo_helpers.cjs");
+const { resolveMatchedCommand } = require("./slash_command_matcher.cjs");
+
+const SAFE_OUTPUTS_URLS_ENV = "GH_AW_SAFE_OUTPUTS_URLS";
+const SAFE_OUTPUTS_URLS_ALLOWED_ONLY = "allowed-only";
+const SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION = "allowed-or-code-region";
 
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
@@ -355,17 +360,26 @@ function neutralizeCommands(s) {
     return s;
   }
 
-  // Neutralize each command name at the start of text (with optional leading whitespace)
-  let result = s;
+  const leadingWhitespace = s.match(/^\s*/)?.[0] ?? "";
+  const remainder = s.slice(leadingWhitespace.length);
+  const matchedCommand = resolveMatchedCommand(remainder, commandNames);
+  if (matchedCommand) {
+    const escapedCommand = matchedCommand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+  }
+
   for (const name of commandNames) {
+    if (name.endsWith("*")) {
+      continue;
+    }
     const escapedCommand = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    result = result.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-    // Stop after first substitution (only one command can be at position 0)
+    const result = s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
     if (result !== s) {
-      break;
+      return result;
     }
   }
-  return result;
+
+  return s;
 }
 
 /**
@@ -1280,10 +1294,7 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
   // URI filtering - replace non-https protocols with "(redacted)"
-  sanitized = sanitizeUrlProtocols(sanitized);
-
-  // Domain filtering for HTTPS URIs
-  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+  sanitized = applyURLSanitizationPolicy(sanitized, allowedDomains);
 
   // Apply truncation limits
   sanitized = applyTruncation(sanitized, maxLength);
@@ -1307,6 +1318,28 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   return sanitized.trim();
 }
 
+/**
+ * Apply URL sanitization using configured safe-outputs URL policy.
+ * @param {string} content
+ * @param {string[]} allowedDomains
+ * @returns {string}
+ */
+function applyURLSanitizationPolicy(content, allowedDomains) {
+  const urlPolicy = process.env[SAFE_OUTPUTS_URLS_ENV] || SAFE_OUTPUTS_URLS_ALLOWED_ONLY;
+  if (urlPolicy === SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION) {
+    // Preserve fenced/inline code regions (including ```suggestion blocks) verbatim.
+    // This avoids corrupting patch payloads while still sanitizing prose.
+    let sanitized = applyToNonCodeRegions(content, sanitizeUrlProtocols);
+    sanitized = applyToNonCodeRegions(sanitized, s => sanitizeUrlDomains(s, allowedDomains));
+    return sanitized;
+  }
+  // Default policy ("allowed-only"): sanitize URLs in all content regions,
+  // including fenced and inline code spans.
+  let sanitized = sanitizeUrlProtocols(content);
+  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+  return sanitized;
+}
+
 module.exports = {
   sanitizeContentCore,
   getRedactedDomains,
@@ -1320,6 +1353,7 @@ module.exports = {
   sanitizeDomainName,
   sanitizeUrlProtocols,
   sanitizeUrlDomains,
+  applyURLSanitizationPolicy,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,

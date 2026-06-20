@@ -149,6 +149,8 @@ strict: false
 experiments:
   caveman: [yes, no]
   subagent_model: [small, large]
+features:
+  gh-aw-detection: true
 
 ---
 

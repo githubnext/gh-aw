@@ -149,6 +149,22 @@ func enableFirewallByDefaultForClaude(engineID string, networkPermissions *Netwo
 	enableFirewallByDefaultForEngine(engineID, networkPermissions, sandboxConfig)
 }
 
+// enableFirewallByDefaultForPi enables firewall by default for Pi engine
+// when network restrictions are present but no explicit firewall configuration exists
+// and sandbox.agent is not explicitly set to false
+//
+// The firewall is enabled by default for Pi UNLESS:
+// - allowed contains "*" (unrestricted network access)
+// - sandbox.agent is explicitly set to false
+func enableFirewallByDefaultForPi(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
+	// Only apply to pi engine
+	if engineID != string(constants.PiEngine) {
+		return
+	}
+
+	enableFirewallByDefaultForEngine(engineID, networkPermissions, sandboxConfig)
+}
+
 // enableFirewallByDefaultForEngine enables firewall by default for a given engine
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)

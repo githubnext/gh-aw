@@ -2736,6 +2736,187 @@ describe("safe_outputs_handlers", () => {
   });
 });
 
+describe("per-type max enforcement (MCE4 dual enforcement)", () => {
+  let mockServer;
+  let mockAppendSafeOutput;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockServer = { debug: vi.fn() };
+    mockAppendSafeOutput = vi.fn();
+  });
+
+  it("allows calls up to the configured max and rejects the (max+1)th call via defaultHandler", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_labels: { max: 2 },
+    });
+
+    // First two calls succeed
+    expect(h.defaultHandler("add_labels")({ labels: ["approved"] })).not.toHaveProperty("isError");
+    expect(h.defaultHandler("add_labels")({ labels: ["approved"] })).not.toHaveProperty("isError");
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(2);
+
+    // Third call must throw E002
+    expect(() => h.defaultHandler("add_labels")({ labels: ["approved"] })).toThrow(
+      expect.objectContaining({
+        code: -32602,
+        message: expect.stringContaining("E002"),
+      })
+    );
+    // No additional append after limit
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects immediately when max is 0 and config uses hyphen-keyed type (key normalisation)", () => {
+    // Ensure getSafeOutputsToolConfig's hyphen→underscore lookup works for max checks
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      "add-labels": { max: 1 },
+    });
+
+    h.defaultHandler("add_labels")({ labels: ["ok"] });
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+
+    expect(() => h.defaultHandler("add_labels")({ labels: ["ok"] })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("enforces max for addCommentHandler", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_comment: { max: 1 },
+    });
+
+    global.context = { repo: { owner: "o", repo: "r" }, eventName: "issues", payload: { issue: { number: 1 } } };
+    try {
+      const ok = h.addCommentHandler({ body: "first comment", item_number: 1 });
+      expect(ok).not.toHaveProperty("isError");
+      expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+
+      expect(() => h.addCommentHandler({ body: "second comment", item_number: 2 })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
+      expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+    } finally {
+      global.context = { repo: { owner: "test-owner", repo: "test-repo" }, eventName: "push", payload: {} };
+    }
+  });
+
+  it("independent per-type budgets: exceeding add_comment limit does not affect add_labels", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_comment: { max: 1 },
+      add_labels: { max: 3 },
+    });
+
+    global.context = { repo: { owner: "o", repo: "r" }, eventName: "issues", payload: { issue: { number: 1 } } };
+    try {
+      h.addCommentHandler({ body: "first comment", item_number: 1 });
+      expect(() => h.addCommentHandler({ body: "second comment", item_number: 2 })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
+
+      // add_labels budget is separate — all 3 calls should succeed
+      expect(h.defaultHandler("add_labels")({ labels: ["a"] })).not.toHaveProperty("isError");
+      expect(h.defaultHandler("add_labels")({ labels: ["b"] })).not.toHaveProperty("isError");
+      expect(h.defaultHandler("add_labels")({ labels: ["c"] })).not.toHaveProperty("isError");
+
+      // 4th add_labels call must fail
+      expect(() => h.defaultHandler("add_labels")({ labels: ["d"] })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
+    } finally {
+      global.context = { repo: { owner: "test-owner", repo: "test-repo" }, eventName: "push", payload: {} };
+    }
+  });
+
+  it("does not enforce when max is -1 (unlimited)", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_labels: { max: -1 },
+    });
+
+    for (let i = 0; i < 20; i++) {
+      expect(h.defaultHandler("add_labels")({ labels: ["ok"] })).not.toHaveProperty("isError");
+    }
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(20);
+  });
+
+  it("does not enforce when max is not explicitly configured", () => {
+    // Only target is set — no max → no invocation-time limit
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_labels: { target: "*" },
+    });
+
+    for (let i = 0; i < 5; i++) {
+      expect(h.defaultHandler("add_labels")({ labels: ["ok"] })).not.toHaveProperty("isError");
+    }
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not enforce when config is empty (no safe-outputs config)", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput);
+
+    for (let i = 0; i < 5; i++) {
+      expect(h.defaultHandler("add_labels")({ labels: ["ok"] })).not.toHaveProperty("isError");
+    }
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(5);
+  });
+
+  it("error message includes type, current count, and limit", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_labels: { max: 3 },
+    });
+
+    h.defaultHandler("add_labels")({ labels: ["a"] });
+    h.defaultHandler("add_labels")({ labels: ["b"] });
+    h.defaultHandler("add_labels")({ labels: ["c"] });
+
+    let thrown;
+    try {
+      h.defaultHandler("add_labels")({ labels: ["d"] });
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).toBeDefined();
+    expect(thrown.code).toBe(-32602);
+    expect(thrown.message).toContain("add_labels");
+    expect(thrown.message).toContain("3 of 3");
+    expect(thrown.data).toMatchObject({
+      constraint: "max",
+      type: "add_labels",
+      limit: 3,
+    });
+    expect(thrown.data.guidance).toContain("add_labels");
+  });
+
+  it("counter does not increment when append throws (write error)", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_labels: { max: 2 },
+    });
+
+    // First call succeeds
+    h.defaultHandler("add_labels")({ labels: ["ok"] });
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+
+    // Second call: append throws a write error
+    mockAppendSafeOutput.mockImplementationOnce(() => {
+      throw new Error("disk write error");
+    });
+    expect(() => h.defaultHandler("add_labels")({ labels: ["fail"] })).toThrow("disk write error");
+
+    // Counter is still 1 (not 2) because the failed write shouldn't count
+    // Third call should succeed (not hit limit)
+    expect(h.defaultHandler("add_labels")({ labels: ["ok2"] })).not.toHaveProperty("isError");
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(3); // call 1 + (failed) call 2 + call 3
+  });
+
+  it("each createHandlers() call gets a fresh independent counter", () => {
+    const config = { add_labels: { max: 1 } };
+
+    const h1 = createHandlers(mockServer, mockAppendSafeOutput, config);
+    const h2 = createHandlers(mockServer, mockAppendSafeOutput, config);
+
+    h1.defaultHandler("add_labels")({ labels: ["a"] });
+    // h1's budget is now exhausted — must throw
+    expect(() => h1.defaultHandler("add_labels")({ labels: ["b"] })).toThrow(expect.objectContaining({ code: -32602 }));
+
+    // h2 has its own fresh counter — should still allow 1 call
+    expect(h2.defaultHandler("add_labels")({ labels: ["a"] })).not.toHaveProperty("isError");
+  });
+});
+
 describe("hasUpdatePullRequestFields", () => {
   it("returns false for empty object", () => {
     expect(hasUpdatePullRequestFields({})).toBe(false);

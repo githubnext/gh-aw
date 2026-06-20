@@ -291,6 +291,9 @@ const DefaultMaxDailyAICredits = "5000"
 // DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy.
 const DefaultMaxRuns = 500
 
+// DefaultMaxTurnCacheMisses is the default AWF consecutive cache-miss guardrail.
+const DefaultMaxTurnCacheMisses = 5
+
 // MCPSessionTimeoutMin is the minimum allowed value for engine.mcp.session-timeout (5 minutes).
 const MCPSessionTimeoutMin = 5 * time.Minute
 
@@ -470,6 +473,14 @@ const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"
 
 // ThreatDetectionLogPath is the threat detection engine log file path.
 const ThreatDetectionLogPath = TmpGhAwDir + "/threat-detection/detection.log"
+
+// ThreatDetectionDir is the threat detection working directory.
+const ThreatDetectionDir = TmpGhAwDir + "/threat-detection"
+
+// ThreatDetectionResultPath is the structured verdict output file written by the
+// external threat-detect binary (features: gh-aw-detection: true). The binary writes
+// a four-field JSON verdict to this path via --output; threat-detect conclude reads it.
+const ThreatDetectionResultPath = TmpGhAwDir + "/threat-detection/detection_result.json"
 
 // TmpProxyLogsDir is the DIFC proxy logs directory (with trailing slash).
 const TmpProxyLogsDir = TmpGhAwDir + "/proxy-logs/"

@@ -149,6 +149,33 @@ const SAMPLE_VALIDATION_CONFIG = {
       body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 20 },
     },
   },
+  dispatch_workflow: {
+    defaultMax: 1,
+    fields: {
+      workflow_name: {
+        required: true,
+        type: "string",
+        sanitize: true,
+        minLength: 1,
+        maxLength: 256,
+        pattern: ".*\\S.*",
+        patternError: "must not be empty",
+      },
+      inputs: { type: "object" },
+    },
+  },
+  hide_comment: {
+    defaultMax: 5,
+    fields: {
+      comment_id: {
+        required: true,
+        type: "string",
+        maxLength: 256,
+        typeHint: "GraphQL node ID string (e.g. 'IC_kwDOABCD123456'); numeric REST comment IDs are accepted but may not resolve for all comment types (e.g. PR review comments)",
+      },
+      reason: { type: "string" },
+    },
+  },
 };
 
 const ISSUE_CLOSING_KEYWORDS = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
@@ -208,6 +235,23 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem).toBeDefined();
+    });
+
+    it("should validate dispatch_workflow with non-empty workflow_name", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "dispatch_workflow", workflow_name: "haiku-printer", inputs: {} }, "dispatch_workflow", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should fail dispatch_workflow when workflow_name is whitespace-only", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "dispatch_workflow", workflow_name: "   ", inputs: {} }, "dispatch_workflow", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("workflow_name");
     });
 
     it("should fail validation when required title is missing", async () => {
@@ -430,6 +474,32 @@ describe("safe_output_type_validator", () => {
         expect(result.isValid).toBe(false);
         expect(result.error).toContain("pull_request_number");
       }
+    });
+
+    it("should include typeHint in error when hide_comment comment_id is missing", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "hide_comment" }, "hide_comment", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("GraphQL node ID");
+    });
+
+    it("should include typeHint in error when hide_comment comment_id is a numeric REST id", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "hide_comment", comment_id: 4748731349 }, "hide_comment", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("GraphQL node ID");
+    });
+
+    it("should accept hide_comment with a GraphQL node ID comment_id", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "hide_comment", comment_id: "IC_kwDOABCD123456" }, "hide_comment", 1);
+
+      expect(result.isValid).toBe(true);
     });
   });
 

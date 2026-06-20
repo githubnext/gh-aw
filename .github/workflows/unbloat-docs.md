@@ -34,7 +34,8 @@ runtimes:
 # AI engine configuration
 max-turns: 90  # Reduce from avg 115 turns
 engine:
-  id: claude
+  id: pi
+  model: copilot/gpt-5.4
 # Shared instructions
 imports:
   - uses: shared/daily-pr-base.md
@@ -160,10 +161,9 @@ pre-agent-steps:
 # Build steps for documentation
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v6.0.3
+    uses: actions/checkout@v7.0.0
     with:
       persist-credentials: false
-      lfs: true
 
   - name: Setup Node.js
     uses: actions/setup-node@v6.4.0
@@ -180,8 +180,10 @@ steps:
     working-directory: ./docs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: npm run build
-
+    run: |
+      npm run generate-agent-factory
+      npm run generate-model-tables
+      npx astro build
 ---
 
 # Documentation Unbloat Workflow

@@ -19,6 +19,10 @@ const (
 	// DefaultMaxAICredits is the enterprise override for AWF apiProxy.maxAiCredits
 	// when max-ai-credits is not explicitly configured in workflow frontmatter.
 	DefaultMaxAICredits = "GH_AW_DEFAULT_MAX_AI_CREDITS"
+	// DefaultMaxTurnCacheMisses is the enterprise override for AWF
+	// apiProxy.maxCacheMisses when max-turn-cache-misses is not explicitly configured
+	// in workflow frontmatter.
+	DefaultMaxTurnCacheMisses = "GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES"
 	// DefaultDetectionMaxAICredits is the enterprise override for the
 	// threat-detection AWF apiProxy.maxAiCredits budget when
 	// safe-outputs.threat-detection.max-ai-credits is not explicitly configured.
@@ -58,6 +62,15 @@ func ResolveDefaultMaxTurns(fallback string) string {
 // otherwise returns the parsed override.
 func ResolveDefaultTimeoutMinutes(fallback int) int {
 	if parsed, ok := parsePositiveIntEnvVar(DefaultTimeoutMinutes); ok {
+		return int(parsed)
+	}
+	return fallback
+}
+
+// ResolveDefaultMaxTurnCacheMisses returns fallback when the env var is unset/invalid,
+// otherwise returns the parsed override.
+func ResolveDefaultMaxTurnCacheMisses(fallback int) int {
+	if parsed, ok := parsePositiveIntEnvVar(DefaultMaxTurnCacheMisses); ok {
 		return int(parsed)
 	}
 	return fallback

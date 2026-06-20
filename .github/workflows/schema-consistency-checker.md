@@ -11,9 +11,11 @@ permissions:
   issues: read
   pull-requests: read
 engine:
-  id: claude
+  id: pi
+  model: copilot/gpt-5.4
 max-ai-credits: 1500
 tools:
+  cli-proxy: true
   edit:
   bash: ["*"]
   github:
@@ -133,7 +135,6 @@ pre-agent-steps:
           in_used_not_schema: (.field_gaps.in_used_not_schema | length)
         }
       }' /tmp/gh-aw/agent/schema-diff.json
-
 ---
 # Schema Consistency Checker
 

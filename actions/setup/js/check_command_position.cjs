@@ -3,6 +3,7 @@
 
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
+const { matchesCommandName, resolveMatchedCommand } = require("./slash_command_matcher.cjs");
 
 /**
  * Check if command is the first word in the triggering text
@@ -90,7 +91,7 @@ async function main() {
       }
 
       if (inboundCommandName) {
-        if (commands.includes(inboundCommandName)) {
+        if (commands.some(command => matchesCommandName(command, inboundCommandName))) {
           core.info(`✓ command_name '${inboundCommandName}' resolved from workflow_dispatch aw_context`);
           core.setOutput("command_position_ok", "true");
           core.setOutput("matched_command", inboundCommandName);
@@ -116,23 +117,13 @@ async function main() {
       return;
     }
 
-    // Normalize whitespace and get the first word
+    // Normalize whitespace and resolve the matched slash command at the start of the text.
     const trimmedText = text.trim();
+    const matchedCommand = resolveMatchedCommand(trimmedText, commands);
     const firstWord = trimmedText.split(/\s+/)[0];
 
     core.info(`Checking command position. First word in text: ${firstWord}`);
     core.info(`Looking for commands: ${commands.map(c => `/${c}`).join(", ")}`);
-
-    // Check if any of the commands match
-    let matchedCommand = null;
-    for (const command of commands) {
-      const expectedCommand = `/${command}`;
-
-      if (firstWord === expectedCommand) {
-        matchedCommand = command;
-        break;
-      }
-    }
 
     if (matchedCommand) {
       core.info(`✓ Command '/${matchedCommand}' matched at the start of the text`);

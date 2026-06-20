@@ -12,6 +12,7 @@ const {
   readDedupedTokenUsage,
   getSummaryTitle,
   buildStepSummarySection,
+  renderTokenTableAsPlainText,
   TOKEN_USAGE_AUDIT_PATH,
   TOKEN_USAGE_PATH,
   TOKEN_USAGE_PATHS,
@@ -194,6 +195,9 @@ describe("parse_token_usage", () => {
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("| Alias |"), true);
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
+      // Token table should also be rendered to core.info
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token Usage"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Alias"));
     });
 
     test("uses custom summary title when configured", async () => {
@@ -535,6 +539,31 @@ describe("parse_token_usage", () => {
       expect(section).toContain("### Token Usage");
       expect(section).toContain("<details>");
       expect(section).toContain("<summary>Per-request AI credits and token totals</summary>");
+    });
+
+    test("renderTokenTableAsPlainText strips table separator lines and pipes", () => {
+      const markdown = ["| # | Alias | Input | Output |", "|--:|-------|------:|-------:|", "| 1 | sonnet46 | 100 | 200 |", "| **Total** | | **100** | **200** |", "", "Legend: `Alias` is the model shorthand.", ""].join("\n");
+
+      const result = renderTokenTableAsPlainText("Token Usage", markdown);
+
+      expect(result).toContain("Token Usage");
+      // separator line is removed (no dash sequences that leak from separator rows)
+      expect(result).not.toMatch(/---/);
+      // leading/trailing pipes are stripped
+      expect(result).not.toMatch(/^\|/m);
+      expect(result).not.toMatch(/\|$/m);
+      // bold markers are removed
+      expect(result).not.toContain("**");
+      // data is preserved
+      expect(result).toContain("sonnet46");
+      expect(result).toContain("100");
+      expect(result).toContain("200");
+      expect(result).toContain("Legend:");
+    });
+
+    test("renderTokenTableAsPlainText prefixes output with title", () => {
+      const result = renderTokenTableAsPlainText("My Token Usage", "| A |\n|---|\n| 1 |");
+      expect(result.startsWith("My Token Usage")).toBe(true);
     });
   });
 });

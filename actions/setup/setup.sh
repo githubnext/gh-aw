@@ -331,6 +331,7 @@ SAFE_OUTPUTS_FILES=(
   "missing_info_formatter.cjs"
   "sanitize_content.cjs"
   "sanitize_content_core.cjs"
+  "slash_command_matcher.cjs"
   "sanitize_title.cjs"
   "issue_title_dedup.cjs"
   "levenshtein_distance.cjs"

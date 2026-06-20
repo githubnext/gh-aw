@@ -106,6 +106,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"mount-as-clis-to-cli-proxy",
 		"bash-single-quoted-args-rewrite",
 		"infer-to-disable-model-invocation",
+		"mentions-allow-team-members-to-allowed-collaborators",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -219,5 +220,6 @@ func expectedCodemodOrder() []string {
 		"sandbox-agent-false-removal",
 		"infer-to-disable-model-invocation",
 		"run-install-scripts-to-runtimes-node",
+		"mentions-allow-team-members-to-allowed-collaborators",
 	}
 }

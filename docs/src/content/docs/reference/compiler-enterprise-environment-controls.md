@@ -12,6 +12,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 | Variable | Source | Purpose | Applies when |
 | --- | --- | --- | --- |
 | `GH_AW_DEFAULT_MAX_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default AWF `apiProxy.maxAiCredits` budget | `max-ai-credits` is not set in frontmatter or any imported workflow |
+| `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` | Compiler process environment | Default AWF `apiProxy.maxCacheMisses` guardrail | `max-turn-cache-misses` is not set in frontmatter or any imported workflow |
 | `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default threat-detection AWF `apiProxy.maxAiCredits` budget | `safe-outputs.threat-detection.max-ai-credits` is not set |
 | `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default `max-daily-ai-credits` guardrail threshold | `max-daily-ai-credits` is not set in frontmatter or any imported workflow |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
@@ -24,7 +25,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 Use `gh aw env get` and `gh aw env update` to manage these
 variables in batch at repo, org, or enterprise scope. The defaults file uses
-`default_`-prefixed keys such as `default_max_ai_credits`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
+`default_`-prefixed keys such as `default_max_ai_credits`, `default_max_turn_cache_misses`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`,
 `default_model_copilot`, and `default_utc`.
 
 ## Project Timezone
@@ -62,6 +63,14 @@ For max AI credits, precedence is:
 4. Built-in constant default: `1000` AIC
 
 The compiler emits `${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}` in a runtime patch script when no frontmatter or imported value is set, so the organization variable is resolved at workflow run time by the GitHub Actions runner — not at compile time. A value of `-1` disables AWF budget steering at runtime. Positive values accept `K`/`M` suffixes such as `100M`.
+
+For max turn cache misses, precedence is:
+
+1. `max-turn-cache-misses` in workflow frontmatter
+2. `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES`
+3. Built-in constant default: `5`
+
+The compiler emits `apiProxy.maxCacheMisses` directly in the AWF config JSON. When `max-turn-cache-misses` is omitted, the compiler reads `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` from its process environment and falls back to `5` if the variable is unset or invalid.
 
 For threat-detection max AI credits, precedence is:
 
@@ -139,6 +148,7 @@ Set compiler process defaults for timeout and max-turns:
 ```bash
 export GH_AW_DEFAULT_TIMEOUT_MINUTES=30
 export GH_AW_DEFAULT_MAX_TURNS=12
+export GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES=7
 export GH_AW_DEFAULT_DETECTION_MODEL=gpt-5.5-mini
 ```
 

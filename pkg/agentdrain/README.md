@@ -162,8 +162,19 @@ err = coord.LoadWeightsJSON(data)
 
 Post-processes `MatchResult` values to produce an `AnomalyReport`.
 
+#### `NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*AnomalyDetector, error)`
+
+Creates a new `AnomalyDetector`. Returns an error if `simThreshold` is outside `[0,1]` or `rareClusterThreshold` is negative.
+
+#### `(*AnomalyDetector).Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport`
+
+Evaluates `result` and produces an `AnomalyReport`. `isNew` indicates that `result` created a brand-new cluster; `cluster` is the matched or newly created `Cluster`.
+
 ```go
 detector, err := agentdrain.NewAnomalyDetector(cfg.SimThreshold, cfg.RareClusterThreshold)
+if err != nil {
+    panic(err)
+}
 report := detector.Analyze(result, isNew, cluster)
 ```
 
@@ -247,6 +258,16 @@ if report.IsNewTemplate {
         report.AnomalyScore, report.Reason)
 }
 ```
+
+## Thread Safety
+
+Both `Miner` and `Coordinator` are safe for concurrent use from multiple goroutines. All mutating operations are protected by an internal `sync.RWMutex`:
+
+- `Miner.Train`, `Miner.TrainEvent`, `Miner.AnalyzeEvent` — acquire a write lock
+- `Miner.Clusters` — acquires a read lock
+- `Miner.SaveJSON` / `Miner.LoadJSON` — read and write lock respectively
+- `Coordinator.TrainEvent`, `Coordinator.AnalyzeEvent` — delegate to per-stage `Miner` instances
+- `Coordinator.AllClusters`, `Coordinator.SaveSnapshots` — acquire a read lock on the coordinator map
 
 ## Dependencies
 

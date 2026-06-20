@@ -3,6 +3,7 @@
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
 const nodePath = require("node:path");
+const { matchesCommandName, parseSlashCommand } = require("./slash_command_matcher.cjs");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
@@ -36,19 +37,6 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
   } catch (error) {
     core.warning(`Failed to write centralized routing details to step summary: ${String(error)}`);
   }
-}
-
-/**
- * Extracts the slash command name from the start of the given body text.
- * Returns an empty string if the text does not begin with a valid slash command.
- * A valid slash command starts with '/' followed by a name of one or more characters
- * from [a-zA-Z0-9], [-], and [_].
- * @param {string} text
- * @returns {string}
- */
-function parseSlashCommand(text) {
-  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9\-_]*)\b/.exec(String(text).trim());
-  return match ? match[1] : "";
 }
 
 function eventIdentifier() {
@@ -336,6 +324,34 @@ function isDisabledWorkflowDispatchError(error) {
   return message.includes("workflow is disabled") || message.includes("workflow was disabled") || message.includes("disabled workflow");
 }
 
+/**
+ * @param {Record<string, Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown}>>} slashRouteMap
+ * @param {string} actualCommand
+ * @returns {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown}>}
+ */
+function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
+  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown}>} */
+  const matchedRoutes = [];
+  const seen = new Set();
+
+  for (const [configuredCommand, configuredRoutes] of Object.entries(slashRouteMap)) {
+    if (!matchesCommandName(configuredCommand, actualCommand) || !Array.isArray(configuredRoutes)) {
+      continue;
+    }
+
+    for (const route of configuredRoutes) {
+      const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", Array.isArray(route?.events) ? route.events : []]);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      matchedRoutes.push(route);
+    }
+  }
+
+  return matchedRoutes;
+}
+
 async function main() {
   core.info("Starting centralized command routing.");
   core.info(`Incoming event name: '${context.eventName}'.`);
@@ -408,7 +424,7 @@ async function main() {
 
   const commandName = selectedCommand;
   core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
-  const configuredRoutes = slashRouteMap[commandName] ?? [];
+  const configuredRoutes = resolveMatchingSlashRoutes(slashRouteMap, commandName);
   core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);
   const routes = configuredRoutes.filter(route => Array.isArray(route.events) && route.events.includes(identifier));
   if (routes.length === 0) {

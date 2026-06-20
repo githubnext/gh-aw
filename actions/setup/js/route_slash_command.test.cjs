@@ -37,8 +37,8 @@ describe("parseSlashCommand", () => {
     expect(parseSlashCommand("  /smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
   });
 
-  it("does not include trailing punctuation in the command name", () => {
-    expect(parseSlashCommand("/smoke-copilot-sdk!")).toBe("smoke-copilot-sdk");
+  it("does not match when command is followed by punctuation", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk!")).toBe("");
   });
 
   it("does not match a slash command in the middle of text", () => {
@@ -49,12 +49,16 @@ describe("parseSlashCommand", () => {
     expect(parseSlashCommand("/code_review")).toBe("code_review");
   });
 
+  it("extracts a command name with dots", () => {
+    expect(parseSlashCommand("/cmd.add")).toBe("cmd.add");
+  });
+
   it("does not match a command starting with a dash", () => {
     expect(parseSlashCommand("/-command")).toBe("");
   });
 
-  it("enforces word boundary: command followed by a colon", () => {
-    expect(parseSlashCommand("/archie:more")).toBe("archie");
+  it("does not match command followed by a colon", () => {
+    expect(parseSlashCommand("/archie:more")).toBe("");
   });
 });
 
@@ -460,6 +464,34 @@ describe("route_slash_command", () => {
     expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot-sdk.lock.yml");
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("smoke-copilot-sdk");
+  });
+
+  it("dispatches wildcard slash routes using the actual matched command name", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      "smoke*": [{ workflow: "smoke-family", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/smoke-copilot-sdk";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-family.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("smoke-copilot-sdk");
+  });
+
+  it("dispatches catch-all slash routes using the actual matched command name", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      "*": [{ workflow: "skillet", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/developer review auth changes";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("skillet.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("developer");
   });
 
   it("does not dispatch smoke-copilot-sdk when command is smoke-copilot", async () => {

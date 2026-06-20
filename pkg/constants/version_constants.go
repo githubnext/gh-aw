@@ -73,7 +73,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.3.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.6"
+const DefaultFirewallVersion Version = "v0.27.7"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -139,6 +139,12 @@ const DefaultMCPSDKVersion Version = "1.24.0"
 
 // DefaultGitHubScriptVersion is the default version of the actions/github-script action
 const DefaultGitHubScriptVersion Version = "v9"
+
+// DefaultThreatDetectVersion is the default version of the gh-aw-threat-detection binary.
+// This version is downloaded from GitHub Releases when `features: gh-aw-detection: true`
+// is set in the workflow frontmatter, enabling the external threat-detect binary path instead
+// of the inline engine execution path.
+const DefaultThreatDetectVersion Version = "v0.2.2"
 
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"

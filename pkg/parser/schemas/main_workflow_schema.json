@@ -414,8 +414,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "pattern": "^[^/]",
-                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/' as the slash is automatically added when matching commands."
+                  "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching (for example, 'smoke*' matches '/smoke-copilot')."
                 },
                 {
                   "type": "object",
@@ -426,8 +426,8 @@
                         {
                           "type": "string",
                           "minLength": 1,
-                          "pattern": "^[^/]",
-                          "description": "Single command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                          "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                          "description": "Single command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching. Defaults to workflow filename without .md extension if not specified."
                         },
                         {
                           "type": "array",
@@ -436,8 +436,8 @@
                           "items": {
                             "type": "string",
                             "minLength": 1,
-                            "pattern": "^[^/]",
-                            "description": "Command name without leading slash"
+                            "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                            "description": "Command name without leading slash. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching."
                           },
                           "maxItems": 25
                         }
@@ -485,8 +485,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "pattern": "^[^/]",
-                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/' as the slash is automatically added when matching commands."
+                  "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching (for example, 'smoke*' matches '/smoke-copilot')."
                 },
                 {
                   "type": "object",
@@ -497,8 +497,8 @@
                         {
                           "type": "string",
                           "minLength": 1,
-                          "pattern": "^[^/]",
-                          "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                          "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                          "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/'. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching. Defaults to workflow filename without .md extension if not specified."
                         },
                         {
                           "type": "array",
@@ -507,8 +507,8 @@
                           "items": {
                             "type": "string",
                             "minLength": 1,
-                            "pattern": "^[^/]",
-                            "description": "Command name without leading slash"
+                            "pattern": "^(\\*|[^/*][^/*]*\\*?)$",
+                            "description": "Command name without leading slash. Use '*' to match any slash command, or append '*' as a suffix to enable wildcard prefix matching."
                           },
                           "maxItems": 25
                         }
@@ -3712,6 +3712,12 @@
       "default": 1000,
       "description": "Per-run AI Credits budget control for firewall cost enforcement. Enabled by default at 1000 (1k) when omitted. Set to -1 to disable both budget enforcement and token steering. Supports GitHub Actions expressions."
     },
+    "max-turn-cache-misses": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5,
+      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence: frontmatter value → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override → built-in default `5`."
+    },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
       "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
@@ -4858,6 +4864,11 @@
         }
       ],
       "properties": {
+        "urls": {
+          "type": "string",
+          "description": "URL sanitization policy for safe outputs. \"allowed-only\" sanitizes all non-allowed URLs everywhere. \"allowed-or-code-region\" preserves URLs inside fenced and inline code regions while sanitizing prose.",
+          "enum": ["allowed-only", "allowed-or-code-region"]
+        },
         "allowed-domains": {
           "type": "array",
           "description": "List of allowed domains for URL redaction in safe output handlers. Supports ecosystem identifiers (e.g., \"python\", \"node\", \"default-safe-outputs\") like network.allowed. These domains are unioned with the engine defaults and network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
@@ -10198,10 +10209,16 @@
               "type": "object",
               "description": "Advanced configuration for @mention filtering with fine-grained control",
               "properties": {
+                "allowed-collaborators": {
+                  "type": "boolean",
+                  "description": "Allow mentions of repository collaborators (users with repository access, excluding bots). Default: true",
+                  "default": true
+                },
                 "allow-team-members": {
                   "type": "boolean",
-                  "description": "Allow mentions of repository team members (collaborators with any permission level, excluding bots). Default: true",
-                  "default": true
+                  "description": "Deprecated alias for allowed-collaborators",
+                  "deprecated": true,
+                  "x-deprecation-message": "'allow-team-members' is deprecated in safe-outputs.mentions. Use 'allowed-collaborators' instead. Run 'gh aw fix' to automatically migrate."
                 },
                 "allow-context": {
                   "type": "boolean",
@@ -10215,6 +10232,15 @@
                     "type": "string",
                     "minLength": 1
                   }
+                },
+                "allowed-teams": {
+                  "type": "array",
+                  "description": "List of team slugs whose members are always allowed to be mentioned. Accepts 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team members are fetched from the GitHub API at runtime; bots are excluded. IMPORTANT: requires read:org scope — not available with the default GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a GitHub App with the Members:Read permission. Without the required scope, team lookups fail with a warning and those members are skipped.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "examples": [["myorg/eng"], ["reviewers"], ["myorg/eng", "myorg/docs"]]
                 },
                 "max": {
                   "description": "Maximum number of mentions allowed per message. Default: 50 Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",

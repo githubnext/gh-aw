@@ -195,6 +195,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Parse URL sanitization policy
+			if urls, exists := outputMap["urls"]; exists {
+				if urlsStr, ok := urls.(string); ok {
+					config.URLs = urlsStr
+				}
+			}
+
 			// Parse allowed-github-references configuration
 			if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 				if refsArray, ok := allowGitHubRefs.([]any); ok {
@@ -715,7 +722,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
-					c := &Compiler{} // Create a temporary compiler instance for parsing
+					c := NewCompiler() // Create a temporary compiler instance for parsing
 					config.Jobs = c.parseSafeJobsConfig(jobsMap)
 				}
 			}
@@ -993,14 +1000,17 @@ func buildMentionsHandlerConfig(m *MentionsConfig) map[string]any {
 	if m.Enabled != nil {
 		cfg["enabled"] = *m.Enabled
 	}
-	if m.AllowTeamMembers != nil {
-		cfg["allowTeamMembers"] = *m.AllowTeamMembers
+	if m.AllowedCollaborators != nil {
+		cfg["allowedCollaborators"] = *m.AllowedCollaborators
 	}
 	if m.AllowContext != nil {
 		cfg["allowContext"] = *m.AllowContext
 	}
 	if len(m.Allowed) > 0 {
 		cfg["allowed"] = m.Allowed
+	}
+	if len(m.AllowedTeams) > 0 {
+		cfg["allowedTeams"] = m.AllowedTeams
 	}
 	if m.Max != nil {
 		cfg["max"] = *m.Max
