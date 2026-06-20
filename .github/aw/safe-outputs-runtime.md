@@ -142,11 +142,16 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
         allow-team-members: true    # Allow repository collaborators (default: true)
         allow-context: true          # Allow mentions from event context (default: true)
         allowed: [copilot, user1]    # Always allow specific users/bots
+        allowed-teams:               # Allow all members of named GitHub teams
+          - myorg/eng                # org/team-slug format (cross-org)
+          - reviewers                # bare team-slug (uses current repo's org)
         max: 50                      # Maximum mentions per message (default: 50)
     ```
 
   - Team members include collaborators with any permission level (excluding bots unless explicitly listed)
   - Context mentions include issue/PR authors, assignees, and commenters
+  - `allowed-teams` resolves team membership from the GitHub API at runtime; bot accounts are excluded. Use `org/team-slug` for cross-org teams or a bare `team-slug` to resolve against the current repository's organization.
+  - **`allowed-teams` requires `read:org` scope.** The default `GITHUB_TOKEN` does **not** include this scope. Provide a classic PAT with `read:org`, a fine-grained PAT with the "Members" permission (read), or a GitHub App installation token with the "Members" permission (read) via `safe-outputs.github-token:` or `safe-outputs.github-app:`. If the token lacks the required scope, team lookup fails with a warning and the workflow continues without those team members in the allowlist.
 - `runs-on:` - Runner specification for all safe-outputs jobs (string)
   - Defaults to `ubuntu-slim` (1-vCPU runner)
   - Examples: `ubuntu-latest`, `windows-latest`, `self-hosted`
