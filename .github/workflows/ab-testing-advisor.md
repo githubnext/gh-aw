@@ -72,6 +72,8 @@ tools:
     - default
     - actions
 tracker-id: ab-testing-advisor
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

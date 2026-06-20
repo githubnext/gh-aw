@@ -88,7 +88,8 @@ timeout-minutes: 15
 checkout:
   - fetch-depth: 2
     current: true
-
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Codex Engine Validation

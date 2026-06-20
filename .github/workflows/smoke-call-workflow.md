@@ -33,6 +33,8 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Call Workflow Orchestrator

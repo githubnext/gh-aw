@@ -89,6 +89,8 @@ experiments:
       issue: 37302
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Project Operations Validation

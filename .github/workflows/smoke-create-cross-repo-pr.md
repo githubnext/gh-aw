@@ -64,6 +64,8 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Cross-Repo Pull Request Creation

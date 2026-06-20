@@ -63,7 +63,8 @@ safe-outputs:
             fi
 imports:
   - shared/otlp.md
-
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Choice Type Test

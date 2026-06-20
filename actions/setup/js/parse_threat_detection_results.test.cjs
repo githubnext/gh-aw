@@ -220,6 +220,12 @@ describe("extractFromStreamJson", () => {
     const result = extractFromStreamJson(line);
     expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":true,"reasons":["malicious dependency"]}');
   });
+
+  it("should extract result from pi turn_end assistant content array", () => {
+    const line = '{"type":"turn_end","message":{"role":"assistant","content":[{"type":"text","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}]}}';
+    const result = extractFromStreamJson(line);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}');
+  });
 });
 
 describe("extractStructuredOutput", () => {
@@ -368,6 +374,45 @@ describe("parseDetectionLog", () => {
         }),
         JSON.stringify({ type: "message", role: "assistant", content: '":[]}', delta: true }),
         JSON.stringify({ type: "result", status: "success", stats: { total_tokens: 123 } }),
+      ].join("\n");
+
+      const { verdict, error } = parseDetectionLog(content);
+
+      expect(error).toBeUndefined();
+      expect(verdict).toEqual({
+        prompt_injection: false,
+        secret_leak: false,
+        malicious_patch: false,
+        reasons: [],
+      });
+    });
+
+    it("should parse pi turn_end verdict and ignore user prompt examples", () => {
+      const content = [
+        JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: 'Output format example: THREAT_DETECTION_RESULT:{"prompt_injection":false}',
+              },
+            ],
+          },
+        }),
+        JSON.stringify({
+          type: "turn_end",
+          message: {
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: 'THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}',
+              },
+            ],
+          },
+        }),
       ].join("\n");
 
       const { verdict, error } = parseDetectionLog(content);

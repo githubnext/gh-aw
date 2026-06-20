@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
@@ -198,19 +199,29 @@ func getCachedActionPin(repo string, data *WorkflowData) string {
 // applyActionPinToTypedStep applies SHA pinning to a WorkflowStep if it uses an action.
 // Returns a modified copy of the step with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original step.
-func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *WorkflowStep {
+// Returns an error if the step uses an unversioned action reference with no available pin,
+// because emitting such a reference would produce invalid GitHub Actions workflow syntax.
+func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) (*WorkflowStep, error) {
 	if step == nil || !step.IsUsesStep() {
-		return step
+		return step, nil
 	}
 
 	actionRepo := extractActionRepo(step.Uses)
 	if actionRepo == "" {
-		return step
+		return step, nil
 	}
 
 	version := extractActionVersion(step.Uses)
 	if version == "" {
-		return step
+		pin := getCachedActionPin(actionRepo, data)
+		if pin == "" {
+			return nil, fmt.Errorf("unversioned action %q has no available pin; add a @ref (e.g. @v1) or include it in action-pins.json", actionRepo)
+		}
+
+		actionPinsLog.Printf("Pinned action: %s (no ref) -> %s", actionRepo, pin)
+		result := step.Clone()
+		result.Uses = pin
+		return result, nil
 	}
 
 	// Strip the comment suffix before checking if it's already a SHA.
@@ -220,20 +231,21 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 	pinnedRef, err := getActionPinWithData(actionRepo, rawVersion, data)
 	if err != nil || pinnedRef == "" {
 		actionPinsLog.Printf("Skipping pin for %s@%s: no pin available", actionRepo, rawVersion)
-		return step
+		return step, nil
 	}
 
 	actionPinsLog.Printf("Pinned action: %s@%s -> %s", actionRepo, rawVersion, pinnedRef)
 	result := step.Clone()
 	result.Uses = pinnedRef
-	return result
+	return result, nil
 }
 
 // applyActionPinsToTypedSteps applies SHA pinning to a slice of typed WorkflowStep pointers.
-// Returns a new slice with pinned references.
-func applyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*WorkflowStep {
+// Returns a new slice with pinned references, or an error if any step has an unversioned
+// action reference with no available pin.
+func applyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) ([]*WorkflowStep, error) {
 	if steps == nil {
-		return nil
+		return nil, nil
 	}
 
 	result := make([]*WorkflowStep, 0, len(steps))
@@ -242,7 +254,11 @@ func applyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*W
 			result = append(result, nil)
 			continue
 		}
-		result = append(result, applyActionPinToTypedStep(step, data))
+		pinned, err := applyActionPinToTypedStep(step, data)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, pinned)
 	}
-	return result
+	return result, nil
 }

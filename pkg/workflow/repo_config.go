@@ -10,6 +10,7 @@
 //	  "ghes": true,               // enables GHES compatibility mode (v3 artifact pins)
 //	  "help_command": false,      // disables builtin centralized /help comment handler
 //	  "utc": "-08:00", // project home UTC offset for rendered local times
+//	  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
@@ -128,6 +129,12 @@ type RepoConfig struct {
 	// Set to false in aw.json to disable it.
 	HelpCommand *bool
 
+	// AutoUpgrade enables generation of agentic-auto-upgrade.yml when true.
+	// The workflow runs on a fuzzy weekly schedule and runs the upgrade operation
+	// to check for and report available workflow upgrades.
+	// Opt-in: nil (omitted) or false both disable generation.
+	AutoUpgrade *bool
+
 	// MaintenanceDisabled is true when maintenance has been explicitly set to false
 	// in aw.json, disabling agentic-maintenance generation and any features that
 	// depend on it (such as expires).
@@ -139,6 +146,15 @@ type RepoConfig struct {
 	Maintenance *MaintenanceConfig
 }
 
+// IsAutoUpgradeEnabled returns true only when auto_upgrade is explicitly set to true.
+// The default (nil / omitted) is treated as disabled (false) — opt-in semantics.
+func (r *RepoConfig) IsAutoUpgradeEnabled() bool {
+	if r == nil || r.AutoUpgrade == nil {
+		return false
+	}
+	return *r.AutoUpgrade
+}
+
 // UnmarshalJSON implements json.Unmarshaler to handle the polymorphic maintenance
 // field, which can be either the boolean false (disable) or a configuration object.
 func (r *RepoConfig) UnmarshalJSON(data []byte) error {
@@ -147,6 +163,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 		GHES        bool            `json:"ghes,omitempty"`
 		HelpCommand *bool           `json:"help_command,omitempty"` // nil = use default (enabled)
 		UTC         string          `json:"utc,omitempty"`
+		AutoUpgrade *bool           `json:"auto_upgrade,omitempty"`
 		Maintenance json.RawMessage `json:"maintenance,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -156,6 +173,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	r.GHES = raw.GHES
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
+	r.AutoUpgrade = raw.AutoUpgrade
 
 	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
 		return nil

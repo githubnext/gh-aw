@@ -1216,7 +1216,10 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 			return nil, fmt.Errorf("failed to convert %s to typed step for job '%s': %w", fieldName, jobName, err)
 		}
 
-		pinnedStep := applyActionPinToTypedStep(typedStep, data)
+		pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pin action for %s in job '%s': %w", fieldName, jobName, err)
+		}
 		finalStepMap := pinnedStep.ToMap()
 		sanitizedMap, warnings, _ := sanitizeRunStepExpressions(finalStepMap)
 		for _, w := range warnings {

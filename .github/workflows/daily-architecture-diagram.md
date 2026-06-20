@@ -63,6 +63,8 @@ imports:
   - shared/otlp.md
 timeout-minutes: 20
 strict: true
+features:
+  gh-aw-detection: true
 ---
 
 # Architecture Diagram Generator

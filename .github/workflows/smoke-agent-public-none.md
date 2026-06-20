@@ -41,6 +41,8 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Guard Policy Smoke Test: public/none

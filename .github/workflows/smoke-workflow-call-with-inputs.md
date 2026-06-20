@@ -38,7 +38,8 @@ safe-outputs:
   allowed-domains: [default-safe-outputs]
   noop:
 timeout-minutes: 5
-
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Workflow Call with Inputs

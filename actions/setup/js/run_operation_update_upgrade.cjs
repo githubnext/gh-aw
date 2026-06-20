@@ -217,4 +217,161 @@ After merging this PR, **recompile the lock files** using one of these methods:
     .write();
 }
 
-module.exports = { main, formatTimestamp };
+/**
+ * XML marker embedded in issue bodies to identify issues created by the
+ * agentic-auto-upgrade workflow. Used for deduplication: old matching issues
+ * are closed before a new one is opened.
+ */
+const AUTO_UPGRADE_WORKFLOW_ID = "agentic-auto-upgrade";
+const AUTO_UPGRADE_ISSUE_MARKER = `<!-- gh-aw-workflow-id: ${AUTO_UPGRADE_WORKFLOW_ID} -->`;
+
+/**
+ * Run the upgrade operation in notification mode: executes `gh aw upgrade`,
+ * detects any changed files, then creates a GitHub issue to announce that an
+ * upgrade is available.  Before opening the new issue, any previously opened
+ * issues carrying the same XML marker are closed so there is never more than
+ * one open notification at a time.
+ *
+ * Permissions required: issues: write only (no contents/pull-requests write).
+ *
+ * Required environment variables:
+ *   GH_TOKEN           - GitHub token for gh CLI auth and GitHub API
+ *   GH_AW_CMD_PREFIX   - Command prefix: './gh-aw' (dev) or 'gh aw' (release)
+ *
+ * @returns {Promise<void>}
+ */
+async function mainNotifyIssue() {
+  const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
+  const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
+
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
+
+  // Run gh aw upgrade to apply changes locally
+  const fullCmd = [bin, ...prefixArgs, "upgrade"].join(" ");
+  core.info(`Running: ${fullCmd}`);
+  const exitCode = await exec.exec(bin, [...prefixArgs, "upgrade"]);
+  if (exitCode !== 0) {
+    throw new Error(`${ERR_SYSTEM}: Command '${fullCmd}' failed with exit code ${exitCode}`);
+  }
+
+  // Detect which known upgrade files were modified
+  const changedFiles = [];
+  for (const file of KNOWN_FILES_UPGRADE) {
+    try {
+      const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", "--", file], { silent: true });
+      if (stdout.trim()) {
+        changedFiles.push(file);
+      }
+    } catch {
+      // file not in repo - skip
+    }
+  }
+
+  if (changedFiles.length === 0) {
+    core.info("✓ No upgrade available - agentic workflows are already up to date");
+    return;
+  }
+
+  core.info(`Upgrade available. Changed files (${changedFiles.length}):`);
+  for (const f of changedFiles) {
+    core.info(`  ${f}`);
+  }
+
+  // Discard local changes — we only notify via issue, not push
+  try {
+    await exec.exec("git", ["checkout", "--", "."]);
+  } catch (error) {
+    core.warning(`Failed to discard local changes: ${getErrorMessage(error)}`);
+  }
+
+  // Close any existing open issues with the auto-upgrade XML marker.
+  // Strip the comment delimiters to get the plain text used in search.
+  const markerContent = AUTO_UPGRADE_ISSUE_MARKER.replace(/^<!--\s*/, "").replace(/\s*-->$/, "");
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open "${markerContent}" in:body`;
+  core.info(`Searching for existing auto-upgrade issues: ${searchQuery}`);
+
+  let existingIssues = [];
+  try {
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 20,
+    });
+    existingIssues = (searchResult.data.items || []).filter(item => !item.pull_request && item.body && item.body.includes(AUTO_UPGRADE_ISSUE_MARKER));
+  } catch (error) {
+    core.warning(`Failed to search for existing issues: ${getErrorMessage(error)}`);
+  }
+
+  core.info(`Found ${existingIssues.length} existing auto-upgrade issue(s) to close`);
+  for (const issue of existingIssues) {
+    try {
+      await github.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issue.number,
+        state: "closed",
+        state_reason: "not_planned",
+      });
+      core.info(`  Closed #${issue.number}: ${issue.title}`);
+    } catch (error) {
+      core.warning(`  Failed to close #${issue.number}: ${getErrorMessage(error)}`);
+    }
+  }
+
+  // Build and create the new upgrade notification issue
+  const issueTitle = "[aw] Upgrade available";
+  const fileList = changedFiles.map(f => `- \`${f}\``).join("\n");
+  const issueBody = `## Agentic Workflow Upgrade Available
+
+A new version of the agentic workflow tooling is available. Run \`gh aw upgrade\` to apply it.
+
+**Files that will be updated:**
+
+${fileList}
+
+### How to apply
+
+- **Via @copilot**: Add a comment \`@copilot upgrade agentic workflows\` on this issue
+- **Via CLI**: Run \`gh aw upgrade\` in your local checkout
+
+${AUTO_UPGRADE_ISSUE_MARKER}
+`;
+
+  core.info(`Creating upgrade notification issue: "${issueTitle}"`);
+  let createdIssue;
+  try {
+    createdIssue = await github.rest.issues.create({
+      owner,
+      repo,
+      title: issueTitle,
+      body: issueBody,
+      labels: ["agentic-workflows"],
+    });
+  } catch (error) {
+    // Label may not exist when auto-upgrade is used without maintenance label creation.
+    if (error?.status === 422) {
+      core.warning("Failed to create issue with label 'agentic-workflows'; retrying without labels");
+      createdIssue = await github.rest.issues.create({
+        owner,
+        repo,
+        title: issueTitle,
+        body: issueBody,
+      });
+    } else {
+      throw error;
+    }
+  }
+
+  const issueUrl = createdIssue.data.html_url;
+  core.info(`✓ Created issue: ${issueUrl}`);
+  core.notice(`Created upgrade notification issue: ${issueUrl}`);
+
+  await core.summary
+    .addHeading(issueTitle, 2)
+    .addRaw(`Issue created: [${issueUrl}](${issueUrl})\n\n`)
+    .addRaw(`**Files that will be updated:**\n\n${fileList}\n\n`)
+    .addRaw(`> **To apply:** run \`gh aw upgrade\` locally or comment \`@copilot upgrade agentic workflows\`.`)
+    .write();
+}
+
+module.exports = { main, mainNotifyIssue, formatTimestamp };

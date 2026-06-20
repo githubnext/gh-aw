@@ -67,7 +67,8 @@ safe-outputs:
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Pi delivered. 🥧"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Pi encountered unexpected challenges..."
 timeout-minutes: 10
-
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Pi Engine Validation

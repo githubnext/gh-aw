@@ -695,6 +695,16 @@
         "gpt-image-1.5": {
           "cost": {}
         },
+        "gpt-image-2": {
+          "cost": {}
+        },
+        "gpt-5-search-api": {
+          "cost": {
+            "input": "1.25e-06",
+            "output": "1e-05",
+            "cache_read": "1.25e-07"
+          }
+        },
         "gpt-4.1-nano": {
           "cost": {
             "input": "1.0000000000000001e-07",

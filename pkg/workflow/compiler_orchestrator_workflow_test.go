@@ -431,7 +431,7 @@ func TestProcessAndMergeSteps_NoSteps(t *testing.T) {
 	frontmatter := map[string]any{}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
 
 	// CustomSteps should be empty when no steps are defined
 	assert.Empty(t, workflowData.CustomSteps)
@@ -458,7 +458,7 @@ func TestProcessAndMergeSteps_MainStepsOnly(t *testing.T) {
 	}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
 
 	// CustomSteps should contain the main workflow steps
 	assert.NotEmpty(t, workflowData.CustomSteps)
@@ -499,7 +499,7 @@ func TestProcessAndMergeSteps_WithImportedSteps(t *testing.T) {
 		MergedSteps: string(importedStepsYAML),
 	}
 
-	compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
 
 	// CustomSteps should contain both imported and main steps
 	assert.NotEmpty(t, workflowData.CustomSteps)
@@ -544,7 +544,7 @@ func TestProcessAndMergeSteps_WithCopilotSetupSteps(t *testing.T) {
 		CopilotSetupSteps: string(copilotSetupYAML),
 	}
 
-	compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
 
 	// CustomSteps should contain both copilot-setup and main steps
 	assert.NotEmpty(t, workflowData.CustomSteps)
@@ -592,7 +592,7 @@ func TestProcessAndMergeSteps_AllStepTypes(t *testing.T) {
 		MergedSteps:       string(otherStepsYAML),
 	}
 
-	compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
 
 	// All steps should be present
 	assert.Contains(t, workflowData.CustomSteps, "Copilot setup")
@@ -615,7 +615,7 @@ func TestProcessAndMergePostSteps_NoPostSteps(t *testing.T) {
 	frontmatter := map[string]any{}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult))
 
 	assert.Empty(t, workflowData.PostSteps)
 }
@@ -645,7 +645,7 @@ func TestProcessAndMergePostSteps_WithPostSteps(t *testing.T) {
 	}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult))
 
 	assert.NotEmpty(t, workflowData.PostSteps)
 	assert.Contains(t, workflowData.PostSteps, "Cleanup")
@@ -671,7 +671,7 @@ func TestProcessAndMergePostSteps_WithImportedPostSteps(t *testing.T) {
 		MergedPostSteps: string(importedPostStepsYAML),
 	}
 
-	compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult))
 
 	assert.Contains(t, workflowData.PostSteps, "Main post step")
 	assert.Contains(t, workflowData.PostSteps, "Imported post step")
@@ -689,7 +689,7 @@ func TestProcessAndMergePreSteps_NoPreSteps(t *testing.T) {
 	frontmatter := map[string]any{}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult))
 
 	assert.Empty(t, workflowData.PreSteps)
 }
@@ -706,7 +706,7 @@ func TestProcessAndMergePreSteps_WithPreSteps(t *testing.T) {
 	}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult))
 
 	assert.NotEmpty(t, workflowData.PreSteps)
 	assert.Contains(t, workflowData.PreSteps, "Mint token")
@@ -731,7 +731,7 @@ func TestProcessAndMergePreSteps_WithImportedPreSteps(t *testing.T) {
 		MergedPreSteps: string(importedPreStepsYAML),
 	}
 
-	compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult))
 
 	assert.Contains(t, workflowData.PreSteps, "Main pre step")
 	assert.Contains(t, workflowData.PreSteps, "Imported pre step")
@@ -749,7 +749,7 @@ func TestProcessAndMergePreAgentSteps_NoPreAgentSteps(t *testing.T) {
 	frontmatter := map[string]any{}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult))
 
 	assert.Empty(t, workflowData.PreAgentSteps)
 }
@@ -766,7 +766,7 @@ func TestProcessAndMergePreAgentSteps_WithPreAgentSteps(t *testing.T) {
 	}
 	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult))
 
 	assert.NotEmpty(t, workflowData.PreAgentSteps)
 	assert.Contains(t, workflowData.PreAgentSteps, "Prepare final context")
@@ -791,7 +791,7 @@ func TestProcessAndMergePreAgentSteps_WithImportedPreAgentSteps(t *testing.T) {
 		MergedPreAgentSteps: string(importedPreAgentStepsYAML),
 	}
 
-	compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult))
 
 	assert.Contains(t, workflowData.PreAgentSteps, "Main pre-agent step")
 	assert.Contains(t, workflowData.PreAgentSteps, "Imported pre-agent step")
@@ -1830,7 +1830,7 @@ func TestProcessAndMergeSteps_InvalidYAML(t *testing.T) {
 	}
 
 	// Should handle gracefully without panicking
-	compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
 
 	// Should still have main steps
 	assert.NotEmpty(t, workflowData.CustomSteps)

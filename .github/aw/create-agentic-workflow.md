@@ -80,15 +80,17 @@ Quick decision matrix:
 | Publish weekly stakeholder/product digest | `schedule` | `github` (`gh-proxy`) | `create-issue` (default), `create-discussion` only if explicitly requested |
 
 > **`workflow_run` vs `deployment_status`**: Use `workflow_run` when monitoring another GitHub Actions workflow in the same repository. Use `deployment_status` when an external service (Heroku, Vercel, Fly.io) reports deployment results back to GitHub via the Deployments API. See [deployment-status.md](deployment-status.md) for the full pattern.
+>
+> For `workflow_run`, always scope explicitly: set `workflows:` to named upstream workflow(s), use `types: [completed]`, and gate outcomes with an `if:` guard on `${{ github.event.workflow_run.conclusion }}` (for incident triage, usually `failure`, `timed_out`, `cancelled`, `action_required`) unless the user asked for success reporting.
 
 Use [workflow-patterns.md](workflow-patterns.md) for trigger-selection guidance.
 
 Compact scenario examples:
 
 - **Schema/API review on PRs**: trigger `pull_request` with `paths:` scoped to backend contract files (for example `db/migrate/**`, `migrations/**`, `schema/**`, `openapi/**`, `api/**`), read via `github` (`gh-proxy`), publish findings with `add-comment`, call `noop` when contracts are unchanged.
-- **Visual regression on UI changes**: trigger `pull_request`, use `playwright` + `cache-memory`, keep writes in `add-comment`, call `noop` when UI paths are unchanged.
+- **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), publish via `add-comment`, call `noop` when UI paths are unchanged.
 - **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, call `noop` when a failure self-recovers or is duplicate noise.
-- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, publish digest with `create-issue`, call `noop` when there are no updates in the date window.
+- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, define an explicit window (for example `last 7 full days ending at run start (UTC)`), publish digest with `create-issue`, call `noop` when there are no updates in that window.
 
 ### 2a. Backend review compact guidance
 
@@ -279,7 +281,7 @@ Before finalizing any newly generated workflow, verify:
 
 - [ ] **Paths scope**: include `paths:`/`paths-ignore:` when the automation should ignore unrelated files (for backend reviews, include migration/schema/API contract globs)
 - [ ] **Labels scope**: define required labels (for example `label_command` names or PR/issue label filters) when label-based routing is expected
-- [ ] **Workflow-name scope**: for `workflow_run`, explicitly name target workflows and conclusions to avoid accidental matches
+- [ ] **Workflow-name scope**: for `workflow_run`, explicitly set `workflows:` to named targets and gate conclusions via `if:` on `${{ github.event.workflow_run.conclusion }}` (for incident triage, prefer failure-only outcomes)
 - [ ] **Date-window scope**: for reporting/triage, state the exact window (for example `last 24h`, `since previous run`, `current week`)
 - [ ] **Safe-output write contract**: name which safe output is used for each outcome and when `noop` is required instead of a write
 

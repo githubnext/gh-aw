@@ -42,6 +42,8 @@ steps:
       mkdir -p /tmp/gh-aw/ambient-context
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Ambient Context Optimizer
