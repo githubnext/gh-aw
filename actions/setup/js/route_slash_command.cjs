@@ -365,7 +365,8 @@ function buildCommandBulletLine(entry) {
   if (entry.source_file) {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    const sourceUrl = `https://github.com/${owner}/${repo}/blob/HEAD/.github/workflows/${entry.source_file}.md`;
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const sourceUrl = `${githubServer}/${owner}/${repo}/blob/HEAD/.github/workflows/${entry.source_file}.md`;
     return `- [${commandText}](${sourceUrl})${suffix}`;
   }
   return `- ${commandText}${suffix}`;
