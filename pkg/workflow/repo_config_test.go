@@ -257,41 +257,41 @@ func TestActionFailureIssueExpiresHours_Default(t *testing.T) {
 	assert.Equal(t, DefaultActionFailureIssueExpiresHours, cfg.ActionFailureIssueExpiresHours(), "default should be returned when aw.json does not set action_failure_issue_expires")
 }
 
-func TestLoadRepoConfig_AutoUpdatesEnabled(t *testing.T) {
+func TestLoadRepoConfig_AutoUpgradeEnabled(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"auto_updates": true}`)
+	writeAWJSON(t, dir, `{"auto_upgrade": true}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json should load without error")
-	require.NotNil(t, cfg.AutoUpdates, "auto_updates should be set")
-	assert.True(t, *cfg.AutoUpdates, "auto_updates should be true")
-	assert.True(t, cfg.IsAutoUpdatesEnabled(), "IsAutoUpdatesEnabled should return true")
+	require.NotNil(t, cfg.AutoUpgrade, "auto_upgrade should be set")
+	assert.True(t, *cfg.AutoUpgrade, "auto_upgrade should be true")
+	assert.True(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return true")
 }
 
-func TestLoadRepoConfig_AutoUpdatesDisabled(t *testing.T) {
+func TestLoadRepoConfig_AutoUpgradeDisabled(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"auto_updates": false}`)
+	writeAWJSON(t, dir, `{"auto_upgrade": false}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json should load without error")
-	require.NotNil(t, cfg.AutoUpdates, "auto_updates should be set")
-	assert.False(t, *cfg.AutoUpdates, "auto_updates should be false")
-	assert.False(t, cfg.IsAutoUpdatesEnabled(), "IsAutoUpdatesEnabled should return false")
+	require.NotNil(t, cfg.AutoUpgrade, "auto_upgrade should be set")
+	assert.False(t, *cfg.AutoUpgrade, "auto_upgrade should be false")
+	assert.False(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false")
 }
 
-func TestLoadRepoConfig_AutoUpdatesOmitted(t *testing.T) {
+func TestLoadRepoConfig_AutoUpgradeOmitted(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json should load without error")
-	assert.Nil(t, cfg.AutoUpdates, "auto_updates should be nil when omitted")
-	assert.False(t, cfg.IsAutoUpdatesEnabled(), "IsAutoUpdatesEnabled should return false when omitted (opt-in)")
+	assert.Nil(t, cfg.AutoUpgrade, "auto_upgrade should be nil when omitted")
+	assert.False(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false when omitted (opt-in)")
 }
 
-func TestIsAutoUpdatesEnabled_NilConfig(t *testing.T) {
+func TestIsAutoUpgradeEnabled_NilConfig(t *testing.T) {
 	var r *RepoConfig
-	assert.False(t, r.IsAutoUpdatesEnabled(), "IsAutoUpdatesEnabled should return false for nil RepoConfig")
+	assert.False(t, r.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false for nil RepoConfig")
 }
 
 // writeAWJSON creates .github/workflows/aw.json with the given JSON content.

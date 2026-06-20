@@ -113,7 +113,7 @@ func buildAutoUpdateWorkflowYAML(cronSchedule, setupActionRef, githubScriptPin s
 Or use the gh-aw CLI directly:
   ./gh-aw compile --validate --verbose
 
-The workflow is generated when auto_updates is set to true in aw.json.
+The workflow is generated when auto_upgrade is set to true in aw.json.
 The weekly schedule is deterministically scattered based on the repository slug.`
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/auto_update_workflow.go", customInstructions)

@@ -164,7 +164,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		}
 		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 			WorkflowDir:     workflowDir,
-			Enabled:         repoConfig.IsAutoUpdatesEnabled(),
+			Enabled:         repoConfig.IsAutoUpgradeEnabled(),
 			RepoSlug:        repoSlug,
 			SetupActionRef:  setupActionRef,
 			GitHubScriptPin: githubScriptPin,
@@ -221,7 +221,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 			WorkflowDir:     workflowDir,
-			Enabled:         repoConfig != nil && repoConfig.IsAutoUpdatesEnabled(),
+			Enabled:         repoConfig != nil && repoConfig.IsAutoUpgradeEnabled(),
 			RepoSlug:        repoSlug,
 			SetupActionRef:  setupActionRef,
 			GitHubScriptPin: githubScriptPin,
@@ -299,7 +299,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 	return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 		WorkflowDir:     workflowDir,
-		Enabled:         repoConfig != nil && repoConfig.IsAutoUpdatesEnabled(),
+		Enabled:         repoConfig != nil && repoConfig.IsAutoUpgradeEnabled(),
 		RepoSlug:        repoSlug,
 		SetupActionRef:  setupActionRef,
 		GitHubScriptPin: githubScriptPin,

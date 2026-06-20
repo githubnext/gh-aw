@@ -18,7 +18,7 @@
       "pattern": "^[+-](?:0\\d|1[0-4]):[0-5]\\d$",
       "examples": ["+00:00", "-08:00", "+05:30"]
     },
-    "auto_updates": {
+    "auto_upgrade": {
       "description": "When true, the compiler generates agentic-auto-upgrade.yml that runs on a fuzzy weekly schedule and inlines the 'upgrade' operation to check for and report available workflow upgrades via a GitHub issue. Defaults to false (opt-in).",
       "type": "boolean"
     },
