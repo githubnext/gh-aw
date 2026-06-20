@@ -208,7 +208,8 @@ outerLoop:
 		case <-activeCtx.Done():
 			if isDeadlineExceeded(activeCtx) {
 				// Our own timeout context expired — treat this as a graceful stop,
-				// not a hard error.  Partial results collected so far will be output.
+				// not a hard error.  break outerLoop falls through to renderLogsOutput
+				// which outputs whatever processedRuns were collected before the deadline.
 				timeoutReached = true
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached, stopping download"))
