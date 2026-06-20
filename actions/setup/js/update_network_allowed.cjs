@@ -93,7 +93,7 @@ async function main() {
   }
 
   try {
-    fs.writeFileSync(configPath, JSON.stringify(config) + "\n");
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 0) + "\n");
   } catch (/** @type {unknown} */ err) {
     const e = /** @type {NodeJS.ErrnoException} */ err;
     process.stderr.write(`Failed to write AWF config file at ${configPath}: ${e.message}\n`);

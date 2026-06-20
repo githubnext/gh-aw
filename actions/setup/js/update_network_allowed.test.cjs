@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 import { tmpdir } from "os";
 import { join } from "path";
