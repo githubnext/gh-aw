@@ -133,7 +133,7 @@ To build and test repository custom linters:
 - @jamesadevine: #37806 _(direct issue)_, #28957 _(direct issue)_, #26407 _(direct issue)_, #26406 _(direct issue)_
 - @JamesNK: #29310 _(direct issue)_, #28867 _(direct issue)_, #28863 _(direct issue)_, #28704 _(direct issue)_
 - @JanKrivanek: #25656 _(direct issue)_, #25439 _(direct issue)_
-- @jaroslawgajewski: #34917 _(direct issue)_, #33644 _(direct issue)_, #33640 _(direct issue)_, #31678 _(direct issue)_, #31658 _(direct issue)_, #25593 _(direct issue)_, #24373 _(direct issue)_, #24372 _(direct issue)_, #24371 _(direct issue)_, #24259 _(direct issue)_, #24036 _(direct issue)_, #23779 _(direct issue)_
+- @jaroslawgajewski: #34917 _(direct issue)_, #33644 _(direct issue)_, #33640 _(direct issue)_, #31678 _(direct issue)_, #31658 _(direct issue)_, #25593 _(direct issue)_, #24373 _(direct issue)_, #24372 _(direct issue)_, #24371 _(direct issue)_, #24259 _(direct issue)_, #24036 _(direct issue)_
 - @JasonYeMSFT: #27424 _(direct issue)_
 - @jbaruch: #30832 _(direct issue)_
 - @jcooklin: #36785 _(direct issue)_
@@ -141,7 +141,7 @@ To build and test repository custom linters:
 - @jfomhover: #25420 _(direct issue)_
 - @jitran: #38969 _(direct issue)_, #37052 _(direct issue)_, #33649 _(direct issue)_
 - @joesturge: #40063 _(direct issue)_
-- @johnpreed: #25687 _(direct issue)_, #23777 _(direct issue)_
+- @johnpreed: #25687 _(direct issue)_
 - @jonathanpeppers: #38900 _(direct issue)_, #32893 _(direct issue)_, #30662 _(direct issue)_
 - @jsoref: #38928 _(direct issue)_, #27230 _(direct issue)_
 - @jtracey93: #26176 _(direct issue)_
