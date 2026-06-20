@@ -261,7 +261,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           if (toolCallId) {
             pendingToolCalls.set(toolCallId, { toolName, mcpServerName });
           }
-          writeEvent("tool.execution_start", command ? { toolName, mcpServerName, command } : { toolName, mcpServerName }, event.timestamp);
+          const eventData = { toolName, mcpServerName };
+          if (command) eventData.command = command;
+          writeEvent("tool.execution_start", eventData, event.timestamp);
           break;
         }
 
