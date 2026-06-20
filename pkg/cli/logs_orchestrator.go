@@ -30,6 +30,13 @@ import (
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 
+// isDeadlineExceeded reports whether ctx has been cancelled due to a deadline
+// expiry.  It is used to distinguish our own timeout cancellation (graceful
+// partial results) from a user-initiated cancellation or other error.
+func isDeadlineExceeded(ctx context.Context) bool {
+	return errors.Is(ctx.Err(), context.DeadlineExceeded)
+}
+
 // It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
 // validates the value is between 1 and 100, and falls back to the default if invalid.
 func getMaxConcurrentDownloads() int {
@@ -175,9 +182,9 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	var timeoutReached bool
 	if timeoutMinutes > 0 {
 		startTime = time.Now()
-		var timeoutCancel context.CancelFunc
-		ctx, timeoutCancel = context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+		timeoutCtx, timeoutCancel := context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
 		defer timeoutCancel()
+		ctx = timeoutCtx
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeoutMinutes)))
 		}
@@ -198,7 +205,7 @@ outerLoop:
 		// Check context cancellation or timeout deadline
 		select {
 		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			if isDeadlineExceeded(ctx) {
 				// Our own timeout context expired — treat this as a graceful stop,
 				// not a hard error.  Partial results collected so far will be output.
 				timeoutReached = true
@@ -335,7 +342,7 @@ outerLoop:
 			// promptly when the deadline fires between individual chunk downloads.
 			select {
 			case <-ctx.Done():
-				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				if isDeadlineExceeded(ctx) {
 					timeoutReached = true
 				}
 				break innerLoop
