@@ -210,15 +210,15 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 
 	version := extractActionVersion(step.Uses)
 	if version == "" {
-		pinnedUses := getCachedActionPin(actionRepo, data)
-		if pinnedUses == "" {
+		latestPin := getCachedActionPin(actionRepo, data)
+		if latestPin == "" {
 			actionPinsLog.Printf("Skipping pin for %s: no pin available", actionRepo)
 			return step
 		}
 
-		actionPinsLog.Printf("Pinned action: %s (no ref) -> %s", actionRepo, pinnedUses)
+		actionPinsLog.Printf("Pinned action: %s (no ref) -> %s", actionRepo, latestPin)
 		result := step.Clone()
-		result.Uses = pinnedUses
+		result.Uses = latestPin
 		return result
 	}
 

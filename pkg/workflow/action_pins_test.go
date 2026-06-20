@@ -30,7 +30,7 @@ func expectedPinnedUses(t *testing.T, repo, version string) string {
 	return result
 }
 
-func expectedLatestPinnedUses(t *testing.T, repo string) string {
+func latestPinnedUsesForRepo(t *testing.T, repo string) string {
 	t.Helper()
 
 	pin, ok := getLatestActionPinByRepo(repo)
@@ -252,7 +252,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 					expectedUses = expectedPinnedUses(t, "actions/checkout", "de0fac2e4500dabe0009e67214ff5f5447ce83dd")
 				}
 				if expectedUses == checkoutLatestExpectedUsesPlaceholder {
-					expectedUses = expectedLatestPinnedUses(t, "actions/checkout")
+					expectedUses = latestPinnedUsesForRepo(t, "actions/checkout")
 				}
 				if usesStr != expectedUses {
 					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, expectedUses)
@@ -442,7 +442,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
 			}
 			if expectedUses == checkoutLatestExpectedUsesPlaceholder {
-				expectedUses = expectedLatestPinnedUses(t, "actions/checkout")
+				expectedUses = latestPinnedUsesForRepo(t, "actions/checkout")
 			}
 			if result.Uses != expectedUses {
 				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, expectedUses)
