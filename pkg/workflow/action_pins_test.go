@@ -33,11 +33,11 @@ func expectedPinnedUses(t *testing.T, repo, version string) string {
 func latestPinnedUsesForRepo(t *testing.T, repo string) string {
 	t.Helper()
 
-	pin, ok := getLatestActionPinByRepo(repo)
-	if !ok {
-		t.Fatalf("getLatestActionPinByRepo(%s) returned no pin", repo)
+	result := getCachedActionPin(repo, &WorkflowData{})
+	if result == "" {
+		t.Fatalf("getCachedActionPin(%s) returned empty", repo)
 	}
-	return expectedPinnedUses(t, repo, pin.Version)
+	return result
 }
 
 // TestGetActionPinFallback tests that getActionPin returns empty string for unknown actions
