@@ -1746,6 +1746,40 @@ safe-outputs:
 
 Accepts a literal integer or a GitHub Actions expression string (e.g., `${{ inputs.max-mentions }}`). Set to `0` to escape all bot trigger phrases. Default: 10.
 
+### Mention Filtering (`mentions:`)
+
+By default, `@mentions` in AI-generated content are escaped with backticks unless the mentioned user is a verified collaborator or inferred from the event context (issue/PR author, assignees, etc.). Use `mentions:` to control this behavior:
+
+```yaml wrap
+safe-outputs:
+  mentions: false          # Escape all mentions
+  add-comment: {}
+```
+
+```yaml wrap
+safe-outputs:
+  mentions:
+    allow-team-members: true    # Allow repo collaborators (default: true)
+    allow-context: true         # Allow event context participants (default: true)
+    allowed:                    # Individual users/bots always allowed
+      - trusted-bot
+    allowed-teams:              # Team members always allowed
+      - myorg/eng               # org/team-slug format
+      - reviewers               # team-slug only (uses current org)
+    max: 50                     # Max mentions per message (default: 50)
+  add-comment: {}
+```
+
+**`allowed-teams`** lets organizations allow all members of specific GitHub teams to be mentioned without listing individual usernames. Team members are fetched from the GitHub API at runtime using `GET /orgs/{org}/teams/{team_slug}/members`. Bot accounts within the team are excluded. Use `org/team-slug` for cross-org teams or just `team-slug` to resolve against the current repository's organization.
+
+> [!IMPORTANT]
+> `allowed-teams` requires the workflow token to have `read:org` scope. The default `GITHUB_TOKEN` does **not** include this scope. Use one of the following:
+> - A **classic PAT** with the `read:org` scope stored as a repository secret
+> - A **fine-grained PAT** with the "Members" repository permission (read)
+> - A **GitHub App** installation token with the "Members" permission (read)
+>
+> If the token lacks `read:org`, team membership lookup will fail with HTTP 403/404 and a warning will be logged. The workflow continues without those team members in the allowlist.
+
 ### Templatable Fields
 
 `max`, `expires`, and `max-bot-mentions` accept GitHub Actions expression strings in addition to literal integers, allowing workflow inputs or repository variables to control limits at runtime:

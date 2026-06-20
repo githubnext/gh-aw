@@ -12,7 +12,8 @@ permissions:
   pull-requests: read
 tracker-id: daily-awf-spec-compiler-surfacing
 engine:
-  id: claude
+  id: pi
+  model: copilot/gpt-5.4
 tools:
   cli-proxy: true
   github:

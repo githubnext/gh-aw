@@ -49,7 +49,7 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 // Mentions can be:
 // - false: always escapes mentions
 // - true: always allows mentions (error in strict mode)
-// - object: detailed configuration with allow-team-members, allow-context, allowed, max
+// - object: detailed configuration with allowed-collaborators, allow-context, allowed, max
 func parseMentionsConfig(mentions any) *MentionsConfig {
 	safeOutputMessagesLog.Printf("Parsing mentions configuration: type=%T", mentions)
 	config := &MentionsConfig{}
@@ -63,10 +63,14 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 
 	// Handle object configuration
 	if mentionsMap, ok := mentions.(map[string]any); ok {
-		// Parse allow-team-members
-		if allowTeamMembers, exists := mentionsMap["allow-team-members"]; exists {
+		// Parse allowed-collaborators (preferred) with fallback to deprecated allow-team-members
+		if allowedCollaborators, exists := mentionsMap["allowed-collaborators"]; exists {
+			if val, ok := allowedCollaborators.(bool); ok {
+				config.AllowedCollaborators = &val
+			}
+		} else if allowTeamMembers, exists := mentionsMap["allow-team-members"]; exists {
 			if val, ok := allowTeamMembers.(bool); ok {
-				config.AllowTeamMembers = &val
+				config.AllowedCollaborators = &val
 			}
 		}
 
@@ -93,6 +97,25 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 					}
 				}
 				config.Allowed = allowedStrings
+			}
+		}
+
+		// Parse allowed-teams list
+		if allowedTeams, exists := mentionsMap["allowed-teams"]; exists {
+			if allowedTeamsArray, ok := allowedTeams.([]any); ok {
+				var allowedTeamsStrings []string
+				for _, item := range allowedTeamsArray {
+					if str, ok := item.(string); ok {
+						// Normalize team slug by removing '@' prefix if present
+						normalized := str
+						if len(str) > 0 && str[0] == '@' {
+							normalized = str[1:]
+							safeOutputMessagesLog.Printf("Normalized team mention '%s' to '%s'", str, normalized)
+						}
+						allowedTeamsStrings = append(allowedTeamsStrings, normalized)
+					}
+				}
+				config.AllowedTeams = allowedTeamsStrings
 			}
 		}
 

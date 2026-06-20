@@ -243,6 +243,9 @@ func TestDailyFunctionNamerColdStartHandling(t *testing.T) {
 }
 
 func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
+	// daily-function-namer was migrated to the Pi engine (copilot/gpt-5.4). The
+	// orphaned Claude experiments block was removed because Pi never consumed those
+	// variants. Verify no experiments block is present to prevent future drift.
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		t.Fatalf("Failed to find repo root: %v", err)
@@ -259,25 +262,17 @@ func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
 		t.Fatalf("Failed to parse workflow frontmatter: %v", err)
 	}
 
-	experiments, ok := parsed.Frontmatter["experiments"].(map[string]any)
+	if _, ok := parsed.Frontmatter["experiments"]; ok {
+		t.Fatal("daily-function-namer uses Pi engine and must not have an experiments block; remove orphaned experiment variants")
+	}
+
+	// Verify it uses the Pi engine
+	engine, ok := parsed.Frontmatter["engine"].(map[string]any)
 	if !ok {
-		t.Fatal("Expected daily-function-namer workflow to define experiments")
+		t.Fatal("Expected daily-function-namer to define engine")
 	}
-	modelSize, ok := experiments["model_size"].(map[string]any)
-	if !ok {
-		t.Fatal("Expected daily-function-namer workflow to define experiments.model_size")
-	}
-	variants, ok := modelSize["variants"].([]any)
-	if !ok {
-		t.Fatal("Expected daily-function-namer workflow to define experiments.model_size.variants")
-	}
-	if len(variants) != 2 || variants[0] != "claude-sonnet-4-6" || variants[1] != "claude-haiku-4-5-20251001" {
-		t.Fatalf("Expected concrete Claude variants [claude-sonnet-4-6, claude-haiku-4-5-20251001], got %#v", variants)
-	}
-	for _, variant := range variants {
-		if variant == "agent" || variant == "small-agent" {
-			t.Fatalf("Expected concrete model variants, found alias %q", variant)
-		}
+	if engine["id"] != "pi" {
+		t.Fatalf("Expected daily-function-namer to use Pi engine, got %q", engine["id"])
 	}
 }
 

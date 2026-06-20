@@ -18,7 +18,8 @@ permissions:
   copilot-requests: write
 tracker-id: daily-news-weekday
 engine:
-  id: copilot
+  id: pi
+  model: copilot/gpt-5.4
   bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
@@ -69,6 +70,8 @@ safe-outputs:
 
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
   edit:
   bash:
     - "*"

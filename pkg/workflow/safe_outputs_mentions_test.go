@@ -59,16 +59,16 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 		{
 			name: "full config",
 			input: map[string]any{
-				"allow-team-members": true,
-				"allow-context":      false,
-				"allowed":            []any{"bot1", "bot2"},
-				"max":                10,
+				"allowed-collaborators": true,
+				"allow-context":         false,
+				"allowed":               []any{"bot1", "bot2"},
+				"max":                   10,
 			},
 			expected: &MentionsConfig{
-				AllowTeamMembers: boolPtr(true),
-				AllowContext:     boolPtr(false),
-				Allowed:          []string{"bot1", "bot2"},
-				Max:              new(10),
+				AllowedCollaborators: boolPtr(true),
+				AllowContext:         boolPtr(false),
+				Allowed:              []string{"bot1", "bot2"},
+				Max:                  new(10),
 			},
 		},
 		{
@@ -80,6 +80,17 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 			expected: &MentionsConfig{
 				Allowed: []string{"bot1"},
 				Max:     new(5),
+			},
+		},
+		{
+			name: "deprecated allow-team-members alias",
+			input: map[string]any{
+				"allow-team-members": false,
+				"allow-context":      false,
+			},
+			expected: &MentionsConfig{
+				AllowedCollaborators: boolPtr(false),
+				AllowContext:         boolPtr(false),
 			},
 		},
 		{
@@ -98,6 +109,50 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 			},
 			expected: &MentionsConfig{
 				Allowed: []string{"pelikhan", "bot1", "user2"},
+			},
+		},
+		{
+			name: "allowed-teams with org/team format",
+			input: map[string]any{
+				"allowed-teams": []any{"myorg/my-team", "anotherorg/eng"},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/my-team", "anotherorg/eng"},
+			},
+		},
+		{
+			name: "allowed-teams with team-slug only",
+			input: map[string]any{
+				"allowed-teams": []any{"my-team"},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"my-team"},
+			},
+		},
+		{
+			name: "allowed-teams with @ prefix - should normalize",
+			input: map[string]any{
+				"allowed-teams": []any{"@myorg/my-team"},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/my-team"},
+			},
+		},
+		{
+			name: "full config with allowed-teams",
+			input: map[string]any{
+				"allowed-collaborators": true,
+				"allow-context":         false,
+				"allowed":               []any{"bot1"},
+				"allowed-teams":         []any{"myorg/eng"},
+				"max":                   10,
+			},
+			expected: &MentionsConfig{
+				AllowedCollaborators: boolPtr(true),
+				AllowContext:         boolPtr(false),
+				Allowed:              []string{"bot1"},
+				AllowedTeams:         []string{"myorg/eng"},
+				Max:                  new(10),
 			},
 		},
 		{
@@ -126,12 +181,12 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 				t.Fatal("Expected non-nil result")
 			}
 
-			// Check AllowTeamMembers
-			if tt.expected.AllowTeamMembers != nil {
-				if result.AllowTeamMembers == nil {
-					t.Errorf("Expected AllowTeamMembers to be %v, got nil", *tt.expected.AllowTeamMembers)
-				} else if *result.AllowTeamMembers != *tt.expected.AllowTeamMembers {
-					t.Errorf("Expected AllowTeamMembers to be %v, got %v", *tt.expected.AllowTeamMembers, *result.AllowTeamMembers)
+			// Check AllowedCollaborators
+			if tt.expected.AllowedCollaborators != nil {
+				if result.AllowedCollaborators == nil {
+					t.Errorf("Expected AllowedCollaborators to be %v, got nil", *tt.expected.AllowedCollaborators)
+				} else if *result.AllowedCollaborators != *tt.expected.AllowedCollaborators {
+					t.Errorf("Expected AllowedCollaborators to be %v, got %v", *tt.expected.AllowedCollaborators, *result.AllowedCollaborators)
 				}
 			}
 
@@ -152,6 +207,19 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 					for i, expected := range tt.expected.Allowed {
 						if result.Allowed[i] != expected {
 							t.Errorf("Expected Allowed[%d] to be %q, got %q", i, expected, result.Allowed[i])
+						}
+					}
+				}
+			}
+
+			// Check AllowedTeams
+			if len(tt.expected.AllowedTeams) > 0 {
+				if len(result.AllowedTeams) != len(tt.expected.AllowedTeams) {
+					t.Errorf("Expected AllowedTeams length %d, got %d", len(tt.expected.AllowedTeams), len(result.AllowedTeams))
+				} else {
+					for i, expected := range tt.expected.AllowedTeams {
+						if result.AllowedTeams[i] != expected {
+							t.Errorf("Expected AllowedTeams[%d] to be %q, got %q", i, expected, result.AllowedTeams[i])
 						}
 					}
 				}
@@ -196,16 +264,40 @@ func TestGenerateSafeOutputsConfig_WithMentions(t *testing.T) {
 		{
 			name: "full mentions config",
 			config: &MentionsConfig{
-				AllowTeamMembers: boolPtr(false),
-				AllowContext:     boolPtr(true),
-				Allowed:          []string{"bot1", "bot2"},
-				Max:              new(20),
+				AllowedCollaborators: boolPtr(false),
+				AllowContext:         boolPtr(true),
+				Allowed:              []string{"bot1", "bot2"},
+				Max:                  new(20),
 			},
 			expected: map[string]any{
-				"allowTeamMembers": false,
-				"allowContext":     true,
-				"allowed":          []string{"bot1", "bot2"},
-				"max":              20,
+				"allowedCollaborators": false,
+				"allowContext":         true,
+				"allowed":              []string{"bot1", "bot2"},
+				"max":                  20,
+			},
+		},
+		{
+			name: "allowed-teams propagates to handler config",
+			config: &MentionsConfig{
+				AllowedTeams: []string{"myorg/eng", "myorg/reviewers"},
+			},
+			expected: map[string]any{
+				"allowedTeams": []string{"myorg/eng", "myorg/reviewers"},
+			},
+		},
+		{
+			name: "full config with allowed-teams",
+			config: &MentionsConfig{
+				AllowedCollaborators: boolPtr(false),
+				AllowedTeams:         []string{"myorg/eng"},
+				Allowed:              []string{"bot1"},
+				Max:                  new(30),
+			},
+			expected: map[string]any{
+				"allowedCollaborators": false,
+				"allowedTeams":         []string{"myorg/eng"},
+				"allowed":              []string{"bot1"},
+				"max":                  30,
 			},
 		},
 	}
@@ -303,18 +395,18 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
 					"mentions": map[string]any{
-						"allow-team-members": false,
-						"allow-context":      true,
-						"allowed":            []any{"bot1"},
-						"max":                15,
+						"allowed-collaborators": false,
+						"allow-context":         true,
+						"allowed":               []any{"bot1"},
+						"max":                   15,
 					},
 				},
 			},
 			expected: &MentionsConfig{
-				AllowTeamMembers: boolPtr(false),
-				AllowContext:     boolPtr(true),
-				Allowed:          []string{"bot1"},
-				Max:              new(15),
+				AllowedCollaborators: boolPtr(false),
+				AllowContext:         boolPtr(true),
+				Allowed:              []string{"bot1"},
+				Max:                  new(15),
 			},
 		},
 		{
@@ -343,6 +435,32 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 				Allowed: []string{"user1", "user2", "user3"},
 			},
 		},
+		{
+			name: "mentions with allowed-teams",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"mentions": map[string]any{
+						"allowed-teams": []any{"myorg/eng", "myorg/reviewers"},
+					},
+				},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/eng", "myorg/reviewers"},
+			},
+		},
+		{
+			name: "mentions with allowed-teams @ prefix - should normalize",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"mentions": map[string]any{
+						"allowed-teams": []any{"@myorg/eng"},
+					},
+				},
+			},
+			expected: &MentionsConfig{
+				AllowedTeams: []string{"myorg/eng"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -367,12 +485,12 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 				}
 			}
 
-			// Check AllowTeamMembers
-			if tt.expected.AllowTeamMembers != nil {
-				if config.Mentions.AllowTeamMembers == nil {
-					t.Errorf("Expected AllowTeamMembers to be %v, got nil", *tt.expected.AllowTeamMembers)
-				} else if *config.Mentions.AllowTeamMembers != *tt.expected.AllowTeamMembers {
-					t.Errorf("Expected AllowTeamMembers to be %v, got %v", *tt.expected.AllowTeamMembers, *config.Mentions.AllowTeamMembers)
+			// Check AllowedCollaborators
+			if tt.expected.AllowedCollaborators != nil {
+				if config.Mentions.AllowedCollaborators == nil {
+					t.Errorf("Expected AllowedCollaborators to be %v, got nil", *tt.expected.AllowedCollaborators)
+				} else if *config.Mentions.AllowedCollaborators != *tt.expected.AllowedCollaborators {
+					t.Errorf("Expected AllowedCollaborators to be %v, got %v", *tt.expected.AllowedCollaborators, *config.Mentions.AllowedCollaborators)
 				}
 			}
 
@@ -393,6 +511,19 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 					for i, expected := range tt.expected.Allowed {
 						if config.Mentions.Allowed[i] != expected {
 							t.Errorf("Expected Allowed[%d] to be %q, got %q", i, expected, config.Mentions.Allowed[i])
+						}
+					}
+				}
+			}
+
+			// Check AllowedTeams
+			if len(tt.expected.AllowedTeams) > 0 {
+				if len(config.Mentions.AllowedTeams) != len(tt.expected.AllowedTeams) {
+					t.Errorf("Expected AllowedTeams length %d, got %d", len(tt.expected.AllowedTeams), len(config.Mentions.AllowedTeams))
+				} else {
+					for i, expected := range tt.expected.AllowedTeams {
+						if config.Mentions.AllowedTeams[i] != expected {
+							t.Errorf("Expected AllowedTeams[%d] to be %q, got %q", i, expected, config.Mentions.AllowedTeams[i])
 						}
 					}
 				}

@@ -34,7 +34,8 @@ description: Generates and maintains specification-driven test suites for each G
 emoji: 📋
 max-turns: 100
 engine:
-  id: claude
+  id: pi
+  model: copilot/gpt-5.4
 name: Package Specification Enforcer
 strict: true
 timeout-minutes: 30

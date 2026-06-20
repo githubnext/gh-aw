@@ -1082,7 +1082,7 @@ jobs:
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_b8728ae2202dc58d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_5d9dfcc4cd7406b9_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -1093,18 +1093,18 @@ jobs:
                 "entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"],
                 "env": {
                   "DEBUG": "*",
-                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
-                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
-                  "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
-                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
-                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
-                  "GITHUB_TOKEN": "$GITHUB_TOKEN",
-                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
-                  "RUNNER_TEMP": "$RUNNER_TEMP"
+                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
+                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
+                  "RUNNER_TEMP": "\${RUNNER_TEMP}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1153,7 +1153,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_b8728ae2202dc58d_EOF
+          GH_AW_MCP_CONFIG_5d9dfcc4cd7406b9_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config

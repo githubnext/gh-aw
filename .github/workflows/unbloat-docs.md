@@ -34,7 +34,8 @@ runtimes:
 # AI engine configuration
 max-turns: 90  # Reduce from avg 115 turns
 engine:
-  id: claude
+  id: pi
+  model: copilot/gpt-5.4
 # Shared instructions
 imports:
   - uses: shared/daily-pr-base.md
@@ -183,7 +184,6 @@ steps:
       npm run generate-agent-factory
       npm run generate-model-tables
       npx astro build
-
 ---
 
 # Documentation Unbloat Workflow

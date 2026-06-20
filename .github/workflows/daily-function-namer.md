@@ -16,24 +16,8 @@ permissions:
 tracker-id: daily-function-namer
 
 engine:
-  id: claude
-  model: "${{ needs.activation.outputs.model_size }}"
-
-experiments:
-  model_size:
-    variants: [claude-sonnet-4-6, claude-haiku-4-5-20251001]
-    description: "Tests whether Claude Haiku identifies function rename candidates with equivalent quality at lower token cost versus Claude Sonnet."
-    hypothesis: "H0: no change in issue creation rate or run success rate. H1: Claude Haiku reduces AI credit usage >=30% with equivalent run success rate (>=0.90)."
-    metric: ai_credits_total
-    secondary_metrics: [run_success_rate, run_duration_ms]
-    guardrail_metrics:
-      - name: run_success_rate
-        threshold: ">=0.90"
-      - name: empty_output_rate
-        threshold: "<=0.10"
-    min_samples: 20
-    weight: [50, 50]
-    start_date: "2026-06-04"
+  id: pi
+  model: copilot/gpt-5.4
 
 imports:
   - uses: shared/daily-audit-base.md
@@ -61,7 +45,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-
 ---
 
 # Daily Go Function Namer

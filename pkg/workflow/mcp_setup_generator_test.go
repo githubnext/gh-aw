@@ -661,13 +661,13 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 		"Should configure safeoutputs as an MCP server")
 	assert.Contains(t, yamlStr, `"container": "`+pinnedGhAwNodeImage+`"`,
 		"Safe outputs should run in the gh-aw node container")
-	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
+	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
 		"Safe outputs MCP server should receive the runtime output path")
-	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH"`,
+	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`,
 		"Safe outputs MCP server should receive the runtime config path")
-	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH"`,
+	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}"`,
 		"Safe outputs MCP server should receive the runtime tools path")
-	assert.Contains(t, yamlStr, `"RUNNER_TEMP": "$RUNNER_TEMP"`,
+	assert.Contains(t, yamlStr, `"RUNNER_TEMP": "\${RUNNER_TEMP}"`,
 		"Safe outputs MCP server should receive RUNNER_TEMP for staging helpers")
 	assert.NotContains(t, yamlStr, "Start Safe Outputs MCP HTTP Server",
 		"Should not launch safe outputs via a dedicated startup step")
