@@ -58,7 +58,7 @@ const SAMPLE_VALIDATION_CONFIG = {
   },
   assign_to_agent: {
     defaultMax: 1,
-    customValidation: "requiresOneOf:issue_number,pull_number",
+    // issue_number and pull_number are optional: omit to auto-resolve from workflow context
     fields: {
       issue_number: { optionalPositiveInteger: true },
       pull_number: { optionalPositiveInteger: true },
@@ -716,15 +716,13 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
     });
 
-    it("should fail for assign_to_agent without issue_number or pull_number", async () => {
+    it("should pass for assign_to_agent without issue_number or pull_number (triggering context)", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
+      // issue_number and pull_number are optional — handler auto-resolves from workflow context
       const result = validateItem({ type: "assign_to_agent", agent: "copilot" }, "assign_to_agent", 1);
 
-      expect(result.isValid).toBe(false);
-      expect(result.error).toContain("requires at least one of");
-      expect(result.error).toContain("issue_number");
-      expect(result.error).toContain("pull_number");
+      expect(result.isValid).toBe(true);
     });
 
     it("should fail for update_pull_request when update_branch is false and no title/body is provided", async () => {

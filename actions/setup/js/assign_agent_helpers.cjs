@@ -364,6 +364,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
 
   try {
     core.info("Executing agent assignment GraphQL mutation");
+    core.info(`GraphQL final query:\n${mutation.trim()}`);
 
     // Build debug log message with all parameters
     const debugParts = [
@@ -525,6 +526,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
           }
         `;
         core.info("Executing fallback agent assignment GraphQL mutation");
+        core.info(`GraphQL fallback query:\n${fallbackMutation.trim()}`);
         core.debug(`Fallback GraphQL mutation with variables: assignableId=${assignableId}, assigneeIds=[${agentId}]`);
         const fallbackResp = await githubClient.graphql(fallbackMutation, {
           ...fallbackVariables,

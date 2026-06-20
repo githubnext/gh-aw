@@ -150,8 +150,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"assign_to_agent": {
-		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:issue_number,pull_number",
+		DefaultMax: 1,
+		// issue_number and pull_number are optional: when neither is provided the handler
+		// auto-resolves the target from workflow context (target: "triggering").
 		Fields: map[string]FieldValidation{
 			"issue_number":      {IssueNumberOrTemporaryID: true},
 			"pull_number":       {OptionalPositiveInteger: true},

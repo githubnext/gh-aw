@@ -170,7 +170,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       custom-instructions: "..."      # Optional: additional instructions for the agent
       allowed: [copilot]              # Optional: restrict to specific agent names
       max: 1                          # Optional: max assignments (default: 1)
-      target: "*"                     # Optional: "triggering" (default), "*", or number
+      target: "triggering"            # Optional: "triggering" (default), "*", or number
       target-repo: "owner/repo"       # Optional: where the issue lives (cross-repository)
       pull-request-repo: "owner/repo" # Optional: where PR should be created (if different)
       allowed-pull-request-repos: [owner/repo1]  # Optional: additional repos for PR creation
@@ -178,7 +178,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       ignore-if-error: true           # Optional: continue workflow on assignment error (default: false)
   ```
 
-  Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
+  When target is `"triggering"` (the default), the agent may omit `issue_number`/`pull_number` — the target is auto-resolved from workflow context. Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
 - `assign-to-user:` - Assign users to issues or pull requests
 
   ```yaml

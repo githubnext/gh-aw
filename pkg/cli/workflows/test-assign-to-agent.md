@@ -48,7 +48,17 @@ This workflow tests the `assign_to_agent` safe output feature with automatic tar
 ## Task
 
 **For issues event:**
-Assign the Copilot coding agent to the triggering issue using the `assign_to_agent` tool from the `safeoutputs` MCP server. The issue number will be auto-resolved from the workflow context.
+Assign the Copilot coding agent to the triggering issue using the `assign_to_agent` tool from the `safeoutputs` MCP server.
+
+With `target: "triggering"` (the default), you can omit the `issue_number` — it is auto-resolved from the workflow context:
+```
+assign_to_agent(agent="copilot")
+```
+
+You may also explicitly provide the issue number:
+```
+assign_to_agent(issue_number=<number>, agent="copilot")
+```
 
 **For workflow_dispatch:**
 Assign the Copilot coding agent to issue #${{ github.event.inputs.issue_number }} by providing the explicit issue number.

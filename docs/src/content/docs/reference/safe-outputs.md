@@ -1425,6 +1425,8 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
+When using `target: "triggering"` (the default), the agent tool can omit `issue_number` and `pull_number` — the handler auto-resolves the target from the workflow context (the issue or PR that triggered the workflow). Explicitly providing `issue_number` or `pull_number` is required only when using `target: "*"` or a specific number.
+
 See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#assign-to-agent)** for complete configuration options and authorization setup.
 
 If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
