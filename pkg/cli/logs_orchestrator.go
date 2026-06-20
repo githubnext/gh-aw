@@ -193,6 +193,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	fetchAllInRange := startDate != "" || endDate != ""
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
+outerLoop:
 	for iteration < MaxIterations {
 		// Check context cancellation or timeout deadline
 		select {
@@ -204,14 +205,12 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached (deadline exceeded), stopping download"))
 				}
-				break
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+				return ctx.Err()
 			}
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-			return ctx.Err()
+			break outerLoop
 		default:
-		}
-		if timeoutReached {
-			break
 		}
 
 		// Check timeout if specified
@@ -325,6 +324,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		// forcing us to scan the entire batch.
 		batchProcessed := 0
 		runsRemaining := runs
+	innerLoop:
 		for len(runsRemaining) > 0 && len(processedRuns) < count {
 			remainingNeeded := count - len(processedRuns)
 			if remainingNeeded <= 0 {
@@ -338,10 +338,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 					timeoutReached = true
 				}
-				// Break out of the inner chunk loop; the outer loop will also
-				// detect the cancellation on its next iteration.
-				runsRemaining = nil
-				continue
+				break innerLoop
 			default:
 			}
 
