@@ -1186,6 +1186,7 @@ function normalizeDeniedPermissionCommand(command) {
  */
 function normalizeToolCallPreview(value, maxLen = 120) {
   const singleLine = String(value || "")
+    .replace(/`/g, "'")
     .replace(/\s+/g, " ")
     .trim();
   if (!singleLine) return "";

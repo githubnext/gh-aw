@@ -3303,6 +3303,37 @@ describe("handle_agent_failure", () => {
         },
       ]);
     });
+
+    it("sanitizes backticks in shell command previews", () => {
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({
+            type: "tool.execution_start",
+            timestamp: "2026-06-06T00:00:00Z",
+            data: { toolName: "bash", mcpServerName: "terminal", command: "echo `hostname` && echo ok" },
+          }),
+          JSON.stringify({
+            type: "guard.tool_denials_exceeded",
+            timestamp: "2026-06-06T00:00:01Z",
+            data: { denialCount: 5, threshold: 5, reason: "permission denied: bash" },
+          }),
+        ].join("\n") + "\n"
+      );
+
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toEqual([
+        {
+          denialCount: 5,
+          threshold: 5,
+          reason: "permission denied: bash",
+          recentToolCalls: ["terminal.bash(echo 'hostname' && echo ok)"],
+          timestamp: "2026-06-06T00:00:01Z",
+        },
+      ]);
+    });
   });
 
   // ──────────────────────────────────────────────────────
