@@ -30,6 +30,22 @@ const NETWORK_ALLOWED_ENV_VAR = "GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED";
 /** @typedef {Record<string, unknown> & {network?: AWFNetworkConfig | unknown}} AWFConfig */
 
 /**
+ * @param {any} value
+ * @returns {AWFNetworkConfig}
+ */
+function toNetworkConfig(value) {
+  return value;
+}
+
+/**
+ * @param {any} value
+ * @returns {string[]}
+ */
+function toStringArray(value) {
+  return value;
+}
+
+/**
  * @returns {Promise<void>}
  */
 async function main() {
@@ -81,14 +97,15 @@ async function main() {
       process.exit(1);
     }
 
+    // Arrays are treated as malformed for this field and reset to an object shape.
     if (!config.network || typeof config.network !== "object" || Array.isArray(config.network)) {
       config.network = {};
     }
-    const network = /** @type {AWFNetworkConfig} */ config.network;
+    const network = toNetworkConfig(config.network);
     if (!Array.isArray(network.allowDomains)) {
       network.allowDomains = [];
     }
-    const allowDomains = network.allowDomains;
+    const allowDomains = toStringArray(network.allowDomains);
     const seen = new Set(allowDomains);
 
     for (const token of tokens) {
