@@ -23,6 +23,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -175,6 +176,7 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 	}
 
 	return fmt.Sprintf(`python3 - <<'PY'
+import base64
 import json
 import os
 from pathlib import Path
@@ -197,7 +199,7 @@ network_allowed = os.environ.get(%q, "")
 tokens = [token.strip() for token in network_allowed.split(",") if token.strip()]
 
 if tokens:
-    ecosystem_map = json.loads(r'''%s''')
+    ecosystem_map = json.loads(base64.b64decode('%s').decode())
     allow_domains = config.setdefault("network", {}).setdefault("allowDomains", [])
     seen = set(allow_domains)
     for token in tokens:
@@ -210,7 +212,7 @@ try:
     config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
 except OSError as exc:
     raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
-PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
+PY`, string(WorkflowCallNetworkAllowedEnvVar), base64.StdEncoding.EncodeToString(ecosystemJSON)), nil
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
