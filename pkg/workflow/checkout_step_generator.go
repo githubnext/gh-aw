@@ -313,7 +313,7 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 	)
 	for _, repo := range subRepoEnvVars {
 		steps = append(steps,
-			fmt.Sprintf("          # Re-authenticate git for %s\n", repo.repository),
+			fmt.Sprintf("          # Re-authenticate git for %s\n", repo.path),
 			fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${%s}.git\"\n", repo.path, repo.envVarName),
 		)
 	}

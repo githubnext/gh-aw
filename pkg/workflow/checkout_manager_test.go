@@ -1615,6 +1615,11 @@ func TestGenerateConfigureGitCredentialsSteps(t *testing.T) {
 			"shell command must reference env var, not the raw expression")
 		assert.NotContains(t, combined, "github/${{ github.event.inputs.target_repo }}.git",
 			"expression must not be inlined in the git remote set-url command (template injection risk)")
+		// The bash comment must use the path, not the expression-based repo name.
+		assert.Contains(t, combined, "# Re-authenticate git for ./target-repo",
+			"comment must reference checkout path, never the raw expression")
+		assert.NotContains(t, combined, "# Re-authenticate git for github/${{",
+			"expression must not appear in bash comment (template injection risk)")
 	})
 
 	t.Run("multiple sub-repos each get a unique env var", func(t *testing.T) {
