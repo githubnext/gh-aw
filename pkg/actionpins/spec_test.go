@@ -186,25 +186,44 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 
 // TestSpec_PublicAPI_ResolveActionPin_NilContext validates nil context fallback to embedded pins.
 func TestSpec_PublicAPI_ResolveActionPin_NilContext(t *testing.T) {
-	result, err := actionpins.ResolveActionPin("actions/checkout", "v4", nil)
-	require.NoError(t, err)
-	assert.NotEmpty(t, result, "nil ctx should resolve from embedded pins")
+	latestPin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
+	require.True(t, ok, "expected embedded pins for actions/checkout")
+
+	result, err := actionpins.ResolveActionPin("actions/checkout", latestPin.Version, nil)
+	require.NoError(t, err, "nil ctx should still resolve from embedded pins")
+	assert.Equal(t,
+		actionpins.FormatPinnedActionReference("actions/checkout", latestPin.SHA, latestPin.Version),
+		result,
+		"nil ctx should resolve from embedded pins with correct SHA and format")
 }
 
 // TestSpec_PublicAPI_ResolveActionPin_EnforcePinned validates unresolved pin handling in enforce mode.
 func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 	t.Run("returns error when EnforcePinned=true and pin is unresolved", func(t *testing.T) {
-		ctx := &actionpins.PinContext{EnforcePinned: true, Warnings: make(map[string]bool)}
+		var failures []actionpins.ResolutionFailure
+		ctx := &actionpins.PinContext{
+			EnforcePinned: true,
+			Warnings:      make(map[string]bool),
+			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+				failures = append(failures, f)
+			},
+		}
 		_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unable to pin action")
+		require.Error(t, err, "enforce mode should return an error when pin is unresolved")
+		assert.Contains(t, err.Error(), "unable to pin action",
+			"enforce mode error should mention unable to pin action")
+		require.Len(t, failures, 1, "failure should be audited when enforce mode errors")
+		assert.Equal(t, actionpins.ResolutionErrorTypePinNotFound, failures[0].ErrorType,
+			"unresolved pin in enforce mode should audit pin_not_found")
 	})
 
 	t.Run("AllowActionRefs downgrades to warning with no error", func(t *testing.T) {
 		ctx := &actionpins.PinContext{EnforcePinned: true, AllowActionRefs: true, Warnings: make(map[string]bool)}
 		result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
-		require.NoError(t, err)
-		assert.Empty(t, result)
+		require.NoError(t, err, "AllowActionRefs should downgrade unresolved pin enforcement to warning")
+		assert.Empty(t, result, "AllowActionRefs downgrade should keep unresolved result empty")
+		assert.True(t, ctx.Warnings[actionpins.FormatCacheKey("does-not-exist/x", "v1")],
+			"AllowActionRefs should record warning dedup key")
 	})
 }
 
@@ -222,7 +241,7 @@ func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 
 	t.Run("returns empty string for unknown repository", func(t *testing.T) {
 		result := actionpins.ResolveLatestActionPin("does-not-exist/x", nil)
-		assert.Empty(t, result)
+		assert.Empty(t, result, "unknown repo should return empty pin")
 	})
 }
 
@@ -464,9 +483,12 @@ func TestSpec_PublicAPI_RecordResolutionFailure_DynamicFailed(t *testing.T) {
 	}
 
 	_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
-	require.NoError(t, err)
-	require.Len(t, failures, 1)
-	assert.Equal(t, actionpins.ResolutionErrorTypeDynamicResolutionFailed, failures[0].ErrorType)
+	require.NoError(t, err, "dynamic resolver failures should be audited and downgraded to unresolved pin")
+	require.Len(t, failures, 1, "expected one resolution failure to be recorded")
+	assert.Equal(t, actionpins.ResolutionErrorTypeDynamicResolutionFailed, failures[0].ErrorType,
+		"resolver error should classify as dynamic_resolution_failed")
+	assert.Equal(t, "does-not-exist/x", failures[0].Repo, "recorded failure should carry the queried repo")
+	assert.Equal(t, "v1", failures[0].Ref, "recorded failure should carry the queried ref")
 }
 
 // TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
