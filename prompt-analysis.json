@@ -1,67 +1,24 @@
 {
-  "last_run": "2026-06-20",
+  "last_run": "2026-06-21",
   "total": 1000,
-  "merged": 792,
-  "closed": 204,
-  "open": 4,
-  "rate": 79.2,
+  "merged": 795,
+  "closed": 202,
+  "open": 3,
+  "rate": 79.5,
   "categories": {
-    "bug_fix": {
-      "total": 200,
-      "merged": 149,
-      "rate": 74.5
-    },
-    "testing": {
-      "total": 708,
-      "merged": 569,
-      "rate": 80.4
-    },
-    "documentation": {
-      "total": 34,
-      "merged": 28,
-      "rate": 82.4
-    },
-    "feature": {
-      "total": 30,
-      "merged": 23,
-      "rate": 76.7
-    },
-    "refactoring": {
-      "total": 18,
-      "merged": 17,
-      "rate": 94.4
-    },
-    "other": {
-      "total": 6,
-      "merged": 6,
-      "rate": 100.0
-    }
+    "bug_fix": {"total": 663, "merged": 519, "closed": 141, "rate": 79.0},
+    "testing": {"total": 158, "merged": 135, "closed": 23, "rate": 85.4},
+    "feature": {"total": 102, "merged": 80, "closed": 22, "rate": 78.4},
+    "refactor": {"total": 50, "merged": 42, "closed": 8, "rate": 84.0},
+    "documentation": {"total": 27, "merged": 19, "closed": 8, "rate": 70.4}
   },
-  "avg_words_merged": 185.9,
-  "avg_words_closed": 195.5,
-  "code_block_rate_with": 82.8,
-  "code_block_rate_without": 71.3,
-  "conventional_commit_rate": 83.2,
-  "wip_merge_rate": 35.0,
-  "code_ref_rate_merged_pct": 97.1,
-  "code_ref_rate_closed_pct": 93.6,
-  "wip_merge_rate_pct": 37.2,
+  "avg_words_merged": 193,
+  "avg_words_closed": 195,
+  "code_ref_rate_merged_pct": 97,
+  "code_ref_rate_closed_pct": 92,
+  "wip_merge_rate_pct": 41.0,
   "wip_merged": 16,
-  "wip_closed": 27,
-  "boilerplate_closed": 18,
-  "successful_keywords": [
-    "permission",
-    "allow",
-    "allowlist",
-    "normalized",
-    "expanded",
-    "completing"
-  ],
-  "unsuccessful_keywords": [
-    "progress",
-    "started",
-    "parameters",
-    "queue",
-    "assign"
-  ]
+  "wip_closed": 23,
+  "successful_keywords": ["fix", "consolidate", "normalize", "extend", "enforce", "resolv"],
+  "unsuccessful_keywords": ["VideoObject", "JSON-LD", "numerical stats", "zizmor-scan", "phase 1"]
 }
