@@ -31,7 +31,7 @@ function parseFirewallLogs() {
   const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/*.log", "/tmp/gh-aw/squid-logs-*/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/*.log"];
 
   for (const pattern of firewallPaths) {
-    const files = globSync(pattern, { nodir: true });
+    const files = globSync(pattern);
     for (const logPath of files) {
       try {
         const content = fs.readFileSync(logPath, "utf-8");
@@ -102,7 +102,7 @@ function parseSessionLogs() {
   const sessionPaths = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state/*/events.jsonl", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state/*/events.jsonl"];
 
   for (const pattern of sessionPaths) {
-    const files = globSync(pattern, { nodir: true });
+    const files = globSync(pattern);
     for (const eventsPath of files) {
       try {
         const content = fs.readFileSync(eventsPath, "utf-8");
