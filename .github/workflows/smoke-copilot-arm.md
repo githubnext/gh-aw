@@ -69,11 +69,13 @@ safe-outputs:
     create-pull-request-review-comment:
       max: 5
     submit-pull-request-review:
-    add-labels:
-      allowed: [smoke-copilot-arm]
+    replace-label:
+      allowed-add: [smoke-copilot-arm]
+      allowed-remove: [smoke]
       allowed-repos: ["github/gh-aw"]
-    remove-labels:
-      allowed: [smoke]
+      allowed-transitions:
+        - from: smoke
+          to: smoke-copilot-arm
     dispatch-workflow:
       workflows:
         - haiku-printer
@@ -168,7 +170,6 @@ strict: false
 4. Use the `send_slack_message` tool to send a brief summary message (e.g., "ARM64 smoke test ${{ github.run_id }}: All tests passed! ✅")
 
 If all tests pass:
-- Use the `add_labels` safe-output tool to add the label `smoke-copilot-arm` to the pull request
-- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
+- Use the `replace_label` safe-output tool to replace the label `smoke` with `smoke-copilot-arm` on the pull request
 
 {{#runtime-import shared/noop-reminder.md}}

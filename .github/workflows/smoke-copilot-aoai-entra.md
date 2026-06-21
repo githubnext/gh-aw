@@ -100,11 +100,13 @@ safe-outputs:
     submit-pull-request-review:
     reply-to-pull-request-review-comment:
       max: 5
-    add-labels:
-      allowed: [smoke-copilot-aoai-entra]
+    replace-label:
+      allowed-add: [smoke-copilot-aoai-entra]
+      allowed-remove: [smoke]
       allowed-repos: ["github/gh-aw"]
-    remove-labels:
-      allowed: [smoke]
+      allowed-transitions:
+        - from: smoke
+          to: smoke-copilot-aoai-entra
     set-issue-type:
     dispatch-workflow:
       workflows:
@@ -240,8 +242,7 @@ Run each check NOW and mark as ✅/❌. Do NOT create files to automate this —
 5. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
 
 If all tests pass and this workflow was triggered by a pull_request event:
-- Use the `add_labels` safe-output tool to add the label `smoke-copilot-aoai-entra` to the pull request (omit the `item_number` parameter to auto-target the triggering PR)
-- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (omit the `item_number` parameter to auto-target the triggering PR)
+- Use the `replace_label` safe-output tool to replace the label `smoke` with `smoke-copilot-aoai-entra` on the pull request (omit the `item_number` parameter to auto-target the triggering PR)
 
 {{#runtime-import shared/noop-reminder.md}}
 
