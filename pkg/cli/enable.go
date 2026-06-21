@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -321,7 +322,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 		base := filepath.Base(yamlFile)
 
 		// Skip if it's in the keep-enabled set
-		if hasStringKey(keepEnabled, base) {
+		if setutil.Contains(keepEnabled, base) {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
 			}
@@ -330,7 +331,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 
 		// Check if the base name without extension matches
 		nameWithoutExt := strings.TrimSuffix(base, filepath.Ext(base))
-		if hasStringKey(keepEnabled, nameWithoutExt) {
+		if setutil.Contains(keepEnabled, nameWithoutExt) {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
 			}

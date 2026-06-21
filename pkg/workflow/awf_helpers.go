@@ -31,6 +31,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
@@ -786,7 +787,7 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	var names []string
 
 	addUnique := func(name string) {
-		if !hasStringKey(seen, name) {
+		if !setutil.Contains(seen, name) {
 			seen[name] = struct {
 			}{}
 			names = append(names, name)

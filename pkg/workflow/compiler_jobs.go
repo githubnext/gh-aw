@@ -7,12 +7,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+
+	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/goccy/go-yaml"
 )
 
 var compilerJobsLog = logger.New("workflow:compiler_jobs")
@@ -494,7 +496,7 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	sort.Strings(jobNames)
 
 	for _, jobName := range jobNames {
-		if hasStringKey(exclude, jobName) || hasStringKey(currentNeeds, jobName) {
+		if setutil.Contains(exclude, jobName) || setutil.Contains(currentNeeds, jobName) {
 			continue
 		}
 		conclusionJob.Needs = append(conclusionJob.Needs, jobName)
@@ -644,8 +646,8 @@ func (c *Compiler) applyAutomaticActivationDependency(
 	// This ensures custom jobs wait for workflow validation before executing.
 	// Exception: jobs whose outputs are referenced in the markdown body run before activation
 	// (so the activation job can include their outputs in the prompt).
-	isReferencedInMarkdown := hasStringKey(promptReferencedJobs, jobName)
-	isOnNeedsDependency := hasStringKey(onNeedsJobs, jobName)
+	isReferencedInMarkdown := setutil.Contains(promptReferencedJobs, jobName)
+	isOnNeedsDependency := setutil.Contains(onNeedsJobs, jobName)
 
 	if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown && !isOnNeedsDependency {
 		job.Needs = append(job.Needs, string(constants.ActivationJobName))

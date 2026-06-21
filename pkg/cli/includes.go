@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/parser"
@@ -302,7 +303,7 @@ func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts front
 		}
 
 		// Cycle/duplicate prevention: use the fully-resolved remote path as the key.
-		if hasStringKey(opts.seen, remoteFilePath) {
+		if setutil.Contains(opts.seen, remoteFilePath) {
 			remoteWorkflowLog.Printf("Skipping already-seen import: %s", remoteFilePath)
 			continue
 		}
@@ -431,7 +432,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 
 		// Skip if already processed
-		if hasStringKey(seen, filePath) {
+		if setutil.Contains(seen, filePath) {
 			continue
 		}
 		seen[filePath] = struct {

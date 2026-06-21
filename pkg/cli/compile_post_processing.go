@@ -43,6 +43,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -176,7 +177,7 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 		if strings.HasSuffix(existing, ".campaign.lock.yml") {
 			continue
 		}
-		if !hasStringKey(expectedLockFileSet, existing) {
+		if !setutil.Contains(expectedLockFileSet, existing) {
 			orphanedFiles = append(orphanedFiles, existing)
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var compilerMainJobLog = logger.New("workflow:compiler_main_job")
@@ -190,7 +191,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			if slices.Contains(depends, builtinJobName) {
 				continue
 			}
-			if !hasStringKey(builtinsWarned, builtinJobName) && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+			if !setutil.Contains(builtinsWarned, builtinJobName) && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
 				builtinsWarned[builtinJobName] = struct {
 				}{}
 				warningMsg := fmt.Sprintf(

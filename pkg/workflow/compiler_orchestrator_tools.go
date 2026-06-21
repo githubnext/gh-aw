@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
@@ -483,7 +484,7 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 	}
 
 	for eventName := range onMap {
-		if hasStringKey(contentEventKeys, eventName) {
+		if setutil.Contains(contentEventKeys, eventName) {
 			orchestratorToolsLog.Printf("Detected content context: workflow triggered by %s", eventName)
 			return true
 		}

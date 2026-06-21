@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -161,7 +162,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 		if !strings.HasPrefix(name, "agentics-maintenance-") || !strings.HasSuffix(name, ".yml") {
 			continue
 		}
-		if hasStringKey(generatedFiles, name) {
+		if setutil.Contains(generatedFiles, name) {
 			continue
 		}
 		stalePath := filepath.Join(workflowDir, name)

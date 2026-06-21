@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var submitPRReviewLog = logger.New("workflow:submit_pr_review")
@@ -89,7 +90,7 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 			for _, e := range eventsSlice {
 				if eventStr, ok := e.(string); ok {
 					upper := strings.ToUpper(eventStr)
-					if hasStringKey(validEvents, upper) {
+					if setutil.Contains(validEvents, upper) {
 						config.AllowedEvents = append(config.AllowedEvents, upper)
 					} else {
 						submitPRReviewLog.Printf("Ignoring invalid allowed-events value: %s", eventStr)

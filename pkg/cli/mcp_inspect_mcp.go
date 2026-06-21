@@ -11,11 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 var mcpInspectServerLog = logger.New("cli:mcp_inspect_server")
@@ -548,7 +550,7 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 	// Count blocked tools and collect their names
 	var blockedTools []string
 	for _, tool := range info.Tools {
-		if len(info.Config.Allowed) > 0 && !hasStringKey(allowedMap, tool.Name) {
+		if len(info.Config.Allowed) > 0 && !setutil.Contains(allowedMap, tool.Name) {
 			blockedTools = append(blockedTools, tool.Name)
 		}
 	}

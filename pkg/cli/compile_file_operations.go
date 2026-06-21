@@ -40,6 +40,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -165,7 +166,7 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 
 		// Add to unique set
 		for _, workflow := range affected {
-			if !hasStringKey(uniqueWorkflows, workflow) {
+			if !setutil.Contains(uniqueWorkflows, workflow) {
 				uniqueWorkflows[workflow] = struct {
 				}{}
 				workflowsToCompile = append(workflowsToCompile, workflow)

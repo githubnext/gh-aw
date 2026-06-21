@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var schemaValidationLog = logger.New("parser:schema_validation")
@@ -57,7 +58,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 			}
 			continue
 		}
-		if hasStringKey(sharedWorkflowForbiddenFields, key) {
+		if setutil.Contains(sharedWorkflowForbiddenFields, key) {
 			forbiddenFound = append(forbiddenFound, key)
 		}
 	}

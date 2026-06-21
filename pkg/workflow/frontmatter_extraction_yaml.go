@@ -6,10 +6,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/goccy/go-yaml"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var frontmatterLog = logger.New("workflow:frontmatter_extraction")
@@ -674,7 +676,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			commentReason = " # Lock-for-agent processed as issue locking in activation job"
 		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "names:") {
 			// Only comment out names if NOT using native label filtering for this section
-			if !hasStringKey(nativeLabelFilterSections, currentSection) {
+			if !setutil.Contains(nativeLabelFilterSections, currentSection) {
 				shouldComment = true
 				commentReason = " # Label filtering applied via job conditions"
 			}
@@ -682,7 +684,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// Check if we're in a names array (after "names:" line)
 			// Look back to see if the previous uncommented line was "names:"
 			// Only do this if NOT using native label filtering for this section
-			if !hasStringKey(nativeLabelFilterSections, currentSection) {
+			if !setutil.Contains(nativeLabelFilterSections, currentSection) {
 				if len(result) > 0 {
 					for i := range slices.Backward(result) {
 						prevLine := result[i]

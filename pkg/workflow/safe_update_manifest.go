@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var safeUpdateManifestLog = logger.New("workflow:safe_update_manifest")
@@ -76,7 +77,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 	secrets := make([]string, 0, len(secretNames))
 	for _, name := range secretNames {
 		full := normalizeSecretName(name)
-		if !hasStringKey(seen, full) {
+		if !setutil.Contains(seen, full) {
 			seen[full] = struct {
 			}{}
 			secrets = append(secrets, full)
@@ -92,7 +93,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 	}, len(containers))
 	sortedContainers := make([]GHAWManifestContainer, 0, len(containers))
 	for _, c := range containers {
-		if c.Image != "" && !hasStringKey(seenContainers, c.Image) {
+		if c.Image != "" && !setutil.Contains(seenContainers, c.Image) {
 			seenContainers[c.Image] = struct {
 			}{}
 			sortedContainers = append(sortedContainers, c)
@@ -165,7 +166,7 @@ func parseActionRefs(refs []string) []GHAWManifestAction {
 		}
 
 		key := repo + "@" + sha
-		if hasStringKey(seen, key) {
+		if setutil.Contains(seen, key) {
 			continue
 		}
 		seen[key] = struct {

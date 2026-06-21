@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var toolsetsLog = logger.New("workflow:github_toolsets")
@@ -48,7 +49,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			// Add default toolsets
 			toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
 			for _, dt := range DefaultGitHubToolsets {
-				if !hasStringKey(seenToolsets, dt) {
+				if !setutil.Contains(seenToolsets, dt) {
 					expanded = append(expanded, dt)
 					seenToolsets[dt] = struct {
 					}{}
@@ -58,7 +59,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			// Add action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
 			toolsetsLog.Printf("Expanding 'action-friendly' to %d toolsets", len(ActionFriendlyGitHubToolsets))
 			for _, dt := range ActionFriendlyGitHubToolsets {
-				if !hasStringKey(seenToolsets, dt) {
+				if !setutil.Contains(seenToolsets, dt) {
 					expanded = append(expanded, dt)
 					seenToolsets[dt] = struct {
 					}{}
@@ -75,10 +76,10 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 				}{}
 			}
 			for t := range toolsetPermissionsMap {
-				if hasStringKey(excludedMap, t) {
+				if setutil.Contains(excludedMap, t) {
 					continue
 				}
-				if !hasStringKey(seenToolsets, t) {
+				if !setutil.Contains(seenToolsets, t) {
 					expanded = append(expanded, t)
 					seenToolsets[t] = struct {
 					}{}
@@ -86,7 +87,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			}
 		default:
 			// Add individual toolset
-			if !hasStringKey(seenToolsets, toolset) {
+			if !setutil.Contains(seenToolsets, toolset) {
 				expanded = append(expanded, toolset)
 				seenToolsets[toolset] = struct {
 				}{}

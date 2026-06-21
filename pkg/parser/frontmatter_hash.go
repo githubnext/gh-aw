@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
@@ -236,7 +237,7 @@ func extractRelevantTemplateExpressions(markdown string) []string {
 			// Store the full expression including ${{ }}
 			expr := match[0]
 			// Deduplicate expressions
-			if !hasStringKey(seen, expr) {
+			if !setutil.Contains(seen, expr) {
 				expressions = append(expressions, expr)
 				seen[expr] = struct {
 				}{}
@@ -435,7 +436,7 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 		fullPath := filepath.Join(baseDir, importPath)
 
 		// Skip if already visited (cycle detection)
-		if hasStringKey(visited, fullPath) {
+		if setutil.Contains(visited, fullPath) {
 			frontmatterHashLog.Printf("Skipping already-visited import (cycle detection): %s", fullPath)
 			continue
 		}
@@ -493,7 +494,7 @@ func collectImportedBodies(frontmatterText, baseDir string, visited map[string]s
 	for _, importPath := range imports {
 		fullPath := filepath.Join(baseDir, importPath)
 
-		if hasStringKey(visited, fullPath) {
+		if setutil.Contains(visited, fullPath) {
 			continue
 		}
 		visited[fullPath] = struct {

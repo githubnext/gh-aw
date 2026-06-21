@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var includeLog = logger.New("parser:include_processor")
@@ -144,7 +145,7 @@ func resolveDirectiveWithVisited(
 		return includeDirectiveResolution{}, false, fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 	}
 
-	if hasStringKey(visited, fullPath) {
+	if setutil.Contains(visited, fullPath) {
 		includeLog.Printf("Skipping already included file: %s", fullPath)
 		if !extractTools {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
@@ -274,7 +275,7 @@ func collectUnexpectedIncludedFrontmatterFields(frontmatter map[string]any) []st
 	}
 	var unexpectedFields []string
 	for key := range frontmatter {
-		if !hasStringKey(validFields, key) {
+		if !setutil.Contains(validFields, key) {
 			unexpectedFields = append(unexpectedFields, key)
 		}
 	}

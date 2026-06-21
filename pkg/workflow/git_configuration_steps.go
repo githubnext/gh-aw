@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var gitConfigStepsLog = logger.New("workflow:git_configuration_steps")
@@ -82,7 +83,7 @@ func (c *Compiler) generateCredentialsCleanerStep(envVars map[string]struct{}) [
 		lines = append(lines, "        env:\n")
 		// Emit env vars in a stable, deterministic order (knownCredentialLeakingActions order)
 		for _, known := range knownCredentialLeakingActions {
-			if hasStringKey(envVars, known.envVar) {
+			if setutil.Contains(envVars, known.envVar) {
 				lines = append(lines, fmt.Sprintf("          %s: \"true\"\n", known.envVar))
 			}
 		}

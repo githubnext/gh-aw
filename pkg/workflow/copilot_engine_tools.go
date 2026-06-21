@@ -30,6 +30,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var copilotEngineToolsLog = logger.New("workflow:copilot_engine_tools")
@@ -179,7 +180,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle MCP server tools
 	for toolName, toolConfig := range tools {
 		// Skip built-in tools we've already handled
-		if hasStringKey(builtInTools, toolName) {
+		if setutil.Contains(builtInTools, toolName) {
 			continue
 		}
 

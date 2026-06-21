@@ -56,6 +56,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var toolsParserLog = logger.New("workflow:tools_parser")
@@ -174,7 +175,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 
 	customCount := 0
 	for name, config := range toolsMap {
-		if !hasStringKey(knownTools, name) {
+		if !setutil.Contains(knownTools, name) {
 			tools.Custom[name] = parseMCPServerConfig(config)
 			customCount++
 		}
@@ -717,7 +718,7 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 	}
 
 	for key, value := range configMap {
-		if !hasStringKey(knownFields, key) {
+		if !setutil.Contains(knownFields, key) {
 			config.CustomFields[key] = value
 		}
 	}

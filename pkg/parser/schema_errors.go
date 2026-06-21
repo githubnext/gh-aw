@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var schemaErrorsLog = logger.New("parser:schema_errors")
@@ -179,7 +180,7 @@ func synthesizeOneOfTypeConflictMessage(lines []string) string {
 	})
 	var uniqueWantTypes []string
 	for _, t := range wantTypes {
-		if !hasStringKey(seen, t) {
+		if !setutil.Contains(seen, t) {
 			seen[t] = struct {
 			}{}
 			uniqueWantTypes = append(uniqueWantTypes, t)
@@ -426,7 +427,7 @@ func uniqueClosestScopeSuggestions(unknownProps []string, scopes []string) []str
 	})
 	var unique []string
 	for _, s := range allSuggestions {
-		if !hasStringKey(seen, s) {
+		if !setutil.Contains(seen, s) {
 			seen[s] = struct {
 			}{}
 			unique = append(unique, s)

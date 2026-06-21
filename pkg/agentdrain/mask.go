@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
@@ -67,7 +68,7 @@ func FlattenEvent(evt AgentEvent, excludeFields []string) string {
 	}
 
 	keys := sliceutil.FilterMapKeys(evt.Fields, func(k string, _ string) bool {
-		return !hasStringKey(excluded, k)
+		return !setutil.Contains(excluded, k)
 	})
 	sort.Strings(keys)
 

@@ -13,8 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // processImportsFromFrontmatterWithManifestAndSource is the internal implementation that includes source tracking.
@@ -193,7 +195,7 @@ func detectRemoteImportOrigin(filePath string) *remoteImportOrigin {
 }
 
 func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin) error {
-	if !hasStringKey(state.visited, fullPath) {
+	if !setutil.Contains(state.visited, fullPath) {
 		state.visited[fullPath] = struct{}{}
 		state.visitedInputs[fullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{
@@ -464,7 +466,7 @@ func canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir strin
 }
 
 func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, nestedRemoteOrigin *remoteImportOrigin) error {
-	if !hasStringKey(state.visited, nestedFullPath) {
+	if !setutil.Contains(state.visited, nestedFullPath) {
 		state.visited[nestedFullPath] = struct{}{}
 		state.visitedInputs[nestedFullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{

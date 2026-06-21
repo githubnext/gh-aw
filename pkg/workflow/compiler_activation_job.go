@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/goccy/go-yaml"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var compilerActivationJobLog = logger.New("workflow:compiler_activation_job")
@@ -136,12 +138,12 @@ func addActivationInteractionPermissionsMap(
 		return
 	}
 
-	hasIssuesEvent := hasStringKey(eventSet, "issues")
-	hasIssueCommentEvent := hasStringKey(eventSet, "issue_comment")
-	hasPullRequestEvent := hasStringKey(eventSet, "pull_request")
-	hasPullRequestReviewCommentEvent := hasStringKey(eventSet, "pull_request_review_comment")
-	hasDiscussionEvent := hasStringKey(eventSet, "discussion")
-	hasDiscussionCommentEvent := hasStringKey(eventSet, "discussion_comment")
+	hasIssuesEvent := setutil.Contains(eventSet, "issues")
+	hasIssueCommentEvent := setutil.Contains(eventSet, "issue_comment")
+	hasPullRequestEvent := setutil.Contains(eventSet, "pull_request")
+	hasPullRequestReviewCommentEvent := setutil.Contains(eventSet, "pull_request_review_comment")
+	hasDiscussionEvent := setutil.Contains(eventSet, "discussion")
+	hasDiscussionCommentEvent := setutil.Contains(eventSet, "discussion_comment")
 
 	if options.hasReaction {
 		// Reactions on issues, issue comments, and pull requests use issues endpoints.
@@ -312,7 +314,7 @@ func buildCentralizedCommandOnSection(commandEvents []string) string {
 	})
 	for _, mapping := range GetAllCommentEvents() {
 		name := GetActualGitHubEventName(mapping.EventName)
-		if hasStringKey(eventSet, name) && !hasStringKey(seen, name) {
+		if setutil.Contains(eventSet, name) && !setutil.Contains(seen, name) {
 			seen[name] = struct {
 			}{}
 			b.WriteString("  " + name + ":\n    types: [created]\n")
@@ -419,7 +421,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	}{".github": {}, ".agents": {}}
 	registry := GetGlobalEngineRegistry()
 	for _, folder := range registry.GetAllAgentManifestFolders() {
-		if !hasStringKey(defaultSparseCheckoutDirs, folder) {
+		if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
 			extraPaths = append(extraPaths, folder)
 		}
 	}

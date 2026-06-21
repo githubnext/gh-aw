@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflow")
@@ -291,7 +292,7 @@ func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (
 	seen := make(map[string]struct {
 	})
 	for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
-		if url, _ := ep["url"].(string); url != "" && !hasStringKey(seen, url) {
+		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
 			seen[url] = struct {
 			}{}
 			mergedEndpoints = append(mergedEndpoints, ep)
@@ -299,7 +300,7 @@ func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (
 	}
 	mainCount = len(mergedEndpoints)
 	for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
-		if url, _ := ep["url"].(string); url != "" && !hasStringKey(seen, url) {
+		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
 			seen[url] = struct {
 			}{}
 			mergedEndpoints = append(mergedEndpoints, ep)

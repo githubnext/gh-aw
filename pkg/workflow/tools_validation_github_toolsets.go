@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -67,7 +68,7 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 			continue
 		}
 
-		if !hasStringKey(enabledSet, requiredToolset) {
+		if !setutil.Contains(enabledSet, requiredToolset) {
 			githubToolToToolsetLog.Printf("Tool %s requires missing toolset: %s", tool, requiredToolset)
 			missingToolsets[requiredToolset] = append(missingToolsets[requiredToolset], tool)
 		}

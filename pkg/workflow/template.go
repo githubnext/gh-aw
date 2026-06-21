@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var templateLog = logger.New("workflow:template")
@@ -123,7 +124,7 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 	// Add environment variables for extracted expressions (deduplicated by EnvVar)
 	seen := make(map[string]struct{})
 	for _, mapping := range expressionMappings {
-		if hasStringKey(seen, mapping.EnvVar) {
+		if setutil.Contains(seen, mapping.EnvVar) {
 			continue
 		}
 		seen[mapping.EnvVar] = struct{}{}
