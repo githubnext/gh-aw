@@ -4,6 +4,7 @@ package actionpins_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -93,6 +94,11 @@ func TestSpec_PublicAPI_ExtractRepo(t *testing.T) {
 			uses:     "actions/setup-go@cdabf2d4679a00bef48b5a7c69a9b8d0b4f6e3c9",
 			expected: "actions/setup-go",
 		},
+		{
+			name:     "no @ separator returns full string",
+			uses:     "actions/checkout",
+			expected: "actions/checkout",
+		},
 	}
 
 	for _, tt := range tests {
@@ -119,6 +125,11 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 			name:     "extracts sha version",
 			uses:     "actions/setup-go@abc123def456",
 			expected: "abc123def456",
+		},
+		{
+			name:     "no @ separator returns empty string",
+			uses:     "actions/checkout",
+			expected: "",
 		},
 	}
 
@@ -173,6 +184,49 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 	})
 }
 
+// TestSpec_PublicAPI_ResolveActionPin_NilContext validates nil context fallback to embedded pins.
+func TestSpec_PublicAPI_ResolveActionPin_NilContext(t *testing.T) {
+	latestPin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
+	require.True(t, ok, "expected embedded pins for actions/checkout")
+
+	result, err := actionpins.ResolveActionPin("actions/checkout", latestPin.Version, nil)
+	require.NoError(t, err, "nil ctx should still resolve from embedded pins")
+	assert.Equal(t,
+		actionpins.FormatPinnedActionReference("actions/checkout", latestPin.SHA, latestPin.Version),
+		result,
+		"nil ctx should resolve from embedded pins with correct SHA and format")
+}
+
+// TestSpec_PublicAPI_ResolveActionPin_EnforcePinned validates unresolved pin handling in enforce mode.
+func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
+	t.Run("returns error when EnforcePinned=true and pin is unresolved", func(t *testing.T) {
+		var failures []actionpins.ResolutionFailure
+		ctx := &actionpins.PinContext{
+			EnforcePinned: true,
+			Warnings:      make(map[string]bool),
+			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+				failures = append(failures, f)
+			},
+		}
+		_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
+		require.Error(t, err, "enforce mode should return an error when pin is unresolved")
+		assert.Contains(t, err.Error(), "unable to pin action",
+			"enforce mode error should mention unable to pin action")
+		require.Len(t, failures, 1, "failure should be audited when enforce mode errors")
+		assert.Equal(t, actionpins.ResolutionErrorTypePinNotFound, failures[0].ErrorType,
+			"unresolved pin in enforce mode should audit pin_not_found")
+	})
+
+	t.Run("AllowActionRefs downgrades to warning with no error", func(t *testing.T) {
+		ctx := &actionpins.PinContext{EnforcePinned: true, AllowActionRefs: true, Warnings: make(map[string]bool)}
+		result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
+		require.NoError(t, err, "AllowActionRefs should downgrade unresolved pin enforcement to warning")
+		assert.Empty(t, result, "AllowActionRefs downgrade should keep unresolved result empty")
+		assert.True(t, ctx.Warnings[actionpins.FormatCacheKey("does-not-exist/x", "v1")],
+			"AllowActionRefs should record warning dedup key")
+	})
+}
+
 // TestSpec_PublicAPI_ResolveLatestActionPin validates latest-version resolution behavior.
 func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 	t.Run("returns latest pinned reference for known repository", func(t *testing.T) {
@@ -184,19 +238,33 @@ func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 		expected := actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version)
 		assert.Equal(t, expected, result, "should resolve latest pinned reference")
 	})
+
+	t.Run("returns empty string for unknown repository", func(t *testing.T) {
+		result := actionpins.ResolveLatestActionPin("does-not-exist/x", nil)
+		assert.Empty(t, result, "unknown repo should return empty pin")
+	})
 }
 
 // TestSpec_Types_PinContext validates the documented PinContext type fields.
 func TestSpec_Types_PinContext(t *testing.T) {
-	t.Run("can construct PinContext with StrictMode enabled", func(t *testing.T) {
-		ctx := &actionpins.PinContext{StrictMode: true}
-		assert.NotNil(t, ctx)
+	t.Run("strict mode disables non-exact fallback", func(t *testing.T) {
+		ctx := &actionpins.PinContext{StrictMode: true, Warnings: make(map[string]bool)}
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v999", ctx)
+		require.NoError(t, err)
+		assert.Empty(t, result, "strict mode must not fall back to a non-exact version")
 	})
 
-	t.Run("can construct PinContext without resolver for embedded-only lookup", func(t *testing.T) {
-		ctx := &actionpins.PinContext{}
-		assert.NotNil(t, ctx)
-		assert.Nil(t, ctx.Resolver, "nil Resolver enables embedded-only lookup")
+	t.Run("nil resolver enables embedded-only lookup", func(t *testing.T) {
+		latestPin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
+		require.True(t, ok, "expected embedded pins for actions/checkout")
+
+		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		result, err := actionpins.ResolveActionPin("actions/checkout", latestPin.Version, ctx)
+		require.NoError(t, err)
+		assert.Equal(t,
+			actionpins.FormatPinnedActionReference("actions/checkout", latestPin.SHA, latestPin.Version),
+			result,
+			"nil Resolver should use embedded pins")
 	})
 }
 
@@ -251,10 +319,18 @@ func TestSpec_Types_ActionPinsData(t *testing.T) {
 		Entries: map[string]actionpins.ActionPin{
 			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
 		},
+		Containers: map[string]actionpins.ContainerPin{
+			"ghcr.io/example/image:latest": {
+				Image:       "ghcr.io/example/image:latest",
+				Digest:      "sha256:def456",
+				PinnedImage: "ghcr.io/example/image@sha256:def456",
+			},
+		},
 	}
 	assert.Len(t, data.Entries, 1, "ActionPinsData.Entries should hold pin entries")
 	entry := data.Entries["actions/checkout@v5"]
 	assert.Equal(t, "actions/checkout", entry.Repo, "entry Repo should match")
+	assert.Len(t, data.Containers, 1, "ActionPinsData.Containers should hold container pins")
 }
 
 // TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch validates embedded-only pin resolution returns
@@ -395,6 +471,26 @@ func TestSpec_PublicAPI_RecordResolutionFailure(t *testing.T) {
 	assert.Equal(t, "v1", failures[0].Ref, "recorded failure should carry the queried ref")
 }
 
+// TestSpec_PublicAPI_RecordResolutionFailure_DynamicFailed validates dynamic-resolution failure auditing.
+func TestSpec_PublicAPI_RecordResolutionFailure_DynamicFailed(t *testing.T) {
+	var failures []actionpins.ResolutionFailure
+	ctx := &actionpins.PinContext{
+		Resolver: &testSHAResolver{err: errors.New("network error")},
+		Warnings: make(map[string]bool),
+		RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+			failures = append(failures, f)
+		},
+	}
+
+	_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
+	require.NoError(t, err, "dynamic resolver failures should be audited and downgraded to unresolved pin")
+	require.Len(t, failures, 1, "expected one resolution failure to be recorded")
+	assert.Equal(t, actionpins.ResolutionErrorTypeDynamicResolutionFailed, failures[0].ErrorType,
+		"resolver error should classify as dynamic_resolution_failed")
+	assert.Equal(t, "does-not-exist/x", failures[0].Repo, "recorded failure should carry the queried repo")
+	assert.Equal(t, "v1", failures[0].Ref, "recorded failure should carry the queried ref")
+}
+
 // TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
 // are safe after initialization (sync.Once guarantee from the spec).
 func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
@@ -414,10 +510,10 @@ func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
 		<-done
 	}
 
+	require.NotEmpty(t, results[0], "baseline goroutine 0 should return pins")
 	for i := 1; i < goroutines; i++ {
 		assert.NotEmpty(t, results[i], "concurrent GetActionPinsByRepo should return pins for known repo")
 		assert.Len(t, results[i], len(results[0]),
 			"concurrent GetActionPinsByRepo should return same number of pins (goroutine %d vs 0)", i)
 	}
-	assert.NotEmpty(t, results[0], "concurrent GetActionPinsByRepo should return pins for known repo")
 }
